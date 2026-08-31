@@ -78,7 +78,7 @@ public class LoggingTriggerHistoryPluginTest
 
         t.JobKey = new JobKey("name", "group");
 
-        await plugin.TriggerMisfired(A.Fake<IScheduler>(), t);
+        await plugin.TriggerMisfired(t, A.Fake<IScheduler>());
 
         loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
@@ -120,7 +120,7 @@ public class LoggingTriggerHistoryPluginTest
             null);
 
         await plugin.TriggerFired(t, ctx);
-        await plugin.TriggerMisfired(A.Fake<IScheduler>(), t);
+        await plugin.TriggerMisfired(t, A.Fake<IScheduler>());
         await plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
 
         (int EventId, string Message)[] expected =

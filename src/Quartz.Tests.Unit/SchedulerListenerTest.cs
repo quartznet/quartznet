@@ -47,7 +47,7 @@ public class SchedulerListenerTest
             return new ValueTask<bool>(false);
         }
 
-        public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken)
+        public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken)
         {
             return default;
         }

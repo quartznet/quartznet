@@ -2,6 +2,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Core;
 using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit.Configuration;
@@ -38,12 +39,12 @@ public class ListenerRegistrationTest
             manager.GetJobListeners().Should().HaveCount(2,
                 "each registration is its own listener, whatever type the two of them happen to share");
 
-            var reports = manager.GetJobListenerMatchers("reports-audit").Should().ContainSingle().Which;
+            var reports = JobMatchers(manager, "reports-audit").Should().ContainSingle().Which;
             reports.IsMatch(new JobKey("nightly", "reports")).Should().BeTrue();
             reports.IsMatch(new JobKey("nightly", "ingest")).Should().BeFalse(
                 "the matchers a listener was registered with are the ones it must end up with");
 
-            var ingest = manager.GetJobListenerMatchers("ingest-audit").Should().ContainSingle().Which;
+            var ingest = JobMatchers(manager, "ingest-audit").Should().ContainSingle().Which;
             ingest.IsMatch(new JobKey("nightly", "ingest")).Should().BeTrue();
             ingest.IsMatch(new JobKey("nightly", "reports")).Should().BeFalse();
         }
@@ -73,7 +74,7 @@ public class ListenerRegistrationTest
                 "a listener recognised by its registration rather than by its runtime type cannot be attached twice")
                 .Which.Should().BeOfType<DerivedAuditListener>();
 
-            manager.GetJobListenerMatchers("audit").Should().ContainSingle().Which
+            JobMatchers(manager, "audit").Should().ContainSingle().Which
                 .IsMatch(new JobKey("nightly", "reports")).Should().BeTrue();
         }
         finally
@@ -134,11 +135,11 @@ public class ListenerRegistrationTest
         {
             scheduler.ListenerManager.GetJobListeners().Should().ContainSingle(
                 "the builder registration is the same listener, not a second one");
-            scheduler.ListenerManager.GetJobListenerMatchers(nameof(AuditListener)).Should().ContainSingle(
+            JobMatchers(scheduler.ListenerManager, nameof(AuditListener)).Should().ContainSingle(
                 "the service copy carries no matchers, so letting it through would erase the configured ones");
 
             scheduler.ListenerManager.GetTriggerListeners().Should().ContainSingle();
-            scheduler.ListenerManager.GetTriggerListenerMatchers(nameof(AuditTriggerListener)).Should().ContainSingle();
+            TriggerMatchers(scheduler.ListenerManager, nameof(AuditTriggerListener)).Should().ContainSingle();
         }
         finally
         {
@@ -239,6 +240,38 @@ public class ListenerRegistrationTest
         }
     }
 
+    /// <summary>
+    /// The matchers the named job listener was attached with. Matchers are not part of
+    /// <see cref="IListenerManager" /> — they are given at registration and read only by the
+    /// notification path — so this reaches for the implementation the scheduler holds.
+    /// </summary>
+    private static IReadOnlyList<IMatcher<JobKey>> JobMatchers(IListenerManager manager, string listenerName)
+    {
+        foreach (AttachedListener<IJobListener, JobKey> attached in ((ListenerManagerImpl) manager).GetAttachedJobListeners())
+        {
+            if (attached.Name == listenerName)
+            {
+                return attached.Matchers;
+            }
+        }
+
+        return [];
+    }
+
+    /// <inheritdoc cref="JobMatchers" />
+    private static IReadOnlyList<IMatcher<TriggerKey>> TriggerMatchers(IListenerManager manager, string listenerName)
+    {
+        foreach (AttachedListener<ITriggerListener, TriggerKey> attached in ((ListenerManagerImpl) manager).GetAttachedTriggerListeners())
+        {
+            if (attached.Name == listenerName)
+            {
+                return attached.Matchers;
+            }
+        }
+
+        return [];
+    }
+
     private class AuditListener : IJobListener
     {
         public string Name { get; set; } = nameof(AuditListener);
@@ -260,7 +293,7 @@ public class ListenerRegistrationTest
 
         public ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default) => new(false);
 
-        public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
+        public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
         public ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default) => default;
     }

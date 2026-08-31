@@ -47,7 +47,7 @@ public class DashboardHistoryPluginTest
 
         DashboardHistoryPlugin plugin = new(ProviderWith(store), new FakeTimeProvider(Now));
         await plugin.Initialize("history", scheduler);
-        await plugin.TriggerMisfired(scheduler, MisfiringTrigger());
+        await plugin.TriggerMisfired(MisfiringTrigger(), scheduler);
 
         PagedResult<DashboardMisfireEntry> misfires = await store.GetMisfires(
             new DashboardMisfireQuery { SchedulerName = "TestScheduler" });
@@ -72,7 +72,7 @@ public class DashboardHistoryPluginTest
 
         DashboardHistoryPlugin plugin = new(ProviderWith(store), new FakeTimeProvider(Now));
         await plugin.Initialize("history", scheduler);
-        await plugin.TriggerMisfired(scheduler, MisfiringTrigger());
+        await plugin.TriggerMisfired(MisfiringTrigger(), scheduler);
 
         PagedResult<DashboardHistoryEntry> page = await store.GetPage(
             new DashboardHistoryQuery { SchedulerName = "TestScheduler" });
@@ -87,7 +87,7 @@ public class DashboardHistoryPluginTest
         DashboardHistoryPlugin plugin = new(new ServiceCollection().BuildServiceProvider(), new FakeTimeProvider(Now));
         await plugin.Initialize("history", scheduler);
 
-        Func<Task> misfired = async () => await plugin.TriggerMisfired(scheduler, MisfiringTrigger());
+        Func<Task> misfired = async () => await plugin.TriggerMisfired(MisfiringTrigger(), scheduler);
 
         await misfired.Should().NotThrowAsync(
             "an application with no history store has nothing to record to, which is not an error");

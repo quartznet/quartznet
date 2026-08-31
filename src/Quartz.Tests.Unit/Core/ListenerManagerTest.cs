@@ -1,5 +1,4 @@
 using Quartz.Core;
-using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -37,6 +36,38 @@ public class ListenerManagerTest
     public void SetUp()
     {
         _manager = new ListenerManagerImpl();
+    }
+
+    /// <summary>
+    /// The matchers the named job listener was registered with, or none when no listener answers to
+    /// that name — "matches everything" and "there is nothing to match" are both the absence of a
+    /// restriction.
+    /// </summary>
+    private IReadOnlyList<IMatcher<JobKey>> JobMatchers(string listenerName)
+    {
+        foreach (AttachedListener<IJobListener, JobKey> attached in _manager.GetAttachedJobListeners())
+        {
+            if (attached.Name == listenerName)
+            {
+                return attached.Matchers;
+            }
+        }
+
+        return [];
+    }
+
+    /// <inheritdoc cref="JobMatchers" />
+    private IReadOnlyList<IMatcher<TriggerKey>> TriggerMatchers(string listenerName)
+    {
+        foreach (AttachedListener<ITriggerListener, TriggerKey> attached in _manager.GetAttachedTriggerListeners())
+        {
+            if (attached.Name == listenerName)
+            {
+                return attached.Matchers;
+            }
+        }
+
+        return [];
     }
 
     [Test]
@@ -122,7 +153,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
+        var matchers = JobMatchers(tl1b.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -142,7 +173,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
+        var matchers = JobMatchers(tl1.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -165,7 +196,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
+        var matchers = JobMatchers(tl1b.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -185,7 +216,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
+        var matchers = JobMatchers(tl1.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -211,7 +242,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
+        var matchers = JobMatchers(tl1b.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
@@ -237,7 +268,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
+        var matchers = JobMatchers(tl1.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
@@ -329,7 +360,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
+        var matchers = JobMatchers(tl1b.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -354,7 +385,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
+        var matchers = JobMatchers(tl1b.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -380,96 +411,12 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
+        var matchers = JobMatchers(tl1b.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
-        });
-    }
-
-    [Test]
-    public void AddJobListenerMatcher_ListenerNameIsNull()
-    {
-        const string listenerName = null;
-
-        var matcher = GroupMatcher<JobKey>.GroupEquals("foo");
-
-        try
-        {
-            _manager.AddJobListenerMatcher(listenerName, matcher);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
-            });
-        }
-    }
-
-    [Test]
-    public void AddJobListenerMatcher_MatcherIsNull()
-    {
-        const IMatcher<JobKey> matcher = null;
-
-        try
-        {
-            _manager.AddJobListenerMatcher("A", matcher);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(matcher)));
-            });
-        }
-    }
-
-    [Test]
-    public void AddJobListenerMatcher_ListenerWasFirstRegisteredWithoutMatchers()
-    {
-        var tl1 = new TestJobListener("tl1");
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<JobKey>.NameContains("foo");
-
-        _manager.AddJobListener(tl1);
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.AddJobListenerMatcher(tl1.Name, groupMatcher), Is.True);
-            Assert.That(_manager.AddJobListenerMatcher(tl1.Name, nameMatcher), Is.True);
-        });
-
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(2));
-            Assert.That(matchers.SequenceEqual([groupMatcher, nameMatcher]), Is.True);
-        });
-    }
-
-    [Test]
-    public void AddJobListenerMatcher_ListenerWasFirstRegisteredWithMatchers()
-    {
-        var tl1 = new TestJobListener("tl1");
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<JobKey>.NameContains("foo");
-
-        _manager.AddJobListener(tl1, nameMatcher);
-        Assert.That(_manager.AddJobListenerMatcher(tl1.Name, groupMatcher), Is.True);
-
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(2));
-            Assert.That(matchers.SequenceEqual([nameMatcher, groupMatcher]), Is.True);
         });
     }
 
@@ -547,26 +494,6 @@ public class ListenerManagerTest
     }
 
     [Test]
-    public void GetJobListenerMatchers_ListenerNameIsNull()
-    {
-        const string listenerName = null;
-
-        try
-        {
-            _manager.GetJobListenerMatchers(listenerName);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
-            });
-        }
-    }
-
-    [Test]
     public void RemoveJobListener_NameIsNull()
     {
         const string name = null;
@@ -602,10 +529,10 @@ public class ListenerManagerTest
         Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1));
 
-        var matchersTl2 = _manager.GetJobListenerMatchers(tl2.Name);
+        var matchersTl2 = JobMatchers(tl2.Name);
         Assert.That(matchersTl2, Is.Empty);
 
-        var matchersTl1 = _manager.GetJobListenerMatchers(tl1.Name);
+        var matchersTl1 = JobMatchers(tl1.Name);
         Assert.That(matchersTl1, Is.Not.Null);
         Assert.That(matchersTl1.SequenceEqual([groupMatcher]), Is.True);
     }
@@ -631,10 +558,10 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
-        var matchersTl2 = _manager.GetJobListenerMatchers(tl2.Name);
+        var matchersTl2 = JobMatchers(tl2.Name);
         Assert.That(matchersTl2, Is.Empty);
 
-        var matchersTl1 = _manager.GetJobListenerMatchers(tl1.Name);
+        var matchersTl1 = JobMatchers(tl1.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchersTl1, Is.Not.Null);
@@ -654,7 +581,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[1], Is.SameAs(tl2));
         });
 
-        matchersTl2 = _manager.GetJobListenerMatchers(tl2.Name);
+        matchersTl2 = JobMatchers(tl2.Name);
         Assert.That(matchersTl2, Is.Empty);
     }
 
@@ -675,259 +602,6 @@ public class ListenerManagerTest
             Assert.That(jobListeners, Is.Not.Null);
             Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
-        });
-    }
-
-    [Test]
-    public void RemoveJobListenerMatcher_ListenerNameIsNull()
-    {
-        const string listenerName = null;
-
-        var matcher = GroupMatcher<JobKey>.GroupEquals("foo");
-
-        try
-        {
-            _manager.RemoveJobListenerMatcher(listenerName, matcher);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
-            });
-        }
-    }
-
-    [Test]
-    public void RemoveJobListenerMatcher_MatcherIsNull()
-    {
-        const IMatcher<JobKey> matcher = null;
-
-        try
-        {
-            _manager.RemoveJobListenerMatcher("A", matcher);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(matcher)));
-            });
-        }
-    }
-
-    [Test]
-    public void RemoveJobListenerMatcher_MatcherWasAddedForSpecifiedListener()
-    {
-        var tl1 = new TestJobListener("tl1");
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<JobKey>.NameContains("foo");
-
-        _manager.AddJobListener(tl1, groupMatcher, nameMatcher);
-
-        Assert.That(_manager.RemoveJobListenerMatcher(tl1.Name, groupMatcher), Is.True);
-
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
-
-            Assert.That(_manager.RemoveJobListenerMatcher(tl1.Name, nameMatcher), Is.True);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void RemoveJobListenerMatcher_MatcherWasNotAddedForSpecifiedListener()
-    {
-        var tl1 = new TestJobListener("tl1");
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<JobKey>.NameContains("foo");
-
-        _manager.AddJobListener(tl1);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.RemoveJobListenerMatcher(tl1.Name, groupMatcher), Is.False);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
-        });
-
-        _manager.AddJobListenerMatcher(tl1.Name, nameMatcher);
-
-        Assert.That(_manager.RemoveJobListenerMatcher(tl1.Name, groupMatcher), Is.False);
-
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
-        });
-    }
-
-    [Test]
-    public void RemoveJobListenerMatcher_JobListenerIsNotRegistered()
-    {
-        const string listenerName = "A";
-
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.RemoveJobListenerMatcher(listenerName, groupMatcher), Is.False);
-            Assert.That(_manager.GetJobListenerMatchers(listenerName), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetJobListenerMatchers_ListenerNameIsNull()
-    {
-        const string listenerName = null;
-
-        var matchers = new[] { GroupMatcher<JobKey>.GroupEquals("foo") };
-
-        try
-        {
-            _manager.SetJobListenerMatchers(listenerName, matchers);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
-            });
-        }
-    }
-
-    [Test]
-    public void SetJobListenerMatchers_MatchersIsNull()
-    {
-        const IReadOnlyCollection<IMatcher<JobKey>> matchers = null;
-
-        try
-        {
-            _manager.SetJobListenerMatchers("A", matchers);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(matchers)));
-            });
-        }
-    }
-
-    [Test]
-    public void SetJobListenerMatchers_MatchersIsEmpty_ListenerDoesNotExist()
-    {
-        var tl1 = new TestJobListener("tl1");
-        var setMatchers = Array.Empty<IMatcher<JobKey>>();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.False);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetJobListenerMatchers_MatchersIsEmpty_ListenerHasNoMatchers()
-    {
-        var tl1 = new TestJobListener("tl1");
-        var setMatchers = Array.Empty<IMatcher<JobKey>>();
-
-        _manager.AddJobListener(tl1);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.True);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetJobListenerMatchers_MatchersIsEmpty_ListenerHasMatchers()
-    {
-        var tl1 = new TestJobListener("tl1");
-
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-        var setMatchers = Array.Empty<IMatcher<JobKey>>();
-
-        _manager.AddJobListener(tl1, groupMatcher);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.True);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetJobListenerMatchers_MatchersIsNotEmpty_ListenerDoesNotExist()
-    {
-        var tl1 = new TestJobListener("tl1");
-
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<JobKey>.NameContains("foo");
-        var setMatchers = new IMatcher<JobKey>[] { groupMatcher, nameMatcher };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.False);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetJobListenerMatchers_MatchersIsNotEmpty_ListenerHasNoMatchers()
-    {
-        var tl1 = new TestJobListener("tl1");
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<JobKey>.NameContains("foo");
-        var setMatchers = new IMatcher<JobKey>[] { groupMatcher, nameMatcher };
-
-        _manager.AddJobListener(tl1);
-
-        Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.True);
-
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(setMatchers.Length));
-            Assert.That(matchers.SequenceEqual(setMatchers), Is.True);
-        });
-    }
-
-    [Test]
-    public void SetJobListenerMatchers_MatchersIsNotEmpty_ListenerHasMatchers()
-    {
-        var tl1 = new TestJobListener("tl1");
-
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<JobKey>.NameContains("foo");
-        var setMatchers = new IMatcher<JobKey>[] { nameMatcher };
-
-        _manager.AddJobListener(tl1, groupMatcher);
-
-        Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.True);
-
-        var matchers = _manager.GetJobListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(setMatchers.Length));
-            Assert.That(matchers.SequenceEqual(setMatchers), Is.True);
         });
     }
 
@@ -1011,7 +685,7 @@ public class ListenerManagerTest
         Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1b));
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
+        var matchers = TriggerMatchers(tl1b.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -1029,7 +703,7 @@ public class ListenerManagerTest
         Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1));
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
+        var matchers = TriggerMatchers(tl1.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -1049,7 +723,7 @@ public class ListenerManagerTest
         Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1b));
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
+        var matchers = TriggerMatchers(tl1b.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -1066,7 +740,7 @@ public class ListenerManagerTest
         Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1));
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
+        var matchers = TriggerMatchers(tl1.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -1092,7 +766,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
+        var matchers = TriggerMatchers(tl1b.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
@@ -1118,7 +792,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
+        var matchers = TriggerMatchers(tl1.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
@@ -1210,7 +884,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
+        var matchers = TriggerMatchers(tl1b.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -1235,7 +909,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
+        var matchers = TriggerMatchers(tl1b.Name);
         Assert.That(matchers, Is.Empty);
     }
 
@@ -1261,96 +935,12 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
-        var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
+        var matchers = TriggerMatchers(tl1b.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
-        });
-    }
-
-    [Test]
-    public void AddTriggerListenerMatcher_ListenerNameIsNull()
-    {
-        const string listenerName = null;
-
-        var matcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-
-        try
-        {
-            _manager.AddTriggerListenerMatcher(listenerName, matcher);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
-            });
-        }
-    }
-
-    [Test]
-    public void AddTriggerListenerMatcher_MatcherIsNull()
-    {
-        const IMatcher<TriggerKey> matcher = null;
-
-        try
-        {
-            _manager.AddTriggerListenerMatcher("A", matcher);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(matcher)));
-            });
-        }
-    }
-
-    [Test]
-    public void AddTriggerListenerMatcher_ListenerWasFirstRegisteredWithoutMatchers()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<TriggerKey>.NameContains("foo");
-
-        _manager.AddTriggerListener(tl1);
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.AddTriggerListenerMatcher(tl1.Name, groupMatcher), Is.True);
-            Assert.That(_manager.AddTriggerListenerMatcher(tl1.Name, nameMatcher), Is.True);
-        });
-
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(2));
-            Assert.That(matchers.SequenceEqual([groupMatcher, nameMatcher]), Is.True);
-        });
-    }
-
-    [Test]
-    public void AddTriggerListenerMatcher_ListenerWasFirstRegisteredWithMatchers()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<TriggerKey>.NameContains("foo");
-
-        _manager.AddTriggerListener(tl1, nameMatcher);
-        Assert.That(_manager.AddTriggerListenerMatcher(tl1.Name, groupMatcher), Is.True);
-
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(2));
-            Assert.That(matchers.SequenceEqual([nameMatcher, groupMatcher]), Is.True);
         });
     }
 
@@ -1428,26 +1018,6 @@ public class ListenerManagerTest
     }
 
     [Test]
-    public void GetTriggerListenerMatchers_ListenerNameIsNull()
-    {
-        const string listenerName = null;
-
-        try
-        {
-            _manager.GetTriggerListenerMatchers(listenerName);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
-            });
-        }
-    }
-
-    [Test]
     public void RemoveTriggerListener_NameIsNull()
     {
         const string name = null;
@@ -1486,10 +1056,10 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
-        var matchersTl2 = _manager.GetTriggerListenerMatchers(tl2.Name);
+        var matchersTl2 = TriggerMatchers(tl2.Name);
         Assert.That(matchersTl2, Is.Empty);
 
-        var matchersTl1 = _manager.GetTriggerListenerMatchers(tl1.Name);
+        var matchersTl1 = TriggerMatchers(tl1.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchersTl1, Is.Not.Null);
@@ -1518,10 +1088,10 @@ public class ListenerManagerTest
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
-        var matchersTl2 = _manager.GetTriggerListenerMatchers(tl2.Name);
+        var matchersTl2 = TriggerMatchers(tl2.Name);
         Assert.That(matchersTl2, Is.Empty);
 
-        var matchersTl1 = _manager.GetTriggerListenerMatchers(tl1.Name);
+        var matchersTl1 = TriggerMatchers(tl1.Name);
         Assert.Multiple(() =>
         {
             Assert.That(matchersTl1, Is.Not.Null);
@@ -1541,7 +1111,7 @@ public class ListenerManagerTest
             Assert.That(jobListeners[1], Is.SameAs(tl2));
         });
 
-        matchersTl2 = _manager.GetTriggerListenerMatchers(tl2.Name);
+        matchersTl2 = TriggerMatchers(tl2.Name);
         Assert.That(matchersTl2, Is.Empty);
     }
 
@@ -1562,259 +1132,6 @@ public class ListenerManagerTest
             Assert.That(jobListeners, Is.Not.Null);
             Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
-        });
-    }
-
-    [Test]
-    public void RemoveTriggerListenerMatcher_ListenerNameIsNull()
-    {
-        const string listenerName = null;
-
-        var matcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-
-        try
-        {
-            _manager.RemoveTriggerListenerMatcher(listenerName, matcher);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
-            });
-        }
-    }
-
-    [Test]
-    public void RemoveTriggerListenerMatcher_MatcherIsNull()
-    {
-        const IMatcher<TriggerKey> matcher = null;
-
-        try
-        {
-            _manager.RemoveTriggerListenerMatcher("A", matcher);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(matcher)));
-            });
-        }
-    }
-
-    [Test]
-    public void RemoveTriggerListenerMatcher_MatcherWasAddedForSpecifiedListener()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<TriggerKey>.NameContains("foo");
-
-        _manager.AddTriggerListener(tl1, groupMatcher, nameMatcher);
-
-        Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, groupMatcher), Is.True);
-
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
-
-            Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, nameMatcher), Is.True);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void RemoveTriggerListenerMatcher_MatcherWasNotAddedForSpecifiedListener()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<TriggerKey>.NameContains("foo");
-
-        _manager.AddTriggerListener(tl1);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, groupMatcher), Is.False);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
-        });
-
-        _manager.AddTriggerListenerMatcher(tl1.Name, nameMatcher);
-
-        Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, groupMatcher), Is.False);
-
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
-        });
-    }
-
-    [Test]
-    public void RemoveTriggerListenerMatcher_TriggerListenerIsNotRegistered()
-    {
-        const string listenerName = "A";
-
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.RemoveTriggerListenerMatcher(listenerName, groupMatcher), Is.False);
-            Assert.That(_manager.GetTriggerListenerMatchers(listenerName), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetTriggerListenerMatchers_ListenerNameIsNull()
-    {
-        const string listenerName = null;
-
-        var matchers = new[] { GroupMatcher<TriggerKey>.GroupEquals("foo") };
-
-        try
-        {
-            _manager.SetTriggerListenerMatchers(listenerName, matchers);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
-            });
-        }
-    }
-
-    [Test]
-    public void SetTriggerListenerMatchers_MatchersIsNull()
-    {
-        const IReadOnlyCollection<IMatcher<TriggerKey>> matchers = null;
-
-        try
-        {
-            _manager.SetTriggerListenerMatchers("A", matchers);
-            Assert.Fail();
-        }
-        catch (ArgumentNullException ex)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.InnerException, Is.Null);
-                Assert.That(ex.ParamName, Is.EqualTo(nameof(matchers)));
-            });
-        }
-    }
-
-    [Test]
-    public void SetTriggerListenerMatchers_MatchersIsEmpty_ListenerDoesNotExist()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-        var setMatchers = Array.Empty<IMatcher<TriggerKey>>();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.False);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetTriggerListenerMatchers_MatchersIsEmpty_ListenerHasNoMatchers()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-        var setMatchers = Array.Empty<IMatcher<TriggerKey>>();
-
-        _manager.AddTriggerListener(tl1);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.True);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetTriggerListenerMatchers_MatchersIsEmpty_ListenerHasMatchers()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-        var setMatchers = Array.Empty<IMatcher<TriggerKey>>();
-
-        _manager.AddTriggerListener(tl1, groupMatcher);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.True);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetTriggerListenerMatchers_MatchersIsNotEmpty_ListenerDoesNotExist()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<TriggerKey>.NameContains("foo");
-        var setMatchers = new IMatcher<TriggerKey>[] { groupMatcher, nameMatcher };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.False);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void SetTriggerListenerMatchers_MatchersIsNotEmpty_ListenerHasNoMatchers()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<TriggerKey>.NameContains("foo");
-        var setMatchers = new IMatcher<TriggerKey>[] { groupMatcher, nameMatcher };
-
-        _manager.AddTriggerListener(tl1);
-
-        Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.True);
-
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(setMatchers.Length));
-            Assert.That(matchers.SequenceEqual(setMatchers), Is.True);
-        });
-    }
-
-    [Test]
-    public void SetTriggerListenerMatchers_MatchersIsNotEmpty_ListenerHasMatchers()
-    {
-        var tl1 = new TestTriggerListener("tl1");
-
-        var groupMatcher = GroupMatcher<TriggerKey>.GroupEquals("foo");
-        var nameMatcher = NameMatcher<TriggerKey>.NameContains("foo");
-        var setMatchers = new IMatcher<TriggerKey>[] { nameMatcher };
-
-        _manager.AddTriggerListener(tl1, groupMatcher);
-
-        Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.True);
-
-        var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
-        Assert.Multiple(() =>
-        {
-            Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Count.EqualTo(setMatchers.Length));
-            Assert.That(matchers.SequenceEqual(setMatchers), Is.True);
         });
     }
 

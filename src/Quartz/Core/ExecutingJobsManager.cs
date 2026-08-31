@@ -11,33 +11,22 @@ namespace Quartz.Core;
 /// <see cref="QuartzScheduler.NumberOfJobsExecutingHere" /> counts.
 /// </summary>
 /// <remarks>
-/// It is the scheduler's built-in job listener, and it is told about the same two moments a user
-/// listener is — but directly, rather than through the loop that notifies them. A user listener that
-/// throws abandons that loop, and bookkeeping carried along with it would leave a firing listed as
-/// executing for as long as the process lived (#3502). <see cref="FiringStarted" /> and
-/// <see cref="FiringEnded" /> are the members the scheduler calls, and they are synchronous because
-/// there has never been anything in them to await.
+/// It is told about the same two moments a user job listener is — but directly, rather than through
+/// the loop that notifies them. A user listener that throws abandons that loop, and bookkeeping
+/// carried along with it would leave a firing listed as executing for as long as the process lived
+/// (#3502). <see cref="FiringStarted" /> and <see cref="FiringEnded" /> are the members the scheduler
+/// calls, and they are synchronous because there has never been anything in them to await.
+/// <para>
+/// It used to implement <see cref="IJobListener" /> and be notified as one. Nothing has registered it
+/// as a listener since the scheduler started calling it directly, so the interface, the name a
+/// listener needs to be registered under, and its three notification bodies were all shape without a
+/// caller.
+/// </para>
 /// </remarks>
-internal sealed class ExecutingJobsManager : IJobListener
+internal sealed class ExecutingJobsManager
 {
     private readonly ConcurrentDictionary<string, IJobExecutionContext> executingJobs = new ConcurrentDictionary<string, IJobExecutionContext>();
     private int numJobsFired;
-
-    /// <summary>
-    /// Initializes a new <see cref="ExecutingJobsManager"/> instance.
-    /// </summary>
-    public ExecutingJobsManager()
-    {
-        Name = GetType().ToString();
-    }
-
-    /// <summary>
-    /// Get the name of the <see cref="IJobListener" />.
-    /// </summary>
-    /// <value>
-    /// The name of the <see cref="IJobListener" />.
-    /// </value>
-    public string Name { get; }
 
     /// <summary>
     /// Gets the number of jobs that are currently executing.
@@ -95,28 +84,5 @@ internal sealed class ExecutingJobsManager : IJobListener
     public void FiringEnded(IJobExecutionContext context)
     {
         executingJobs.TryRemove(((IOperableTrigger) context.Trigger).FireInstanceId, out _);
-    }
-
-    public ValueTask JobToBeExecuted(
-        IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        FiringStarted(context);
-        return default;
-    }
-
-    public ValueTask JobWasExecuted(IJobExecutionContext context,
-        JobExecutionException? jobException,
-        CancellationToken cancellationToken = default)
-    {
-        FiringEnded(context);
-        return default;
-    }
-
-    public ValueTask JobExecutionVetoed(
-        IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        return default;
     }
 }

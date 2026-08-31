@@ -5,15 +5,19 @@ namespace Quartz.Core;
 /// <summary>
 /// Default concrete implementation of <see cref="IListenerManager" />.
 /// </summary>
+/// <remarks>
+/// A job or trigger listener is held as an <see cref="AttachedListener{TListener,TKey}" />, so the
+/// matchers it was attached with travel with it. Matchers are settled when the listener is attached
+/// and are not editable afterwards: a listener that has to hear about something else is attached
+/// again, under the same name, with the matchers it needs.
+/// </remarks>
 internal sealed class ListenerManagerImpl : IListenerManager
 {
     private readonly Lock globalJobListenerLock = new();
-    private OrderedDictionary<string, IJobListener>? globalJobListeners;
-    private Dictionary<string, List<IMatcher<JobKey>>>? globalJobListenersMatchers;
+    private OrderedDictionary<string, AttachedListener<IJobListener, JobKey>>? globalJobListeners;
 
     private readonly Lock globalTriggerListenerLock = new();
-    private OrderedDictionary<string, ITriggerListener>? globalTriggerListeners;
-    private Dictionary<string, List<IMatcher<TriggerKey>>>? globalTriggerListenersMatchers;
+    private OrderedDictionary<string, AttachedListener<ITriggerListener, TriggerKey>>? globalTriggerListeners;
 
     private readonly Lock schedulerListenerLock = new();
     private OrderedDictionary<string, ISchedulerListener>? schedulerListeners;
@@ -27,156 +31,17 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
         VerifyShape(jobListener, typeof(IJobListener));
 
-        if (string.IsNullOrEmpty(jobListener.Name))
+        string name = jobListener.Name;
+        if (string.IsNullOrEmpty(name))
         {
             Throw.ArgumentException($"{nameof(jobListener.Name)} cannot be null or empty.", nameof(jobListener));
         }
 
         lock (globalJobListenerLock)
         {
-            // Add or replace the job listener
-            globalJobListeners ??= new OrderedDictionary<string, IJobListener>();
-            globalJobListeners[jobListener.Name] = jobListener;
-
-            if (matchers is not null && matchers.Count > 0)
-            {
-                // Add or replace the matchers for the job listener
-                globalJobListenersMatchers ??= new Dictionary<string, List<IMatcher<JobKey>>>();
-                globalJobListenersMatchers[jobListener.Name] = new List<IMatcher<JobKey>>(matchers);
-            }
-            else
-            {
-                // Remove any registered matchers for the job listener
-                RemoveJobListenerMatchers(jobListener.Name);
-            }
-        }
-    }
-
-    public bool AddJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher)
-    {
-        if (listenerName is null)
-        {
-            Throw.ArgumentNullException(nameof(listenerName));
-        }
-
-        if (matcher is null)
-        {
-            Throw.ArgumentNullException(nameof(matcher));
-        }
-
-        lock (globalJobListenerLock)
-        {
-            if (globalJobListenersMatchers is null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
-            {
-                // Return false if no job listener is registered with the specified name
-                if (globalJobListeners is null || !globalJobListeners.ContainsKey(listenerName))
-                {
-                    return false;
-                }
-
-                // We may be adding the first matcher for any job listener, so make sure globalJobListenersMatchers
-                // is initialized
-                globalJobListenersMatchers ??= new Dictionary<string, List<IMatcher<JobKey>>>();
-
-                // We're adding the first matcher for the specified job listener
-                matchers = [];
-                globalJobListenersMatchers.Add(listenerName, matchers);
-            }
-
-            matchers.Add(matcher);
-            return true;
-        }
-    }
-
-    public bool RemoveJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher)
-    {
-        if (listenerName is null)
-        {
-            Throw.ArgumentNullException(nameof(listenerName));
-        }
-
-        if (matcher is null)
-        {
-            Throw.ArgumentNullException(nameof(matcher));
-        }
-
-        if (globalJobListenersMatchers is null)
-        {
-            return false;
-        }
-
-        lock (globalJobListenerLock)
-        {
-            if (globalJobListenersMatchers is null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
-            {
-                return false;
-            }
-
-            var removed = matchers.Remove(matcher);
-
-            if (removed && matchers.Count == 0)
-            {
-                RemoveJobListenerMatchers(listenerName);
-            }
-
-            return removed;
-        }
-    }
-
-    public IReadOnlyList<IMatcher<JobKey>> GetJobListenerMatchers(string listenerName)
-    {
-        if (listenerName is null)
-        {
-            Throw.ArgumentNullException(nameof(listenerName));
-        }
-
-        if (globalJobListenersMatchers is null)
-        {
-            return [];
-        }
-
-        lock (globalJobListenerLock)
-        {
-            if (globalJobListenersMatchers is null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
-            {
-                return [];
-            }
-
-            return matchers.ToArray();
-        }
-    }
-
-    public bool SetJobListenerMatchers(string listenerName, IReadOnlyCollection<IMatcher<JobKey>> matchers)
-    {
-        if (listenerName is null)
-        {
-            Throw.ArgumentNullException(nameof(listenerName));
-        }
-
-        if (matchers is null)
-        {
-            Throw.ArgumentNullException(nameof(matchers));
-        }
-
-        lock (globalJobListenerLock)
-        {
-            if (globalJobListeners is null || !globalJobListeners.ContainsKey(listenerName))
-            {
-                return false;
-            }
-
-            if (matchers.Count == 0)
-            {
-                RemoveJobListenerMatchers(listenerName);
-            }
-            else
-            {
-                // Add or replace the matchers for the job listener
-                globalJobListenersMatchers ??= new Dictionary<string, List<IMatcher<JobKey>>>();
-                globalJobListenersMatchers[listenerName] = new List<IMatcher<JobKey>>(matchers);
-            }
-
-            return true;
+            // Add or replace the job listener, together with the matchers it is to be selected by
+            globalJobListeners ??= new OrderedDictionary<string, AttachedListener<IJobListener, JobKey>>();
+            globalJobListeners[name] = new AttachedListener<IJobListener, JobKey>(name, jobListener, Copy(matchers));
         }
     }
 
@@ -199,17 +64,11 @@ internal sealed class ListenerManagerImpl : IListenerManager
                 return false;
             }
 
-            var removed = globalJobListeners.Remove(name);
+            bool removed = globalJobListeners.Remove(name);
 
-            // When we've removed a job listener, make sure to also remove associated matchers
-            if (removed)
+            if (removed && globalJobListeners.Count == 0)
             {
-                RemoveJobListenerMatchers(name);
-
-                if (globalJobListeners.Count == 0)
-                {
-                    globalJobListeners = null;
-                }
+                globalJobListeners = null;
             }
 
             return removed;
@@ -225,8 +84,36 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
         lock (globalJobListenerLock)
         {
-            return globalJobListeners is not null ? globalJobListeners.Values.ToArray()
-                : [];
+            if (globalJobListeners is null)
+            {
+                return [];
+            }
+
+            IJobListener[] listeners = new IJobListener[globalJobListeners.Count];
+            int index = 0;
+            foreach (AttachedListener<IJobListener, JobKey> attached in globalJobListeners.Values)
+            {
+                listeners[index++] = attached.Listener;
+            }
+
+            return listeners;
+        }
+    }
+
+    /// <summary>
+    /// The job listeners with the matchers each of them was attached with, which is what the
+    /// notification path needs and the only place the pairing is read.
+    /// </summary>
+    internal AttachedListener<IJobListener, JobKey>[] GetAttachedJobListeners()
+    {
+        if (globalJobListeners is null)
+        {
+            return [];
+        }
+
+        lock (globalJobListenerLock)
+        {
+            return globalJobListeners is not null ? [.. globalJobListeners.Values] : [];
         }
     }
 
@@ -240,12 +127,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
         lock (globalJobListenerLock)
         {
             // Avoid initializing globalJobListeners when no job listeners have been added
-            if (globalJobListeners is null || !globalJobListeners.TryGetValue(name, out var jobListener))
+            if (globalJobListeners is null || !globalJobListeners.TryGetValue(name, out AttachedListener<IJobListener, JobKey> attached))
             {
                 return null;
             }
 
-            return jobListener;
+            return attached.Listener;
         }
     }
 
@@ -258,156 +145,17 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
         VerifyShape(triggerListener, typeof(ITriggerListener));
 
-        if (string.IsNullOrEmpty(triggerListener.Name))
+        string name = triggerListener.Name;
+        if (string.IsNullOrEmpty(name))
         {
             Throw.ArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
         }
 
         lock (globalTriggerListenerLock)
         {
-            // Add or replace the trigger listener
-            globalTriggerListeners ??= new OrderedDictionary<string, ITriggerListener>();
-            globalTriggerListeners[triggerListener.Name] = triggerListener;
-
-            if (matchers is not null && matchers.Count > 0)
-            {
-                // Add or replace the matchers for the trigger listener
-                globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
-                globalTriggerListenersMatchers[triggerListener.Name] = new List<IMatcher<TriggerKey>>(matchers);
-            }
-            else
-            {
-                // Remove any registered matchers for the trigger listener
-                RemoveTriggerListenerMatchers(triggerListener.Name);
-            }
-        }
-    }
-
-    public bool AddTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher)
-    {
-        if (listenerName is null)
-        {
-            Throw.ArgumentNullException(nameof(listenerName));
-        }
-
-        if (matcher is null)
-        {
-            Throw.ArgumentNullException(nameof(matcher));
-        }
-
-        lock (globalTriggerListenerLock)
-        {
-            if (globalTriggerListenersMatchers is null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
-            {
-                // Return false if no trigger listener is registered with the specified name
-                if (globalTriggerListeners is null || !globalTriggerListeners.ContainsKey(listenerName))
-                {
-                    return false;
-                }
-
-                // We may be adding the first matcher for any job listener, so make sure globalJobListenersMatchers
-                // is initialized
-                globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
-
-                // We're adding the first matcher for the specified job listener
-                matchers = [];
-                globalTriggerListenersMatchers.Add(listenerName, matchers);
-            }
-
-            matchers.Add(matcher);
-            return true;
-        }
-    }
-
-    public bool RemoveTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher)
-    {
-        if (listenerName is null)
-        {
-            Throw.ArgumentNullException(nameof(listenerName));
-        }
-
-        if (matcher is null)
-        {
-            Throw.ArgumentNullException(nameof(matcher));
-        }
-
-        if (globalTriggerListenersMatchers is null)
-        {
-            return false;
-        }
-
-        lock (globalTriggerListenerLock)
-        {
-            if (globalTriggerListenersMatchers is null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
-            {
-                return false;
-            }
-
-            var removed = matchers.Remove(matcher);
-
-            if (removed && matchers.Count == 0)
-            {
-                RemoveTriggerListenerMatchers(listenerName);
-            }
-
-            return removed;
-        }
-    }
-
-    public IReadOnlyList<IMatcher<TriggerKey>> GetTriggerListenerMatchers(string listenerName)
-    {
-        if (listenerName is null)
-        {
-            Throw.ArgumentNullException(nameof(listenerName));
-        }
-
-        if (globalTriggerListenersMatchers is null)
-        {
-            return [];
-        }
-
-        lock (globalTriggerListenerLock)
-        {
-            if (globalTriggerListenersMatchers is null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
-            {
-                return [];
-            }
-
-            return matchers.ToArray();
-        }
-    }
-
-    public bool SetTriggerListenerMatchers(string listenerName, IReadOnlyCollection<IMatcher<TriggerKey>> matchers)
-    {
-        if (listenerName is null)
-        {
-            Throw.ArgumentNullException(nameof(listenerName));
-        }
-
-        if (matchers is null)
-        {
-            Throw.ArgumentNullException(nameof(matchers));
-        }
-
-        lock (globalTriggerListenerLock)
-        {
-            if (globalTriggerListeners is null || !globalTriggerListeners.ContainsKey(listenerName))
-            {
-                return false;
-            }
-
-            if (matchers.Count == 0)
-            {
-                RemoveTriggerListenerMatchers(listenerName);
-            }
-            else
-            {
-                // Add or replace the matchers for the job listener
-                globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
-                globalTriggerListenersMatchers[listenerName] = new List<IMatcher<TriggerKey>>(matchers);
-            }
-
-            return true;
+            // Add or replace the trigger listener, together with the matchers it is to be selected by
+            globalTriggerListeners ??= new OrderedDictionary<string, AttachedListener<ITriggerListener, TriggerKey>>();
+            globalTriggerListeners[name] = new AttachedListener<ITriggerListener, TriggerKey>(name, triggerListener, Copy(matchers));
         }
     }
 
@@ -430,21 +178,14 @@ internal sealed class ListenerManagerImpl : IListenerManager
                 return false;
             }
 
-            var removed = globalTriggerListeners.Remove(name);
+            bool removed = globalTriggerListeners.Remove(name);
 
-            // When we've removed a job listener, make sure to also remove associated matchers
-            if (removed)
+            if (removed && globalTriggerListeners.Count == 0)
             {
-                RemoveTriggerListenerMatchers(name);
-
-                if (globalTriggerListeners.Count == 0)
-                {
-                    globalTriggerListeners = null;
-                }
+                globalTriggerListeners = null;
             }
 
             return removed;
-
         }
     }
 
@@ -457,9 +198,36 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
         lock (globalTriggerListenerLock)
         {
-            return globalTriggerListeners is not null
-                ? [.. globalTriggerListeners.Values]
-                : [];
+            if (globalTriggerListeners is null)
+            {
+                return [];
+            }
+
+            ITriggerListener[] listeners = new ITriggerListener[globalTriggerListeners.Count];
+            int index = 0;
+            foreach (AttachedListener<ITriggerListener, TriggerKey> attached in globalTriggerListeners.Values)
+            {
+                listeners[index++] = attached.Listener;
+            }
+
+            return listeners;
+        }
+    }
+
+    /// <summary>
+    /// The trigger listeners with the matchers each of them was attached with, which is what the
+    /// notification path needs and the only place the pairing is read.
+    /// </summary>
+    internal AttachedListener<ITriggerListener, TriggerKey>[] GetAttachedTriggerListeners()
+    {
+        if (globalTriggerListeners is null)
+        {
+            return [];
+        }
+
+        lock (globalTriggerListenerLock)
+        {
+            return globalTriggerListeners is not null ? [.. globalTriggerListeners.Values] : [];
         }
     }
 
@@ -473,12 +241,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
         lock (globalTriggerListenerLock)
         {
             // Avoid initializing globalTriggerListeners when no trigger listeners have been added
-            if (globalTriggerListeners is null || !globalTriggerListeners.TryGetValue(name, out var triggerListener))
+            if (globalTriggerListeners is null || !globalTriggerListeners.TryGetValue(name, out AttachedListener<ITriggerListener, TriggerKey> attached))
             {
                 return null;
             }
 
-            return triggerListener;
+            return attached.Listener;
         }
     }
 
@@ -567,6 +335,18 @@ internal sealed class ListenerManagerImpl : IListenerManager
     }
 
     /// <summary>
+    /// The matchers a listener is attached with, as an array the attachment owns.
+    /// </summary>
+    /// <remarks>
+    /// The caller's collection is copied because it is the caller's to keep changing, and an empty
+    /// one is the same as none at all: both mean the listener hears everything.
+    /// </remarks>
+    private static IMatcher<TKey>[] Copy<TKey>(IReadOnlyCollection<IMatcher<TKey>>? matchers) where TKey : Key<TKey>
+    {
+        return matchers is null || matchers.Count == 0 ? [] : [.. matchers];
+    }
+
+    /// <summary>
     /// Refuses a listener whose public methods say it implements a notification it does not.
     /// </summary>
     /// <remarks>
@@ -583,37 +363,5 @@ internal sealed class ListenerManagerImpl : IListenerManager
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethods)] Type listenerInterface)
     {
         ListenerShape.Verify(listener.GetType(), listenerInterface);
-    }
-
-    private void RemoveJobListenerMatchers(string listenerName)
-    {
-        if (globalJobListenersMatchers is null)
-        {
-            return;
-        }
-
-        // If we're removing the last matcher of the only job listener with matchers, then
-        // reset globalJobListenersMatchers to null to avoid having to lock in subsequent calls
-        // to GetJobListenerMatchers(string listenerName)
-        if (globalJobListenersMatchers.Remove(listenerName) && globalJobListenersMatchers.Count == 0)
-        {
-            globalJobListenersMatchers = null;
-        }
-    }
-
-    private void RemoveTriggerListenerMatchers(string listenerName)
-    {
-        if (globalTriggerListenersMatchers is null)
-        {
-            return;
-        }
-
-        // If we're removing the last matcher of the only trigger listener with matchers, then
-        // reset globalTriggerListenersMatchers to null to avoid having to lock in subsequent calls
-        // to GetTriggerListenerMatchers(string listenerName)
-        if (globalTriggerListenersMatchers.Remove(listenerName) && globalTriggerListenersMatchers.Count == 0)
-        {
-            globalTriggerListenersMatchers = null;
-        }
     }
 }

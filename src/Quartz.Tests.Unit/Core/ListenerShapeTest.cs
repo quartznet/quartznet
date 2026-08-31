@@ -10,8 +10,9 @@ namespace Quartz.Tests.Unit.Core;
 /// <remarks>
 /// Every listener member has a default implementation, so a stale signature is not a compile error: the
 /// method stops implementing anything, the default runs, and the listener is silently never called. The
-/// cases below are the two migrations that produce that shape — a 3.x listener returning
-/// <see cref="Task" />, and a 4.0.0-alpha.1 listener whose callbacks do not lead with the scheduler — plus
+/// cases below are the three migrations that produce that shape — a 3.x listener returning
+/// <see cref="Task" />, a 4.0.0-alpha.1 listener whose callbacks do not lead with the scheduler, and a
+/// listener whose <c>TriggerMisfired</c> still leads with the scheduler rather than the trigger — plus
 /// the shapes that must keep working, since a check that refuses a sound listener is worse than no check.
 /// </remarks>
 public class ListenerShapeTest
@@ -39,7 +40,8 @@ public class ListenerShapeTest
         Action act = () => manager.AddTriggerListener(new SoundTriggerListener());
 
         act.Should().NotThrow(
-            "TriggerMisfired leads with the scheduler and TriggerFired does not, and both are implemented here");
+            "TriggerMisfired takes the scheduler after the trigger and TriggerFired takes a context there, "
+            + "and both are implemented here");
         manager.GetTriggerListeners().Should().ContainSingle();
     }
 
@@ -158,15 +160,39 @@ public class ListenerShapeTest
     }
 
     [Test]
-    public void AnAlphaOneTriggerMisfiredIsRefusedAndToldAboutTheScheduler()
+    public void AnAlphaOneTriggerMisfiredIsRefused()
     {
         Action act = () => manager.AddTriggerListener(new AlphaOneTriggerListener());
 
         act.Should().Throw<SchedulerConfigException>()
             .Which.Message.Should()
             .Contain(nameof(ITriggerListener.TriggerMisfired))
-            .And.Contain("take IScheduler scheduler first since 4.0.0-alpha.2",
-                "TriggerMisfired is the one trigger callback that gained the scheduler");
+            .And.Contain("ValueTask TriggerMisfired(ITrigger, IScheduler, CancellationToken)",
+                "a listener that never gained the scheduler is told the signature it has to reach");
+    }
+
+    [Test]
+    public void AMisfireThatStillLeadsWithTheSchedulerIsRefusedAndToldTheOrderChanged()
+    {
+        Action act = () => manager.AddTriggerListener(new SchedulerFirstMisfireListener());
+
+        act.Should().Throw<SchedulerConfigException>()
+            .Which.Message.Should()
+            .Contain(nameof(ITriggerListener.TriggerMisfired))
+            .And.Contain("in a different order",
+                "the two signatures hold the same types, so a reader comparing them finds everything they expect")
+            .And.Contain("takes the trigger first since 4.0.0-alpha.5");
+    }
+
+    [Test]
+    public void AThreeXListenerIsNotAccusedOfReorderingItsParameters()
+    {
+        Action act = () => manager.AddJobListener(new ThreeXJobListener());
+
+        act.Should().Throw<SchedulerConfigException>()
+            .Which.Message.Should()
+            .NotContain("in a different order",
+                "the parameters of a 3.x listener are in the right order and the return type is what is wrong");
     }
 
     [Test]
@@ -308,6 +334,15 @@ public class ListenerShapeTest
     {
         public ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 
+        public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// A 4.0.0-alpha.2 trigger listener: <c>TriggerMisfired</c> led with the scheduler until the trigger
+    /// took that place, which leaves a method with exactly the right parameters in the wrong order.
+    /// </summary>
+    private sealed class SchedulerFirstMisfireListener : ITriggerListener
+    {
         public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
     }
 
@@ -317,8 +352,8 @@ public class ListenerShapeTest
     }
 
     /// <summary>
-    /// A 4.0.0-alpha.1 trigger listener: <c>TriggerMisfired</c> is the one trigger callback that gained the
-    /// scheduler, because a misfire is noticed rather than executed.
+    /// A 4.0.0-alpha.1 trigger listener: <c>TriggerMisfired</c> is the one trigger callback that gained a
+    /// scheduler parameter, because a misfire is noticed rather than executed and so carries no context.
     /// </summary>
     private sealed class AlphaOneTriggerListener : ITriggerListener
     {

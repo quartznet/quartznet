@@ -79,7 +79,7 @@ public class StructuredLoggingTriggerHistoryPluginTest
 
         t.JobKey = new JobKey("name", "group");
 
-        await plugin.TriggerMisfired(A.Fake<IScheduler>(), t);
+        await plugin.TriggerMisfired(t, A.Fake<IScheduler>());
 
         Assert.That(loggerProvider.Entries, Has.Count.EqualTo(1));
         Assert.That(loggerProvider.Entries[0].Level, Is.EqualTo(LogLevel.Information));

@@ -17,7 +17,8 @@ namespace Quartz.Benchmark;
 ///
 /// Note:
 /// -----
-/// There's always one internal job listener, which is Quartz.Core.ExecutingJobsManager.
+/// Quartz.Core.ExecutingJobsManager is notified of every firing too, but the scheduler calls it
+/// directly rather than through the job listener loop, so it is not one of the listeners counted here.
 ///
 /// </summary>
 [MemoryDiagnoser]
@@ -561,7 +562,7 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+        public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             return default;
         }

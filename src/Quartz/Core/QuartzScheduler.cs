@@ -2064,7 +2064,17 @@ internal sealed class QuartzScheduler
         return resources.JobStore.GetCalendar(calendarName, cancellationToken);
     }
 
-    public IListenerManager ListenerManager { get; } = new ListenerManagerImpl();
+    /// <summary>
+    /// The listeners this scheduler notifies, and the matchers each of them was registered with.
+    /// </summary>
+    /// <remarks>
+    /// Held as the implementation rather than as <see cref="IListenerManager" /> because the
+    /// notification path asks it for listeners and matchers together, which is not something an
+    /// application has any use for.
+    /// </remarks>
+    private readonly ListenerManagerImpl listenerManager = new();
+
+    public IListenerManager ListenerManager => listenerManager;
 
     public ValueTask NotifyJobStoreJobVetoed(
         IOperableTrigger trigger,
@@ -2103,33 +2113,6 @@ internal sealed class QuartzScheduler
         return ListenerManager.GetSchedulerListeners().Concat(InternalSchedulerListeners);
     }
 
-    private static bool MatchJobListener(IListenerManager listenerManager, IJobListener listener, JobKey key)
-    {
-        var matchers = listenerManager.GetJobListenerMatchers(listener.Name);
-        if (matchers.Count == 0)
-        {
-            return true;
-        }
-        foreach (IMatcher<JobKey> matcher in matchers)
-        {
-            if (matcher.IsMatch(key))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static bool MatchTriggerListener(IListenerManager listenerManager, ITriggerListener listener, TriggerKey key)
-    {
-        var matchers = listenerManager.GetTriggerListenerMatchers(listener.Name);
-        if (matchers.Count == 0)
-        {
-            return true;
-        }
-        return matchers.Any(matcher => matcher.IsMatch(key));
-    }
-
     /// <summary>
     /// Notifies the trigger listeners about fired trigger.
     /// </summary>
@@ -2142,23 +2125,25 @@ internal sealed class QuartzScheduler
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        var listeners = ListenerManager.GetTriggerListeners();
+        AttachedListener<ITriggerListener, TriggerKey>[] listeners = listenerManager.GetAttachedTriggerListeners();
 
-        return listeners.Count == 0 ? new ValueTask<bool>(false)
-            : NotifyAwaited(ListenerManager, listeners, context, cancellationToken);
+        return listeners.Length == 0 ? new ValueTask<bool>(false)
+            : NotifyAwaited(listeners, context, cancellationToken);
 
-        static async ValueTask<bool> NotifyAwaited(IListenerManager listenerManager,
-            IReadOnlyList<ITriggerListener> listeners,
+        static async ValueTask<bool> NotifyAwaited(
+            AttachedListener<ITriggerListener, TriggerKey>[] listeners,
             IJobExecutionContext context,
             CancellationToken cancellationToken)
         {
-            var vetoedExecution = false;
-            foreach (ITriggerListener tl in listeners)
+            bool vetoedExecution = false;
+            foreach (AttachedListener<ITriggerListener, TriggerKey> attached in listeners)
             {
-                if (!MatchTriggerListener(listenerManager, tl, context.Trigger.Key))
+                if (!attached.Matches(context.Trigger.Key))
                 {
                     continue;
                 }
+
+                ITriggerListener tl = attached.Listener;
 
                 try
                 {
@@ -2194,28 +2179,29 @@ internal sealed class QuartzScheduler
         // so the count is of misfires rather than of misfires somebody was listening for.
         resources.Meters.TriggerMisfired(resources.Name, resources.InstanceId, trigger);
 
-        var listeners = ListenerManager.GetTriggerListeners();
+        AttachedListener<ITriggerListener, TriggerKey>[] listeners = listenerManager.GetAttachedTriggerListeners();
 
-        return listeners.Count == 0 ? default
-            : NotifyAwaited(Scheduler, ListenerManager, listeners, trigger, cancellationToken);
+        return listeners.Length == 0 ? default
+            : NotifyAwaited(Scheduler, listeners, trigger, cancellationToken);
 
         static async ValueTask NotifyAwaited(
             IScheduler scheduler,
-            IListenerManager listenerManager,
-            IReadOnlyList<ITriggerListener> listeners,
+            AttachedListener<ITriggerListener, TriggerKey>[] listeners,
             ITrigger trigger,
             CancellationToken cancellationToken)
         {
-            foreach (ITriggerListener tl in listeners)
+            foreach (AttachedListener<ITriggerListener, TriggerKey> attached in listeners)
             {
-                if (!MatchTriggerListener(listenerManager, tl, trigger.Key))
+                if (!attached.Matches(trigger.Key))
                 {
                     continue;
                 }
 
+                ITriggerListener tl = attached.Listener;
+
                 try
                 {
-                    await tl.TriggerMisfired(scheduler, trigger, cancellationToken).ConfigureAwait(false);
+                    await tl.TriggerMisfired(trigger, scheduler, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -2236,23 +2222,25 @@ internal sealed class QuartzScheduler
         SchedulerInstruction instructionCode,
         CancellationToken cancellationToken = default)
     {
-        var listeners = ListenerManager.GetTriggerListeners();
+        AttachedListener<ITriggerListener, TriggerKey>[] listeners = listenerManager.GetAttachedTriggerListeners();
 
-        return listeners.Count == 0 ? default
-            : NotifyAwaited(ListenerManager, listeners, context, instructionCode, cancellationToken);
+        return listeners.Length == 0 ? default
+            : NotifyAwaited(listeners, context, instructionCode, cancellationToken);
 
-        static async ValueTask NotifyAwaited(IListenerManager listenerManager,
-            IReadOnlyList<ITriggerListener> listeners,
+        static async ValueTask NotifyAwaited(
+            AttachedListener<ITriggerListener, TriggerKey>[] listeners,
             IJobExecutionContext context,
             SchedulerInstruction instructionCode,
             CancellationToken cancellationToken)
         {
-            foreach (var tl in listeners)
+            foreach (AttachedListener<ITriggerListener, TriggerKey> attached in listeners)
             {
-                if (!MatchTriggerListener(listenerManager, tl, context.Trigger.Key))
+                if (!attached.Matches(context.Trigger.Key))
                 {
                     continue;
                 }
+
+                ITriggerListener tl = attached.Listener;
 
                 try
                 {
@@ -2354,27 +2342,29 @@ internal sealed class QuartzScheduler
         JobExecutionException? jobExecutionException,
         CancellationToken cancellationToken)
     {
-        var listeners = ListenerManager.GetJobListeners();
-        if (listeners.Count == 0)
+        AttachedListener<IJobListener, JobKey>[] listeners = listenerManager.GetAttachedJobListeners();
+        if (listeners.Length == 0)
         {
             return default;
         }
 
-        return NotifyAwaited(ListenerManager, listeners, notifyAction, context, jobExecutionException, cancellationToken);
+        return NotifyAwaited(listeners, notifyAction, context, jobExecutionException, cancellationToken);
 
-        static async ValueTask NotifyAwaited(IListenerManager listenerManager,
-            IReadOnlyList<IJobListener> listeners,
+        static async ValueTask NotifyAwaited(
+            AttachedListener<IJobListener, JobKey>[] listeners,
             Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
             IJobExecutionContext context,
             JobExecutionException? jobExecutionException,
             CancellationToken cancellationToken)
         {
-            foreach (var jl in listeners)
+            foreach (AttachedListener<IJobListener, JobKey> attached in listeners)
             {
-                if (!MatchJobListener(listenerManager, jl, context.JobDetail.Key))
+                if (!attached.Matches(context.JobDetail.Key))
                 {
                     continue;
                 }
+
+                IJobListener jl = attached.Listener;
 
                 // The call to the listener is inside the guard, not an argument to it, so a listener
                 // that throws before it hands anything back — a guard clause in a method that is not

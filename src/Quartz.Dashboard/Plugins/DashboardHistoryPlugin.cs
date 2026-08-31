@@ -114,7 +114,7 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener, ITr
     /// so <see cref="ITrigger.NextFireTimeUtc" /> is still the firing that was missed rather than the one
     /// it was rescheduled to.
     /// </remarks>
-    public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+    public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         try
         {

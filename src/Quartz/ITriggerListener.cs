@@ -29,10 +29,10 @@ namespace Quartz;
 /// <see cref="IScheduler" /> will not have use for this mechanism.
 /// </summary>
 /// <remarks>
-/// Every callback is told which scheduler is calling it: a listener reaches the scheduler it serves
-/// through its execution context, or as its first argument when there is no execution. Only
-/// <see cref="TriggerMisfired" /> is of the second kind — a misfire is noticed rather than executed,
-/// so it has no context to carry one.
+/// Every callback leads with the <see cref="ITrigger" /> it is about, and every callback is told which
+/// scheduler is calling it: a listener reaches the scheduler it serves through its execution context,
+/// or as a second argument when there is no execution. Only <see cref="TriggerMisfired" /> is of the
+/// second kind — a misfire is noticed rather than executed, so it has no context to carry one.
 /// <para>
 /// Every member has a default implementation, so an implementation only has to write the
 /// notifications it cares about. <see cref="Name" /> defaults to the implementing type's name.
@@ -113,19 +113,20 @@ public interface ITriggerListener
     /// does a lot.
     /// </para>
     /// </summary>
-    /// <param name="scheduler">The scheduler raising the notification.</param>
     /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <remarks>
     /// The scheduler is passed because a misfire is noticed outside any execution, so there is no
-    /// <see cref="IJobExecutionContext" /> here to reach it through.
+    /// <see cref="IJobExecutionContext" /> here to reach it through. It comes after the trigger, as
+    /// the context does on every other notification in this interface.
     /// <para>
     /// The default implementation does nothing.
     /// </para>
     /// </remarks>
     ValueTask TriggerMisfired(
-        IScheduler scheduler,
         ITrigger trigger,
+        IScheduler scheduler,
         CancellationToken cancellationToken = default) => default;
 
     /// <summary>

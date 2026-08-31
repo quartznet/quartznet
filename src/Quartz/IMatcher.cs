@@ -27,9 +27,10 @@ namespace Quartz;
 /// </summary>
 /// <remarks>
 /// An implementation is expected to be a value: two matchers built the same way must be
-/// <see cref="object.Equals(object)" />-equal, because the listener manager identifies a
-/// registered matcher by equality when removing it. The members that say so are
-/// <see cref="object" />'s own, so this interface does not redeclare them.
+/// <see cref="object.Equals(object)" />-equal, so that a caller comparing matchers, or holding them
+/// in a set, gets the answer the shape of the matcher implies rather than the answer its identity
+/// does. The members that say so are <see cref="object" />'s own, so this interface does not
+/// redeclare them.
 /// </remarks>
 /// <author>James House</author>
 /// <typeparam name="T"></typeparam>

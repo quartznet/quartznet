@@ -3240,7 +3240,7 @@ What is left over cannot be injected anything, and this is the whole of it:
 
 | Type | Why it cannot be injected |
 |---|---|
-| `BroadcastJobListener`, `BroadcastTriggerListener`, `BroadcastSchedulerListener`, `JobChainingJobListener` | Constructed by the caller and handed over already built |
+| `JobChainingJobListener` | Constructed by the caller and handed over already built |
 | `CronTriggerImpl` | A trigger, which may have been deserialized out of a job store rather than constructed at all |
 | `TimeZones`, `MisfireInstructionNames`, `FileUtil`, `QuartzEnvironment` | Static helpers, reached from parsing and deserialization with no scheduler in scope |
 | The jobs in `Quartz.Jobs`, and anything else a caller constructs directly | Same reason as the listeners |
@@ -3881,7 +3881,7 @@ Each of these was a `public class` with `virtual` members in 3.x:
 | `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl`, `RecurrenceTriggerImpl` | `TriggerBase`. `CronTriggerImpl` and `SimpleTriggerImpl` stay open, so a trigger deriving from one of *those* two is still the shortest route to a custom cron or simple trigger. `HasAdditionalProperties` is `virtual` on `TriggerBase`, so it is available either way |
 | `JobExecutionContextImpl`, and its nine `virtual` members with it | `IJobExecutionContext`. A test double implements the interface; a decorator wraps one |
 | `DefaultThreadPool`, `ZeroSizeThreadPool` | `IThreadPool`, or `TaskSchedulingThreadPool`, which stays open — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
-| `BroadcastJobListener`, `BroadcastSchedulerListener`, `BroadcastTriggerListener`, `JobChainingJobListener` | The three listener interfaces. Every notification member is a default interface member now, so implementing one directly costs a `Name` at most — see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone) |
+| `JobChainingJobListener` | The three listener interfaces. Every notification member is a default interface member now, so implementing one directly costs a `Name` at most — see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone) |
 
 `JobChainingJobListener` also changed base. It derived from `Quartz.Listener.JobListenerSupport`, which is
 gone, and implements `IJobListener` directly, so its `Name` and `JobWasExecuted` are no longer `override`s.
@@ -4207,7 +4207,8 @@ same name again replaces it, and it is removed by that name.
 | `AddJobListener(l, params IMatcher<JobKey>[])` and `AddJobListener(l, IReadOnlyCollection<…>)` | one `AddJobListener(l, params IReadOnlyCollection<IMatcher<JobKey>>)` |
 | `AddTriggerListener(l, params IMatcher<TriggerKey>[])` and the collection overload | one `AddTriggerListener(l, params IReadOnlyCollection<IMatcher<TriggerKey>>)` |
 | `GetJobListeners()`, `GetTriggerListeners()`, `GetSchedulerListeners()` → arrays | → `IReadOnlyList<T>` |
-| `GetJobListenerMatchers(name)`, `GetTriggerListenerMatchers(name)` → array or `null` | → `IReadOnlyList<…>`, empty and never null |
+| `AddJobListenerMatcher`, `RemoveJobListenerMatcher`, `SetJobListenerMatchers`, `GetJobListenerMatchers` | gone — see [Matchers are given at registration](#matchers-are-given-at-registration) |
+| `AddTriggerListenerMatcher`, `RemoveTriggerListenerMatcher`, `SetTriggerListenerMatchers`, `GetTriggerListenerMatchers` | gone — same |
 | `GetJobListener(name)`, `GetTriggerListener(name)` throw `KeyNotFoundException` | return null |
 | `RemoveSchedulerListener(ISchedulerListener)` | `RemoveSchedulerListener(string name)` |
 | — | `GetSchedulerListener(string name)` → `ISchedulerListener?` |
@@ -4221,17 +4222,6 @@ scheduler.ListenerManager.AddJobListener(myJobListener, matcherA, matcherB);
 scheduler.ListenerManager.AddJobListener(myJobListener, listOfMatchers);
 ```
 
-The matcher listings returned `null` both for "this listener registered no matchers" and for "there is no such
-listener". Both mean the same thing to the scheduler — no matchers means every event matches — so they are
-empty lists now:
-
-```diff
-- var matchers = listenerManager.GetJobListenerMatchers(name);
-- if (matchers is null) { /* matches everything */ }
-+ var matchers = listenerManager.GetJobListenerMatchers(name);
-+ if (matchers.Count == 0) { /* matches everything */ }
-```
-
 Asking for a listener that is not registered returns null instead of throwing, so checking is no longer an
 exception:
 
@@ -4239,6 +4229,53 @@ exception:
 - try { var listener = listenerManager.GetJobListener(name); } catch (KeyNotFoundException) { }
 + IJobListener? listener = listenerManager.GetJobListener(name);
 ```
+
+### Matchers are given at registration
+
+Eight members let an application edit a registered listener's matcher set at run time, one matcher at a
+time, by listener name: `AddJobListenerMatcher`, `RemoveJobListenerMatcher`, `SetJobListenerMatchers`,
+`GetJobListenerMatchers`, and their trigger twins. They are gone. Matchers are part of registration,
+which is when anyone knows them, and `Add*Listener(listener, params matchers)` is where they are given —
+including through the container, as `AddJobListener<T>(matchers)`.
+
+A listener whose matching has to change is registered again under the same name. That replaces the
+listener and its matchers together, so the two can never be out of step — which is what the
+remove-then-re-add dance these members existed to avoid was actually about:
+
+```diff
+- listenerManager.SetJobListenerMatchers("audit", [GroupMatcher<JobKey>.GroupEquals("reports")]);
++ listenerManager.AddJobListener(audit, GroupMatcher<JobKey>.GroupEquals("reports"));
+```
+
+```diff
+- listenerManager.AddJobListenerMatcher("audit", GroupMatcher<JobKey>.GroupEquals("ingest"));
++ // name every matcher the listener is to have, since the registration replaces the whole set
++ listenerManager.AddJobListener(audit,
++     GroupMatcher<JobKey>.GroupEquals("reports"),
++     GroupMatcher<JobKey>.GroupEquals("ingest"));
+```
+
+Reading a listener's matchers back had one real caller — the notification path's own matching — and the
+scheduler now reads them from the listener's registration rather than by looking the name up. There is
+no replacement for `GetJobListenerMatchers` on `IListenerManager`: hold on to the matchers you registered
+with if you need them.
+
+### The broadcast listeners are gone
+
+`BroadcastJobListener`, `BroadcastTriggerListener` and `BroadcastSchedulerListener` fanned one
+notification out to several listeners — which is what the listener manager does for every registered
+listener already. Register the listeners individually:
+
+```diff
+- scheduler.ListenerManager.AddJobListener(new BroadcastJobListener("audit", [first, second]));
++ scheduler.ListenerManager.AddJobListener(first);
++ scheduler.ListenerManager.AddJobListener(second);
+```
+
+The one thing a broadcast did that individual registration does not is group several listeners under a
+single name, so that one `RemoveJobListener` detached all of them; remove them by their own names
+instead. A broadcast was also a public type that had to track every default-implemented member of its
+interface forever, and it swallowed what a listener behind it threw, which the manager does not.
 
 ### Listeners are told which scheduler is calling
 
@@ -4248,10 +4285,18 @@ host — which `AddQuartz("acme", …)` and `AddQuartz("initech", …)` make an 
 that *a* trigger had been paused, or that *a* scheduler had failed, with no way to ask which one (#3063).
 
 There is one rule now, and it holds for all three listener interfaces: **a listener reaches the scheduler
-it serves through its execution context, or as its first argument when there is no execution.** That makes
-`IScheduler` the first parameter of every one of `ISchedulerListener`'s twenty-three members, and of
+it serves through its execution context, or as an argument of the callback when there is no execution.**
+That makes `IScheduler` a parameter of every one of `ISchedulerListener`'s twenty-three members, and of
 `ITriggerListener.TriggerMisfired` — the one trigger callback with no context to carry it, because a
 misfire is noticed rather than executed.
+
+Where that parameter goes differs between the two interfaces, and the difference is settled rather than
+unfinished. `ISchedulerListener` takes the scheduler **first**, because its notifications are about the
+scheduler: they have no other subject to lead with, and the scheduler is a scheduler listener's only
+channel to the thing it is listening to. `ITriggerListener` leads with the **trigger** on all four of its
+members, and `TriggerMisfired` takes the scheduler second, where its siblings take an
+`IJobExecutionContext` — see [`TriggerMisfired` takes the trigger
+first](#triggermisfired-takes-the-trigger-first).
 
 ```diff
 - public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
@@ -4386,13 +4431,30 @@ was made.
 | `ISchedulerListener.SchedulerShuttingDown(ct)` | `SchedulerShuttingDown(IScheduler, ct)` |
 | `ISchedulerListener.SchedulerShutdown(ct)` | `SchedulerShutdown(IScheduler, ct)` |
 | `ISchedulerListener.SchedulingDataCleared(ct)` | `SchedulingDataCleared(IScheduler, ct)` |
-| `ITriggerListener.TriggerMisfired(ITrigger, ct)` | `TriggerMisfired(IScheduler, ITrigger, ct)` |
-
-`BroadcastSchedulerListener` and `BroadcastTriggerListener` forward the scheduler they were handed, so a
-listener behind one is told the same thing it would have been told directly.
+| `ITriggerListener.TriggerMisfired(ITrigger, ct)` | `TriggerMisfired(ITrigger, IScheduler, ct)` |
 
 `IJobListener`'s members and `ITriggerListener`'s other three are unchanged: they all receive an
 `IJobExecutionContext`, which is how they reach the scheduler already.
+
+#### `TriggerMisfired` takes the trigger first
+
+`TriggerMisfired` gained its scheduler parameter in 4.0.0-alpha.2 and took it in first position, which
+made it the only member of `ITriggerListener` not to lead with the trigger it is about. It leads with the
+trigger now, and the scheduler follows it in the position `TriggerFired`, `VetoJobExecution` and
+`TriggerComplete` give the `IJobExecutionContext`:
+
+```diff
+- public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
++ public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
+  {
+      logger.LogWarning("{SchedulerName} missed {TriggerKey}", scheduler.SchedulerName, trigger.Key);
+      return default;
+  }
+```
+
+Both parameters are still there, so a listener that keeps the old order still compiles — and quietly stops
+implementing the interface, with the do-nothing default running in its place. Quartz refuses a listener in
+that shape as it is registered, and says the parameters are the notification's own, in the wrong order.
 
 ### The three `*Support` base classes are gone
 
@@ -4549,24 +4611,7 @@ Neither carries a cause. The stores raise these and receive only a `SchedulerIns
 *why* and these say *what changed*, and where both apply they arrive together. Recover a trigger with
 `IScheduler.ResetTriggerFromErrorState`.
 
-### The broadcast listeners have one shape
-
-`BroadcastSchedulerListener.GetListeners()` is a `Listeners` property, matching `BroadcastJobListener` and
-`BroadcastTriggerListener`, and all three constructors take an `IReadOnlyCollection<T>`. All three now take
-the same two arguments: a name, and optionally the listeners to start with. The odd one out was
-`BroadcastSchedulerListener`, which had no name — it needs one now that scheduler listeners are
-name-identified.
-
-| 3.x | 4.x |
-|---|---|
-| `new BroadcastJobListener(name)` | unchanged |
-| `new BroadcastJobListener(name, List<IJobListener>)` | the parameter is `IReadOnlyCollection<IJobListener>`; a `List<T>` argument still binds |
-| `new BroadcastTriggerListener(name)`, `(name, IReadOnlyCollection<ITriggerListener>)` | unchanged |
-| `new BroadcastSchedulerListener()` | `new BroadcastSchedulerListener(name)` |
-| `new BroadcastSchedulerListener(IEnumerable<ISchedulerListener>)` | `new BroadcastSchedulerListener(name, IReadOnlyCollection<ISchedulerListener>)` |
-
-`BroadcastSchedulerListener` also gained `RemoveListener(string)`, which the job and trigger ones already had.
-All three, and `JobChainingJobListener` with them, are `sealed` — see
+`JobChainingJobListener` is `sealed` — see
 [The shipped implementations are sealed](#the-shipped-implementations-are-sealed).
 
 An `IJobStore` that implements `IJobListener` no longer automatically receives all events. Register it explicitly as a job listener using `ListenerManager`:
@@ -4743,7 +4788,7 @@ already have them.
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
-* **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for. A listener still carrying a signature from 3.x or from alpha.1 is refused when it is registered, with a message naming the member, rather than being attached and never called (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
+* **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for. A listener still carrying a signature from 3.x, from alpha.1, or from before `TriggerMisfired` led with the trigger is refused when it is registered, with a message naming the member, rather than being attached and never called (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.ConfigureStore(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Job execution middleware** — `IJobExecutionMiddleware` wraps every firing a scheduler performs, which is where a log scope, a tenant context, a metric or a translation of a library's exceptions belongs. A listener could never do it: it is notified before and after the execution rather than around it. Registered with `AddJobMiddleware<T>()` and its factory and instance overloads (see [Cross-cutting concerns run as middleware](#cross-cutting-concerns-run-as-middleware))
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
@@ -7936,7 +7981,8 @@ keep their factory methods (`GroupEquals`, `NameStartsWith`, `AnyGroup`, …), a
 
 `IMatcher<T>` no longer redeclares `Equals(object)` and `GetHashCode()`. They are `object`'s own members, so
 declaring them on the interface added no requirement and told an implementer nothing — but a matcher is still
-expected to behave as a value, because `RemoveJobListenerMatcher` finds the matcher to remove by equality.
+expected to behave as a value, so that comparing two of them, or holding them in a set, answers to the shape
+of the matcher rather than to its identity.
 
 ### `Matchers` is the entry point; combinators are extensions
 
@@ -9814,7 +9860,7 @@ explaining it a second time.
 
 It is derived mechanically, by diffing the public API baselines both branches keep under
 `src/Quartz.Tests.Unit/Verify/` and `src/Quartz.Tests.AspNetCore/Verify/`, so it names **every**
-public type 3.x had and 4.0 does not — all 94, across every package — rather than the ones that came
+public type 3.x had and 4.0 does not — all 97, across every package — rather than the ones that came
 to mind. If you want the raw delta for one package rather than this summary, `git diff` its baseline
 across the two branches; package boundaries moved, so match the files up with this first:
 
@@ -9856,6 +9902,9 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.AdoProviderOptionsExtensions` | Removed | It held only `UseDataSourceConnectionProvider()`; set `DataSourceOptions.UseRegisteredDataSource` — see [`AddDataSourceProvider()` went with it](#adddatasourceprovider-went-with-it) |
 | `Quartz.Impl.AdoJobStore.AdoUtil` | Internal, with `IAdoUtil` | Nothing; parameter binding is not an extension point — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `Quartz.Simpl.BinaryObjectSerializer` | Removed | `SystemTextJsonObjectSerializer` or `NewtonsoftJsonObjectSerializer`; there is no binary serializer, because `BinaryFormatter` throws on .NET 9 — see [`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it) |
+| `Quartz.Listener.BroadcastJobListener` | Removed | Register the listeners individually; the listener manager already notifies every one of them — see [The broadcast listeners are gone](#the-broadcast-listeners-are-gone) |
+| `Quartz.Listener.BroadcastSchedulerListener` | Removed | As above |
+| `Quartz.Listener.BroadcastTriggerListener` | Removed | As above |
 | `Quartz.CalendarIntervalTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.SchedulerBuilder.ClusterOptions` | Removed | `ClusteringOptions` — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
 | `Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
@@ -9985,6 +10034,7 @@ removals on types that are still public and still open, which no section above n
 | `DirtyFlagMap.WrappedMap` | Removed | No replacement; the map *is* the dictionary, and handing out the inner one let a caller write past the dirty flag |
 | `IDriverDelegate.UpdateTriggerPreferredNode`, `StdAdoDelegate.UpdateTriggerPreferredNode` | Removed | `UpdateTriggerPreferredNodeConditional`, which is a compare-and-swap, or `IScheduler.UpdateTriggerDetails` from outside the store — see [The preferred node is a value](#the-preferred-node-is-a-value) |
 | `InvalidConfigurationException()` | Removed; the type is `sealed` and keeps only `(string message)` | Say what was invalid — an exception with no message is one nobody can act on |
+| `IListenerManager.AddJobListenerMatcher`, `.RemoveJobListenerMatcher`, `.SetJobListenerMatchers`, `.GetJobListenerMatchers`, and their `TriggerListener` twins | Removed | `AddJobListener(listener, params matchers)` / `AddTriggerListener(listener, params matchers)`, which is registration; registering the same name again replaces the listener and its matchers together — see [Matchers are given at registration](#matchers-are-given-at-registration) |
 | `IObjectSerializer.Initialize()` | Removed | No replacement; a serializer builds what it needs on first use — see [Names that were normalized](#names-that-were-normalized) |
 | `IScheduler.InStandbyMode` | Removed | `Status is SchedulerStatus.Created or SchedulerStatus.Standby or SchedulerStatus.ShuttingDown` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 | `IScheduler.IsShutdown` | Removed | `Status is SchedulerStatus.Shutdown` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
