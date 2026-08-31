@@ -63,6 +63,8 @@ database work, it can also be told to use a connection you own; see
 [Joining an existing transaction](#joining-an-existing-transaction) below. `ExternalTransactionJobStore` is the
 other one, for a container that manages the ambient transaction itself; it is selected with
 `UsePersistentStore(store => store.UseAmbientTransactions())`, and it neither commits nor rolls back.
+Both types are internal — the choice is the call, not a type argument — and `quartz.jobStore.type` still
+names either of them as a string, including under the 3.x `JobStoreTX` / `JobStoreCMT` spellings.
 
 ### Configuring a persistent store
 
@@ -207,7 +209,9 @@ each carry a script. `UseGenericDatabase` does not, because `StdAdoDelegate` wri
 cannot know what DDL your database accepts; asking it for `CreateIfMissing` throws as the store
 initializes, naming the delegate and the script to run by hand, rather than quietly creating nothing. A
 driver delegate of your own joins in by overriding `StdAdoDelegate.SchemaResourceName` with the name of
-a script embedded in its own assembly. The case to watch is SQL Server's two variant schemas, the
+a script embedded in its own assembly — and a delegate that derives from a shipped dialect to change a
+statement or two needs no override at all, because the lookup walks the base chain nearest first and so
+finds the dialect's own script. The case to watch is SQL Server's two variant schemas, the
 [memory-optimized one and the pre-2016 one](https://github.com/quartznet/quartznet/tree/main/database/tables):
 they have no delegate of their own, so a store configured for either still provisions the *standard*
 schema, which is not what you asked for. Both are deliberate departures a person chose for a particular

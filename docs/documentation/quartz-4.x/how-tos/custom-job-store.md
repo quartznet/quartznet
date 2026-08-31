@@ -306,8 +306,10 @@ constructed; 1000 is Oracle's ceiling on an `IN` list.
 ## The ADO.NET store is not a base class
 
 `AdoJobStoreBase`, `LocalTransactionJobStore` and `ExternalTransactionJobStore` are internal. They are
-still what `quartz.jobStore.type` names and still what `UsePersistentStore` builds — nothing about
-configuring them has changed — but they are not something to derive from.
+still what `quartz.jobStore.type` names and still what `UsePersistentStore` builds, so a configuration
+file needs no change — but they are not something to derive from, and in code the choice between the two
+is a call rather than a type argument: `UsePersistentStore()` gives you the local-transaction store, and
+`store.UseAmbientTransactions()` inside its callback gives you the other.
 
 Deriving from the base was never the seam it looked like. Every `protected` member below its two
 abstract ones is the connection-taking twin of the public member above it — `AddJob(conn, …)` beside

@@ -41,7 +41,7 @@ Three kinds of span: the execution, the veto, and one per job store round trip.
 |---|---|---|
 | `Quartz.Job.Execute` | `Internal` | A job runs. The span covers the whole fire, and records the exception when one is thrown. |
 | `Quartz.Job.Veto` | `Internal` | A trigger listener vetoed the fire, so the job did not run. |
-| `Quartz.JobStore.<operation>` | `Client` | One per store operation. The twenty-nine names are the members of `Quartz.Diagnostics.OperationName.JobStore`. |
+| `Quartz.JobStore.<operation>` | `Client` | One per store operation. The thirty-three names are the members of `Quartz.Diagnostics.OperationName.JobStore`. |
 
 The thirty-three store operations are the ones that change something or hand work to the scheduler:
 
@@ -126,7 +126,7 @@ several nodes sharing one name.
 than an empty one, so the two are not folded into one series.
 ² Only when the operation failed. The value is the fully-qualified name of the exception type.
 
-`quartz.jobstore.operation`'s value is one of the twenty-nine `Quartz.JobStore.*` names above, so the same
+`quartz.jobstore.operation`'s value is one of the thirty-three `Quartz.JobStore.*` names above, so the same
 string finds a slow operation in a trace and in a metric. Its histogram's count is how many of each
 operation there were, and the `error.type`-tagged part of that count is how many failed.
 
