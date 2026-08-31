@@ -262,6 +262,14 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     /// decision to stop retrying belongs to the scheduler and not to the arithmetic.
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="attempt" /> is less than one.</exception>
+    /// <remarks>
+    /// A wait too long to be represented is not an error. The arithmetic saturates, and the scheduler
+    /// treats a retry it cannot express an instant for the way it treats one that would land on top of
+    /// the next occurrence: there is no room for it, so the occurrence settles and the trigger keeps its
+    /// ordinary schedule. Capping the waits when a policy is built or parsed instead would refuse a
+    /// stored form that <see cref="ToStoredString" /> had just written, and would refuse a policy over
+    /// attempts no trigger will reach.
+    /// </remarks>
     public TimeSpan DelayFor(int attempt)
     {
         if (attempt < 1)

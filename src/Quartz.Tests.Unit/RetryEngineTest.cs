@@ -337,6 +337,80 @@ public class RetryEngineTest
         trigger.ExecutionComplete(context, result: null).Should().Be(SchedulerInstruction.DeleteTrigger);
     }
 
+    /// <summary>A one-shot trigger, fired at 10:00, so there is no occurrence for a retry to lose to.</summary>
+    private IOperableTrigger OneShotTriggerFiredAtTen(RetryPolicy policy)
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
+            .WithIdentity("one-shot", "retries")
+            .ForJob("job", "jobs")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(0))
+            .StartAt(now)
+            .WithRetryPolicy(policy)
+            .Build();
+
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.Triggered(null);
+
+        trigger.NextFireTimeUtc.Should().BeNull("the fixture is a one-shot trigger that has had its single fire");
+        return trigger;
+    }
+
+    /// <summary>
+    /// The last instant a retry may land on, and the first one it may not. A fire time is a
+    /// <see cref="DateTimeOffset"/>, and adding to one of those throws rather than saturating, so the
+    /// end of the calendar is a boundary the retry arithmetic has to keep on the right side of.
+    /// </summary>
+    /// <remarks>
+    /// The supersede margin comes off the room available, because the instant is compared against the
+    /// next occurrence with that margin added — an instant with no room for the margin would overflow
+    /// in the comparison instead.
+    /// </remarks>
+    [Test]
+    public void TheEndOfTheCalendarIsTheLastInstantARetryMayLandOn()
+    {
+        TimeSpan room = DateTimeOffset.MaxValue - TriggerBase.RetrySupersedeMargin - now;
+
+        IOperableTrigger justFits = OneShotTriggerFiredAtTen(RetryPolicy.Fixed(1, room));
+        justFits.ExecutionComplete(context, Failure()).Should().Be(SchedulerInstruction.RetryTrigger);
+        justFits.NextFireTimeUtc.Should().Be(DateTimeOffset.MaxValue - TriggerBase.RetrySupersedeMargin);
+        justFits.RetryAttempt.Should().Be(1);
+
+        IOperableTrigger oneTickTooFar = OneShotTriggerFiredAtTen(RetryPolicy.Fixed(1, room + TimeSpan.FromTicks(1)));
+        oneTickTooFar.ExecutionComplete(context, Failure()).Should().Be(SchedulerInstruction.DeleteTrigger,
+            "a retry with nowhere to land is a retry that never comes, so the occurrence settles");
+        oneTickTooFar.RetryAttempt.Should().Be(0);
+    }
+
+    /// <summary>
+    /// An exponential policy runs out of calendar long before it runs out of attempts, and it does so
+    /// on numbers anybody might type: ten times a second, thirteen retries in. The waits themselves
+    /// saturate at <see cref="TimeSpan.MaxValue"/> by design, and it is turning a saturated wait into a
+    /// fire time that used to throw — out of <c>ExecutionComplete</c>, on the job's failure path, where
+    /// the trigger had done nothing wrong.
+    /// </summary>
+    [Test]
+    public void AnExponentialPolicyThatOutlivesTheCalendarSettlesInsteadOfThrowing()
+    {
+        RetryPolicy policy = RetryPolicy.Exponential(maxAttempts: 20, initialDelay: TimeSpan.FromSeconds(1), factor: 10);
+        policy.DelayFor(13).Should().Be(TimeSpan.MaxValue, "a factor of ten spends a whole TimeSpan in thirteen retries");
+
+        IOperableTrigger trigger = OneShotTriggerFiredAtTen(policy);
+
+        int scheduled = 0;
+        SchedulerInstruction instruction = trigger.ExecutionComplete(context, Failure());
+        while (instruction == SchedulerInstruction.RetryTrigger)
+        {
+            scheduled++;
+            ((TriggerBase) trigger).RetryFired(null);
+            instruction = trigger.ExecutionComplete(context, Failure());
+        }
+
+        scheduled.Should().Be(12, "the twelfth wait is the last one that lands on a date a fire time can hold");
+        instruction.Should().Be(SchedulerInstruction.DeleteTrigger,
+            "the trigger runs out of retries it can express, not out of the attempts its policy allows");
+        trigger.RetryAttempt.Should().Be(0);
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     // RetryFired
     //////////////////////////////////////////////////////////////////////////////////////////////
