@@ -111,6 +111,20 @@ public static class VersionNeutralPageSamples
         });
     }
 
+    public static void RenamedJobTypesDeclared(IServiceCollection services)
+    {
+        #region sample_troubleshooting_type_loader_map
+
+        services.AddQuartz(q => q.UseTypeLoader(loader =>
+        {
+            // Old assembly-qualified name as stored, and the type it means now. Keep the entry until
+            // every row that could carry the old name has been rewritten or has aged out.
+            loader.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NightlyRollupJob));
+        }));
+
+        #endregion
+    }
+
     public static void RenamedJobTypes(IServiceCollection services)
     {
         #region sample_troubleshooting_type_loader

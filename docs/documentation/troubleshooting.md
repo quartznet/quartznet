@@ -293,12 +293,65 @@ WHERE JOB_CLASS_NAME = 'OldNamespace.OldClassName, OldAssembly';
 Run it during the deployment that renames the type, and clear the affected triggers with
 `IScheduler.ResetTriggerFromErrorState` afterwards if any reached `ERROR` first.
 
-**Resolution — teach the scheduler the old name (4.x):**
+**Resolution — declare the rename (4.x):**
 
-Every stored type name is resolved through `ITypeLoader`, which is a single method and a replaceable
-seam. An implementation that consults a rename table before falling back to `Type.GetType` makes the old
-name keep working without touching a row, which is what a rolling deployment needs: the nodes still
-running the old build write the old name while the new ones read it.
+Say what the old name means now, and every stored row carrying it keeps resolving. That is what a
+rolling deployment needs: the nodes still running the old build write the old name while the new ones
+read it, so nothing has to be rewritten while both are running.
+
+<!-- snippet: sample_troubleshooting_type_loader_map -->
+```csharp
+services.AddQuartz(q => q.UseTypeLoader(loader =>
+{
+    // Old assembly-qualified name as stored, and the type it means now. Keep the entry until
+    // every row that could carry the old name has been rewritten or has aged out.
+    loader.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NightlyRollupJob));
+}));
+```
+<!-- endSnippet -->
+
+The same map binds from configuration, so a rename can ship in `appsettings.json` with the deployment
+that performs it rather than in a rebuild:
+
+```json
+{
+  "Quartz": {
+    "TypeLoader": {
+      "Aliases": {
+        "Acme.Jobs.NightlyReport, Acme.Jobs": "Acme.Jobs.NightlyRollupJob, Acme.Jobs"
+      }
+    }
+  }
+}
+```
+
+A few things worth knowing about the map:
+
+* It applies wherever Quartz turns a **string** into a type at run time — a stored `JOB_CLASS_NAME`, a
+  job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type`,
+  `quartz.jobListener.<name>.type` or `quartz.triggerListener.<name>.type` key. The flat keys naming a
+  scheduler's own components — the job store, thread pool, serializer, lock handler, job factory,
+  instance id generator, time provider and connection provider — are resolved while the service
+  collection is still being built, before any options exist, and are **not** aliased. Each of those
+  names a type in a file you can edit, which is why the feature is not for them.
+* A key matches the whole stored name, or the part of it before the comma that starts the assembly.
+  `Acme.Jobs.NightlyReport` therefore covers however the assembly was spelled after it, and
+  `Acme.Jobs.NightlyReport, Acme.Jobs` covers only that one.
+* An alias whose target names no type this application can load **fails at startup**, naming both halves
+  of the entry. An alias that resolves to nothing would otherwise surface as a `TypeLoadException`
+  naming the dead name and nothing about the mapping meant to save it.
+* Type loading is container-wide, so the map is the container's: a rename declared through any
+  scheduler's builder is in force for every scheduler in it.
+* **Nothing is written back.** A job read under an aliased name still has the old spelling in
+  `JOB_CLASS_NAME`, which is what makes the alias safe during a rollout — and what makes the `UPDATE`
+  above the way to eventually retire it. Enable `Debug` logging for `Quartz.Impl.SimpleTypeLoader` to
+  see whether anything is still hitting an alias before you remove it.
+
+**Resolution — a type loader of your own (4.x):**
+
+The map covers a rename. Where the answer is not a table — a name resolved out of a plugin's
+`AssemblyLoadContext`, or a scheme rather than a list — `ITypeLoader` is a single method and a
+replaceable seam, and `UseTypeLoader<T>()` replaces the loader altogether:
 
 <!-- snippet: sample_troubleshooting_type_loader_implementation -->
 ```csharp
@@ -340,21 +393,23 @@ services.AddQuartz(q => q.UseTypeLoader<RenameAwareTypeLoader>());
 ```
 <!-- endSnippet -->
 
-An implementation must **throw** rather than return `null` for a name it cannot resolve — Quartz only
-asks when it already knows a type is required, so a `null` surfaces later with nothing left to point at.
-`null` is reserved for a null or empty name.
+Replacing the loader replaces it for the whole container, and takes the declared map with it: the map is
+read by the loader Quartz ships. An implementation must **throw** rather than return `null` for a name it
+cannot resolve — Quartz only asks when it already knows a type is required, so a `null` surfaces later
+with nothing left to point at. `null` is reserved for a null or empty name.
 
-The loader Quartz ships already does this for **Quartz's own** 3.x → 4.0 renames: it retries
+The loader Quartz ships also carries **Quartz's own** 3.x → 4.0 renames: it retries
 `Quartz.Spi.*` as `Quartz.Extensibility.*`, `Quartz.Simpl.*` as `Quartz.Impl.*`, `Quartz.Job.*` as
 `Quartz.Jobs.*`, `Quartz.Plugin.*` as `Quartz.Plugins.*`, `Quartz.Listener.*` as `Quartz.Listeners.*`,
 the job stores' old names (`JobStoreTX`, `JobStoreCMT`) and the assemblies that were merged into the
-core package, logging a warning each time so the configuration can be corrected. It knows nothing about
-your types, which is what the sample above is for.
+core package, logging a warning each time so the configuration can be corrected. Those are the same
+mechanism the map is, applied to Quartz's own type names rather than to yours.
 
 **Prevention:**
 
 * Keep job class names and namespaces stable across releases.
-* If you must rename, apply the database update as part of your deployment process.
+* If you must rename, declare the alias in the deployment that renames the type (4.x), and apply the
+  database update in a later one — once nothing is hitting the alias any more.
 * Name the type in one place — a `public static readonly JobKey` on the job class, and registration
   through `AddJob<T>()` rather than a type-name string.
 
@@ -440,5 +495,5 @@ Jobs should check `IJobExecutionContext.CancellationToken` to respond to shutdow
 | `ObjectAlreadyExistsException` | Attempting to schedule a job or trigger with a key that already exists | Use `scheduler.RescheduleJob()` to replace an existing trigger, or check existence first with `scheduler.Exists()` (Quartz 4.x; on Quartz 3.x the method is `scheduler.CheckExists()`) |
 | `JobPersistenceException` | Database error during job store operation | Check database connectivity, connection pool size, and query timeouts |
 | `SchedulerException: Scheduler has been shutdown` | Calling scheduler methods after `Shutdown()` | Ensure your application lifecycle correctly manages the scheduler |
-| `TypeLoadException` on job execution | Job class not found — possibly renamed or moved | Update `JOB_CLASS_NAME` in `QRTZ_JOB_DETAILS` (see [Job Deserialization Failures](#job-deserialization-failures-after-refactoring)) |
+| `TypeLoadException` on job execution | Job class not found — possibly renamed or moved | Declare the rename on the type loader (4.x), or update `JOB_CLASS_NAME` in `QRTZ_JOB_DETAILS` (see [Job Deserialization Failures](#job-deserialization-failures-after-refactoring)) |
 | `JobExecutionException` | Unhandled exception inside `IJob.Execute()` | Add try-catch in your job's Execute method (see [Best Practices](best-practices.md#what-happens-when-a-job-throws)) |

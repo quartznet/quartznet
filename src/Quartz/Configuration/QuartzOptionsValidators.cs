@@ -4,6 +4,8 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Impl;
+
 namespace Quartz.Configuration;
 
 /// <summary>
@@ -333,6 +335,63 @@ internal sealed class ThreadPoolOptionsValidator : IValidateOptions<ThreadPoolOp
         }
 
         return ValidateOptionsResult.Success;
+    }
+}
+
+/// <summary>
+/// Refuses a type loader alias that maps a name onto nothing, because such an alias is a rename that
+/// has not happened.
+/// </summary>
+/// <remarks>
+/// <para>
+/// An alias is only ever consulted for a name that is about to be turned into a type — a stored
+/// <c>JOB_CLASS_NAME</c>, most of the time — so an alias whose target does not resolve fails on the
+/// first job that needs it, in a <c>TypeLoadException</c> naming the <em>old</em> name and nothing
+/// about the mapping that was supposed to save it. Checked here instead, it is a startup failure that
+/// names both halves of the entry that is wrong.
+/// </para>
+/// <para>
+/// The target is resolved the way the loader resolves it, so a target may itself be spelled with a
+/// pre-4.0 name; only the key is left alone, since a key that no longer resolves is exactly the point.
+/// A blank key is refused as well: it would prefix-match every name the loader is ever asked for.
+/// </para>
+/// </remarks>
+internal sealed class TypeLoaderOptionsValidator : IValidateOptions<TypeLoaderOptions>
+{
+    public ValidateOptionsResult Validate(string? name, TypeLoaderOptions options)
+    {
+        List<string>? failures = null;
+
+        foreach ((string alias, string? target) in options.Aliases)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(TypeLoaderOptions.Aliases)} contains a blank name, mapped to '{target}'. An alias is "
+                    + "matched against the start of every type name Quartz resolves, so a blank one would claim all "
+                    + "of them; give it the name as it is stored or configured.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                (failures ??= []).Add(
+                    $"Type loader alias '{alias}' maps to a blank type name. Give it the name of the type that "
+                    + "replaced it, or remove the entry.");
+                continue;
+            }
+
+            if (!SimpleTypeLoader.CanResolve(target))
+            {
+                (failures ??= []).Add(
+                    $"Type loader alias '{alias}' maps to '{target}', which names no type this application can "
+                    + "load. The target is the type as it is called now, assembly-qualified — "
+                    + "'Namespace.TypeName, AssemblyName' — and the assembly has to be one this application "
+                    + "references; the alias is the dead name, and is not checked.");
+            }
+        }
+
+        return QuartzSchedulerOptionsValidator.Result(failures);
     }
 }
 

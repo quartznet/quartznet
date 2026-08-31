@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 using Quartz.Extensibility;
 using Quartz.Extensions.Redis;
 using Quartz.Impl;
@@ -206,5 +208,100 @@ public class SimpleTypeLoaderTest
     public void ShouldReturnNullForAnEmptyName()
     {
         typeLoader.LoadType("").Should().BeNull();
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // Aliases the application declares, which ride the same table mechanism as the renames above.
+    // -------------------------------------------------------------------------------------------------
+
+    [Test]
+    public void ShouldResolveANameThroughADeclaredAlias()
+    {
+        ITypeLoader loader = WithAliases(options => options.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NoOpJob)));
+
+        loader.LoadType("Acme.Jobs.NightlyReport, Acme.Jobs").Should().Be<NoOpJob>(
+            "a declared rename is what keeps a stored JOB_CLASS_NAME firing after the type moved");
+    }
+
+    [Test]
+    public void ShouldResolveANameThroughAnAliasThatNamesNoAssembly()
+    {
+        ITypeLoader loader = WithAliases(options => options.Map("Acme.Jobs.NightlyReport", typeof(NoOpJob)));
+
+        loader.LoadType("Acme.Jobs.NightlyReport, Acme.Jobs").Should().Be<NoOpJob>(
+            "an alias matches the part of the name before the assembly, so one entry covers however the "
+            + "assembly was spelled beside it");
+    }
+
+    [Test]
+    public void ShouldKeepTheStoredAssemblyWhenTheAliasTargetNamesNone()
+    {
+        ITypeLoader loader = WithAliases(options => options.Aliases["Quartz.Jobs.NightlyReport"] = "Quartz.Jobs.NoOpJob");
+
+        loader.LoadType("Quartz.Jobs.NightlyReport, Quartz.Jobs").Should().Be<NoOpJob>(
+            "a target that names no assembly is a rename within the assembly the name already carried");
+    }
+
+    [Test]
+    public void ShouldNotClaimANameThatMerelyStartsWithADeclaredAlias()
+    {
+        ITypeLoader loader = WithAliases(options => options.Map("Acme.Jobs.Nightly", typeof(NoOpJob)));
+
+        var act = () => loader.LoadType("Acme.Jobs.NightlyReport, Acme.Jobs");
+
+        act.Should().Throw<TypeLoadException>().WithMessage("*Acme.Jobs.NightlyReport*",
+            "an alias applies to a whole type name, exactly as Quartz's own rename table does");
+    }
+
+    [Test]
+    public void ShouldPreferADeclaredAliasOverANameThatStillResolves()
+    {
+        ITypeLoader loader = WithAliases(options => options.Map("Quartz.Jobs.NoOpJob, Quartz.Jobs", typeof(DirectoryScanJob)));
+
+        loader.LoadType("Quartz.Jobs.NoOpJob, Quartz.Jobs").Should().Be<DirectoryScanJob>(
+            "an alias states what a stored name means now, so it holds through the window in which the "
+            + "old type is still deployed beside the new one");
+    }
+
+    [Test]
+    public void ShouldFallBackToTheNameAsGivenWhenAnAliasTargetCannotBeLoaded()
+    {
+        ITypeLoader loader = WithAliases(options => options.Aliases["Quartz.Impl.DefaultThreadPool"] = "Acme.Nope, Acme");
+
+        loader.LoadType("Quartz.Impl.DefaultThreadPool, Quartz").Should().Be<DefaultThreadPool>(
+            "an alias that resolves to nothing is refused at startup, so a loader built without validation "
+            + "carries on rather than losing a name that was never broken");
+    }
+
+    [Test]
+    public void ShouldIgnoreABlankAlias()
+    {
+        ITypeLoader loader = WithAliases(options =>
+        {
+            options.Aliases[" "] = "Quartz.Jobs.NoOpJob, Quartz.Jobs";
+            options.Aliases["Acme.Jobs.NightlyReport"] = "";
+        });
+
+        loader.LoadType("Quartz.Impl.DefaultThreadPool, Quartz").Should().Be<DefaultThreadPool>(
+            "a blank alias would prefix-match every name there is; it is refused at startup, and ignored "
+            + "by a loader that was built without validation");
+    }
+
+    [Test]
+    public void ShouldStillApplyTheBuiltInRenamesBesideADeclaredAlias()
+    {
+        ITypeLoader loader = WithAliases(options => options.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NoOpJob)));
+
+        loader.LoadType("Quartz.Simpl.DefaultThreadPool, Quartz").Should().Be<DefaultThreadPool>(
+            "declaring a rename of your own does not displace Quartz's own 3.x table");
+        loader.LoadType("Quartz.Impl.AdoJobStore.JobStoreTX, Quartz").Should().Be<LocalTransactionJobStore>(
+            "nor the type renames in it, which keep quartz.jobStore.type resolving");
+    }
+
+    private static ITypeLoader WithAliases(Action<TypeLoaderOptions> configure)
+    {
+        TypeLoaderOptions options = new();
+        configure(options);
+        return new SimpleTypeLoader(logger: null, Options.Create(options));
     }
 }

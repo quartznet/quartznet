@@ -37,6 +37,38 @@ public static class QuartzBuilderExtensions
     }
 
     /// <summary>
+    /// Configures the type loader, which is where a job type that was renamed says what it is called
+    /// now.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>UseTypeLoader&lt;T&gt;()</c> replaces the loader; this configures the one Quartz ships.
+    /// Declaring a rename here is the declarative form of the rename-aware loader the troubleshooting
+    /// page used to be the only answer — one line per renamed type instead of a class to write, register
+    /// and keep — and the same map can arrive from configuration under
+    /// <c>Quartz:TypeLoader:Aliases</c>, so a rename can ship with the deployment that performs it.
+    /// </para>
+    /// <para>
+    /// The options are the container's rather than one scheduler's, because the loader is: a rename
+    /// declared through any scheduler's builder is in force for every scheduler in the container. An
+    /// alias whose target names no loadable type fails validation at startup.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="configure">Declares the renames.</param>
+    public static IQuartzBuilder UseTypeLoader(this IQuartzBuilder builder, Action<TypeLoaderOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        // Registered here as well as by AddQuartz, because this is reachable from a builder that has not
+        // registered a scheduler yet, and an alias with no validator is one that fails on first use.
+        builder.Services.AddQuartzOptionsValidation();
+        builder.Services.Configure<TypeLoaderOptions>(configure);
+        return builder;
+    }
+
+    /// <summary>
     /// Prepares the dependency injection scope each job is built in, so services that are scoped can be
     /// given the ambient context of the job about to run.
     /// </summary>

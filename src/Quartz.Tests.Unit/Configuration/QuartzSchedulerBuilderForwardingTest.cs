@@ -37,6 +37,18 @@ public class QuartzSchedulerBuilderForwardingTest
             services => Unkeyed(services).Any(descriptor =>
                 descriptor.ServiceType == typeof(ITypeLoader) && descriptor.ImplementationType?.Name == "SimpleTypeLoader")),
 
+        // UseTypeLoader<T>() is an interface member rather than an extension, but it shares its name with
+        // one — and the coverage check pairs cases with mirrors by name — so both overloads need a case.
+        new Case("UseTypeLoader", "UseTypeLoader<T>()",
+            builder => builder.UseTypeLoader<ForwardingTypeLoader>(),
+            services => Unkeyed(services).Any(descriptor =>
+                descriptor.ServiceType == typeof(ITypeLoader) && descriptor.ImplementationType == typeof(ForwardingTypeLoader))),
+
+        new Case("UseTypeLoader", "UseTypeLoader(configure)",
+            builder => builder.UseTypeLoader(loader => loader.Map("Acme.Jobs.Renamed, Acme.Jobs", typeof(ForwardingJob))),
+            services => Resolve(services, provider =>
+                provider.GetRequiredService<IOptions<TypeLoaderOptions>>().Value.Aliases.ContainsKey("Acme.Jobs.Renamed, Acme.Jobs"))),
+
         new Case("ConfigureJobScope", "ConfigureJobScope(configure)",
             builder => builder.ConfigureJobScope((_, _, _) => { }),
             services => Resolve(services, provider =>
@@ -205,5 +217,10 @@ public class QuartzSchedulerBuilderForwardingTest
 
     private sealed class DerivedForwardingJob : ForwardingJob
     {
+    }
+
+    private sealed class ForwardingTypeLoader : ITypeLoader
+    {
+        public Type LoadType(string name) => Type.GetType(name, throwOnError: true)!;
     }
 }

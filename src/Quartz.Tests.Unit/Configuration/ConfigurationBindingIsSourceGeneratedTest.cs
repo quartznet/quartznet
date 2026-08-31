@@ -44,9 +44,9 @@ namespace Quartz.Tests.Unit.Configuration;
 public class ConfigurationBindingIsSourceGeneratedTest
 {
     /// <summary>
-    /// The six calls the generator has to intercept, which are all of the binder calls Quartz makes.
+    /// The seven calls the generator has to intercept, which are all of the binder calls Quartz makes.
     /// </summary>
-    private const int InterceptedBinderCalls = 6;
+    private const int InterceptedBinderCalls = 7;
 
     /// <summary>
     /// The file those calls are written in. The generator intercepts call sites in the project being
@@ -100,7 +100,8 @@ public class ConfigurationBindingIsSourceGeneratedTest
             typeof(InMemoryJobStoreOptions),
             typeof(AdoJobStoreOptions),
             typeof(ClusteringOptions),
-            typeof(DataSourceOptions)
+            typeof(DataSourceOptions),
+            typeof(TypeLoaderOptions)
         ];
 
         List<Type> generated = GeneratedBinder()
@@ -155,6 +156,12 @@ public class ConfigurationBindingIsSourceGeneratedTest
         AssertEveryMemberBinds<DataSourceOptions>($"{QuartzTypedOptions.DataSourceSection}:reporting", "reporting");
     }
 
+    /// <summary>
+    /// <see cref="TypeLoaderOptions"/> has no case of its own above, because the harness fills a string
+    /// dictionary with a canary value — and every value in this one has to name a loadable type, so the
+    /// canary would fail options validation rather than the binding.
+    /// <c>TypeLoaderAliasTest.AnAliasBindsFromConfiguration</c> binds it with a real type name instead.
+    /// </summary>
     [Test]
     public void EveryCodeOnlyMemberIsStillEarningItsPlace()
     {
@@ -250,6 +257,7 @@ public class ConfigurationBindingIsSourceGeneratedTest
         yield return typeof(AdoJobStoreOptions);
         yield return typeof(ClusteringOptions);
         yield return typeof(DataSourceOptions);
+        yield return typeof(TypeLoaderOptions);
     }
 
     private static IEnumerable<PropertyInfo> Settable(Type type) => type

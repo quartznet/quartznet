@@ -585,6 +585,44 @@ services.AddQuartz(q => q.ConfigureJobScope((scope, bundle, scheduler) => { /* �
 ```
 <!-- endSnippet -->
 
+## Type loader
+
+`TypeLoaderOptions`, bound from `Quartz:TypeLoader`. This is the one options type that is the
+**container's** rather than a scheduler's, because the loader it configures is: one `ITypeLoader` serves
+every scheduler in the container.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `Aliases` | `Dictionary<string, string>` | empty | What a type name that no longer names anything means today: the name as it was stored or configured, mapped to the name of the type that replaced it. |
+
+<!-- snippet: sample_reference_type_loader_aliases -->
+```csharp
+services.AddQuartz(q => q.UseTypeLoader(loader =>
+    loader.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NightlyRollupJob))));
+```
+<!-- endSnippet -->
+
+```json
+{
+  "Quartz": {
+    "TypeLoader": {
+      "Aliases": {
+        "Acme.Jobs.NightlyReport, Acme.Jobs": "Acme.Jobs.NightlyRollupJob, Acme.Jobs"
+      }
+    }
+  }
+}
+```
+
+An alias applies wherever Quartz turns a string into a type at run time — a stored `JOB_CLASS_NAME`, a
+job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type` or
+`quartz.jobListener.<name>.type` key. The flat keys naming a scheduler's own components are read while
+the service collection is still being built, before any options exist, and are not aliased. An alias
+whose target names no type this application can load fails options validation at startup, and nothing is
+ever written back, so retiring one is still the SQL `UPDATE`; see [Job deserialization failures after
+refactoring](../../troubleshooting.md#job-deserialization-failures-after-refactoring) for the whole
+story.
+
 ## The other seams
 
 Each of these replaces one collaborator of the scheduler. All are `IQuartzBuilder` members, so they work
@@ -594,6 +632,7 @@ identically under `AddQuartz` and on a standalone `QuartzSchedulerBuilder`.
 |---|---|---|
 | `UseTimeProvider(timeProvider)` | the clock every trigger, store and misfire calculation reads | `TimeProvider.System`, or the container's registration when there is one |
 | `UseTypeLoader<T>()` | how a type named by a string — a stored `JOB_CLASS_NAME`, a `.type` key — is resolved | resolution through the container's assemblies, with the 3.x namespace fallbacks |
+| `UseTypeLoader(configure)` | *configures* that loader rather than replacing it: `loader.Map(oldName, typeof(NewType))` declares what a renamed type is called now, and `Quartz:TypeLoader:Aliases` is the same map from configuration. See [Job deserialization failures after refactoring](../../troubleshooting.md#job-deserialization-failures-after-refactoring) | no aliases |
 | `UseInstanceIdGenerator<T>()` | how `InstanceId` is derived when `GenerateInstanceId` is on | `SimpleInstanceIdGenerator`: host name plus a timestamp |
 | `UseJobStore<T>()`, `UseJobStore<T, TOptions>()` | the job store, for one that is neither of the two Quartz ships | the in-memory store |
 | `UseDriverDelegate<T>()`, `UseDriverDelegate(factory)` (on the persistent store builder) | the SQL dialect the ADO.NET store speaks | selected by the database method — `UseSqlServer` picks `SqlServerDelegate`, and so on |
