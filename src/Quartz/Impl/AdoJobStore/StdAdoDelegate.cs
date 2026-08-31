@@ -718,8 +718,10 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// do to support <see cref="SchemaProvisioning.CreateIfMissing" />.
     /// </para>
     /// <para>
-    /// The name is a manifest resource name in the assembly that declares the delegate, so a delegate
-    /// of somebody else's can embed a script of its own beside itself.
+    /// The name is a manifest resource name, looked for in the assembly of the delegate's own type and
+    /// then in each assembly up its base chain. So a delegate of somebody else's can embed a script of
+    /// its own beside itself, and one that subclasses a shipped dialect delegate to change a statement
+    /// or two inherits that dialect's script rather than having to carry a copy.
     /// </para>
     /// </remarks>
     protected virtual string? SchemaResourceName => null;
@@ -774,18 +776,24 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
                 + "script.");
         }
 
-        // The resource lives beside the delegate that named it, which for a delegate written outside
-        // Quartz is not this assembly.
-        using Stream? stream = GetType().Assembly.GetManifestResourceStream(resourceName);
-        if (stream is null)
+        // The resource lives beside the delegate that named it, which is this assembly for a shipped
+        // dialect and somebody else's for a delegate written outside Quartz — and for the commonest
+        // shape of all, a delegate subclassing a shipped dialect to change a statement or two, it is
+        // this assembly rather than that delegate's own. Walking up the hierarchy finds it either way,
+        // nearest first, so a subclass that embeds a script of its own still wins over the base's.
+        for (Type? declaring = GetType(); declaring is not null; declaring = declaring.BaseType)
         {
-            throw new JobPersistenceException(
-                $"{GetType().Name} names the schema script '{resourceName}', which is not embedded in "
-                + $"{GetType().Assembly.GetName().Name}.");
+            using Stream? stream = declaring.Assembly.GetManifestResourceStream(resourceName);
+            if (stream is not null)
+            {
+                using StreamReader reader = new(stream, Encoding.UTF8);
+                return AdoJobStoreUtil.ReplaceTablePrefix(reader.ReadToEnd(), tablePrefix);
+            }
         }
 
-        using StreamReader reader = new(stream, Encoding.UTF8);
-        return AdoJobStoreUtil.ReplaceTablePrefix(reader.ReadToEnd(), tablePrefix);
+        throw new JobPersistenceException(
+            $"{GetType().Name} names the schema script '{resourceName}', which is embedded neither in "
+            + $"{GetType().Assembly.GetName().Name} nor in the assembly of any delegate it derives from.");
     }
 
     /// <summary>
