@@ -84,7 +84,7 @@ public class TriggerInErrorNotificationTest
             .StoreDurably()
             .Build();
 
-        await store.AddJob(job, replace: false);
+        await store.AddJob(job);
 
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "errorstate")
@@ -93,7 +93,7 @@ public class TriggerInErrorNotificationTest
             .Build();
 
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.AddTrigger(trigger, replace: false);
+        await store.AddTrigger(trigger);
 
         await store.TriggeredJobComplete(trigger, job, SchedulerInstruction.SetTriggerError);
 

@@ -730,7 +730,7 @@ internal sealed class QuartzScheduler
             // lock once, so a caller replacing a job and its trigger together cannot be seen half
             // applied and cannot lose a race with another node doing the same thing.
             Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> one = new(1) { [jobDetail] = [trig] };
-            await resources.JobStore.ScheduleJobs(one, scheduleOptions.Replace, cancellationToken).ConfigureAwait(false);
+            await resources.JobStore.ScheduleJobs(one, scheduleOptions, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -786,7 +786,7 @@ internal sealed class QuartzScheduler
 
         // Replacing is the store's own operation, taken under the store's lock, so an upsert is one
         // call rather than a CheckExists / UnscheduleJob / ScheduleJob a caller has to serialize itself.
-        await resources.JobStore.AddTrigger(trig, options.Replace, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.AddTrigger(trig, new AddTriggerOptions { Replace = options.Replace }, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(trigger.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
 
@@ -818,7 +818,7 @@ internal sealed class QuartzScheduler
 
         PrepareJobData(jobDetail.JobDataMap);
 
-        await resources.JobStore.AddJob(jobDetail, options.Replace, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.AddJob(jobDetail, options, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await NotifySchedulerListenersJobAdded(jobDetail, cancellationToken).ConfigureAwait(false);
     }
@@ -968,7 +968,7 @@ internal sealed class QuartzScheduler
             validated.Add(job, operableTriggers);
         }
 
-        await resources.JobStore.ScheduleJobs(validated, options.Replace, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.ScheduleJobs(validated, options, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         foreach (var pair in validated)
         {
@@ -1395,7 +1395,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await resources.JobStore.AddTrigger(trig, false, cancellationToken).ConfigureAwait(false);
+                await resources.JobStore.AddTrigger(trig, cancellationToken: cancellationToken).ConfigureAwait(false);
                 collision = false;
             }
             catch (ObjectAlreadyExistsException)
@@ -1426,7 +1426,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await resources.JobStore.AddTrigger(trigger, false, cancellationToken).ConfigureAwait(false);
+                await resources.JobStore.AddTrigger(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
                 collision = false;
             }
             catch (ObjectAlreadyExistsException)

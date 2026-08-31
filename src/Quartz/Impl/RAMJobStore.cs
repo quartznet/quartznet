@@ -282,16 +282,14 @@ public sealed class RAMJobStore : IJobStore
     /// Store the given <see cref="IJob" />.
     /// </summary>
     /// <param name="job">The <see cref="IJob" /> to be stored.</param>
-    /// <param name="replace">If <see langword="true" />, any <see cref="IJob" /> existing in the
-    ///     <see cref="IJobStore" /> with the same name and group should be
-    ///     over-written.</param>
+    /// <param name="options">How to store it; see <see cref="IJobStore.AddJob" />.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask AddJob(IJobDetail job, AddJobOptions options = default, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            AddJobNoLock(job, replace);
+            AddJobNoLock(job, options.Replace);
         }
         finally
         {
@@ -499,7 +497,7 @@ public sealed class RAMJobStore : IJobStore
         return deleted;
     }
 
-    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
 
@@ -507,7 +505,7 @@ public sealed class RAMJobStore : IJobStore
         try
         {
             // make sure there are no collisions...
-            if (!replace)
+            if (!options.Replace)
             {
                 foreach (var triggersByJob in triggersAndJobs)
                 {
@@ -563,18 +561,16 @@ public sealed class RAMJobStore : IJobStore
     /// Store the given <see cref="ITrigger" />.
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
-    /// <param name="replace">If <see langword="true" />, any <see cref="ITrigger" /> existing in
-    ///     the <see cref="IJobStore" /> with the same name and group should
-    ///     be over-written.</param>
+    /// <param name="options">How to store it; see <see cref="IJobStore.AddTrigger" />.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask AddTrigger(IOperableTrigger trigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
 
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            AddTriggerNoLock(trigger, replace, ref pending);
+            AddTriggerNoLock(trigger, options.Replace, ref pending);
         }
         finally
         {

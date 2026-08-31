@@ -135,7 +135,7 @@ public abstract class JobStoreContractTest
         IOperableTrigger second = CreateTrigger("second", TriggerGroupB, job.Key);
 
         await Store.ScheduleJob(job, first);
-        await Store.AddTrigger(second, replace: false);
+        await Store.AddTrigger(second);
 
         (await Store.PauseJob(job.Key)).Should().BeTrue();
 
@@ -157,7 +157,7 @@ public abstract class JobStoreContractTest
             .StoreDurably()
             .Build();
 
-        await Store.AddJob(job, replace: false);
+        await Store.AddJob(job);
 
         (await Store.PauseJob(job.Key)).Should().BeTrue(
             "the answer says whether the job was found, not how many triggers it happened to have");
@@ -202,7 +202,7 @@ public abstract class JobStoreContractTest
             .WithIdentity("durable", JobGroupA)
             .StoreDurably()
             .Build();
-        await Store.AddJob(durable, replace: false);
+        await Store.AddJob(durable);
 
         JobKey firstJob = new JobKey("first", JobGroupA);
         JobKey secondJob = new JobKey("second", JobGroupB);
@@ -662,8 +662,8 @@ public abstract class JobStoreContractTest
             .WithIdentity("durable", JobGroupA)
             .StoreDurably()
             .Build();
-        await Store.AddJob(durable, replace: false);
-        await Store.AddTrigger(CreateTrigger("durable", TriggerGroupA, durable.Key), replace: false);
+        await Store.AddJob(durable);
+        await Store.AddTrigger(CreateTrigger("durable", TriggerGroupA, durable.Key));
 
         List<TriggerKey> deleted = await Store.DeleteTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
 
@@ -820,18 +820,18 @@ public abstract class JobStoreContractTest
         // ObjectAlreadyExistsException derives from JobPersistenceException, so a store that wraps it
         // still satisfies a catch of the base type — and silently costs the caller the only thing that
         // told "already there" apart from "the store broke".
-        Func<Task> addingTheJobAgain = async () => await Store.AddJob(CreateJob("taken", JobGroupA), replace: false);
+        Func<Task> addingTheJobAgain = async () => await Store.AddJob(CreateJob("taken", JobGroupA));
         await addingTheJobAgain.Should().ThrowAsync<ObjectAlreadyExistsException>(
             "storing over a job without asking to replace it names the mistake");
 
         Func<Task> addingTheTriggerAgain = async () => await Store.AddTrigger(
-            CreateTrigger("taken", TriggerGroupA, job.Key), replace: false);
+            CreateTrigger("taken", TriggerGroupA, job.Key));
         await addingTheTriggerAgain.Should().ThrowAsync<ObjectAlreadyExistsException>();
 
         Func<Task> replacing = async () =>
         {
-            await Store.AddJob(CreateJob("taken", JobGroupA), replace: true);
-            await Store.AddTrigger(CreateTrigger("taken", TriggerGroupA, job.Key), replace: true);
+            await Store.AddJob(CreateJob("taken", JobGroupA), AddJobOptions.Replacing);
+            await Store.AddTrigger(CreateTrigger("taken", TriggerGroupA, job.Key), AddTriggerOptions.Replacing);
         };
 
         await replacing.Should().NotThrowAsync("replacing is what the flag asks for");
@@ -2180,7 +2180,7 @@ public abstract class JobStoreContractTest
             startAt: DateTimeOffset.UtcNow.AddHours(1));
         replacement.PreviousFireTimeUtc.Should().BeNull("the replacement is a new object with no history of its own");
 
-        await Store.AddTrigger(replacement, replace: true);
+        await Store.AddTrigger(replacement, AddTriggerOptions.Replacing);
 
         (await Store.GetTrigger(trigger.Key)).PreviousFireTimeUtc.Should().Be(previous,
             "a job reading context.PreviousFireTimeUtc must not be told the schedule has never fired merely "
@@ -2203,7 +2203,7 @@ public abstract class JobStoreContractTest
             startAt: DateTimeOffset.UtcNow.AddHours(1));
         replacement.PreviousFireTimeUtc = chosen;
 
-        await Store.AddTrigger(replacement, replace: true);
+        await Store.AddTrigger(replacement, AddTriggerOptions.Replacing);
 
         (await Store.GetTrigger(trigger.Key)).PreviousFireTimeUtc.Should().Be(chosen,
             "carrying the old value over is a default for a caller who said nothing, not an override of one who did");
@@ -2218,7 +2218,7 @@ public abstract class JobStoreContractTest
 
         IOperableTrigger replacement = CreateTrigger("replaced", TriggerGroupA, trigger.JobKey,
             startAt: DateTimeOffset.UtcNow.AddHours(1));
-        await Store.AddTrigger(replacement, replace: true);
+        await Store.AddTrigger(replacement, AddTriggerOptions.Replacing);
 
         (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
             "a paused group imposes the pause on what is written into it, whether that is an insert or a replace — "
@@ -2411,7 +2411,7 @@ public abstract class JobStoreContractTest
         blocked.ComputeFirstFireTimeUtc(null);
         blocked.NextFireTimeUtc = overdue;
 
-        await Store.AddTrigger(blocked, replace: false);
+        await Store.AddTrigger(blocked);
 
         List<TriggerFiredResult> fired = await Store.TriggersFired([firing]);
         fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull(
