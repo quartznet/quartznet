@@ -354,6 +354,30 @@ public static class TimeZones
     }
 
     /// <summary>
+    /// Walks backward from the first wall-clock time after a spring-forward gap to the first
+    /// wall-clock time the gap swallowed (the start of the gap). Returns the input unchanged when
+    /// the wall clock a minute before it exists, so a time that is not a gap's end does not move.
+    /// </summary>
+    /// <remarks>
+    /// The mirror of <see cref="WalkToGapEnd" />: together the two name the gap's boundaries from
+    /// whichever side the caller arrived at. A search that advances in wall clock has to begin at
+    /// the gap's first swallowed reading to see the readings the gap removed, and converting the
+    /// instant the clocks moved lands past them - the gap's end and the gap's start are the same
+    /// instant, so the instant alone cannot say which of the two wall clocks was meant.
+    /// </remarks>
+    internal static DateTime WalkToGapStart(DateTime firstValidAfterGap, TimeZoneInfo timeZoneInfo)
+    {
+        DateTime probe = firstValidAfterGap;
+        int guard = 0;
+        while (timeZoneInfo.IsInvalidTime(probe.AddMinutes(-1)) && guard++ < MaxTransitionScanMinutes)
+        {
+            probe = probe.AddMinutes(-1);
+        }
+
+        return probe;
+    }
+
+    /// <summary>
     /// Tries to find time zone with given id, has ability do some fallbacks when necessary.
     /// </summary>
     /// <param name="id">System id of the time zone.</param>

@@ -2433,11 +2433,20 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// Gets the next fire time after the given time.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Daylight saving time transitions in the configured <see cref="TimeZone"/> are handled as
-    /// follows: a scheduled wall-clock time that does not exist (spring-forward gap) fires exactly
-    /// once, shifted forward by the transition delta — a daily 02:30 schedule over a 02:00-03:00
-    /// gap fires at 03:30. This matches Java Quartz. A wall-clock time that occurs twice
-    /// (fall-back overlap) fires at its first occurrence.
+    /// follows: a scheduled wall-clock time that does not exist (spring-forward gap) fires at the
+    /// end of the gap — the instant the clocks moved, which is the first instant the zone's clock
+    /// reads at or past the scheduled time. A daily 02:30 schedule over a 02:00-03:00 gap fires at
+    /// 03:00. A wall-clock time that occurs twice (fall-back overlap) fires at its first occurrence.
+    /// </para>
+    /// <para>
+    /// The gap's end is also the only in-gap answer <see cref="IsSatisfiedBy" /> can reproduce,
+    /// because a spring-forward gap takes no real time: its start and its end are the same instant,
+    /// so a search that begins one second earlier rewinds into the gap and arrives back at it. Every
+    /// wall clock the gap swallowed therefore names that one instant, and an expression matching
+    /// several of them fires once rather than once per match.
+    /// </para>
     /// </remarks>
     /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
     /// <returns></returns>
@@ -2456,6 +2465,23 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
 
         // change to specified time zone
         d = TimeZones.ConvertTime(d, TimeZone);
+
+        // The walk runs in wall clock, so it has to start at the earliest wall clock the search has
+        // not already examined. Converting the instant gives that wall clock everywhere except at
+        // the end of a spring-forward gap, where it is the first reading AFTER the wall clocks the
+        // gap swallowed - and those have not been examined, because the instant one second earlier
+        // is still before the gap. Rewinding into the gap is what makes GetTimeAfter(t - 1s) == t
+        // hold for a fire the gap produced, and so what makes IsSatisfiedBy agree with it. The guard
+        // is false at every fall-back transition, so the ambiguous-time rules below are untouched by
+        // construction rather than by argument, and a zone that never moves its clocks pays one bool
+        // read. The tick test keeps a caller asking from DateTimeOffset.MinValue - which a zone west
+        // of UTC clamps to - from underflowing.
+        if (TimeZone.SupportsDaylightSavingTime
+            && d.Ticks >= TimeSpan.TicksPerSecond
+            && TimeZone.IsInvalidTime(d.DateTime.AddSeconds(-1)))
+        {
+            d = new DateTimeOffset(TimeZones.WalkToGapStart(d.DateTime, TimeZone), d.Offset);
+        }
 
         var nextFireTimeCursor = new NextFireTimeCursor(false, d);
         var foundNextFireTime = false;
@@ -2478,9 +2504,11 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
                 continue;
             }
 
-            // apply the proper offset for this date
+            // apply the proper offset for this date. A wall clock that exists resolves exactly as
+            // ResolveLocal would; one the spring-forward gap swallowed is answered with the instant
+            // the clocks moved, which is the first instant the zone's clock reads at or past it.
             var localDateTime = nextFireTimeCursor.Date.Value.DateTime;
-            d = TimeZones.ResolveLocal(localDateTime, TimeZone);
+            d = TimeZones.FirstInstantAtOrAfterLocal(localDateTime, TimeZone);
             foundNextFireTime = true;
 
             // During DST fall-back transitions an ambiguous local time resolves to its first

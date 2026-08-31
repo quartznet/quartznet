@@ -188,6 +188,40 @@ public class TimeZonesTest
         TimeZones.WalkToGapEnd(alreadyValid, zone).Should().Be(alreadyValid, "a valid time is returned unchanged");
     }
 
+    // The mirror of WalkToGapEnd: from the first wall clock that exists after the gap, back to the
+    // first one the gap swallowed. A wall-clock walk that converted the transition instant has to
+    // rewind this far to see the readings the gap removed, because the two boundaries are one
+    // instant and converting it can only ever produce the later reading.
+    [TestCase("Eastern", "2024-03-10 03:00", "2024-03-10 02:00")]
+    [TestCase("LordHowe", "2019-10-06 02:30", "2019-10-06 02:00")]
+    [TestCase("Santiago", "2019-09-08 01:00", "2019-09-08 00:00")]
+    public void WalkToGapStart_ReturnsFirstWallClockTheGapSwallowed(string zoneKey, string gapEnd, string expectedGapStart)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime end = DateTime.Parse(gapEnd, CultureInfo.InvariantCulture);
+        DateTime start = DateTime.Parse(expectedGapStart, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeInvalidLocalTime(zone, start);
+
+        TimeZones.WalkToGapStart(end, zone).Should().Be(start);
+
+        zone.IsInvalidTime(start.AddMinutes(-1)).Should().BeFalse("the returned time is the FIRST reading the gap swallowed");
+        TimeZones.WalkToGapEnd(start, zone).Should().Be(end, "walking back and forth again returns to where it started");
+    }
+
+    [TestCase("Eastern", "2024-03-10")]
+    [TestCase("LordHowe", "2019-10-06")]
+    [TestCase("Santiago", "2019-09-08")]
+    public void WalkToGapStart_WallClockPrecededByOneThatExists_IsReturnedUnchanged(string zoneKey, string transitionDay)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+
+        // noon, not midnight - in a midnight-gap zone like Santiago the date's own 00:00 is invalid
+        DateTime noon = DateTime.Parse(transitionDay, CultureInfo.InvariantCulture).AddHours(12);
+
+        TimeZones.WalkToGapStart(noon, zone).Should().Be(noon,
+            "nothing before noon on a transition day is missing, so there is no gap to rewind into");
+    }
+
     // A boundary inside a spring-forward gap is crossed the moment the clocks move, which is earlier
     // than the instant ResolveLocal hands a trigger for the same wall clock. The second case is why
     // the gap is walked from the whole minute: a boundary a millisecond into the gap is still crossed

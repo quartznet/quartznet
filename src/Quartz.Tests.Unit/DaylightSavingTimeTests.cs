@@ -50,8 +50,9 @@ public class DaylightSavingTimeTest
         DateTimeOffset midnight = new DateTimeOffset(2016, 3, 13, 0, 0, 0, TimeSpan.FromHours(-8));
         DateTimeOffset? fireTime = trigger.GetFireTimeAfter(midnight);
 
-        // It should fire at the equivalent valid local time.  2:30-8 does not exist, so it should run at 3:30-7.
-        DateTimeOffset expectedTime = new DateTimeOffset(2016, 3, 13, 3, 30, 0, TimeSpan.FromHours(-7));
+        // 2:30-8 does not exist, so it fires when the clocks move and the local time first reads
+        // past it - the end of the gap, 3:00-7.
+        DateTimeOffset expectedTime = new DateTimeOffset(2016, 3, 13, 3, 0, 0, TimeSpan.FromHours(-7));
 
         // We should definitely have a value
         Assert.That(fireTime, Is.Not.Null);

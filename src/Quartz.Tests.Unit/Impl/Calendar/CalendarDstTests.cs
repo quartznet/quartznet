@@ -126,10 +126,19 @@ public class CalendarDstTests
 
     /// <summary>
     /// A cron exclusion is wall-clock matching, so an expression that names an hour the
-    /// spring-forward day does not have excludes nothing at all on that day.
+    /// spring-forward day does not have excludes exactly the one instant that hour collapsed onto:
+    /// the moment the clocks moved.
     /// </summary>
+    /// <remarks>
+    /// <see cref="CronCalendar" /> answers through <see cref="CronExpression.IsSatisfiedBy" />, so
+    /// it says whatever the expression says. Under the delta-shift rule that was "nothing on this
+    /// day is excluded", while a trigger written with the same expression still fired — a calendar
+    /// meant to hold a job back over the skipped hour held nothing back. The gap's end is the one
+    /// instant every wall clock the gap swallowed names, so it is both when the trigger fires and
+    /// when the calendar excludes, and the two agree again.
+    /// </remarks>
     [Test]
-    public void CronCalendar_ExclusionInsideTheSpringForwardGap_ExcludesNothing()
+    public void CronCalendar_ExclusionInsideTheSpringForwardGap_ExcludesTheInstantTheClocksMoved()
     {
         TimeZoneInfo zone = TestTimeZones.Helsinki;
         TestTimeZones.AssumeInvalidLocalTime(zone, new DateTime(2024, 3, 31, 3, 30, 0));
@@ -139,16 +148,24 @@ public class CalendarDstTests
 
         DateTimeOffset transition = ParseUtc("2024-03-31T01:00:00Z");
 
+        calendar.IsTimeIncluded(transition).Should().BeFalse(
+            "the instant the clocks moved is the first instant the zone's clock reads past local 03:00, so that is where the excluded hour landed");
+
         for (int minute = -60; minute <= 60; minute++)
         {
+            if (minute == 0)
+            {
+                continue;
+            }
+
             DateTimeOffset instant = transition.AddMinutes(minute);
             calendar.IsTimeIncluded(instant).Should().BeTrue(
-                "{0:O} reads as {1:HH:mm} local, and no instant of this day reads as an hour that the day skipped",
+                "{0:O} reads as {1:HH:mm} local, and no other instant of this day reads as an hour that the day skipped",
                 instant, TimeZoneInfo.ConvertTime(instant, zone));
         }
 
-        // and the next included time after any of them is simply the next millisecond
-        calendar.GetNextIncludedTimeUtc(transition).Should().Be(transition.AddMilliseconds(1));
+        // a cron match ignores milliseconds, so the whole of the transition second is excluded
+        calendar.GetNextIncludedTimeUtc(transition).Should().Be(transition.AddSeconds(1));
     }
 
     /// <summary>
