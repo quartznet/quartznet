@@ -87,9 +87,6 @@ internal static class LegacyPropertyKeys
     internal const string ClusterExecutionLimitPrefix = "quartz.clusterExecutionLimit";
     internal const string PluginPrefix = "quartz.plugin";
     internal const string PluginType = "type";
-    internal const string JobListenerPrefix = "quartz.jobListener";
-    internal const string TriggerListenerPrefix = "quartz.triggerListener";
-    internal const string ListenerType = "type";
     internal const string CheckConfiguration = "quartz.checkConfiguration";
     internal const string ThreadExecutor = "quartz.threadExecutor";
     internal const string ObjectSerializer = "quartz.serializer";
@@ -145,8 +142,6 @@ internal static class LegacyPropertyKeys
         ExecutionLimitPrefix,
         ClusterExecutionLimitPrefix,
         PluginPrefix,
-        JobListenerPrefix,
-        TriggerListenerPrefix,
         CheckConfiguration,
         ThreadExecutor,
         ObjectSerializer,
@@ -186,6 +181,14 @@ internal static class LegacyPropertyKeys
             + "this key had no effect in 4.0. Remove it. For the job store's misfire and cluster "
             + "threads, which are real threads, set 'quartz.jobStore.makeThreadsDaemons' or "
             + "AdoJobStoreOptions.UseBackgroundThreads."),
+        ("quartz.jobListener",
+            "A listener named by configuration could carry no matchers, so it heard every job. Register "
+            + "it with AddJobListener<T>(matchers) instead, which takes the matchers that say which jobs "
+            + "it hears and constructs the listener through the container."),
+        ("quartz.triggerListener",
+            "A listener named by configuration could carry no matchers, so it heard every trigger. "
+            + "Register it with AddTriggerListener<T>(matchers) instead, which takes the matchers that "
+            + "say which triggers it hears and constructs the listener through the container."),
     ];
 
     /// <summary>

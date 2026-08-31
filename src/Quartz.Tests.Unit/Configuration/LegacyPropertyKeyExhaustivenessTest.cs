@@ -43,8 +43,8 @@ namespace Quartz.Tests.Unit.Configuration;
 /// The key inventory is extracted mechanically rather than curated, by asking
 /// <see cref="MethodBodyStrings" /> for the literals every type in the <c>Quartz.Configuration</c>
 /// namespace names and keeping the ones that begin with <c>quartz.</c>. That is where every reader of
-/// the flat format lives — the bridge, the plugin
-/// and listener factories, the execution-limit parser, the scheduler content initializer — and
+/// the flat format lives — the bridge, the plugin factory, the execution-limit parser, the property
+/// binder — and
 /// because <c>const</c> strings are inlined at their use sites, a key named through
 /// <see cref="LegacyPropertyKeys" /> shows up at the reader just as a literal one does.
 /// <see cref="LegacyPropertyKeys" /> itself is skipped: it declares the lists rather than reading
@@ -81,7 +81,6 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.dataSource.myDs.connectionStringName",
         "quartz.dataSource.myDs.connectionProvider.type",
         "quartz.dbprovider.MyDatabase.productName",
-        "quartz.jobListener.myListener.type",
         "quartz.jobStore.acceptEnlistedTransactions",
         "quartz.jobStore.clusterCheckinInterval",
         "quartz.jobStore.clusterCheckinMisfireThreshold",
@@ -108,7 +107,6 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.threadExecutor",
         "quartz.threadPool.maxConcurrency",
         "quartz.threadPool.type",
-        "quartz.triggerListener.myListener.type",
 
         // tutorial/job-stores.md
         "quartz.jobStore.driverDelegateType",
@@ -139,7 +137,24 @@ public class LegacyPropertyKeyExhaustivenessTest
         // migration-guide.md
         "quartz.jobStore.lockHandler.tablePrefix",
         "quartz.jobStore.lockHandler.schedName",
-        "quartz.jobStore.lockHandler.schedulerName"
+        "quartz.jobStore.lockHandler.schedulerName",
+
+        // configuration/reference.md, the keys it says are rejected rather than ignored
+        "quartz.jobListener.myListener.type",
+        "quartz.triggerListener.myListener.type"
+    ];
+
+    /// <summary>
+    /// The listener keys, whose advice has to name the registration that replaced them.
+    /// </summary>
+    /// <remarks>
+    /// A listener named by configuration carried no matchers, which is the whole reason the keys went;
+    /// advice that only said "removed" would leave the reader to guess where matchers now live.
+    /// </remarks>
+    private static readonly (string Key, string Replacement)[] listenerKeys =
+    [
+        ("quartz.jobListener.audit.type", "AddJobListener<T>(matchers)"),
+        ("quartz.triggerListener.audit.type", "AddTriggerListener<T>(matchers)")
     ];
 
     /// <summary>
@@ -288,6 +303,22 @@ public class LegacyPropertyKeyExhaustivenessTest
         {
             Rejection(key).Should().Contain("ILockHandler.Initialize",
                 "the point of naming the key is to say which seam replaced it");
+        }
+    }
+
+    [Test]
+    public void TheListenerKeysAreRejectedNamingTheRegistrationThatReplacedThem()
+    {
+        foreach ((string key, string replacement) in listenerKeys)
+        {
+            string? message = Rejection(key);
+
+            message.Should().NotBeNull(
+                $"'{key}' named a listener that Quartz no longer builds, so leaving the key merely unread "
+                + "would silently stop attaching a listener that used to be attached");
+            message.Should().Contain(replacement,
+                "a listener named by configuration could carry no matchers, so the advice has to name the "
+                + "registration that takes them rather than only saying the key is gone");
         }
     }
 

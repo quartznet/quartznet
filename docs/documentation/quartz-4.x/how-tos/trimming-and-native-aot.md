@@ -324,7 +324,7 @@ mostly the `IL2026` rows unless you have set `TrimmerSingleWarn` to false.
 
 | Group | Codes | Reached by |
 |---|---|---|
-| `QuartzPropertyBridge`, `SchedulerPluginFactory`, `PropertyListenerFactory` | `IL2026`, `IL2067`, `IL2072`, `IL2075` | configuring with flat `quartz.*` keys |
+| `QuartzPropertyBridge`, `SchedulerPluginFactory` | `IL2026`, `IL2067`, `IL2072` | configuring with flat `quartz.*` keys |
 | `SimpleTypeLoader`, `JobType` | `IL2057` | a job type named as a string, anywhere |
 | `StdAdoDelegate.CreateJobType` | `IL2057`, `IL2072` | reading a job back out of an ADO.NET store |
 | `BuiltInDbMetadataFactory`, `ConfigurationBasedDbMetadataFactory` | `IL2026`, `IL2057` | the ADO.NET store being in the closure at all |

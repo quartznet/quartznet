@@ -328,8 +328,7 @@ that performs it rather than in a rebuild:
 A few things worth knowing about the map:
 
 * It applies wherever Quartz turns a **string** into a type at run time — a stored `JOB_CLASS_NAME`, a
-  job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type`,
-  `quartz.jobListener.<name>.type` or `quartz.triggerListener.<name>.type` key. The flat keys naming a
+  job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type` key. The flat keys naming a
   scheduler's own components — the job store, thread pool, serializer, lock handler, job factory,
   instance id generator, time provider and connection provider — are resolved while the service
   collection is still being built, before any options exist, and are **not** aliased. Each of those
