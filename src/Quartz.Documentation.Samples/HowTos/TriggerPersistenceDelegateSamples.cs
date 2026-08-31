@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Text.Json;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -163,5 +164,158 @@ public sealed class BusinessDayTriggerSerializer : TriggerSerializer<BusinessDay
     protected override void SerializeFields(Utf8JsonWriter writer, BusinessDayTriggerImpl trigger, JsonSerializerOptions options)
     {
         writer.WriteNumber("SkipCount", trigger.SkipCount);
+    }
+}
+
+/// <summary>
+/// The same idea written against <see cref="ITriggerPersistenceDelegate" /> directly, for a trigger
+/// whose state does not fit the five SIMPROP columns and needs a table of its own.
+/// </summary>
+/// <remarks>
+/// Not on the page — <see cref="BusinessDayTriggerPersistenceDelegate" /> is what the page teaches,
+/// because inheriting the SIMPROP table is nearly always the answer. This exists because it is the only
+/// shape that reaches the whole seam from outside Quartz: the context and its
+/// <see cref="IDbAccessor" />, and the batching form that describes an update as a
+/// <see cref="SqlStatement" /> rather than issuing it. If any of that stopped being public this file
+/// would stop compiling, which is the point of it living in an assembly Quartz grants no
+/// <c>InternalsVisibleTo</c>.
+/// </remarks>
+internal sealed class OwnTableTriggerPersistenceDelegate : ITriggerPersistenceDelegate
+{
+    private const string Table = "MY_BUSDAY_TRIGGERS";
+
+    private const string KeyPredicate =
+        "WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @triggerName AND TRIGGER_GROUP = @triggerGroup";
+
+    private IDbAccessor accessor = null!;
+    private string schedulerName = "";
+    private string tablePrefix = "";
+
+    public void Initialize(TriggerPersistenceDelegateContext context)
+    {
+        accessor = context.DbAccessor;
+        schedulerName = context.SchedulerName;
+        tablePrefix = context.TablePrefix;
+    }
+
+    public string GetHandledTriggerTypeDiscriminator() => "BUSDAY2";
+
+    public bool CanHandleTriggerType(IOperableTrigger trigger) => trigger is BusinessDayTriggerImpl;
+
+    public async ValueTask<int> InsertExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = accessor.PrepareCommand(
+            conn,
+            $"INSERT INTO {tablePrefix}{Table} (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP, SKIP_COUNT) "
+            + "VALUES (@schedulerName, @triggerName, @triggerGroup, @skipCount)");
+
+        BindKey(cmd, trigger.Key);
+        accessor.AddCommandParameter(cmd, "skipCount", ((BusinessDayTriggerImpl) trigger).SkipCount);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async ValueTask<int> UpdateExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = accessor.PrepareCommand(
+            conn, $"UPDATE {tablePrefix}{Table} SET SKIP_COUNT = @skipCount " + KeyPredicate);
+
+        BindKey(cmd, trigger.Key);
+        accessor.AddCommandParameter(cmd, "skipCount", ((BusinessDayTriggerImpl) trigger).SkipCount);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// The batching form. Describing the statement rather than issuing it lets the store send a
+    /// trigger's rows in one round trip; <see langword="false" />, which is the interface's own default,
+    /// means "issue it the ordinary way".
+    /// </summary>
+    public bool TryDescribeUpdateExtendedTriggerProperties(
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        ICollection<SqlStatement> statements)
+    {
+        statements.Add(new SqlStatement(
+            $"UPDATE {tablePrefix}{Table} SET SKIP_COUNT = @skipCount " + KeyPredicate,
+            [
+                new SqlStatementParameter("skipCount", ((BusinessDayTriggerImpl) trigger).SkipCount),
+                new SqlStatementParameter("schedulerName", schedulerName),
+                new SqlStatementParameter("triggerName", trigger.Key.Name),
+                new SqlStatementParameter("triggerGroup", trigger.Key.Group)
+            ]));
+
+        return true;
+    }
+
+    public async ValueTask<int> DeleteExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = accessor.PrepareCommand(
+            conn, $"DELETE FROM {tablePrefix}{Table} " + KeyPredicate);
+
+        BindKey(cmd, triggerKey);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = accessor.PrepareCommand(
+            conn, $"SELECT SKIP_COUNT FROM {tablePrefix}{Table} " + KeyPredicate);
+
+        BindKey(cmd, triggerKey);
+
+        await using DbDataReader reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException($"No {Table} row for {triggerKey}.");
+        }
+
+        return ReadTriggerPropertyBundle(reader);
+    }
+
+    public async ValueTask<Dictionary<TriggerKey, TriggerPropertyBundle>> LoadExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        Dictionary<TriggerKey, TriggerPropertyBundle> bundles = [];
+        foreach (TriggerKey triggerKey in triggerKeys)
+        {
+            bundles[triggerKey] = await LoadExtendedTriggerProperties(conn, triggerKey, cancellationToken);
+        }
+
+        return bundles;
+    }
+
+    public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
+    {
+        int skipCount = Convert.ToInt32(rs["SKIP_COUNT"]);
+
+        return new TriggerPropertyBundle(BusinessDayScheduleBuilder.Create().SkippingDays(skipCount));
+    }
+
+    private void BindKey(DbCommand cmd, TriggerKey triggerKey)
+    {
+        accessor.AddCommandParameter(cmd, "schedulerName", schedulerName);
+        accessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        accessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
     }
 }

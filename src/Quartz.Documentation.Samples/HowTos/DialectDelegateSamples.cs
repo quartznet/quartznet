@@ -3,9 +3,19 @@ using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
+using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Documentation.Samples.HowTos;
+
+// This file has a second job, and it is worth knowing about before touching the project it lives in.
+//
+// Quartz.Documentation.Samples is NOT a friend assembly: Quartz grants it no InternalsVisibleTo. So a
+// delegate written here is a delegate anyone could write, and a sample that stops compiling means the
+// public driver-delegate kit has lost a type rather than that a sample went stale. That is the whole
+// compile-time proof behind "the ADO namespace is a delegate-authoring kit"; adding an
+// InternalsVisibleTo grant for this assembly would end it silently, with every sample still building.
+// ConfiguredTypeNamesResolveTest asserts the grant is absent, so the guard cannot be lost by accident.
 
 #region sample_dialect_delegate_subclass
 
@@ -59,6 +69,65 @@ internal sealed class DialectDelegateOverrides : StdAdoDelegate
     public override bool GetBooleanFromDbValue(object columnValue) => Convert.ToInt32(columnValue) == 1;
 
     #endregion
+
+    // The rest of this class is not on the page. It is one override per category of statement hook, so
+    // that a category which stops being reachable from outside Quartz breaks the build here rather than
+    // in somebody's application.
+
+    /// <summary>
+    /// The acquisition statement, for a dialect that needs something a row limit cannot express — an
+    /// index hint, say. Derive from the base rather than composing the statement, as MySQL does.
+    /// </summary>
+    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
+        => base.GetSelectNextTriggerToAcquireSql(shape).Replace("{0}TRIGGERS t", "{0}TRIGGERS t /*+ index */");
+
+    /// <inheritdoc cref="GetSelectNextTriggerToAcquireSql" />
+    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
+        => base.GetSelectMisfiredTriggersToRecoverSql(count).Replace("{0}TRIGGERS t", "{0}TRIGGERS t /*+ index */");
+
+    /// <inheritdoc cref="GetSelectNextTriggerToAcquireSql" />
+    protected override string GetCountMisfiredTriggersInStateSql()
+        => base.GetCountMisfiredTriggersInStateSql().Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS /*+ index */ WHERE");
+
+    private string schedulerName = "";
+
+    /// <summary>
+    /// Nearly every statement is scoped by scheduler name, and a delegate that writes one of its own
+    /// keeps the name from here: <see cref="DriverDelegateContext" /> is where it is settled, and the
+    /// base class holds its copy privately.
+    /// </summary>
+    public override void Initialize(DriverDelegateContext context)
+    {
+        base.Initialize(context);
+        schedulerName = context.SchedulerName;
+    }
+
+    /// <summary>
+    /// A whole <see cref="IDriverDelegate" /> member written out, rather than a statement handed back to
+    /// the base. Everything it needs is public: the connection holder, the command preparation, the
+    /// parameter binding, the table-prefix substitution, the column names, and the mapping from the
+    /// stored string back to a state.
+    /// </summary>
+    public override async ValueTask<StoredTriggerState> SelectTriggerState(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        string sql = ReplaceTablePrefix(
+            $"SELECT {AdoConstants.ColumnTriggerState} FROM {{0}}{AdoConstants.TableTriggers} "
+            + $"WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName "
+            + $"AND {AdoConstants.ColumnTriggerName} = @triggerName "
+            + $"AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
+
+        using DbCommand cmd = PrepareCommand(conn, sql);
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+
+        object? state = await cmd.ExecuteScalarAsync(cancellationToken);
+
+        return StoredTriggerStates.FromStoredValue(state as string);
+    }
 }
 
 /// <summary>
