@@ -120,9 +120,9 @@ jobs:
           # them all would quietly raise the overall coverage figure on main by shrinking its
           # denominator, which is a separate decision from this one.
           #
-          # database/ is excused from copy-paste detection and from two PL/SQL rules, and from
-          # nothing else. Its bug and security rules still apply; these three are the ones that
-          # have nothing true to say about it.
+          # database/ is excused from copy-paste detection, from four PL/SQL rules and from a
+          # coverage figure this workflow does not produce, and from nothing else. Its bug and
+          # security rules still apply; these are the ones that have nothing true to say about it.
           #
           #   Duplication. Six dialects saying the same thing is the design, not a defect: every
           #   migration ships one directly-runnable file per database, three SQL Server variants
@@ -143,6 +143,31 @@ jobs:
           #   tables_oracle.sql, which drops each of those tables a few lines later, and the three
           #   backfills in the 1.x -> 2.x upgrade that populate a column just added to every row.
           #
+          #   plsql:ExecuteImmediateTrapExceptionsCheck, "add a WHEN OTHERS exception handler". It
+          #   is asked of the same generated guards S1523 is asked of, and here the handler it wants
+          #   is the thing not to write: a migration that swallows the exception its DDL raised
+          #   reports success and leaves a half-upgraded schema behind, which is the outcome these
+          #   scripts are most careful to avoid. The guard reads the catalog first, so the statement
+          #   runs only when it has work to do, and anything it still raises is something the person
+          #   running the script has to see.
+          #
+          #   plsql:S1192, "define a constant instead of duplicating this literal". The literal is an
+          #   object name -- 'dbo.QRTZ_TRIGGERS' fifteen times in the SQL Server 4.0 script, once per
+          #   guarded index statement -- and a .sql file someone runs in a database client has
+          #   nowhere to put a constant, nor any way to carry one through the "replace QRTZ_ with
+          #   your configured table prefix" its header asks for. It is the string literal's version
+          #   of the duplication rule above, on files generated from one definition in
+          #   build/Build.DatabaseMigrations.Scripts.cs and so not editable where it is reported.
+          #
+          #   Coverage. The scanner imports C# coverage alone, so a .sql file arrives as new code
+          #   carrying none: Sonar counts the executable lines of a PL/SQL block -- four of them in
+          #   the Oracle 4.0 script -- as lines to cover, nothing ever covers them, and a pull
+          #   request that adds a line to an Oracle migration fails the new-code coverage condition
+          #   by itself whatever else it does. That is the docs/.vuepress reasoning above, applied to
+          #   the other language in the tree. What does exercise these files is MigrationScriptTest,
+          #   which applies every script to a real database of each dialect and compares the result
+          #   with a fresh install; it runs in the integration leg, which feeds no coverage report.
+          #
           # src/Quartz/Impl/AdoJobStore/Schema/ leaves analysis entirely, like the vendored baselines
           # and for the same reason: it is not source. Those six files are emitted by
           # build/Build.DatabaseSchema.cs, which is analysed as the C# it is, and VerifySchema fails
@@ -158,10 +183,14 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**" \
             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**" \
-            /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,wholeTableByDesign" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**,database/**" \
+            /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,generatedOracleGuardExceptions,repeatedObjectNames,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \
+            /d:sonar.issue.ignore.multicriteria.generatedOracleGuardExceptions.ruleKey="plsql:ExecuteImmediateTrapExceptionsCheck" \
+            /d:sonar.issue.ignore.multicriteria.generatedOracleGuardExceptions.resourceKey="database/migrations/**/*.sql" \
+            /d:sonar.issue.ignore.multicriteria.repeatedObjectNames.ruleKey="plsql:S1192" \
+            /d:sonar.issue.ignore.multicriteria.repeatedObjectNames.resourceKey="database/**/*.sql" \
             /d:sonar.issue.ignore.multicriteria.wholeTableByDesign.ruleKey="plsql:DeleteOrUpdateWithoutWhereCheck" \
             /d:sonar.issue.ignore.multicriteria.wholeTableByDesign.resourceKey="database/**/*.sql"
       # Has to sit between begin and end: the scanner analyses through MSBuild, so only projects
