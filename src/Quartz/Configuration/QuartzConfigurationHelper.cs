@@ -28,14 +28,14 @@ internal static class QuartzConfigurationHelper
     };
 
     /// <summary>
-    /// The flat keys a typed options binding already owns, which are therefore not synthesized from the
-    /// hierarchical section they would come from.
+    /// The configuration paths a typed options binding already owns, which are therefore not synthesized
+    /// into the flat bag. A path stands for itself and everything beneath it.
     /// </summary>
     /// <remarks>
     /// <para>
     /// A hierarchical section is read twice: it binds onto its typed options, and it is flattened onto
-    /// the <c>quartz.*</c> keys <see cref="QuartzPropertyBridge"/> translates. For nearly every key the
-    /// two have in common the second pass is doing something the binder cannot —
+    /// the <c>quartz.*</c> keys <see cref="QuartzPropertyBridge"/> translates. For most keys the two have
+    /// in common the second pass is doing something the binder cannot —
     /// <c>Scheduler:InterruptJobsOnShutdown</c> is a spelling no property carries any more,
     /// <c>Scheduler:IdleWaitTime</c> may be the legacy count of milliseconds that the binder would read
     /// as a count of days, <c>ThreadPool:Type</c> selects an implementation rather than setting a value,
@@ -43,14 +43,34 @@ internal static class QuartzConfigurationHelper
     /// corrections and they stay.
     /// </para>
     /// <para>
-    /// <c>ThreadPool:MaxConcurrency</c> is the one key where both readers write the same property, from
-    /// the same key, in the same shape. Two writers of one value in a last-wins pipeline is a coin flip
-    /// rather than a fallback, so one of them has to go, and it is this one: the typed binder is the
-    /// reader the section has a first-class binding for, it is the one the source generator writes a
-    /// binder for, and a member added to <see cref="ThreadPoolOptions"/> later binds through it without
-    /// needing an entry anywhere else. Nothing else under <c>ThreadPool</c> is affected — the type key,
-    /// the legacy <c>threadCount</c> spelling and a third-party pool's own settings are all still
-    /// flattened, because the bridge is the only reader any of them has.
+    /// The paths here are the ones where the second pass is not doing anything, in one of two ways.
+    /// <c>ThreadPool:MaxConcurrency</c> and <c>Scheduler:InstanceName</c> synthesize a key the bridge
+    /// reads back onto the very property the binder just set: two writers of one value in a last-wins
+    /// pipeline, which is a coin flip rather than a fallback. <c>Scheduler:MaxBatchSize</c> and
+    /// <c>Scheduler:Context</c> synthesize a key <em>nothing</em> reads — the bridge's own spellings are
+    /// <c>quartz.scheduler.batchTriggerAcquisitionMaxCount</c> and <c>quartz.context.key.*</c>, and
+    /// <see cref="LegacyPropertyKeys.Validate" /> rejects both synthesized spellings by name, so a bag
+    /// taken from <see cref="QuartzOptions.ToProperties" /> and handed to
+    /// <c>AddQuartz(NameValueCollection)</c> was refused for keys Quartz had put there itself.
+    /// </para>
+    /// <para>
+    /// Either way the typed binder is the reader to keep: it is the binding the section has first class,
+    /// it is the one the source generator writes a binder for, and a member added to the options type
+    /// later binds through it without needing an entry anywhere else. Nothing else under those sections
+    /// is affected — <c>ThreadPool:Type</c>, the legacy <c>ThreadPool:ThreadCount</c> spelling,
+    /// <c>Scheduler:InstanceId</c> and a third-party component's own settings are all still flattened,
+    /// because the bridge is the only reader any of them has.
+    /// </para>
+    /// <para>
+    /// <c>JobStore</c> is the overlap that is <em>not</em> here, and deliberately. It binds onto
+    /// <see cref="AdoJobStoreOptions"/> and flattens onto keys the bridge maps onto the same options, so
+    /// around fifteen properties — <c>TablePrefix</c>, <c>LockOnInsert</c>,
+    /// <c>AcquireTriggersWithinLock</c>, <c>MaxMisfiresToHandleAtATime</c>, <c>SelectWithLockSql</c> and
+    /// the rest — do have two writers of one value. They agree, and the section cannot be excluded a
+    /// path at a time the way these can: <c>JobStore:Type</c>, <c>JobStore:Clustered</c>,
+    /// <c>JobStore:UseProperties</c>, <c>JobStore:MisfireThreshold</c> in milliseconds and a third-party
+    /// store's own knobs all have the bridge as their only reader, and they are interleaved with the
+    /// duplicated ones rather than sitting under a sub-section of their own.
     /// </para>
     /// <para>
     /// Only the <em>synthesized</em> spelling is dropped. A configuration that writes
@@ -59,10 +79,34 @@ internal static class QuartzConfigurationHelper
     /// all — <c>AddQuartz(NameValueCollection)</c> and its dictionary twins.
     /// </para>
     /// </remarks>
-    private static readonly HashSet<string> boundByTypedOptions = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly string[] boundByTypedOptions =
+    [
         "quartz.threadPool.maxConcurrency",
-    };
+        "quartz.scheduler.instanceName",
+        "quartz.scheduler.maxBatchSize",
+        "quartz.scheduler.context",
+    ];
+
+    /// <summary>
+    /// Whether <paramref name="key"/> is one of <see cref="boundByTypedOptions"/> or sits beneath one.
+    /// </summary>
+    /// <remarks>
+    /// <c>Scheduler:Context</c> is a dictionary, so what has to be skipped is the whole subtree rather
+    /// than a key anybody could list; the others have no subtree and so behave as exact matches.
+    /// </remarks>
+    private static bool IsBoundByTypedOptions(string key)
+    {
+        foreach (string owned in boundByTypedOptions)
+        {
+            if (key.StartsWith(owned, StringComparison.OrdinalIgnoreCase)
+                && (key.Length == owned.Length || key[owned.Length] == '.'))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Converts a hierarchical <see cref="IConfiguration"/> section into a flat <see cref="NameValueCollection"/>
@@ -130,7 +174,7 @@ internal static class QuartzConfigurationHelper
     private static void FlattenSection(IConfigurationSection section, string currentPath, NameValueCollection properties)
     {
         var key = "quartz." + currentPath;
-        if (section.Value is not null && !boundByTypedOptions.Contains(key))
+        if (section.Value is not null && !IsBoundByTypedOptions(key))
         {
             properties[key] = section.Value;
         }

@@ -48,7 +48,11 @@ namespace Quartz.Tests.Unit.Configuration;
 /// because <c>const</c> strings are inlined at their use sites, a key named through
 /// <see cref="LegacyPropertyKeys" /> shows up at the reader just as a literal one does.
 /// <see cref="LegacyPropertyKeys" /> itself is skipped: it declares the lists rather than reading
-/// them, and it is the thing under test.
+/// them, and it is the thing under test. <c>QuartzConfigurationHelper</c> is skipped for the mirror
+/// reason: the keys it names are the ones it refuses to synthesize because a typed binding owns them,
+/// so it is the one type in the namespace where naming a key means the opposite of consulting it. Two
+/// of those keys a reader does consult, and both stay in the scan because the bridge names them too;
+/// the rest are keys nothing reads by design, which is exactly what the validator would reject.
 /// </para>
 /// <para>
 /// A curated list of the keys the documentation promises backs the scan up, because a key the
@@ -186,12 +190,15 @@ public class LegacyPropertyKeyExhaustivenessTest
                 "quartz.jobStore.type",
                 "quartz.jobStore.driverDelegateType",
                 "quartz.threadPool.threadCount",
+                "quartz.threadPool.maxConcurrency",
                 "quartz.serializer.type",
                 "quartz.scheduler.instanceName",
                 "quartz.dbprovider"
             ],
             "a mix of inline literals and LegacyPropertyKeys constants, so the scan has to see both "
-            + "spellings — a constant reaches the reader's IL inlined, exactly like a literal");
+            + "spellings — a constant reaches the reader's IL inlined, exactly like a literal. The last "
+            + "two are also named by the flattener's deny-list, which is skipped, so they prove that "
+            + "skipping it costs the scan nothing a reader consults");
     }
 
     [Test]
@@ -361,7 +368,8 @@ public class LegacyPropertyKeyExhaustivenessTest
         {
             // Nested display classes carry the lambdas, and they report their declaring type's namespace.
             if (!string.Equals(type.Namespace, ConfigurationNamespace, StringComparison.Ordinal)
-                || type == typeof(LegacyPropertyKeys))
+                || type == typeof(LegacyPropertyKeys)
+                || string.Equals(type.Name, "QuartzConfigurationHelper", StringComparison.Ordinal))
             {
                 continue;
             }

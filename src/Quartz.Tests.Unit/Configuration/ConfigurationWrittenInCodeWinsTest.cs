@@ -266,6 +266,152 @@ public class ConfigurationWrittenInCodeWinsTest
     }
 
     [Test]
+    public void TheSchedulerNameIsReadByExactlyOneReader()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(Section(new Dictionary<string, string?> { ["Scheduler:InstanceName"] = "reporting" }));
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.InstanceName.Should().Be("reporting");
+        provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties
+            .Should().NotContainKey("quartz.scheduler.instanceName",
+                "the section binds onto QuartzSchedulerOptions.InstanceName and the bridge reads the "
+                + "same key onto the same property, so flattening it too is one value with two writers");
+    }
+
+    [Test]
+    public void ANamedSchedulerKeepsTheNameItWasRegisteredUnder()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz("tenant-a", Section(new Dictionary<string, string?> { ["Scheduler:InstanceName"] = "something-else" }));
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>().Get("tenant-a").InstanceName
+            .Should().Be("tenant-a",
+                "a named scheduler's name is fixed by its registration, and neither reader was ever "
+                + "allowed to move it");
+    }
+
+    [Test]
+    public void TheFlatSpellingOfTheSchedulerNameStillReaches()
+    {
+        ServiceCollection sections = new();
+        sections.AddQuartz(Section(new Dictionary<string, string?> { ["quartz.scheduler.instanceName"] = "reporting" }));
+
+        ServiceCollection properties = new();
+        properties.AddQuartz(new NameValueCollection { ["quartz.scheduler.instanceName"] = "reporting" });
+
+        using ServiceProvider fromSection = sections.BuildServiceProvider();
+        using ServiceProvider fromProperties = properties.BuildServiceProvider();
+
+        fromSection.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.InstanceName.Should().Be("reporting",
+            "a flat key written in a configuration section is passed through rather than synthesized");
+        fromProperties.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.InstanceName.Should().Be("reporting",
+            "and the bridge is the only reader the NameValueCollection path ever had");
+    }
+
+    [Test]
+    public void TheBatchSizeSectionSynthesizesNoKeyThatIsNotRead()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(Section(new Dictionary<string, string?> { ["Scheduler:MaxBatchSize"] = "9" }));
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.MaxBatchSize.Should().Be(9);
+        provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties
+            .Should().NotContainKey("quartz.scheduler.maxBatchSize",
+                "the bridge's spelling is quartz.scheduler.batchTriggerAcquisitionMaxCount, so this one "
+                + "is a key no reader consults and the validator rejects by name");
+    }
+
+    [Test]
+    public void TheLegacyBatchSizeSpellingStillReaches()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(new NameValueCollection { ["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "9" });
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.MaxBatchSize.Should().Be(9,
+            "the legacy key is a different string from the property's own name, and the bridge is its "
+            + "only reader");
+    }
+
+    [Test]
+    public void TheSchedulerContextSectionSynthesizesNoKeyThatIsNotRead()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(Section(new Dictionary<string, string?> { ["Scheduler:Context:environment"] = "staging" }));
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.Context
+            .Should().ContainKey("environment").WhoseValue.Should().Be("staging");
+        provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties
+            .Should().NotContainKey("quartz.scheduler.context.environment",
+                "the bridge's spelling is quartz.context.key.*, so the whole synthesized subtree is keys "
+                + "no reader consults");
+    }
+
+    [Test]
+    public void TheLegacyContextSpellingStillReaches()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(Section(new Dictionary<string, string?> { ["Context:key:environment"] = "staging" }));
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties
+            .Should().ContainKey("quartz.context.key.environment",
+                "nothing typed binds Quartz:Context, so the bridge is the only reader it has");
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.Context
+            .Should().ContainKey("environment").WhoseValue.Should().Be("staging");
+    }
+
+    /// <summary>
+    /// The consequence that made the two unread spellings worth removing rather than merely untidy.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="QuartzOptions.ToProperties" /> is how one scheduler's keys are handed to another, and
+    /// <c>AddQuartz(NameValueCollection)</c> is what takes them. A synthesized key the validator does not
+    /// know made that round trip fail on keys Quartz had put in the bag itself.
+    /// </remarks>
+    [Test]
+    public void TheKeysASectionFlattensIntoAreKeysAddQuartzAccepts()
+    {
+        ServiceCollection sections = new();
+        sections.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["Scheduler:InstanceName"] = "reporting",
+            ["Scheduler:MaxBatchSize"] = "9",
+            ["Scheduler:Context:environment"] = "staging",
+            ["ThreadPool:MaxConcurrency"] = "7",
+        }));
+
+        using ServiceProvider fromSection = sections.BuildServiceProvider();
+
+        NameValueCollection properties = [];
+        foreach (KeyValuePair<string, string?> pair in fromSection.GetRequiredService<IOptions<QuartzOptions>>().Value.ToProperties())
+        {
+            properties[pair.Key] = pair.Value;
+        }
+
+        ServiceCollection round = new();
+        round.AddQuartz(properties);
+
+        using ServiceProvider fromProperties = round.BuildServiceProvider();
+
+        Action read = () => fromProperties.GetRequiredService<IOptions<QuartzSchedulerOptions>>();
+
+        read.Should().NotThrow(
+            "every key the flattener writes has to be one the validator accepts, or a scheduler "
+            + "configured from a section cannot hand its own properties to another one");
+    }
+
+    [Test]
     public void CodeStillBeatsTheThreadPoolSection()
     {
         ServiceCollection services = new();
