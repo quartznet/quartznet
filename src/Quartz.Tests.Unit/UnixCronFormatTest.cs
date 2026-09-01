@@ -137,6 +137,45 @@ public class UnixCronFormatTest
 
     #endregion
 
+    #region Expressions copied from Spring
+
+    // Spring's @Scheduled(cron = ...) is six fields with seconds first, which is Quartz's shape exactly,
+    // so a pasted Spring expression parses. Its day-of-week is numbered the Unix way, 0-7 from Sunday,
+    // where Quartz numbers 1-7 from Sunday - so every numeric day is read one day early, and nothing
+    // says so. These pin what cron-expressions.md warns about; there is no CronFormat.Spring to fix it
+    // with, because the two six-field dialects are the same shape and nothing in the string tells them
+    // apart.
+
+    [TestCase("0 0 9 * * 1", DayOfWeek.Sunday, DayOfWeek.Monday)]
+    [TestCase("0 0 9 * * 5", DayOfWeek.Thursday, DayOfWeek.Friday)]
+    [TestCase("0 0 9 * * 6", DayOfWeek.Friday, DayOfWeek.Saturday)]
+    public void ASpringExpressionWithANumericDayOfWeekIsReadOneDayEarly(string spring, DayOfWeek quartzFiresOn, DayOfWeek springMeant)
+    {
+        CronExpression expression = CronExpression.Parse(spring).WithTimeZone(TimeZoneInfo.Utc);
+
+        DateTimeOffset? next = expression.GetNextValidTimeAfter(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+        next!.Value.UtcDateTime.DayOfWeek.Should().Be(quartzFiresOn,
+            "Quartz numbers the days of the week 1-7 from Sunday, so the digit Spring wrote lands a day early");
+        next.Value.UtcDateTime.DayOfWeek.Should().NotBe(springMeant,
+            "the whole trap is that the expression is accepted and means something else");
+    }
+
+    [TestCase("0 0 9 * * MON", DayOfWeek.Monday)]
+    [TestCase("0 0 9 * * FRI", DayOfWeek.Friday)]
+    [TestCase("0 0 9 * * SAT", DayOfWeek.Saturday)]
+    public void ADayNameMeansTheSameDayInEveryDialect(string expression, DayOfWeek fires)
+    {
+        DateTimeOffset? next = CronExpression.Parse(expression).WithTimeZone(TimeZoneInfo.Utc)
+            .GetNextValidTimeAfter(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+        next!.Value.UtcDateTime.DayOfWeek.Should().Be(fires,
+            "a name is the spelling that survives being pasted in either direction, which is what the "
+            + "documentation tells a reader coming from Spring or crontab to write");
+    }
+
+    #endregion
+
     #region Field counts
 
     [TestCase("0 0 12 * * ?", 6)]
