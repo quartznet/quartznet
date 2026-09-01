@@ -232,6 +232,33 @@ meaning midnight on the 12th rather than noon every day. The same digit also nam
 dialect. So Quartz asks, and the error a five-field expression gets when nobody asked names the method that
 does read it.
 
+### An expression copied from Spring
+
+::: danger A Spring expression with a numeric day-of-week schedules the wrong day
+Spring's `@Scheduled(cron = …)` is **six** fields with seconds first, exactly the shape of a Quartz
+expression — so Quartz accepts it without complaint. But Spring numbers the days of the week the Unix
+way, 0-7 with both 0 and 7 meaning Sunday, where Quartz numbers them 1-7 starting at Sunday. Every
+numeric day therefore reads one day earlier than it was written, silently, and has on every version of
+Quartz ever shipped.
+
+| `@Scheduled(cron = …)` | Spring fires | Quartz reads it as |
+|:---|:---|:---|
+| `0 0 9 * * 1` | 09:00 on Mondays | 09:00 on **Sundays** |
+| `0 0 9 * * 1-5` | 09:00 Monday to Friday | 09:00 **Sunday to Thursday** |
+| `0 0 9 * * 6` | 09:00 on Saturdays | 09:00 on **Fridays** |
+| `0 0 9 * * MON-FRI` | 09:00 Monday to Friday | 09:00 Monday to Friday |
+
+**Write the day as a name.** `SUN`, `MON`, `TUE`, `WED`, `THU`, `FRI` and `SAT` mean the same day in
+Spring, in crontab and in Quartz, and Spring accepts them too — so a named expression is the one that
+survives being pasted in either direction. The last row above is the same schedule under both readings.
+
+There is no `CronFormat.Spring`, and there is no detection of one either. The two six-field dialects are
+*the same shape*, so nothing about the string can tell them apart — which is the structural reason
+[the format is stated rather than sniffed](#the-unix-five-field-form). A `CronFormat.Spring` member can
+be added later without breaking anything, and it is filed for 4.1; auto-detection could never be added,
+because by then the existing reading of a six-field expression is the one people's schedules depend on.
+:::
+
 ## H (hash) for load distribution
 
 The `H` symbol (for "hash") can be used in place of a specific value to spread scheduled tasks
