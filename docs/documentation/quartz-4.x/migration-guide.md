@@ -7182,11 +7182,21 @@ with a single `GetRowLimit`.** Nothing breaks if you do not: the two hooks behav
 and an override that appends its own clause still works. It just spells the same thing twice, against
 a statement it does not own.
 
-One shipped statement changed as a result. `MySQLDelegate`'s misfire scan carries its
-`FORCE INDEX (IDX_…_T_NFT_ST_MISFIRE)` hint for an unlimited sweep as well now; it used to lose the
-hint in exactly that case, because the hint and the row limit shared one early return. Which index
-the sweep should read does not depend on how many rows it returns, and the unlimited sweep is the one
-that reads the most.
+One shipped statement changed as a result. `MySQLDelegate`'s misfire scan carries its `FORCE INDEX`
+hint for an unlimited sweep as well now; it used to lose the hint in exactly that case, because the
+hint and the row limit shared one early return. Which index the sweep should read does not depend on
+how many rows it returns, and the unlimited sweep is the one that reads the most.
+
+**Both of `MySQLDelegate`'s misfire hints now name `IDX_…_T_NFT_ST`, the acquisition index, rather
+than `IDX_…_T_NFT_ST_MISFIRE`.** The sweep and its counting peek filter `SCHED_NAME` and
+`TRIGGER_STATE` by equality, range on `NEXT_FIRE_TIME`, order by `NEXT_FIRE_TIME ASC, PRIORITY DESC`
+and keep `MISFIRE_INSTR` as a residual — the acquisition index's shape exactly, and nothing like
+`(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)`, whose second column is compared with
+`<>` and so stops the seek dead. Every other dialect's optimizer picks the acquisition index on its
+own; MySQL could not, because the hint told it not to. No schema changed: both indexes ship as they
+did. On a 100,000-trigger table with a 5,000-row backlog the sweep went from 15,561 buffer pool reads
+to 129, and the counting peek — which runs on every misfire-handler pass, backlog or not — from 4,594
+to 8 ([#3608](https://github.com/quartznet/quartznet/issues/3608)).
 
 ## The connection manager is gone
 

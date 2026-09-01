@@ -124,9 +124,14 @@ misfired triggers is scanning. Three settings and one index decide it.
 The sweep runs on every node, and each pass starts with a `COUNT` that takes no cluster-wide lock — the
 double-check that avoids paying for the lock when there is nothing to do. That count is
 `WHERE SCHED_NAME = ? AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= ? AND TRIGGER_STATE = ?`, which the
-4.x index `IDX_QRTZ_T_NFT_ST_MISFIRE` on `(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)`
-serves. A schema that predates the [3.20 index migration](database/schema-changes.md#version-3-20) has a
-different index shape, and on a large `QRTZ_TRIGGERS` this query is where a slow database first shows.
+4.x acquisition index `IDX_QRTZ_T_NFT_ST` on
+`(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` serves: two equalities,
+a range, and `MISFIRE_INSTR` in the index so the `<> -1` never leaves it. `IDX_QRTZ_T_NFT_ST_MISFIRE`
+leads with `MISFIRE_INSTR`, which is the column compared with `<>`, so it cannot seek past it — measured,
+it is not the index any engine's optimizer picks here
+([#3608](https://github.com/quartznet/quartznet/issues/3608)). A schema that predates the
+[3.20 index migration](database/schema-changes.md#version-3-20) has a different index shape, and on a
+large `QRTZ_TRIGGERS` this query is where a slow database first shows.
 
 <!-- snippet: sample_troubleshooting_misfire_sweep -->
 ```csharp

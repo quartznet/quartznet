@@ -23,7 +23,13 @@ public class MySQLDelegateTest
 
         var sql = del.GetCountMisfiredTriggersInStateSqlPublic();
 
-        sql.Should().Contain("FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)");
+        sql.Should().Contain("FORCE INDEX (IDX_{1}T_NFT_ST)",
+            "the count filters SCHED_NAME and TRIGGER_STATE by equality and ranges on NEXT_FIRE_TIME, "
+            + "which is the acquisition index's shape — IDX_*_T_NFT_ST_MISFIRE compares its second "
+            + "column with <> and cannot seek past it (#3608)");
+        sql.Should().NotContain("IDX_{1}T_NFT_ST_MISFIRE",
+            "naming the misfire index here cost 4,594 buffer pool reads a pass on a 100,000-trigger "
+            + "table with nothing misfired at all");
     }
 
     [Test]
@@ -47,7 +53,7 @@ public class MySQLDelegateTest
         var template = del.GetCountMisfiredTriggersInStateSqlPublic();
         var sql = AdoJobStoreUtil.ReplaceTablePrefix(template, "common.QRTZ_");
 
-        sql.Should().Contain("FROM common.QRTZ_TRIGGERS FORCE INDEX (IDX_QRTZ_T_NFT_ST_MISFIRE)");
+        sql.Should().Contain("FROM common.QRTZ_TRIGGERS FORCE INDEX (IDX_QRTZ_T_NFT_ST)");
         sql.Should().NotContain("IDX_common.");
     }
 
@@ -60,7 +66,10 @@ public class MySQLDelegateTest
 
         // This statement joins the type tables onto TRIGGERS, so the hint has to attach to the alias
         // rather than to a bare "TRIGGERS WHERE".
-        sql.Should().Contain("{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)");
+        sql.Should().Contain("{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)",
+            "the sweep reads in the acquisition index's order and filters on its columns, so that is "
+            + "the index every other dialect's optimizer picks for it (#3608)");
+        sql.Should().NotContain("IDX_{1}T_NFT_ST_MISFIRE");
         sql.Should().Contain("LIMIT 20");
     }
 
@@ -72,7 +81,7 @@ public class MySQLDelegateTest
         var sql = del.GetSelectMisfiredTriggersToRecoverSqlPublic(-1);
 
         sql.Should().NotContain("LIMIT", "-1 is the sentinel that asks for every misfired row");
-        sql.Should().Contain("{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)",
+        sql.Should().Contain("{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)",
             "which index the sweep should read does not depend on how many rows it returns, and an unlimited sweep is the one that reads the most");
     }
 
@@ -84,7 +93,7 @@ public class MySQLDelegateTest
         var template = del.GetSelectMisfiredTriggersToRecoverSqlPublic(20);
         var sql = AdoJobStoreUtil.ReplaceTablePrefix(template, "common.QRTZ_");
 
-        sql.Should().Contain("common.QRTZ_TRIGGERS t FORCE INDEX (IDX_QRTZ_T_NFT_ST_MISFIRE)");
+        sql.Should().Contain("common.QRTZ_TRIGGERS t FORCE INDEX (IDX_QRTZ_T_NFT_ST)");
         // The joined type tables must not have picked up the hint
         sql.Should().Contain("common.QRTZ_SIMPLE_TRIGGERS st ON");
         sql.Should().NotContain("IDX_common.");

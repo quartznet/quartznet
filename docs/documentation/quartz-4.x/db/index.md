@@ -116,8 +116,9 @@ trigger that does not exist. The stored states map onto it: `WAITING` and `ACQUI
 
 Four indexes ship on `QRTZ_TRIGGERS`, five on SQL Server, MySQL, Oracle and Firebird. Three are lookups
 by key — `(SCHED_NAME, JOB_NAME, JOB_GROUP)`, `(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` and
-`(SCHED_NAME, CALENDAR_NAME)`. The fifth, `IDX_QRTZ_T_NFT_ST_MISFIRE`, serves the misfire sweep;
-PostgreSQL and SQLite omit it because the fourth already covers that predicate.
+`(SCHED_NAME, CALENDAR_NAME)`. The fifth is `IDX_QRTZ_T_NFT_ST_MISFIRE`, which PostgreSQL and SQLite
+omit; it was the misfire sweep's index, and since the fourth was reshaped it is the fourth the sweep
+reads on every engine (measured — [#3608](https://github.com/quartznet/quartznet/issues/3608)).
 
 That fourth one is `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on, and it is the only index in the
 schema whose shape differs by dialect:

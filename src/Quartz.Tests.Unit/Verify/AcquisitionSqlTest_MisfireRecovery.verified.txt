@@ -248,7 +248,7 @@ SELECT
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
-                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
             LEFT JOIN
                 {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
             LEFT JOIN
@@ -285,7 +285,7 @@ SELECT
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
-                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
             LEFT JOIN
                 {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
             LEFT JOIN
