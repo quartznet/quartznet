@@ -367,6 +367,31 @@ public class CronExpressionHashTest
     }
 
     [Test]
+    public void TryParseWithHash_WithFormat_RejectsANullExpression()
+    {
+        CronExpression.TryParseWithHash(null, CronFormat.Unix, "myTrigger", out CronExpression result).Should().BeFalse(
+            "the non-throwing form takes an expression from somewhere the caller does not control, and "
+            + "null is the shape that comes back from a configuration key nobody set");
+        result.Should().BeNull();
+
+        Action nullKey = () => CronExpression.TryParseWithHash("H 4 * * 1", CronFormat.Unix, null, out _);
+
+        nullKey.Should().Throw<ArgumentNullException>(
+            "a missing hash key is the caller's own bug rather than bad input, so it throws where a bad "
+            + "expression returns false");
+    }
+
+    [Test]
+    public void ParseWithHash_WithFormat_RejectsANullExpression()
+    {
+        Action key = () => CronExpression.ParseWithHash(null, CronFormat.Unix, "myTrigger");
+        Action seed = () => CronExpression.ParseWithHash(null, CronFormat.Unix, 42);
+
+        key.Should().Throw<ArgumentNullException>();
+        seed.Should().Throw<ArgumentNullException>();
+    }
+
+    [Test]
     public void TryParseWithHash_WithFormat_RejectsAMalformedHashToken()
     {
         CronExpression.TryParseWithHash("H(0-99) 4 * * 1", CronFormat.Unix, "myTrigger", out CronExpression result).Should().BeFalse(
