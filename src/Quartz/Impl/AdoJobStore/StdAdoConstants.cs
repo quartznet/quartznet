@@ -347,7 +347,9 @@ internal static class StdAdoConstants
     /// </summary>
     internal static string TriggerSweepOrderBy(string alias)
     {
-        return string.Join(", ", TriggerSweepOrder.Select(column => Invariant($"{alias}{column.Column} {column.Direction}")));
+        // Concatenation rather than interpolation: every part is already a string, so there is no
+        // formatting to get a culture wrong and nothing for FormattableString to do.
+        return string.Join(", ", TriggerSweepOrder.Select(column => alias + column.Column + " " + column.Direction));
     }
 
     // The one acquisition statement. Everything a caller can vary about it is the job-type exclusion
