@@ -89,24 +89,11 @@ internal sealed class DialectDelegateOverrides : StdAdoDelegate
     protected override string GetCountMisfiredTriggersInStateSql()
         => base.GetCountMisfiredTriggersInStateSql().Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS /*+ index */ WHERE");
 
-    private string schedulerName = "";
-
-    /// <summary>
-    /// Nearly every statement is scoped by scheduler name, and a delegate that writes one of its own
-    /// keeps the name from here: <see cref="DriverDelegateContext" /> is where it is settled, and the
-    /// base class holds its copy privately.
-    /// </summary>
-    public override void Initialize(DriverDelegateContext context)
-    {
-        base.Initialize(context);
-        schedulerName = context.SchedulerName;
-    }
-
     /// <summary>
     /// A whole <see cref="IDriverDelegate" /> member written out, rather than a statement handed back to
-    /// the base. Everything it needs is public: the connection holder, the command preparation, the
-    /// parameter binding, the table-prefix substitution, the column names, and the mapping from the
-    /// stored string back to a state.
+    /// the base. Everything it needs is reachable: the connection holder, the command preparation, the
+    /// parameter binding, the table-prefix substitution, the column names, the scheduler name every
+    /// statement is scoped by, and the mapping from the stored string back to a state.
     /// </summary>
     public override async ValueTask<StoredTriggerState> SelectTriggerState(
         ConnectionAndTransactionHolder conn,
@@ -120,7 +107,7 @@ internal sealed class DialectDelegateOverrides : StdAdoDelegate
             + $"AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
         using DbCommand cmd = PrepareCommand(conn, sql);
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, "schedulerName", SchedulerName);
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 

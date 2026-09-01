@@ -6257,6 +6257,12 @@ format would silently break cluster failover for pinned triggers (3.x only logge
 detected such an override; 4.0 removes the half-open door). A delegate for a database that stores
 `DATETIME` natively must implement `IDriverDelegate` directly and own its SQL.
 
+`StdAdoDelegate` also exposes **`protected string SchedulerName { get; }`**, beside the
+`protected IDbProvider DbProvider { get; }` it already had. Nearly every statement it sends is scoped
+by SCHED_NAME, so a delegate writing a statement of its own needs the same value; it used to have to
+override `Initialize` and keep a second copy of it from `DriverDelegateContext`. Purely additive — a
+delegate that already captures its own copy goes on working.
+
 Finally, `ITriggerPersistenceDelegate` gained a batch `LoadExtendedTriggerProperties` taking several trigger
 keys. It is a **default interface method** that loops the single-key overload, so a third-party trigger
 persistence delegate needs no change; override it only to turn a batch into one round trip.
