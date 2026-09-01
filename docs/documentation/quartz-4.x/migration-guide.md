@@ -10606,6 +10606,19 @@ boundaries moved, so match the files up with this first:
 
 3.x snapshots `net10.0` only, so its `net472` and `REMOTING` surface never appears in that diff.
 
+The 4.x baselines also *render* more than the 3.x ones do, which a cross-branch diff shows on every
+line it touches, and which is not an API change:
+
+| In a 4.x baseline | What it says |
+|---|---|
+| `public sealed record Foo` / `public readonly record struct Foo` | The type is a record. 3.x renders both as a class or a struct, so turning one into the other — losing value equality, the copy constructor and `with` — moved nothing |
+| A trailing `// default implementation` on an interface member | An implementor may leave that member unwritten. Making it abstract is a source break for every implementor, and 4.0's rule that a member added to a public interface arrives as a default implementation is only worth something if the baseline says which members are one |
+| `// explicit interface implementation: …` inside a type | The type implements that member explicitly. Such a member is private in metadata, so it was rendered nowhere at all, and removing one moved nothing |
+
+The three were added together in one pass over all ten baselines; the generator is
+`PublicApiRendering` in the two test projects, and it fails rather than annotating silently when its
+reading of a rendered line and the rendering itself disagree.
+
 Two whole-surface changes are deliberately left out, because repeating them per type would bury
 everything else: `Task` became [`ValueTask`](#tasks-changed-to-valuetask) on nearly every member, and
 the namespaces moved — [`Quartz.Spi` is `Quartz.Extensibility` and `Quartz.Simpl` is

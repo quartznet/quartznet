@@ -15,7 +15,7 @@ namespace Quartz.Dashboard.Hubs
         System.Threading.Tasks.Task TriggerPaused(Quartz.Dashboard.Hubs.TriggerLifecycleDto triggerEvent);
         System.Threading.Tasks.Task TriggerResumed(Quartz.Dashboard.Hubs.TriggerLifecycleDto triggerEvent);
     }
-    public sealed class JobEventDto : System.IEquatable<Quartz.Dashboard.Hubs.JobEventDto>
+    public sealed record JobEventDto : System.IEquatable<Quartz.Dashboard.Hubs.JobEventDto>
     {
         public JobEventDto(string SchedulerInstanceId, Quartz.Dashboard.Services.JobKeyDto JobKey, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, System.DateTimeOffset FireTimeUtc, string? FireInstanceId) { }
         public string? FireInstanceId { get; init; }
@@ -24,7 +24,7 @@ namespace Quartz.Dashboard.Hubs
         public string SchedulerInstanceId { get; init; }
         public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
     }
-    public sealed class JobExecutionResultDto : System.IEquatable<Quartz.Dashboard.Hubs.JobExecutionResultDto>
+    public sealed record JobExecutionResultDto : System.IEquatable<Quartz.Dashboard.Hubs.JobExecutionResultDto>
     {
         public JobExecutionResultDto(string SchedulerInstanceId, Quartz.Dashboard.Services.JobKeyDto JobKey, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, System.DateTimeOffset FireTimeUtc, System.TimeSpan RunTime, bool Vetoed, string? ExceptionMessage) { }
         public string? ExceptionMessage { get; init; }
@@ -35,13 +35,13 @@ namespace Quartz.Dashboard.Hubs
         public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
         public bool Vetoed { get; init; }
     }
-    public sealed class JobLifecycleDto : System.IEquatable<Quartz.Dashboard.Hubs.JobLifecycleDto>
+    public sealed record JobLifecycleDto : System.IEquatable<Quartz.Dashboard.Hubs.JobLifecycleDto>
     {
         public JobLifecycleDto(string SchedulerInstanceId, Quartz.Dashboard.Services.JobKeyDto JobKey) { }
         public Quartz.Dashboard.Services.JobKeyDto JobKey { get; init; }
         public string SchedulerInstanceId { get; init; }
     }
-    public sealed class SchedulerErrorDto : System.IEquatable<Quartz.Dashboard.Hubs.SchedulerErrorDto>
+    public sealed record SchedulerErrorDto : System.IEquatable<Quartz.Dashboard.Hubs.SchedulerErrorDto>
     {
         public SchedulerErrorDto(string SchedulerName, string SchedulerInstanceId, string Message, string? Cause, Quartz.Dashboard.Services.TriggerKeyDto? TriggerKey, Quartz.Dashboard.Services.JobKeyDto? JobKey) { }
         public string? Cause { get; init; }
@@ -51,14 +51,14 @@ namespace Quartz.Dashboard.Hubs
         public string SchedulerName { get; init; }
         public Quartz.Dashboard.Services.TriggerKeyDto? TriggerKey { get; init; }
     }
-    public sealed class SchedulerStateDto : System.IEquatable<Quartz.Dashboard.Hubs.SchedulerStateDto>
+    public sealed record SchedulerStateDto : System.IEquatable<Quartz.Dashboard.Hubs.SchedulerStateDto>
     {
         public SchedulerStateDto(string SchedulerName, string SchedulerInstanceId, Quartz.SchedulerStatus Status) { }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
         public Quartz.SchedulerStatus Status { get; init; }
     }
-    public sealed class TriggerEventDto : System.IEquatable<Quartz.Dashboard.Hubs.TriggerEventDto>
+    public sealed record TriggerEventDto : System.IEquatable<Quartz.Dashboard.Hubs.TriggerEventDto>
     {
         public TriggerEventDto(string SchedulerInstanceId, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, Quartz.Dashboard.Services.JobKeyDto? JobKey, System.DateTimeOffset? FireTimeUtc) { }
         public System.DateTimeOffset? FireTimeUtc { get; init; }
@@ -66,7 +66,7 @@ namespace Quartz.Dashboard.Hubs
         public string SchedulerInstanceId { get; init; }
         public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
     }
-    public sealed class TriggerLifecycleDto : System.IEquatable<Quartz.Dashboard.Hubs.TriggerLifecycleDto>
+    public sealed record TriggerLifecycleDto : System.IEquatable<Quartz.Dashboard.Hubs.TriggerLifecycleDto>
     {
         public TriggerLifecycleDto(string SchedulerInstanceId, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey) { }
         public string SchedulerInstanceId { get; init; }
@@ -129,7 +129,7 @@ namespace Quartz.Dashboard.Plugins
 }
 namespace Quartz.Dashboard.Services
 {
-    public sealed class AddCalendarRequest : System.IEquatable<Quartz.Dashboard.Services.AddCalendarRequest>
+    public sealed record AddCalendarRequest : System.IEquatable<Quartz.Dashboard.Services.AddCalendarRequest>
     {
         public AddCalendarRequest(string CalendarName, Quartz.ICalendar Calendar, bool Replace, bool UpdateTriggers) { }
         public Quartz.ICalendar Calendar { get; init; }
@@ -137,14 +137,14 @@ namespace Quartz.Dashboard.Services
         public bool Replace { get; init; }
         public bool UpdateTriggers { get; init; }
     }
-    public sealed class AddJobRequest : System.IEquatable<Quartz.Dashboard.Services.AddJobRequest>
+    public sealed record AddJobRequest : System.IEquatable<Quartz.Dashboard.Services.AddJobRequest>
     {
         public AddJobRequest(Quartz.Dashboard.Services.JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling) { }
         public Quartz.Dashboard.Services.JobDetailDto Job { get; init; }
         public bool Replace { get; init; }
         public bool? StoreNonDurableWhileAwaitingScheduling { get; init; }
     }
-    public sealed class ClusterNodeDto : System.IEquatable<Quartz.Dashboard.Services.ClusterNodeDto>
+    public sealed record ClusterNodeDto : System.IEquatable<Quartz.Dashboard.Services.ClusterNodeDto>
     {
         public ClusterNodeDto(string InstanceId, System.DateTimeOffset? LastCheckInUtc, System.TimeSpan? CheckInInterval, Quartz.ClusterNodeState State, bool IsCurrentNode) { }
         public System.TimeSpan? CheckInInterval { get; init; }
@@ -153,24 +153,24 @@ namespace Quartz.Dashboard.Services
         public System.DateTimeOffset? LastCheckInUtc { get; init; }
         public Quartz.ClusterNodeState State { get; init; }
     }
-    public readonly struct DashboardExecutionLimit : System.IEquatable<Quartz.Dashboard.Services.DashboardExecutionLimit>
+    public readonly record struct DashboardExecutionLimit : System.IEquatable<Quartz.Dashboard.Services.DashboardExecutionLimit>
     {
         public DashboardExecutionLimit(int? MaxConcurrent, Quartz.ExecutionLimitScope Scope) { }
         public int? MaxConcurrent { get; init; }
         public Quartz.ExecutionLimitScope Scope { get; init; }
     }
-    public sealed class DashboardFireInstanceQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardFireInstanceQuery>
+    public sealed record DashboardFireInstanceQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardFireInstanceQuery>
     {
         public DashboardFireInstanceQuery() { }
         public string? GroupContains { get; init; }
         public Quartz.FireInstanceState? State { get; init; }
     }
-    public sealed class DashboardGroupQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardGroupQuery>
+    public sealed record DashboardGroupQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardGroupQuery>
     {
         public DashboardGroupQuery() { }
         public bool? Paused { get; init; }
     }
-    public sealed class DashboardHistoryEntry : System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryEntry>
+    public sealed record DashboardHistoryEntry : System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryEntry>
     {
         public DashboardHistoryEntry(string SchedulerName, string SchedulerInstanceId, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
         public System.TimeSpan Duration { get; init; }
@@ -184,7 +184,7 @@ namespace Quartz.Dashboard.Services
         public string TriggerGroup { get; init; }
         public string TriggerName { get; init; }
     }
-    public sealed class DashboardHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryQuery>
+    public sealed record DashboardHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryQuery>
     {
         public DashboardHistoryQuery() { }
         public string? JobFilter { get; init; }
@@ -192,12 +192,12 @@ namespace Quartz.Dashboard.Services
         public required string SchedulerName { get; init; }
         public string? TriggerFilter { get; init; }
     }
-    public sealed class DashboardJobQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardJobQuery>
+    public sealed record DashboardJobQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardJobQuery>
     {
         public DashboardJobQuery() { }
         public string? GroupContains { get; init; }
     }
-    public sealed class DashboardMisfireEntry : System.IEquatable<Quartz.Dashboard.Services.DashboardMisfireEntry>
+    public sealed record DashboardMisfireEntry : System.IEquatable<Quartz.Dashboard.Services.DashboardMisfireEntry>
     {
         public DashboardMisfireEntry(string SchedulerName, string SchedulerInstanceId, string TriggerGroup, string TriggerName, Quartz.Dashboard.Services.JobKeyDto? JobKey, System.DateTimeOffset MisfiredAtUtc, System.DateTimeOffset? ScheduledFireTimeUtc) { }
         public Quartz.Dashboard.Services.JobKeyDto? JobKey { get; init; }
@@ -208,20 +208,20 @@ namespace Quartz.Dashboard.Services
         public string TriggerGroup { get; init; }
         public string TriggerName { get; init; }
     }
-    public sealed class DashboardMisfireQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardMisfireQuery>
+    public sealed record DashboardMisfireQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardMisfireQuery>
     {
         public DashboardMisfireQuery() { }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public string? TriggerFilter { get; init; }
     }
-    public sealed class DashboardTriggerQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardTriggerQuery>
+    public sealed record DashboardTriggerQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardTriggerQuery>
     {
         public DashboardTriggerQuery() { }
         public string? GroupContains { get; init; }
         public Quartz.TriggerState? State { get; init; }
     }
-    public sealed class ExecutionLimitsDto : System.IEquatable<Quartz.Dashboard.Services.ExecutionLimitsDto>
+    public sealed record ExecutionLimitsDto : System.IEquatable<Quartz.Dashboard.Services.ExecutionLimitsDto>
     {
         public ExecutionLimitsDto(System.Collections.Generic.Dictionary<string, Quartz.Dashboard.Services.DashboardExecutionLimit> Limits, bool UsesTriggerGroupWhenUnset = false, bool CanReport = true) { }
         public bool CanReport { get; init; }
@@ -229,7 +229,7 @@ namespace Quartz.Dashboard.Services
         public bool UsesTriggerGroupWhenUnset { get; init; }
         public static Quartz.Dashboard.Services.ExecutionLimitsDto CannotReport { get; }
     }
-    public sealed class FireInstanceDto : System.IEquatable<Quartz.Dashboard.Services.FireInstanceDto>
+    public sealed record FireInstanceDto : System.IEquatable<Quartz.Dashboard.Services.FireInstanceDto>
     {
         public FireInstanceDto(string FireInstanceId, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, Quartz.Dashboard.Services.JobKeyDto? JobKey, string SchedulerInstanceId, Quartz.FireInstanceState State, System.DateTimeOffset FireTimeUtc, System.DateTimeOffset? ScheduledFireTimeUtc, string? ExecutionGroup) { }
         public string? ExecutionGroup { get; init; }
@@ -290,7 +290,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask TriggerJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, Quartz.JobDataMap? jobDataMap = null, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> UnscheduleJob(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
     }
-    public sealed class JobDetailDto : System.IEquatable<Quartz.Dashboard.Services.JobDetailDto>
+    public sealed record JobDetailDto : System.IEquatable<Quartz.Dashboard.Services.JobDetailDto>
     {
         public JobDetailDto(string Name, string Group, string JobType, string? Description, bool Durable, bool RequestsRecovery, bool ConcurrentExecutionDisallowed, bool PersistJobDataAfterExecution, Quartz.JobDataMap JobDataMap) { }
         public bool ConcurrentExecutionDisallowed { get; init; }
@@ -303,30 +303,30 @@ namespace Quartz.Dashboard.Services
         public bool PersistJobDataAfterExecution { get; init; }
         public bool RequestsRecovery { get; init; }
     }
-    public sealed class JobGroupDto : System.IEquatable<Quartz.Dashboard.Services.JobGroupDto>
+    public sealed record JobGroupDto : System.IEquatable<Quartz.Dashboard.Services.JobGroupDto>
     {
         public JobGroupDto(string Name, bool Paused) { }
         public string Name { get; init; }
         public bool Paused { get; init; }
     }
-    public sealed class JobKeyDto : System.IEquatable<Quartz.Dashboard.Services.JobKeyDto>
+    public sealed record JobKeyDto : System.IEquatable<Quartz.Dashboard.Services.JobKeyDto>
     {
         public JobKeyDto(string Group, string Name) { }
         public string Group { get; init; }
         public string Name { get; init; }
     }
-    public sealed class RescheduleRequest : System.IEquatable<Quartz.Dashboard.Services.RescheduleRequest>
+    public sealed record RescheduleRequest : System.IEquatable<Quartz.Dashboard.Services.RescheduleRequest>
     {
         public RescheduleRequest(Quartz.ITrigger NewTrigger) { }
         public Quartz.ITrigger NewTrigger { get; init; }
     }
-    public sealed class ScheduleJobRequest : System.IEquatable<Quartz.Dashboard.Services.ScheduleJobRequest>
+    public sealed record ScheduleJobRequest : System.IEquatable<Quartz.Dashboard.Services.ScheduleJobRequest>
     {
         public ScheduleJobRequest(Quartz.ITrigger Trigger, Quartz.Dashboard.Services.JobDetailDto? Job) { }
         public Quartz.Dashboard.Services.JobDetailDto? Job { get; init; }
         public Quartz.ITrigger Trigger { get; init; }
     }
-    public sealed class SchedulerDetailDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerDetailDto>
+    public sealed record SchedulerDetailDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerDetailDto>
     {
         public SchedulerDetailDto(string SchedulerInstanceId, string SchedulerName, Quartz.SchedulerStatus Status, bool Clustered, bool Persistent, string JobStoreTypeName, string ThreadPoolTypeName, int ThreadPoolSize, System.DateTimeOffset? RunningSince, int JobsExecuted, string Version) { }
         public bool Clustered { get; init; }
@@ -341,7 +341,7 @@ namespace Quartz.Dashboard.Services
         public string ThreadPoolTypeName { get; init; }
         public string Version { get; init; }
     }
-    public sealed class SchedulerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerHeaderDto>
+    public sealed record SchedulerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerHeaderDto>
     {
         public SchedulerHeaderDto(string SchedulerName, string? SchedulerInstanceId, Quartz.SchedulerStatus? Status, Quartz.SchedulerOrigin Origin) { }
         public bool IsCreated { get; }
@@ -350,13 +350,13 @@ namespace Quartz.Dashboard.Services
         public string SchedulerName { get; init; }
         public Quartz.SchedulerStatus? Status { get; init; }
     }
-    public sealed class TriggerGroupDto : System.IEquatable<Quartz.Dashboard.Services.TriggerGroupDto>
+    public sealed record TriggerGroupDto : System.IEquatable<Quartz.Dashboard.Services.TriggerGroupDto>
     {
         public TriggerGroupDto(string Name, bool Paused) { }
         public string Name { get; init; }
         public bool Paused { get; init; }
     }
-    public sealed class TriggerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.TriggerHeaderDto>
+    public sealed record TriggerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.TriggerHeaderDto>
     {
         public TriggerHeaderDto(string Group, string Name, string? TriggerType, string? ScheduleSummary, Quartz.TriggerState? State, string? ExecutionGroup) { }
         public string? ExecutionGroup { get; init; }
@@ -366,7 +366,7 @@ namespace Quartz.Dashboard.Services
         public Quartz.TriggerState? State { get; init; }
         public string? TriggerType { get; init; }
     }
-    public sealed class TriggerKeyDto : System.IEquatable<Quartz.Dashboard.Services.TriggerKeyDto>
+    public sealed record TriggerKeyDto : System.IEquatable<Quartz.Dashboard.Services.TriggerKeyDto>
     {
         public TriggerKeyDto(string Group, string Name) { }
         public string Group { get; init; }

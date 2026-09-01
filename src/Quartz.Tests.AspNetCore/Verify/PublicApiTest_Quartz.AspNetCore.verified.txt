@@ -14,7 +14,7 @@ namespace Quartz
         public bool IncludeStackTraceInProblemDetails { get; set; }
         public string? SchedulerAuthorizationPolicy { get; set; }
     }
-    public sealed class SchedulerResource : System.IEquatable<Quartz.SchedulerResource>
+    public sealed record SchedulerResource : System.IEquatable<Quartz.SchedulerResource>
     {
         public SchedulerResource(string SchedulerName) { }
         public string SchedulerName { get; init; }
