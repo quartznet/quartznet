@@ -2,6 +2,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
+
+using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -345,6 +348,84 @@ public class JsonSchedulingTests
         triggers.Should().HaveCount(1);
         var trigger = (Quartz.Impl.Triggers.TriggerBase) triggers[0];
         trigger.ExecutionGroup.Should().Be("batch");
+    }
+
+    [Test]
+    public void AddQuartz_StartTimeSecondsInFutureInJson_IsRelativeToTheSchedulersClock()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero));
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "clockJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "clockTrigger" },
+            { "Schedule:Triggers:0:JobName", "clockJob" },
+            { "Schedule:Triggers:0:StartTimeSecondsInFuture", "90" },
+            { "Schedule:Triggers:0:Simple:Interval", "00:00:10" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config, q => q.UseTimeProvider(clock));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.ScheduledTriggers().Should().ContainSingle()
+            .Which.StartTimeUtc.Should().Be(clock.GetUtcNow().AddSeconds(90),
+                "a JSON-declared trigger is anchored to its scheduler's clock, the same as an XML-declared one");
+    }
+
+    [Test]
+    public void AddQuartz_TriggerFromJsonWithNoStartTime_StartsAtTheSchedulersNow()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero));
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "nowJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "nowTrigger" },
+            { "Schedule:Triggers:0:JobName", "nowJob" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config, q => q.UseTimeProvider(clock));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.ScheduledTriggers().Should().ContainSingle()
+            .Which.StartTimeUtc.Should().Be(clock.GetUtcNow(),
+                "a trigger given no start time starts now, and now is what its scheduler's clock says");
+    }
+
+    [Test]
+    public void AddQuartz_NamedScheduler_TriggerFromJson_CarriesThatSchedulersClock()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero));
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "reportingJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "reportingTrigger" },
+            { "Schedule:Triggers:0:JobName", "reportingJob" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz("reporting", config, q => q.UseTimeProvider(clock));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.ScheduledTriggers("reporting").Should().ContainSingle()
+            .Which.Should().BeAssignableTo<TriggerBase>()
+            .Which.TimeProvider.Should().BeSameAs(clock,
+                "the trigger keeps its scheduler's clock for its own misfire and retry arithmetic, "
+                + "not just for the start time it was built with");
     }
 
     private static IConfiguration BuildConfig(Dictionary<string, string> values)
