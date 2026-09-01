@@ -14,6 +14,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The public API baselines are split across the two test projects because their dependencies are,
+      but they are one guard and must render identically. The annotator is therefore compiled into
+      both rather than copied into either.
+    -->
+    <Compile Include="..\Quartz.Tests.Unit\PublicApiRendering.cs" Link="PublicApiRendering.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="AwesomeAssertions.Analyzers" />
     <PackageReference Include="bunit" />

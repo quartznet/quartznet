@@ -18,6 +18,14 @@ namespace Quartz.Tests.Unit;
 /// read the diff, and when the change is deliberate, accept the new baseline and carry the same
 /// diff into the migration guide. When it is not deliberate, the diff is the bug report.
 /// </remarks>
+/// <remarks>
+/// The rendering says more than <c>PublicApiGenerator</c> alone would: records carry the
+/// <c>record</c> keyword, an interface member with a default implementation carries a marker, and
+/// the explicit interface implementations of a type are listed. <see cref="PublicApiRendering" />
+/// explains why. The one shape it still cannot show is a positional record's <c>Deconstruct</c>,
+/// which the compiler marks as generated and the generator therefore drops — the primary
+/// constructor is in the baseline, so the change is visible, but not by that name.
+/// </remarks>
 public class PublicApiTest
 {
     private static readonly Assembly[] shippedAssemblies =
@@ -61,9 +69,13 @@ public class PublicApiTest
                 "System.Runtime.CompilerServices.RefSafetyRulesAttribute",
                 "System.Runtime.Versioning.TargetFrameworkAttribute",
             ],
+
+            // A record is not a class: it brings value equality, a copy constructor and `with`, and
+            // turning one into the other breaks callers without changing a single signature.
+            TreatRecordsAsClasses = false,
         };
 
-        var publicApi = assembly.GeneratePublicApi(options);
+        var publicApi = PublicApiRendering.Annotate(assembly.GeneratePublicApi(options), assembly);
 
         await Verify(publicApi, extension: "txt")
             .UseDirectory("Verify")

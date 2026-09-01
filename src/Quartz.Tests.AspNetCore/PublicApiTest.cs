@@ -14,6 +14,10 @@ namespace Quartz.Tests.AspNetCore;
 /// automatically a bug: read the diff, and when the change is deliberate, accept the new baseline
 /// and carry the same diff into the migration guide.
 /// </remarks>
+/// <remarks>
+/// The rendering is annotated the same way its companion's is; <see cref="PublicApiRendering" />,
+/// which the two projects share, explains what it adds and why.
+/// </remarks>
 public class PublicApiTest
 {
     private static readonly Assembly[] shippedAssemblies =
@@ -52,6 +56,10 @@ public class PublicApiTest
                 "System.Runtime.Versioning.TargetFrameworkAttribute",
             ],
 
+            // A record is not a class: it brings value equality, a copy constructor and `with`, and
+            // turning one into the other breaks callers without changing a single signature.
+            TreatRecordsAsClasses = false,
+
             // Blazor components are the dashboard's UI, not API anyone calls. The .razor compiler
             // emits the class — so it cannot be made internal — along with a BuildRenderTree
             // override whose body is the markup, which means every markup edit would otherwise land
@@ -67,7 +75,7 @@ public class PublicApiTest
                 .ToArray(),
         };
 
-        var publicApi = assembly.GeneratePublicApi(options);
+        var publicApi = PublicApiRendering.Annotate(assembly.GeneratePublicApi(options), assembly);
 
         await Verify(publicApi, extension: "txt")
             .UseDirectory("Verify")

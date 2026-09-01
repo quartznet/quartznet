@@ -26,6 +26,9 @@ namespace Quartz.Serialization.Newtonsoft.Calendars
     public abstract class CalendarSerializer<TCalendar> : Quartz.Serialization.Newtonsoft.Calendars.ICalendarSerializer
         where TCalendar : Quartz.ICalendar
     {
+        // explicit interface implementation: Quartz.Serialization.Newtonsoft.Calendars.ICalendarSerializer.Create(Newtonsoft.Json.Linq.JObject)
+        // explicit interface implementation: Quartz.Serialization.Newtonsoft.Calendars.ICalendarSerializer.DeserializeFields(Quartz.ICalendar, Newtonsoft.Json.Linq.JObject)
+        // explicit interface implementation: Quartz.Serialization.Newtonsoft.Calendars.ICalendarSerializer.SerializeFields(Newtonsoft.Json.JsonWriter, Quartz.ICalendar)
         protected CalendarSerializer() { }
         public virtual string CalendarTypeName { get; }
         protected abstract TCalendar Create(Newtonsoft.Json.Linq.JObject source);
@@ -34,7 +37,7 @@ namespace Quartz.Serialization.Newtonsoft.Calendars
     }
     public interface ICalendarSerializer
     {
-        string CalendarTypeName { get; }
+        string CalendarTypeName { get; } // default implementation
         Quartz.ICalendar Create(Newtonsoft.Json.Linq.JObject source);
         void DeserializeFields(Quartz.ICalendar value, Newtonsoft.Json.Linq.JObject source);
         void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.ICalendar value);
@@ -103,6 +106,8 @@ namespace Quartz.Serialization.Newtonsoft.Triggers
     public abstract class TriggerSerializer<TTrigger> : Quartz.Serialization.Newtonsoft.Triggers.ITriggerSerializer
         where TTrigger : Quartz.ITrigger
     {
+        // explicit interface implementation: Quartz.Serialization.Newtonsoft.Triggers.ITriggerSerializer.DeserializeFields(Quartz.ITrigger, Newtonsoft.Json.Linq.JObject)
+        // explicit interface implementation: Quartz.Serialization.Newtonsoft.Triggers.ITriggerSerializer.SerializeFields(Newtonsoft.Json.JsonWriter, Quartz.ITrigger)
         protected TriggerSerializer() { }
         public abstract string TriggerTypeName { get; }
         public abstract Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source);

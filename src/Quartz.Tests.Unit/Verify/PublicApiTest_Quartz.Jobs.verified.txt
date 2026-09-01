@@ -16,7 +16,7 @@ namespace Quartz.Jobs
         public DirectoryScanJob(System.IServiceProvider serviceProvider, System.TimeProvider? timeProvider = null) { }
         public System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public sealed class DirectoryScanOptions : System.IEquatable<Quartz.Jobs.DirectoryScanOptions>
+    public sealed record DirectoryScanOptions : System.IEquatable<Quartz.Jobs.DirectoryScanOptions>
     {
         public DirectoryScanOptions() { }
         public System.Collections.Generic.IReadOnlyList<string> Directories { get; init; }
@@ -41,7 +41,7 @@ namespace Quartz.Jobs
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.DateTimeOffset? GetLastModifiedTime(string fileName) { }
     }
-    public sealed class FileScanOptions : System.IEquatable<Quartz.Jobs.FileScanOptions>
+    public sealed record FileScanOptions : System.IEquatable<Quartz.Jobs.FileScanOptions>
     {
         public FileScanOptions() { }
         public required string FileName { get; init; }
@@ -92,7 +92,7 @@ namespace Quartz.Jobs
         public NativeJob() { }
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public sealed class NativeJobOptions : System.IEquatable<Quartz.Jobs.NativeJobOptions>
+    public sealed record NativeJobOptions : System.IEquatable<Quartz.Jobs.NativeJobOptions>
     {
         public NativeJobOptions() { }
         public required string Command { get; init; }
@@ -126,7 +126,7 @@ namespace Quartz.Jobs
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask Send(Quartz.Jobs.MailInfo mailInfo, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public sealed class SendMailOptions : System.IEquatable<Quartz.Jobs.SendMailOptions>
+    public sealed record SendMailOptions : System.IEquatable<Quartz.Jobs.SendMailOptions>
     {
         public SendMailOptions() { }
         public string? CcRecipient { get; init; }
