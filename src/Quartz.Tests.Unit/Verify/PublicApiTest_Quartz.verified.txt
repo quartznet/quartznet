@@ -121,11 +121,14 @@ namespace Quartz
         public static Quartz.CronExpression Parse(string cronExpression, Quartz.CronFormat format) { }
         public static Quartz.CronExpression ParseWithHash(string cronExpression, int hashSeed) { }
         public static Quartz.CronExpression ParseWithHash(string cronExpression, string hashKey) { }
+        public static Quartz.CronExpression ParseWithHash(string cronExpression, Quartz.CronFormat format, int hashSeed) { }
+        public static Quartz.CronExpression ParseWithHash(string cronExpression, Quartz.CronFormat format, string hashKey) { }
         public static string ResolveHash(string cronExpression, int hashSeed) { }
         public static string ResolveHash(string cronExpression, string hashKey) { }
         public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
         public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, Quartz.CronFormat format, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
         public static bool TryParseWithHash([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, string hashKey, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
+        public static bool TryParseWithHash([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, Quartz.CronFormat format, string hashKey, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
     }
     public sealed class CronExpressionBuilder
     {

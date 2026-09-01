@@ -5006,15 +5006,16 @@ five-field layout, and `L` alone in day-of-week still means Saturday, because it
 nothing to renumber. When both day fields name days the expression fires on the union, which is
 `crontab(5)`'s rule and the same one Quartz applies to its own expressions.
 
-**`H` is the one that composes through only one of the three doors.** `CronScheduleBuilder.Create(s,
-CronFormat.Unix)` reads it: it rewrites the expression to the Quartz form first and then defers the hash
-to the trigger's identity, so `Create("H 4 * * 1", CronFormat.Unix)` on a trigger identified as `nightly`
-comes out as `0 13 4 ? * MON`. The other two doors cannot, and it is worth knowing which way round: the
-format-aware `Parse` and `TryParse` take no hash key, so there is nothing for `H` to hash against, and
-`ParseWithHash` / `TryParseWithHash` / `ResolveHash` take no format, so they reject a five-field
-expression outright with the six-field advice. Reach for the builder when a Unix-form expression carries
-an `H`, or prepend the seconds field yourself and use `ParseWithHash`. A format-taking `ParseWithHash` is
-an additive overload and is filed for 4.1.
+**`H` composes with the format too.** `CronScheduleBuilder.Create(s, CronFormat.Unix)` reads it: it
+rewrites the expression to the Quartz form first and then defers the hash to the trigger's identity, so
+`Create("H 4 * * 1", CronFormat.Unix)` on a trigger identified as `nightly` comes out as
+`0 13 4 ? * MON`. `CronExpression.ParseWithHash(s, CronFormat, hashKey)`,
+`ParseWithHash(s, CronFormat, hashSeed)` and `TryParseWithHash(s, CronFormat, hashKey, out …)` run the
+same rewrite first and are the way to do it without a trigger. Because the rewrite runs first, an `H` in
+a five-field day-of-week is hashed over Quartz's 1-7 rather than crontab's 0-7, so it never lands on a
+day the renumbering would have moved. The format-aware `Parse` and `TryParse` take no hash key, so there
+is nothing for `H` to hash against; `ResolveHash` still takes a hash key but no format, because it
+answers with a string rather than an expression and so stays a Quartz-form operation.
 
 **The expression is normalised to the canonical Quartz form, and the original is not recoverable.**
 `CronExpression.Parse("30 4 * * 1", CronFormat.Unix).CronExpressionString` is `"0 30 4 ? * MON"`, and that is
