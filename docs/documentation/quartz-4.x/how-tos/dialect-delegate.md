@@ -188,6 +188,10 @@ It arrives after construction rather than through the constructor because `Insta
 until the scheduler starts — a generated instance id does not exist when the container builds the
 delegate.
 
+Two of those the base class then hands back, so a delegate writing a statement of its own does not
+override `Initialize` merely to keep a second copy: `protected string SchedulerName { get; }`, which
+nearly every statement is scoped by, and `protected IDbProvider DbProvider { get; }`.
+
 ## Registering it
 
 <!-- snippet: sample_dialect_delegate_registration -->

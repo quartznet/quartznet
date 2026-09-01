@@ -47,7 +47,6 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     private ILogger<StdAdoDelegate> logger = null!;
     private string tablePrefix = AdoConstants.DefaultTablePrefix;
     private string instanceId = null!;
-    private string schedulerName = null!;
     private bool useProperties;
 
     private ITypeLoader typeLoader = null!;
@@ -113,6 +112,17 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     protected IDbProvider DbProvider { get; private set; } = null!;
 
     /// <summary>
+    /// The name of the scheduler this delegate serves, which every statement here is scoped by.
+    /// </summary>
+    /// <remarks>
+    /// A dialect delegate that writes a statement of its own rather than adjusting one of the base
+    /// class's needs the same value, and the base class already has it: without this it would have to
+    /// override <see cref="Initialize" /> to keep a second copy from
+    /// <see cref="DriverDelegateContext" />.
+    /// </remarks>
+    protected string SchedulerName { get; private set; } = null!;
+
+    /// <summary>
     /// Initializes the driver delegate.
     /// </summary>
     public virtual void Initialize(DriverDelegateContext context)
@@ -121,7 +131,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         // against it keeps matching whichever database the scheduler turns out to be talking to.
         logger = context.LoggerFactory.CreateLogger<StdAdoDelegate>();
         tablePrefix = context.TablePrefix;
-        schedulerName = context.SchedulerName;
+        SchedulerName = context.SchedulerName;
         instanceId = context.InstanceId;
         DbProvider = context.DbProvider;
         typeLoader = context.TypeLoader;
@@ -188,7 +198,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         List<SqlStatement> statements = new(clearDataStatements.Length);
         foreach (string sql in clearDataStatements)
         {
-            statements.Add(new SqlStatement(ReplaceTablePrefix(sql), [new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName)]));
+            statements.Add(new SqlStatement(ReplaceTablePrefix(sql), [new SqlStatementParameter(SqlParameters.SchedulerName, SchedulerName)]));
         }
 
         return ExecuteStatements(conn, statements, cancellationToken);
@@ -380,7 +390,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlSelectJobsInGroup, StdAdoConstants.SqlSelectJobsInGroupLike);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
-        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
         AddCommandParameter(cmd, SqlParameters.JobGroup, parameter);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

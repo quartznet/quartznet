@@ -2673,6 +2673,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual bool CanUseProperties { get; }
         protected Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; }
         public virtual bool FiltersAcquisitionJobTypeExclusions { get; }
+        protected string SchedulerName { get; }
         protected virtual string? SchemaResourceName { get; }
         public virtual void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected virtual void AddDefaultTriggerPersistenceDelegates() { }
