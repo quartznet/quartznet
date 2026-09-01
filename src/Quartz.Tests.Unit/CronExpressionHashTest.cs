@@ -311,6 +311,69 @@ public class CronExpressionHashTest
         copy.TimeZone.Should().Be(TimeZoneInfo.Utc);
     }
 
+    // --- ParseWithHash in another cron format ---
+
+    [Test]
+    public void ParseWithHash_WithoutAFormat_RejectsAFiveFieldExpression()
+    {
+        Action parse = () => CronExpression.ParseWithHash("H 4 * * 1", "myTrigger");
+
+        parse.Should().Throw<FormatException>(
+            "five fields is not a Quartz expression, and that is why resolving an H token in a Unix "
+            + "expression needs an overload that says which dialect it is reading");
+    }
+
+    [Test]
+    public void ParseWithHash_WithHashKeyAndFormat_ResolvesAgainstTheRewrittenExpression()
+    {
+        CronExpression viaUnix = CronExpression.ParseWithHash("H 4 * * 1", CronFormat.Unix, "myTrigger");
+
+        viaUnix.CronExpressionString.Should().Be(
+            CronExpression.ParseWithHash("0 H 4 ? * MON", "myTrigger").CronExpressionString,
+            "the expression is read as the Quartz expression that says the same thing before its H "
+            + "tokens are resolved, so the two routes are one schedule spread the same way");
+    }
+
+    [Test]
+    public void ParseWithHash_WithIntSeedAndFormat_ResolvesAgainstTheRewrittenExpression()
+    {
+        CronExpression viaUnix = CronExpression.ParseWithHash("H 4 * * 1", CronFormat.Unix, 42);
+
+        viaUnix.CronExpressionString.Should().Be(
+            CronExpression.ParseWithHash("0 H 4 ? * MON", 42).CronExpressionString,
+            "a seed spreads the rewritten expression exactly as a key does");
+    }
+
+    [Test]
+    public void ParseWithHash_WithFormat_HashesADayOfWeekOverQuartzsRange()
+    {
+        CronExpression viaUnix = CronExpression.ParseWithHash("0 0 * * H", CronFormat.Unix, "myTrigger");
+
+        viaUnix.CronExpressionString.Should().Be(
+            CronExpression.ParseWithHash("0 0 0 ? * H", "myTrigger").CronExpressionString,
+            "the rewrite runs first, so an H in a five-field day-of-week is hashed over Quartz's 1-7 "
+            + "rather than crontab's 0-7 and never lands on a day the renumbering would have moved");
+    }
+
+    [Test]
+    public void TryParseWithHash_WithFormat_ReadsTheDialectItIsGiven()
+    {
+        CronExpression.TryParseWithHash("H 4 * * 1", CronFormat.Unix, "myTrigger", out CronExpression unix).Should().BeTrue();
+        unix!.CronExpressionString.Should().NotContain("H");
+
+        CronExpression.TryParseWithHash("H 4 * * 1", CronFormat.Quartz, "myTrigger", out CronExpression quartz).Should().BeFalse(
+            "the same five fields are not a Quartz expression, and the format is stated rather than sniffed");
+        quartz.Should().BeNull();
+    }
+
+    [Test]
+    public void TryParseWithHash_WithFormat_RejectsAMalformedHashToken()
+    {
+        CronExpression.TryParseWithHash("H(0-99) 4 * * 1", CronFormat.Unix, "myTrigger", out CronExpression result).Should().BeFalse(
+            "an H token can be malformed in its own right, and the rewrite does not make it valid");
+        result.Should().BeNull();
+    }
+
     // --- Builder integration tests ---
 
     [Test]

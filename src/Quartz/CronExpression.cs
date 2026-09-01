@@ -597,6 +597,31 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     }
 
     /// <summary>
+    /// Parses a cron expression string written in the given format, whose <c>H</c> (hash) tokens are
+    /// resolved against the given hash key.
+    /// </summary>
+    /// <remarks>
+    /// The expression is read as the Quartz expression that says the same thing before its <c>H</c>
+    /// tokens are resolved, so a token is hashed over the range the field has in Quartz — an <c>H</c>
+    /// in a five-field day-of-week is spread over 1-7, not 0-7. What comes back is an ordinary
+    /// <see cref="CronExpression" /> in the canonical Quartz spelling, as
+    /// <see cref="Parse(string, CronFormat)" /> describes.
+    /// </remarks>
+    /// <param name="cronExpression">Cron expression that may contain <c>H</c> tokens.</param>
+    /// <param name="format">The dialect <paramref name="cronExpression"/> is written in.</param>
+    /// <param name="hashKey">A stable string key the hash values are derived from (e.g. the trigger name).</param>
+    /// <returns>The parsed expression, with every <c>H</c> token resolved to a value.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression"/> or <paramref name="hashKey"/> is <see langword="null" />.</exception>
+    /// <exception cref="FormatException"><paramref name="cronExpression"/> is not a valid cron expression in <paramref name="format"/>.</exception>
+    /// <seealso cref="ParseWithHash(string, string)" />
+    public static CronExpression ParseWithHash(string cronExpression, CronFormat format, string hashKey)
+    {
+        ArgumentNullException.ThrowIfNull(cronExpression);
+        ArgumentNullException.ThrowIfNull(hashKey);
+        return new CronExpression(ResolveHash(ToQuartzForm(cronExpression, format), hashKey));
+    }
+
+    /// <summary>
     /// Parses a cron expression string whose <c>H</c> (hash) tokens are resolved against the given
     /// integer seed.
     /// </summary>
@@ -610,6 +635,24 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     {
         ArgumentNullException.ThrowIfNull(cronExpression);
         return new CronExpression(ResolveHash(cronExpression, hashSeed));
+    }
+
+    /// <summary>
+    /// Parses a cron expression string written in the given format, whose <c>H</c> (hash) tokens are
+    /// resolved against the given integer seed.
+    /// </summary>
+    /// <inheritdoc cref="ParseWithHash(string, CronFormat, string)" path="/remarks" />
+    /// <param name="cronExpression">Cron expression that may contain <c>H</c> tokens.</param>
+    /// <param name="format">The dialect <paramref name="cronExpression"/> is written in.</param>
+    /// <param name="hashSeed">An integer seed the hash values are derived from.</param>
+    /// <returns>The parsed expression, with every <c>H</c> token resolved to a value.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression"/> is <see langword="null" />.</exception>
+    /// <exception cref="FormatException"><paramref name="cronExpression"/> is not a valid cron expression in <paramref name="format"/>.</exception>
+    /// <seealso cref="ParseWithHash(string, int)" />
+    public static CronExpression ParseWithHash(string cronExpression, CronFormat format, int hashSeed)
+    {
+        ArgumentNullException.ThrowIfNull(cronExpression);
+        return new CronExpression(ResolveHash(ToQuartzForm(cronExpression, format), hashSeed));
     }
 
     /// <summary>
@@ -638,6 +681,40 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         try
         {
             result = new CronExpression(ResolveHash(cronExpression, hashKey));
+            return true;
+        }
+        catch (FormatException)
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to parse a cron expression string written in the given format, whose <c>H</c> (hash)
+    /// tokens are resolved against the given hash key.
+    /// </summary>
+    /// <inheritdoc cref="ParseWithHash(string, CronFormat, string)" path="/remarks" />
+    /// <param name="cronExpression">Cron expression that may contain <c>H</c> tokens; may be <see langword="null" />.</param>
+    /// <param name="format">The dialect <paramref name="cronExpression"/> is written in.</param>
+    /// <param name="hashKey">A stable string key the hash values are derived from (e.g. the trigger name).</param>
+    /// <param name="result">The parsed expression, or <see langword="null" /> when parsing failed.</param>
+    /// <returns><see langword="true" /> when <paramref name="cronExpression"/> is a valid cron expression in <paramref name="format"/> under <paramref name="hashKey"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="hashKey"/> is <see langword="null" />.</exception>
+    /// <seealso cref="TryParseWithHash(string?, string, out CronExpression?)" />
+    public static bool TryParseWithHash([NotNullWhen(true)] string? cronExpression, CronFormat format, string hashKey, [NotNullWhen(true)] out CronExpression? result)
+    {
+        ArgumentNullException.ThrowIfNull(hashKey);
+
+        if (cronExpression is null)
+        {
+            result = null;
+            return false;
+        }
+
+        try
+        {
+            result = new CronExpression(ResolveHash(ToQuartzForm(cronExpression, format), hashKey));
             return true;
         }
         catch (FormatException)

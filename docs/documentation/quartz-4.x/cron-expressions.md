@@ -198,15 +198,20 @@ Quartz expression. Everything above is one grammar - `L`, `W` and `#` all work i
 layout, and `L` alone in day-of-week still means Saturday, because it is not a number and so has nothing to
 renumber.
 
-::: warning `H` composes with the Unix form through the builder only
+::: tip `H` composes with the Unix form
 `CronScheduleBuilder.Create(expression, CronFormat.Unix)` reads an `H` in the five-field form: it rewrites
 to the Quartz form first and then defers the hash to the trigger's identity, so
 `Create("H 4 * * 1", CronFormat.Unix)` on a trigger identified as `nightly` comes out as `0 13 4 ? * MON`.
-The other two doors cannot. `CronExpression.Parse` and `TryParse` take a format but no hash key, so there
-is nothing for `H` to hash against; [`ParseWithHash`](#h-hash-for-load-distribution), `TryParseWithHash`
-and `ResolveHash` take a hash key but no format, so a five-field expression is rejected with the six-field
-advice. Use the builder, or prepend the seconds field yourself. A format-taking `ParseWithHash` is an
-additive overload and is filed for 4.1.
+[`ParseWithHash`](#h-hash-for-load-distribution) and `TryParseWithHash` take a format beside the hash key
+and run the same rewrite first, so `ParseWithHash("H 4 * * 1", CronFormat.Unix, "nightly")` is that same
+expression without a trigger to hang it on. Because the rewrite runs first, an `H` in a five-field
+day-of-week is hashed over Quartz's 1-7 rather than crontab's 0-7 and can never land on a day the
+renumbering would have moved.
+
+`CronExpression.Parse` and `TryParse` take a format but no hash key, so there is nothing for `H` to hash
+against. `ResolveHash` still takes a hash key but no format: it answers with a string rather than an
+expression, so it stays a Quartz-form operation, and a five-field expression is rejected there with the
+six-field advice. Resolve through `ParseWithHash` instead.
 :::
 
 ::: warning
@@ -287,7 +292,9 @@ ITrigger trigger = TriggerBuilder.Create()
 
 Or resolve the expression on its own with `CronExpression.ParseWithHash`, which is the parse the
 builder overload does for you. `CronExpression.TryParseWithHash` is the non-throwing form, for a key
-and an expression that both came from somewhere you do not control:
+and an expression that both came from somewhere you do not control. Both take a
+[`CronFormat`](#the-unix-five-field-form) as their second argument when the expression is not written
+the Quartz way:
 
 <!-- snippet: sample_cron_expressions_hash_key -->
 ```csharp
