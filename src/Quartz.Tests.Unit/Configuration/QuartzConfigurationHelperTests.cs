@@ -9,9 +9,9 @@ public class QuartzConfigurationHelperTests
     [Test]
     public void SimpleOneLevel_ConvertsCorrectly()
     {
-        var config = BuildConfig(new Dictionary<string, string> { { "Scheduler:InstanceName", "My Scheduler" } });
+        var config = BuildConfig(new Dictionary<string, string> { { "Scheduler:InstanceId", "node-1" } });
         var result = QuartzConfigurationHelper.ToNameValueCollection(config);
-        result["quartz.scheduler.instanceName"].Should().Be("My Scheduler");
+        result["quartz.scheduler.instanceId"].Should().Be("node-1");
     }
 
     [Test]
@@ -19,13 +19,13 @@ public class QuartzConfigurationHelperTests
     {
         var config = BuildConfig(new Dictionary<string, string>
         {
-            { "Scheduler:InstanceName", "Test" },
+            { "Scheduler:InstanceId", "node-1" },
             { "ThreadPool:MaxConcurrency", "10" },
             { "JobStore:Type", "Quartz.Impl.RAMJobStore, Quartz" },
         });
 
         var result = QuartzConfigurationHelper.ToNameValueCollection(config);
-        result["quartz.scheduler.instanceName"].Should().Be("Test");
+        result["quartz.scheduler.instanceId"].Should().Be("node-1");
         result["quartz.jobStore.type"].Should().Be("Quartz.Impl.RAMJobStore, Quartz");
         result["quartz.threadPool.maxConcurrency"].Should().BeNull(
             "the section binds onto ThreadPoolOptions.MaxConcurrency, and a value flattened here as well "
@@ -52,6 +52,37 @@ public class QuartzConfigurationHelperTests
             "the type key selects an implementation, which only the bridge can do");
         result["quartz.threadPool.marker"].Should().Be("configured",
             "a third-party pool's own settings are applied from the flat keys and have no typed home");
+    }
+
+    [Test]
+    public void TheSchedulerKeysATypedOptionOwnsAreNotFlattenedEither()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Scheduler:InstanceName", "reporting" },
+            { "Scheduler:MaxBatchSize", "9" },
+            { "Scheduler:Context:environment", "staging" },
+            { "Scheduler:InstanceId", "node-1" },
+            { "Scheduler:IdleWaitTime", "00:00:07" },
+            { "Context:key:legacy", "blue" },
+        });
+
+        var result = QuartzConfigurationHelper.ToNameValueCollection(config);
+
+        result["quartz.scheduler.instanceName"].Should().BeNull(
+            "the bridge reads that key back onto the very property the section binder just set");
+        result["quartz.scheduler.maxBatchSize"].Should().BeNull(
+            "the bridge's spelling is batchTriggerAcquisitionMaxCount, so this one is read by nobody — "
+            + "and Validate rejects it by name, so it also made ToProperties() unusable");
+        result["quartz.scheduler.context.environment"].Should().BeNull(
+            "the bridge's spelling is quartz.context.key.*, so the whole subtree is read by nobody");
+
+        result["quartz.scheduler.instanceId"].Should().Be("node-1",
+            "AUTO and SYS_PROP select a generator rather than setting the id, which only the bridge does");
+        result["quartz.scheduler.idleWaitTime"].Should().Be("00:00:07",
+            "the value may be the legacy count of milliseconds, which the binder would read as days");
+        result["quartz.context.key.legacy"].Should().Be("blue",
+            "nothing typed binds Quartz:Context, so the bridge is the only reader it has");
     }
 
     [Test]
@@ -92,12 +123,12 @@ public class QuartzConfigurationHelperTests
     {
         var config = BuildConfig(new Dictionary<string, string>
         {
-            { "Scheduler:InstanceName", "Test" },
+            { "Scheduler:InstanceId", "node-1" },
             { "Schedule:Jobs:0:Name", "myJob" },
         });
 
         var result = QuartzConfigurationHelper.ToNameValueCollection(config);
-        result["quartz.scheduler.instanceName"].Should().Be("Test");
+        result["quartz.scheduler.instanceId"].Should().Be("node-1");
         result.Count.Should().Be(1);
     }
 
