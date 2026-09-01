@@ -64,8 +64,32 @@ public class SchemaScriptTest
     /// <summary>The acquisition index, as the parser names it once the table prefix is off.</summary>
     private const string AcquisitionIndexName = "IDX_T_NFT_ST";
 
-    private const string AcquisitionIndexColumns =
-        "SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR";
+    /// <summary>
+    /// The columns the acquisition index is declared over, built from the order acquisition reads in
+    /// rather than written out beside it.
+    /// </summary>
+    /// <remarks>
+    /// The middle of this list <em>is</em> the statement's <c>ORDER BY</c>: the index exists to answer
+    /// that clause with an ordered seek, and it can only do so while the two agree on the columns, the
+    /// order and the directions. Deriving one from the other is what makes a change to the clause fail
+    /// here against every dialect's script, instead of passing every test and costing a sort
+    /// (<see href="https://github.com/quartznet/quartznet/issues/3625">#3625</see>).
+    /// </remarks>
+    private static readonly string AcquisitionIndexColumns = string.Join(", ",
+        AdoConstants.ColumnSchedulerName,
+        AdoConstants.ColumnTriggerState,
+        StdAdoConstants.TriggerSweepOrderBy(alias: ""),
+        AdoConstants.ColumnMisfireInstruction);
+
+    /// <summary>
+    /// The same list as far as Firebird can express it: the leading column of the sweep order, with no
+    /// direction on it and nothing after it. Derived for the same reason, so that reordering the sweep
+    /// moves this dialect's expectation with the rest.
+    /// </summary>
+    private static readonly string FirebirdAcquisitionIndexColumns = string.Join(", ",
+        AdoConstants.ColumnSchedulerName,
+        AdoConstants.ColumnTriggerState,
+        StdAdoConstants.TriggerSweepOrder[0].Column);
 
     [TestCaseSource(nameof(Dialects))]
     public void TheGeneratedScriptCreatesTheTablesTheFreshInstallScriptCreates(string dialect)
@@ -178,6 +202,37 @@ public class SchemaScriptTest
     }
 
     /// <summary>
+    /// The statements and the index lists above are one definition read two ways.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AcquisitionIndexColumns" /> is built from <c>StdAdoConstants.TriggerSweepOrder</c>, so
+    /// a reordering moves both sides together and cannot be seen there. What this checks is the other
+    /// half: that the statements really are written from that definition rather than spelling an order
+    /// of their own beside it. Together the two make a change to either the clause or the index fail a
+    /// test, which is what #3625 found nothing did.
+    /// </remarks>
+    [Test]
+    public void TheSweepStatementsOrderByTheColumnsTheIndexesAreDeclaredOver()
+    {
+        string order = StdAdoConstants.TriggerSweepOrderBy(alias: "");
+
+        order.Should().Be("NEXT_FIRE_TIME ASC, PRIORITY DESC",
+            "the earliest due trigger first and the highest priority among ties is what the two sweeps "
+            + "mean, and writing it out once here is what keeps the derivation below from being vacuous");
+
+        StdAdoConstants.SqlSelectNextTriggerToAcquire.Should().EndWith(order,
+            "acquisition orders by the definition the acquisition index is declared over — an index "
+            + "whose directions disagree with the clause cannot answer it with an ordered seek");
+
+        AcquisitionIndexColumns.Should().Contain(order,
+            "which is only true while the index list is built from the same definition");
+
+        StdAdoConstants.SqlSelectMisfiredTriggersToRecover.Should().EndWith(
+            StdAdoConstants.TriggerSweepOrderBy(alias: "t."),
+            "misfire recovery reads the backlog in the same order, aliased because its statement joins");
+    }
+
+    /// <summary>
     /// Firebird's acquisition index is the three-column one, deliberately.
     /// </summary>
     /// <remarks>
@@ -194,13 +249,13 @@ public class SchemaScriptTest
     {
         SqlObjects.Parse(FreshInstallScript("firebird")).Indexes
             .Should().ContainKey(AcquisitionIndexName)
-            .WhoseValue.Should().Be("SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME",
+            .WhoseValue.Should().Be(FirebirdAcquisitionIndexColumns,
                 "Firebird refuses both a per-column direction and an index over the computed column "
                 + "that would stand in for one, so this is the widest shape the server accepts");
 
         SqlObjects.Parse(GeneratedScript("firebird")).Indexes
             .Should().ContainKey(AcquisitionIndexName)
-            .WhoseValue.Should().Be("SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME",
+            .WhoseValue.Should().Be(FirebirdAcquisitionIndexColumns,
                 "a provisioned Firebird schema has to be the one the fresh-install script installs, "
                 + "including where that differs from every other dialect");
     }

@@ -315,6 +315,41 @@ internal static class StdAdoConstants
         Invariant($@"AND (t.{AdoConstants.ColumnPreferredNode} IS NULL OR t.{AdoConstants.ColumnPreferredNode} = @{SqlParameters.InstanceId} OR t.{AdoConstants.ColumnPreferredNode} = @{SqlParameters.AutoPinSentinel}
                      OR t.{AdoConstants.ColumnPreferredNode} NOT IN (SELECT ss.{AdoConstants.ColumnInstanceName} FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} ss WHERE ss.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND ss.{AdoConstants.ColumnLastCheckinTime} + ss.{AdoConstants.ColumnCheckinInterval} * 10000 >= @{SqlParameters.LiveNodeCutoff}))");
 
+    /// <summary>
+    /// The order the two trigger sweeps read in, column by column with the direction each is read in:
+    /// the earliest due trigger first, ties broken by the highest priority.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One definition because it is one decision in two places. Acquisition and misfire recovery both
+    /// order by it, and the indexes that serve them — <c>IDX_QRTZ_T_NFT_ST</c> and
+    /// <c>IDX_QRTZ_T_NFT_ST_MISFIRE</c> — are declared over these columns in this order and these
+    /// directions. An index whose directions do not match the <c>ORDER BY</c> cannot answer it with an
+    /// ordered seek, so the engine reads every candidate row and sorts
+    /// (<see href="https://github.com/quartznet/quartznet/issues/3510">#3510</see> measured what that
+    /// costs), and nothing about either statement or either index says so on its face.
+    /// </para>
+    /// <para>
+    /// <c>SchemaScriptTest</c> builds the index column lists it expects from this, so changing the order
+    /// here fails that test against every dialect's script rather than quietly buying every acquisition
+    /// a sort. That is the whole reason it is a definition and not two strings.
+    /// </para>
+    /// </remarks>
+    internal static readonly (string Column, string Direction)[] TriggerSweepOrder =
+    [
+        (AdoConstants.ColumnNextFireTime, "ASC"),
+        (AdoConstants.ColumnPriority, "DESC"),
+    ];
+
+    /// <summary>
+    /// <see cref="TriggerSweepOrder" /> written out as the body of an <c>ORDER BY</c>, with each column
+    /// qualified by <paramref name="alias" /> — the empty string where the statement names no alias.
+    /// </summary>
+    internal static string TriggerSweepOrderBy(string alias)
+    {
+        return string.Join(", ", TriggerSweepOrder.Select(column => Invariant($"{alias}{column.Column} {column.Direction}")));
+    }
+
     // The one acquisition statement. Everything a caller can vary about it is the job-type exclusion
     // clause, which is empty when nothing is excluded - so SqlSelectNextTriggerToAcquire below is
     // literally the no-exclusion case of this template rather than a second copy kept in step by eye,
@@ -342,7 +377,7 @@ internal static class StdAdoConstants
                 t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NoLaterThan} AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} > @{SqlParameters.NoEarlierThan}))
                 {PreferredNodeWhereClause}{exclusionClause}
               ORDER BY
-                {AdoConstants.ColumnNextFireTime} ASC, {AdoConstants.ColumnPriority} DESC{rowLimit.AtEnd}"));
+                {TriggerSweepOrderBy(alias: "")}{rowLimit.AtEnd}"));
 
     public static readonly string SqlSelectNextTriggerToAcquire = SelectNextTriggerToAcquire(exclusionClause: "", SqlRowLimit.Unlimited);
 
@@ -554,7 +589,7 @@ internal static class StdAdoConstants
                 t.{AdoConstants.ColumnTriggerGroup}{TriggerSelectFastPathFrom}
             WHERE
                 t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State}
-            ORDER BY t.{AdoConstants.ColumnNextFireTime} ASC, t.{AdoConstants.ColumnPriority} DESC{rowLimit.AtEnd}"));
+            ORDER BY {TriggerSweepOrderBy(alias: "t.")}{rowLimit.AtEnd}"));
 
     /// <inheritdoc cref="SelectMisfiredTriggersToRecover" />
     public static readonly string SqlSelectMisfiredTriggersToRecover = SelectMisfiredTriggersToRecover(SqlRowLimit.Unlimited);
