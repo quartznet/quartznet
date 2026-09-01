@@ -397,10 +397,13 @@ here moved for you; if you called `GetInt` and `GetBoolean`, all of it did.
   stored `"1"` or `"yes"` threw `InvalidCastException`. 4.x compares against `"true"` case-insensitively
   and *succeeds*, so a flag stored as `"1"` used to fail loudly and now quietly reads as off.
   `TryGetBoolean` reports success for it too.
-* **Strings are parsed with the invariant culture.** `GetInt`, `GetDouble`, `GetFloat` and `GetDecimal`
-  used the current culture when the stored value was a string. On a comma-decimal culture `"3.14"` used to
-  read as `314` and now reads as `3.14`; `"3,14"` used to read as `3.14` and now throws. The new reading is
-  the correct one, and it is still a different number from the one the job saw yesterday.
+* **Strings are parsed with the invariant culture.** `GetInt`, `GetLong`, `GetDouble`, `GetFloat` and
+  `Get<decimal>` used the current culture when the stored value was a string. On a comma-decimal culture
+  `"3.14"` used to read as `314` and now reads as `3.14`. The reverse case is the one to check your stored
+  data for: `"3,14"` used to read as `3.14`, and now the floating-point accessors read the comma as a group
+  separator and answer `314`, while `GetInt` and `GetLong` — whose styles allow no group separator — throw
+  `InvalidCastException`. The new reading is the correct one for data written by an invariant-culture
+  writer, and it is still a different number from the one the job saw yesterday.
 * **`Get<DateTime>` parses with `DateTimeStyles.RoundtripKind`**, so a stored string ending in `Z` comes
   back as `Kind=Utc` rather than shifted to local time — see
   [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now).
