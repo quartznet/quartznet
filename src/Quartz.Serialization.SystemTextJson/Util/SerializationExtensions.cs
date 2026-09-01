@@ -184,6 +184,12 @@ internal static class Utf8JsonWriterExtensions
         writer.WriteEndObject();
     }
 
+    /// <summary>
+    /// The property name Json.NET writes a value's type under, which is metadata rather than an entry
+    /// of the map it sits in.
+    /// </summary>
+    internal const string TypeMarker = "$type";
+
     public static JobDataMap GetJobDataMap(this JsonElement jsonElement, JsonSerializerOptions options)
     {
         var result = new JobDataMap();
@@ -220,7 +226,15 @@ internal static class Utf8JsonWriterExtensions
                     }
                     break;
                 case JsonValueKind.Object:
-                    value = property.Value.Deserialize<Dictionary<string, string>>(options);
+                    Dictionary<string, string>? stringMap = property.Value.Deserialize<Dictionary<string, string>>(options);
+
+                    // A blob Quartz.Serialization.Json wrote carries the type it wrote the map under,
+                    // because Json.NET names the type of any value an object-typed slot cannot. That is
+                    // metadata to the reader that wrote it, and it has to be metadata here too: handing
+                    // it back would put an assembly-qualified type name into the application's own key
+                    // space, under a name it never stored anything at (#3582).
+                    stringMap?.Remove(TypeMarker);
+                    value = stringMap;
                     break;
                 default:
                     throw new JsonException($"Unsupported value kind: {property.Value.ValueKind}");
