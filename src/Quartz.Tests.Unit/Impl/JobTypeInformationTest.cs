@@ -67,6 +67,46 @@ public class JobTypeInformationTest
             .Should().BeEmpty("the class hierarchy alone does not carry it, so only the interface walk can have produced that answer");
     }
 
+    /// <summary>
+    /// <c>[JobTimeout]</c> travels the same walk as the two boolean attributes, which is what
+    /// <c>tutorial/job-execution-middleware.md</c> promises: "the attribute is inherited from a base
+    /// class or from an interface the job implements, so a contract can set the budget for everything
+    /// that fulfils it".
+    /// </summary>
+    [Test]
+    public void ATimeoutOnABaseClassOrAnInterfaceCounts()
+    {
+        JobTypeInformation.GetOrCreate(typeof(ExtendedTimedJob)).Timeout
+            .Should().Be(TimeSpan.FromSeconds(30), "the budget is on the base class, and the lookup asks with inherit: true");
+
+        JobTypeInformation.GetOrCreate(typeof(DerivedTimedContractJob)).Timeout
+            .Should().Be(TimeSpan.FromSeconds(10), "a contract can set the budget for everything that fulfils it");
+
+        typeof(DerivedTimedContractJob).GetCustomAttributes(typeof(JobTimeoutAttribute), inherit: true)
+            .Should().BeEmpty("the class hierarchy alone does not carry it, so only the interface walk can have produced that answer");
+
+        JobTypeInformation.GetOrCreate(typeof(ExtendedJob)).Timeout
+            .Should().BeNull("nothing in that hierarchy states a budget, so the scheduler's own default applies");
+    }
+
+    /// <summary>
+    /// The attribute carries a value rather than merely being present, so unlike the two boolean ones
+    /// it can disagree with itself along the walk. A job that states its own budget is not overruled by
+    /// a base class or by a contract it happens to fulfil — including when what it states is
+    /// <c>"00:00:00"</c>, which is how a long-running job exempts itself.
+    /// </summary>
+    [Test]
+    public void ATypesOwnTimeoutBeatsAnInheritedOne()
+    {
+        JobTypeInformation.GetOrCreate(typeof(RetimedJob)).Timeout
+            .Should().Be(TimeSpan.FromMinutes(1), "the derived class states its own budget, and the base's is not it");
+
+        JobTypeInformation.GetOrCreate(typeof(UntimedContractJob)).Timeout
+            .Should().Be(TimeSpan.Zero,
+                "a zero budget means no timeout at all, and a job that declares one has to be able to say so "
+                + "over a contract that bounds everything else fulfilling it");
+    }
+
     [Test]
     public void TheAnswerIsRememberedPerType()
     {
@@ -95,4 +135,31 @@ public class JobTypeInformationTest
 
     [PersistJobDataAfterExecution]
     private sealed class ReallyExtendedJob : ExtendedJob;
+
+    [JobTimeout("00:00:30")]
+    private class TimedBaseJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    private sealed class ExtendedTimedJob : TimedBaseJob;
+
+    [JobTimeout("00:01:00")]
+    private sealed class RetimedJob : TimedBaseJob;
+
+    [JobTimeout("00:00:10")]
+    private interface ITimedContract : IJob;
+
+    private interface IDerivedTimedContract : ITimedContract;
+
+    private sealed class DerivedTimedContractJob : IDerivedTimedContract
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    [JobTimeout("00:00:00")]
+    private sealed class UntimedContractJob : ITimedContract
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
 }

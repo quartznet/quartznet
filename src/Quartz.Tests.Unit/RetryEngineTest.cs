@@ -310,6 +310,31 @@ public class RetryEngineTest
         all.RetryAttempt.Should().Be(0);
     }
 
+    /// <summary>
+    /// <c>tutorial/more-about-jobs.md</c>: "When <c>RefireImmediately</c> is set, the unschedule flags
+    /// are ignored." Ordering the branches is all that delivers it, and the two pins above each set one
+    /// flag on its own, so neither of them would notice the order changing.
+    /// </summary>
+    [Test]
+    public void RefireImmediatelyWinsOverTheUnscheduleFlags()
+    {
+        IOperableTrigger trigger = HourlyTriggerFiredAtTen(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(5)));
+
+        SchedulerInstruction instruction = trigger.ExecutionComplete(context, new JobExecutionException
+        {
+            RefireImmediately = true,
+            UnscheduleFiringTrigger = true,
+            UnscheduleAllTriggers = true,
+        });
+
+        instruction.Should().Be(SchedulerInstruction.ReExecuteJob,
+            "a job that asked to be run again means to keep going, so the flags that would end it are ignored "
+            + "rather than fought over");
+        trigger.NextFireTimeUtc.Should().Be(now.AddHours(1),
+            "nothing was unscheduled: the trigger still has its next occurrence");
+        trigger.RetryAttempt.Should().Be(0, "the in-process refire loop is not an attempt at the policy");
+    }
+
     [Test]
     public void AOneShotTriggerMayStillFireAgainWhileItWaitsToRetry()
     {

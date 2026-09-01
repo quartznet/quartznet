@@ -182,6 +182,45 @@ public sealed class JobTimeoutMiddlewareTest
     }
 
     /// <summary>
+    /// <c>tutorial/job-execution-middleware.md</c>: "Only the firing that overran is interrupted, because
+    /// it is named by its fire instance id: two concurrent executions of one job are timed separately."
+    /// That sentence is what makes <c>AddJobTimeout</c> safe on a job without
+    /// <c>[DisallowConcurrentExecution]</c>, and every other test here runs a single firing, so none of
+    /// them would notice an interrupt that reached for the job key instead.
+    /// </summary>
+    /// <remarks>
+    /// The two firings are staggered rather than simultaneous, because two firings of one job type share
+    /// one budget and only their start times can make the deadlines differ. The companion is still
+    /// running when the earlier firing's budget runs out — it waits for exactly that — so what the
+    /// assertions read is one firing being interrupted while another one of the same job is in flight.
+    /// </remarks>
+    [Test]
+    public async Task OnlyTheFiringThatOverranIsInterrupted()
+    {
+        ConcurrentFiringRecorder recorder = new();
+
+        await RunTwoStaggeredFirings(recorder, budget: TimeSpan.FromSeconds(3), companionDelay: TimeSpan.FromSeconds(1));
+
+        recorder.Entered.Should().BeEquivalentTo([ConcurrentFiringRecorder.Overrunning, ConcurrentFiringRecorder.Companion],
+            "both triggers fire the same job, and the job allows concurrent execution");
+        recorder.Cancelled.Should().BeEquivalentTo([ConcurrentFiringRecorder.Overrunning],
+            "the interrupt names a fire instance, so it reaches the firing that overran and no other execution of "
+            + "the same job");
+        recorder.OverlapObserved.Should().BeTrue(
+            "the companion has to still be in flight when the other firing is interrupted, or this proves nothing "
+            + "about two concurrent executions");
+
+        recorder.Outcome(ConcurrentFiringRecorder.Overrunning).Should().NotBeNull()
+            .And.Subject.As<JobExecutionException>().Message.Should()
+            .Contain("timed out").And.Contain(recorder.FireInstanceOf(ConcurrentFiringRecorder.Overrunning),
+                "the failure names the fire instance that spent the budget, which is what tells two concurrent "
+                + "firings of one job apart in a log");
+
+        recorder.Outcome(ConcurrentFiringRecorder.Companion).Should().BeNull(
+            "the companion had a budget of its own, counted from its own fire, and finished inside it");
+    }
+
+    /// <summary>
     /// A scheduler-wide default of nothing is what leaving the argument out already says, so a
     /// non-positive one is a mistake worth refusing where it is written.
     /// </summary>
@@ -256,6 +295,61 @@ public sealed class JobTimeoutMiddlewareTest
                     .StartNow();
                 trigger?.Invoke(configurator);
             });
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        IScheduler scheduler = provider.GetRequiredService<IScheduler>();
+        try
+        {
+            await scheduler.Start();
+            await recorder.WaitForCompletion();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// Runs two firings of one job over one scheduler: one that overruns the budget, and one that starts
+    /// later and is still running when the first one's budget expires.
+    /// </summary>
+    private static async Task RunTwoStaggeredFirings(
+        ConcurrentFiringRecorder recorder,
+        TimeSpan budget,
+        TimeSpan companionDelay)
+    {
+        string id = Guid.NewGuid().ToString("N");
+        JobKey jobKey = new($"job-{id}", $"group-{id}");
+
+        ServiceCollection services = new();
+        services.AddSingleton(recorder);
+        services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options =>
+            {
+                options.InstanceName = $"timeout-concurrent-{id}";
+                options.IdleWaitTime = TimeSpan.FromSeconds(1);
+            });
+            quartz.AddJobListener(new ConcurrentCompletionListener(recorder));
+            quartz.AddJobTimeout(budget);
+
+            quartz.AddJob<TwoSpeedJob>(job => job.WithIdentity(jobKey).StoreDurably());
+
+            quartz.AddTrigger(configurator => configurator
+                .ForJob(jobKey)
+                .WithIdentity($"overrunning-{id}")
+                .UsingJobData(ConcurrentFiringRecorder.RoleKey, ConcurrentFiringRecorder.Overrunning)
+                .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(0))
+                .StartNow());
+
+            quartz.AddTrigger(configurator => configurator
+                .ForJob(jobKey)
+                .WithIdentity($"companion-{id}")
+                .UsingJobData(ConcurrentFiringRecorder.RoleKey, ConcurrentFiringRecorder.Companion)
+                .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(0))
+                .StartAt(DateTimeOffset.UtcNow.Add(companionDelay)));
         });
 
         await using ServiceProvider provider = services.BuildServiceProvider();
@@ -499,6 +593,170 @@ public sealed class JobTimeoutMiddlewareTest
                 recorder.JobSawCancellation();
                 throw;
             }
+        }
+    }
+
+    /// <summary>
+    /// What each of two concurrent firings of one job did, kept per firing rather than per job.
+    /// </summary>
+    public sealed class ConcurrentFiringRecorder
+    {
+        public const string RoleKey = "role";
+        public const string Overrunning = "overrunning";
+        public const string Companion = "companion";
+
+        private readonly Lock gate = new();
+        private readonly Dictionary<string, string> fireInstances = [];
+        private readonly List<string> cancelled = [];
+        private readonly Dictionary<string, JobExecutionException?> outcomes = [];
+        private readonly TaskCompletionSource overrunInterrupted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource completed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public IReadOnlyList<string> Entered
+        {
+            get
+            {
+                lock (gate)
+                {
+                    return [.. fireInstances.Keys];
+                }
+            }
+        }
+
+        public IReadOnlyList<string> Cancelled
+        {
+            get
+            {
+                lock (gate)
+                {
+                    return [.. cancelled];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether the companion firing was in flight at the moment the overrunning one was reported.
+        /// </summary>
+        public bool OverlapObserved { get; private set; }
+
+        public string FireInstanceOf(string role)
+        {
+            lock (gate)
+            {
+                return fireInstances[role];
+            }
+        }
+
+        public JobExecutionException? Outcome(string role)
+        {
+            lock (gate)
+            {
+                return outcomes[role];
+            }
+        }
+
+        public void Entering(string role, string fireInstanceId)
+        {
+            lock (gate)
+            {
+                fireInstances[role] = fireInstanceId;
+            }
+        }
+
+        public void SawCancellation(string role)
+        {
+            lock (gate)
+            {
+                cancelled.Add(role);
+
+                if (role == Overrunning)
+                {
+                    // Read where it is true or false for a reason: the companion is waiting on the
+                    // signal below, so at this instant it has either entered and is in flight, or it
+                    // has not started at all and the test is not about two concurrent firings.
+                    OverlapObserved = fireInstances.ContainsKey(Companion) && !outcomes.ContainsKey(Companion);
+                }
+            }
+
+            if (role == Overrunning)
+            {
+                overrunInterrupted.TrySetResult();
+            }
+        }
+
+        public void JobWasExecuted(string role, JobExecutionException? jobException)
+        {
+            bool done;
+            lock (gate)
+            {
+                outcomes[role] = jobException;
+                done = outcomes.Count == 2;
+            }
+
+            if (done)
+            {
+                completed.TrySetResult();
+            }
+        }
+
+        /// <summary>
+        /// Held here so the companion firing stays in flight exactly until the other one is interrupted,
+        /// and no longer — a wall-clock wait would either be racy or be most of the test's duration.
+        /// </summary>
+        public Task WaitForTheOverrunToBeInterrupted(CancellationToken cancellationToken)
+        {
+            return overrunInterrupted.Task.WaitAsync(TimeSpan.FromSeconds(20), cancellationToken);
+        }
+
+        public Task WaitForCompletion() => completed.Task.WaitAsync(TimeSpan.FromSeconds(60));
+    }
+
+    /// <summary>
+    /// One job, two roles: the firing that outstays the budget, and the one that starts later and waits
+    /// for it to be interrupted before finishing.
+    /// </summary>
+    public sealed class TwoSpeedJob : IJob
+    {
+        private readonly ConcurrentFiringRecorder recorder;
+
+        public TwoSpeedJob(ConcurrentFiringRecorder recorder) => this.recorder = recorder;
+
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            string role = context.MergedJobDataMap.GetString(ConcurrentFiringRecorder.RoleKey)!;
+            recorder.Entering(role, context.FireInstanceId);
+
+            try
+            {
+                if (role == ConcurrentFiringRecorder.Overrunning)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await recorder.WaitForTheOverrunToBeInterrupted(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                recorder.SawCancellation(role);
+                throw;
+            }
+        }
+    }
+
+    private sealed class ConcurrentCompletionListener : IJobListener
+    {
+        private readonly ConcurrentFiringRecorder recorder;
+
+        public ConcurrentCompletionListener(ConcurrentFiringRecorder recorder) => this.recorder = recorder;
+
+        public string Name => "concurrent-completion";
+
+        public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
+        {
+            recorder.JobWasExecuted(context.MergedJobDataMap.GetString(ConcurrentFiringRecorder.RoleKey)!, jobException);
+            return default;
         }
     }
 
