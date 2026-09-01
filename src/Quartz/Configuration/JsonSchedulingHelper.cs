@@ -48,13 +48,19 @@ internal static class JsonSchedulingHelper
                 var options = serviceProvider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(name);
                 var typeLoader = ResolveTypeLoader(options, serviceProvider);
 
+                // The clock this scheduler runs on, resolved the same way every other part of it is. A
+                // trigger declared in configuration is anchored to it and carries it, so a scheduler on a
+                // test clock reads its JSON triggers on that clock rather than on the wall clock.
+                TimeProvider timeProvider = serviceProvider.GetSchedulerTimeProvider(
+                    string.IsNullOrEmpty(name) ? null : name);
+
                 var content = new SchedulerContent();
                 foreach (var job in ReadJobs(scheduleSection.GetSection("Jobs"), typeLoader))
                 {
                     content.Add(job);
                 }
 
-                foreach (var trigger in ReadTriggers(scheduleSection.GetSection("Triggers")))
+                foreach (var trigger in ReadTriggers(scheduleSection.GetSection("Triggers"), timeProvider))
                 {
                     content.Add(trigger);
                 }
@@ -131,7 +137,16 @@ internal static class JsonSchedulingHelper
         return jobs;
     }
 
-    internal static List<ITrigger> ReadTriggers(IConfigurationSection triggersSection)
+    /// <summary>
+    /// Reads the trigger definitions out of a <c>Schedule:Triggers</c> section.
+    /// </summary>
+    /// <param name="triggersSection">The section holding one child per trigger.</param>
+    /// <param name="timeProvider">
+    /// The clock the scheduler these triggers belong to runs on. It answers "now" for a trigger that was
+    /// given no start time and for one given <c>StartTimeSecondsInFuture</c>, and it is the clock each
+    /// built trigger keeps for its own misfire and retry arithmetic.
+    /// </param>
+    internal static List<ITrigger> ReadTriggers(IConfigurationSection triggersSection, TimeProvider timeProvider)
     {
         var triggers = new List<ITrigger>();
 
@@ -180,7 +195,7 @@ internal static class JsonSchedulingHelper
                 }
             }
 
-            var startTime = DateTimeOffset.UtcNow;
+            DateTimeOffset startTime = timeProvider.GetUtcNow();
             if (startTimeStr is not null)
             {
                 if (!DateTimeOffset.TryParse(startTimeStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
@@ -209,7 +224,7 @@ internal static class JsonSchedulingHelper
 
             var schedule = BuildSchedule(triggerSection, name!);
 
-            var triggerBuilder = TriggerBuilder.Create();
+            var triggerBuilder = TriggerBuilder.Create(timeProvider);
             if (group is not null)
             {
                 triggerBuilder.WithIdentity(name!, group);
