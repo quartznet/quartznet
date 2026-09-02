@@ -7,6 +7,9 @@ using Quartz.Impl;
 
 namespace Quartz;
 
+/// <summary>
+/// Selects Newtonsoft.Json as a persistent store's serializer.
+/// </summary>
 public static class NewtonsoftJsonConfigurationExtensions
 {
     /// <summary>
