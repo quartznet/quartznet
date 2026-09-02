@@ -486,6 +486,17 @@ public static class TestData
         public static readonly ITrigger DailyTimeIntervalTrigger;
         public static readonly ITrigger RecurrenceTrigger;
 
+        /// <summary>
+        /// The one fixture whose execution group and node pin are set, so the wire shape of a trigger
+        /// that uses every optional field is pinned rather than only the default it shares with the rest.
+        /// </summary>
+        /// <remarks>
+        /// The pin is a claimed one because <c>preferredNode</c> and <c>preferredNodeAuto</c> are two
+        /// fields on the wire, and "auto, already claimed" is the combination that needs both. A
+        /// non-.NET client reads these four the way this snapshot spells them.
+        /// </remarks>
+        public static readonly ITrigger AnnotatedTrigger;
+
         static Wire()
         {
             Metadata = new SchedulerMetadata
@@ -596,6 +607,22 @@ public static class TestData
                 .StartAt(StartTime)
                 .EndAt(EndTime)
                 .WithPriority(5)
+                .Build());
+
+            AnnotatedTrigger = WithFireTimes(TriggerBuilder.Create()
+                .WithSimpleSchedule(builder => builder
+                    .WithInterval(TimeSpan.FromMinutes(15))
+                    .WithRepeatCount(5)
+                )
+                .WithIdentity("AnnotatedTriggerKey", "AnnotatedTriggerGroup")
+                .ForJob("AnnotatedJobKey", "AnnotatedJobGroup")
+                .WithDescription("A trigger that retries, is grouped and is pinned")
+                .WithCalendarName(null)
+                .StartAt(StartTime)
+                .EndAt(EndTime)
+                .WithExecutionGroup("reporting")
+                .WithRetryPolicy(RetryPolicy.Exponential(4, TimeSpan.FromSeconds(30), 3, TimeSpan.FromMinutes(10)))
+                .WithPreferredNode(PreferredNode.ClaimedBy("node-b"))
                 .Build());
         }
 

@@ -549,6 +549,64 @@ public class JsonObjectSerializerTest
         await VerifyCreatedJson(trigger);
     }
 
+    /// <summary>
+    /// A trigger whose retry policy, retry attempt, execution group and node pin are all something
+    /// other than their default, in the blob both serializers write.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every other snapshot in this file shows those five fields at their defaults, so the blob a
+    /// trigger that actually uses them produces was described nowhere. The ADO store keeps the policy
+    /// and the group in columns, which leaves the shape a third-party <see cref="IObjectSerializer" />
+    /// store writes as the thing nothing pinned — and the shared snapshot is what makes the two
+    /// serializers emit it byte for byte alike.
+    /// </para>
+    /// <para>
+    /// The pin is a claimed one because that is the shape a single node-name field could not express:
+    /// <c>PreferredNode</c> and <c>PreferredNodeAuto</c> are two fields, and "auto, claimed by node-b"
+    /// is the combination that needs both. This test has its own verified file so that adding it
+    /// churns none of the five that were already here.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task SerializeTriggerWithRetryPolicyGroupAndPin()
+    {
+        FakeTimeProvider timeProvider = CreateFakeTimeProvider();
+
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(timeProvider)
+            .WithSimpleSchedule(builder => builder
+                .WithInterval(TimeSpan.FromMinutes(15))
+                .WithRepeatCount(5)
+            )
+            .WithIdentity("RetryingTriggerKey", "RetryingTriggerGroup")
+            .ForJob("RetryingJobKey", "RetryingJobGroup")
+            .WithDescription("A trigger that retries, is grouped and is pinned")
+            .WithExecutionGroup("reporting")
+            .WithRetryPolicy(RetryPolicy.Exponential(4, TimeSpan.FromSeconds(30), factor: 3, maxDelay: TimeSpan.FromMinutes(10)))
+            .WithPreferredNode(PreferredNode.ClaimedBy("node-b"))
+            .StartAt(timeProvider.GetUtcNow())
+            .Build();
+
+        SetTimeProvider(timeProvider, trigger);
+        trigger.RetryAttempt = 2;
+
+        CompareSerialization<IOperableTrigger>(
+            trigger,
+            (deserialized, original) =>
+            {
+                using (new AssertionScope())
+                {
+                    deserialized.RetryPolicy.Should().Be(original.RetryPolicy, "a policy that came back different would retry on a different schedule");
+                    deserialized.RetryAttempt.Should().Be(original.RetryAttempt, "an attempt count that reset would retry a trigger that had run out of attempts");
+                    deserialized.ExecutionGroup.Should().Be(original.ExecutionGroup, "the group is what an execution limit counts against");
+                    deserialized.PreferredNode.Should().Be(original.PreferredNode, "the claim is half the pin, and losing it re-opens a trigger another node holds");
+                }
+            }
+        );
+
+        await VerifyCreatedJson(trigger);
+    }
+
     [Test]
     public void PinnedTriggerKeepsItsPin()
     {
