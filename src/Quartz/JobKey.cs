@@ -58,14 +58,24 @@ namespace Quartz;
 [Serializable]
 public sealed class JobKey : Key<JobKey>, IComparable<JobKey>, IEquatable<JobKey>, IParsable<JobKey>
 {
+    /// <summary>
+    /// Names a job in the default group.
+    /// </summary>
+    /// <param name="name">The name, unique within the group.</param>
     public JobKey(string name) : base(name)
     {
     }
 
+    /// <summary>
+    /// Names a job in a group.
+    /// </summary>
+    /// <param name="name">The name, unique within the group.</param>
+    /// <param name="group">The group.</param>
     public JobKey(string name, string group) : base(name, group)
     {
     }
 
+    /// <inheritdoc />
     public bool Equals(JobKey? other)
     {
         return other is not null && (ReferenceEquals(this, other) || (Group == other.Group && Name == other.Name));

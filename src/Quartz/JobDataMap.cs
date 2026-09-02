@@ -335,11 +335,13 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
         map.Clear();
     }
 
+    /// <inheritdoc />
     public void CopyTo(KeyValuePair<string, object?>[] array, int arrayIndex)
     {
         map.CopyTo(array, arrayIndex);
     }
 
+    /// <inheritdoc />
     public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         return map.GetEnumerator();

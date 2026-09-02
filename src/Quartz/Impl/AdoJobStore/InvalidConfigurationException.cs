@@ -27,6 +27,10 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 public sealed class InvalidConfigurationException : SchedulerException
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InvalidConfigurationException" /> class.
+    /// </summary>
+    /// <param name="message">What went wrong.</param>
     public InvalidConfigurationException(string message) : base(message)
     {
     }

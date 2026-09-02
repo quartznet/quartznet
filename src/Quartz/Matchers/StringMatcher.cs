@@ -30,6 +30,12 @@ namespace Quartz;
 /// <author>Marko Lahma (.NET)</author>
 public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
+    /// <summary>
+    /// Builds a matcher comparing part of a key with a value.
+    /// </summary>
+    /// <param name="compareTo">The value each key is compared with.</param>
+    /// <param name="compareWith">How the comparison is made.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="compareTo" /> is <see langword="null" />.</exception>
     protected StringMatcher(string compareTo, StringOperator compareWith)
     {
         if (compareTo is null)
@@ -40,13 +46,18 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
         CompareWithOperator = compareWith;
     }
 
+    /// <summary>
+    /// The part of the key this matcher compares — its name, or its group.
+    /// </summary>
     protected abstract string GetValue(TKey key);
 
+    /// <inheritdoc />
     public bool IsMatch(TKey key)
     {
         return CompareWithOperator.Evaluate(GetValue(key), CompareToValue);
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         const int Prime = 31;
@@ -56,6 +67,7 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
         return result;
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj))
@@ -89,9 +101,17 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
         return true;
     }
 
+    /// <summary>
+    /// The value each key is compared with.
+    /// </summary>
     public string CompareToValue { get; }
+
+    /// <summary>
+    /// How the comparison is made.
+    /// </summary>
     public StringOperator CompareWithOperator { get; }
 
+    /// <inheritdoc />
     public override string ToString()
     {
         return $"{CompareWithOperator}({CompareToValue})";

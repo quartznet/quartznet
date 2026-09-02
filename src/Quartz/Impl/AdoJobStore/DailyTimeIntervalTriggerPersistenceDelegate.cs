@@ -37,6 +37,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Nuno Maia (.NET)</author>
 public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
 {
+    /// <inheritdoc />
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {
         var dailyTimeIntervalTrigger = trigger as DailyTimeIntervalTriggerImpl;
@@ -44,11 +45,13 @@ public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProperti
                !dailyTimeIntervalTrigger.HasAdditionalProperties;
     }
 
+    /// <inheritdoc />
     public override string GetHandledTriggerTypeDiscriminator()
     {
         return AdoConstants.TriggerTypeDailyTimeInterval;
     }
 
+    /// <inheritdoc />
     protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
     {
         DailyTimeIntervalTriggerImpl dailyTrigger = (DailyTimeIntervalTriggerImpl) trigger;
@@ -79,6 +82,7 @@ public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProperti
         };
     }
 
+    /// <inheritdoc />
     protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
     {
         int repeatCount = (int) props.Long1;

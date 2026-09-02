@@ -44,6 +44,13 @@ public class QuartzHostedService : IHostedLifecycleService
     private readonly List<HostedScheduler> schedulers = [];
     internal Task? startupTask;
 
+    /// <summary>
+    /// Constructed by the container; an application registers this service with
+    /// <c>AddQuartzHostedService</c> rather than building one.
+    /// </summary>
+    /// <param name="applicationLifetime">The host's lifetime, which <c>AwaitApplicationStarted</c> waits on.</param>
+    /// <param name="serviceProvider">The container the schedulers are resolved from.</param>
+    /// <param name="options">One <see cref="QuartzHostedServiceOptions" /> per scheduler name.</param>
     public QuartzHostedService(
         Lifetime applicationLifetime,
         IServiceProvider serviceProvider,
@@ -66,11 +73,25 @@ public class QuartzHostedService : IHostedLifecycleService
     /// </remarks>
     protected IReadOnlyList<IScheduler> Schedulers => schedulers.ConvertAll(static hosted => hosted.Scheduler);
 
+    /// <summary>
+    /// Runs before any scheduler has been resolved. Does nothing; override it to do something.
+    /// </summary>
+    /// <param name="cancellationToken">The host's start token.</param>
     public virtual Task StartingAsync(CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Resolves every scheduler the container holds, binds it to the repository and starts it as its
+    /// options say.
+    /// </summary>
+    /// <remarks>
+    /// Not overridable: it maintains state a subclass cannot see, and an override that did not call
+    /// base left the schedulers bound with nothing to shut them down. The four hooks are the extension
+    /// point.
+    /// </remarks>
+    /// <param name="cancellationToken">The host's start token.</param>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
@@ -112,6 +133,11 @@ public class QuartzHostedService : IHostedLifecycleService
         }
     }
 
+    /// <summary>
+    /// Runs once every scheduler has started. Does nothing; override it to do something —
+    /// <see cref="Schedulers" /> is what it is for.
+    /// </summary>
+    /// <param name="cancellationToken">The host's start token.</param>
     public virtual Task StartedAsync(CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
@@ -206,11 +232,24 @@ public class QuartzHostedService : IHostedLifecycleService
         }
     }
 
+    /// <summary>
+    /// Runs before the schedulers are shut down, while <see cref="Schedulers" /> still lists them.
+    /// Does nothing; override it to do something.
+    /// </summary>
+    /// <param name="cancellationToken">The host's shutdown token.</param>
     public virtual Task StoppingAsync(CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Waits for whatever start-up is still running and shuts every scheduler down, unbinding it from
+    /// the repository.
+    /// </summary>
+    /// <remarks>
+    /// Not overridable, for the reason <see cref="StartAsync" /> is not.
+    /// </remarks>
+    /// <param name="cancellationToken">The host's shutdown token.</param>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         // Stopped without having been started
@@ -234,6 +273,10 @@ public class QuartzHostedService : IHostedLifecycleService
         }
     }
 
+    /// <summary>
+    /// Runs once every scheduler has been shut down. Does nothing; override it to do something.
+    /// </summary>
+    /// <param name="cancellationToken">The host's shutdown token.</param>
     public virtual Task StoppedAsync(CancellationToken cancellationToken)
     {
         return Task.CompletedTask;

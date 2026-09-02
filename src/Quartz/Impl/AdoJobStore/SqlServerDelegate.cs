@@ -42,6 +42,7 @@ public class SqlServerDelegate : StdAdoDelegate
     /// </summary>
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.InProjection("TOP", count);
 
+    /// <inheritdoc />
     public override void AddCommandParameter(
         DbCommand cmd,
         string paramName,

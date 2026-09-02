@@ -9,11 +9,20 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 public sealed class TriggerPropertyBundle
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TriggerPropertyBundle" /> class.
+    /// </summary>
+    /// <param name="scheduleBuilder">Recreates the trigger's schedule.</param>
     public TriggerPropertyBundle(IScheduleBuilder scheduleBuilder)
         : this(scheduleBuilder, applyState: null)
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TriggerPropertyBundle" /> class.
+    /// </summary>
+    /// <param name="scheduleBuilder">Recreates the trigger's schedule.</param>
+    /// <param name="applyState">Restores the trigger state a schedule builder cannot carry, or <see langword="null" /> when there is none.</param>
     public TriggerPropertyBundle(IScheduleBuilder scheduleBuilder, Action<IOperableTrigger>? applyState)
     {
         ScheduleBuilder = scheduleBuilder;

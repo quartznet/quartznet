@@ -148,6 +148,7 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// </summary>
     public bool Recovering { get; }
 
+    /// <inheritdoc />
     public TriggerKey? RecoveringTriggerKey
     {
         get
@@ -367,6 +368,7 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// </remarks>
     public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId!;
 
+    /// <inheritdoc />
     public CancellationToken CancellationToken => CancellationTokenSource.Token;
 
     /// <summary>
@@ -389,6 +391,7 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         cancellationTokenSource?.Dispose();

@@ -343,6 +343,11 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         BuildExpression(CronExpressionString);
     }
 
+    /// <summary>
+    /// Writes this expression's fields into a serialization payload.
+    /// </summary>
+    /// <param name="info">The payload being written.</param>
+    /// <param name="context">The serialization context.</param>
     [System.Security.SecurityCritical]
     public void GetObjectData(SerializationInfo info, StreamingContext context)
     {

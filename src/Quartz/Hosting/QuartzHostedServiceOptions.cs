@@ -21,6 +21,13 @@
 
 namespace Quartz;
 
+/// <summary>
+/// How <see cref="QuartzHostedService" /> starts and stops one scheduler.
+/// </summary>
+/// <remarks>
+/// Named options, one instance per scheduler name, so a host running several schedulers can start
+/// each on its own terms.
+/// </remarks>
 public sealed class QuartzHostedServiceOptions
 {
     /// <summary>

@@ -32,17 +32,20 @@ namespace Quartz.Impl.AdoJobStore;
 /// <see cref="ICalendarIntervalTrigger"/>
 public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
 {
+    /// <inheritdoc />
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {
         var calendarIntervalTriggerImpl = trigger as CalendarIntervalTriggerImpl;
         return calendarIntervalTriggerImpl is not null && !calendarIntervalTriggerImpl.HasAdditionalProperties;
     }
 
+    /// <inheritdoc />
     public override string GetHandledTriggerTypeDiscriminator()
     {
         return AdoConstants.TriggerTypeCalendarInterval;
     }
 
+    /// <inheritdoc />
     protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
     {
         CalendarIntervalTriggerImpl calTrig = (CalendarIntervalTriggerImpl) trigger;
@@ -58,6 +61,7 @@ public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertie
         };
     }
 
+    /// <inheritdoc />
     protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
     {
         TimeZoneInfo? tz = null; // if we use null, that's ok as system default tz will be used

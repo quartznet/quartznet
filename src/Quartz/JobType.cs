@@ -115,6 +115,9 @@ public sealed class JobType : IEquatable<JobType>
     /// </summary>
     public string FullName { get; }
 
+    /// <summary>
+    /// The resolved type, loaded on first read from the name this instance was built with.
+    /// </summary>
     public Type Type => type.Value;
 
     /// <summary>
@@ -244,31 +247,44 @@ public sealed class JobType : IEquatable<JobType>
     [RequiresUnreferencedCode(NamedTypeIsNotGuaranteedToSurviveTrimming)]
     public static explicit operator JobType(string fullName) => new(fullName);
 
+    /// <summary>
+    /// Whether this and <paramref name="other" /> name the same job type.
+    /// </summary>
+    /// <param name="other">The job type to compare with.</param>
     public bool Equals(JobType? other)
     {
         return other is not null && (ReferenceEquals(this, other) || FullName == other.FullName);
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         return Equals(obj as JobType);
     }
 
+    /// <summary>
+    /// Whether two job types name the same type.
+    /// </summary>
     public static bool operator ==(JobType? left, JobType? right)
     {
         return left is null ? right is null : left.Equals(right);
     }
 
+    /// <summary>
+    /// Whether two job types name different types.
+    /// </summary>
     public static bool operator !=(JobType? left, JobType? right)
     {
         return !(left == right);
     }
 
+    /// <inheritdoc />
     public override string ToString()
     {
         return FullName;
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         return FullName.GetHashCode();

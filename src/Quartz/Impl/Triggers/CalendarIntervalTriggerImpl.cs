@@ -168,6 +168,7 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
         }
     }
 
+    /// <inheritdoc />
     public TimeZoneInfo TimeZone
     {
         get
@@ -819,6 +820,7 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
         }
     }
 
+    /// <inheritdoc />
     public override IScheduleBuilder GetScheduleBuilder()
     {
         CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.Create()

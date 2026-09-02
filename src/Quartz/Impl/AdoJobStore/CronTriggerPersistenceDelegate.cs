@@ -34,6 +34,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <see cref="ICronTrigger"/>
 public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 {
+    /// <inheritdoc />
     public void Initialize(TriggerPersistenceDelegateContext context)
     {
         TablePrefix = context.TablePrefix;
@@ -47,16 +48,19 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 
     private string SchedulerName { get; set; } = null!;
 
+    /// <inheritdoc />
     public string GetHandledTriggerTypeDiscriminator()
     {
         return AdoConstants.TriggerTypeCron;
     }
 
+    /// <inheritdoc />
     public bool CanHandleTriggerType(IOperableTrigger trigger)
     {
         return trigger is CronTriggerImpl impl && !impl.HasAdditionalProperties;
     }
 
+    /// <inheritdoc />
     public async ValueTask<int> DeleteExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -70,6 +74,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<int> InsertExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -89,6 +94,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -109,6 +115,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         return default;
     }
 
+    /// <inheritdoc />
     public ValueTask<Dictionary<TriggerKey, TriggerPropertyBundle>> LoadExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
@@ -125,6 +132,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
             cancellationToken);
     }
 
+    /// <inheritdoc />
     public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
     {
         var cronExpr = rs.GetString(AdoConstants.ColumnCronExpression)!;
@@ -140,6 +148,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         return new TriggerPropertyBundle(cb);
     }
 
+    /// <inheritdoc />
     public async ValueTask<int> UpdateExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -156,6 +165,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public bool TryDescribeUpdateExtendedTriggerProperties(
         IOperableTrigger trigger,
         StoredTriggerState state,

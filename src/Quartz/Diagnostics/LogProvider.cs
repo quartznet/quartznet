@@ -70,6 +70,17 @@ public static class LogProvider
         LogProvider.loggerFactory = loggerFactory;
     }
 
+    /// <summary>
+    /// A logger under the given category, from whatever <see cref="SetLogProvider" /> was handed — or
+    /// one that logs nothing, when it was handed nothing.
+    /// </summary>
+    /// <param name="category">The category to log under.</param>
     public static ILogger CreateLogger(string category) => loggerFactory != null ? loggerFactory.CreateLogger(category) : NullLogger.Instance;
+
+    /// <summary>
+    /// A logger categorised by <typeparamref name="T" />, from whatever
+    /// <see cref="SetLogProvider" /> was handed — or one that logs nothing, when it was handed nothing.
+    /// </summary>
+    /// <typeparam name="T">The type the category is named for.</typeparam>
     public static ILogger<T> CreateLogger<T>() => loggerFactory != null ? loggerFactory.CreateLogger<T>() : NullLogger<T>.Instance;
 }

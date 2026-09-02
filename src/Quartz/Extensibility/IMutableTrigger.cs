@@ -5,8 +5,14 @@ namespace Quartz.Extensibility;
 /// </summary>
 public interface IMutableTrigger : ITrigger
 {
+    /// <summary>
+    /// The trigger's identity, which a store keys it by.
+    /// </summary>
     new TriggerKey Key { get; set; }
 
+    /// <summary>
+    /// The job this trigger fires.
+    /// </summary>
     new JobKey JobKey { get; set; }
 
     /// <summary>

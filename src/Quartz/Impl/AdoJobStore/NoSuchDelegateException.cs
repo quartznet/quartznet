@@ -27,10 +27,19 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 public sealed class NoSuchDelegateException : JobPersistenceException
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NoSuchDelegateException" /> class.
+    /// </summary>
+    /// <param name="message">What went wrong.</param>
+    /// <param name="innerException">The cause.</param>
     public NoSuchDelegateException(string message, Exception? innerException) : base(message, innerException)
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NoSuchDelegateException" /> class.
+    /// </summary>
+    /// <param name="message">What went wrong.</param>
     public NoSuchDelegateException(string message) : base(message)
     {
     }

@@ -63,8 +63,14 @@ namespace Quartz;
 /// <author>Marko Lahma (.NET)</author>
 public interface ITrigger
 {
+    /// <summary>
+    /// The trigger's identity: its name and group, which a store keys it by.
+    /// </summary>
     TriggerKey Key { get; }
 
+    /// <summary>
+    /// The job this trigger fires.
+    /// </summary>
     JobKey JobKey { get; }
 
     /// <summary>

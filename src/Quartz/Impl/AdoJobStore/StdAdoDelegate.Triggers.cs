@@ -160,6 +160,15 @@ public partial class StdAdoDelegate
     /// </summary>
     private SqlRowLimit RowLimitFor(int count) => count == NoRowLimit ? SqlRowLimit.Unlimited : GetRowLimit(count);
 
+    /// <summary>
+    /// The statement selecting the misfired triggers to recover, limited to <paramref name="count" />
+    /// rows.
+    /// </summary>
+    /// <remarks>
+    /// The row limit is expressed through <c>GetRowLimit</c>, which is the member a dialect overrides;
+    /// overriding this one is for a dialect whose whole statement differs.
+    /// </remarks>
+    /// <param name="count">The most rows to read, or no limit.</param>
     protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
         return StdAdoConstants.BuildSqlSelectMisfiredTriggersToRecover(RowLimitFor(count));
@@ -979,6 +988,17 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Deletes whatever the registered persistence delegates hold for a trigger, beside its row in the
+    /// triggers table.
+    /// </summary>
+    /// <remarks>
+    /// Stops at the first delegate that deleted a row: a trigger belongs to one family, so no second
+    /// delegate has anything of its own to remove.
+    /// </remarks>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="triggerKey">The trigger being deleted.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     protected virtual async ValueTask DeleteTriggerExtension(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -1638,6 +1658,9 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// The statement counting the triggers in the given states that have misfired.
+    /// </summary>
     protected virtual string GetCountMisfiredTriggersInStateSql()
     {
         return StdAdoConstants.SqlCountMisfiredTriggersInStates;
@@ -1980,6 +2003,15 @@ public partial class StdAdoDelegate
         return ExecuteStatements(conn, statements, cancellationToken);
     }
 
+    /// <summary>
+    /// Registers a persistence delegate, initialising it with this delegate's scheduler name, table
+    /// prefix and value binding.
+    /// </summary>
+    /// <remarks>
+    /// The first registration of a discriminator wins, and the built-in delegates are registered first,
+    /// so a delegate of one's own overrides a built-in family only by being registered before them.
+    /// </remarks>
+    /// <param name="persistenceDelegate">The delegate to register.</param>
     public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate persistenceDelegate)
     {
         logger.TriggerPersistenceDelegateAdded(persistenceDelegate.GetType());
@@ -2007,6 +2039,11 @@ public partial class StdAdoDelegate
         }
     }
 
+    /// <summary>
+    /// The registered delegate that handles <paramref name="trigger" />'s family, or
+    /// <see langword="null" /> when none does — which is what makes a trigger stored as a blob.
+    /// </summary>
+    /// <param name="trigger">The trigger being written.</param>
     protected virtual ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(IOperableTrigger trigger)
     {
         foreach (var persistenceDelegate in triggerPersistenceDelegates)
@@ -2020,6 +2057,11 @@ public partial class StdAdoDelegate
         return null;
     }
 
+    /// <summary>
+    /// The registered delegate that reads the given trigger-type discriminator back, or
+    /// <see langword="null" /> when none does.
+    /// </summary>
+    /// <param name="discriminator">The value read from the trigger's type column.</param>
     protected virtual ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(string discriminator)
     {
         triggerPersistenceDelegatesByDiscriminator.TryGetValue(discriminator, out ITriggerPersistenceDelegate? persistenceDelegate);

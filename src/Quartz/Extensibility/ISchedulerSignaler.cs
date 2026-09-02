@@ -57,6 +57,11 @@ public interface ISchedulerSignaler
         ITrigger trigger,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Notifies the scheduler that a job has been deleted, so that its listeners are told.
+    /// </summary>
+    /// <param name="jobKey">The job that was deleted.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask NotifySchedulerListenersJobDeleted(
         JobKey jobKey,
         CancellationToken cancellationToken = default);

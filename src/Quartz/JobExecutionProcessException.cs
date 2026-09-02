@@ -28,5 +28,8 @@ public sealed class JobExecutionProcessException : SchedulerException
         JobExecutionContext = jobExecutionContext;
     }
 
+    /// <summary>
+    /// The firing whose middleware failed, so that a listener can act on it without parsing the message.
+    /// </summary>
     public IJobExecutionContext JobExecutionContext { get; }
 }

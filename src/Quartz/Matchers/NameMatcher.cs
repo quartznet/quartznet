@@ -78,6 +78,7 @@ public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKe
         return new NameMatcher<TKey>(compareTo, StringOperator.Contains);
     }
 
+    /// <inheritdoc />
     protected override string GetValue(TKey key)
     {
         return key.Name;
@@ -158,6 +159,10 @@ public sealed class NameMatcher : IEquatable<NameMatcher>
     /// </summary>
     public bool IsMatch(string name) => CompareWithOperator.Evaluate(name, CompareToValue);
 
+    /// <summary>
+    /// Whether this matcher and <paramref name="other" /> select the same names.
+    /// </summary>
+    /// <param name="other">The matcher to compare with.</param>
     public bool Equals(NameMatcher? other)
     {
         if (ReferenceEquals(this, other))
@@ -170,9 +175,12 @@ public sealed class NameMatcher : IEquatable<NameMatcher>
                && CompareWithOperator.Equals(other.CompareWithOperator);
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj) => Equals(obj as NameMatcher);
 
+    /// <inheritdoc />
     public override int GetHashCode() => HashCode.Combine(CompareToValue, CompareWithOperator);
 
+    /// <inheritdoc />
     public override string ToString() => $"{CompareWithOperator}({CompareToValue})";
 }

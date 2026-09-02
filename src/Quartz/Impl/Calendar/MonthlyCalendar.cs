@@ -93,6 +93,11 @@ public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
         }
     }
 
+    /// <summary>
+    /// Writes this calendar's fields into a serialization payload.
+    /// </summary>
+    /// <param name="info">The payload being written.</param>
+    /// <param name="context">The serialization context.</param>
     [System.Security.SecurityCritical]
     public override void GetObjectData(SerializationInfo info, StreamingContext context)
     {
@@ -244,6 +249,7 @@ public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
         return clone;
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         int baseHash = 0;
@@ -255,6 +261,10 @@ public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
         return excludeDays.Count + 5 * baseHash;
     }
 
+    /// <summary>
+    /// Whether this calendar and <paramref name="other" /> exclude the same times.
+    /// </summary>
+    /// <param name="other">The calendar to compare with.</param>
     public bool Equals(MonthlyCalendar? other)
     {
         //a little trick here : Monthly calendar knows nothing
@@ -273,6 +283,7 @@ public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
         return baseEqual && excludeDays.SetEquals(other.excludeDays);
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (obj is not MonthlyCalendar other)

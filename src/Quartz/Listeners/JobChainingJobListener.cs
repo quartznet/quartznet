@@ -81,6 +81,7 @@ public sealed class JobChainingJobListener : IJobListener
         logger = LogProvider.CreateLogger<JobChainingJobListener>();
     }
 
+    /// <inheritdoc />
     public string Name { get; }
 
     /// <summary>
@@ -175,6 +176,7 @@ public sealed class JobChainingJobListener : IJobListener
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask JobWasExecuted(IJobExecutionContext context,
         JobExecutionException? jobException,
         CancellationToken cancellationToken = default)

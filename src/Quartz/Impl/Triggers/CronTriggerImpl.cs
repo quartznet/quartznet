@@ -425,6 +425,7 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// <inheritdoc />
     public CronTriggerMisfireInstruction MisfireInstruction => (CronTriggerMisfireInstruction) MisfireInstructionCode;
 
+    /// <inheritdoc />
     public override IScheduleBuilder GetScheduleBuilder()
     {
         // The trigger is already holding the parsed, immutable expression, and its time zone is that

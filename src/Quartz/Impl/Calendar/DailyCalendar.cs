@@ -128,6 +128,11 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
         }
     }
 
+    /// <summary>
+    /// Writes this calendar's fields into a serialization payload.
+    /// </summary>
+    /// <param name="info">The payload being written.</param>
+    /// <param name="context">The serialization context.</param>
     [System.Security.SecurityCritical]
     public override void GetObjectData(SerializationInfo info, StreamingContext context)
     {
@@ -340,6 +345,7 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
         return soFar is null || candidate < soFar.Value ? candidate : soFar;
     }
 
+    /// <inheritdoc />
     public override ICalendar Clone()
     {
         var clone = new DailyCalendar(rangeStart, rangeEnd, CalendarBase)
@@ -488,6 +494,7 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
         }
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         int baseHash = 0;
@@ -499,6 +506,10 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
         return HashCode.Combine(rangeStart, rangeEnd, baseHash);
     }
 
+    /// <summary>
+    /// Whether this calendar and <paramref name="other" /> exclude the same times.
+    /// </summary>
+    /// <param name="other">The calendar to compare with.</param>
     public bool Equals(DailyCalendar? other)
     {
         if (other is null)
@@ -513,6 +524,7 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
                && rangeEnd == other.rangeEnd;
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (obj is not DailyCalendar other)

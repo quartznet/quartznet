@@ -90,6 +90,7 @@ public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TK
         return new GroupMatcher<TKey>("", StringOperator.Anything);
     }
 
+    /// <inheritdoc />
     protected override string GetValue(TKey key)
     {
         return key.Group;

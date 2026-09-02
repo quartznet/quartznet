@@ -45,6 +45,7 @@ public class OracleDelegate : StdAdoDelegate
         return booleanValue ? "1" : "0";
     }
 
+    /// <inheritdoc />
     public override bool GetBooleanFromDbValue(object columnValue)
     {
         // we store things as string in oracle with 1/0 as value

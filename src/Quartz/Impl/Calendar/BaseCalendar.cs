@@ -135,6 +135,11 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
         Description = (string) info.GetValue(prefix + "description", typeof(string))!;
     }
 
+    /// <summary>
+    /// Writes this calendar's fields into a serialization payload.
+    /// </summary>
+    /// <param name="info">The payload being written.</param>
+    /// <param name="context">The serialization context.</param>
     [System.Security.SecurityCritical]
     public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
     {
@@ -228,6 +233,12 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
         return clone;
     }
 
+    /// <summary>
+    /// Copies the fields every calendar has — description, time zone and base calendar — into a
+    /// copy a derived type has constructed, which then copies its own.
+    /// </summary>
+    /// <param name="clone">The copy being built.</param>
+    /// <returns>The same copy, so that an override can return it directly.</returns>
     protected BaseCalendar CloneFields(BaseCalendar clone)
     {
         clone.Description = Description;
@@ -236,6 +247,10 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
         return clone;
     }
 
+    /// <summary>
+    /// Whether this calendar and <paramref name="other" /> exclude the same times.
+    /// </summary>
+    /// <param name="other">The calendar to compare with.</param>
     public bool Equals(BaseCalendar? other)
     {
         if (other is null)
@@ -251,6 +266,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
         return Equals(CalendarBase, other.CalendarBase) && string.Equals(Description, other.Description, StringComparison.Ordinal) && Equals(TimeZone, other.TimeZone);
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (obj is null)
@@ -271,6 +287,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
         return Equals((BaseCalendar) obj);
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         unchecked

@@ -49,11 +49,13 @@ public sealed class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TK
         return new EverythingMatcher<TKey>();
     }
 
+    /// <inheritdoc />
     public bool IsMatch(TKey key)
     {
         return true;
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (obj is null)
@@ -64,6 +66,7 @@ public sealed class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TK
         return obj.GetType() == GetType();
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         return GetType().Name.GetHashCode();

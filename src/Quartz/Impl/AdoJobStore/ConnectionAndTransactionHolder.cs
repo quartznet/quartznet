@@ -127,10 +127,20 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     /// </summary>
     internal EnlistedConnection? BorrowedFrom { get; }
 
+    /// <summary>
+    /// The connection this unit of work runs on.
+    /// </summary>
     public DbConnection Connection => connection;
 
+    /// <summary>
+    /// The transaction this unit of work runs in, or <see langword="null" /> when there is none.
+    /// </summary>
     public DbTransaction? Transaction => transaction;
 
+    /// <summary>
+    /// Puts this unit of work's connection and transaction on a command, so that it takes part in it.
+    /// </summary>
+    /// <param name="cmd">The command to attach.</param>
     public void Attach(DbCommand cmd)
     {
         cmd.Connection = connection;
@@ -189,6 +199,10 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
         }
     }
 
+    /// <summary>
+    /// Closes the connection, if this unit of work owns it.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask Close(CancellationToken cancellationToken = default)
     {
         if (!ownsResources)
@@ -207,6 +221,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (!ownsResources)

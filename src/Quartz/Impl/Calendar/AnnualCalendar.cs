@@ -116,6 +116,11 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
         }
     }
 
+    /// <summary>
+    /// Writes this calendar's fields into a serialization payload.
+    /// </summary>
+    /// <param name="info">The payload being written.</param>
+    /// <param name="context">The serialization context.</param>
     [System.Security.SecurityCritical]
     public override void GetObjectData(SerializationInfo info, StreamingContext context)
     {
@@ -234,6 +239,7 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
         return day;
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         int baseHash = 13;
@@ -245,6 +251,10 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
         return excludeDays.Count + 5 * baseHash;
     }
 
+    /// <summary>
+    /// Whether this calendar and <paramref name="other" /> exclude the same times.
+    /// </summary>
+    /// <param name="other">The calendar to compare with.</param>
     public bool Equals(AnnualCalendar? other)
     {
         if (other is null)
@@ -257,6 +267,7 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
         return toReturn && excludeDays.SetEquals(other.excludeDays);
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (obj is not AnnualCalendar other)
@@ -267,6 +278,7 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
         return Equals(other);
     }
 
+    /// <inheritdoc />
     public override ICalendar Clone()
     {
         var clone = new AnnualCalendar();

@@ -108,6 +108,7 @@ public class Key<T> : IComparable<Key<T>>, IComparable, IEquatable<Key<T>>
     // group, so the value a hash-keyed collection observes can never change; it cannot be an
     // eagerly-computed readonly field because binary deserialization bypasses constructors.
 #pragma warning disable S2328
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         int result = hash;
@@ -122,6 +123,14 @@ public class Key<T> : IComparable<Key<T>>, IComparable, IEquatable<Key<T>>
     }
 #pragma warning restore S2328
 
+    /// <summary>
+    /// Whether this key and <paramref name="other" /> name the same thing.
+    /// </summary>
+    /// <param name="other">The key to compare with.</param>
+    /// <returns>
+    /// <see langword="true" /> when the two are the same runtime type and both the name and the group
+    /// are equal, ordinally.
+    /// </returns>
     public bool Equals(Key<T>? other)
     {
         if (ReferenceEquals(this, other))
@@ -140,6 +149,7 @@ public class Key<T> : IComparable<Key<T>>, IComparable, IEquatable<Key<T>>
         return group == other.group && name == other.name;
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         return Equals(obj as Key<T>);
@@ -219,6 +229,9 @@ public class Key<T> : IComparable<Key<T>>, IComparable, IEquatable<Key<T>>
         return CompareTo(other);
     }
 
+    /// <summary>
+    /// Whether two keys name the same thing.
+    /// </summary>
     public static bool operator ==(Key<T>? left, Key<T>? right)
     {
         if (left is null)
@@ -229,26 +242,43 @@ public class Key<T> : IComparable<Key<T>>, IComparable, IEquatable<Key<T>>
         return left.Equals(right);
     }
 
+    /// <summary>
+    /// Whether two keys name different things.
+    /// </summary>
     public static bool operator !=(Key<T>? left, Key<T>? right)
     {
         return !(left == right);
     }
 
+    /// <summary>
+    /// Whether <paramref name="left" /> sorts before <paramref name="right" />: by group, then by
+    /// name, ordinally.
+    /// </summary>
     public static bool operator <(Key<T> left, Key<T> right)
     {
         return left is null ? right is not null : left.CompareTo(right) < 0;
     }
 
+    /// <summary>
+    /// Whether <paramref name="left" /> sorts before <paramref name="right" /> or equals it.
+    /// </summary>
     public static bool operator <=(Key<T> left, Key<T> right)
     {
         return left is null || left.CompareTo(right) <= 0;
     }
 
+    /// <summary>
+    /// Whether <paramref name="left" /> sorts after <paramref name="right" />: by group, then by
+    /// name, ordinally.
+    /// </summary>
     public static bool operator >(Key<T> left, Key<T> right)
     {
         return left is not null && left.CompareTo(right) > 0;
     }
 
+    /// <summary>
+    /// Whether <paramref name="left" /> sorts after <paramref name="right" /> or equals it.
+    /// </summary>
     public static bool operator >=(Key<T> left, Key<T> right)
     {
         return left is null ? right is null : left.CompareTo(right) >= 0;

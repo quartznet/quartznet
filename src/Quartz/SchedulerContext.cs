@@ -165,11 +165,13 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
         store.Clear();
     }
 
+    /// <inheritdoc />
     public void CopyTo(KeyValuePair<string, object?>[] array, int arrayIndex)
     {
         ((ICollection<KeyValuePair<string, object?>>) store).CopyTo(array, arrayIndex);
     }
 
+    /// <inheritdoc />
     public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         return store.GetEnumerator();
