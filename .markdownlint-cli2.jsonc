@@ -1,0 +1,25 @@
+{
+    /*
+      What `npm run docs:lint` does NOT look at. The rules themselves are in `.markdownlint.jsonc`,
+      which markdownlint-cli2 reads alongside this file.
+
+      Three trees are frozen and are excluded rather than fixed:
+
+        - `docs/documentation/quartz-1.x`, `-2.x` and `-3.x` document releases whose names cannot
+          change. `quartz-3.x/` in particular is the 3.x line's live documentation and is edited only
+          to describe 3.x, so reformatting it here would put churn in front of every real 3.x change.
+        - `docs/_posts` is the release announcement archive: each post is a record of what was said on
+          a date, and rewriting one changes history for a cosmetic rule.
+
+      Between them they account for every finding the lint reported when this file was added — 90 of
+      them, mostly MD033 (inline HTML in old posts) and MD004 (a list-marker style that changed at
+      some point in fifteen years). The maintained pages — `quartz-4.x/`, the version-neutral pages
+      and `docs/README.md` — are clean, which is what makes the check worth running on a pull request.
+    */
+    "ignores": [
+        "docs/_posts/**",
+        "docs/documentation/quartz-1.x/**",
+        "docs/documentation/quartz-2.x/**",
+        "docs/documentation/quartz-3.x/**"
+    ]
+}

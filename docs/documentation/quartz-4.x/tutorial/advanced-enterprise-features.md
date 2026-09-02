@@ -223,9 +223,9 @@ re-running that one is a [retry policy](../how-tos/retrying-failed-jobs.md) on i
 
 ## See also
 
-- [Best Practices](../../best-practices.md) — what to ask for recovery, and how to make a job safe to re-run
-- [Retrying Failed Jobs](../how-tos/retrying-failed-jobs.md) — a trigger's own answer to a job that throws
-- [Operating a Cluster](../operations.md) — rolling upgrades, instance ids in containers, sizing, backup
-- [Running under an External Leader Election](../how-tos/external-leader.md) — when the election already exists
-- [`Quartz.Examples.Worker`](https://github.com/quartznet/quartznet/tree/main/src/Quartz.Examples.Worker) —
+* [Best Practices](../../best-practices.md) — what to ask for recovery, and how to make a job safe to re-run
+* [Retrying Failed Jobs](../how-tos/retrying-failed-jobs.md) — a trigger's own answer to a job that throws
+* [Operating a Cluster](../operations.md) — rolling upgrades, instance ids in containers, sizing, backup
+* [Running under an External Leader Election](../how-tos/external-leader.md) — when the election already exists
+* [`Quartz.Examples.Worker`](https://github.com/quartznet/quartznet/tree/main/src/Quartz.Examples.Worker) —
   a worker service with a persistent store, configured the way this lesson describes

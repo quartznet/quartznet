@@ -8,6 +8,9 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '**/docs*.yml'
+      # the markdown lint's rules, and the trees it is scoped to
+      - '.markdownlint.jsonc'
+      - '.markdownlint-cli2.jsonc'
       # the compiled samples the documentation shows, and the target that injects them
       - 'src/Quartz.Documentation.Samples/**'
       - 'build/**'
@@ -70,3 +73,8 @@ jobs:
 
       - name: Check links and anchors
         run: npm run docs:check-links
+
+      # The maintained pages only — .markdownlint-cli2.jsonc says which three trees are frozen and
+      # why. 'npm run docs:lint-fix' fixes most of what this reports.
+      - name: Lint markdown
+        run: npm run docs:lint

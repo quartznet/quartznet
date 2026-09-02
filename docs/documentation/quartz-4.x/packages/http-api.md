@@ -252,7 +252,7 @@ Every duration on the wire is a `TimeSpan` in its invariant form, both ways: a t
 `"repeatIntervalTimeSpan": "120.02:30:59.9990000"`, and the one duration in a query string is spelled
 the same way.
 
-```
+```text
 POST {ApiPath}/schedulers/{name}/start?delay=00:00:30
 ```
 
