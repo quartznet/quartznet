@@ -56,6 +56,18 @@ public class WireFormatSnapshotTest : WebApiTest
     [Test]
     public async Task RecurrenceTriggerBody() => await VerifyTriggerBody(TestData.Wire.RecurrenceTrigger);
 
+    /// <summary>
+    /// The trigger whose execution group, retry policy, retry attempt and node pin are all set, which
+    /// every other trigger body shows only at its default.
+    /// </summary>
+    /// <remarks>
+    /// These four are what a non-.NET client reads to know which limit bucket a trigger counts against,
+    /// how it retries and which node holds it. Their default shape is pinned five times over; the shape
+    /// they take when used was pinned nowhere, which made renaming or re-casing any of them free.
+    /// </remarks>
+    [Test]
+    public async Task AnnotatedTriggerBody() => await VerifyTriggerBody(TestData.Wire.AnnotatedTrigger);
+
     [Test]
     public async Task CalendarBody()
     {

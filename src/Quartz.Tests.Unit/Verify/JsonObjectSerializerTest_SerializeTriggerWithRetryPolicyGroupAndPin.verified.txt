@@ -1,0 +1,28 @@
+﻿{
+  "TriggerType": "SimpleTrigger",
+  "Key": {
+    "Name": "RetryingTriggerKey",
+    "Group": "RetryingTriggerGroup"
+  },
+  "JobKey": {
+    "Name": "RetryingJobKey",
+    "Group": "RetryingJobGroup"
+  },
+  "Description": "A trigger that retries, is grouped and is pinned",
+  "CalendarName": null,
+  "JobDataMap": {},
+  "MisfireInstruction": 0,
+  "StartTimeUtc": "2024-07-01T00:00:00.5+00:00",
+  "EndTimeUtc": null,
+  "Priority": 5,
+  "NextFireTimeUtc": null,
+  "PreviousFireTimeUtc": null,
+  "ExecutionGroup": "reporting",
+  "RetryPolicy": "exp;4;00:00:30;3;00:10:00",
+  "RetryAttempt": 2,
+  "PreferredNode": "node-b",
+  "PreferredNodeAuto": true,
+  "RepeatCount": 5,
+  "RepeatIntervalTimeSpan": "00:15:00",
+  "TimesTriggered": 0
+}

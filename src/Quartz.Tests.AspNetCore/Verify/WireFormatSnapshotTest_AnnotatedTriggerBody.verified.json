@@ -1,0 +1,28 @@
+﻿{
+  "triggerType": "SimpleTrigger",
+  "key": {
+    "name": "AnnotatedTriggerKey",
+    "group": "AnnotatedTriggerGroup"
+  },
+  "jobKey": {
+    "name": "AnnotatedJobKey",
+    "group": "AnnotatedJobGroup"
+  },
+  "description": "A trigger that retries, is grouped and is pinned",
+  "calendarName": null,
+  "jobDataMap": {},
+  "misfireInstruction": 0,
+  "startTimeUtc": "2024-07-01T12:00:00+00:00",
+  "endTimeUtc": "2025-07-01T12:00:00+00:00",
+  "priority": 5,
+  "nextFireTimeUtc": "2024-08-01T12:30:00+00:00",
+  "previousFireTimeUtc": "2024-08-01T06:30:00+00:00",
+  "executionGroup": "reporting",
+  "retryPolicy": "exp;4;00:00:30;3;00:10:00",
+  "retryAttempt": 2,
+  "preferredNode": "node-b",
+  "preferredNodeAuto": true,
+  "repeatCount": 5,
+  "repeatIntervalTimeSpan": "00:15:00",
+  "timesTriggered": 0
+}
