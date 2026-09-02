@@ -120,7 +120,7 @@ public abstract class StringOperator : IEquatable<StringOperator>
     /// <returns>
     /// <see langword="true"/> if the current <see cref="StringOperator"/> and <paramref name="obj"/>
     /// are the same instance, or the <see cref="Type"/> of the current <see cref="StringOperator"/>
-    /// equals that of <paramref name="obj"/>; otherwise, <see langword="true"/>.
+    /// equals that of <paramref name="obj"/>; otherwise, <see langword="false"/>.
     /// </returns>
     public override bool Equals(object? obj)
     {
@@ -135,7 +135,7 @@ public abstract class StringOperator : IEquatable<StringOperator>
     /// <returns>
     /// <see langword="true"/> if the current <see cref="StringOperator"/> and <paramref name="other"/>
     /// are the same instance, or the <see cref="Type"/> of the current <see cref="StringOperator"/> equals
-    /// that of <paramref name="other"/>; otherwise, <see langword="true"/>.
+    /// that of <paramref name="other"/>; otherwise, <see langword="false"/>.
     /// </returns>
     public virtual bool Equals(StringOperator? other)
     {

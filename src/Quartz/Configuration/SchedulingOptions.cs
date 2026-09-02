@@ -21,34 +21,47 @@
 
 namespace Quartz;
 
+/// <summary>
+/// What happens to a job or a trigger that is declared up front and whose key the scheduler already
+/// knows.
+/// </summary>
+/// <remarks>
+/// This is <see cref="QuartzOptions.Scheduling" />, and it governs every declared job and trigger,
+/// however it was declared: <c>AddJob</c> and <c>AddTrigger</c> inside <c>AddQuartz(…)</c>, the
+/// <c>Quartz:Scheduling</c> configuration section, and a scheduling file read by the XML or JSON
+/// plugin. It says nothing about <see cref="IScheduler" />'s own members, which take their own
+/// <see cref="AddJobOptions" /> and <see cref="ScheduleJobOptions" />.
+/// </remarks>
 public sealed class SchedulingOptions
 {
     /// <summary>
-    /// Whether the existing scheduling data (with same identifiers) will be
-    /// overwritten.
+    /// Whether a declared job or trigger replaces one already stored under the same key.
     /// </summary>
     /// <remarks>
-    /// If false, and <see cref="IgnoreDuplicates" /> is not false, and jobs or
-    /// triggers with the same names already exist as those in the file, an
-    /// error will occur.
+    /// On by default. Turning it off makes a duplicate key an error, unless
+    /// <see cref="IgnoreDuplicates" /> says to pass over it instead.
     /// </remarks>
     /// <seealso cref="IgnoreDuplicates" />
     public bool OverwriteExistingData { get; set; } = true;
 
     /// <summary>
-    /// If true (and <see cref="OverwriteExistingData" /> is false) then any
-    /// job/triggers encountered in this file that have names that already exist
-    /// in the scheduler will be ignored, and no error will be produced.
+    /// Whether a declared job or trigger whose key is already stored is passed over rather than
+    /// reported.
     /// </summary>
+    /// <remarks>
+    /// Only consulted when <see cref="OverwriteExistingData" /> is off, since replacing is already an
+    /// answer to a duplicate key.
+    /// </remarks>
     /// <seealso cref="OverwriteExistingData"/>
     public bool IgnoreDuplicates { get; set; }
 
     /// <summary>
-    /// If true (and <see cref="OverwriteExistingData" /> is true) then any
-    /// job/triggers encountered in this file that already exist is scheduler
-    /// will be updated with start time relative to old trigger. Effectively
-    /// new trigger's last fire time will be updated to old trigger's last fire time
-    /// and trigger's next fire time will updated to be next from this last fire time.
+    /// Whether a replaced trigger hands its firing history to the trigger replacing it.
     /// </summary>
+    /// <remarks>
+    /// Only consulted when <see cref="OverwriteExistingData" /> is on. The new trigger adopts the old
+    /// one's last fire time, and computes its next fire time from there rather than from its own start
+    /// time — so restarting an application does not re-fire a schedule that has already run.
+    /// </remarks>
     public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
 }

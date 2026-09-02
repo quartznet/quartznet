@@ -45,7 +45,6 @@ public interface IJobStore
     /// <summary>
     /// Indicates whether job store supports persistence.
     /// </summary>
-    /// <returns></returns>
     bool SupportsPersistence { get; }
 
     /// <summary>
@@ -300,8 +299,8 @@ public interface IJobStore
     /// <param name="trigger">The new <see cref="ITrigger" /> to be stored.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
-    /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
-    /// name and group was found and removed from the store.
+    /// 	<see langword="true" /> if a <see cref="ITrigger" /> was stored under
+    /// <paramref name="triggerKey" /> and has been replaced by <paramref name="trigger" />.
     /// </returns>
     ValueTask<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger trigger, CancellationToken cancellationToken = default);
 
@@ -331,8 +330,6 @@ public interface IJobStore
     /// Determine whether a <see cref="IJob" /> with the given identifier already
     /// exists within the scheduler.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a job exists with the given identifier</returns>
@@ -342,8 +339,6 @@ public interface IJobStore
     /// Determine whether a <see cref="ITrigger" /> with the given identifier already
     /// exists within the scheduler.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="triggerKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a trigger exists with the given identifier</returns>
@@ -364,11 +359,9 @@ public interface IJobStore
     ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
+    /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s and
     /// <see cref="ICalendar" />s.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     ValueTask Clear(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -405,7 +398,7 @@ public interface IJobStore
     ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieve the given <see cref="ITrigger" />.
+    /// Retrieve the given <see cref="ICalendar" />.
     /// </summary>
     /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>

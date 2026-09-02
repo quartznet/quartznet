@@ -147,14 +147,17 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     }
 
     /// <summary>
-    /// Create a CronScheduleBuilder with the given cron-expression - which
-    /// is presumed to be valid cron expression (and hence only a RuntimeException
-    /// will be thrown if it is not).
+    /// Create a <see cref="CronScheduleBuilder" /> from a cron expression written in the
+    /// <see cref="CronFormat.Quartz" /> format.
     /// </summary>
     /// <remarks>
+    /// The expression is parsed here rather than at <see cref="Build" />, so a malformed one is
+    /// refused by the call that named it.
     /// </remarks>
     /// <param name="cronExpression">the cron expression to base the schedule on.</param>
     /// <returns>the new CronScheduleBuilder</returns>
+    /// <exception cref="ArgumentException"><paramref name="cronExpression" /> is <see langword="null" />.</exception>
+    /// <exception cref="FormatException"><paramref name="cronExpression" /> is not a valid cron expression.</exception>
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder Create(string cronExpression)
     {

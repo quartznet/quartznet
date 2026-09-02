@@ -36,7 +36,15 @@ namespace Quartz;
 /// implemented with a <see cref="ISimpleTrigger" /> and a
 /// <see cref="WeeklyCalendar" /> which excludes Sundays)
 /// <para>
-/// Implementations MUST take care of being properly cloneable and Serializable.
+/// An implementation of its own has two obligations. It must be properly cloneable, because the
+/// scheduler hands callers <see cref="Clone" />s rather than the stored instance. And, to live in a
+/// persistent store, it needs a
+/// <see cref="Quartz.Serialization.SystemTextJson.Calendars.CalendarSerializer{TCalendar}" /> registered with
+/// <c>AddCalendarSerializer</c> — <c>UseSystemTextJsonSerializer(json =&gt;
+/// json.AddCalendarSerializer(new MyCalendarSerializer()))</c>. Without one, the first
+/// <see cref="IScheduler.AddCalendar" /> that reaches the store fails while writing it, naming the
+/// calendar's type. <c>[Serializable]</c> is what 3.x asked for and no longer stores anything: 4.x
+/// has no <c>BinaryFormatter</c>.
 /// </para>
 /// </remarks>
 /// <author>James House</author>
@@ -69,5 +77,14 @@ public interface ICalendar
     /// </summary>
     DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
 
+    /// <summary>
+    /// Returns a copy of this calendar that can be changed without changing this one.
+    /// </summary>
+    /// <remarks>
+    /// This is what stands between a caller's instance and the one a store holds: a store clones a
+    /// calendar as it is added and again as it is read back, so an implementation that returned a
+    /// shared object would let a caller edit stored scheduling data in place. The built-in calendars
+    /// copy their exclusion sets and clone <see cref="CalendarBase" /> in turn.
+    /// </remarks>
     ICalendar Clone();
 }
