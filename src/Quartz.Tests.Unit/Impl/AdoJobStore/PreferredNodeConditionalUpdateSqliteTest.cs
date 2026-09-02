@@ -202,6 +202,10 @@ public sealed class PreferredNodeConditionalUpdateSqliteTest
                 .StartAt(DateTimeOffset.UtcNow.AddYears(1))
                 .WithPreferredNode(pin)
                 .Build());
+
+        // Never started, so there is nothing running to stop; shutting down is what closes the store's
+        // connections, and an open one would keep the file from being deleted afterwards.
+        await scheduler.Shutdown();
     }
 
     /// <summary>
