@@ -59,11 +59,23 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
     private readonly TimeProvider timeProvider;
     private bool started;
 
+    /// <summary>
+    /// Creates the plugin with the static logger, a reflecting type loader and the system clock, for a
+    /// plugin the loader built from a <c>quartz.plugin.&lt;name&gt;.type</c> key and so had nothing to
+    /// inject into.
+    /// </summary>
     public JsonSchedulingDataProcessorPlugin()
         : this(LogProvider.CreateLogger<JsonSchedulingDataProcessorPlugin>(), new SimpleTypeLoader(), TimeProvider.System)
     {
     }
 
+    /// <summary>
+    /// Creates the plugin with what a container resolved, which is what
+    /// <c>UseJsonSchedulingConfiguration</c> uses.
+    /// </summary>
+    /// <param name="logger">Where the plugin reports what it loaded and what it could not.</param>
+    /// <param name="typeLoader">Resolves the job types the file names as strings.</param>
+    /// <param name="timeProvider">The clock the scanned files' timestamps are compared against.</param>
     public JsonSchedulingDataProcessorPlugin(
         ILogger<JsonSchedulingDataProcessorPlugin> logger,
         ITypeLoader typeLoader,
@@ -102,6 +114,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
 
     internal IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
+    /// <inheritdoc />
     public ValueTask FileUpdated(string fileName, CancellationToken cancellationToken = default)
     {
         if (started)
@@ -112,6 +125,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         return default;
     }
 
+    /// <inheritdoc />
     public async ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
@@ -132,6 +146,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask Start(CancellationToken cancellationToken = default)
     {
         try
