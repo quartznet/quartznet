@@ -381,6 +381,57 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         parseGarbage.Should().Throw<FormatException>();
     }
 
+    /// <summary>
+    /// The constructor answered a null with <see cref="ArgumentException" /> where
+    /// <see cref="CronExpression.Parse(string)" /> — which is a one-line wrapper over it — answered with
+    /// <see cref="ArgumentNullException" />. Two ways of writing the same call, two exception types.
+    /// </summary>
+    [Test]
+    public void TheConstructorAndParseAgreeOnWhatANullIs()
+    {
+        Action constructNull = () => _ = new CronExpression(null);
+
+        constructNull.Should().Throw<ArgumentNullException>(
+            "Parse(null) throws this, and Parse is a null check followed by this very constructor")
+            .Which.ParamName.Should().Be("cronExpression");
+    }
+
+    /// <summary>
+    /// <c>ToQuartzForm</c> ends in <see cref="ArgumentOutOfRangeException" /> for a
+    /// <see cref="CronFormat" /> it has no arm for, and the <c>try</c> in <c>TryParse</c> caught only
+    /// <see cref="FormatException" />, so the one method whose whole promise is "I will not throw" threw.
+    /// </summary>
+    [Test]
+    public void TryParseAnswersFalseForAFormatItDoesNotKnow()
+    {
+        CronExpression.TryParse("0 15 10 * * ?", (CronFormat) 99, out CronExpression parsed)
+            .Should().BeFalse("a Try that throws is a Try its caller has to wrap");
+
+        parsed.Should().BeNull();
+    }
+
+    /// <summary>
+    /// The throwing half keeps throwing, and now says so: a caller who meant to be told is still told,
+    /// and the exception is the one <c>ToQuartzForm</c> has always raised.
+    /// </summary>
+    [Test]
+    public void ParseStillThrowsForAFormatItDoesNotKnow()
+    {
+        Action parse = () => CronExpression.Parse("0 15 10 * * ?", (CronFormat) 99);
+
+        parse.Should().Throw<ArgumentOutOfRangeException>().Which.ParamName.Should().Be("format");
+    }
+
+    [Test]
+    public void TryParseReadsTheUnixDialectAndRejectsAMalformedOne()
+    {
+        CronExpression.TryParse("30 4 * * 1", CronFormat.Unix, out CronExpression parsed).Should().BeTrue();
+        parsed.CronExpressionString.Should().Be("0 30 4 ? * MON", "what the expression holds is the Quartz spelling");
+
+        CronExpression.TryParse("not a crontab line", CronFormat.Unix, out CronExpression failed).Should().BeFalse();
+        failed.Should().BeNull();
+    }
+
     [Test]
     public void IsParsable()
     {
@@ -565,14 +616,6 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         act.Should().Throw<FormatException>()
             .WithMessage("*has 3 fields, but 6 or 7 are required*")
             .WithMessage("*seconds, minutes, hours, day-of-month, month, day-of-week*");
-    }
-
-    [Test]
-    public void CronExpression_Throw_Error_Constructed_With_Null()
-    {
-        Action act = () => new CronExpression(null);
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("cronExpression cannot be null*");
     }
 
     [TestCase('h')]

@@ -487,6 +487,13 @@ these as part of 4.0 and nothing more.
   `ArgumentException`, of which `ArgumentNullException` is a subclass, so a `catch` there still catches.
   The `<exception>` tags on `IScheduler` say all of it, along with which members refuse what — there
   were two of them over 65 members and there are ninety-seven now.
+* **`CronExpression.TryParse(s, format, out)` answers `false` for a `CronFormat` it does not know.**
+  **Changed since alpha.5:** it raised `ArgumentOutOfRangeException` out of the `try`, so the one
+  method whose whole promise is that it will not throw, threw. `Parse(s, format)` still raises it, and
+  now documents it. In the same change `new CronExpression(null)` and `CronScheduleBuilder.Create(null)`
+  raise `ArgumentNullException` rather than `ArgumentException`, which is what `CronExpression.Parse`
+  next door has always raised; `ArgumentNullException` is an `ArgumentException`, so a `catch` still
+  catches, but the message is the framework's rather than `"cronExpression cannot be null"`.
 
 ### What is on nobody's list because it did not change
 
