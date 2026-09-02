@@ -65,6 +65,13 @@ public class Key<T> : IComparable<Key<T>>, IComparable, IEquatable<Key<T>>
     /// <param name="name">the name</param>
     /// <param name="group">the group</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+    // S5766 (validate data during deserialization) asks a [Serializable] type to repeat its
+    // constructor's validation in a deserialization callback, because a formatter that rebuilds an
+    // object field by field never runs the constructor. There is no such formatter left: BinaryFormatter
+    // is gone from the shared framework, this type implements no ISerializable and declares no
+    // serialization callback, and every serializer Quartz ships reaches a key through this constructor.
+    // The attribute is metadata a 3.x-era blob's type identity is matched on and nothing more.
+#pragma warning disable S5766
     public Key(string name, string group)
     {
         if (name is null)
@@ -75,6 +82,7 @@ public class Key<T> : IComparable<Key<T>>, IComparable, IEquatable<Key<T>>
         this.name = name;
         this.group = group;
     }
+#pragma warning restore S5766
 
     /// <summary>
     /// Get the name portion of the key.

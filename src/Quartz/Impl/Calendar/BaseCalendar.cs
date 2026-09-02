@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
 namespace Quartz.Impl.Calendar;
@@ -288,6 +289,15 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The hash is over the same mutable state <see cref="Equals(BaseCalendar)" /> compares, which is
+    /// what the two members have to agree on, and every calendar in this namespace is the same shape.
+    /// A calendar is an editable description of excluded time — <see cref="Description" />, the time
+    /// zone, the excluded days — and the alternative to hashing it is a constant, which puts every
+    /// calendar in one bucket and answers nothing. Nothing in Quartz keys a hash-based collection by a
+    /// calendar instance: the stores hold calendars by name, and the name is a string.
+    /// </remarks>
+    [SuppressMessage("Sonar", "S2328:GetHashCode should not reference mutable fields", Justification = "Content equality over mutable state is what a calendar is; see the remarks.")]
     public override int GetHashCode()
     {
         unchecked

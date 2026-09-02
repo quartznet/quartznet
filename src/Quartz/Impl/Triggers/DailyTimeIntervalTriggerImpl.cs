@@ -906,10 +906,6 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
             {
                 Throw.ArgumentException("DaysOfWeek set must be a set that contains at least one day.");
             }
-            if (value.Count == 0)
-            {
-                Throw.ArgumentException("DaysOfWeek set must contain at least one day.");
-            }
 
             daysOfWeek = new HashSet<DayOfWeek>(value);
         }

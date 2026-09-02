@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
 namespace Quartz.Impl.Calendar;
@@ -250,6 +251,7 @@ public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Sonar", "S2328:GetHashCode should not reference mutable fields", Justification = "Content equality over mutable state is what a calendar is; see BaseCalendar.GetHashCode.")]
     public override int GetHashCode()
     {
         int baseHash = 0;

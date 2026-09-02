@@ -463,6 +463,32 @@ public class TaskSchedulingThreadPoolTest
             "the caller's token must not reach a Shutdown that would throw out of it rather than report");
     }
 
+    /// <summary>
+    /// The pool releases its shutdown token source once it is down, and a released source answers
+    /// <c>Cancel</c> with an <see cref="ObjectDisposedException" /> rather than doing nothing. Both
+    /// teardown paths end there and either can follow the other — the scheduler calls
+    /// <see cref="IThreadPool.Drain" /> or <see cref="IThreadPool.Shutdown" /> depending on
+    /// <c>waitForJobsToComplete</c>, and a caller is free to call the other one afterwards.
+    /// </summary>
+    [Test]
+    public async Task TearingDownTwiceIsATeardownAndThenNothing()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new(TaskScheduler.Default, 1);
+        await threadPool.Initialize();
+
+        (await threadPool.Drain()).Should().BeTrue("nothing is running, so the pool is drained already");
+
+        Func<Task> act = async () =>
+        {
+            await threadPool.Shutdown(waitForJobsToComplete: false);
+            await threadPool.Drain();
+        };
+
+        await act.Should().NotThrowAsync(
+            "a pool that has already given back what it owns has nothing left to cancel, and saying so "
+            + "by throwing would fail a shutdown that has otherwise finished");
+    }
+
     private sealed class CustomTaskSchedulingThreadPool : TaskSchedulingThreadPool
     {
         private readonly TaskScheduler taskScheduler;

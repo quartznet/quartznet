@@ -78,6 +78,27 @@ public class ClusterManagerTest
         completedTask.Should().Be(shutdownTask, "Shutdown should complete");
     }
 
+    /// <summary>
+    /// The manager releases its token source on the way down, and a released source answers
+    /// <c>Cancel</c> with an <see cref="ObjectDisposedException" /> rather than doing nothing — so
+    /// shutting down twice has to be a shutdown and then a no-op.
+    /// </summary>
+    [Test]
+    public async Task ShuttingDownTwiceIsAShutdownAndThenNothing()
+    {
+        TestAdoJobStoreBase jobStoreSupport = new();
+        ClusterManager clusterManager = new(jobStoreSupport, NullLogger<ClusterManager>.Instance);
+
+        await clusterManager.Initialize();
+        await clusterManager.Shutdown();
+
+        Func<Task> act = () => clusterManager.Shutdown();
+
+        await act.Should().NotThrowAsync(
+            "the store's shutdown is not the only thing that can reach this, and a second call finding "
+            + "a released token source would fail a scheduler that is already down");
+    }
+
     [Test]
     public void ComputeTimeToSleep_ShouldSubtractTranspiredTime()
     {

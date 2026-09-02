@@ -201,6 +201,11 @@ internal static class JobDataExpression
         return propertyType.IsEnum ? converted.ToString() : converted;
     }
 
+    /// <summary>
+    /// The duration as a whole number of the units the property's parse rule reads, or an
+    /// <see cref="ArgumentException" /> naming the property when it is not a whole number of them.
+    /// </summary>
+    [SuppressMessage("Sonar", "S1244:Floating point numbers should not be tested for equality", Justification = "Comparing a double with its own floor is the exact test for integrality, which is the question here; a tolerance would accept a duration that is not a whole number of units.")]
     private static long AsParseRuleUnits(PropertyInfo property, TimeSpan duration, TimeSpanParseRule rule)
     {
         var units = rule switch

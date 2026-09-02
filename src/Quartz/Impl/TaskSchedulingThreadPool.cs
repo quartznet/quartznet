@@ -22,6 +22,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private readonly CancellationTokenSource shutdownCancellation = new CancellationTokenSource();
 
     /// <summary>
+    /// The shutdown token, read once here rather than off the source each time it is wanted: the source
+    /// is released once the pool is down, after which asking it for its token throws, while the token
+    /// itself stays readable and answers every question the paths below ask of it.
+    /// </summary>
+    private readonly CancellationToken shutdownToken;
+
+    /// <summary>
     /// Guards <see cref="runningTasks" /> and <see cref="runningTasksDrained" /> against the shutdown
     /// that closes the pool to new work. A lock of its own, because both are replaced by
     /// <see cref="Initialize" />.
@@ -64,6 +71,12 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private bool isInitialized;
     private int guardCountDropped;
 
+    /// <summary>
+    /// Whether the pool has already given back what it owns. <see cref="Shutdown" /> and
+    /// <see cref="Drain" /> both end there, and either may follow the other.
+    /// </summary>
+    private int resourcesReleased;
+
     /// <param name="logger">
     /// Where the pool reports what it is doing. A pool the container builds is handed the application's
     /// logger; one constructed by hand — <c>UseThreadPool(instance)</c> — is handed nothing and reads
@@ -78,6 +91,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     protected TaskSchedulingThreadPool(int maxConcurrency, ILogger<TaskSchedulingThreadPool>? logger = null)
     {
         this.logger = logger ?? LogProvider.CreateLogger<TaskSchedulingThreadPool>();
+        shutdownToken = shutdownCancellation.Token;
         MaxConcurrency = maxConcurrency;
     }
 
@@ -189,13 +203,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// <returns>The number of currently available threads</returns>
     public async ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default)
     {
-        if (!isInitialized || shutdownCancellation.IsCancellationRequested)
+        if (!isInitialized || shutdownToken.IsCancellationRequested)
         {
             return 0;
         }
 
         using CancellationTokenSource? linked = cancellationToken.CanBeCanceled
-            ? CancellationTokenSource.CreateLinkedTokenSource(shutdownCancellation.Token, cancellationToken)
+            ? CancellationTokenSource.CreateLinkedTokenSource(shutdownToken, cancellationToken)
             : null;
 
         try
@@ -212,7 +226,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             //
             // In the worst case, TryRun will just wait
             // for the next thread and clustered scenarios may experience some imbalanced loads.
-            await concurrencySemaphore.WaitAsync(linked?.Token ?? shutdownCancellation.Token).ConfigureAwait(false);
+            await concurrencySemaphore.WaitAsync(linked?.Token ?? shutdownToken).ConfigureAwait(false);
             return 1 + concurrencySemaphore.Release();
         }
         catch (OperationCanceledException)
@@ -231,19 +245,19 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// </returns>
     public async ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
     {
-        if (action is null || !isInitialized || shutdownCancellation.IsCancellationRequested)
+        if (action is null || !isInitialized || shutdownToken.IsCancellationRequested)
         {
             return false;
         }
 
         // Acquire the semaphore (return false if shutdown occurs while waiting)
         using (CancellationTokenSource? linked = cancellationToken.CanBeCanceled
-                   ? CancellationTokenSource.CreateLinkedTokenSource(shutdownCancellation.Token, cancellationToken)
+                   ? CancellationTokenSource.CreateLinkedTokenSource(shutdownToken, cancellationToken)
                    : null)
         {
             try
             {
-                await concurrencySemaphore.WaitAsync(linked?.Token ?? shutdownCancellation.Token).ConfigureAwait(false);
+                await concurrencySemaphore.WaitAsync(linked?.Token ?? shutdownToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -262,7 +276,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         {
             // Now that the lock is held, shutdown can't proceed,
             // so double-check that no shutdown has started since the initial check.
-            if (shutdownCancellation.IsCancellationRequested)
+            if (shutdownToken.IsCancellationRequested)
             {
                 concurrencySemaphore.Release();
                 return false;
@@ -403,8 +417,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// </summary>
     private Task CloseToNewWork()
     {
-        // Cancel using our shutdown token
-        shutdownCancellation.Cancel();
+        // Cancel using our shutdown token, unless a previous teardown has already released it: a source
+        // that has been released answers Cancel with an ObjectDisposedException rather than doing
+        // nothing, and by then it has been cancelled anyway.
+        if (Volatile.Read(ref resourcesReleased) == 0)
+        {
+            shutdownCancellation.Cancel();
+        }
 
         lock (runningTasksLock)
         {
@@ -430,10 +449,27 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         }
     }
 
+    /// <summary>
+    /// Gives back what the pool owns, once, whichever of the two teardown paths got here first.
+    /// </summary>
+    /// <remarks>
+    /// The concurrency semaphore is deliberately not among them. <c>Shutdown(waitForJobsToComplete:
+    /// false)</c> arrives here with work still running, and every one of those work items releases the
+    /// semaphore when it finishes — a released semaphore would meet each of them as an exception in a
+    /// continuation nobody observes. Nothing reads its wait handle, so leaving it is free.
+    /// </remarks>
     private void ReleaseResources()
     {
         // Dispose the scheduler to release its resources (e.g. QueuedTaskScheduler threads)
         (scheduler as IDisposable)?.Dispose();
+
+        if (Interlocked.Exchange(ref resourcesReleased, 1) == 0)
+        {
+            // Cancelled by CloseToNewWork before this runs, which is what makes releasing it safe: a
+            // linked source built from an already-cancelled token runs its callback inline instead of
+            // registering, so nothing reaches back into the source afterwards.
+            shutdownCancellation.Dispose();
+        }
 
         logger.ThreadPoolShutdownComplete();
     }

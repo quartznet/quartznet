@@ -1780,4 +1780,23 @@ public class DailyTimeIntervalTriggerImplTest
             new DateTimeOffset(2026, 1, 16, 8, 0, 0, TimeSpan.Zero),
             "both boundaries are said in the units the trigger reasons in");
     }
+
+    /// <summary>
+    /// A day set with nothing in it is refused, and so is a missing one. The check was written twice —
+    /// the second copy could not be reached, because the first already covers the empty case — and only
+    /// one of the two messages was ever seen.
+    /// </summary>
+    [Test]
+    public void ADaySetWithNoDaysInItIsRefused()
+    {
+        DailyTimeIntervalTriggerImpl trigger = new();
+
+        Action empty = () => trigger.DaysOfWeek = new List<DayOfWeek>();
+        Action missing = () => trigger.DaysOfWeek = null!;
+
+        empty.Should().Throw<ArgumentException>().WithMessage("*at least one day*",
+            "a trigger that fires on no day of the week never fires at all");
+        missing.Should().Throw<ArgumentException>().WithMessage("*at least one day*",
+            "the same complaint, since the property has no way to mean 'every day' other than being left alone");
+    }
 }
