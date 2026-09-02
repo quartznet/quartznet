@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
+    <AnalysisLevel>none</AnalysisLevel>
+    <RollForward>Major</RollForward>
+
+    <!--
+      This project compiles against the *released* Quartz 3.20.0, whose assembly identity is the same
+      as this repository's Quartz. Nothing may reference both, so the assembly is deliberately not
+      signed with quartz.net.snk either: it is a scratch process, never a shipped one.
+    -->
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The whole point of the fixture is a *named* released version, so both pins are literal and
+      neither floats. VersionOverride rather than a Directory.Packages.props entry because a central
+      entry for "Quartz" would also pin every transitive resolution of that id, and 3.20.0 must reach
+      exactly this project and nothing else.
+    -->
+    <PackageReference Include="Quartz" VersionOverride="3.20.0" />
+    <PackageReference Include="Quartz.Serialization.Json" VersionOverride="3.20.0" />
+    <PackageReference Include="Quartz.Serialization.SystemTextJson" VersionOverride="3.20.0" />
+
+    <!-- The six providers 3.20's DbProvider loads by assembly name, one per dialect it can seed. -->
+    <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Data.SQLite" />
+    <PackageReference Include="MySqlConnector" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
+</Project>
