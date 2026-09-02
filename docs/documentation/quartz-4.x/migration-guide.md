@@ -541,6 +541,15 @@ shape changed — only what a mapping that stated nothing, and a contradictory p
   or `AllowAnonymous()`. Authorization on a `MapGroup` above the mapping counts, and registering the
   services without mapping anything is left alone. **An alpha user who mapped a bare API or dashboard
   has to add one call**, and `AllowAnonymous()` is a supported answer.
+* **`MapQuartzDashboard()` returns an `IEndpointConventionBuilder`, not a
+  `RazorComponentsEndpointConventionBuilder`.** **Changed since alpha.5:** the dashboard is two sets of
+  endpoints — the Blazor pages and the SignalR hub that streams the same data — and the old return type
+  was the pages' builder alone, so `MapQuartzDashboard().RequireAuthorization()` protected the pages and
+  left the hub open, which the startup guard above would now refuse. The builder handed back covers
+  both, so one `RequireAuthorization()` or `AllowAnonymous()` is the whole answer. Code that used
+  members specific to `RazorComponentsEndpointConventionBuilder` on the result (a render-mode call, for
+  instance) configures those on its own `MapRazorComponents` and passes that builder to the
+  `existingComponents` overload instead. The dashboard baseline moved for all three overloads.
 
   `MapQuartzDashboard` returns an `IEndpointConventionBuilder` rather than the
   `RazorComponentsEndpointConventionBuilder` for the same reason: the hub is mapped separately from the
