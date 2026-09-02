@@ -42,8 +42,10 @@ namespace Quartz.Tests.Unit.Core;
 /// its own bug along with the scheduler's failures.
 /// </para>
 /// <para>
-/// The theory below is the contract: every mutation member, every reference argument it will not
-/// accept as null, and the parameter named in the exception. It runs against
+/// The theory below is the contract: every member — reading as well as mutating — every reference
+/// argument it will not accept as null, and the parameter named in the exception. beta.1 brought the
+/// mutation members under it and left the reads as they were, which is two contracts on one interface
+/// with nothing to tell a caller which member is which. It runs against
 /// <see cref="Quartz.Impl.RAMJobStore" />, because refusing an argument happens before any store is
 /// asked anything.
 /// </para>
@@ -115,6 +117,26 @@ public sealed class SchedulerArgumentContractTest
         yield return Case("jobKey", s => s.Interrupt(null!).AsTask());
         yield return Case("fireInstanceId", s => s.InterruptFireInstance(null!).AsTask());
 
+        // The read members, which beta.1 left alone: a scheduler that refuses a null on the way in and
+        // dereferences one on the way out is two contracts, and a caller has no way to know which
+        // member is which.
+        yield return Case("jobKey", s => s.GetJobDetail(null!).AsTask());
+        yield return Case("jobKeys", s => s.GetJobDetails(null!).AsTask());
+        yield return Case("triggerKey", s => s.GetTrigger(null!).AsTask());
+        yield return Case("triggerKeys", s => s.GetTriggers(null!).AsTask());
+        yield return Case("triggerKey", s => s.GetTriggerState(null!).AsTask());
+        yield return Case("jobKey", s => s.GetTriggersOfJob(null!).AsTask());
+        yield return Case("calendarName", s => s.GetCalendar(null!).AsTask());
+        yield return Case("jobKey", s => s.Exists((JobKey) null!).AsTask());
+        yield return Case("triggerKey", s => s.Exists((TriggerKey) null!).AsTask());
+        yield return Case("calendarName", s => s.Exists((string) null!).AsTask());
+        yield return Case("query", s => s.QueryJobs(null!).AsTask());
+        yield return Case("query", s => s.QueryTriggers(null!).AsTask());
+        yield return Case("query", s => s.QueryJobGroups(null!).AsTask());
+        yield return Case("query", s => s.QueryTriggerGroups(null!).AsTask());
+        yield return Case("query", s => s.QueryCalendarNames(null!).AsTask());
+        yield return Case("query", s => s.QueryFireInstances(null!).AsTask());
+
         static TestCaseData Case(string parameter, Func<IScheduler, Task> call)
         {
             return new TestCaseData(parameter, call).SetArgDisplayNames(parameter);
@@ -122,7 +144,7 @@ public sealed class SchedulerArgumentContractTest
     }
 
     [TestCaseSource(nameof(NullArguments))]
-    public async Task AMutationMemberRefusesANullArgumentByName(string parameter, Func<IScheduler, Task> call)
+    public async Task ASchedulerMemberRefusesANullArgumentByName(string parameter, Func<IScheduler, Task> call)
     {
         Func<Task> act = async () => await call(scheduler);
 

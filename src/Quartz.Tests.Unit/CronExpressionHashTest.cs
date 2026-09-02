@@ -520,18 +520,30 @@ public class CronExpressionHashTest
 
     // --- Error cases ---
 
+    /// <summary>
+    /// A null argument is <see cref="ArgumentNullException" /> here as it is on the constructor and on
+    /// <c>Parse</c>: the two static helpers raised the base <see cref="ArgumentException" /> instead, so
+    /// the same mistake on the same type had two answers depending on which member the caller reached.
+    /// </summary>
     [Test]
     public void ResolveHash_NullExpression_Throws()
     {
         Action act = () => CronExpression.ResolveHash(null!, "key");
-        act.Should().Throw<ArgumentException>();
+        act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("cronExpression");
+    }
+
+    [Test]
+    public void ResolveHash_NullExpressionWithSeed_Throws()
+    {
+        Action act = () => CronExpression.ResolveHash(null!, hashSeed: 17);
+        act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("cronExpression");
     }
 
     [Test]
     public void ResolveHash_NullHashKey_Throws()
     {
         Action act = () => CronExpression.ResolveHash("H * * * * ?", (string) null!);
-        act.Should().Throw<ArgumentException>();
+        act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("hashKey");
     }
 
     [Test]
