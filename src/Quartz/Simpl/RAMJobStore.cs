@@ -2002,16 +2002,54 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                 {
                     blockedJobs.Remove(jd.Key);
 
-                    foreach (TriggerWrapper ttw in GetTriggerWrappersForJobInternal(jd.Key))
+                    List<TriggerWrapper> triggerWrappersForJob = GetTriggerWrappersForJobInternal(jd.Key);
+
+                    // Triggers this completion unblocked that have nothing left to fire. Removing one
+                    // mutates the very list being walked, so they are collected and removed afterwards.
+                    List<TriggerKey>? finalized = null;
+
+                    for (int i = 0; i < triggerWrappersForJob.Count; i++)
                     {
+                        TriggerWrapper ttw = triggerWrappersForJob[i];
+
                         if (ttw.state == InternalTriggerState.Blocked)
                         {
                             ttw.state = InternalTriggerState.Waiting;
-                            timeTriggers.Add(ttw);
+
+                            // A trigger that sat blocked while the job ran may well have passed a fire
+                            // time meanwhile, and nothing else would notice it: acquisition is the only
+                            // other place the policy runs, and a blocked trigger is never acquired. So
+                            // the trigger would be handed to a caller with a past-due fire time still on
+                            // it until then. The ADO store applies the policy as it unblocks
+                            // (RecoverUnblockedMisfires, in the same transaction), and this is the same
+                            // moment (#3463).
+                            ApplyMisfire(ttw);
+
+                            if (ttw.state == InternalTriggerState.Waiting)
+                            {
+                                timeTriggers.Add(ttw);
+                            }
+                            else
+                            {
+                                // Nothing left to fire. The ADO store deletes such a trigger rather than
+                                // leaving a COMPLETE row that GetTrigger would keep handing back, so a
+                                // one-shot trigger that missed its firing while blocked goes away here too.
+                                (finalized ??= new List<TriggerKey>()).Add(ttw.TriggerKey);
+                            }
                         }
-                        if (ttw.state == InternalTriggerState.PausedAndBlocked)
+                        else if (ttw.state == InternalTriggerState.PausedAndBlocked)
                         {
+                            // A paused trigger accrues no misfire - pausing is a decision not to fire, and
+                            // resuming is what settles the debt - so this one is a state change and nothing more.
                             ttw.state = InternalTriggerState.Paused;
+                        }
+                    }
+
+                    if (finalized != null)
+                    {
+                        foreach (TriggerKey finalizedKey in finalized)
+                        {
+                            RemoveTriggerInternal(finalizedKey);
                         }
                     }
 
