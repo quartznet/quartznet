@@ -10,7 +10,8 @@ namespace Quartz.Tests.Unit;
 /// <remarks>
 /// <c>Quartz.AspNetCore</c> and <c>Quartz.Dashboard</c> are covered by the test of the same name in
 /// <c>Quartz.Tests.AspNetCore</c>, which is where their dependencies already live. Between the two,
-/// every packable project has a baseline — add one here or there when a new package is added.
+/// every packable project has a baseline — add one here or there when a new package is added, which
+/// <see cref="EveryShippedPackageHasAPublicApiBaseline" /> holds you to.
 /// </remarks>
 /// <remarks>
 /// This is the only guard the repository has against unintended public API changes — there is no
@@ -82,4 +83,38 @@ public class PublicApiTest
             .UseFileName($"PublicApiTest_{name}")
             .DisableRequireUniquePrefix();
     }
+
+    /// <summary>
+    /// Every project that produces a package has a baseline, in one of the two <c>Verify</c>
+    /// directories that hold them.
+    /// </summary>
+    /// <remarks>
+    /// The list above is hand-maintained and split across two test projects, so until this test the
+    /// coverage was a convention: an eleventh package would have shipped with no baseline and a green
+    /// suite, and the only guard the repository has against an unintended public API change would have
+    /// been silently absent from it. This asks the tree rather than a list —
+    /// <see cref="ShippedProjects" /> computes the packable set from the csproj files — so a new
+    /// package fails here on the day it is added, with the file it is missing named.
+    /// </remarks>
+    [TestCaseSource(nameof(PackableProjects))]
+    public void EveryShippedPackageHasAPublicApiBaseline(string packageName)
+    {
+        DirectoryInfo root = RepositoryRoot.Find();
+
+        string[] candidates =
+        [
+            Path.Combine(root.FullName, "src", "Quartz.Tests.Unit", "Verify", $"PublicApiTest_{packageName}.verified.txt"),
+            Path.Combine(root.FullName, "src", "Quartz.Tests.AspNetCore", "Verify", $"PublicApiTest_{packageName}.verified.txt"),
+        ];
+
+        candidates.Where(File.Exists).Should().ContainSingle(
+            $"{packageName} ships to nuget.org, so its public surface is snapshotted — add the assembly to "
+            + "the list in PublicApiTest (or in the test of the same name in Quartz.Tests.AspNetCore, where "
+            + "the ASP.NET Core dependencies live) and accept the baseline it writes");
+    }
+
+    private static IEnumerable<TestCaseData> PackableProjects() =>
+        ShippedProjects.Find()
+            .Select(x => Path.GetFileNameWithoutExtension(x.Name))
+            .Select(x => new TestCaseData(x).SetArgDisplayNames(x));
 }
