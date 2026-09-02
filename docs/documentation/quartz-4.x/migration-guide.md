@@ -400,10 +400,10 @@ here moved for you; if you called `GetInt` and `GetBoolean`, all of it did.
 * **Strings are parsed with the invariant culture.** `GetInt`, `GetLong`, `GetDouble`, `GetFloat` and
   `Get<decimal>` used the current culture when the stored value was a string. On a comma-decimal culture
   `"3.14"` used to read as `314` and now reads as `3.14`. The reverse case is the one to check your stored
-  data for: `"3,14"` used to read as `3.14`, and now the floating-point accessors read the comma as a group
-  separator and answer `314`, while `GetInt` and `GetLong` — whose styles allow no group separator — throw
-  `InvalidCastException`. The new reading is the correct one for data written by an invariant-culture
-  writer, and it is still a different number from the one the job saw yesterday.
+  data for: `"3,14"` used to read as `3.14` and now throws `InvalidCastException` from every numeric
+  accessor — none of them allows a group separator, precisely so that a comma written as a decimal point
+  cannot be read as one and answer `314`. The new reading is the correct one for data written by an
+  invariant-culture writer, and it is still a different number from the one the job saw yesterday.
 * **`Get<DateTime>` parses with `DateTimeStyles.RoundtripKind`**, so a stored string ending in `Z` comes
   back as `Kind=Utc` rather than shifted to local time — see
   [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now).

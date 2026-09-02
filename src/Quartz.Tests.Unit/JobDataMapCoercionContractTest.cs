@@ -124,26 +124,28 @@ public sealed class JobDataMapCoercionContractTest
     }
 
     /// <summary>
-    /// The other half of the invariant-culture change, and the sharper edge of it: a number a
-    /// comma-decimal culture wrote is not rejected, it is read as a different number.
+    /// The other half of the invariant-culture change: a number a comma-decimal culture wrote is
+    /// rejected by every numeric accessor, never read as a different number.
     /// </summary>
     /// <remarks>
-    /// The floating-point styles allow a group separator, so the invariant parser reads the comma in
-    /// "3,14" as one and answers 314. The integer styles do not, so the same string is unreadable as an
-    /// <see cref="int" />. An upgrade that carried job data written under a comma-decimal culture
-    /// therefore fails loudly in one place and silently in the other, which is what makes this worth
-    /// stating rather than leaving to be discovered.
+    /// The invariant parser's default styles allow a group separator, which would read the comma in
+    /// "3,14" as one and answer 314 — a hundredfold of the value, silently. The accessors therefore
+    /// parse with styles that allow no group separator at all, so a string a comma-decimal culture
+    /// wrote is unreadable as every numeric type alike, and an upgrade that carried such data fails
+    /// loudly rather than in one place loudly and in the other not at all.
     /// </remarks>
     [TestCaseSource(nameof(Receivers))]
-    public void ACommaDecimalNumberIsNotRejected_ItIsReadAsAnotherNumber(Func<Receiver> build)
+    public void ACommaDecimalNumberIsRejectedByEveryNumericAccessor(Func<Receiver> build)
     {
         Receiver receiver = build();
         receiver.Put("pi", "3,14");
 
-        receiver.GetDouble("pi").Should().Be(314,
-            "the invariant parser allows a group separator, so the comma a de-DE machine wrote as a "
-            + "decimal point reads as one — the value survives the upgrade as a hundredfold of itself");
-        receiver.GetFloat("pi").Should().Be(314f);
+        Action readDouble = () => receiver.GetDouble("pi");
+        readDouble.Should().Throw<InvalidCastException>(
+            "no numeric accessor allows a group separator, so the comma a de-DE machine wrote as a "
+            + "decimal point makes the string unreadable rather than a hundredfold of itself");
+        Action readFloat = () => receiver.GetFloat("pi");
+        readFloat.Should().Throw<InvalidCastException>();
 
         Action readInt = () => receiver.GetInt("pi");
         readInt.Should().Throw<InvalidCastException>(
