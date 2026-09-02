@@ -209,6 +209,15 @@ The built-in serializers are public and unsealed on purpose: a trigger deriving 
 pairs with a serializer deriving from the built-in one, overriding `SerializeFields` /
 `DeserializeFields` and calling the base so the built-in fields keep their stored shape.
 
+`Quartz.Serialization.Newtonsoft` has the same shape under the same names —
+`NewtonsoftJsonSerializerRegistry.AddTriggerSerializer<T>(…)` through
+`UseNewtonsoftJsonSerializer(…)` — so a custom trigger written against one package ports to the other
+by changing the registration. The one asymmetry to know about is job data rather than triggers: a
+value type of your own inside a `JobDataMap` is declared to Newtonsoft with
+`AddJobDataValueType<T>()` and to System.Text.Json with `AddTypeInfoResolver(…)`, because the two
+serializers ask for different things — a converter-friendly allow-list on one side, generated
+metadata on the other. Both refuse an undeclared type at *write* time and name the method you need.
+
 ::: warning
 `UseSystemTextJsonSerializer(configure)` with a callback captures a **per-scheduler** registry that is
 not published to the container. Called with no callback, the serializer reads the container-wide
