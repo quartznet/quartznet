@@ -223,6 +223,24 @@ public class SqliteLockHandlerTest
     }
 
     /// <summary>
+    /// The gate is a <see cref="SemaphoreSlim" /> this handler made for itself, so the shutdown the
+    /// job store now calls closes it. A semaphore nobody took a wait handle from costs an operating
+    /// system nothing, but the family's rule is that a handler gives back what it opened, and Redis's
+    /// multiplexer is the same rule with a connection on the end of it (#3639).
+    /// </summary>
+    [Test]
+    public async Task ShutdownClosesTheGateItOpened()
+    {
+        await lockHandler.Shutdown();
+
+        Func<Task> act = async () => await lockHandler.AcquireLock(Guid.NewGuid(), null, SchedulerLock.TriggerAccess);
+
+        await act.Should().ThrowAsync<ObjectDisposedException>(
+            "a handler that has been shut down has given its gate back, and a store that went on asking "
+            + "it for locks would be using something the scheduler no longer owns");
+    }
+
+    /// <summary>
     /// Waits for the gate on <paramref name="requestorId" />'s behalf, and asserts the wait never
     /// completes: it is still queued when the test cancels it, and the cancellation is what ends it.
     /// </summary>

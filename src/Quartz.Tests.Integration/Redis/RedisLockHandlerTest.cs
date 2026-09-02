@@ -313,4 +313,39 @@ public class RedisLockHandlerTest
             await lockHandler.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
         }
     }
+
+    /// <summary>
+    /// Against a real server: the connection the handler opened on its first lock is live, and the
+    /// shutdown the job store now calls closes it. #3639 — before that hook existed nothing could, so
+    /// every scheduler that ever took a Redis lock left a connection and its heartbeat behind.
+    /// </summary>
+    /// <remarks>
+    /// A handler of its own rather than the fixture's, because closing the shared one would take the
+    /// connection out from under every test that runs after this.
+    /// </remarks>
+    [Test]
+    public async Task ShuttingDownClosesTheConnectionItOpened()
+    {
+        RedisLockHandler ownHandler = new()
+        {
+            RedisConfiguration = RedisTestEnvironment.ConnectionString,
+            KeyPrefix = "quartz:test:shutdown:",
+        };
+        ownHandler.Initialize(TestLockHandlerContext);
+
+        Guid requestorId = Guid.NewGuid();
+        (await ownHandler.AcquireLock(requestorId, null, SchedulerLock.TriggerAccess)).Should().BeTrue();
+        await ownHandler.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
+
+        ownHandler.Connection.Should().NotBeNull("taking a lock is what opens the connection");
+
+        IConnectionMultiplexer opened = ownHandler.Connection!;
+        opened.IsConnected.Should().BeTrue("the handler talked to this server a moment ago");
+
+        await ownHandler.Shutdown();
+
+        opened.IsConnected.Should().BeFalse(
+            "the multiplexer belongs to the handler, and a scheduler that has shut down owns nothing");
+        ownHandler.Connection.Should().BeNull("the handler has let go of what it closed");
+    }
 }

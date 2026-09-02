@@ -2465,6 +2465,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<bool> AcquireLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default);
         void Initialize(Quartz.Impl.AdoJobStore.LockHandlerContext context); // default implementation
         System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default); // default implementation
     }
     public interface ITriggerPersistenceDelegate
     {

@@ -205,4 +205,17 @@ internal sealed class SqliteLockHandler : ILockHandler
     /// <seealso cref="AcquireLock"/>
     /// <seealso cref="ReleaseLock"/>
     public bool RequiresConnection => false;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The gate is a <see cref="SemaphoreSlim" /> nobody ever reads
+    /// <see cref="SemaphoreSlim.AvailableWaitHandle" /> from, so leaving it undisposed allocated
+    /// nothing an operating system had to hear about — but a scheduler that is down owns nothing, and
+    /// a handler that closes what it opened is what makes that true of the whole family.
+    /// </remarks>
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
+    {
+        globalLock.Dispose();
+        return default;
+    }
 }

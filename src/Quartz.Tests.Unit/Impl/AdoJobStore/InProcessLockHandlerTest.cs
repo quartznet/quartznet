@@ -289,6 +289,26 @@ public class InProcessLockHandlerTest
             + "once is that serialization gone");
     }
 
+    /// <summary>
+    /// Both gates are this handler's own, so the shutdown the job store now calls closes both. Cheap
+    /// here — nothing reads <see cref="SemaphoreSlim.AvailableWaitHandle" /> — and the same rule that
+    /// closes <c>RedisLockHandler</c>'s multiplexer (#3639).
+    /// </summary>
+    [TestCase(SchedulerLock.TriggerAccess)]
+    [TestCase(SchedulerLock.StateAccess)]
+    public async Task ShutdownClosesBothGatesItOpened(SchedulerLock lockKind)
+    {
+        InProcessLockHandler lockHandler = new();
+
+        await lockHandler.Shutdown();
+
+        Func<Task> act = async () => await lockHandler.AcquireLock(Guid.NewGuid(), null, lockKind);
+
+        await act.Should().ThrowAsync<ObjectDisposedException>(
+            "a handler that has been shut down has given its gates back, and there are two of them - "
+            + "closing only the one the last caller happened to use is the leak this fixes");
+    }
+
     private static LockHandlerContext Context(ILoggerFactory loggerFactory) => new()
     {
         SchedulerName = "TESTSCHED",

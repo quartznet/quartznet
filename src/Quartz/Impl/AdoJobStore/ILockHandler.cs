@@ -112,4 +112,27 @@ public interface ILockHandler
     /// <seealso cref="AcquireLock" />
     /// <seealso cref="ReleaseLock" />
     bool RequiresConnection { get; }
+
+    /// <summary>
+    /// Called once by the job store, after the store has released its own resources, telling the
+    /// handler to release whatever it opened. The default implementation does nothing, which suits a
+    /// handler that holds nothing of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Named for <see cref="Extensibility.IJobStore.Shutdown(CancellationToken)" /> rather than for
+    /// <see cref="IAsyncDisposable" />,
+    /// because it is the store's shutdown that reaches it and a handler is never used again
+    /// afterwards. It is a default interface member, so a handler written against 4.0's first shape
+    /// need not implement it — one that holds nothing has nothing to say here.
+    /// </para>
+    /// <para>
+    /// It runs after the lock this handler guards has stopped being asked for, so an implementation
+    /// may assume no acquire is in flight. Throwing is not fatal: the store logs it and finishes
+    /// shutting down, because a scheduler that cannot complete its shutdown is worse than a
+    /// connection that outlives it.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
 }

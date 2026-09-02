@@ -15,6 +15,7 @@ namespace Quartz.Extensions.Redis
         public System.Threading.Tasks.ValueTask<bool> AcquireLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
         public void Initialize(Quartz.Impl.AdoJobStore.LockHandlerContext context) { }
         public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace Quartz

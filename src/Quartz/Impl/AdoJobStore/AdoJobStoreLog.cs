@@ -108,6 +108,11 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3016, Level = LogLevel.Warning, Message = "Database connection Shutdown unsuccessful.")]
     public static partial void DatabaseShutdownFailed(this ILogger logger, Exception exception);
 
+    // Warning rather than Error: whatever the handler failed to release is leaked for the life of the
+    // process, which an operator wants to know about, but the scheduler is down either way.
+    [LoggerMessage(EventId = 3042, Level = LogLevel.Warning, Message = "Lock handler {LockHandlerType} failed to shut down, so whatever it opened is still open.")]
+    public static partial void LockHandlerShutdownFailed(this ILogger logger, string lockHandlerType, Exception exception);
+
     [LoggerMessage(EventId = 3017, Level = LogLevel.Error, Message = "Error returning lock: {ExceptionMessage}")]
     public static partial void LockReleaseFailed(this ILogger logger, string exceptionMessage, Exception exception);
 

@@ -18,3 +18,5 @@
     "Failed to release Redis lock '{LockName}'"
 8009  Information  RedisLockHandlerLog.ConnectingToRedis
     "Connecting to Redis"
+8010  Information  RedisLockHandlerLog.ClosingRedisConnection
+    "Closing the Redis connection"
