@@ -134,10 +134,9 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/database/schema-changes",
           "/documentation/quartz-4.x/migration-guide",
           "/documentation/troubleshooting",
-          {
-            link: "https://docs.quartz-scheduler.net/apidoc/4.0",
-            text: "API Documentation",
-          },
+          // No "API Documentation" entry for 4.x: nothing generates apidoc/4.0 and nothing will before
+          // 4.0.0, so the link 404s. The 3.x, 2.x and 1.x entries below point at generated sets that
+          // exist. Restore this when something publishes one.
           {
             text: "How To's",
             link: "/documentation/quartz-4.x/how-tos/",

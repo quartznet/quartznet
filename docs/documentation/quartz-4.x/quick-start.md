@@ -12,8 +12,11 @@ Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect 
 ## Install
 
 ```shell
-dotnet add package Quartz
+dotnet add package Quartz --prerelease
 ```
+
+`--prerelease` is needed while 4.0 is in prerelease, and only for the `Quartz*` packages; drop it once
+4.0.0 is released.
 
 That is everything a scheduler needs. Dependency injection, hosting, the scheduler
 [health check](packages/hosted-services-integration.md#health-checks) and System.Text.Json serialization
