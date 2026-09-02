@@ -429,6 +429,13 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.ResetTriggersFromErrorState(triggerKeys, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc cref="DelegatingScheduler.ResetTriggersFromErrorState(GroupMatcher{TriggerKey}, CancellationToken)" />
+    public async ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.ResetTriggersFromErrorState(matcher, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
