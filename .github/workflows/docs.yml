@@ -11,6 +11,8 @@ on:
       # the compiled samples the documentation shows, and the target that injects them
       - 'src/Quartz.Documentation.Samples/**'
       - 'build/**'
+      # the snapshots the log event catalogue page is generated from
+      - 'src/*/Verify/LogEventCatalogTest_*.verified.txt'
 permissions:
   contents: read
 jobs:
@@ -32,6 +34,10 @@ jobs:
       # The site is never published from markdown that disagrees with the samples it shows.
       - name: Verify documentation snippets
         run: dotnet fallout VerifyDocsSnippets
+
+      # Nor from a log event catalogue that disagrees with what the packages emit.
+      - name: Verify the log event catalogue
+        run: dotnet fallout VerifyDocsLogEvents
 
       # --ignore-scripts blocks the lifecycle scripts of every dependency. patch-package is ours, and
       # package.json's postinstall is the only one this repository actually wants, so it is run as its

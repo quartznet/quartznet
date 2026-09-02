@@ -20,9 +20,12 @@ to install them.
 
 Going to production:
 
+* [Before you go live](production-checklist.md) — the checklist, every line linking the page behind it
 * [Operations](operations.md) — rolling upgrades, failover, sizing, backup, health checks
 * [Database Schema](db/) — what the tables hold and which indexes matter
+* [Log Events](log-events.md) — every event id the scheduler writes, with its level and template
 
 Coming from 3.x:
 
 * [Migration Guide](migration-guide.md) — what changed from 3.x, and what to do about it
+* [Upgrading a running deployment](migration-guide.md#upgrading-a-running-deployment) — the ordered runbook

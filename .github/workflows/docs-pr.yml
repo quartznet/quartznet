@@ -15,6 +15,8 @@ on:
       # pull request job: they are not site content, so a readme alone must not trigger a deploy that
       # would then find nothing to commit.
       - 'src/*/README.md'
+      # the snapshots the log event catalogue page is generated from
+      - 'src/*/Verify/LogEventCatalogTest_*.verified.txt'
 permissions:
   contents: read
 jobs:
@@ -39,6 +41,12 @@ jobs:
       # 'dotnet fallout DocsSnippets'. Nothing regenerates the documentation behind the author's back.
       - name: Verify documentation snippets
         run: dotnet fallout VerifyDocsSnippets
+
+      # The log event catalogue page is generated from the snapshots the log catalogue tests keep, so it
+      # goes stale the moment an event is added, renumbered or reworded. Fixed with
+      # 'dotnet fallout DocsLogEvents'.
+      - name: Verify the log event catalogue
+        run: dotnet fallout VerifyDocsLogEvents
 
       # --ignore-scripts blocks the lifecycle scripts of every dependency. patch-package is ours, and
       # package.json's postinstall is the only one this repository actually wants, so it is run as its

@@ -219,6 +219,63 @@ The two anchors that were linked from outside the site — `#h-hash-for-load-dis
 `#building-cron-expressions-programmatically` — travelled with the cron material and resolve on
 [Cron Expressions](cron-expressions.md).
 
+## Upgrading a running deployment
+
+The map at the top of this guide is a reading order for the **code**: six passes over the API, in the
+order it is worth working through them. This section is the other question — the order to do things in
+when what you are upgrading is a *deployment*, with a database somebody depends on and nodes that are
+currently running. Every step links the page that owns it; nothing here is new.
+
+Two of the seven happen **while you are still on 3.x**, and they are the two that are painful to
+discover afterwards.
+
+**1. Get off binary serialization, on 3.x.** .NET removed `BinaryFormatter` and 4.x cannot read a blob
+written by it. The conversion needs `BinaryObjectSerializer`, which exists on 3.x and not here, so it is
+a 3.x task by construction — either let the scheduler rewrite blobs as it runs, or run a program that
+loads and writes back every serialized asset.
+[Migrating from binary serialization](packages/json-serialization.md#migrating-from-binary-serialization)
+says which blobs rewrite themselves, which never do, and how to find what is left.
+`BLOB_TRIGGERS.BLOB_DATA` is the one that cannot be converted from 4.x at all.
+
+**2. Audit the stored cron expressions, on 3.x.** 4.x rejects several expressions 3.x stored happily,
+and it rejects them while *materialising the row* — so a surviving expression fails the read of the
+trigger rather than only its next firing. The SQL to find candidates, and the honest caveat that several
+of its clauses are over-wide, are in [Before you upgrade](#before-you-upgrade).
+
+**3. Decide what the window is.** Either stop the cluster, or accept that a 3.x node and a 4.0 node will
+run against one set of tables for as long as the rollout takes.
+[A mixed 3.x and 4.0 window](operations.md#a-mixed-3-x-and-4-0-window) is what has been checked about that
+state and what has not — including the one thing not to do during it, which is let a 4.0 node write a
+calendar.
+
+**4. Run the migration script's required sections.** One file per database, guarded throughout, safe to
+run twice — [Database Schema Migration](#database-schema-migration). It is mandatory even for a database
+that took every optional 3.x migration going, because 4.x validates the table set and
+`QRTZ_PAUSED_JOB_GRPS` is new. Leave the index sections for step 7. Schema before nodes, always:
+an old node tolerates a new schema and a new node does not tolerate an old one —
+[Schema first, then nodes](operations.md#schema-first-then-nodes).
+
+**5. Translate the configuration.** Flat `quartz.*` keys still work and mean the same thing, so this can
+be done gradually — [Configuration](#configuration) here, and the whole key table in
+[Legacy property keys](configuration/reference.md#legacy-property-keys). Two things to read before the
+first start rather than after it: [Defaults that changed](#defaults-that-changed), where an application
+that never named its scheduler stops seeing its own rows, and
+[Silent behaviour changes](#silent-behaviour-changes).
+
+**6. Start 4.0.** It validates that every table it will read exists and names the missing one if not. It
+reads the job type names 3.x stored — `SimpleTypeLoader` maps the renamed types, and a type of your own
+that moved is an alias you declare, in
+[Type loader](configuration/reference.md#type-loader). Then replace the nodes one at a time —
+[Replacing the nodes](operations.md#replacing-the-nodes).
+
+**7. Run the index sections, once the last 3.x node is gone.** They are the optional half of the same
+script: [Listing indexes](#listing-indexes-optional) and
+[the reshaped acquisition index](#the-acquisition-index-is-reshaped-optional). They are deferred because
+they drop indexes a 3.x node's statements may still be driving scans from.
+
+[Before you go live](production-checklist.md) is the checklist for the state you should be in when this
+is done.
+
 ## Database Schema Migration
 
 Quartz 4.x requires four columns on `QRTZ_TRIGGERS` (and one on `QRTZ_FIRED_TRIGGERS`) that were
@@ -277,6 +334,14 @@ migrate with the rest of the schema. If you rely on a paused job group, pause it
 
 ::: warning
 Always run migration scripts in a test environment against a copy of your production database first.
+:::
+
+::: warning There is a step before this one
+4.x rejects several cron expressions 3.x stored happily, and it rejects them while materialising the
+row — so a surviving expression fails the *read* of the trigger rather than only its next firing. Run
+the audit in [Before you upgrade](#before-you-upgrade) against the live 3.x database before the window
+opens; the schema migration does not look at the expressions it carries across.
+[Upgrading a running deployment](#upgrading-a-running-deployment) is the whole ordered sequence.
 :::
 
 Apply the script for your database from
