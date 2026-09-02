@@ -25,14 +25,12 @@ namespace Quartz.Extensibility;
 
 /// <summary>
 /// The interface to be implemented by classes that want to provide a <see cref="IJob" />
-/// and <see cref="ITrigger" /> storage mechanism for the
-/// <see cref="QuartzScheduler" />'s use.
+/// and <see cref="ITrigger" /> storage mechanism for a scheduler's use.
 /// </summary>
 /// <remarks>
 /// Storage of <see cref="IJob" /> s and <see cref="ITrigger" /> s should be keyed
 /// on the combination of their name and group for uniqueness.
 /// </remarks>
-/// <seealso cref="QuartzScheduler" />
 /// <seealso cref="ITrigger" />
 /// <seealso cref="IJob" />
 /// <seealso cref="IJobDetail" />
@@ -803,8 +801,8 @@ public interface IJobStore
     /// Acquires the next triggers to be fired, respecting execution group limits.
     /// </summary>
     /// <remarks>
-    /// The returned list stays the store's. <see cref="Quartz.Core.QuartzSchedulerThread" /> copies it
-    /// before working with it, because it removes entries from its own copy while it waits out the
+    /// The returned list stays the store's. The scheduler's acquisition loop copies it before
+    /// working with it, because it removes entries from its own copy while it waits out the
     /// first trigger's fire time and would otherwise be editing something the store still holds. A
     /// store is therefore free to hand back a list it keeps a reference to, or to reuse one between
     /// calls; it does not have to build a fresh list to be safe. The copy costs the scheduler around ten

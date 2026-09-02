@@ -406,10 +406,11 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// trigger misses a firing. The concrete trigger type validates the code against its own
     /// family's range.
     /// <para>
-    /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.InstructionNotSet" />.
+    /// If not explicitly set, the code is zero — "instruction not set" — and the scheduler applies
+    /// the family's smart policy. The named values are on the per-family enums, such as
+    /// <see cref="CronTriggerMisfireInstruction" /> and <see cref="SimpleTriggerMisfireInstruction" />.
     /// </para>
     /// </summary>
-    /// <seealso cref="Quartz.MisfireInstruction.InstructionNotSet" />
     /// <seealso cref="UpdateAfterMisfire(ICalendar?)" />
     /// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="ICronTrigger" />

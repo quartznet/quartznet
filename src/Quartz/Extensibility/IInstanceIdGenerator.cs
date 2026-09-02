@@ -30,7 +30,7 @@ namespace Quartz.Extensibility;
 /// the mechanism by which the <see cref="IScheduler" /> instances in their
 /// application are named.
 /// </remarks>
-/// <seealso cref="SimpleInstanceIdGenerator" />
+/// <seealso cref="HostNameBasedIdGenerator" />
 /// <author>Marko Lahma (.NET)</author>
 public interface IInstanceIdGenerator
 {

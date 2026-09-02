@@ -54,7 +54,6 @@ namespace Quartz.Extensibility;
 /// others: a pool written against the earlier interface is left correct rather than fast.
 /// </para>
 /// </remarks>
-/// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public interface IThreadPool

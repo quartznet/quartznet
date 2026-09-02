@@ -31,8 +31,8 @@ using Quartz.Util;
 namespace Quartz.Impl;
 
 /// <summary>
-/// A JobFactory that instantiates the Job instance (using the default no-arg
-/// constructor, or more specifically: <see cref="TypeActivator.Instantiate{T}" />), and
+/// A JobFactory that instantiates the Job instance (using its public parameterless
+/// constructor), and
 /// then attempts to set all values from the <see cref="IJobExecutionContext" />'s merged
 /// <see cref="JobDataMap" /> onto properties of the job.
 /// </summary>

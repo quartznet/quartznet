@@ -450,9 +450,9 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// Translates a matcher's operator and text into a LIKE pattern.
     /// </summary>
     /// <remarks>
-    /// The matcher's own text is a literal, so its wildcard characters are escaped with
-    /// <see cref="StdAdoConstants.SqlLikeEscapeCharacter" />; the statements this feeds all name that
-    /// character in an ESCAPE clause. Only the '%' this method adds itself stays a wildcard, so a
+    /// The matcher's own text is a literal, so its wildcard characters are escaped with '!'; the
+    /// statements this feeds all name that character in an ESCAPE clause. Only the '%' this method
+    /// adds itself stays a wildcard, so a
     /// group literally named "50%" is found by an exact match and by a "starts with 50" one, and not
     /// by a "starts with 5" one.
     /// </remarks>
@@ -495,9 +495,8 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     }
 
     /// <summary>
-    /// Escapes the LIKE wildcards '%' and '_', and
-    /// <see cref="StdAdoConstants.SqlLikeEscapeCharacter" /> itself, so that the value matches
-    /// literally.
+    /// Escapes the LIKE wildcards '%' and '_', and the escape character '!' itself, so that the value
+    /// matches literally.
     /// </summary>
     protected static string EscapeSqlLikeWildcards(string value)
     {

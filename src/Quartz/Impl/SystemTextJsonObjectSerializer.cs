@@ -65,8 +65,9 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     /// chain that lets them work where reflection-based serialization is switched off.
     /// </summary>
     /// <remarks>
-    /// The chain is <see cref="QuartzStoreJsonContext" />, then the scheduler's registry — the trigger
-    /// and calendar types registered with it, and whatever the application handed to
+    /// The chain is Quartz's own generated
+    /// <see cref="System.Text.Json.Serialization.JsonSerializerContext" />, then the scheduler's
+    /// registry — the trigger and calendar types registered with it, and whatever the application handed to
     /// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> — then reflection, where a
     /// publish has left any. A resolver decides only how a type is answered; the payload is still
     /// written by the converters, byte for byte as every earlier version of Quartz wrote it.

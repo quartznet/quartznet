@@ -1783,8 +1783,8 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     /// <remarks>
     /// One <see cref="System.Data.Common.DbBatch" /> for the whole round where the provider can batch,
-    /// and the statement-per-row loop where it cannot — <see cref="ExecuteStatements" /> decides,
-    /// exactly as it does for misfire recovery.
+    /// and the statement-per-row loop where it cannot, decided per call exactly as it is for misfire
+    /// recovery.
     /// </remarks>
     public virtual async ValueTask InsertFiredTriggers(
         ConnectionAndTransactionHolder conn,

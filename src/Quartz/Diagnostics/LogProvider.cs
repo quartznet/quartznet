@@ -19,7 +19,7 @@ namespace Quartz.Diagnostics;
 /// and <see cref="Quartz.Listeners.JobChainingJobListener" />, which a caller constructs and hands over
 /// already built; <see cref="Quartz.Impl.Triggers.CronTriggerImpl" />, which is a trigger and may have
 /// been deserialized out of a job store; the static helpers <see cref="Quartz.TimeZones" />,
-/// <see cref="Quartz.MisfireInstructionNames" />, <c>FileUtil</c> and <c>QuartzEnvironment</c>; and the
+/// <c>MisfireInstructionNames</c>, <c>FileUtil</c> and <c>QuartzEnvironment</c>; and the
 /// types in the satellite packages a caller constructs directly, such as the jobs in
 /// <c>Quartz.Jobs</c>. A type cannot be handed a logger by a container it never meets, so those sites
 /// read this instead of going unlogged.

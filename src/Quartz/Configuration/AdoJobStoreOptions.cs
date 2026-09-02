@@ -182,10 +182,12 @@ public sealed class AdoJobStoreOptions
     /// </para>
     /// <para>
     /// Taking part always means handing over a connection. Operations with nothing enlisted keep
-    /// using a connection of the job store's own, and for <see cref="Quartz.Impl.AdoJobStore.LocalTransactionJobStore" />
-    /// that connection is deliberately kept out of any ambient
-    /// <see cref="System.Transactions.Transaction" />. <see cref="Quartz.Impl.AdoJobStore.ExternalTransactionJobStore" />
-    /// is the exception, since running inside a container-managed transaction is that store's contract.
+    /// using a connection of the job store's own, and on the default store —
+    /// <see cref="IQuartzBuilder.UsePersistentStore(System.Action{IPersistentStoreBuilder})" /> without
+    /// more — that connection is deliberately kept out of any ambient
+    /// <see cref="System.Transactions.Transaction" />. The store
+    /// <see cref="IPersistentStoreBuilder.UseAmbientTransactions" /> selects is the exception, since
+    /// running inside a container-managed transaction is that store's contract.
     /// </para>
     /// </remarks>
     public bool AcceptEnlistedTransactions { get; set; }
@@ -240,9 +242,9 @@ public sealed class AdoJobStoreOptions
     public string? SelectWithLockSql { get; set; }
 
     /// <summary>
-    /// Whether <see cref="Impl.AdoJobStore.ExternalTransactionJobStore" /> opens the connections it
-    /// creates before handing them to an operation. Defaults to <see langword="false" />, leaving the
-    /// opening to the externally managed transaction.
+    /// Whether the ambient-transaction store opens the connections it creates before handing them to
+    /// an operation. Defaults to <see langword="false" />, leaving the opening to the externally
+    /// managed transaction.
     /// </summary>
     /// <remarks>
     /// Read only by that store, which is the one
