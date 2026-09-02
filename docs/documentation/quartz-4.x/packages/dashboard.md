@@ -107,9 +107,8 @@ supplies**, resolved later with `Type.GetType` against whatever is on the host's
 in job data: an unauthenticated dashboard is remote code execution rather than an information leak. Its
 execution history also carries every job exception's message.
 
-Through `4.0.0-alpha.5`, `app.MapQuartzDashboard()` with nothing else said left the pages and the hub
-with no authorization metadata at all. From `4.0.0-beta.1` it fails at startup instead — before the
-server binds its listener — with a message naming the three ways to say what you meant:
+`app.MapQuartzDashboard()` with nothing else said therefore fails at startup — before the server binds
+its listener — with a message naming the three ways to say what you meant:
 
 - `app.MapQuartzDashboard().RequireAuthorization()` authorizes its pages and its live-events hub;
 - `QuartzDashboardOptions.AuthorizationPolicy` authorizes those, the Blazor circuit and the static assets
@@ -122,9 +121,9 @@ A non-null `AuthorizationOptions.FallbackPolicy` satisfies the check as well. An
 
 ::: tip What `MapQuartzDashboard` returns
 An `IEndpointConventionBuilder` covering the dashboard's pages **and** its live-events hub, so
-`RequireAuthorization()` on it is a statement about the dashboard rather than about half of it. Before
-`4.0.0-beta.1` it returned the `RazorComponentsEndpointConventionBuilder`, which reached the pages and
-not the hub — and in the integrated overload reached the host application's own pages too.
+`RequireAuthorization()` on it is a statement about the dashboard rather than about half of it. It is
+not the `RazorComponentsEndpointConventionBuilder` the pages alone would give, which would reach the
+pages and not the hub — and in the integrated overload would reach the host application's own pages too.
 :::
 
 ## Options
@@ -165,7 +164,7 @@ Two things the interface promises, so an implementation of your own renders the 
   `ExecutionLimitsDto.CannotReport` when the source cannot say — the overview draws that differently
   from a scheduler that limits nothing.
 
-**The interface is additive from 4.0.0-beta.1 on: a member added to it during 4.x arrives as a default
+**The interface is additive: a member added to it during 4.x arrives as a default
 interface member**, so your implementation keeps compiling across a minor release. The default body
 reports the datum as unavailable rather than inventing one, the way `CannotReport` does — override it
 when your source can answer.

@@ -9,6 +9,30 @@ title: Migration Guide
 If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/)
 :::
 
+## Start here
+
+Three questions. Each has a different part of this guide as its answer, and reading the wrong one
+first is most of what makes an upgrade feel long.
+
+**Is what you are upgrading a running deployment?** Then the order to do things in matters more than
+any single rename, and two of the seven steps happen **while you are still on 3.x** — they are the two
+that are painful to discover afterwards. Read
+[Upgrading a running deployment](#upgrading-a-running-deployment) first, and come back for the code.
+
+**Is it an application's code?** [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase)
+is the reading order: six passes over the API, each with a theme, with the rest of this guide organised
+by topic underneath. The compiler finds most of the work for you; the passes are for knowing why a name
+moved and what to reach for instead. Start with [Package Changes](#package-changes) — the first error
+a mixed 3.x/4.x project produces is a package problem rather than a code one, and it is described
+there.
+
+**Is it neither, because you are starting something new?** None of this applies. Go to the
+[quick start](quick-start.md) and then [the tutorial](tutorial/).
+
+If you ran a 4.0 alpha or beta, everything that changed between one pre-release and the next is
+collected in [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
+The rest of this guide is written as one statement about 3.x and 4.0, with no build numbers in it.
+
 ## The road from 3.x, phase by phase
 
 The 4.0 API is the result of six passes over the public surface, each with its own theme. The guide
@@ -105,6 +129,30 @@ has the csproj fragment, the honest limit, and the table of renames a real port 
 
 ## Package Changes
 
+### The first error you will see
+
+`dotnet add package Quartz` in a 3.x application takes the latest version, which is 4.x. The three
+packages that were merged into it are still in the project file, they reference `Quartz` with no upper
+bound, and so the build ends up compiling against `Quartz` 4.x **and** a 3.x
+`Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting` or
+`Quartz.Serialization.SystemTextJson` beside it. Eight type names exist in both, so the first thing the
+compiler says is not about any API you have to change:
+
+```text
+error CS0433: The type 'QuartzOptions' exists in both
+'Quartz.Extensions.DependencyInjection, Version=3.20.0.0, Culture=neutral, PublicKeyToken=f6b8c98a402cc8a4'
+and 'Quartz, Version=4.0.0.0, Culture=neutral, PublicKeyToken=f6b8c98a402cc8a4'
+```
+
+The other seven are `ITriggerConfigurator`, `JobFactoryOptions` and `SchedulingOptions` (from
+`Quartz.Extensions.DependencyInjection`), `QuartzHostedService`, `QuartzHostedServiceOptions` and
+`QuartzServiceCollectionExtensions` (from `Quartz.Extensions.Hosting`), and `JsonSerializationException`
+(from `Quartz.Serialization.SystemTextJson`). Calls into the duplicated extension classes report
+`CS0121: The call is ambiguous` instead, naming both assemblies.
+
+Neither is a migration step of its own. **Remove the three package references**, as the section below
+already says; both errors go with them, and what is left is the real work.
+
 `Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package. You can remove these package references from your project:
 
 ```diff
@@ -174,26 +222,23 @@ package for the health check alone failed to start
 probes the job store, and never wanted ASP.NET Core for either, so it moved into the core package. It
 registers on the standard `IHealthChecksBuilder`, as it always did.
 
-This is a break between one 4.0 alpha and the next — through `4.0.0-alpha.3` everything below was in
-`Quartz.AspNetCore`, and from `4.0.0-alpha.4` it is in `Quartz`:
+In 3.x the check had no registration of its own: `AddQuartzServer` from `Quartz.AspNetCore` registered
+the hosted service and the health check together, and the only choice on offer was the tag list. In 4.0
+each is called by its own name, and neither one is in `Quartz.AspNetCore`:
 
-| Member | Through alpha.3 | From alpha.4 |
+| | 3.x | 4.0 |
 |---|---|---|
-| `QuartzHealthCheckOptions` | `Quartz.AspNetCore` | `Quartz` |
-| `IHealthChecksBuilder.AddQuartz(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
-| `IQuartzBuilder.AddQuartzHealthChecks(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
-| `IHealthChecksBuilder.AddQuartz(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
-| `IHealthChecksBuilder.AddQuartz(string, Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
-| `QuartzHealthCheck`, `SchedulerHealthCheckTarget` | internal to `Quartz.AspNetCore` | internal to `Quartz` |
+| The hosted service | `services.AddQuartzServer(…)` | `builder.AddQuartzHostedService(…)`, in `Quartz` |
+| The health check | the same call, implicitly | `services.AddHealthChecks().AddQuartz(…)`, or `q.AddQuartzHealthChecks(…)` on the scheduler's own builder — both in `Quartz` |
+| Its settings | `IEnumerable<string>? healthCheckTags` | `QuartzHealthCheckOptions`, in `Quartz` |
 
-Nothing at a call site changes: the namespace is `Quartz` on both sides, and the four methods are
-extension methods, so the class holding them is not named where they are called. What changes is which
-package has to be referenced — and if the check was the only reason for `Quartz.AspNetCore`, that
-reference can go:
+See [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) for the
+split itself. What matters here is the package: if the check was the only reason your project
+referenced `Quartz.AspNetCore`, that reference can go.
 
 ```diff
-- <PackageReference Include="Quartz.AspNetCore" Version="4.0.0-alpha.3" />
-+ <PackageReference Include="Quartz" Version="4.0.0-alpha.4" />
+- <PackageReference Include="Quartz.AspNetCore" Version="3.*" />
++ <PackageReference Include="Quartz" Version="4.*" />
 ```
 
 Keep `Quartz.AspNetCore` if you also serve the [HTTP API](packages/http-api.md) or the
@@ -536,110 +581,24 @@ exactly on it is listed.
   sorted listing of keys comes out in a different order — see
   [`Key<T>` moved to `Quartz` and is immutable](#key-t-moved-to-quartz-and-is-immutable).
 
+### Null arguments raise `ArgumentNullException`
+
+`IScheduler`'s mutation members raise `ArgumentNullException`, naming the parameter, where 3.x raised
+`SchedulerException("JobDetail cannot be null")` from `ScheduleJob(null, trigger)` and its neighbours.
+That was Java parity and it was undocumented, so a caller writing `catch (ArgumentNullException)`
+caught nothing while one writing `catch (SchedulerException)` around a scheduling call was swallowing
+its own bug along with the scheduler's failures. The new behaviour is what the `SchedulerQueryExtensions`
+methods on the same type have always done. `RescheduleJob` raised `ArgumentException`, of which
+`ArgumentNullException` is a subclass, so a `catch` there still catches. The `<exception>` tags on
+`IScheduler` say all of it, along with which members refuse what — 3.x had two of them over 65 members
+and 4.0 has ninety-seven.
+
 ### Between the alphas and beta.1
 
-The 4.0 surface froze at `4.0.0-alpha.5`. Five exceptions were taken deliberately, because each was a
-statement the API made that was not true; if you are coming from 3.x rather than from an alpha, read
-these as part of 4.0 and nothing more.
-
-* **`IScheduler`'s mutation members raise `ArgumentNullException` for a null argument.**
-  **Changed since alpha.5:** `ScheduleJob(null, trigger)` and its neighbours raised
-  `SchedulerException("JobDetail cannot be null")` — Java parity, and undocumented, so a caller writing
-  `catch (ArgumentNullException)` caught nothing while one writing `catch (SchedulerException)` around a
-  scheduling call was swallowing its own bug along with the scheduler's failures. Every mutation member
-  now raises `ArgumentNullException` naming the parameter, which is what the
-  `SchedulerQueryExtensions` methods on the same type have always done. `RescheduleJob` raised
-  `ArgumentException`, of which `ArgumentNullException` is a subclass, so a `catch` there still catches.
-  The `<exception>` tags on `IScheduler` say all of it, along with which members refuse what — there
-  were two of them over 65 members and there are ninety-seven now.
-* **`CronExpression.TryParse(s, format, out)` answers `false` for a `CronFormat` it does not know.**
-  **Changed since alpha.5:** it raised `ArgumentOutOfRangeException` out of the `try`, so the one
-  method whose whole promise is that it will not throw, threw. `Parse(s, format)` still raises it, and
-  now documents it. In the same change `new CronExpression(null)` and `CronScheduleBuilder.Create(null)`
-  raise `ArgumentNullException` rather than `ArgumentException`, which is what `CronExpression.Parse`
-  next door has always raised; `ArgumentNullException` is an `ArgumentException`, so a `catch` still
-  catches, but the message is the framework's rather than `"cronExpression cannot be null"`.
-* **Two annotations that were not true are corrected.** **Changed since alpha.5:**
-  `IOperableTrigger.FireInstanceId` and `TriggerBase.FireInstanceId` are `string?`, and
-  `DbMetadata.ParameterDbTypePropertyName` is `string?`. Both were non-nullable `string` initialised to
-  `null!`: a store writes the fire instance id as it hands a trigger over, so a trigger out of
-  `TriggerBuilder` — or one read back that has never fired — answered `null` from a type that said it
-  could not, and a `DbMetadata` naming a `DbBinaryTypeName` without the property to write it to failed
-  as `Type.GetProperty(null)` two lines from the deliberate message its neighbours raise, which it now
-  raises too. A store or a driver description of your own may need a `!` or a null check where the
-  compiler now says so; that is the point. `IJobExecutionContext.FireInstanceId` is unchanged and
-  non-nullable — a context exists only for a firing.
-* **A `500` from the HTTP API no longer carries the exception's message.** **Changed since alpha.5:**
-  `ExceptionHandler` withheld the exception's *type* on that path — a fault the caller cannot act on
-  says nothing about the server's internals — and returned its *message* verbatim, which for a driver
-  fault names the server, the database, the login or the constraint. The `detail` is now one fixed
-  sentence, *"The scheduler failed to handle the request. The failure is recorded in the server's
-  log."*, and the real message keeps being logged.
-  `QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` — the switch that already says "I am
-  debugging this" — puts it back. A client matching on a `500`'s `detail` was matching on whichever
-  driver failed; it now matches on a constant.
-* **A paged HTTP API request is bounded by `QuartzHttpApiOptions.MaxPageSize`, which is 1000.**
-  **Changed since alpha.5:** `take` rejected only negatives, so one request could ask the store for
-  every trigger in it while the bulk key fetch next door refused a thousand and one keys. A `take`
-  naming a **number** above the cap is now a `400` naming it — `?take=2147483647` included — while
-  `?take=all`, which names no number, is *bounded* by the cap rather than refused by it and reports
-  `hasMore`. That asymmetry is what keeps the 3.x-compatible listings working: `GetJobKeys` and its
-  neighbours ask for everything whether the answer is three rows or three million, and
-  `HttpScheduler` turns a truncated answer to one of those into an exception rather than a short list.
-  Set `MaxPageSize` to `0` for the old behaviour.
-
-Two more startup refusals arrived with them, and are not freeze exceptions because nothing about any
-shape changed — only what a mapping that stated nothing, and a contradictory pair of values, now do:
-
-* **`MapQuartzHttpApi()` and `MapQuartzDashboard()` refuse to start when nothing authorizes them.**
-  **Changed since alpha.5:** neither surface was safe by default. `app.MapQuartzHttpApi()` applied
-  authorization only when `SchedulerAuthorizationPolicy` was set, so all sixty routes — `shutdown` and
-  `clear` among them — answered anonymously; the dashboard left its pages and its live-events hub with
-  no authorization metadata at all, with `ReadOnly` defaulting to `false`. Both schedule a job whose
-  type is a string the request supplies, resolved later with `Type.GetType`, so with `Quartz.Jobs` on
-  the probing path an open endpoint is remote code execution rather than an information leak. A hosted
-  lifecycle service now enumerates the endpoints Quartz mapped before the server binds its listener and
-  throws unless every one of them carries authorization metadata or an explicit `AllowAnonymous()`, or
-  the host has a non-null `AuthorizationOptions.FallbackPolicy`. The message names the three fixes:
-  `RequireAuthorization()` on what the map call returns, the surface's policy option
-  (`QuartzHttpApiOptions.SchedulerAuthorizationPolicy` / `QuartzDashboardOptions.AuthorizationPolicy`),
-  or `AllowAnonymous()`. Authorization on a `MapGroup` above the mapping counts, and registering the
-  services without mapping anything is left alone. **An alpha user who mapped a bare API or dashboard
-  has to add one call**, and `AllowAnonymous()` is a supported answer.
-* **`MapQuartzDashboard()` returns an `IEndpointConventionBuilder`, not a
-  `RazorComponentsEndpointConventionBuilder`.** **Changed since alpha.5:** the dashboard is two sets of
-  endpoints — the Blazor pages and the SignalR hub that streams the same data — and the old return type
-  was the pages' builder alone, so `MapQuartzDashboard().RequireAuthorization()` protected the pages and
-  left the hub open, which the startup guard above would now refuse. The builder handed back covers
-  both, so one `RequireAuthorization()` or `AllowAnonymous()` is the whole answer. Code that used
-  members specific to `RazorComponentsEndpointConventionBuilder` on the result (a render-mode call, for
-  instance) configures those on its own `MapRazorComponents` and passes that builder to the
-  `existingComponents` overload instead. The dashboard baseline moved for all three overloads.
-
-  `MapQuartzDashboard` returns an `IEndpointConventionBuilder` rather than the
-  `RazorComponentsEndpointConventionBuilder` for the same reason: the hub is mapped separately from the
-  pages, so the old return value reached the pages and not the hub — and in the overload that takes an
-  existing components builder it reached the host application's own pages too. What comes back now is
-  the dashboard's pages and its hub, and nothing else.
-
-* **`Quartz:Scheduling` refuses `IgnoreDuplicates` while `OverwriteExistingData` is on.**
-  **Changed since alpha.5:** the two are answers to the same question and `OverwriteExistingData`
-  wins, so setting `IgnoreDuplicates` without also clearing it did nothing at all — an application
-  asking to *pass over* a declared job or trigger whose key is already stored got *replace it*, which
-  is the opposite, in silence and at every start. The scheduler now refuses to start, naming both
-  settings and the default that made one of them inert. `OverwriteExistingData` defaults to `true`, so
-  a configuration that only sets `IgnoreDuplicates` is the one this catches; set
-  `OverwriteExistingData` to `false` beside it.
-* **A persistent store refuses a repeat interval it cannot hold exactly.**
-  **Changed since alpha.5:** duration columns keep whole milliseconds, and
-  `StdAdoDelegate.GetDbTimeSpanValue` cast `TotalMilliseconds` to `long`, so a `SimpleTrigger` whose
-  repeat interval was shorter than a millisecond was stored as `0` - and a trigger read back with a
-  zero repeat interval throws `DivideByZeroException` out of `GetFireTimeAfter` on its next firing,
-  which the store logs and swallows, leaving the row in `ACQUIRED` for ever. A job that stopped
-  running and said nothing. Scheduling such a trigger into an ADO store now raises
-  `ArgumentException` naming the trigger, the column and the rule; `RAMJobStore` keeps taking it,
-  because it has no column to round the value to. Round the interval to a whole number of
-  milliseconds. See [#3673](https://github.com/quartznet/quartznet/issues/3673).
+Every correction made between one 4.0 pre-release and the next is now written into the section it
+belongs to, as one statement about 3.x and 4.0. The build-by-build list — which pre-release introduced
+each of them, and what an application already running one has to change — is
+[Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
 
 ### What is on nobody's list because it did not change
 
@@ -1471,30 +1430,10 @@ The callback is optional, exactly as `AddQuartz()`'s is, so a scheduler describe
 configuration or by flat keys is still `Create().UseConfiguration(section)` or
 `Create().UseProperties(properties)`.
 
-::: warning For 4.0 alpha users
-Through 4.0.0-alpha.4 the builder re-declared every `IQuartzBuilder` member and every builder extension
-with a covariant return — roughly sixty signatures — so that a chain could be written directly on it.
-That facade is gone. The fix is mechanical: whatever was chained between `Create()` and the terminal
-call moves into `Create(q => q…)`.
-
-```diff
-- IScheduler scheduler = await QuartzSchedulerBuilder.Create()
--     .ConfigureScheduler(o => o.InstanceName = "reporting")
--     .UseInMemoryStore()
--     .AddJob<ReportJob>(j => j.WithIdentity("report").StoreDurably())
--     .BuildScheduler();
-+ IScheduler scheduler = await QuartzSchedulerBuilder
-+     .Create(q => q
-+         .ConfigureScheduler(o => o.InstanceName = "reporting")
-+         .UseInMemoryStore()
-+         .AddJob<ReportJob>(j => j.WithIdentity("report").StoreDurably()))
-+     .BuildScheduler();
-```
-
-`Services` and `SchedulerName` went with it, since they are `IQuartzBuilder`'s: read them off the
-callback's argument as `q.Services` and `q.SchedulerName`. `UseProperties`, `UseConfiguration`,
-`Build()` and `BuildScheduler()` are unchanged, and a `Create()` with no callback still compiles.
-:::
+`Services` and `SchedulerName` are `IQuartzBuilder`'s and are read off the callback's argument, as
+`q.Services` and `q.SchedulerName`. If you ran a 4.0 pre-release that let a chain be written directly on
+`QuartzSchedulerBuilder`, see
+[Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
 
 ### `Build()` returns something you can dispose
 
@@ -2508,6 +2447,63 @@ There is no `MapQuartzDashboard(existingComponents, pattern)`: the dashboard pag
 `/quartz` when integrating with an application's own Blazor root, which is the same reason a custom
 `DashboardPath` is rejected in that mode.
 
+## The HTTP API and the dashboard will not serve anonymously by accident
+
+Both surfaces can schedule a job whose type is a string the request carries, resolved later with
+`Type.GetType` — so with `Quartz.Jobs` on the probing path an endpoint anybody can reach is remote code
+execution rather than an information leak. 4.0 therefore refuses to start rather than serve one by
+omission.
+
+A hosted lifecycle service enumerates the endpoints Quartz mapped, before the server binds its listener,
+and throws unless every one of them carries authorization metadata or an explicit `AllowAnonymous()`.
+A non-null `AuthorizationOptions.FallbackPolicy` satisfies it too, since that covers every endpoint that
+states nothing, and authorization on a `MapGroup` above the mapping counts. Registering the services
+without mapping anything is left alone. The message names all three fixes:
+
+```csharp
+app.MapQuartzHttpApi().RequireAuthorization();                 // the whole surface
+// or QuartzHttpApiOptions.SchedulerAuthorizationPolicy        // each scheduler on its own
+// or QuartzDashboardOptions.AuthorizationPolicy
+app.MapQuartzDashboard().AllowAnonymous();                     // deliberately open
+```
+
+`AllowAnonymous()` is a supported answer; what is not supported is saying nothing. Quartz authorizes and
+something else authenticates, so the application still registers the scheme — see
+[Production hardening](packages/http-api.md#production-hardening).
+
+### One builder covers the dashboard's pages and its hub
+
+`MapQuartzDashboard()` returns an `IEndpointConventionBuilder`, where 3.x returned a
+`RazorComponentsEndpointConventionBuilder`. The dashboard is two sets of endpoints — the Blazor pages and
+the SignalR hub that streams the same data — and the old return type was the pages' builder alone, so
+`MapQuartzDashboard().RequireAuthorization()` protected the pages and left the hub open. In the overload
+taking an existing components builder it reached the host application's *own* pages as well. What comes
+back now is the dashboard's pages and its hub, and nothing else, so one `RequireAuthorization()` or
+`AllowAnonymous()` is the whole answer.
+
+Code that called a member specific to `RazorComponentsEndpointConventionBuilder` on the result — a
+render-mode call, say — configures that on its own `MapRazorComponents` and passes that builder to the
+`existingComponents` overload instead.
+
+### A paged request is bounded by `MaxPageSize`
+
+`QuartzHttpApiOptions.MaxPageSize` is `1000`, and a `take` naming a **number** above it is a `400` naming
+the cap — `?take=2147483647` included. `?take=all` names no number, so it is *bounded* by the cap rather
+than refused by it, and reports `hasMore`.
+
+That asymmetry is what keeps the 3.x-compatible listings working: `GetJobKeys` and its neighbours ask for
+everything whether the answer is three rows or three million, and `HttpScheduler` turns a truncated answer
+to one of those into an exception rather than a short list. Set `MaxPageSize` to `0` to bound nothing.
+
+### A `500` says nothing about the server
+
+The `detail` of a `500` is one fixed sentence — *"The scheduler failed to handle the request. The failure
+is recorded in the server's log."* — rather than the exception's message, which for a driver fault names
+the server, the database, the login or the constraint. The exception's *type* was never returned on that
+path; its message is now withheld too, and both keep being logged.
+`QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` — the switch that already says "I am debugging
+this" — puts the real message back. A client matching on a `500`'s `detail` now matches on a constant.
+
 ## One shape per registration method
 
 The `AddJob` / `AddTrigger` / `AddCalendar` grid had overloads that said the same thing twice, and
@@ -2660,7 +2656,7 @@ because that is what code and a configuration binder say naturally, and the plug
 `FileNames` string because `quartz.plugin.<name>.fileNames` is one. The join happens in
 `UseXmlSchedulingConfiguration` / `UseJsonSchedulingConfiguration`, and both plugins now agree about it.
 
-Both also take a `params string[]` overload as of beta.1 —
+Both also take a `params string[]` overload —
 `q.UseJsonSchedulingConfiguration("~/quartz_jobs.json")` — for the case every sample showed, which is
 one file and nothing else to say about it. It adds to `Files` rather than replacing it, so it composes
 with the callback form and with itself; rescanning and the two `FailOn*` settings still need the
@@ -3210,7 +3206,7 @@ The health-check overload that took `IEnumerable<string> healthCheckTags` is gon
 + services.AddHealthChecks().AddQuartz(options => options.Tags.AddRange(["ready", "live"]));
 ```
 
-`QuartzHealthCheckOptions.StandbyStatus` (beta.1) is the one setting that changes a **verdict** rather
+`QuartzHealthCheckOptions.StandbyStatus` is the one setting that changes a **verdict** rather
 than the registration: a scheduler in standby reports `Degraded`, and setting this reports something
 else. Degraded is the right default — standby is deliberate and reversible — but ASP.NET Core maps it
 to HTTP 200, and a worker project has no endpoint on which to remap it, so a deployment whose standby
@@ -3729,7 +3725,7 @@ services.AddOpenTelemetry()
 
 Both are still `"Quartz"`, so an existing `AddSource("Quartz")` keeps working.
 
-The nine **instrument** names joined them in beta.1, on the nested `QuartzInstrumentation.Instruments`:
+The nine **instrument** names are constants too, on the nested `QuartzInstrumentation.Instruments`:
 `JobExecutionActive`, `JobExecutionDuration`, `TriggerMisfire`, `TriggerRetry`,
 `TriggerAcquisitionDuration`, `TriggerAcquired`, `ClusterCheckinDuration`, `ClusterRecoveryTrigger` and
 `JobStoreOperationDuration`. They were string literals inside the meter, so a dashboard or a metrics
@@ -3759,9 +3755,9 @@ these). One extra series per scheduler is the whole of the increase; the tag's v
 names an application configured, which is a fixed, small set.
 
 **And with `quartz.scheduler.id`.** A cluster is several schedulers sharing one name, so the name alone
-answers "which application" and never "which node" — and the id was on spans only, which is where the
-4.0 story stopped in the alphas. Every measurement carries both now, so a slow node, a node that stopped
-firing, or a node whose check-ins are taking longer than the rest can be seen without a trace. It is the
+answers "which application" and never "which node". Every measurement carries both, so a slow node, a
+node that stopped firing, or a node whose check-ins are taking longer than the rest can be seen without
+a trace. It is the
 same cardinality trade: one series per node where there was one per scheduler, and the values are the
 instance ids in the cluster.
 
@@ -4327,6 +4323,13 @@ trigger describes its own schedule to the base class — which rounds the start 
 is false — and nothing outside the trigger acted on it. A custom trigger changes `public override` to
 `protected override`; to test the behaviour, assert on `StartTimeUtc.Millisecond` instead of on the flag.
 
+`TriggerBase.FireInstanceId` and `IOperableTrigger.FireInstanceId` are `string?`. A store writes the fire
+instance id as it hands a trigger over, so a trigger straight out of `TriggerBuilder` — or one read back
+that has never fired — has always answered `null` there; 4.0 says so in the type instead of declaring a
+non-nullable `string` initialised to `null!`. A store or a trigger implementation of your own may need a
+`!` or a null check where the compiler now asks for one, which is the point of the annotation.
+`IJobExecutionContext.FireInstanceId` is unchanged and non-nullable — a context exists only for a firing.
+
 ## A blank calendar name is no calendar name
 
 `TriggerBase.CalendarName` stores an empty or whitespace-only name as `null`, and so do
@@ -4433,6 +4436,17 @@ of these is a 3.x behaviour, not a 4.x regression:
   read as waiting on one store and finished on the other. As on the ADO store, an unblocked trigger
   whose policy leaves it with nothing to fire is removed rather than kept in `Complete`, so
   `GetTrigger` answers `null` for it. 3.x behaves the old way.
+
+* **A persistent store refuses a repeat interval it cannot hold exactly.** Duration columns keep whole
+  milliseconds, and `StdAdoDelegate.GetDbTimeSpanValue` cast `TotalMilliseconds` to `long`, so a
+  `SimpleTrigger` whose repeat interval was shorter than a millisecond was stored as `0` — and a trigger
+  read back with a zero repeat interval throws `DivideByZeroException` out of `GetFireTimeAfter` on its
+  next firing, which the store logs and swallows, leaving the row in `ACQUIRED` for ever. A job that
+  stopped running and said nothing. Scheduling such a trigger into an ADO store now raises
+  `ArgumentException` naming the trigger, the column and the rule; round the interval to a whole number
+  of milliseconds. This is the one place the two stores are *meant* to differ: `RAMJobStore` keeps taking
+  it, because it has no column to round the value to. See
+  [#3673](https://github.com/quartznet/quartznet/issues/3673).
 
 ## JobKey and TriggerKey Null Validation
 
@@ -4915,13 +4929,12 @@ was made.
 
 #### `TriggerMisfired` takes the trigger first
 
-`TriggerMisfired` gained its scheduler parameter in 4.0.0-alpha.2 and took it in first position, which
-made it the only member of `ITriggerListener` not to lead with the trigger it is about. It leads with the
-trigger now, and the scheduler follows it in the position `TriggerFired`, `VetoJobExecution` and
-`TriggerComplete` give the `IJobExecutionContext`:
+`ITriggerListener`'s members lead with the trigger they are about, and `TriggerMisfired` is no exception:
+the scheduler it gains follows the trigger, in the position `TriggerFired`, `VetoJobExecution` and
+`TriggerComplete` give the `IJobExecutionContext`.
 
 ```diff
-- public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+- public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
 + public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
   {
       logger.LogWarning("{SchedulerName} missed {TriggerKey}", scheduler.SchedulerName, trigger.Key);
@@ -4929,9 +4942,11 @@ trigger now, and the scheduler follows it in the position `TriggerFired`, `VetoJ
   }
 ```
 
-Both parameters are still there, so a listener that keeps the old order still compiles — and quietly stops
-implementing the interface, with the do-nothing default running in its place. Quartz refuses a listener in
-that shape as it is registered, and says the parameters are the notification's own, in the wrong order.
+A listener that writes the two the other way round still compiles — and quietly stops implementing the
+interface, with the do-nothing default running in its place. Quartz refuses a listener in that shape as
+it is registered, and says the parameters are the notification's own, in the wrong order. That is worth
+knowing if you ran a 4.0 pre-release, where the scheduler was briefly the first parameter; see
+[Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
 
 ### The three `*Support` base classes are gone
 
@@ -5164,6 +5179,18 @@ It used to be undefined: the builder turned clustering on, the callback turned i
 left with database locking on, no cluster manager and no check-in row — with nothing said. It fails
 validation now. A scheduler that should not cluster does not call `UseClustering`.
 
+### `IgnoreDuplicates` and `OverwriteExistingData` cannot both be on
+
+`Quartz:Scheduling` refuses a configuration that sets `IgnoreDuplicates` while `OverwriteExistingData`
+is on. The two are answers to the same question and `OverwriteExistingData` wins, so setting
+`IgnoreDuplicates` without also clearing it did nothing at all: an application asking to *pass over* a
+declared job or trigger whose key is already stored got *replace it*, which is the opposite, in silence
+and at every start.
+
+`OverwriteExistingData` defaults to `true`, so the configuration this catches is the one that only sets
+`IgnoreDuplicates`. Set `OverwriteExistingData` to `false` beside it. The failure names both settings and
+the default that made one of them inert.
+
 ## Cron Parser Enhancements
 
 The cron expression parser now supports additional syntax:
@@ -5175,10 +5202,8 @@ The cron expression parser now supports additional syntax:
   `0 15 10 * * MON` is every Monday. When **both** fields name days, the expression fires on the union
   of the two — `0 15 10 1,2,3 * MON,FRI` is the 1st, 2nd and 3rd **and** every Monday and Friday.
   This is the Unix `crontab(5)` rule. It is deliberately **not** Cronos's, which ANDs even when both
-  fields are restricted; the union is what Quartz has always documented and what 4.0 alpha shipped.
+  fields are restricted; the union is what Quartz has always documented.
   `?` and `*` are now full synonyms in a day field, so `? * ?` is legal and means every day.
-  **Changed since alpha.4:** an expression with a wildcard in one day field and values in the other
-  fired on every day of the month; it now fires only on the days the restricted field names.
 * `H` (hash) tokens for [load distribution](cron-expressions.md#h-hash-for-load-distribution) across triggers
 
 Parse errors name the fix instead of only the constraint. A 5-field Unix/crontab expression — the shape every
@@ -5269,12 +5294,25 @@ variant, because `0 * * * * ?` is already short and `H` spreads load determinist
 by name — a scheduler has no reboot to fire on — and any other `@name` is rejected with the supported list.
 The expansion is what gets stored, so a trigger written with `@daily` shows `0 0 0 * * ?`.
 
+### A bad argument, rather than a bad expression
+
+Two entry points answer differently now, and neither is about the grammar.
+
+`CronExpression.TryParse(s, format, out)` returns `false` for a `CronFormat` it does not know instead of
+raising `ArgumentOutOfRangeException`: the one method whose whole promise is that it will not throw does
+not throw. `Parse(s, format)` still raises it, and documents it.
+
+`new CronExpression(null)` and `CronScheduleBuilder.Create(null)` raise `ArgumentNullException`, where
+3.x raised `ArgumentException("cronExpression cannot be null")` — `ArgumentNullException` is what
+`CronExpression.Parse` next door has always raised. It is an `ArgumentException`, so a `catch` still
+catches; the message is the framework's rather than Quartz's.
+
 ### The parser refuses what it used to ignore
 
 A handful of expressions parsed, and then meant something other than what they said. Each is now a
 `FormatException` whose message names the expression that says what the author meant.
 
-| Expression | 3.x / 4.0 alpha | 4.0 |
+| Expression | 3.x | 4.0 |
 |---|---|---|
 | `1-5W` | the `W` was dropped; meant `1-5` | `FormatException` — write `1W,2W,3W,4W,5W` or drop the `W` |
 | `? * L-3`, `? * LW` | the suffix was dropped; meant Saturday | `FormatException` — those forms belong to day-of-month. A bare `L` in day-of-week is still Saturday |
@@ -5334,7 +5372,7 @@ unchanged: they still fire once per day, at the first occurrence of an ambiguous
 
 **A cron time that does not exist fires when the gap ends, not shifted by the transition delta.** A daily
 `0 30 2 * * ?` over a 02:00–03:00 spring-forward gap now fires at **03:00**, the instant the clocks moved,
-where 3.x and 4.0 alpha fired at 03:30. In a zone whose daylight delta is not a whole hour —
+where 3.x fired at 03:30. In a zone whose daylight delta is not a whole hour —
 Australia/Lord_Howe — the fire reads 02:30 rather than 02:45. Every wall clock the gap swallowed names that
 one instant, so an expression matching several of them still fires once: `0 0,30 2 * * ?` fires once, as it
 did before. What *can* change a fire count is a match between the gap's end and where the delta shift used to
@@ -5373,7 +5411,7 @@ already have them.
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
-* **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for. A listener still carrying a signature from 3.x, from alpha.1, or from before `TriggerMisfired` led with the trigger is refused when it is registered, with a message naming the member, rather than being attached and never called (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
+* **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for. A listener still carrying a 3.x signature — or one from a 4.0 pre-release — is refused when it is registered, with a message naming the member, rather than being attached and never called (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.ConfigureStore(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Job execution middleware** — `IJobExecutionMiddleware` wraps every firing a scheduler performs, which is where a log scope, a tenant context, a metric or a translation of a library's exceptions belongs. A listener could never do it: it is notified before and after the execution rather than around it. Registered with `AddJobMiddleware<T>()` and its factory and instance overloads (see [Cross-cutting concerns run as middleware](#cross-cutting-concerns-run-as-middleware))
 * **Builder methods for the classic history plugins** — `UseJobHistoryLogging()` and `UseTriggerHistoryLogging()`. Only the structured-logging variants had one, so the classic history plugins could previously be reached only through `quartz.plugin.*` property keys
@@ -6775,8 +6813,8 @@ public, as do `ITriggerPersistenceDelegate`, `ILockHandler`, `IDbProvider`, `Ado
 contract rather than store internals, and were never candidates for this. See
 [A Driver Delegate for a New Database](how-tos/dialect-delegate.md).
 
-**If you derived from `JobStoreSupport`, `JobStoreTX` or `JobStoreCMT` on 3.x**, or from
-`AdoJobStoreBase` on a 4.0 alpha, there are four answers depending on what the override did:
+**If you derived from `JobStoreSupport`, `JobStoreTX` or `JobStoreCMT` on 3.x**, there are four answers
+depending on what the override did:
 
 | What the override did | What to do now |
 |---|---|
@@ -6867,8 +6905,7 @@ and the store that reads it is selected by `UseAmbientTransactions()`:
 
 Both spellings of the key reach it: `Quartz:JobStore:OpenConnection` binds like every other
 `AdoJobStoreOptions` member, and the flat `quartz.jobStore.openConnection` a 3.x file carries is read
-too. That key had no reader through `4.0.0-alpha.5` — it sits under a supported prefix, so the
-unknown-key check passed it and nothing then looked at it.
+too.
 
 ## Nine `Execute…Lock` overloads became four members
 
@@ -7011,25 +7048,26 @@ does. Every type in the family says `LockHandler` now, which is what the builder
 (`UseLockHandler`), the configuration key (`quartz.jobStore.lockHandler.type`) and the how-to have said
 all along:
 
-| 3.x | 4.0 alpha | 4.0 |
-|-----|-----------|-----|
-| `ISemaphore` | `ISemaphore` | `ILockHandler` |
-| `DBSemaphore` | `DbSemaphore` | `DbLockHandler` |
-| `StdRowLockSemaphore` | `SelectForUpdateSemaphore` | `SelectForUpdateLockHandler` |
-| `PostgreSQLRowLockSemaphore` | `PostgreSqlSelectForUpdateSemaphore` | `PostgreSqlSelectForUpdateLockHandler` |
-| `UpdateLockRowSemaphore` | `UpdateRowSemaphore` | `UpdateRowLockHandler` |
-| `UpdateLockRowSemaphoreMOT` | `SqlServerMemoryOptimizedUpdateRowSemaphore` | `SqlServerMemoryOptimizedUpdateRowLockHandler` |
-| `SimpleSemaphore` | `SimpleSemaphore` (internal) | `InProcessLockHandler` (internal) |
-| — | `SQLiteSemaphore` (internal) | `SqliteLockHandler` (internal) |
-| `RedisSemaphore` | `RedisSemaphore` | `RedisLockHandler` |
-| — | `SemaphoreContext` | `LockHandlerContext` |
-| `ISemaphore.ObtainLock` | `ISemaphore.ObtainLock` | `ILockHandler.AcquireLock` |
+| 3.x | 4.0 |
+|-----|-----|
+| `ISemaphore` | `ILockHandler` |
+| `DBSemaphore` | `DbLockHandler` |
+| `StdRowLockSemaphore` | `SelectForUpdateLockHandler` |
+| `PostgreSQLRowLockSemaphore` | `PostgreSqlSelectForUpdateLockHandler` |
+| `UpdateLockRowSemaphore` | `UpdateRowLockHandler` |
+| `UpdateLockRowSemaphoreMOT` | `SqlServerMemoryOptimizedUpdateRowLockHandler` |
+| `SimpleSemaphore` | `InProcessLockHandler` (internal) |
+| — | `SqliteLockHandler` (internal) |
+| `RedisSemaphore` | `RedisLockHandler` |
+| — | `LockHandlerContext` |
+| `ISemaphore.ObtainLock` | `ILockHandler.AcquireLock` |
 
 `ReleaseLock` and `RequiresConnection` keep their names — the verb pairs with `AcquireLock`, and the
 property was never about permits.
 
-A `quartz.jobStore.lockHandler.type` naming any of the old types — either generation of them — still
-resolves, with a warning.
+A `quartz.jobStore.lockHandler.type` naming any of the old types still resolves, with a warning — which
+includes the intermediate spellings a 4.0 pre-release used, listed in
+[Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
 
 The four database lock handlers had also named the same concept three different ways in 3.x:
 `StdRowLockSemaphore` and `UpdateLockRowSemaphore` transposed the same two words for two strategies that
@@ -7163,7 +7201,7 @@ back anything it had taken before the exception escapes:
 
 ## A lock handler is told when to close what it opened
 
-`ILockHandler` gained a second default interface member in 4.0.0-beta.1:
+`ILockHandler` carries a second default interface member:
 
 ```csharp
 ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
@@ -7593,13 +7631,13 @@ directly instead; nothing forces it through this base.
 decorator overrides only what it changes instead of shadowing members with `new` — which compiled, and
 then silently failed to intercept calls made through `IScheduler`.
 
-Both types also declare every **default interface member** of the contract they forward, which
-`DelegatingScheduler` did not until beta.1: it was missing
-`ResetTriggersFromErrorState(GroupMatcher<TriggerKey>, CancellationToken)`, and a member a forwarder
-does not declare is answered by the interface's own body running *on the forwarder*. The call
-decomposed into a `QueryTriggers` and a second reset, so the inner scheduler was asked two questions
-instead of the one that was put to it — the right answer in the wrong shape, and a live bug the day a
-default lands whose decomposition is not equivalent. `DelegatingForwardingTest` sweeps both types with
+Both types also declare every **default interface member** of the contract they forward, which matters
+more than it sounds: a member a forwarder does not declare is answered by the interface's own body
+running *on the forwarder*. `ResetTriggersFromErrorState(GroupMatcher<TriggerKey>, CancellationToken)`
+was the one that got away during 4.0's development, and its default decomposes into a `QueryTriggers`
+and a second reset — so the inner scheduler was asked two questions instead of the one that was put to
+it. The right answer in the wrong shape, and a live bug the day a default lands whose decomposition is
+not equivalent. `DelegatingForwardingTest` sweeps both types with
 `GetInterfaceMap` and no exemption list. The C# rule underneath is worth knowing while writing a
 decorator: a default interface member is not inherited into a class's member set, so it is callable
 only through an interface-typed reference unless the class declares it.
@@ -7992,7 +8030,7 @@ above cover configuration strings.
 | `Quartz.Plugin.Interrupt`, `Quartz.Plugin.Management`, `Quartz.Plugin.TimeZoneConverter` | — | No 4.x counterpart: the one public type each held is gone. See [`JobInterruptMonitorPlugin` is retired; a job timeout is middleware](#jobinterruptmonitorplugin-is-retired-a-job-timeout-is-middleware), [`ShutdownHookPlugin` is retired; the host already shuts the scheduler down](#shutdownhookplugin-is-retired-the-host-already-shuts-the-scheduler-down) and [`TimeZoneConverterPlugin` is a resolver registration](#timezoneconverterplugin-is-a-resolver-registration). The `Quartz.Plugins.TimeZoneConverter` **package** is unaffected — it still ships `UseTimeZoneConverter` |
 | `Quartz.Listener` | `Quartz.Listeners` | Nothing names a listener by string any more — the `quartz.jobListener.<name>.type` and `quartz.triggerListener.<name>.type` keys are gone, see [The listener property keys are retired](#the-listener-property-keys-are-retired) — so this is a `using` to change and nothing else. See also [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
 | `Quartz.Impl.Matchers` | `Quartz` | See [Matchers moved to `Quartz`](#matchers-moved-to-quartz). No shim is needed: a matcher is passed as an object and is never named by a configuration string |
-| `Quartz.AspNetCore`, `Quartz.AspNetCore.HealthChecks`, `Quartz.AspNetCore.HttpApi` | `Quartz` | Only the namespaces are gone; `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The **packages** differ: the HTTP API is still `Quartz.AspNetCore`, hosted by `QuartzAspNetCoreConfigurationExtensions` (renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace), while the health check is in `Quartz` from `4.0.0-alpha.4`, hosted by `QuartzHealthCheckExtensions` — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
+| `Quartz.AspNetCore`, `Quartz.AspNetCore.HealthChecks`, `Quartz.AspNetCore.HttpApi` | `Quartz` | Only the namespaces are gone; `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The **packages** differ: the HTTP API is still `Quartz.AspNetCore`, hosted by `QuartzAspNetCoreConfigurationExtensions` (renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace), while the health check is in `Quartz`, hosted by `QuartzHealthCheckExtensions` — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
 | `Quartz.HttpClient` | `Quartz` | `HttpScheduler` and `HttpClientException`; the package is still `Quartz.HttpClient`. The namespace had to go because it shadowed `System.Net.Http.HttpClient` for every file under `Quartz.*`, including Quartz's own. `HttpScheduler` is also `sealed` now |
 | `Quartz.Serialization.Json`, `Quartz.Serialization.Json.Calendars`, `Quartz.Serialization.Json.Triggers` | `Quartz.Serialization.SystemTextJson[.Calendars\|.Triggers]` | These are the System.Text.Json types, which merged into the core package; the namespace was named after the *retired 3.x Newtonsoft package*. `Quartz.JsonConfigurationExtensions` is `Quartz.SystemTextJsonConfigurationExtensions` to match — the extension methods on it are unaffected. **Read the warning below before changing a `using` on a ported serializer** |
 | `Quartz.Impl.Redis` | `Quartz.Extensions.Redis` | One type, `RedisSemaphore`, filed under `Impl` as if it were part of the core; it is `RedisLockHandler` now. Namespace, assembly and package are the same string now; the **package id is unchanged**. A `quartz.jobStore.lockHandler.type` naming the old namespace or the old type name still resolves, with a warning |
@@ -8670,8 +8708,8 @@ state `"Running"`, and code that matched on either string now matches on the enu
 The dashboard hub's `SchedulerStateDto` follows: it is
 `(string SchedulerName, string SchedulerInstanceId, SchedulerStatus Status)` rather than
 `(string SchedulerName, string State)`, and it is pushed once per state the scheduler arrives in.
-`SchedulerStarting` pushes nothing, being an event rather than a state. The instance id is new in
-alpha.3 — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from).
+`SchedulerStarting` pushes nothing, being an event rather than a state. The instance id has no 3.x
+counterpart — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from).
 
 ### The client speaks the scheduler's verbs
 
@@ -10628,7 +10666,7 @@ Parameters and behavior are unchanged:
 + var times = TriggerFireTimes.Compute(trigger, calendar, 10);
 ```
 
-The cast is gone in beta.1: each of the three has an `ITrigger` overload beside its `IOperableTrigger`
+The cast is gone: each of the three has an `ITrigger` overload beside its `IOperableTrigger`
 one, which does the cast and answers with an `ArgumentException` naming the type if the trigger is one
 that cannot be advanced. Testing a schedule is the most mainstream use these have, and requiring the
 cast taught a `Quartz.Extensibility` type to people who needed neither. Additive: the
@@ -10671,7 +10709,7 @@ cast taught a `Quartz.Extensibility` type to people who needed neither. Additive
 | `LoggingJobHistoryPlugin.Name`, `LoggingTriggerHistoryPlugin.Name` are get-only | The name is handed to a plugin by `Initialize`; writing it afterwards did nothing |
 | `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |
 | `TimeZoneUtil.CustomResolver` became `TimeZones.AddResolver(...)` | Returns an `IDisposable` whose disposal removes exactly that resolver; resolvers are consulted most recently added first — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
-| Setter-only members gained getters | `DbMetadata.DbBinaryTypeName` (now nullable) and `.ParameterDbTypePropertyName` |
+| Setter-only members gained getters | `DbMetadata.DbBinaryTypeName` and `.ParameterDbTypePropertyName`, both now `string?`. A description that names a `DbBinaryTypeName` without the property to write it to used to fail as `Type.GetProperty(null)`, two lines away from the deliberate message its neighbours raise; it raises that message now, and the annotation says which of the pair may be absent |
 | `TriggerState.Executing` added | Reported where `Normal`, `Complete` or `Blocked` used to be, and `Blocked` narrowed to mean a sibling trigger is running (see [Executing is a trigger state](#executing-is-a-trigger-state)) |
 | `IDriverDelegate.IsTriggerCurrentlyExecuting` removed | Replaced by `SelectTriggerStateWithExecuting`, which reads the state and the execution in one statement and returns `TriggerExecutionState` |
 | `StdAdoConstants.SqlSelectCountExecutingFiredTriggersOfTrigger` removed | Removed with the method that used it; the per-job `SqlSelectCountExecutingFiredTriggersOfJob` remains — both on what is now an internal type |
@@ -10858,7 +10896,7 @@ cast taught a `Quartz.Extensibility` type to people who needed neither. Additive
 | `QuartzHostedServiceOptions.AutoStart` added | Defaults to `true`, so nothing changes for an existing application. `false` has the scheduler resolved, initialized and bound but left in `Created` for the application to start, and the health check reports it degraded rather than unhealthy — see [A hosted scheduler can be started by the application](#a-hosted-scheduler-can-be-started-by-the-application) |
 | `IQuartzBuilder.AddHttpApi` / `MapQuartzApi` renamed | `services.AddQuartzHttpApi()` / `MapQuartzHttpApi`, the first of them on the service collection rather than a scheduler's builder; `AddQuartzHealthChecks` gained an `IQuartzBuilder` overload, which it keeps because a health check really is one scheduler's |
 | The health check is added on `IHealthChecksBuilder` | `AddHealthChecks().AddQuartz()` / `.AddQuartz("reporting")`, so it composes with an application's other checks. `IServiceCollection.AddQuartzHealthChecks()` was shorthand for the first and is gone; `IQuartzBuilder.AddQuartzHealthChecks()` stays, because a scheduler's builder knows which scheduler the check is for — see [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once) |
-| The health check ships in `Quartz` | It was in `Quartz.AspNetCore` through `4.0.0-alpha.3`, whose `FrameworkReference` a worker on a `dotnet/runtime` image cannot satisfy. No call site changes; drop the package reference if the check was the only reason for it — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
+| The health check ships in `Quartz` | 3.x registered it from `Quartz.AspNetCore`, whose `FrameworkReference` a worker on a `dotnet/runtime` image cannot satisfy. Drop that package reference if the check was the only reason for it — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
 | `QuartzHealthCheckOptions` goes through the options pipeline | It was constructed and read inside the registration call, so `services.Configure<QuartzHealthCheckOptions>(...)` did nothing. `Name` is nullable and defaults to the scheduler's check name |
 | `QuartzHealthCheckOptions.Tags` is a get-only `List<string>` | It was a settable `IReadOnlyCollection<string>`. Add to it — `options.Tags.AddRange(["ready", "live"])` — rather than assigning; one `configure` callback can no longer discard the tags another added — see [A shipped component is configured through its options type, and only there](#a-shipped-component-is-configured-through-its-options-type-and-only-there) |
 | `QuartzSchedulerBuilder.Build()` returns `StandaloneSchedulerFactory` | It is an `ISchedulerFactory` that is also `IAsyncDisposable` and `IDisposable`, so disposing the container needs no cast |
@@ -10949,9 +10987,9 @@ of the contract. If you were deriving from one of them, please
 [open an issue](https://github.com/quartznet/quartznet/issues) rather than working around it.
 
 Both tables are ordered by the name you would have typed — the type's own name, ignoring its
-namespace, and `Type.Member` for the second one. A few rows name a type that only a 4.0 *preview* had,
-`AdoJobStoreDependencies` among them, because that is the name an application upgrading between alphas
-would look up.
+namespace, and `Type.Member` for the second one. A few rows name a type that only a 4.0 *pre-release*
+had, `AdoJobStoreDependencies` among them, because that is the name someone upgrading from one of those
+would look up; see [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
 
 ### Types that were removed, internalized or renamed
 
@@ -11213,3 +11251,70 @@ using QuartzSchedulerOptions = Acme.Bus.QuartzSchedulerOptions;
 One collision went away: 3.x's `Quartz.ServiceCollectionExtensions` — the most common helper-class name in
 .NET — is not in the `Quartz` namespace on 4.x. Its members live on `QuartzServiceCollectionExtensions`
 and `QuartzBuilderExtensions`, and since both are extension methods, only a static-form call has to change.
+
+## Appendix: if you ran a 4.0 pre-release
+
+Nothing here concerns an application coming from 3.x — every one of these corrections is described
+above as a plain statement about 4.0, which is what 4.0.0 ships. This is the other reading of the same
+list: which pre-release each correction landed in, so that an application already running one of them
+knows what moved under it.
+
+The 4.0 public surface froze at `4.0.0-alpha.5`. Everything after that row is either an exception taken
+deliberately — because the API was making a statement that was not true — or a new refusal, where no
+shape changed and only what a mis-stated configuration does is different.
+
+::: details The build-by-build list
+
+| Build | What changed | Where the 4.0 shape is described |
+|---|---|---|
+| alpha.2 | Every listener callback gained its `IScheduler` parameter. A listener written against alpha.1 is refused as it is registered | [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling) |
+| alpha.3 | The dashboard's history and live events gained the instance id of the node they came from | [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from) |
+| alpha.4 | The health check moved from `Quartz.AspNetCore` to `Quartz`. `QuartzHealthCheckOptions` moved with it; the four extension methods moved from `QuartzAspNetCoreConfigurationExtensions` to `QuartzHealthCheckExtensions`, and `QuartzHealthCheck` / `SchedulerHealthCheckTarget` from internal-to-`Quartz.AspNetCore` to internal-to-`Quartz`. **No call site changes** — the namespace is `Quartz` on both sides and all four are extension methods — only the package reference | [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
+| alpha.4 | An expression with a wildcard in one day field and values in the other fired on every day of the month; it fires only on the days the restricted field names | [Cron Parser Enhancements](#cron-parser-enhancements) |
+| alpha.5 | `QuartzSchedulerBuilder` stopped re-declaring every `IQuartzBuilder` member with a covariant return — roughly sixty signatures. Whatever was chained between `Create()` and the terminal call moves into `Create(q => q…)`; `Services` and `SchedulerName` are read off the callback's argument | [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
+| alpha.5 | `TriggerMisfired` took its scheduler in **first** position and now takes it after the trigger. A listener that keeps the old order compiles and is refused at registration | [`TriggerMisfired` takes the trigger first](#triggermisfired-takes-the-trigger-first) |
+| beta.1 | `IScheduler`'s mutation members raise `ArgumentNullException` where they raised `SchedulerException("JobDetail cannot be null")` | [Null arguments raise `ArgumentNullException`](#null-arguments-raise-argumentnullexception) |
+| beta.1 | `CronExpression.TryParse(s, format, out)` answers `false` for an unknown `CronFormat` instead of throwing; `new CronExpression(null)` and `CronScheduleBuilder.Create(null)` raise `ArgumentNullException` rather than `ArgumentException` | [A bad argument, rather than a bad expression](#a-bad-argument-rather-than-a-bad-expression) |
+| beta.1 | `IOperableTrigger.FireInstanceId`, `TriggerBase.FireInstanceId` and `DbMetadata.ParameterDbTypePropertyName` are `string?`. All three were non-nullable `string` initialised to `null!`, so a store, trigger or driver description of your own may now need a `!` or a null check | [TriggerBase Property Removals](#triggerbase-property-removals), [Other Breaking Changes](#other-breaking-changes) |
+| beta.1 | A `500` from the HTTP API stopped returning the exception's message. A client matching on a `500`'s `detail` was matching on whichever driver failed | [A `500` says nothing about the server](#a-500-says-nothing-about-the-server) |
+| beta.1 | A paged HTTP API request is bounded by `QuartzHttpApiOptions.MaxPageSize`, which is `1000`; `take` used to reject only negatives. Set it to `0` for the old behaviour | [A paged request is bounded by `MaxPageSize`](#a-paged-request-is-bounded-by-maxpagesize) |
+| beta.1 | `MapQuartzHttpApi()` and `MapQuartzDashboard()` refuse to start when nothing authorizes them. **An application that mapped a bare API or dashboard has to add one call**, and `AllowAnonymous()` is a supported answer | [The HTTP API and the dashboard will not serve anonymously by accident](#the-http-api-and-the-dashboard-will-not-serve-anonymously-by-accident) |
+| beta.1 | `MapQuartzDashboard()` returns `IEndpointConventionBuilder` rather than `RazorComponentsEndpointConventionBuilder`, so one `RequireAuthorization()` covers the pages *and* the hub | [One builder covers the dashboard's pages and its hub](#one-builder-covers-the-dashboard-s-pages-and-its-hub) |
+| beta.1 | `Quartz:Scheduling` refuses `IgnoreDuplicates` while `OverwriteExistingData` is on. A configuration that set only the first was being ignored, silently, at every start | [`IgnoreDuplicates` and `OverwriteExistingData` cannot both be on](#ignoreduplicates-and-overwriteexistingdata-cannot-both-be-on) |
+| beta.1 | An ADO store refuses a `SimpleTrigger` repeat interval it cannot hold to the millisecond, instead of storing `0` and leaving the row stuck in `ACQUIRED` | [The two job stores answer the same way](#the-two-job-stores-answer-the-same-way) |
+| beta.1 | `ILockHandler.Shutdown` was added as a default interface member. An existing handler need not implement it | [A lock handler is told when to close what it opened](#a-lock-handler-is-told-when-to-close-what-it-opened) |
+| beta.1 | `DelegatingScheduler` declares `ResetTriggersFromErrorState(GroupMatcher<TriggerKey>, …)`, which it had been letting the interface default answer on the forwarder | [`DelegatingJobStore` decorates a store](#delegatingjobstore-decorates-a-store) |
+| beta.1 | `TriggerFireTimes`'s three members gained `ITrigger` overloads, so the `IOperableTrigger` cast is no longer needed | [`TriggerUtils` became `TriggerFireTimes`](#triggerutils-became-triggerfiretimes) |
+| beta.1 | `UseXmlSchedulingConfiguration` / `UseJsonSchedulingConfiguration` gained a `params string[]` overload; `QuartzHealthCheckOptions.StandbyStatus` and the nine `QuartzInstrumentation.Instruments` constants were added. All additive | [Plugins are registered like listeners](#plugins-are-registered-like-listeners), [Old and new telemetry names](#old-and-new-telemetry-names) |
+
+:::
+
+### Names a pre-release had and 4.0 does not
+
+The lock-handler family was renamed twice: once from the Java-derived 3.x spellings, and once again
+before 4.0.0. A `quartz.jobStore.lockHandler.type` naming any generation still resolves, with a warning.
+
+| A 4.0 pre-release called it | 4.0 |
+|---|---|
+| `ISemaphore` | `ILockHandler` |
+| `DbSemaphore` | `DbLockHandler` |
+| `SelectForUpdateSemaphore` | `SelectForUpdateLockHandler` |
+| `PostgreSqlSelectForUpdateSemaphore` | `PostgreSqlSelectForUpdateLockHandler` |
+| `UpdateRowSemaphore` | `UpdateRowLockHandler` |
+| `SqlServerMemoryOptimizedUpdateRowSemaphore` | `SqlServerMemoryOptimizedUpdateRowLockHandler` |
+| `SimpleSemaphore` (internal) | `InProcessLockHandler` (internal) |
+| `SQLiteSemaphore` (internal) | `SqliteLockHandler` (internal) |
+| `RedisSemaphore` | `RedisLockHandler` |
+| `SemaphoreContext` | `LockHandlerContext` |
+| `ISemaphore.ObtainLock` | `ILockHandler.AcquireLock` |
+
+`AdoJobStoreBase` was a public base class in the alphas and is internal in 4.0; if you derived from it,
+[The ADO.NET store is a store, not a base class](#the-ado-net-store-is-a-store-not-a-base-class) has the
+four answers, which are the same four an application deriving from 3.x's `JobStoreSupport` gets.
+`AdoJobStoreDependencies` is in [Types that were removed, internalized or renamed](#types-that-were-removed-internalized-or-renamed)
+for the same reason.
+
+One key is worth knowing about: `quartz.jobStore.openConnection` had no reader through
+`4.0.0-alpha.5`. It sits under a supported prefix, so the unknown-key check passed it and nothing then
+looked at it — see
+[The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use).

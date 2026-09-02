@@ -64,10 +64,9 @@ resolved later with `Type.GetType` against whatever is on the host's probing pat
 [`Quartz.Jobs`](quartz-jobs.md) on that path the string reaches `NativeJob`, which starts a process named
 in job data: an unauthenticated endpoint here is remote code execution rather than an information leak.
 
-Through `4.0.0-alpha.5`, `app.MapQuartzHttpApi()` with nothing else said served all sixty routes
-anonymously. From `4.0.0-beta.1` it fails at startup instead — in `IHostedLifecycleService.StartingAsync`,
-which runs before the server binds its listener — with a message naming the three ways to say what you
-meant:
+`app.MapQuartzHttpApi()` with nothing else said therefore fails at startup — in
+`IHostedLifecycleService.StartingAsync`, which runs before the server binds its listener — with a message
+naming the three ways to say what you meant:
 
 - `app.MapQuartzHttpApi().RequireAuthorization()` authorizes the whole API;
 - `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` authorizes each scheduler on its own — see
@@ -347,8 +346,10 @@ readily as it names anything else. The `detail` is one fixed sentence, and the r
 Turning on `IncludeStackTraceInProblemDetails` — the switch that already says "I am debugging this" —
 puts the message back beside the stack trace.
 
-::: warning Changed in `4.0.0-beta.1`
-A `500` used to return `exception.Message` verbatim.
+::: warning
+The `detail` is a constant, so it is not something to match a client on beyond the status code itself.
+A driver fault's own message names the server, the database, the login or the constraint, and none of
+that leaves the process.
 :::
 
 There is one case where a `400` has **no** body at all, and it is not the API's doing: a query
