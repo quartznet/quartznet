@@ -48,11 +48,19 @@ dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughpu
 ## What is held identical, and what is not
 
 Held identical, because a difference in any of them would be measured as a difference in the
-scheduler: two hundred triggers over twenty-five jobs; simple triggers repeating indefinitely at an
-interval of one tick under the ignore-misfires instruction, so every trigger is permanently overdue
-and the acquisition loop never waits; `MaxBatchSize` equal to `MaxConcurrency`; a one-second batch
-fire-ahead window; a one-second idle wait; a job that counts and returns; and the same
-fires-per-invocation constants, so `Mean` is the time one firing took on both sides.
+scheduler: two thousand triggers over a hundred jobs; simple triggers repeating indefinitely at a
+one-millisecond interval under the ignore-misfires instruction, so every trigger is permanently
+overdue and the acquisition loop never waits; `MaxBatchSize` equal to `MaxConcurrency`; a
+one-second batch fire-ahead window; a one-second idle wait; a job that counts and returns; and the
+same fires-per-invocation constants, so `Mean` is the time one firing took on both sides.
+
+A millisecond rather than anything shorter because that is the smallest interval a persistent
+store can carry on either branch: `StdAdoDelegate.GetDbTimeSpanValue` writes a `TimeSpan` as whole
+milliseconds, and a simple trigger read back with a zero repeat interval throws
+`DivideByZeroException` out of `GetFireTimeAfter` on its next firing. Two thousand triggers rather
+than two hundred because the count sets the arrangement's own ceiling — a trigger repeating every
+millisecond sustains a thousand firings a second, so two thousand of them put the limit several
+times above what the fastest arm reaches.
 
 Different, because 3.x is 3.x: the store is `JobStoreTX` rather than `LocalTransactionJobStore` — the
 same store under its 3.x name; the scheduler is built from flat properties through
