@@ -174,7 +174,7 @@ internal sealed class InProcessLockHandler : ILockHandler
             case SchedulerLock.StateAccess:
                 return stateLock;
             default:
-                Throw.NotSupportedException();
+                Throw.NotSupportedException($"There is no in-process lock for '{lockKind}'. The kinds this handler holds are {SchedulerLock.TriggerAccess} and {SchedulerLock.StateAccess}.");
                 return null!;
         }
     }

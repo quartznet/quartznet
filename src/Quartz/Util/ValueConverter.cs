@@ -136,7 +136,7 @@ internal static class ValueConverter
             }
         }
 
-        Throw.NotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
+        Throw.NotSupportedException($"{newValue} is not a supported value for a target of type {requiredType}");
         return null;
     }
 

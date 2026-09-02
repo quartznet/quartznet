@@ -127,15 +127,6 @@ internal static class Throw
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void NotImplementedException()
-    {
-#pragma warning disable MA0025
-        throw new NotImplementedException();
-#pragma warning restore MA0025
-    }
-
-    [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void SchedulerConfigException(string message, Exception? innerException = null)
     {
         throw new SchedulerConfigException(message, innerException);

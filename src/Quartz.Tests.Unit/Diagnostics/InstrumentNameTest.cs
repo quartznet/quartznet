@@ -45,19 +45,33 @@ public sealed class InstrumentNameTest
     /// The instrument names the meter publishes, collected by listening while one is constructed.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <see cref="MeterListener.InstrumentPublished" /> fires as each instrument is created, so a
     /// listener started first sees the whole set without the meter having to describe itself. Reading
     /// the constants back off the meter is the point: a name typed inline would show up here and in no
     /// constant.
+    /// </para>
+    /// <para>
+    /// The filter is the <see cref="Meter" /> <em>instance</em> this method made, not its name: the
+    /// suite runs in parallel, the meter's name is a constant every <see cref="Meters" /> in the process
+    /// shares, and a listener is process-wide — so another fixture constructing its own would have leaked
+    /// its instruments into this listing and failed a test about something else. The tag build runs the
+    /// unit tests, so this must not be what fails a public tag.
+    /// </para>
     /// </remarks>
     private static List<string> PublishedInstruments()
     {
         List<string> published = [];
 
+        // Its own meter rather than the shared one, so a listener that arrives after some other test has
+        // already built the shared instance still sees every instrument being created — and so that
+        // there is one instance to match against.
+        using RecordingMeterFactory meterFactory = new();
+
         using MeterListener listener = new();
         listener.InstrumentPublished = (instrument, _) =>
         {
-            if (instrument.Meter.Name == QuartzInstrumentation.MeterName)
+            if (ReferenceEquals(instrument.Meter, meterFactory.Created))
             {
                 published.Add(instrument.Name);
             }
@@ -65,11 +79,26 @@ public sealed class InstrumentNameTest
 
         listener.Start();
 
-        // Its own meter rather than the shared one, so a listener that arrives after some other test has
-        // already built the shared instance still sees every instrument being created.
-        _ = new Meters(meterFactory: null);
+        _ = new Meters(meterFactory);
 
         return published;
+    }
+
+    /// <summary>
+    /// Hands out one meter and remembers it, so that the listener above can tell this test's instruments
+    /// from every other one's.
+    /// </summary>
+    private sealed class RecordingMeterFactory : IMeterFactory
+    {
+        public Meter? Created { get; private set; }
+
+        public Meter Create(MeterOptions options)
+        {
+            Created = new Meter(options);
+            return Created;
+        }
+
+        public void Dispose() => Created?.Dispose();
     }
 
     private static List<string> DeclaredInstruments() => typeof(QuartzInstrumentation.Instruments)

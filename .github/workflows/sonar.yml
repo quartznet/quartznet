@@ -2,7 +2,8 @@
 # ("begin", then compile and test, then "end") and needs a JDK, and the generator emits a fixed
 # checkout / setup / 'dotnet fallout <targets>' shape with no room for either.
 #
-# Two prerequisites live outside this repository, and until both are in place this workflow fails:
+# Two prerequisites live outside this repository, and both are in place. They are written down because
+# nothing here can assert them, and this workflow fails outright if either is undone:
 #
 #   - a SONAR_TOKEN repository secret, holding a SonarCloud token with 'Execute Analysis' on
 #     quartznet_quartznet

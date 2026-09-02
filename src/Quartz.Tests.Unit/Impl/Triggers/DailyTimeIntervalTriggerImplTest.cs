@@ -1110,23 +1110,45 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.That(first, Is.EqualTo(new DateTimeOffset(2019, 11, 4, 22, 0, 0, TimeSpan.Zero)));
     }
 
+    /// <summary>
+    /// A trigger whose start time is inside the last few minutes of its daily window fires within the
+    /// window and nowhere else — it does not carry on past midnight, and it does not start the next
+    /// day's window early.
+    /// </summary>
+    /// <remarks>
+    /// This was <c>TestPassingMidnight</c>, <c>[Explicit]</c> with no reason and no assertion: it
+    /// computed a hundred fire times and looped over them doing nothing, with a commented-out
+    /// <c>Console.WriteLine</c> inside. What it was watching for is written down here instead.
+    /// </remarks>
     [Test]
-    [Explicit]
-    public void TestPassingMidnight()
+    public void FiringNearMidnightStaysInsideTheDailyWindow()
     {
+        TimeOnly windowOpens = new(16, 0);
+        TimeOnly windowCloses = new(23, 59, 59);
+
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
-            .StartingDailyAt(new TimeOnly(16, 0))
-            .EndingDailyAt(new TimeOnly(23, 59, 59))
+            .StartingDailyAt(windowOpens)
+            .EndingDailyAt(windowCloses)
             .OnEveryDay()
             .WithInterval(30, IntervalUnit.Minute)
+            .InTimeZone(TimeZoneInfo.Utc)
             .Build();
 
+        // Three minutes before midnight, which is inside the window but past its last 30-minute step.
         trigger.StartTimeUtc = new DateTimeOffset(2015, 1, 11, 23, 57, 0, 0, TimeSpan.Zero);
 
-        var fireTimes = TriggerFireTimes.Compute(trigger, null, 100);
-        foreach (var fireTime in fireTimes)
+        IReadOnlyList<DateTimeOffset> fireTimes = TriggerFireTimes.Compute(trigger, null, 100);
+
+        fireTimes.Should().HaveCount(100).And.BeInAscendingOrder();
+        fireTimes[0].Should().Be(new DateTimeOffset(2015, 1, 12, 16, 0, 0, TimeSpan.Zero),
+            "the window's last step of the starting day is already past, so the next firing is when the "
+            + "window next opens");
+
+        foreach (DateTimeOffset fireTime in fireTimes)
         {
-            // Console.WriteLine(fireTime.LocalDateTime);
+            TimeOnly timeOfDay = TimeOnly.FromTimeSpan(fireTime.UtcDateTime.TimeOfDay);
+            timeOfDay.Should().BeOnOrAfter(windowOpens).And.BeOnOrBefore(windowCloses,
+                "no firing crosses midnight into the closed part of the day");
         }
     }
 
