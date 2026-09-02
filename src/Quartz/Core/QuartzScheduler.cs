@@ -646,27 +646,9 @@ internal sealed class QuartzScheduler
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobDetail);
+        ArgumentNullException.ThrowIfNull(trigger);
         ValidateState();
-
-        if (jobDetail is null)
-        {
-            Throw.SchedulerException("JobDetail cannot be null");
-        }
-
-        if (trigger is null)
-        {
-            Throw.SchedulerException("Trigger cannot be null");
-        }
-
-        if (jobDetail.Key is null)
-        {
-            Throw.SchedulerException("Job's key cannot be null");
-        }
-
-        if (jobDetail.JobType is null)
-        {
-            Throw.SchedulerException("Job's class cannot be null");
-        }
 
         IOperableTrigger trig = AsOperableTrigger(trigger);
 
@@ -732,12 +714,8 @@ internal sealed class QuartzScheduler
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(trigger);
         ValidateState();
-
-        if (trigger is null)
-        {
-            Throw.SchedulerException("Trigger cannot be null");
-        }
 
         IOperableTrigger trig = AsOperableTrigger(trigger);
         AdjustSimpleTriggerStartTimeIfInPast(trig);
@@ -788,6 +766,7 @@ internal sealed class QuartzScheduler
         AddJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobDetail);
         ValidateState();
 
         if (!options.StoreNonDurableWhileAwaitingScheduling && !jobDetail.Durable)
@@ -811,6 +790,7 @@ internal sealed class QuartzScheduler
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKey);
         ValidateState();
 
         bool result = false;
@@ -890,6 +870,7 @@ internal sealed class QuartzScheduler
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggersAndJobs);
         ValidateState();
 
         // make sure all triggers refer to their associated job, materializing the operable
@@ -968,6 +949,8 @@ internal sealed class QuartzScheduler
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobDetail);
+        ArgumentNullException.ThrowIfNull(triggersForJob);
         var triggersAndJobs = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
         triggersAndJobs.Add(jobDetail, triggersForJob);
         return ScheduleJobs(triggersAndJobs, options, cancellationToken);
@@ -1029,6 +1012,7 @@ internal sealed class QuartzScheduler
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKey);
         ValidateState();
 
         if (await resources.JobStore.DeleteTrigger(triggerKey, cancellationToken).ConfigureAwait(false))
@@ -1062,16 +1046,9 @@ internal sealed class QuartzScheduler
         ITrigger newTrigger,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        ArgumentNullException.ThrowIfNull(newTrigger);
         ValidateState();
-
-        if (triggerKey is null)
-        {
-            Throw.ArgumentException("triggerKey cannot be null");
-        }
-        if (newTrigger is null)
-        {
-            Throw.ArgumentException("newTrigger cannot be null");
-        }
 
         var trigger = AsOperableTrigger(newTrigger);
         ITrigger? oldTrigger = await GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1345,6 +1322,7 @@ internal sealed class QuartzScheduler
         JobDataMap? data = null,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKey);
         ValidateState();
 
         // TODO: use builder
@@ -1425,6 +1403,7 @@ internal sealed class QuartzScheduler
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKey);
         ValidateState();
 
         bool paused = await resources.JobStore.PauseTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1474,6 +1453,7 @@ internal sealed class QuartzScheduler
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(matcher);
         ValidateState();
 
         if (matcher is null)
@@ -1495,6 +1475,7 @@ internal sealed class QuartzScheduler
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKey);
         ValidateState();
 
         bool found = await resources.JobStore.PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
@@ -1540,17 +1521,13 @@ internal sealed class QuartzScheduler
     /// given group - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
     public async ValueTask<List<string>> PauseJobGroups(
-        GroupMatcher<JobKey> groupMatcher,
+        GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(matcher);
         ValidateState();
 
-        if (groupMatcher is null)
-        {
-            groupMatcher = GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup);
-        }
-
-        var pausedGroups = await resources.JobStore.PauseJobGroups(groupMatcher, cancellationToken).ConfigureAwait(false);
+        var pausedGroups = await resources.JobStore.PauseJobGroups(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedJobs(x, cancellationToken).AsTask())).ConfigureAwait(false);
         return pausedGroups;
@@ -1568,6 +1545,7 @@ internal sealed class QuartzScheduler
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKey);
         ValidateState();
 
         bool resumed = await resources.JobStore.ResumeTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1621,6 +1599,7 @@ internal sealed class QuartzScheduler
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(matcher);
         ValidateState();
 
         if (matcher is null)
@@ -1645,6 +1624,7 @@ internal sealed class QuartzScheduler
     /// </summary>
     public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKey);
         ValidateState();
 
         bool found = await resources.JobStore.ResumeJob(jobKey, cancellationToken).ConfigureAwait(false);
@@ -1699,6 +1679,7 @@ internal sealed class QuartzScheduler
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(matcher);
         ValidateState();
 
         if (matcher is null)
@@ -1983,6 +1964,7 @@ internal sealed class QuartzScheduler
 
     public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKey);
         ValidateState();
 
         return resources.JobStore.ResetTriggerFromErrorState(triggerKey, cancellationToken);
@@ -2020,6 +2002,8 @@ internal sealed class QuartzScheduler
         AddCalendarOptions options = default,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(calendarName);
+        ArgumentNullException.ThrowIfNull(calendar);
         ValidateState();
         return resources.JobStore.AddCalendar(calendarName, calendar, options, cancellationToken);
     }
@@ -2030,6 +2014,7 @@ internal sealed class QuartzScheduler
     /// <returns> true if the Calendar was found and deleted.</returns>
     public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(calendarName);
         ValidateState();
         return resources.JobStore.DeleteCalendar(calendarName, cancellationToken);
     }
@@ -2742,6 +2727,7 @@ internal sealed class QuartzScheduler
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKey);
         var interruptableJobs = GetCurrentlyExecutingJobs().OfType<IInterruptableJobExecutionContext>();
 
         bool interrupted = false;
@@ -2780,6 +2766,7 @@ internal sealed class QuartzScheduler
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(fireInstanceId);
         cancellationToken.ThrowIfCancellationRequested();
 
         // Looked up rather than scanned: the running executions are already keyed by fire instance id,
