@@ -39,7 +39,6 @@ public class OracleDelegate : StdAdoDelegate
     /// Gets the db presentation for boolean value. For Oracle we use true/false of "1"/"0".
     /// </summary>
     /// <param name="booleanValue">Value to map to database.</param>
-    /// <returns></returns>
     public override object GetDbBooleanValue(bool booleanValue)
     {
         return booleanValue ? "1" : "0";

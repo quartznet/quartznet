@@ -234,8 +234,6 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
     /// file scanning jobs (one per FileJob).  The unique names are saved
     /// in jobTriggerNameSet.
     /// </summary>
-    /// <param name="fileBasename"></param>
-    /// <returns></returns>
     private string BuildJobTriggerName(string fileBasename)
     {
         // Name w/o collisions will be prefix + _ + filename (with '.' of filename replaced with '_')

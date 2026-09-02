@@ -86,7 +86,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// </remarks>
     /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
     ///   and other info relating to the trigger firing can be obtained.</param>
-    /// <param name="scheduler"></param>
+    /// <param name="scheduler">The scheduler the job will run under, made available to the job through its execution context.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the newly instantiated Job</returns>
     /// <remarks>

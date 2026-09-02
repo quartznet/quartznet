@@ -197,7 +197,6 @@ internal sealed class QuartzScheduler
     /// Register the given <see cref="ISchedulerListener" /> with the
     /// <see cref="IScheduler" />'s list of internal listeners.
     /// </summary>
-    /// <param name="schedulerListener"></param>
     public void AddInternalSchedulerListener(ISchedulerListener schedulerListener)
     {
         lock (internalSchedulerListenersLock)
@@ -210,7 +209,6 @@ internal sealed class QuartzScheduler
     /// Remove the given <see cref="ISchedulerListener" /> from the
     /// <see cref="IScheduler" />'s list of internal listeners.
     /// </summary>
-    /// <param name="schedulerListener"></param>
     /// <returns>true if the identified listener was found in the list, and removed.</returns>
     public bool RemoveInternalSchedulerListener(ISchedulerListener schedulerListener)
     {
@@ -306,7 +304,6 @@ internal sealed class QuartzScheduler
     /// Removes the object from garbage collection protected list.
     /// </summary>
     /// <param name="obj">The obj.</param>
-    /// <returns></returns>
     public bool RemoveNoGCObject(object obj)
     {
         return holdToPreventGc.Remove(obj);
@@ -1913,8 +1910,6 @@ internal sealed class QuartzScheduler
     /// Determine whether a <see cref="IJob"/> with the given identifier already
     /// exists within the scheduler.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
@@ -1932,8 +1927,6 @@ internal sealed class QuartzScheduler
     /// Determine whether a <see cref="ITrigger" /> with the given identifier already
     /// exists within the scheduler.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="triggerKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>

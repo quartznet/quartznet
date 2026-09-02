@@ -61,7 +61,7 @@ internal sealed class JobRunShell
     /// </summary>
     /// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
     /// available within the <see cref="IJobExecutionContext" />.</param>
-    /// <param name="bundle"></param>
+    /// <param name="bundle">The firing this shell is to run: its trigger, its job and the times it fired at.</param>
     /// <param name="logger">Logger for this shell, supplied by the factory that creates it.</param>
     public JobRunShell(IScheduler scheduler, TriggerFiredBundle bundle, ILogger<JobRunShell> logger)
     {

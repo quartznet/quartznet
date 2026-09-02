@@ -244,8 +244,6 @@ public sealed class RAMJobStore : IJobStore
     /// <summary>
     /// Returns whether this instance supports persistence.
     /// </summary>
-    /// <value></value>
-    /// <returns></returns>
     public bool SupportsPersistence => false;
 
     /// <summary>
@@ -671,7 +669,7 @@ public sealed class RAMJobStore : IJobStore
     /// </returns>
     /// <param name="key">The <see cref="ITrigger" /> to be removed.</param>
     /// <param name="removeOrphanedJob">Whether to delete orphaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
-    /// <param name="cancellationToken"></param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask<bool> DeleteTrigger(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
@@ -1853,7 +1851,6 @@ public sealed class RAMJobStore : IJobStore
     /// <summary>
     /// Gets the trigger wrappers for job.
     /// </summary>
-    /// <returns></returns>
     /// <remarks>
     /// This method should only be executed while holding the instance level lock.
     /// </remarks>
@@ -1866,7 +1863,6 @@ public sealed class RAMJobStore : IJobStore
     /// Gets the trigger wrappers for calendar.
     /// </summary>
     /// <param name="name">Name of the calendar.</param>
-    /// <returns></returns>
     private IEnumerable<TriggerWrapper> GetTriggerWrappersForCalendarNoLock(string name)
     {
         foreach (var tw in triggersByKey.Values)
@@ -3111,7 +3107,6 @@ public sealed class RAMJobStore : IJobStore
     /// <summary>
     /// Peeks the triggers.
     /// </summary>
-    /// <returns></returns>
     internal ValueTask<string> PeekTriggers()
     {
         StringBuilder str = new StringBuilder();

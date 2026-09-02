@@ -367,7 +367,6 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     /// give the trigger a chance to update itself for its next
     /// triggering (if any).
     /// </summary>
-    /// <param name="calendar"></param>
     /// <see cref="TriggerBase.ExecutionComplete"/>
     public override void Triggered(ICalendar? calendar)
     {
@@ -523,7 +522,6 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
     /// has been added to the scheduler.
     /// </remarks>
-    /// <returns></returns>
     public override DateTimeOffset? NextFireTimeUtc { get; set; }
 
     /// <summary>
@@ -541,8 +539,6 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     /// A fire time that lands exactly on <see cref="EndTimeUtc" /> is one the trigger fires: the
     /// end time is the last instant at which a trigger may fire.
     /// </remarks>
-    /// <param name="afterTime"></param>
-    /// <returns></returns>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
     {
         DateTimeOffset? fireTime = ComputeFireTimeAfter(afterTime);
@@ -825,7 +821,6 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     /// <see cref="EndTimeUtc" />, which is where every trigger's firing stops.
     /// </para>
     /// </remarks>
-    /// <returns></returns>
     public override DateTimeOffset? FinalFireTimeUtc
     {
         get
@@ -973,7 +968,6 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a
     /// schedule identical to this trigger's schedule.
     /// </summary>
-    /// <returns></returns>
     /// <see cref="TriggerBuilder"/>
     public override IScheduleBuilder GetScheduleBuilder()
     {

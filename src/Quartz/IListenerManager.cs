@@ -136,8 +136,6 @@ public interface IListenerManager
     /// <summary>
     /// Removes the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <returns>true if the identified listener was found in the list, and removed.</returns>
     bool RemoveTriggerListener(string name);
 

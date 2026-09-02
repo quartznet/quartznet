@@ -97,8 +97,6 @@ public sealed class CronCalendar : BaseCalendar, IEquatable<CronCalendar>
     /// <summary>
     /// Serialization constructor.
     /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
     private CronCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;
@@ -167,8 +165,6 @@ public sealed class CronCalendar : BaseCalendar, IEquatable<CronCalendar>
     /// Calendar after the given time. Return the original value if timeStamp is
     /// included. Return 0 if all days are excluded.
     /// </summary>
-    /// <param name="timeUtc"></param>
-    /// <returns></returns>
     public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
     {
         DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(1); //plus on millisecond

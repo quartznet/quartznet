@@ -50,7 +50,6 @@ internal sealed class PropertiesParser
     /// Gets the string property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public string? GetStringProperty(string? name)
     {
         var val = props.Get(name);
@@ -62,7 +61,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public string? GetStringProperty(string name, string? defaultValue)
     {
         string? val = props[name] ?? defaultValue;
@@ -82,7 +80,6 @@ internal sealed class PropertiesParser
     /// Gets the string array property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public IList<string>? GetStringArrayProperty(string name)
     {
         return GetStringArrayProperty(name, null);
@@ -93,7 +90,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public IList<string>? GetStringArrayProperty(string name, string[]? defaultValue)
     {
         var vals = GetStringProperty(name);
@@ -120,7 +116,6 @@ internal sealed class PropertiesParser
     /// Gets the boolean property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public bool GetBooleanProperty(string name)
     {
         var val = GetStringProperty(name);
@@ -137,7 +132,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">if set to <c>true</c> [defaultValue].</param>
-    /// <returns></returns>
     public bool GetBooleanProperty(string name, bool defaultValue)
     {
         var val = GetStringProperty(name);
@@ -153,7 +147,6 @@ internal sealed class PropertiesParser
     /// Gets the byte property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public byte GetByteProperty(string name)
     {
         var val = GetStringProperty(name);
@@ -178,7 +171,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public byte GetByteProperty(string name, byte defaultValue)
     {
         var val = GetStringProperty(name);
@@ -202,7 +194,6 @@ internal sealed class PropertiesParser
     /// Gets the char property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public char GetCharProperty(string name)
     {
         var param = GetStringProperty(name);
@@ -224,7 +215,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public char GetCharProperty(string name, char defaultValue)
     {
         var param = GetStringProperty(name);
@@ -245,7 +235,6 @@ internal sealed class PropertiesParser
     /// Gets the double property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public double GetDoubleProperty(string name)
     {
         var val = GetStringProperty(name);
@@ -270,7 +259,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public double GetDoubleProperty(string name, double defaultValue)
     {
         var val = GetStringProperty(name);
@@ -294,7 +282,6 @@ internal sealed class PropertiesParser
     /// Gets the float property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public float GetFloatProperty(string name)
     {
         var val = GetStringProperty(name);
@@ -319,7 +306,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public float GetFloatProperty(string name, float defaultValue)
     {
         var val = GetStringProperty(name);
@@ -343,7 +329,6 @@ internal sealed class PropertiesParser
     /// Gets the int property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public int GetIntProperty(string name)
     {
         var val = GetStringProperty(name);
@@ -368,7 +353,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public int GetIntProperty(string name, int defaultValue)
     {
         var val = GetStringProperty(name);
@@ -392,7 +376,6 @@ internal sealed class PropertiesParser
     /// Gets the int array property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public IList<int>? GetIntArrayProperty(string name)
     {
         return GetIntArrayProperty(name, null);
@@ -403,7 +386,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public IList<int>? GetIntArrayProperty(string name, IList<int>? defaultValue)
     {
         var vals = GetStringProperty(name);
@@ -444,7 +426,6 @@ internal sealed class PropertiesParser
     /// Gets the long property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public long GetLongProperty(string name)
     {
         var val = GetStringProperty(name);
@@ -469,7 +450,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="def">The def.</param>
-    /// <returns></returns>
     public long GetLongProperty(string name, long def)
     {
         var val = GetStringProperty(name);
@@ -494,7 +474,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="def">The def.</param>
-    /// <returns></returns>
     public TimeSpan GetTimeSpanProperty(string name, TimeSpan def)
     {
         var val = GetStringProperty(name);
@@ -518,7 +497,6 @@ internal sealed class PropertiesParser
     /// Gets the short property.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <returns></returns>
     public short GetShortProperty(string name)
     {
         var val = GetStringProperty(name);
@@ -543,7 +521,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <returns></returns>
     public short GetShortProperty(string name, short defaultValue)
     {
         var val = GetStringProperty(name);
@@ -567,7 +544,6 @@ internal sealed class PropertiesParser
     /// Gets the property groups.
     /// </summary>
     /// <param name="prefix">The prefix.</param>
-    /// <returns></returns>
     public IReadOnlyList<string> GetPropertyGroups(string prefix)
     {
         var groups = new HashSet<string>();
@@ -593,7 +569,6 @@ internal sealed class PropertiesParser
     /// Gets the property group.
     /// </summary>
     /// <param name="prefix">The prefix.</param>
-    /// <returns></returns>
     public NameValueCollection GetPropertyGroup(string prefix)
     {
         return GetPropertyGroup(prefix, false);
@@ -604,7 +579,6 @@ internal sealed class PropertiesParser
     /// </summary>
     /// <param name="prefix">The prefix.</param>
     /// <param name="stripPrefix">if set to <c>true</c> [strip prefix].</param>
-    /// <returns></returns>
     public NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix)
     {
         return GetPropertyGroup(prefix, stripPrefix, null);
@@ -663,7 +637,6 @@ internal sealed class PropertiesParser
     /// Reads the properties from assembly (embedded resource).
     /// </summary>
     /// <param name="resourceName">The file name to read resources from.</param>
-    /// <returns></returns>
     public static PropertiesParser ReadFromEmbeddedAssemblyResource(string resourceName)
     {
         var stream = typeof(IScheduler).Assembly.GetManifestResourceStream(resourceName);
@@ -678,7 +651,6 @@ internal sealed class PropertiesParser
     /// Reads the properties from file system.
     /// </summary>
     /// <param name="fileName">The file name to read resources from.</param>
-    /// <returns></returns>
     public static PropertiesParser ReadFromFileResource(string fileName)
     {
         return ReadFromStream(File.OpenRead(fileName));

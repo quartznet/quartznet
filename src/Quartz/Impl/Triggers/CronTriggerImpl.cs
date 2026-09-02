@@ -244,7 +244,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// <summary>
     /// Clones this instance.
     /// </summary>
-    /// <returns></returns>
     public override ITrigger Clone()
     {
         CronTriggerImpl copy = (CronTriggerImpl) MemberwiseClone();
@@ -291,7 +290,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// defines the initial boundary for trigger firings the trigger
     /// will not fire prior to this date and time.
     /// </summary>
-    /// <value></value>
     public override DateTimeOffset StartTimeUtc
     {
         get => startTimeUtc;
@@ -340,14 +338,12 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
     /// has been added to the scheduler.
     /// </remarks>
-    /// <returns></returns>
     public override DateTimeOffset? NextFireTimeUtc { get; set; }
 
     /// <summary>
     /// Returns the previous time at which the <see cref="ITrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
-    /// <returns></returns>
     public override DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <summary>
@@ -394,8 +390,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// after the given time. If the trigger will not fire after the given time,
     /// <see langword="null" /> will be returned.
     /// </summary>
-    /// <param name="afterTimeUtc"></param>
-    /// <returns></returns>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTimeUtc)
     {
         if (!afterTimeUtc.HasValue)
@@ -481,7 +475,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// Tells whether this Trigger instance can handle events
     /// in millisecond precision.
     /// </summary>
-    /// <value></value>
     protected override bool HasMillisecondPrecision => false;
 
     /// <summary>
@@ -498,7 +491,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// Validates the misfire instruction.
     /// </summary>
     /// <param name="misfireInstruction">The misfire instruction.</param>
-    /// <returns></returns>
     protected override bool ValidateMisfireInstruction(int misfireInstruction)
     {
         if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)
@@ -525,7 +517,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// <see cref="ITrigger.MisfireInstructionCode" />.
     /// </para>
     /// </summary>
-    /// <param name="calendar"></param>
     public override void UpdateAfterMisfire(ICalendar? calendar)
     {
         int instr = MisfireInstructionCode;
@@ -575,7 +566,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// <param name="dayOnly">If set to true, the method will only determine if the
     /// trigger will fire during the day represented by the given Calendar
     /// (hours, minutes and seconds will be ignored).</param>
-    /// <returns></returns>
     public bool WillFireOn(DateTimeOffset timeUtc, bool dayOnly = false)
     {
         if (dayOnly)
@@ -618,7 +608,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// give the <see cref="ITrigger" /> a chance to update itself for its next
     /// triggering (if any).
     /// </summary>
-    /// <param name="calendar"></param>
     /// <seealso cref="JobExecutionException" />
     public override void Triggered(ICalendar? calendar)
     {
@@ -683,7 +672,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// should return a valid answer.
     /// </para>
     /// </summary>
-    /// <param name="calendar"></param>
     /// <returns>
     /// the first time at which the <see cref="ITrigger" /> will be fired
     /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
@@ -727,7 +715,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// Gets the next time to fire after the given time.
     /// </summary>
     /// <param name="afterTime">The time to compute from.</param>
-    /// <returns></returns>
     private DateTimeOffset? GetTimeAfter(DateTimeOffset afterTime)
     {
         return cronEx?.GetTimeAfter(afterTime);
@@ -737,7 +724,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// Returns the time before the given time that this <see cref="ICronTrigger" /> will fire.
     /// </summary>
     /// <param name="date">The date.</param>
-    /// <returns></returns>
     protected DateTimeOffset? GetPreviousValidTimeBefore(DateTimeOffset date)
     {
         return cronEx?.GetPreviousValidTimeBefore(date);

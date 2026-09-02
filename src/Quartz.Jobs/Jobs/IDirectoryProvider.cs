@@ -11,6 +11,5 @@ public interface IDirectoryProvider
     /// Called by <see cref="DirectoryScanJob"/> to provide a list of directory paths
     /// to monitor - absolute paths are recommended.
     /// </summary>
-    /// <returns></returns>
     List<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap);
 }

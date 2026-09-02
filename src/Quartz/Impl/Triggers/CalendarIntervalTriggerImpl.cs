@@ -239,7 +239,6 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
     /// Validates the misfire instruction.
     /// </summary>
     /// <param name="misfireInstruction">The misfire instruction.</param>
-    /// <returns></returns>
     protected override bool ValidateMisfireInstruction(int misfireInstruction)
     {
         if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)
@@ -356,8 +355,6 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
     /// given the Calendar's new settings).
     /// </para>
     /// </summary>
-    /// <param name="calendar"> </param>
-    /// <param name="misfireThreshold"></param>
     public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
     {
         NextFireTimeUtc = GetFireTimeAfter(PreviousFireTimeUtc);
@@ -450,7 +447,6 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
     /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
     /// has been added to the scheduler.
     /// </remarks>
-    /// <returns></returns>
     public override DateTimeOffset? NextFireTimeUtc { get; set; }
 
     /// <summary>
@@ -736,7 +732,6 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
     /// Returns the final time at which the <see cref="ICalendarIntervalTrigger" /> will
     /// fire, if there is no end time set, null will be returned.
     /// </summary>
-    /// <value></value>
     /// <remarks>Note that the return time may be in the past.</remarks>
     public override DateTimeOffset? FinalFireTimeUtc
     {

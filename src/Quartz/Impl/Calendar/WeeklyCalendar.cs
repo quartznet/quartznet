@@ -61,8 +61,6 @@ public sealed class WeeklyCalendar : BaseCalendar, IEquatable<WeeklyCalendar>
     /// <summary>
     /// Serialization constructor.
     /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
     private WeeklyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;

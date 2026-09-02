@@ -55,7 +55,6 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
     /// <summary>
     /// Generate the instance id for a <see cref="IScheduler" />
     /// </summary>
-    /// <param name="cancellationToken"></param>
     /// <returns> The clusterwide unique instance id.
     /// </returns>
     public abstract ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default);

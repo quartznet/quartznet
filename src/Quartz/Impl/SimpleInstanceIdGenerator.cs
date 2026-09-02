@@ -45,7 +45,6 @@ internal sealed class SimpleInstanceIdGenerator : HostNameBasedIdGenerator
     /// <summary>
     /// Generate the instance id for a <see cref="IScheduler" />
     /// </summary>
-    /// <param name="cancellationToken"></param>
     /// <returns>The clusterwide unique instance id.</returns>
     public override async ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default)
     {

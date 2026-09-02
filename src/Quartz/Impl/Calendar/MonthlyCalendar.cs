@@ -60,8 +60,6 @@ public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
     /// <summary>
     /// Serialization constructor.
     /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
     private MonthlyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;

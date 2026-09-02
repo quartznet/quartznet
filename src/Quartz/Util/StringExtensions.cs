@@ -10,8 +10,6 @@ internal static class StringExtensions
     /// <summary>
     /// Allows null-safe trimming of string.
     /// </summary>
-    /// <param name="s"></param>
-    /// <returns></returns>
     internal static string? NullSafeTrim(this string? s)
     {
         return s?.Trim();
@@ -20,8 +18,6 @@ internal static class StringExtensions
     /// <summary>
     /// Trims string and if resulting string is empty, null is returned.
     /// </summary>
-    /// <param name="s"></param>
-    /// <returns></returns>
     internal static string? TrimEmptyToNull(this string? s)
     {
         if (s is null)

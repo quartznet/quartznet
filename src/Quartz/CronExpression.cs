@@ -1942,7 +1942,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// Gets the month number.
     /// </summary>
     /// <param name="s">The string to map with.</param>
-    /// <returns></returns>
     private static int GetMonthNumber(ReadOnlySpan<char> s)
     {
         return s switch
@@ -2702,7 +2701,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// </para>
     /// </remarks>
     /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
-    /// <returns></returns>
     internal DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
     {
         // move ahead one second, since we're computing the time *after* the
@@ -2844,7 +2842,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// Creates the date time without milliseconds.
     /// </summary>
     /// <param name="time">The time.</param>
-    /// <returns></returns>
     private static DateTimeOffset CreateDateTimeWithoutMilliseconds(DateTimeOffset time)
     {
         return new DateTimeOffset(time.Year, time.Month, time.Day, time.Hour, time.Minute, time.Second, time.Offset);
@@ -2856,7 +2853,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// </summary>
     /// <param name="date">The date.</param>
     /// <param name="hour">The hour.</param>
-    /// <returns></returns>
     private static DateTimeOffset SetCalendarHour(DateTimeOffset date, int hour)
     {
         // Java version of Quartz uses lenient calendar

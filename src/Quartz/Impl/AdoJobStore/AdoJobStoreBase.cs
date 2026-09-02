@@ -944,7 +944,5 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// <summary>
     /// Indicates whether this job store supports persistence.
     /// </summary>
-    /// <value></value>
-    /// <returns></returns>
     public bool SupportsPersistence => true;
 }

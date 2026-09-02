@@ -236,7 +236,6 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.
     /// </summary>
     /// <param name="booleanValue">Value to map to database.</param>
-    /// <returns></returns>
     public virtual object GetDbBooleanValue(bool booleanValue)
     {
         // works nicely for databases we have currently supported
@@ -247,7 +246,6 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// Gets the boolean value from db presentation. Subclasses can overwrite this behaviour.
     /// </summary>
     /// <param name="columnValue">Value to map from database.</param>
-    /// <returns></returns>
     public virtual bool GetBooleanFromDbValue(object columnValue)
     {
         if (columnValue is not null && columnValue != DBNull.Value)
@@ -266,7 +264,6 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// owning its SQL outright.
     /// </summary>
     /// <param name="dateTimeValue">Value to map to database.</param>
-    /// <returns></returns>
     public object? GetDbDateTimeValue(DateTimeOffset? dateTimeValue)
     {
         return dateTimeValue?.UtcTicks;
@@ -277,7 +274,6 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// contract; see <see cref="GetDbDateTimeValue" />.
     /// </summary>
     /// <param name="columnValue">Value to map from database.</param>
-    /// <returns></returns>
     public DateTimeOffset? GetDateTimeFromDbValue(object columnValue)
     {
         if (columnValue is not null && columnValue != DBNull.Value)
@@ -298,7 +294,6 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// without owning its SQL outright.
     /// </summary>
     /// <param name="timeSpanValue">Value to map to database.</param>
-    /// <returns></returns>
     public object? GetDbTimeSpanValue(TimeSpan? timeSpanValue)
     {
         // Whole milliseconds is the whole of the format, so a value carrying anything finer is a value
@@ -321,7 +316,6 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// contract; see <see cref="GetDbTimeSpanValue" />.
     /// </summary>
     /// <param name="columnValue">Value to map from database.</param>
-    /// <returns></returns>
     public TimeSpan? GetTimeSpanFromDbValue(object columnValue)
     {
         if (columnValue is not null && columnValue != DBNull.Value)
@@ -415,7 +409,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// Select all of the jobs contained in a given group.
     /// </summary>
     /// <param name="conn">The DB Connection.</param>
-    /// <param name="matcher"></param>
+    /// <param name="matcher">Which groups to read, or every group when it matches anything.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>An array of <see cref="String" /> job names.</returns>
     public virtual async ValueTask<List<JobKey>> SelectJobKeysInGroup(

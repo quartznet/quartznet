@@ -167,7 +167,6 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
     /// but will rather be invoked by a TriggerBuilder which this
     /// ScheduleBuilder is given to.
     /// </summary>
-    /// <returns></returns>
     public IMutableTrigger Build()
     {
         // Deferred from EndingDailyAfterCount so the computation runs against the trigger
@@ -204,8 +203,6 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
     /// <summary>
     /// Specify the time unit and interval for the Trigger to be produced.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="interval">the interval at which the trigger should repeat.</param>
     /// <param name="unit"> the time unit (IntervalUnit) of the interval.</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
@@ -420,8 +417,6 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
     /// Note: total fires per day = 1 (at startTimeOfDay) + repeatCount.
     /// The trigger resets each day and repeats on subsequent valid days.
     /// </remarks>
-    /// <param name="repeatCount"></param>
-    /// <returns></returns>
     public DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount)
     {
         this.repeatCount = repeatCount;

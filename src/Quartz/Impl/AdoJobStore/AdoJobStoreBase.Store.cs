@@ -779,8 +779,6 @@ internal abstract partial class AdoJobStoreBase
     /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar" />s.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     public async ValueTask Clear(CancellationToken cancellationToken = default)
     {
         await ExecuteInLock(SchedulerLock.TriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken).ConfigureAwait(false);

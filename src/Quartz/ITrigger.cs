@@ -88,14 +88,12 @@ public interface ITrigger
     /// nothing else has any business reading it.
     /// </remarks>
     /// <seealso cref="GetScheduleBuilder"/>
-    /// <returns></returns>
     TriggerBuilder<IJob> GetTriggerBuilder();
 
     /// <summary>
     /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a
     /// schedule identical to this trigger's schedule.
     /// </summary>
-    /// <returns></returns>
     IScheduleBuilder GetScheduleBuilder();
 
     /// <summary>
@@ -241,7 +239,6 @@ public interface ITrigger
     /// <remarks>
     /// If not explicitly set, the default value is <i>5</i>.
     /// </remarks>
-    /// <returns></returns>
     /// <see cref="TriggerConstants.DefaultPriority" />
     int Priority { get; }
 

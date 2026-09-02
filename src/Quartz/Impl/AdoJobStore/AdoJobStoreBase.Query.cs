@@ -166,8 +166,6 @@ internal abstract partial class AdoJobStoreBase
     /// Determine whether a <see cref="IJob"/> with the given identifier already
     /// exists within the scheduler.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
@@ -193,8 +191,6 @@ internal abstract partial class AdoJobStoreBase
     /// Determine whether a <see cref="ITrigger" /> with the given identifier already
     /// exists within the scheduler.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="triggerKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>

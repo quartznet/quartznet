@@ -89,7 +89,7 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// that it should free up all of it's resources because the scheduler is
     /// shutting down.
     /// </summary>
-    /// <param name="waitForJobsToComplete"></param>
+    /// <param name="waitForJobsToComplete">Ignored: this pool runs nothing, so there is never anything to wait for.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
     {

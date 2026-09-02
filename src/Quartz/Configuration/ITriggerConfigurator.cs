@@ -84,8 +84,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// <summary>
     /// Set the given (human-meaningful) description of the Trigger.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="description">the description for the Trigger</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.Description" />
@@ -96,8 +94,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// fire time, the scheduler will fire the one with the highest priority
     /// first.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="priority">the priority for the Trigger</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="TriggerConstants.DefaultPriority" />
@@ -143,8 +139,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// Set the name of the <see cref="ICalendar" /> that should be applied to this
     /// Trigger's schedule.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="calendarName">the name of the Calendar to reference.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ICalendar" />
@@ -157,8 +151,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// the Trigger.  However the Trigger will NOT fire before this time,
     /// regardless of the Trigger's schedule.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="startTimeUtc">the start time for the Trigger.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.StartTimeUtc" />
@@ -170,8 +162,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// the trigger may or may not fire at this time - depending upon the
     /// schedule configured for the Trigger.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.StartTimeUtc" />
     ITriggerConfigurator<TJob> StartNow();
@@ -209,8 +199,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// Set the identity of the Job which should be fired by the produced
     /// Trigger.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="jobKey">the identity of the Job to fire.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobKey" />
@@ -221,8 +209,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// Trigger - a <see cref="JobKey" /> will be produced with the given
     /// name and default group.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="jobName">the name of the job (in default group) to fire.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobKey" />
@@ -233,8 +219,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// Trigger - a <see cref="JobKey" /> will be produced with the given
     /// name and group.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="jobName">the name of the job to fire.</param>
     /// <param name="jobGroup">the group of the job to fire.</param>
     /// <returns>the updated TriggerBuilder</returns>
@@ -245,8 +229,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// Set the identity of the Job which should be fired by the produced
     /// Trigger, by extracting the JobKey from the given job.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="jobDetail">the Job to fire.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobKey" />
@@ -288,8 +270,6 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
     ITriggerConfigurator<TJob> UsingJobData(JobDataMap newJobDataMap);

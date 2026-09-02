@@ -61,8 +61,6 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
     /// <summary>
     /// Serialization constructor.
     /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
     private AnnualCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;

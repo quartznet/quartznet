@@ -784,7 +784,6 @@ public interface IDriverDelegate
     /// <param name="conn">The conn.</param>
     /// <param name="groupName">Name of the group.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
     ValueTask<int> InsertPausedTriggerGroup(
         ConnectionAndTransactionHolder conn,
         string groupName,
@@ -797,7 +796,6 @@ public interface IDriverDelegate
     /// <param name="conn">The database connection.</param>
     /// <param name="matcher">Criteria for matching groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
     ValueTask<int> DeletePausedTriggerGroup(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
@@ -1165,7 +1163,6 @@ public interface IDriverDelegate
     /// <param name="conn">The DB Connection</param>
     /// <param name="instanceId">The instance id, or <see langword="null" /> for every instance.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
     ValueTask<List<SchedulerStateRecord>> SelectSchedulerStateRecords(
         ConnectionAndTransactionHolder conn,
         string? instanceId,
@@ -1245,7 +1242,6 @@ public interface IDriverDelegate
     /// </remarks>
     /// <param name="conn">The conn.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
     ValueTask<List<string>> SelectFiredTriggerInstanceNames(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default);
@@ -1257,7 +1253,6 @@ public interface IDriverDelegate
     /// <param name="state">The trigger state to scan.</param>
     /// <param name="misfireTime">Triggers whose next fire time is at or before this are misfired.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
     ValueTask<int> CountMisfiredTriggersInState(
         ConnectionAndTransactionHolder conn,
         StoredTriggerState state,
@@ -1268,7 +1263,7 @@ public interface IDriverDelegate
     /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar" />s.
     /// </summary>
-    /// <param name="conn"></param>
+    /// <param name="conn">The connection and transaction this delete runs in.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask ClearData(
         ConnectionAndTransactionHolder conn,

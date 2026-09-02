@@ -216,14 +216,12 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     /// Tells whether this Trigger instance can handle events
     /// in millisecond precision.
     /// </summary>
-    /// <value></value>
     protected override bool HasMillisecondPrecision => true;
 
     /// <summary>
     /// Validates the misfire instruction.
     /// </summary>
     /// <param name="misfireInstruction">The misfire instruction.</param>
-    /// <returns></returns>
     protected override bool ValidateMisfireInstruction(int misfireInstruction)
     {
         if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)
@@ -610,7 +608,6 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     /// </summary>
     /// <param name="startTimeUtc">The UTC start date and time.</param>
     /// <param name="endTimeUtc">The UTC end date and time.</param>
-    /// <returns></returns>
     public int ComputeNumberOfTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
     {
         long time = (endTimeUtc - startTimeUtc).Ticks;
