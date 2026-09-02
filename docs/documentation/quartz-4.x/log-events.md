@@ -26,6 +26,7 @@ never disagree about what an id means:
 | 7000–7999 | `Quartz.Jobs` | jobs |
 | 8000–8999 | `Quartz.Extensions.Redis` | Redis |
 | 9000–9099 | `Quartz.AspNetCore` | the HTTP API |
+| 9100–9199 | `Quartz.Dashboard` | the dashboard |
 
 Quartz logs through `Microsoft.Extensions.Logging` and writes nothing above `Error`, so a
 `LogLevel.Critical` in your log is never Quartz's. Under a host it uses whatever the application already
@@ -328,6 +329,10 @@ matching on its text is not.
 | 9002 | Debug | `Quartz.AspNetCore` | `"NotFoundException thrown"` |
 | 9003 | Warning | `Quartz.AspNetCore` | `"SchedulerException thrown when handling api request to url {Url}"` |
 | 9004 | Error | `Quartz.AspNetCore` | `"Exception thrown when handling api request to url {Url}"` |
+| 9100 | Information | `Quartz.Dashboard` | `"Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome}"` |
+| 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason}"` |
+| 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
+| 9103 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} closed for user {User}"` |
 
 <!-- endLogEvents -->
 

@@ -61,6 +61,7 @@ internal sealed class DashboardComponentContext : BunitContext
         Services.AddSingleton<SchedulerAuthorization>();
         Services.AddSingleton<ToastService>();
         Services.AddSingleton<DashboardActionLogService>();
+        Services.AddSingleton<DashboardActionLog>();
 
         // The reads whose answer is a shape rather than a number: a page and a limits snapshot. Every
         // test that overrides one of these does so with its own A.CallTo, which wins; what these are for
@@ -84,7 +85,7 @@ internal sealed class DashboardComponentContext : BunitContext
         SchedulerState = Services.GetRequiredService<SchedulerState>();
         SchedulerState.SelectedTimeZoneId = TimeZoneInfo.Utc.Id;
         Toasts = Services.GetRequiredService<ToastService>();
-        ActionLog = Services.GetRequiredService<DashboardActionLogService>();
+        ActionLog = Services.GetRequiredService<DashboardActionLog>();
     }
 
     public IQuartzApiClient Api { get; }
@@ -101,7 +102,7 @@ internal sealed class DashboardComponentContext : BunitContext
 
     public ToastService Toasts { get; }
 
-    public DashboardActionLogService ActionLog { get; }
+    public DashboardActionLog ActionLog { get; }
 
     /// <summary>
     /// Puts the browser on <paramref name="relativeUri" /> before a page is rendered, which is the only

@@ -19,6 +19,8 @@
 
 using System.Security.Claims;
 
+using Microsoft.Extensions.Logging;
+
 using Microsoft.AspNetCore.SignalR;
 
 using Quartz.Dashboard.Services;
@@ -28,10 +30,36 @@ namespace Quartz.Dashboard.Hubs;
 internal sealed class QuartzDashboardHub : Hub<IQuartzDashboardHubClient>
 {
     private readonly SchedulerAuthorization authorization;
+    private readonly ILogger<QuartzDashboardHub> logger;
 
-    public QuartzDashboardHub(SchedulerAuthorization authorization)
+    public QuartzDashboardHub(SchedulerAuthorization authorization, ILogger<QuartzDashboardHub> logger)
     {
         this.authorization = authorization;
+        this.logger = logger;
+    }
+
+    /// <remarks>
+    /// Debug rather than Information: a circuit opens and closes on every navigation and every reload,
+    /// so this is diagnostic detail an operator turns on while looking at something, not a record of
+    /// what was done. What was done is <see cref="DashboardActionLog" />.
+    /// </remarks>
+    public override Task OnConnectedAsync()
+    {
+        logger.HubConnected(Context.ConnectionId, UserName());
+        return base.OnConnectedAsync();
+    }
+
+    /// <inheritdoc cref="OnConnectedAsync" />
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        logger.HubDisconnected(Context.ConnectionId, UserName());
+        return base.OnDisconnectedAsync(exception);
+    }
+
+    private string UserName()
+    {
+        string? name = Context.User?.Identity?.Name;
+        return string.IsNullOrWhiteSpace(name) ? "(anonymous)" : name;
     }
 
     /// <summary>

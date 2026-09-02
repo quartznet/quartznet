@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FakeItEasy;
 
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Hubs;
@@ -84,7 +85,7 @@ public class QuartzDashboardHubAuthorizationTest
 
         IGroupManager groups = A.Fake<IGroupManager>();
 
-        QuartzDashboardHub hub = new(authorization)
+        QuartzDashboardHub hub = new(authorization, NullLogger<QuartzDashboardHub>.Instance)
         {
             Context = callerContext,
             Groups = groups

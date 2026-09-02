@@ -16,8 +16,8 @@ namespace Quartz.Tests.AspNetCore;
 /// so no range is written down twice and neither copy can go stale against the other.
 /// </para>
 /// <para>
-/// <c>Quartz.Dashboard</c> is not here: it raises no events at all. It is still in
-/// <c>LogCallSiteTest.Converted</c>, which is what says it may not start raising them the plain way.
+/// <c>Quartz.Dashboard</c> is here too, since rc.1: every mutating action a visitor takes reaches the
+/// application's logger, and a connection opening or closing is logged at Debug.
 /// </para>
 /// </remarks>
 public class LogEventCatalogTest
@@ -30,6 +30,7 @@ public class LogEventCatalogTest
     private static readonly EventIdRange[] Ranges =
     [
         new("Quartz.AspNetCore", 9000, 9099, "HTTP API"),
+        new("Quartz.Dashboard", 9100, 9199, "Dashboard"),
     ];
 
     /// <summary>
@@ -38,6 +39,7 @@ public class LogEventCatalogTest
     private static readonly Assembly[] Catalogued =
     [
         typeof(global::Quartz.QuartzAspNetCoreConfigurationExtensions).Assembly,
+        typeof(global::Quartz.QuartzDashboardServiceCollectionExtensions).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()
