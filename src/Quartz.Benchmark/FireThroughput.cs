@@ -24,10 +24,11 @@ namespace Quartz.Benchmark;
 /// <c>Allocated</c> column is what one firing costs the process, not what one thread of it cost.
 /// </para>
 /// <para>
-/// <b>Every trigger is permanently overdue.</b> They repeat indefinitely at an interval of one tick
+/// <b>Every trigger is permanently overdue.</b> They repeat indefinitely at <see cref="RepeatInterval" />
 /// under <see cref="MisfireInstruction.IgnoreMisfirePolicy" />, so each firing advances the next fire
-/// time by 100 ns and leaves it in the past — the scheduler never waits, and the misfire handler never
-/// looks at them (both the ADO scan and the acquisition filter special-case <c>MISFIRE_INSTR = -1</c>).
+/// time by a millisecond and leaves it in the past — the scheduler never waits, and the misfire handler
+/// never looks at them (both the ADO scan and the acquisition filter special-case
+/// <c>MISFIRE_INSTR = -1</c>).
 /// This is <c>SchedulerBenchmark</c>'s arrangement, for its reason: what is being measured is the fire
 /// path, and a benchmark that spent its time asleep would be measuring the clock.
 /// </para>
@@ -50,12 +51,36 @@ internal static class FireThroughput
     /// <summary>How many triggers are in flight, spread over <see cref="JobCount" /> jobs.</summary>
     /// <remarks>
     /// A schedule is triggers over a handful of jobs rather than one trigger each, and the store reads
-    /// the job on every firing either way. Two hundred is enough that a pool of fifty always has
-    /// something to take and that acquisition never runs dry between batches.
+    /// the job on every firing either way. The count is what decides the ceiling: a trigger that
+    /// repeats every <see cref="RepeatInterval" /> can sustain a thousand firings a second on its own,
+    /// so two thousand of them put the arrangement's own limit at two million a second — several times
+    /// what the fastest arm here reaches, which is what keeps the number a measurement of the scheduler
+    /// rather than of the schedule.
     /// </remarks>
-    private const int TriggerCount = 200;
+    private const int TriggerCount = 2_000;
 
-    private const int JobCount = 25;
+    private const int JobCount = 100;
+
+    /// <summary>
+    /// How far each firing advances its trigger, and the smallest interval a persistent store can
+    /// carry.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>StdAdoDelegate.GetDbTimeSpanValue</c> stores a <see cref="TimeSpan" /> as whole
+    /// milliseconds, so anything shorter than one is persisted as zero — and a simple trigger read
+    /// back with a zero repeat interval throws <see cref="DivideByZeroException" /> out of
+    /// <c>GetFireTimeAfter</c> on its next firing, which the store logs and swallows, leaving the row
+    /// stuck in <c>ACQUIRED</c>. This benchmark found that; it is filed rather than worked around, and
+    /// a millisecond is simply the smallest interval both stores agree on.
+    /// </para>
+    /// <para>
+    /// It has to be short for the reason the interval always did: a firing advances the trigger by one
+    /// of these, so as long as a trigger fires fewer than a thousand times a second it stays overdue
+    /// and the scheduler never waits.
+    /// </para>
+    /// </remarks>
+    private static readonly TimeSpan RepeatInterval = TimeSpan.FromMilliseconds(1);
 
     /// <summary>
     /// The group everything this benchmark creates lives in, so the ADO arm can delete exactly its own
@@ -186,7 +211,7 @@ internal static class FireThroughput
                     .StartNow()
                     .WithSimpleSchedule(simple => simple
                         .RepeatForever()
-                        .WithInterval(TimeSpan.FromTicks(1))
+                        .WithInterval(RepeatInterval)
                         .WithMisfireInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires))
                     .Build();
             }

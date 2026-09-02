@@ -31,8 +31,9 @@ namespace Quartz.Benchmark;
 /// <para>
 /// <b>What is held identical to the 4.x arms</b>, because a difference in any of them would be
 /// measured as a difference in the scheduler: two hundred triggers over twenty-five jobs; simple
-/// triggers repeating indefinitely at an interval of one tick under the ignore-misfires instruction,
-/// so every trigger is permanently overdue and the loop never waits; <c>MaxBatchSize</c> equal to
+/// triggers repeating indefinitely at a one-millisecond interval under the ignore-misfires
+/// instruction, so every trigger is permanently overdue and the loop never waits;
+/// <c>MaxBatchSize</c> equal to
 /// <c>MaxConcurrency</c>; a one-second batch fire-ahead window; a one-second idle wait; a job that
 /// counts and returns. The counting, the waiting and the fires-per-invocation constants are the same
 /// too, so <c>Mean</c> means the same thing on both sides — the time one firing took, from which
@@ -64,9 +65,16 @@ internal static class FireThroughputBaseline
 
     public const string Group = "fireThroughput";
 
-    private const int TriggerCount = 200;
+    private const int TriggerCount = 2_000;
 
-    private const int JobCount = 25;
+    private const int JobCount = 100;
+
+    /// <summary>
+    /// The same millisecond the 4.x arms use, and for the same reason: it is the smallest
+    /// interval a persistent store can carry, because StdAdoDelegate stores a TimeSpan as whole
+    /// milliseconds on both branches.
+    /// </summary>
+    private static readonly TimeSpan RepeatInterval = TimeSpan.FromMilliseconds(1);
 
     private static readonly TimeSpan FireTimeout = TimeSpan.FromMinutes(2);
 
@@ -149,7 +157,7 @@ internal static class FireThroughputBaseline
                     .StartNow()
                     .WithSimpleSchedule(simple => simple
                         .RepeatForever()
-                        .WithInterval(TimeSpan.FromTicks(1))
+                        .WithInterval(RepeatInterval)
                         .WithMisfireHandlingInstructionIgnoreMisfires())
                     .Build();
             }
