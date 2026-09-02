@@ -385,8 +385,7 @@ public sealed class HttpScheduler : IScheduler
     {
         if (limits is null)
         {
-            using HttpResponseMessage response = await httpClient.DeleteAsync($"{SchedulerEndpointUrl()}/execution-limits", cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            await httpClient.Delete($"{SchedulerEndpointUrl()}/execution-limits", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -406,13 +405,17 @@ public sealed class HttpScheduler : IScheduler
     public async ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default)
     {
         ExecutionLimitsResponse response = await httpClient.Get<ExecutionLimitsResponse>($"{SchedulerEndpointUrl()}/execution-limits", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        if (response.Limits is null || response.Limits.Count == 0)
+
+        // No groups and no derivation is the one answer that means "nothing is configured". A scheduler
+        // that limits nothing but asked for the trigger group to stand in for an unset execution group
+        // has said something, and saying it back as null would lose it.
+        if (response.Limits is not { Count: > 0 } && !response.UseTriggerGroupWhenUnset)
         {
             return null;
         }
 
         ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create();
-        foreach (KeyValuePair<string, ExecutionLimitDto> kvp in response.Limits)
+        foreach (KeyValuePair<string, ExecutionLimitDto> kvp in response.Limits ?? [])
         {
             int? maxConcurrent = kvp.Value.MaxConcurrent;
             ExecutionLimitScope scope = kvp.Value.Scope;
