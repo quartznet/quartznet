@@ -23,9 +23,16 @@ using System.Collections.Specialized;
 using System.Data.Common;
 using System.Transactions;
 
+using FirebirdSql.Data.FirebirdClient;
+
 using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
+
+using MySqlConnector;
 
 using Npgsql;
+
+using Oracle.ManagedDataAccess.Client;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
@@ -105,6 +112,94 @@ public class EnlistedTransactionTest
     public Task SqlServerIncompleteAmbientScopeDiscardsTheSchedule()
     {
         return IncompleteAmbientScopeDiscardsTheSchedule(SqlServer(), "AmbientScopeMssql");
+    }
+
+    [Test]
+    [Category("db-mysql")]
+    public Task MySqlRollingBackTheApplicationTransactionDiscardsTheSchedule()
+    {
+        return RollingBackTheApplicationTransactionDiscardsTheSchedule(MySql(), "EnlistedRollbackMySql");
+    }
+
+    [Test]
+    [Category("db-mysql")]
+    public Task MySqlCommittingTheApplicationTransactionKeepsTheSchedule()
+    {
+        return CommittingTheApplicationTransactionKeepsTheSchedule(MySql(), "EnlistedCommitMySql");
+    }
+
+    [Test]
+    [Category("db-mysql")]
+    public Task MySqlIncompleteAmbientScopeDiscardsTheSchedule()
+    {
+        return IncompleteAmbientScopeDiscardsTheSchedule(MySql(), "AmbientScopeMySql");
+    }
+
+    [Test]
+    [Category("db-oracle")]
+    public Task OracleRollingBackTheApplicationTransactionDiscardsTheSchedule()
+    {
+        return RollingBackTheApplicationTransactionDiscardsTheSchedule(Oracle(), "EnlistedRollbackOracle");
+    }
+
+    [Test]
+    [Category("db-oracle")]
+    public Task OracleCommittingTheApplicationTransactionKeepsTheSchedule()
+    {
+        return CommittingTheApplicationTransactionKeepsTheSchedule(Oracle(), "EnlistedCommitOracle");
+    }
+
+    [Test]
+    [Category("db-oracle")]
+    public Task OracleIncompleteAmbientScopeDiscardsTheSchedule()
+    {
+        return IncompleteAmbientScopeDiscardsTheSchedule(Oracle(), "AmbientScopeOracle");
+    }
+
+    [Test]
+    [Category("db-firebird")]
+    public Task FirebirdRollingBackTheApplicationTransactionDiscardsTheSchedule()
+    {
+        return RollingBackTheApplicationTransactionDiscardsTheSchedule(Firebird(), "EnlistedRollbackFb");
+    }
+
+    [Test]
+    [Category("db-firebird")]
+    public Task FirebirdCommittingTheApplicationTransactionKeepsTheSchedule()
+    {
+        return CommittingTheApplicationTransactionKeepsTheSchedule(Firebird(), "EnlistedCommitFb");
+    }
+
+    [Test]
+    [Category("db-firebird")]
+    public Task FirebirdIncompleteAmbientScopeDiscardsTheSchedule()
+    {
+        return IncompleteAmbientScopeDiscardsTheSchedule(Firebird(), "AmbientScopeFb");
+    }
+
+    /// <summary>
+    /// SQLite needs no container, so its two cases run in the <c>basic</c> leg — and it is the one
+    /// dialect <c>job-stores.md</c> makes a claim of its own about, so it is the one where a
+    /// commit boundary that behaved differently would be least surprising and most expensive to find
+    /// in production.
+    /// </summary>
+    /// <remarks>
+    /// Only the <see cref="DbTransaction" /> form. Microsoft.Data.Sqlite implements no
+    /// <see cref="System.Data.Common.DbConnection.EnlistTransaction" />, so a connection opened inside
+    /// a <see cref="TransactionScope" /> does not join it and the scope's outcome governs nothing —
+    /// which is a fact about the driver rather than about Quartz, and is written down on
+    /// <c>tutorial/job-stores.md</c> beside the in-process locking caveat.
+    /// </remarks>
+    [Test]
+    public Task SqliteRollingBackTheApplicationTransactionDiscardsTheSchedule()
+    {
+        return RollingBackTheApplicationTransactionDiscardsTheSchedule(Sqlite(), "EnlistedRollbackSqlite");
+    }
+
+    [Test]
+    public Task SqliteCommittingTheApplicationTransactionKeepsTheSchedule()
+    {
+        return CommittingTheApplicationTransactionKeepsTheSchedule(Sqlite(), "EnlistedCommitSqlite");
     }
 
     private static async Task RollingBackTheApplicationTransactionDiscardsTheSchedule(
@@ -403,6 +498,11 @@ public class EnlistedTransactionTest
             properties["quartz.scheduler.idleWaitTime"] = ((int) idleWaitTime.Value.TotalMilliseconds).ToString();
         }
 
+        if (provider.ProvisionSchema)
+        {
+            properties["quartz.jobStore.schemaProvisioning"] = nameof(SchemaProvisioning.CreateIfMissing);
+        }
+
         // Most of these tests never start the scheduler - they are about what reaches the database,
         // and a running scheduler thread would contend for the locks the application transaction
         // holds. RunningSchedulerFiresTheJobRightAfterTheApplicationCommits is the one that does.
@@ -427,6 +527,89 @@ public class EnlistedTransactionTest
             () => new SqlConnection(TestConstants.SqlServerConnectionString));
     }
 
+    private static TestProvider MySql()
+    {
+        string connectionString = ContainerConnectionString("MYSQL_CONNECTION_STRING");
+
+        return new TestProvider(
+            DataSourceOptions.Providers.MySqlConnector,
+            connectionString,
+            typeof(MySQLDelegate),
+            () => new MySqlConnection(connectionString));
+    }
+
+    private static TestProvider Oracle()
+    {
+        string connectionString = ContainerConnectionString("ORACLE_CONNECTION_STRING");
+
+        return new TestProvider(
+            DataSourceOptions.Providers.Oracle,
+            connectionString,
+            typeof(OracleDelegate),
+            () => new OracleConnection(connectionString));
+    }
+
+    private static TestProvider Firebird()
+    {
+        string connectionString = ContainerConnectionString("FIREBIRD_CONNECTION_STRING");
+
+        return new TestProvider(
+            DataSourceOptions.Providers.Firebird,
+            connectionString,
+            typeof(FirebirdDelegate),
+            () => new FbConnection(connectionString));
+    }
+
+    /// <summary>
+    /// A SQLite file of this test's own, created empty and provisioned by the scheduler that opens it.
+    /// </summary>
+    private TestProvider Sqlite()
+    {
+        sqliteFile = Path.Combine(Path.GetTempPath(), $"quartz-enlisted-{Guid.NewGuid():N}.db");
+        string connectionString = $"Data Source={sqliteFile}";
+
+        return new TestProvider(
+            DataSourceOptions.Providers.Sqlite,
+            connectionString,
+            typeof(SQLiteDelegate),
+            () => new SqliteConnection(connectionString),
+            provisionSchema: true);
+    }
+
+    /// <summary>
+    /// The connection string the assembly's container published for this database.
+    /// </summary>
+    private static string ContainerConnectionString(string variableName)
+    {
+        string connectionString = Environment.GetEnvironmentVariable(variableName);
+
+        connectionString.Should().NotBeNullOrWhiteSpace(
+            "{0} is set by the container this assembly starts, so an empty one means the container for "
+            + "this leg never started", variableName);
+
+        return connectionString;
+    }
+
+    private string sqliteFile;
+
+    [TearDown]
+    public void DeleteSqliteDatabase()
+    {
+        if (sqliteFile is null)
+        {
+            return;
+        }
+
+        SqliteConnection.ClearAllPools();
+
+        if (File.Exists(sqliteFile))
+        {
+            File.Delete(sqliteFile);
+        }
+
+        sqliteFile = null;
+    }
+
     [DisallowConcurrentExecution]
     public sealed class SignallingJob : IJob
     {
@@ -449,12 +632,14 @@ public class EnlistedTransactionTest
             string providerName,
             string connectionString,
             Type driverDelegateType,
-            Func<DbConnection> connectionFactory)
+            Func<DbConnection> connectionFactory,
+            bool provisionSchema = false)
         {
             ProviderName = providerName;
             ConnectionString = connectionString;
             DriverDelegateType = driverDelegateType;
             this.connectionFactory = connectionFactory;
+            ProvisionSchema = provisionSchema;
         }
 
         internal string ProviderName { get; }
@@ -462,6 +647,12 @@ public class EnlistedTransactionTest
         internal string ConnectionString { get; }
 
         internal Type DriverDelegateType { get; }
+
+        /// <summary>
+        /// Whether the scheduler creates the schema as it starts. The container databases are given
+        /// theirs when the container starts; a file database has none until something makes one.
+        /// </summary>
+        internal bool ProvisionSchema { get; }
 
         internal DbConnection CreateConnection() => connectionFactory();
     }

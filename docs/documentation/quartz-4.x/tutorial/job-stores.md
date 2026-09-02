@@ -356,6 +356,12 @@ Things worth knowing before you enable this:
   clustered - an in-process lock would be released before you commit. SQLite is the exception: it always locks in
   process, so a concurrent scheduler operation there can fail with "database is locked" until your transaction
   completes. Quartz logs a warning about it at startup.
+* On SQLite, enlist a `DbTransaction` and not a `TransactionScope`. `Microsoft.Data.Sqlite` implements no
+  `DbConnection.EnlistTransaction`, so a connection opened inside a scope never joins it: `EnlistConnection` then hands
+  the store a connection whose writes commit on the spot, and rolling the scope back leaves the schedule behind.
+  `EnlistTransaction(connection.BeginTransaction())` is unaffected, because there the transaction is the connection's
+  own and Quartz uses it directly. This is a property of the driver rather than of Quartz, and it is the reason
+  `EnlistedTransactionTest` runs only the `DbTransaction` cases for SQLite.
 * An operation that fails halfway leaves its statements in your transaction; there is no savepoint to roll back to.
 * Work the scheduler does on its own - acquiring triggers, handling misfires, cluster check-in - always uses its own
   connections and is unaffected.
