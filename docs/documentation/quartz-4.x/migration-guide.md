@@ -5228,17 +5228,41 @@ It used to be undefined: the builder turned clustering on, the callback turned i
 left with database locking on, no cluster manager and no check-in row — with nothing said. It fails
 validation now. A scheduler that should not cluster does not call `UseClustering`.
 
-### `IgnoreDuplicates` and `OverwriteExistingData` cannot both be on
+### `IgnoreDuplicates` on its own turns overwriting off
 
-`Quartz:Scheduling` refuses a configuration that sets `IgnoreDuplicates` while `OverwriteExistingData`
-is on. The two are answers to the same question and `OverwriteExistingData` wins, so setting
-`IgnoreDuplicates` without also clearing it did nothing at all: an application asking to *pass over* a
-declared job or trigger whose key is already stored got *replace it*, which is the opposite, in silence
-and at every start.
+`Scheduling.IgnoreDuplicates` and `Scheduling.OverwriteExistingData` are two answers to one question —
+what to do with a declared job or trigger whose key is already stored — and `OverwriteExistingData`
+wins. It defaults to `true`, so on 3.x setting `IgnoreDuplicates` and nothing else did nothing at all:
+an application asking to *pass over* a duplicate got *replace it*, which is the opposite, in silence and
+at every start.
 
-`OverwriteExistingData` defaults to `true`, so the configuration this catches is the one that only sets
-`IgnoreDuplicates`. Set `OverwriteExistingData` to `false` beside it. The failure names both settings and
-the default that made one of them inert.
+**Setting `IgnoreDuplicates` now turns overwriting off**, because the default of `true` is a default
+rather than a statement — the option records whether its setter ran, and configuration binding and a
+`Configure<QuartzOptions>` callback both go through it. So the natural one-liner does what it says:
+
+```csharp
+services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
+```
+
+Writing *both* down is still refused at startup, because that is an application asking for opposite
+things, and the failure names both settings. The three positions are therefore:
+
+| What you write | What happens to a duplicate key |
+|---|---|
+| neither | replaced |
+| `IgnoreDuplicates = true` | passed over |
+| `OverwriteExistingData = false` | reported as an error |
+
+The same rule reaches the scheduling files: a document whose processing directives carry
+`ignore-duplicates` and say nothing about `overwrite-existing-data` gets overwriting turned off, in both
+the XML and the JSON plugin.
+
+::: warning beta.1 refused the one-liner
+On beta.1 `options.Scheduling.IgnoreDuplicates = true` alone was a fatal `OptionsValidationException` at
+startup. If you worked around it by adding `OverwriteExistingData = false`, that spelling keeps working
+and means the same thing; if you worked around it by adding `OverwriteExistingData = true`, remove that
+line — it is now the pair that is refused, and it was never what you wanted.
+:::
 
 ## Cron Parser Enhancements
 
@@ -11329,7 +11353,7 @@ shape changed and only what a mis-stated configuration does is different.
 | beta.1 | A paged HTTP API request is bounded by `QuartzHttpApiOptions.MaxPageSize`, which is `1000`; `take` used to reject only negatives. Set it to `0` for the old behaviour | [A paged request is bounded by `MaxPageSize`](#a-paged-request-is-bounded-by-maxpagesize) |
 | beta.1 | `MapQuartzHttpApi()` and `MapQuartzDashboard()` refuse to start when nothing authorizes them. **An application that mapped a bare API or dashboard has to add one call**, and `AllowAnonymous()` is a supported answer | [The HTTP API and the dashboard will not serve anonymously by accident](#the-http-api-and-the-dashboard-will-not-serve-anonymously-by-accident) |
 | beta.1 | `MapQuartzDashboard()` returns `IEndpointConventionBuilder` rather than `RazorComponentsEndpointConventionBuilder`, so one `RequireAuthorization()` covers the pages *and* the hub | [One builder covers the dashboard's pages and its hub](#one-builder-covers-the-dashboard-s-pages-and-its-hub) |
-| beta.1 | `Quartz:Scheduling` refuses `IgnoreDuplicates` while `OverwriteExistingData` is on. A configuration that set only the first was being ignored, silently, at every start | [`IgnoreDuplicates` and `OverwriteExistingData` cannot both be on](#ignoreduplicates-and-overwriteexistingdata-cannot-both-be-on) |
+| rc.1 | `Scheduling.IgnoreDuplicates` on its own turns `OverwriteExistingData` off, rather than being ignored (3.x) or refused (beta.1). Writing both down is still refused | [`IgnoreDuplicates` on its own turns overwriting off](#ignoreduplicates-on-its-own-turns-overwriting-off) |
 | beta.1 | An ADO store refuses a `SimpleTrigger` repeat interval it cannot hold to the millisecond, instead of storing `0` and leaving the row stuck in `ACQUIRED` | [The two job stores answer the same way](#the-two-job-stores-answer-the-same-way) |
 | beta.1 | `ILockHandler.Shutdown` was added as a default interface member. An existing handler need not implement it | [A lock handler is told when to close what it opened](#a-lock-handler-is-told-when-to-close-what-it-opened) |
 | beta.1 | `DelegatingScheduler` declares `ResetTriggersFromErrorState(GroupMatcher<TriggerKey>, …)`, which it had been letting the interface default answer on the forwarder | [`DelegatingJobStore` decorates a store](#delegatingjobstore-decorates-a-store) |

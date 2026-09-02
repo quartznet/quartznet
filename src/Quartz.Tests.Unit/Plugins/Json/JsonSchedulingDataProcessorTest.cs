@@ -231,6 +231,22 @@ public class JsonSchedulingDataProcessorTest
         processor.IgnoreDuplicates.Should().BeTrue();
     }
 
+    /// <summary>
+    /// A file that asks for duplicates to be ignored and says nothing about overwriting gets overwriting
+    /// turned off: the two directives are answers to one question, and only one was asked.
+    /// </summary>
+    [Test]
+    public void IgnoreDuplicatesOnItsOwnTurnsOverwritingOff()
+    {
+        var json = """{ "ProcessingDirectives": { "IgnoreDuplicates": true }, "Schedule": {} }""";
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+        processor.OverwriteExistingData.Should().BeFalse(
+            "the default of true is a default rather than a statement, and a file asking for duplicates "
+            + "to be passed over cannot also mean 'replace them'");
+        processor.IgnoreDuplicates.Should().BeTrue();
+    }
+
     [Test]
     public void SecondProcessJsonContent_WithoutDirectives_ResetsScheduleTriggerRelativeFlag()
     {

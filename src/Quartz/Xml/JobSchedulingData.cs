@@ -144,11 +144,16 @@ internal sealed class JobSchedulingData
     private static ProcessingDirectives ReadProcessingDirectives(XElement element)
     {
         // Each directive keeps its default when the document leaves it out, which is why an empty
-        // processing-directives element does not turn overwriting off.
+        // processing-directives element does not turn overwriting off. The one exception is the pair:
+        // a document that says ignore-duplicates and nothing about overwrite-existing-data is asking for
+        // duplicates to be passed over, and overwriting on top of that would be the opposite answer to
+        // the same question.
+        bool ignoreDuplicates = Flag(element, "ignore-duplicates", defaultValue: false);
+
         return new ProcessingDirectives
         {
-            OverwriteExistingData = Flag(element, "overwrite-existing-data", defaultValue: true),
-            IgnoreDuplicates = Flag(element, "ignore-duplicates", defaultValue: false),
+            OverwriteExistingData = Flag(element, "overwrite-existing-data", defaultValue: !ignoreDuplicates),
+            IgnoreDuplicates = ignoreDuplicates,
             ScheduleTriggerRelativeToReplacedTrigger =
                 Flag(element, "schedule-trigger-relative-to-replaced-trigger", defaultValue: false),
         };

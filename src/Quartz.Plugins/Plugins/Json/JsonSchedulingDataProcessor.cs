@@ -122,8 +122,11 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
 
         if (data.ProcessingDirectives is not null)
         {
-            OverwriteExistingData = data.ProcessingDirectives.OverwriteExistingData;
             IgnoreDuplicates = data.ProcessingDirectives.IgnoreDuplicates;
+
+            // A file that asks for duplicates to be ignored and says nothing about overwriting gets
+            // overwriting turned off: the two are answers to one question, and only one was asked.
+            OverwriteExistingData = data.ProcessingDirectives.OverwriteExistingData ?? !IgnoreDuplicates;
             ScheduleTriggerRelativeToReplacedTrigger = data.ProcessingDirectives.ScheduleTriggerRelativeToReplacedTrigger;
         }
 

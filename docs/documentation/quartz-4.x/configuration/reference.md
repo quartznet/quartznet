@@ -574,8 +574,8 @@ registered in code, or declared in a file, already exist in the store under the 
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `OverwriteExistingData` | bool | `true` | A registration replaces the stored job or trigger of the same name. |
-| `IgnoreDuplicates` | bool | `false` | With `OverwriteExistingData` off, a name that already exists is skipped instead of throwing. |
+| `OverwriteExistingData` | bool | `true` | A registration replaces the stored job or trigger of the same name. The default is a default rather than a statement: setting `IgnoreDuplicates` turns it off. |
+| `IgnoreDuplicates` | bool | `false` | A name that already exists is skipped instead of throwing. Enough on its own — it turns `OverwriteExistingData` off. Setting both explicitly is refused at startup. |
 | `ScheduleTriggerRelativeToReplacedTrigger` | bool | `false` | A replaced trigger's next fire time is computed from the old trigger's last fire time rather than from now. |
 
 All three are about a *file or registration versus the store*. None of them can say anything about one

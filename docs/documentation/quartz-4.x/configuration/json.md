@@ -395,8 +395,8 @@ Commands executed before scheduling. All fields are optional:
 
 | Field | Default | Description |
 |---|---|---|
-| `OverwriteExistingData` | `true` | Replace existing jobs/triggers with the same identity. |
-| `IgnoreDuplicates` | `false` | When `OverwriteExistingData` is `false`, silently skip duplicates instead of erroring. |
+| `OverwriteExistingData` | `true` | Replace existing jobs/triggers with the same identity. The default applies only when the file does not carry `IgnoreDuplicates`. |
+| `IgnoreDuplicates` | `false` | Silently skip duplicates instead of erroring. A file that carries this and no `OverwriteExistingData` directive gets overwriting turned off. |
 | `ScheduleTriggerRelativeToReplacedTrigger` | `false` | Adjust new trigger timing based on old trigger's last fire time. |
 
 ::: warning Declaring one key twice in a file is an error

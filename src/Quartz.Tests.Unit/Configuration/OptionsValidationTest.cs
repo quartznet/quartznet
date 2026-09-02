@@ -453,12 +453,42 @@ public class OptionsValidationTest
     }
 
     /// <summary>
-    /// The two settings are two answers to the same question, <c>OverwriteExistingData</c> wins, and it
-    /// defaults to <see langword="true" /> — so asking to pass over duplicates without also clearing it
-    /// got the opposite, replacing them, in silence and at every start.
+    /// The two settings are two answers to the same question, and writing both down asks for opposite
+    /// things. Only both being <em>stated</em> is refused: <c>OverwriteExistingData</c>'s default of
+    /// <see langword="true" /> is a default rather than a statement.
     /// </summary>
     [Test]
     public void AskingToIgnoreDuplicatesWhileStillOverwritingThemFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options =>
+        {
+            options.Scheduling.IgnoreDuplicates = true;
+            options.Scheduling.OverwriteExistingData = true;
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*IgnoreDuplicates*", "the setting that would do nothing is named")
+            .WithMessage("*OverwriteExistingData*", "and so is the one that made it do nothing")
+            .WithMessage("*default rather than a statement*",
+                "the message says why setting IgnoreDuplicates on its own is fine and this is not");
+    }
+
+    /// <summary>
+    /// The one-liner the migration guide recommends. Setting <c>IgnoreDuplicates</c> and nothing else
+    /// starts, and means what it says: overwriting is off.
+    /// </summary>
+    /// <remarks>
+    /// It used to be a fatal startup error, which is what stopped this repository's own Worker and
+    /// ASP.NET Core examples booting on beta.1.
+    /// </remarks>
+    [Test]
+    public void IgnoringDuplicatesOnItsOwnStartsAndTurnsOverwritingOff()
     {
         var services = new ServiceCollection();
         services.AddQuartz();
@@ -468,10 +498,32 @@ public class OptionsValidationTest
 
         var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
 
-        act.Should().Throw<OptionsValidationException>()
-            .WithMessage("*IgnoreDuplicates*", "the setting that would do nothing is named")
-            .WithMessage("*OverwriteExistingData*", "and so is the one that made it do nothing")
-            .WithMessage("*defaults to true*", "which a reader who never set it needs told");
+        act.Should().NotThrow();
+
+        SchedulingOptions scheduling = provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Scheduling;
+        scheduling.EffectiveOverwriteExistingData.Should().BeFalse(
+            "nothing stated OverwriteExistingData, so asking for duplicates to be passed over is the "
+            + "whole of what was asked for");
+    }
+
+    /// <summary>
+    /// Clearing <c>OverwriteExistingData</c> and stopping there still makes a duplicate key an error, so
+    /// the two settings remain three distinct positions rather than two.
+    /// </summary>
+    [Test]
+    public void ClearingOverwriteWithoutIgnoringDuplicatesLeavesADuplicateAnError()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options => options.Scheduling.OverwriteExistingData = false);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.Invoking(p => p.GetRequiredService<IStartupValidator>().Validate()).Should().NotThrow();
+
+        SchedulingOptions scheduling = provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Scheduling;
+        scheduling.EffectiveOverwriteExistingData.Should().BeFalse();
+        scheduling.IgnoreDuplicates.Should().BeFalse("a duplicate key is still reported rather than passed over");
     }
 
     [Test]

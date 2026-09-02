@@ -34,15 +34,51 @@ namespace Quartz;
 /// </remarks>
 public sealed class SchedulingOptions
 {
+    private bool overwriteExistingData = true;
+
     /// <summary>
     /// Whether a declared job or trigger replaces one already stored under the same key.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// On by default. Turning it off makes a duplicate key an error, unless
     /// <see cref="IgnoreDuplicates" /> says to pass over it instead.
+    /// </para>
+    /// <para>
+    /// The default is a default rather than a statement: setting <see cref="IgnoreDuplicates" /> and
+    /// leaving this one alone turns it off, because "pass over what is already there" and "replace what
+    /// is already there" cannot both be meant and only one of them was asked for. Setting both
+    /// explicitly is still refused at startup.
+    /// </para>
     /// </remarks>
     /// <seealso cref="IgnoreDuplicates" />
-    public bool OverwriteExistingData { get; set; } = true;
+    public bool OverwriteExistingData
+    {
+        get => overwriteExistingData;
+        set
+        {
+            overwriteExistingData = value;
+            OverwriteExistingDataStated = true;
+        }
+    }
+
+    /// <summary>
+    /// Whether anything assigned <see cref="OverwriteExistingData" />, as opposed to leaving its default
+    /// in place.
+    /// </summary>
+    /// <remarks>
+    /// Configuration binding and a <c>Configure&lt;QuartzOptions&gt;</c> callback both go through the
+    /// setter, and the binder assigns only the keys a configuration source actually carries — so "stated"
+    /// is exactly what a user or a configuration file wrote.
+    /// </remarks>
+    internal bool OverwriteExistingDataStated { get; private set; }
+
+    /// <summary>
+    /// <see cref="OverwriteExistingData" /> as the scheduling paths read it: what was stated, or —
+    /// when nothing stated it — the opposite of <see cref="IgnoreDuplicates" />.
+    /// </summary>
+    internal bool EffectiveOverwriteExistingData
+        => OverwriteExistingDataStated ? overwriteExistingData : !IgnoreDuplicates;
 
     /// <summary>
     /// Whether a declared job or trigger whose key is already stored is passed over rather than
@@ -50,7 +86,8 @@ public sealed class SchedulingOptions
     /// </summary>
     /// <remarks>
     /// Only consulted when <see cref="OverwriteExistingData" /> is off, since replacing is already an
-    /// answer to a duplicate key. Setting both is refused at startup rather than resolved silently in
+    /// answer to a duplicate key — and setting this one is enough to turn it off, since its default is
+    /// not a statement. Setting both explicitly is refused at startup rather than resolved silently in
     /// favour of replacing, which is the opposite of what asking for this one means.
     /// </remarks>
     /// <seealso cref="OverwriteExistingData"/>
