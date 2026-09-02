@@ -26,7 +26,7 @@ using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 
-namespace Quartz.Tests.Integration.Impl;
+namespace Quartz.Tests.Impl;
 
 /// <summary>
 /// The scaffolding behind the misfire matrix: an in-memory store and a real SQLite one, each on a

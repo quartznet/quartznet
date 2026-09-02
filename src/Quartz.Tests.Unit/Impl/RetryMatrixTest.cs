@@ -22,7 +22,9 @@ using FakeItEasy;
 using Quartz.Extensibility;
 using Quartz.Impl.Triggers;
 
-namespace Quartz.Tests.Integration.Impl;
+using Quartz.Tests.Impl;
+
+namespace Quartz.Tests.Unit.Impl;
 
 /// <summary>
 /// What a store does when a trigger's job fails and the trigger carries a retry policy: every trigger

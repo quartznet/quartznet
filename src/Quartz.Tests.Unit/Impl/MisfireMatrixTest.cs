@@ -23,7 +23,9 @@ using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Extensibility;
 
-namespace Quartz.Tests.Integration.Impl;
+using Quartz.Tests.Impl;
+
+namespace Quartz.Tests.Unit.Impl;
 
 /// <summary>
 /// What a store does when a trigger misfires: every trigger shape against every misfire instruction of

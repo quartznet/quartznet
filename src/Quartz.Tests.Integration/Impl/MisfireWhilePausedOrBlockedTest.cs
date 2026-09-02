@@ -18,6 +18,7 @@
 #endregion
 
 using Quartz.Extensibility;
+using Quartz.Tests.Impl;
 
 namespace Quartz.Tests.Integration.Impl;
 
