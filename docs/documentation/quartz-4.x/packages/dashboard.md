@@ -563,6 +563,20 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - **Split operator experiences:** expose a read-only dashboard instance (`ReadOnly = true`) for observers, and a separate write-enabled dashboard for operators.
 - **Operational retention:** the built-in history store is per-process and in-memory, bounded by `HistoryRetention` and `HistoryMaxEntriesPerScheduler`. Every node of a cluster therefore keeps its own; the rows name the node they came from, so registering a shared `IDashboardHistoryStore` gives one page over the whole fleet. Configure external retention/reporting if you need long-term analytics.
 
+### What authorization does not narrow
+
+Two limits are by design, and neither is going away in 4.x. Both are the same limits the
+[HTTP API](http-api.md#production-hardening) has, because the two surfaces reach the same schedulers.
+
+- **A visitor who passes is trusted with everything the dashboard shows.** `ReadOnly` and
+  `SchedulerAuthorizationPolicy` are the only two narrowings there are: the first is process-wide and
+  the second decides which schedulers a visitor sees, so within a scheduler a writer may trigger, pause,
+  reschedule, unschedule, interrupt, delete and shut down, and any visitor may read every job's data map
+  and every exception message the history holds. There is no per-operation permission model. Authorize
+  the dashboard the way you would authorize a shell on the machine.
+- **There is no rate limiting** on this surface. ASP.NET Core's own rate limiter middleware applies to
+  it like any other endpoint, and nothing in Quartz configures one.
+
 ## Integrating with an existing Blazor Server app
 
 If your host application already uses Blazor Server (i.e., it calls `MapRazorComponents<App>().AddInteractiveServerRenderMode()`), you must use the `MapQuartzDashboard` overload that accepts the existing `RazorComponentsEndpointConventionBuilder`. This avoids registering a second `/_blazor` SignalR endpoint, which would cause routing conflicts.
