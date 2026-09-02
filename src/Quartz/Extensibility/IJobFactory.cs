@@ -64,11 +64,11 @@ public interface IJobFactory
     /// </param>
     /// <param name="scheduler">a handle to the scheduler that is about to execute the job</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
     /// <returns>
     /// The newly instantiated job, together with any per-fire state the factory wants handed back
     /// to <see cref="ReturnJob" />.
     /// </returns>
+    /// <exception cref="SchedulerException">The job could not be instantiated.</exception>
     ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default);
 
     /// <summary>

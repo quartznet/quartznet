@@ -70,7 +70,7 @@ public class SimpleJobFactory : IJobFactory
     /// <param name="scheduler">The scheduler the job will run under, made available to the job through its execution context.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the newly instantiated job, together with any per-fire state, in a <see cref="JobScope" /></returns>
-    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
+    /// <exception cref="SchedulerException">The job could not be instantiated.</exception>
     public virtual ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         return new ValueTask<JobScope>(new JobScope(InstantiateJobCore(bundle)));

@@ -418,7 +418,7 @@ internal abstract partial class AdoJobStoreBase
     /// <param name="connection">The unit of work to commit.</param>
     /// <param name="openNewTransaction">if set to <c>true</c> opens a new transaction.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
+    /// <exception cref="JobPersistenceException">The commit failed.</exception>
     protected async ValueTask CommitConnection(
         ConnectionAndTransactionHolder connection,
         bool openNewTransaction,

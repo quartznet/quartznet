@@ -89,7 +89,6 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// <param name="scheduler"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the newly instantiated Job</returns>
-    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
     /// <remarks>
     /// Deliberately not an <c>async</c> method. An async state machine restores the caller's
     /// <see cref="System.Threading.ExecutionContext" /> when its synchronous part returns, which would
@@ -97,6 +96,10 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// the ambient context that <see cref="MicrosoftDependencyInjectionJobFactory.ConfigureScope" />
     /// exists to establish, and that has to survive into <see cref="IJob.Execute" /> (#1528).
     /// </remarks>
+    /// <exception cref="SchedulerException">
+    /// The job could not be instantiated, or a value in the merged job data map does not match a
+    /// settable property of the job and <see cref="PropertyMismatchBehavior" /> says to throw.
+    /// </exception>
     public override ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         var creatingScope = CreateJobInstance(bundle, scheduler, cancellationToken);
