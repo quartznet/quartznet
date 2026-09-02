@@ -133,13 +133,140 @@ public class InterruptableJobTest
         await scheduler.Shutdown();
     }
 
+    /// <summary>
+    /// A listener told which firing was interrupted, and one notification per firing that was.
+    /// </summary>
+    /// <remarks>
+    /// A job without <see cref="DisallowConcurrentExecutionAttribute" /> can have several executions in
+    /// flight, and the key names all of them — so a single notification carrying only the key could not
+    /// say which execution was cancelled, or how many were.
+    /// </remarks>
+    [Test]
+    public async Task InterruptingAJobNamesEachFiringItCancelled()
+    {
+        NameValueCollection config = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "InterruptableJobTest_FiringScheduler",
+            ["quartz.scheduler.instanceId"] = "AUTO",
+            ["quartz.threadPool.threadCount"] = "4",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
+
+        FiringInterruptionListener listener = new();
+        scheduler.ListenerManager.AddSchedulerListener(listener);
+
+        IJobDetail job = JobBuilder.Create<BusyJob>().WithIdentity("concurrent").StoreDurably().Build();
+        await scheduler.AddJob(job);
+
+        // Two triggers of one job, so two executions of it are in flight at once - which is the whole
+        // case the key alone cannot describe.
+        foreach (string name in new[] { "first", "second" })
+        {
+            await scheduler.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity(name)
+                .ForJob(job)
+                .StartNow()
+                .Build());
+        }
+
+        await scheduler.Start();
+
+        try
+        {
+            List<string> running = await WaitForFirings(scheduler, count: 2);
+
+            (await scheduler.Interrupt(job.Key)).Should().BeTrue();
+
+            listener.Interrupted.Should().BeEquivalentTo(running,
+                "one notification per firing that was cancelled, each naming the firing rather than only "
+                + "the job every one of them belongs to");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    private static async Task<List<string>> WaitForFirings(IScheduler scheduler, int count)
+    {
+        for (int attempt = 0; attempt < 200; attempt++)
+        {
+            PagedResult<FireInstance> firings = await scheduler.QueryFireInstances(new FireInstanceQuery());
+            List<string> ids = firings.Items
+                .Where(instance => instance.State == FireInstanceState.Executing)
+                .Select(instance => instance.FireInstanceId)
+                .ToList();
+
+            if (ids.Count >= count)
+            {
+                return ids;
+            }
+
+            await Task.Delay(25);
+        }
+
+        throw new InvalidOperationException($"Only saw fewer than {count} executing firings.");
+    }
+
+    /// <summary>
+    /// Busy until its token is cancelled, and sharing none of the static state
+    /// <see cref="TestInterruptableJob" /> signals through — two executions of that one would set the
+    /// same event twice and leave it set for the test after.
+    /// </summary>
+    private sealed class BusyJob : IJob
+    {
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+    }
+
     private sealed class JobInterruptedCaptureListener : ISchedulerListener
     {
         public TaskCompletionSource<JobKey> Interrupted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        /// <remarks>
+        /// The key-only overload on purpose: the scheduler raises the one that names the firing, and this
+        /// listener hears about it because that overload's default body calls this one. A listener
+        /// written before the fire instance id existed keeps working, which is what makes the addition a
+        /// default interface member rather than a break.
+        /// </remarks>
         public ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             Interrupted.TrySetResult(jobKey);
+            return default;
+        }
+    }
+
+    private sealed class FiringInterruptionListener : ISchedulerListener
+    {
+        private readonly List<string> interrupted = [];
+
+        public List<string> Interrupted
+        {
+            get
+            {
+                lock (interrupted)
+                {
+                    return [.. interrupted];
+                }
+            }
+        }
+
+        public ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, string fireInstanceId, CancellationToken cancellationToken = default)
+        {
+            lock (interrupted)
+            {
+                interrupted.Add(fireInstanceId);
+            }
+
             return default;
         }
     }

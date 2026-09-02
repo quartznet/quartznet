@@ -5172,6 +5172,24 @@ unscheduled there is no trigger left to hand out.
 `SchedulerError`'s two parameters became one record on the way — see [Listeners are told which scheduler is
 calling](#listeners-are-told-which-scheduler-is-calling).
 
+### `JobInterrupted` says which firing was interrupted
+
+`ISchedulerListener` gained an overload, as a default interface member:
+
+```csharp
+ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, string fireInstanceId, CancellationToken cancellationToken = default);
+```
+
+A job without `[DisallowConcurrentExecution]` can have several firings in flight at once and the key
+names all of them, so a listener told only the key could not say which execution was cancelled, could
+not correlate the interruption with that firing's own `JobToBeExecuted`/`JobWasExecuted`, and could not
+tell an `Interrupt(jobKey)` that cancelled four firings from one that cancelled one.
+
+The scheduler raises the new overload. `InterruptFireInstance` raises it once; **`Interrupt(jobKey)`
+raises it once per firing it cancelled**, where it used to raise one notification however many it
+stopped. The default body calls the key-only overload, so a listener that implements that one keeps
+working — and now hears once per interrupted firing. Implement one or the other, not both.
+
 ### Instantiation failures name the trigger
 
 When `IJobFactory` cannot produce a job — a constructor dependency the container cannot resolve is the usual

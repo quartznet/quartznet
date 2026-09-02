@@ -42,7 +42,7 @@ namespace Quartz.Core;
 /// an unhandled failure with a <c>SchedulerError</c> behind it. Going through the public
 /// <see cref="IScheduler.InterruptFireInstance" /> cancels the context's own source, which is the same
 /// thing an operator's interrupt does, so everything downstream — the token the job holds, the
-/// <see cref="ISchedulerListener.JobInterrupted" /> notification, the log — behaves as it always has.
+/// <see cref="ISchedulerListener.JobInterrupted(IScheduler, JobKey, string, CancellationToken)" /> notification, the log — behaves as it always has.
 /// </para>
 /// <para>
 /// <strong>It then rethrows, because an interrupt on its own is success-shaped.</strong> The run shell
