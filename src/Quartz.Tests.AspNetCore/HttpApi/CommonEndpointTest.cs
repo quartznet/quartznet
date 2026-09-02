@@ -34,7 +34,15 @@ public class CommonEndpointTest : WebApiTest
     public void ShouldNotPropagateNonSchedulerExceptions()
     {
         A.CallTo(() => FakeScheduler.PauseAll(A<CancellationToken>._)).Throws(_ => new InvalidOperationException("Non scheduler exception"));
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.PauseAll().AsTask())!.Message.Should().ContainEquivalentOf("Non scheduler exception");
+
+        string message = Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.PauseAll().AsTask())!.Message;
+
+        message.Should().NotContainEquivalentOf("Non scheduler exception",
+            "a 500 is a fault the caller cannot act on, and the message behind one names the server, the "
+            + "database or the constraint as readily as anything else - it is logged, not returned");
+        message.Should().ContainEquivalentOf("The scheduler failed to handle the request",
+            "the client still has to be able to say what went wrong, so the detail is a fixed sentence "
+            + "rather than nothing at all");
     }
 
     [Test]
