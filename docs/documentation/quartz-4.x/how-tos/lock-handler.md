@@ -59,6 +59,13 @@ call that took it, so a nested operation on the same caller re-enters without re
 prematurely releasing. Returning `true` from a re-entrant call means the inner operation releases the
 lock the outer one is still relying on.
 
+The rule as stated is for a handler that records *whether* a requestor holds a lock, which is what the
+row-lock handlers and `InProcessLockHandler` do. A handler that instead counts its holds may answer
+`true` to a re-entrant acquire, because there the inner release is the one that decrements rather than
+the one that frees; the shipped `SqliteLockHandler` is such a handler. Either way the invariant the
+store depends on is the same one: **the caller releases exactly when it was told `true`, and never
+otherwise.**
+
 `ReleaseLock` from a non-owner should warn, not throw — that is what the shipped handlers do.
 
 ### And `false` means nothing else
