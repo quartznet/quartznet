@@ -1,0 +1,9 @@
+﻿quartz.cluster.checkin.duration  Histogram<double>  s  Elapsed time spent on a cluster check-in
+quartz.cluster.recovery.trigger  Counter<long>  {trigger}  Number of fired triggers recovered from a failed cluster node
+quartz.job.execution.active  UpDownCounter<long>  {job}  Number of jobs currently running
+quartz.job.execution.duration  Histogram<double>  s  Elapsed time spent executing a job
+quartz.jobstore.operation.duration  Histogram<double>  s  Elapsed time spent on a job store operation
+quartz.trigger.acquired  Counter<long>  {trigger}  Number of triggers acquired for firing
+quartz.trigger.acquisition.duration  Histogram<double>  s  Elapsed time spent acquiring the next batch of triggers
+quartz.trigger.misfire  Counter<long>  {trigger}  Number of trigger misfires the scheduler was notified of
+quartz.trigger.retry  Counter<long>  {trigger}  Number of trigger retries the scheduler scheduled after a job failed

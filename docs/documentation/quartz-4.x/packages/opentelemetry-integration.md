@@ -114,7 +114,10 @@ several nodes sharing one name.
 Each name is a `const string` on `QuartzInstrumentation.Instruments`, so a view, an alert rule or a
 dashboard built in code can name one without spelling it: `QuartzInstrumentation.Instruments.JobExecutionDuration`
 is `quartz.job.execution.duration`. The meter builds its instruments from those constants and a test
-holds the two sets equal in both directions, so the table below cannot drift from what is emitted.
+holds the two sets equal in both directions, so the table below cannot drift from what is emitted. A
+second test snapshots the whole catalogue — name, kind, unit and description — so an instrument that
+arrives, leaves, changes kind or changes unit is a reviewed diff rather than a chart that quietly stops
+reading anything.
 
 | Instrument | Type | Unit | Extra attributes | What it measures |
 |---|---|---|---|---|
@@ -202,7 +205,7 @@ and `AddMeter(QuartzInstrumentation.MeterName)`. There is no package to install:
 What is lost with the package is its `QuartzInstrumentationOptions.TracedOperations` filter. Subscribing
 directly records both `Quartz.Job.Execute` and `Quartz.Job.Veto`; drop one with an OpenTelemetry
 [processor or a sampler](https://opentelemetry.io/docs/languages/dotnet/) if a vetoed fire is not worth a
-span to you. What is gained is everything 4.0 added — the store spans and all eight metrics — none of
+span to you. What is gained is everything 4.0 added — the store spans and all nine metrics — none of
 which the package knows about.
 
 ## Older packages
