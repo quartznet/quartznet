@@ -6,11 +6,6 @@
     <Title>Quartz.NET TimeZoneConverter integration</Title>
     <Description>Quartz.NET TimeZoneConverter integration https://github.com/mj1856/TimeZoneConverter; $(Description)</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <!--
-      Undocumented public members. P5 (#3646) is the sweep that turns this on for the side packages;
-      Quartz itself is clean and enforces it. Delete the line when this package is documented.
-    -->
-    <NoWarn>$(NoWarn);1591</NoWarn>
     <Authors>Sean Farrow, Quartz.NET</Authors>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
