@@ -3,6 +3,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Configuration;
@@ -555,6 +556,59 @@ public class OptionsValidationTest
         var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
 
         act.Should().NotThrow("OverwriteExistingData is on by default and the other two are off, which is a pair that agrees");
+    }
+
+    /// <summary>
+    /// A health check tag that names nothing, or names the same thing twice, is a typo — and a probe
+    /// filtered on it silently matches nothing.
+    /// </summary>
+    [TestCase("", "empty or whitespace", TestName = "AHealthCheckTagThatNamesNothingIsRefused(empty)")]
+    [TestCase("   ", "empty or whitespace", TestName = "AHealthCheckTagThatNamesNothingIsRefused(whitespace)")]
+    public void AHealthCheckTagThatNamesNothingIsRefused(string tag, string expected)
+    {
+        QuartzHealthCheckOptions options = new();
+        options.Tags.Add("ready");
+        options.Tags.Add(tag);
+
+        ValidateOptionsResult result = new QuartzHealthCheckOptionsValidator().Validate(name: null, options);
+
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain(expected);
+    }
+
+    [Test]
+    public void AHealthCheckTagGivenTwiceIsRefused()
+    {
+        QuartzHealthCheckOptions options = new();
+        options.Tags.Add("ready");
+        options.Tags.Add("ready");
+
+        ValidateOptionsResult result = new QuartzHealthCheckOptionsValidator().Validate(name: null, options);
+
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("'ready' is given more than once");
+    }
+
+    [Test]
+    public void TagsThatNameDistinctProbesPassValidation()
+    {
+        QuartzHealthCheckOptions options = new();
+        options.Tags.Add("ready");
+        options.Tags.Add("live");
+
+        new QuartzHealthCheckOptionsValidator().Validate(name: null, options).Succeeded.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// <see cref="JobFactoryOptions" /> has nothing that can be wrong, and its validator says so rather
+    /// than the type being missing from the set — see <c>OptionsConventionTest</c>.
+    /// </summary>
+    [Test]
+    public void TheJobFactoryOptionsValidatorRefusesNothing()
+    {
+        new JobFactoryOptionsValidator()
+            .Validate(name: null, new JobFactoryOptions { ConfigureScope = (_, _, _) => { } })
+            .Succeeded.Should().BeTrue();
     }
 
     [Test]

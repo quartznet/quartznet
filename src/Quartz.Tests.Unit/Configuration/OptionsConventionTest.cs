@@ -24,6 +24,8 @@
 using System.Collections;
 using System.Reflection;
 
+using Microsoft.Extensions.Options;
+
 namespace Quartz.Tests.Unit.Configuration;
 
 /// <summary>
@@ -55,13 +57,19 @@ namespace Quartz.Tests.Unit.Configuration;
 /// null-normalising sites when the shape landed.
 /// </para>
 /// <para>
-/// Two clauses of the rule are deliberately not encoded here, because encoding them would mean
-/// inventing policy rather than enforcing it. "Defaults encode recommended usage" is a judgement
-/// about values, not shapes; the closest mechanical statement — that a fresh instance is readable
-/// and its complex members are already there — <em>is</em> checked. And "validated by an
-/// <c>IValidateOptions&lt;T&gt;</c>" is not yet true of the whole set: four of the container-bound
-/// types have nothing to validate, and <c>ClusteringStaysEnabledValidator</c> is registered at its
-/// own use site rather than centrally.
+/// One clause of the rule is deliberately not encoded here, because encoding it would mean inventing
+/// policy rather than enforcing it. "Defaults encode recommended usage" is a judgement about values,
+/// not shapes; the closest mechanical statement — that a fresh instance is readable and its complex
+/// members are already there — <em>is</em> checked.
+/// </para>
+/// <para>
+/// "Validated by an <c>IValidateOptions&lt;T&gt;</c>" <em>is</em> checked, for the whole set. Where a
+/// type genuinely has nothing that can be wrong the validator says so and returns success, because an
+/// exception list is a place for the next unvalidated type to hide while an empty validator is a place
+/// for the next member's check to go. The registration is not checked:
+/// <c>ClusteringStaysEnabledValidator</c> is registered at its own use site, and
+/// <c>SchedulingOptionsValidator</c> is called by <c>QuartzOptionsValidator</c> because nothing
+/// resolves <c>IOptions&lt;SchedulingOptions&gt;</c>.
 /// </para>
 /// <para>
 /// Scope is the <c>Quartz</c> assembly's exported types, which since #3532 includes
@@ -263,6 +271,26 @@ public class OptionsConventionTest
             "a scalar is assigned wholesale, so it is get/set; a collection or nested options object is "
             + "bound into, so it is get-only — a setter there lets one Configure callback replace the "
             + "instance another one had already written to");
+    }
+
+    /// <summary>
+    /// Every container-bound options type is validated by an <see cref="IValidateOptions{TOptions}" />
+    /// of its own.
+    /// </summary>
+    /// <remarks>
+    /// Startup validation is a promise the documentation makes — a bad value fails the host rather than
+    /// the first firing that reads it — and a promise with three holes in it is a promise a reader
+    /// cannot rely on. A type with nothing that can be wrong still has a validator, saying so; see the
+    /// remarks on this class.
+    /// </remarks>
+    [TestCaseSource(nameof(ContainerBoundOptions))]
+    public void ContainerBoundOptionsHaveAValidator(Type optionsType)
+    {
+        Type validator = typeof(IValidateOptions<>).MakeGenericType(optionsType);
+
+        quartzAssembly.GetTypes().Where(validator.IsAssignableFrom).Should().NotBeEmpty(
+            $"{optionsType.Name} is bound from configuration, and a value nothing checks fails at the "
+            + "moment something reads it rather than at startup");
     }
 
     [TestCaseSource(nameof(ContainerBoundOptions))]
