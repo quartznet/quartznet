@@ -37,10 +37,13 @@ configuration files, so there is one vocabulary to learn.
 
 ### In an application with a host
 
-Most applications register Quartz into their service collection:
+Most applications register Quartz into their service collection. This is a whole `Program.cs` — a
+worker service, a persistent store, and one job that runs every ten seconds:
 
 <!-- snippet: sample_quick_start_host -->
 ```csharp
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
 builder.AddQuartz(q =>
 {
     q.ConfigureScheduler(options => options.InstanceName = "MyScheduler");
@@ -54,9 +57,6 @@ builder.AddQuartz(q =>
         store.UseSqlServer("my connection string");
         store.UseClustering();
 
-        // System.Text.Json is built in; the Newtonsoft one is a package away
-        store.UseSystemTextJsonSerializer();
-
         store.ConfigureStore(options =>
         {
             // store job data as strings, which avoids surprises when a serialized
@@ -65,23 +65,52 @@ builder.AddQuartz(q =>
         });
     });
 
-    // reads jobs and triggers from JSON; requires the Quartz.Plugins package
-    q.UseJsonSchedulingConfiguration(x =>
-    {
-        x.Files.Add("~/quartz_jobs.json");
-        x.FailOnFileNotFound = true;
-        x.FailOnSchedulingError = true;
-    });
+    // run HelloJob now, and then every ten seconds
+    q.ScheduleJob<HelloJob>(trigger => trigger
+        .WithIdentity("helloTrigger")
+        .StartNow()
+        .WithSimpleSchedule(x => x
+            .WithInterval(TimeSpan.FromSeconds(10))
+            .RepeatForever()));
 });
 
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+IHost host = builder.Build();
+
+// blocks until the host stops, and then until the last running job completes
+await host.RunAsync();
 ```
 <!-- endSnippet -->
 
-The hosted service starts the scheduler with the application and shuts it down with it.
+`HelloJob` is [the class below](#trying-out-the-application-and-adding-jobs); a job registered this way
+is constructed from the container for every fire, so it can take a logger, a `DbContext` or a typed
+`HttpClient` in its constructor. `WebApplication.CreateBuilder(args)` works exactly the same way — both
+`AddQuartz` and `AddQuartzHostedService` hang off `IHostApplicationBuilder`. The hosted service starts
+the scheduler with the application and shuts it down with it.
 
-The file that last call reads declares the jobs and the triggers that fire them, so a schedule can
-change without a rebuild. `quartz_jobs.json`, scheduling one job every ten seconds:
+The ADO.NET driver for whichever database you named is a package reference of your own: Quartz names the
+types and your project brings them. The table of dialect methods, and what each one needs, is in
+[Job Stores](tutorial/job-stores.md#configuring-a-persistent-store). Nothing here says which serializer to use,
+because System.Text.Json is what a store gets when nothing else claims the slot.
+
+`ScheduleJob`, `AddJob` and `AddTrigger` are the whole of the schedule for most applications, and
+[Lesson 1](tutorial/using-quartz.md) is where they are taught properly. A schedule that has to change
+without a rebuild can come from a file instead — that needs the `Quartz.Plugins` package:
+
+<!-- snippet: sample_quick_start_host_json_file -->
+```csharp
+// reads jobs and triggers from JSON; requires the Quartz.Plugins package
+q.UseJsonSchedulingConfiguration(x =>
+{
+    x.Files.Add("~/quartz_jobs.json");
+    x.FailOnSchedulingError = true;
+});
+```
+<!-- endSnippet -->
+
+The file declares the jobs and the triggers that fire them. `quartz_jobs.json`, scheduling one job every
+ten seconds:
 
 ```json
 {

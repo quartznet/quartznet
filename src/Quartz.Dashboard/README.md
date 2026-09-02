@@ -4,8 +4,6 @@
 Quartz.NET that runs inside your ASP.NET Core application and drives the schedulers registered in that
 same application.
 
-**The dashboard is a work in progress and its API surface may change between releases.**
-
 ## Installation
 
 It builds on `Quartz.AspNetCore`, which this package brings along, so one reference is enough:
@@ -28,6 +26,7 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 WebApplication app = builder.Build();
 
 app.UseAntiforgery();
+app.MapStaticAssets();
 app.MapQuartzHttpApi().RequireAuthorization();
 app.MapQuartzDashboard().RequireAuthorization();
 ```
@@ -43,9 +42,16 @@ as a string the request supplies — which, with `Quartz.Jobs` on the host's pro
 `NativeJob` and its process. A mapping that says nothing about authorization refuses to start; say
 `AllowAnonymous()` where you mean it.
 
-Execution-history views stay empty until the scheduler records history: add
-`q.UseJobHistoryLogging()` and `q.UseTriggerHistoryLogging()` from
-[Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins).
+`app.MapStaticAssets()` is what serves the dashboard's stylesheet and scripts; without it the pages
+render unstyled and inert. A project with no `.razor` files of its own also needs
+`<RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>`, or the Blazor framework script is missing
+too. `app.UseAuthentication()` needs an authentication scheme the application registered — the
+dashboard authorizes, and something else authenticates.
+
+Execution history needs nothing installed: `AddQuartzDashboard()` registers the history plugin itself,
+and the History page fills as jobs run. The `q.UseJobHistoryLogging()` and `q.UseTriggerHistoryLogging()`
+plugins from [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) are a separate thing — they
+write the same events to your application's *log*, and the dashboard does not read them.
 
 ## Trimming
 

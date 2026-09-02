@@ -13,9 +13,11 @@ namespace Quartz.Documentation.Samples;
 /// </remarks>
 public static class QuickStartSamples
 {
-    public static void UnderAHost(IHostApplicationBuilder builder)
+    public static async ValueTask UnderAHost(string[] args)
     {
         #region sample_quick_start_host
+
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
         builder.AddQuartz(q =>
         {
@@ -30,9 +32,6 @@ public static class QuickStartSamples
                 store.UseSqlServer("my connection string");
                 store.UseClustering();
 
-                // System.Text.Json is built in; the Newtonsoft one is a package away
-                store.UseSystemTextJsonSerializer();
-
                 store.ConfigureStore(options =>
                 {
                     // store job data as strings, which avoids surprises when a serialized
@@ -41,18 +40,40 @@ public static class QuickStartSamples
                 });
             });
 
-            // reads jobs and triggers from JSON; requires the Quartz.Plugins package
-            q.UseJsonSchedulingConfiguration(x =>
-            {
-                x.Files.Add("~/quartz_jobs.json");
-                x.FailOnFileNotFound = true;
-                x.FailOnSchedulingError = true;
-            });
+            // run HelloJob now, and then every ten seconds
+            q.ScheduleJob<HelloJob>(trigger => trigger
+                .WithIdentity("helloTrigger")
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromSeconds(10))
+                    .RepeatForever()));
         });
 
         builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
+        IHost host = builder.Build();
+
+        // blocks until the host stops, and then until the last running job completes
+        await host.RunAsync();
+
         #endregion
+    }
+
+    public static void UnderAHostFromAFile(IHostApplicationBuilder builder)
+    {
+        builder.AddQuartz(q =>
+        {
+            #region sample_quick_start_host_json_file
+
+            // reads jobs and triggers from JSON; requires the Quartz.Plugins package
+            q.UseJsonSchedulingConfiguration(x =>
+            {
+                x.Files.Add("~/quartz_jobs.json");
+                x.FailOnSchedulingError = true;
+            });
+
+            #endregion
+        });
     }
 
     public static void ProvisionSchema(IHostApplicationBuilder builder)
