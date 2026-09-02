@@ -23,6 +23,7 @@
 
 using System.Collections.Specialized;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 using Quartz.Configuration;
 
@@ -86,16 +87,34 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.dataSource.myDs.connectionProvider.type",
         "quartz.dbprovider.MyDatabase.productName",
         "quartz.jobStore.acceptEnlistedTransactions",
+        "quartz.jobStore.acquireTriggersWithinLock",
         "quartz.jobStore.clusterCheckinInterval",
         "quartz.jobStore.clusterCheckinMisfireThreshold",
         "quartz.jobStore.clustered",
+        "quartz.jobStore.clustering.checkinInterval",
+        "quartz.jobStore.clustering.checkinMisfireThreshold",
+        "quartz.jobStore.clustering.enabled",
         "quartz.jobStore.dataSource",
+        "quartz.jobStore.dbRetryInterval",
+        "quartz.jobStore.doubleCheckLockMisfireHandler",
         "quartz.jobStore.driverDelegateInitString",
+        "quartz.jobStore.driverDelegateType",
         "quartz.jobStore.lockHandler.type",
+        "quartz.jobStore.lockOnInsert",
         "quartz.jobStore.makeThreadsDaemons",
+        "quartz.jobStore.maxMisfiresToHandleAtATime",
+        "quartz.jobStore.maxTransientRetries",
+        "quartz.jobStore.misfireHandlerFrequency",
         "quartz.jobStore.misfireThreshold",
+        "quartz.jobStore.performSchemaValidation",
+        "quartz.jobStore.retryableActionErrorLogThreshold",
+        "quartz.jobStore.schemaProvisioning",
+        "quartz.jobStore.selectWithLockSQL",
         "quartz.jobStore.tablePrefix",
+        "quartz.jobStore.transientRetryInterval",
+        "quartz.jobStore.txIsolationLevelSerializable",
         "quartz.jobStore.type",
+        "quartz.jobStore.useDBLocks",
         "quartz.jobStore.useProperties",
         "quartz.plugin.myPlugin.type",
         "quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow",
@@ -107,24 +126,18 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.scheduler.interruptJobsOnShutdownWithWait",
         "quartz.scheduler.jobFactory.type",
         "quartz.scheduler.typeLoadHelper.type",
+        "quartz.serializer",
         "quartz.serializer.type",
         "quartz.threadExecutor",
         "quartz.threadPool.maxConcurrency",
+        "quartz.threadPool.threadCount",
         "quartz.threadPool.type",
-
-        // tutorial/job-stores.md
-        "quartz.jobStore.driverDelegateType",
 
         // tutorial/execution-groups.md
         "quartz.executionLimit.batch-jobs",
 
         // migration-guide.md
-        "quartz.timeProvider.type",
-
-        // migration-guide.md, the SchemaProvisioning row: the key that replaced
-        // performSchemaValidation, and the one it replaced, which still bridges
-        "quartz.jobStore.schemaProvisioning",
-        "quartz.jobStore.performSchemaValidation"
+        "quartz.timeProvider.type"
     ];
 
     /// <summary>
@@ -267,6 +280,96 @@ public class LegacyPropertyKeyExhaustivenessTest
             "the validator only ever looks at keys under the quartz. prefix, so an entry outside it can never match");
         supported.Should().OnlyContain(key => !key.StartsWith("quartz.server", StringComparison.Ordinal),
             "quartz.server.* belonged to 3.x's Quartz.Server host and is skipped before this list is consulted");
+    }
+
+    /// <summary>
+    /// Every key a reader consults is named somewhere in the 4.x documentation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the assertion that was missing, and the reason nineteen honoured keys — the whole
+    /// ADO.NET locking, retry and schema-provisioning set among them — reached beta.1 documented
+    /// nowhere. Every other test here compares the readers with the <em>validator</em>, so a key that
+    /// worked perfectly and was written down on no page passed all of them:
+    /// <see cref="documentedKeys" /> is a hand transcription, and nothing compared it with the
+    /// markdown it was transcribed from.
+    /// </para>
+    /// <para>
+    /// It asks only whether the key is named, and it looks across the whole 4.x tree rather than one
+    /// page — including the migration guide, because a key documented only there is documented. Which
+    /// page ought to carry a given key is an editorial judgement a test should not make; "no page at
+    /// all mentions it" is not.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void EveryKeyTheReadersConsultIsNamedInTheDocumentation()
+    {
+        string documentation = ReadAllFourXDocumentation();
+
+        List<string> undocumented = keysTheReadersConsult
+            .Where(key => !documentation.Contains(key, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        undocumented.Should().BeEmpty(
+            "a key Quartz honours and no page names is a setting only the source says exists, which is "
+            + "how a reader ends up configuring a scheduler by reading its implementation");
+    }
+
+    /// <summary>
+    /// The mirror: every key this test class calls documented really is written down.
+    /// </summary>
+    /// <remarks>
+    /// Keeps the curated list honest in the other direction, so an entry cannot be added here to quiet
+    /// a failure without the page it claims to quote actually saying it.
+    /// </remarks>
+    [Test]
+    public void EveryKeyThisTestCallsDocumentedIsNamedInTheDocumentation()
+    {
+        string documentation = ReadAllFourXDocumentation();
+
+        List<string> missing = documentedKeys.Concat(documentedRemovals)
+            .Where(key => !Regex.IsMatch(documentation, DocumentationPattern(key), RegexOptions.IgnoreCase))
+            .ToList();
+
+        missing.Should().BeEmpty(
+            "these lists are transcribed from the pages, so an entry the pages do not carry is a "
+            + "transcription that has drifted from what a reader is actually told");
+    }
+
+    /// <summary>
+    /// The names filled into a placeholder segment above, so the search can put the placeholder back.
+    /// </summary>
+    /// <remarks>
+    /// A key matched by prefix is spelled with a stand-in name here — <c>myDs</c>, <c>myPlugin</c> —
+    /// and the pages spell it with one of their own: <c>NAME</c>, <c>myDs</c>, <c>&lt;name&gt;</c>.
+    /// Comparing the two literally would report a documented key as missing, which is why the segment
+    /// is matched as any name rather than as the one this file happens to use.
+    /// </remarks>
+    private static readonly string[] placeholderNames =
+    [
+        "myDs", "MyDatabase", "myPlugin", "myListener", "audit", "environment", "batch-jobs"
+    ];
+
+    private static string DocumentationPattern(string key)
+    {
+        string[] segments = key.Split('.');
+        IEnumerable<string> parts = segments.Select(segment =>
+            placeholderNames.Contains(segment, StringComparer.Ordinal)
+                ? "[^.\\s\"]+"
+                : Regex.Escape(segment));
+
+        return string.Join("\\.", parts);
+    }
+
+    private static string ReadAllFourXDocumentation()
+    {
+        string root = Path.Combine(RepositoryRoot.Find().FullName, "docs", "documentation", "quartz-4.x");
+        Directory.Exists(root).Should().BeTrue($"the 4.x documentation is what this test reads, and '{root}' is where it lives");
+
+        string[] pages = Directory.GetFiles(root, "*.md", SearchOption.AllDirectories);
+        pages.Should().NotBeEmpty("a scan that found no pages would make every assertion over it vacuous");
+
+        return string.Join('\n', pages.Select(File.ReadAllText));
     }
 
     [Test]
