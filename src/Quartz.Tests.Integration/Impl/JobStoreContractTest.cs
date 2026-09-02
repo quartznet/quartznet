@@ -838,6 +838,125 @@ public abstract class JobStoreContractTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Storing a batch of jobs with their triggers
+    //
+    // ScheduleJobs is the member behind IScheduler.ScheduleJobs, and it is the only store member
+    // that takes a whole graph in one call. The in-memory store checks every key for a collision
+    // before writing anything; the ADO store walks the batch a job at a time inside one lock and
+    // one transaction. Two implementations, and the answers a caller sees have to be the same ones.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ABatchStoresEveryJobWithEveryTriggerItWasGiven()
+    {
+        IJobDetail first = CreateJob("batch-first", JobGroupA);
+        IJobDetail second = CreateJob("batch-second", JobGroupB);
+
+        IOperableTrigger firstMorning = CreateTrigger("first-morning", TriggerGroupA, first.Key);
+        IOperableTrigger firstEvening = CreateTrigger("first-evening", TriggerGroupB, first.Key);
+        IOperableTrigger secondMorning = CreateTrigger("second-morning", TriggerGroupA, second.Key);
+        IOperableTrigger secondEvening = CreateTrigger("second-evening", TriggerGroupB, second.Key);
+
+        await Store.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>
+        {
+            [first] = [firstMorning, firstEvening],
+            [second] = [secondMorning, secondEvening],
+        });
+
+        using (new AssertionScope())
+        {
+            (await Store.Exists(first.Key)).Should().BeTrue();
+            (await Store.Exists(second.Key)).Should().BeTrue();
+
+            foreach (IOperableTrigger trigger in new[] { firstMorning, firstEvening, secondMorning, secondEvening })
+            {
+                (await Store.GetTrigger(trigger.Key)).Should().NotBeNull(
+                    "every trigger of every job in the batch is stored, not only the first of each");
+                (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal,
+                    "a trigger arriving through the batch is waiting to fire, exactly as one arriving "
+                    + "through ScheduleJob is");
+            }
+
+            (await Store.GetTriggersForJob(first.Key)).Should().HaveCount(2);
+            (await Store.GetTriggersForJob(second.Key)).Should().HaveCount(2);
+        }
+    }
+
+    [Test]
+    public async Task ABatchThatReplacesOverwritesTheJobAndItsTriggers()
+    {
+        IJobDetail original = CreateJob("batch-replaced", JobGroupA);
+        IOperableTrigger originalTrigger = CreateTrigger("batch-replaced", TriggerGroupA, original.Key);
+        await Store.ScheduleJob(original, originalTrigger);
+
+        IJobDetail replacement = JobBuilder.Create<OtherContractTestJob>()
+            .WithIdentity(original.Key)
+            .WithDescription("the replacement")
+            .Build();
+        IOperableTrigger replacementTrigger = CreateTrigger("batch-replaced", TriggerGroupA, original.Key,
+            startAt: DateTimeOffset.UtcNow.AddYears(2));
+
+        await Store.ScheduleJobs(
+            new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>
+            {
+                [replacement] = [replacementTrigger],
+            },
+            ScheduleJobOptions.Replacing);
+
+        (await Store.GetJob(original.Key)).JobType.Should().Be(new JobType(typeof(OtherContractTestJob)),
+            "the batch replaced the job that was stored under the key rather than being refused");
+        (await Store.GetTrigger(replacementTrigger.Key)).StartTimeUtc.Should()
+            .BeCloseTo(replacementTrigger.StartTimeUtc, TimeSpan.FromSeconds(1),
+                "and the trigger with it — a replacement that only reached the job would leave the "
+                + "schedule saying one thing and the job another");
+        (await Store.GetTriggersForJob(original.Key)).Should().ContainSingle(
+            "replacing does not accumulate triggers");
+    }
+
+    /// <summary>
+    /// Without <see cref="ScheduleJobOptions.Replace" /> a key that is taken is refused, and the
+    /// triggers that came with it are not stored.
+    /// </summary>
+    /// <remarks>
+    /// One job in the batch, and the collision is on the job rather than on one of its triggers. That
+    /// is the form every store answers the same way: the refusal happens before the batch has written
+    /// anything at all. A collision on a trigger of a *later* job is a different question — whether
+    /// the earlier job survives — and its answer is whose transaction the call is running in, which is
+    /// what separates <c>LocalTransactionJobStore</c> from <c>ExternalTransactionJobStore</c>. That
+    /// belongs to the transaction fixtures rather than here.
+    /// </remarks>
+    [Test]
+    public async Task ABatchThatDoesNotReplaceIsRefusedAndStoresNothing()
+    {
+        IJobDetail existing = CreateJob("batch-taken", JobGroupA);
+        IOperableTrigger existingTrigger = CreateTrigger("batch-taken", TriggerGroupA, existing.Key);
+        await Store.ScheduleJob(existing, existingTrigger);
+
+        IOperableTrigger wouldBeFirst = CreateTrigger("batch-refused-first", TriggerGroupB, existing.Key);
+        IOperableTrigger wouldBeSecond = CreateTrigger("batch-refused-second", TriggerGroupB, existing.Key);
+
+        Func<Task> act = async () => await Store.ScheduleJobs(
+            new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>
+            {
+                [CreateJob("batch-taken", JobGroupA)] = [wouldBeFirst, wouldBeSecond],
+            });
+
+        await act.Should().ThrowAsync<ObjectAlreadyExistsException>(
+            "a batch that would store over a key it was not told to replace names the mistake, exactly "
+            + "as the single-key form does");
+
+        using (new AssertionScope())
+        {
+            (await Store.GetTrigger(wouldBeFirst.Key)).Should().BeNull(
+                "a refused batch stores nothing — an application that retries the call after fixing the "
+                + "key must not find half of it already there");
+            (await Store.GetTrigger(wouldBeSecond.Key)).Should().BeNull();
+            (await Store.GetTriggersForJob(existing.Key)).Should().ContainSingle(
+                "the job that was already there kept the one trigger it had");
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Round tripping every trigger type
     //
     // A store keeps a trigger, not a schedule it recognizes: whatever the caller set has to come
@@ -1697,6 +1816,52 @@ public abstract class JobStoreContractTest
             (await Store.QueryFireInstances(new FireInstanceQuery())).Items
                 .Should().ContainSingle().Which.FireInstanceId.Should().Be(acquired.FireInstanceId);
         }
+    }
+
+    /// <summary>
+    /// The mirror of the case above: giving a reservation back leaves the trigger where it was found
+    /// and the reservation gone.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IJobStore.ReleaseAcquiredTrigger" /> is what the scheduler calls when it acquired a
+    /// trigger and then decided not to fire it — a batch it could not staff, a shutdown between
+    /// acquisition and firing. It is not <see cref="IJobStore.TriggeredJobComplete" />, and the
+    /// difference is an architecture invariant: this one undoes a reservation, and after
+    /// <c>TriggersFired</c> it is the wrong call because it does not unblock the siblings a
+    /// non-concurrent job's firing blocked. The ADO store spells the undo out as three statements
+    /// (<c>ACQUIRED</c> → <c>WAITING</c>, <c>BLOCKED</c> → <c>WAITING</c>, and the fired-trigger row
+    /// deleted); the in-memory store drops it from a set. Both have to arrive here.
+    /// </remarks>
+    [Test]
+    public async Task ReleasingAnAcquiredTriggerPutsItBackAndDropsTheReservation()
+    {
+        IOperableTrigger acquired = await GivenAnAcquiredTrigger("released");
+
+        await Store.ReleaseAcquiredTrigger(acquired);
+
+        using (new AssertionScope())
+        {
+            (await Store.GetTriggerState(acquired.Key)).Should().Be(TriggerState.Normal,
+                "a reservation that was given back leaves the trigger waiting to fire, or the trigger is "
+                + "stranded in a state no later acquisition looks at");
+
+            (await Store.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Acquired })).Items
+                .Should().BeEmpty(
+                    "and the reservation itself is gone — a fired-trigger row left behind is what cluster "
+                    + "recovery later reads as a firing that a node died in the middle of");
+            (await Store.QueryFireInstances(new FireInstanceQuery { State = null })).Items.Should().BeEmpty(
+                "in no state at all, not merely out of the acquired listing");
+        }
+
+        // And the trigger is offered again, which is the whole point of putting it back.
+        List<IOperableTrigger> reacquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 1
+        });
+
+        reacquired.Select(x => x.Key).Should().Equal([acquired.Key],
+            "a released trigger is available to the next acquisition, on this node or another");
     }
 
     [Test]
@@ -2573,6 +2738,38 @@ public abstract class JobStoreContractTest
         IJobDetail Job,
         IOperableTrigger Firing,
         DateTimeOffset? NextFireTimeUtc);
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // What the store tells the scheduler thread about waiting
+    //
+    // Two numbers the scheduler thread uses directly: how long to sleep after acquisition has failed
+    // repeatedly, and how long a hand-over is expected to take. how-tos/custom-job-store.md states a
+    // band for the first one, and a store that answered outside it would either spin the thread at
+    // 100% against a database that is down or park it for longer than an operator would wait for a
+    // trigger. Neither is visible from any other test: nothing else in either suite reads them.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    [TestCase(1)]
+    [TestCase(10)]
+    public void TheAcquireRetryDelayStaysInsideTheDocumentedBand(int failureCount)
+    {
+        TimeSpan delay = Store.GetAcquireRetryDelay(failureCount);
+
+        delay.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(20),
+            "a shorter delay is the scheduler thread spinning against a database that is down, which is "
+            + "the log flood and the 100% CPU the delay exists to prevent")
+            .And.BeLessThanOrEqualTo(TimeSpan.FromMinutes(10),
+                "a longer one is a scheduler that stays asleep long after the database came back");
+    }
+
+    [Test]
+    public void TheEstimatedHandOverTimeIsPositive()
+    {
+        Store.EstimatedTimeToReleaseAndAcquireTrigger.Should().BePositive(
+            "the scheduler thread adds this to the time it is willing to look ahead, so zero or less "
+            + "says a hand-over is free and nothing is ever acquired early enough to fire on time");
+    }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Helpers
