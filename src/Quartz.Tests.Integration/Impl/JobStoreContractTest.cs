@@ -66,6 +66,11 @@ public abstract class JobStoreContractTest
     protected IJobStore Store { get; private set; }
 
     /// <summary>
+    /// Stores a case built for itself beside <see cref="Store" />, shut down with it.
+    /// </summary>
+    private readonly List<IJobStore> extraStores = [];
+
+    /// <summary>
     /// Builds a store that is initialized and ready for work.
     /// </summary>
     /// <remarks>
@@ -2837,11 +2842,6 @@ public abstract class JobStoreContractTest
 
         return store;
     }
-
-    /// <summary>
-    /// Stores a case built for itself, shut down with the one the fixture built.
-    /// </summary>
-    private readonly List<IJobStore> extraStores = [];
 
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Helpers
