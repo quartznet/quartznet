@@ -21,7 +21,7 @@ namespace Quartz.Diagnostics;
 /// is created directly, which is what the static version always did.
 /// </para>
 /// </remarks>
-internal sealed class Meters
+internal sealed class Meters : IDisposable
 {
     /// <summary>
     /// The instruments used by a scheduler built without a container — a hand-constructed
@@ -31,6 +31,13 @@ internal sealed class Meters
     private static readonly Lazy<Meters> shared = new(static () => new Meters(meterFactory: null));
 
     private readonly Meter meter;
+
+    /// <summary>
+    /// Whether <see cref="meter" /> is this instance's to close, which it is exactly when no
+    /// <see cref="IMeterFactory" /> made it.
+    /// </summary>
+    private readonly bool ownsMeter;
+
     private readonly UpDownCounter<long> jobExecuteInProgress;
     private readonly Histogram<double> jobExecuteDuration;
     private readonly Counter<long> triggerMisfires;
@@ -45,7 +52,9 @@ internal sealed class Meters
     {
         MeterOptions options = new(QuartzInstrumentation.MeterName) { Version = QuartzInstrumentation.Version };
 
-        meter = meterFactory?.Create(options) ?? new Meter(options);
+        Meter? fromFactory = meterFactory?.Create(options);
+        ownsMeter = fromFactory is null;
+        meter = fromFactory ?? new Meter(options);
 
         // An up-down counter, not a counter: the number of jobs running goes down as often as it goes up,
         // and a counter is monotonic by definition, so an aggregating exporter is entitled to drop or
@@ -92,6 +101,35 @@ internal sealed class Meters
     }
 
     public static Meters Shared => shared.Value;
+
+    /// <summary>
+    /// The meter the instruments were created on, for a test that needs to tell one instance's
+    /// instruments from another's.
+    /// </summary>
+    internal Meter Meter => meter;
+
+    /// <summary>
+    /// Closes the meter, but only one this instance made for itself.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Registered as a container singleton, so the container disposes it with everything else it
+    /// built. A meter an <see cref="IMeterFactory" /> created belongs to that factory and is closed
+    /// when the factory is: closing it here would take a meter out from under whatever else in the
+    /// application shares the factory's cache entry for the same name.
+    /// </para>
+    /// <para>
+    /// <see cref="Shared" /> is a process-lifetime instance that nothing disposes, and that is the
+    /// point of it: a scheduler built without a container has no owner to hand the meter back to.
+    /// </para>
+    /// </remarks>
+    public void Dispose()
+    {
+        if (ownsMeter)
+        {
+            meter.Dispose();
+        }
+    }
 
     /// <summary>
     /// Whether anything is collecting the acquisition instruments, so the scheduling loop can skip
