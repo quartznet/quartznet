@@ -178,6 +178,70 @@ public sealed class TriggerStateStatementsSqliteTest
     }
 
     /// <summary>
+    /// The acquisition claim is <c>virtual</c>, so a dialect's own version of it is the one that runs —
+    /// and the base's is still there to build on.
+    /// </summary>
+    /// <remarks>
+    /// It was the one <see cref="IDriverDelegate" /> member <see cref="StdAdoDelegate" /> implemented
+    /// without <c>virtual</c>, so a dialect that wanted to reshape it could only hide it with
+    /// <c>new</c> — and the store calls the delegate through the interface, so the hidden member would
+    /// never have run. This drives it through <see cref="IDriverDelegate" />, which is how the store
+    /// reaches it, and checks both halves: the override ran, and the row it delegated to the base to
+    /// write did move.
+    /// </remarks>
+    [Test]
+    public async Task ADialectsOwnClaimOnAnAcquiredTriggerIsTheOneTheStoreWouldReach()
+    {
+        await using Harness harness = await Harness.Create(
+            connectionString,
+            store => store.UseDriverDelegate<ClaimRecordingDelegate>());
+
+        ClaimRecordingDelegate dialect = harness.Delegate.Should().BeOfType<ClaimRecordingDelegate>(
+            "UseDriverDelegate runs before UseSqlite, and registration is first-wins").Subject;
+
+        // The fire time is the claim's optimistic-concurrency guard: the row moves only while it is
+        // still due at exactly the moment the acquiring node read.
+        DateTimeOffset dueAt = new(await harness.Scalar($"SELECT {AdoConstants.ColumnNextFireTime} FROM QRTZ_TRIGGERS"), TimeSpan.Zero);
+
+        (await harness.Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                harness.Connection, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, dueAt.AddMinutes(1)))
+            .Should().Be(0, "another node moved the trigger on, so this claim is stale and applies to nothing");
+
+        (await harness.Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                harness.Connection, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, dueAt))
+            .Should().Be(1, "the trigger is WAITING and still due when it was read, so the claim applies");
+
+        dialect.Claims.Should().Be(2,
+            "the store issues this statement through IDriverDelegate, so a dialect's override only runs "
+            + "if the member it overrides is virtual");
+
+        (await harness.StoredState()).Should().Be(AdoConstants.StateAcquired,
+            "the override called the base, and the base still issued the statement");
+    }
+
+    /// <summary>
+    /// A dialect that counts its claims and otherwise leaves the statement alone — the shape of an
+    /// override that adds an index hint or a retry, which is why the member is a seam.
+    /// </summary>
+    private sealed class ClaimRecordingDelegate : SQLiteDelegate
+    {
+        public int Claims { get; private set; }
+
+        public override ValueTask<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            StoredTriggerState newState,
+            StoredTriggerState oldState,
+            DateTimeOffset nextFireTime,
+            CancellationToken cancellationToken = default)
+        {
+            Claims++;
+            return base.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                conn, triggerKey, newState, oldState, nextFireTime, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// A provisioned database with one job and one waiting trigger in it, plus the delegate and the
     /// connection the tests drive.
     /// </summary>
@@ -204,7 +268,9 @@ public sealed class TriggerStateStatementsSqliteTest
 
         public ConnectionAndTransactionHolder Connection { get; }
 
-        public static async Task<Harness> Create(string connectionString)
+        public static async Task<Harness> Create(
+            string connectionString,
+            Action<IPersistentStoreBuilder>? configureStore = null)
         {
             ServiceCollection services = new();
             services.AddQuartz(q =>
@@ -217,6 +283,10 @@ public sealed class TriggerStateStatementsSqliteTest
 
                 q.UsePersistentStore(store =>
                 {
+                    // Before UseSqlite, because registration is first-wins and UseSqlite names a
+                    // driver delegate of its own.
+                    configureStore?.Invoke(store);
+
                     store.UseSqlite(SqliteFactory.Instance, connectionString);
                     store.ProvisionSchema();
                 });

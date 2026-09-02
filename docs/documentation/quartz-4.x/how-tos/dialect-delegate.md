@@ -11,8 +11,8 @@ a delegate of its own.
 ::: tip Start here
 **Do not implement `IDriverDelegate`.** Nothing in the product does; it is a hundred-odd members, and
 almost all of them are the same SQL on every database. Subclass `StdAdoDelegate` and override the
-handful that differ. The six shipped dialects override **nine distinct members between them**, out of
-roughly a hundred and ten — and four of the six override two or fewer.
+handful that differ. The six shipped dialects override **ten distinct members between them**, out of
+roughly a hundred and ten — and Firebird and PostgreSQL need only two each.
 :::
 
 ## The seam
@@ -28,11 +28,12 @@ public sealed class MyDatabaseDelegate : StdAdoDelegate
 ```
 <!-- endSnippet -->
 
-Nine members are the dialect contract. Everything else on `StdAdoDelegate` is an implementation step
+Ten members are the dialect contract. Everything else on `StdAdoDelegate` is an implementation step
 that happens to be `protected virtual` so the class can be composed — treat them as private.
 
 | Member | Override when |
 |---|---|
+| `protected virtual string? SchemaResourceName` | you want `ProvisionSchema()` to be able to create your tables — see [Also needed](#also-needed-a-dbmetadata-and-a-schema) |
 | `protected virtual SqlRowLimit GetRowLimit(int count)` | your database can limit the rows a statement returns |
 | `protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)` | the acquisition statement needs something else besides — MySQL's index hint is the only shipped case |
 | `protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count)` | the same, for the misfire scan; `count == -1` means "no limit" |
@@ -162,8 +163,20 @@ substitutes it. Statements the base class returns still contain it; the caller s
 "Customize one statement" is not a supported operation, and that is deliberate. The six SQL hooks
 above cover the statements that actually differ between databases; the other ~76 are inlined
 `ReplaceTablePrefix(StdAdoConstants.X)` call sites, and the delegate *is* the seam — override the
-method that issues the statement. Additional `GetXxxSql()` hooks can be added later without breaking
+method that issues the statement. Every `IDriverDelegate` member on `StdAdoDelegate` is `virtual` for
+that reason, including `UpdateTriggerStateFromOtherStateWithNextFireTime`, which is how the lock-free
+acquisition path claims a trigger. Additional `GetXxxSql()` hooks can be added later without breaking
 anyone, so if you need one, ask.
+:::
+
+::: warning The value conversions are not all seams
+`GetDbBooleanValue` / `GetBooleanFromDbValue` are `virtual` — Oracle has no boolean column type — but
+`GetDbDateTimeValue`, `GetDateTimeFromDbValue`, `GetDbTimeSpanValue` and `GetTimeSpanFromDbValue` are
+not, and that is deliberate. UTC ticks and whole milliseconds are part of the schema contract: the
+preferred-node liveness SQL does raw tick arithmetic against `LAST_CHECKIN_TIME` and
+`CHECKIN_INTERVAL`, so a delegate that changed how an instant is stored would silently break cluster
+failover for pinned triggers. A database that must store `DATETIME` natively implements
+`IDriverDelegate` directly and owns its SQL.
 :::
 
 ## Initialization
@@ -237,6 +250,28 @@ The delegate is one of three things a new database needs:
    types, the parameter prefix, and how it spells a `DbType`. The provider name and the delegate are
    independent axes — the `Use…` shortcut methods just set both at once.
 3. **DDL.** Copy the closest `database/tables/tables_<dialect>.sql` and adjust the column types.
+
+Running that DDL by hand is enough for the default `SchemaProvisioning.Validate`. To let
+`ProvisionSchema()` create the tables instead, embed the script in your own assembly
+(`<EmbeddedResource Include="MyDatabase.sql" />`) and name it from `SchemaResourceName`, using the
+manifest resource name the compiler gives it — `<RootNamespace>.<folder path>.<file name>`.
+Statements are separated by a line reading `--;;` rather than by a semicolon, because a semicolon
+ends a statement on one dialect and a line inside a stored-procedure body on another, and `{0}`
+stands where the table prefix goes:
+
+<!-- snippet: sample_dialect_delegate_schema_resource -->
+```csharp
+// The schema script this delegate creates its tables from, embedded beside it with
+// <EmbeddedResource Include="MyDatabase.sql" /> and named the way the compiler names one:
+// <RootNamespace>.<folder path>.<file name>. Statements are separated by a line reading "--;;".
+protected override string? SchemaResourceName => "MyCompany.Quartz.MyDatabase.sql";
+```
+<!-- endSnippet -->
+
+The name is looked for in the assembly of the delegate's own type and then in each assembly up its
+base chain, so a delegate that subclasses a shipped dialect to change a statement or two inherits
+that dialect's script without carrying a copy. Left unset, `ProvisionSchema()` fails with a message
+naming this member rather than with a SQL error.
 
 ## See also
 

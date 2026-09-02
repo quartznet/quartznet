@@ -6273,6 +6273,18 @@ format would silently break cluster failover for pinned triggers (3.x only logge
 detected such an override; 4.0 removes the half-open door). A delegate for a database that stores
 `DATETIME` natively must implement `IDriverDelegate` directly and own its SQL.
 
+Every *statement-issuing* member is a seam, though, and one of them was not. **`UpdateTriggerStateFromOtherStateWithNextFireTime`
+is `virtual`** — it was the only `IDriverDelegate` member `StdAdoDelegate` implemented without it, which
+was an oversight rather than a decision. It is the lock-free acquisition path's claim on a trigger, so
+it is exactly the statement a dialect is likeliest to want to reshape, and the store reaches the
+delegate through the interface, which means a subclass that could only hide it with `new` would never
+have run. Purely additive: nothing that compiled before compiles differently.
+
+`StdAdoDelegate.SchemaResourceName` is not new, but the how-to now documents it: overriding that
+`protected virtual string?` with the manifest resource name of an embedded script is the whole of what
+a delegate has to do to support `SchemaProvisioning.CreateIfMissing`. All six shipped dialects override
+it. See [A Driver Delegate for a New Database](how-tos/dialect-delegate.md).
+
 `StdAdoDelegate` also exposes **`protected string SchedulerName { get; }`**, beside the
 `protected IDbProvider DbProvider { get; }` it already had. Nearly every statement it sends is scoped
 by SCHED_NAME, so a delegate writing a statement of its own needs the same value; it used to have to
