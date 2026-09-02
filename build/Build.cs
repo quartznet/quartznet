@@ -496,18 +496,43 @@ partial class Build : FalloutBuild, ICompile, IPack
     static readonly string[] DatabaseCategories =
         ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite", "db-redis"];
 
-    string GetTestFilter(string database) => database switch
+    /// <summary>
+    /// The category a release gate carries, and the one thing every integration leg leaves out.
+    /// </summary>
+    /// <remarks>
+    /// The clustered soak (<c>ClusteredSoakTestBase</c>) runs for half an hour by design, and a leg
+    /// that ran it would read as a hung job rather than as thoroughness. It is run by hand before a
+    /// tag, exactly as the benchmarks are; <c>BenchmarkSmoke</c> excludes the same name on the
+    /// benchmark side, through <c>BenchmarkCategories</c>.
+    /// </remarks>
+    const string LongRunningCategory = "LongRunning";
+
+    /// <summary>
+    /// What one integration leg runs: the fixtures for its database, and never a release gate.
+    /// </summary>
+    /// <remarks>
+    /// The <c>LongRunning</c> exclusion is applied whether or not a database was named, because an
+    /// unnamed one applies no filter at all — which is what a local <c>dotnet fallout IntegrationTest</c>
+    /// does, and it would otherwise pick up an hour of soak.
+    /// </remarks>
+    string GetTestFilter(string database)
     {
-        "postgres" => "TestCategory=db-postgres",
-        "sqlserver" => "TestCategory=db-sqlserver",
-        "mysql" => "TestCategory=db-mysql",
-        "oracle" => "TestCategory=db-oracle",
-        "firebird" => "TestCategory=db-firebird",
-        "sqlite" => "TestCategory=db-sqlite",
-        "redis" => "TestCategory=db-redis",
-        "basic" => string.Join("&", DatabaseCategories.Select(c => $"TestCategory!={c}")),
-        _ => null
-    };
+        string databaseFilter = database switch
+        {
+            "postgres" => "TestCategory=db-postgres",
+            "sqlserver" => "TestCategory=db-sqlserver",
+            "mysql" => "TestCategory=db-mysql",
+            "oracle" => "TestCategory=db-oracle",
+            "firebird" => "TestCategory=db-firebird",
+            "sqlite" => "TestCategory=db-sqlite",
+            "redis" => "TestCategory=db-redis",
+            "basic" => string.Join("&", DatabaseCategories.Select(c => $"TestCategory!={c}")),
+            _ => null
+        };
+
+        var excludeLongRunning = $"TestCategory!={LongRunningCategory}";
+        return string.IsNullOrEmpty(databaseFilter) ? excludeLongRunning : $"{databaseFilter}&{excludeLongRunning}";
+    }
 
     Target IntegrationTest => _ => _
         .DependsOn<ICompile>()
