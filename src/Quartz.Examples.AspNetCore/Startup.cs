@@ -355,8 +355,11 @@ public class Startup
             endpoints.MapQuartzHttpApi("/quartz-api")
                 .RequireAuthorization();
 
-            // Map Quartz.NET Dashboard UI at /quartz
-            endpoints.MapQuartzDashboard("/quartz");
+            // Map Quartz.NET Dashboard UI at /quartz. Anonymous on purpose and said out loud: this
+            // sample authenticates with an API key header, which a browser cannot send, and a mapping
+            // that stated nothing would refuse to start. A deployment authorizes it instead - with
+            // RequireAuthorization() here, or QuartzDashboardOptions.AuthorizationPolicy.
+            endpoints.MapQuartzDashboard("/quartz").AllowAnonymous();
         });
     }
 

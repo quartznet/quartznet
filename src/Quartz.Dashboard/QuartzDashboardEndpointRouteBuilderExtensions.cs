@@ -34,6 +34,8 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 
+using Quartz.AspNetCore;
+using Quartz.Dashboard;
 using Quartz.Dashboard.Components;
 using Quartz.Dashboard.Hubs;
 
@@ -46,7 +48,13 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
     /// <see cref="QuartzDashboardOptions.DashboardPath"/> configured — which defaults to <c>/quartz</c>.
     /// Use this overload when the host application does not have its own Blazor Server setup.
     /// </summary>
-    public static RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this IEndpointRouteBuilder builder)
+    /// <remarks>
+    /// What comes back covers the dashboard's pages and its live-events hub together, so
+    /// <c>RequireAuthorization()</c> or <c>AllowAnonymous()</c> on it is a statement about the dashboard
+    /// rather than about half of it. Saying neither, and configuring neither
+    /// <see cref="QuartzDashboardOptions.AuthorizationPolicy" /> nor a fallback policy, fails startup.
+    /// </remarks>
+    public static IEndpointConventionBuilder MapQuartzDashboard(this IEndpointRouteBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -77,7 +85,7 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
     /// </remarks>
     /// <param name="builder">The endpoint route builder.</param>
     /// <param name="pattern">The path the dashboard is served under, for example <c>/admin/quartz</c>.</param>
-    public static RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this IEndpointRouteBuilder builder, string pattern)
+    public static IEndpointConventionBuilder MapQuartzDashboard(this IEndpointRouteBuilder builder, string pattern)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -102,16 +110,14 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         return MapStandaloneDashboard(builder);
     }
 
-    private static RazorComponentsEndpointConventionBuilder MapStandaloneDashboard(IEndpointRouteBuilder builder)
+    private static QuartzDashboardConventionBuilder MapStandaloneDashboard(IEndpointRouteBuilder builder)
     {
         // Map Blazor components at root level — pages already have /quartz prefix in @page directives
         RazorComponentsEndpointConventionBuilder components = builder
             .MapRazorComponents<QuartzDashboardApp>()
             .AddInteractiveServerRenderMode();
 
-        MapQuartzDashboardCore(builder, components, dashboardOwnsComponents: true);
-
-        return components;
+        return MapQuartzDashboardCore(builder, components, dashboardOwnsComponents: true);
     }
 
     /// <summary>
@@ -140,7 +146,7 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
     ///         AdditionalAssemblies="new[] { typeof(Quartz.Dashboard.Components.QuartzDashboardApp).Assembly }"&gt;
     /// </code>
     /// </example>
-    public static RazorComponentsEndpointConventionBuilder MapQuartzDashboard(
+    public static IEndpointConventionBuilder MapQuartzDashboard(
         this IEndpointRouteBuilder builder,
         RazorComponentsEndpointConventionBuilder existingComponents)
     {
@@ -150,16 +156,19 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         // Register dashboard page components with the host's existing Blazor router
         existingComponents.AddAdditionalAssemblies(typeof(QuartzDashboardApp).Assembly);
 
-        MapQuartzDashboardCore(builder, existingComponents, dashboardOwnsComponents: false);
-
-        return existingComponents;
+        // Not existingComponents: that is the host's builder, and a convention put on it would reach the
+        // host's own pages (#3066). What comes back reaches this assembly's pages and the hub, which is
+        // what the caller meant by naming the dashboard.
+        return MapQuartzDashboardCore(builder, existingComponents, dashboardOwnsComponents: false);
     }
 
-    private static void MapQuartzDashboardCore(
+    private static QuartzDashboardConventionBuilder MapQuartzDashboardCore(
         IEndpointRouteBuilder builder,
         RazorComponentsEndpointConventionBuilder components,
         bool dashboardOwnsComponents)
     {
+        builder.ServiceProvider.GetRequiredService<QuartzMappedEndpoints>().Track(builder);
+
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
         string dashboardPath = options.TrimmedDashboardPath;
 
@@ -310,6 +319,38 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             // QuartzDashboardOptions.AuthorizationPolicy to make the dashboard reachable under a
             // fail-closed FallbackPolicy in that case.
         }
+
+        // Says "Quartz mapped this" on the two endpoint kinds that answer with scheduler data — the
+        // pages and the live-events hub. The static assets have already decided for themselves above,
+        // and the Blazor circuit is plumbing that carries nothing on its own, so neither is the guard's
+        // business.
+        QuartzEndpointMarker marker = new(DashboardSurface, DashboardRemedies);
+        hub.Add(endpointBuilder => endpointBuilder.Metadata.Add(marker));
+        components.Add(endpointBuilder =>
+        {
+            if (IsDashboardPage(endpointBuilder))
+            {
+                endpointBuilder.Metadata.Add(marker);
+            }
+        });
+
+        return new QuartzDashboardConventionBuilder(
+            components,
+            dashboardOwnsComponents ? null : IsDashboardPage,
+            hub);
+    }
+
+    private const string DashboardSurface = "The Quartz dashboard";
+
+    private const string DashboardRemedies = """
+          - app.MapQuartzDashboard().RequireAuthorization() authorizes its pages and its live-events hub;
+          - services.AddQuartzDashboard(options => options.AuthorizationPolicy = "...") authorizes those and the static assets and the Blazor circuit with them;
+          - app.MapQuartzDashboard().AllowAnonymous() serves it to anyone, deliberately.
+        """;
+
+    private static bool IsDashboardPage(EndpointBuilder endpointBuilder)
+    {
+        return GetComponentType(endpointBuilder)?.Assembly == typeof(QuartzDashboardApp).Assembly;
     }
 
     private static Type? GetComponentType(EndpointBuilder endpointBuilder)

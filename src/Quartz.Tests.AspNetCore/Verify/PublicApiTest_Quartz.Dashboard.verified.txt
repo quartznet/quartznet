@@ -377,9 +377,9 @@ namespace Quartz
 {
     public static class QuartzDashboardEndpointRouteBuilderExtensions
     {
-        public static Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
-        public static Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder existingComponents) { }
-        public static Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, string pattern) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder existingComponents) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, string pattern) { }
     }
     public sealed class QuartzDashboardOptions
     {
