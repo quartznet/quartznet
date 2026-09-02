@@ -743,7 +743,7 @@ internal sealed class QuartzOptionsValidator : IValidateOptions<QuartzOptions>
     {
         List<string>? failures = null;
 
-        if (scheduling is { OverwriteExistingData: true, IgnoreDuplicates: true })
+        if (scheduling.OverwriteExistingData && scheduling.IgnoreDuplicates)
         {
             (failures ??= []).Add(
                 "Quartz:Scheduling has both OverwriteExistingData and IgnoreDuplicates set. They are two "
