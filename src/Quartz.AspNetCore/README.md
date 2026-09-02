@@ -36,8 +36,11 @@ app.MapHealthChecks("/healthz");
 <!-- endSnippet -->
 
 The API manages jobs and triggers, so authorize it: `MapQuartzHttpApi` returns the endpoint convention
-builder to say so on. `AddQuartz` and the health check beside it come from the core package; serving the
-health report at `/healthz` is what needs ASP.NET Core.
+builder to say so on, and a mapping that says nothing refuses to start. It adds no authentication of its
+own, every route mutates, and a job scheduled through it names its type as a string the request supplies
+— which, with `Quartz.Jobs` on the host's probing path, reaches `NativeJob` and its process. Say
+`AllowAnonymous()` where you mean it. `AddQuartz` and the health check beside it come from the core
+package; serving the health report at `/healthz` is what needs ASP.NET Core.
 
 ## Documentation
 

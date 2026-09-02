@@ -156,6 +156,21 @@ When `WaitForProcess` is on, the integer exit code of the process is saved as th
 `IJobExecutionContext`. Turn `ConsumeStreams` on for a chatty process: one that writes more output than its
 pipe holds blocks until someone reads it.
 
+::: danger Referencing this package changes what an open scheduling endpoint means
+Both HTTP surfaces — the [HTTP API](http-api.md) and the [dashboard](dashboard.md) — schedule a job whose
+type is a **string the request supplies**. The name is stored unresolved and resolved later with
+`Type.GetType` against whatever is on the host's probing path; there is no allow-list, and the only
+validation is on the shape of the name. `NativeJob` is on that path as soon as `Quartz.Jobs` is
+referenced, and it starts the executable its job data names with the arguments its job data names. So an
+unauthenticated Quartz endpoint in a process that references this package is remote code execution rather
+than an information leak.
+
+From `4.0.0-beta.1` neither surface will start when its mapping says nothing about authorization, which
+is what closes the common way into this. `DirectoryScanJob` and `FileScanJob` read the paths they scan
+from job data the same way, and `SendMailJob` reads an SMTP credential from job data unless one is
+registered — see [Keep the SMTP credential out of job data](#keep-the-smtp-credential-out-of-job-data).
+:::
+
 ### SendMailJob
 
 Sends an e-mail with the configured content to the configured recipient.

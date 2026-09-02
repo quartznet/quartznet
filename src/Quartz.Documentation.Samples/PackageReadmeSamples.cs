@@ -96,8 +96,8 @@ public static class PackageReadmeSamples
             WebApplication app = builder.Build();
 
             app.UseAntiforgery();
-            app.MapQuartzHttpApi();
-            app.MapQuartzDashboard();
+            app.MapQuartzHttpApi().RequireAuthorization();
+            app.MapQuartzDashboard().RequireAuthorization();
 
             #endregion
         }

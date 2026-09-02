@@ -473,7 +473,7 @@ exactly on it is listed.
 
 ### Between the alphas and beta.1
 
-The 4.0 surface froze at `4.0.0-alpha.5`. Three exceptions were taken deliberately, because each was a
+The 4.0 surface froze at `4.0.0-alpha.5`. Five exceptions were taken deliberately, because each was a
 statement the API made that was not true; if you are coming from 3.x rather than from an alpha, read
 these as part of 4.0 and nothing more.
 
@@ -504,9 +504,49 @@ these as part of 4.0 and nothing more.
   raises too. A store or a driver description of your own may need a `!` or a null check where the
   compiler now says so; that is the point. `IJobExecutionContext.FireInstanceId` is unchanged and
   non-nullable — a context exists only for a firing.
+* **A `500` from the HTTP API no longer carries the exception's message.** **Changed since alpha.5:**
+  `ExceptionHandler` withheld the exception's *type* on that path — a fault the caller cannot act on
+  says nothing about the server's internals — and returned its *message* verbatim, which for a driver
+  fault names the server, the database, the login or the constraint. The `detail` is now one fixed
+  sentence, *"The scheduler failed to handle the request. The failure is recorded in the server's
+  log."*, and the real message keeps being logged.
+  `QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` — the switch that already says "I am
+  debugging this" — puts it back. A client matching on a `500`'s `detail` was matching on whichever
+  driver failed; it now matches on a constant.
+* **A paged HTTP API request is bounded by `QuartzHttpApiOptions.MaxPageSize`, which is 1000.**
+  **Changed since alpha.5:** `take` rejected only negatives, so one request could ask the store for
+  every trigger in it while the bulk key fetch next door refused a thousand and one keys. A `take`
+  naming a **number** above the cap is now a `400` naming it — `?take=2147483647` included — while
+  `?take=all`, which names no number, is *bounded* by the cap rather than refused by it and reports
+  `hasMore`. That asymmetry is what keeps the 3.x-compatible listings working: `GetJobKeys` and its
+  neighbours ask for everything whether the answer is three rows or three million, and
+  `HttpScheduler` turns a truncated answer to one of those into an exception rather than a short list.
+  Set `MaxPageSize` to `0` for the old behaviour.
 
-One more startup refusal arrived with them, and is not a freeze exception because nothing about the
-shape changed — only what a contradictory pair of values does:
+Two more startup refusals arrived with them, and are not freeze exceptions because nothing about any
+shape changed — only what a mapping that stated nothing, and a contradictory pair of values, now do:
+
+* **`MapQuartzHttpApi()` and `MapQuartzDashboard()` refuse to start when nothing authorizes them.**
+  **Changed since alpha.5:** neither surface was safe by default. `app.MapQuartzHttpApi()` applied
+  authorization only when `SchedulerAuthorizationPolicy` was set, so all sixty routes — `shutdown` and
+  `clear` among them — answered anonymously; the dashboard left its pages and its live-events hub with
+  no authorization metadata at all, with `ReadOnly` defaulting to `false`. Both schedule a job whose
+  type is a string the request supplies, resolved later with `Type.GetType`, so with `Quartz.Jobs` on
+  the probing path an open endpoint is remote code execution rather than an information leak. A hosted
+  lifecycle service now enumerates the endpoints Quartz mapped before the server binds its listener and
+  throws unless every one of them carries authorization metadata or an explicit `AllowAnonymous()`, or
+  the host has a non-null `AuthorizationOptions.FallbackPolicy`. The message names the three fixes:
+  `RequireAuthorization()` on what the map call returns, the surface's policy option
+  (`QuartzHttpApiOptions.SchedulerAuthorizationPolicy` / `QuartzDashboardOptions.AuthorizationPolicy`),
+  or `AllowAnonymous()`. Authorization on a `MapGroup` above the mapping counts, and registering the
+  services without mapping anything is left alone. **An alpha user who mapped a bare API or dashboard
+  has to add one call**, and `AllowAnonymous()` is a supported answer.
+
+  `MapQuartzDashboard` returns an `IEndpointConventionBuilder` rather than the
+  `RazorComponentsEndpointConventionBuilder` for the same reason: the hub is mapped separately from the
+  pages, so the old return value reached the pages and not the hub — and in the overload that takes an
+  existing components builder it reached the host application's own pages too. What comes back now is
+  the dashboard's pages and its hub, and nothing else.
 
 * **`Quartz:Scheduling` refuses `IgnoreDuplicates` while `OverwriteExistingData` is on.**
   **Changed since alpha.5:** the two are answers to the same question and `OverwriteExistingData`
