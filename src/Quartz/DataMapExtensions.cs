@@ -607,7 +607,7 @@ public static class DataMapExtensions
 
         if (obj is string s)
         {
-            return float.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value);
+            return float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
 
         try
@@ -638,7 +638,7 @@ public static class DataMapExtensions
 
         if (obj is string s)
         {
-            return double.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value);
+            return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
 
         try
@@ -669,7 +669,7 @@ public static class DataMapExtensions
 
         if (obj is string s)
         {
-            return decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+            return decimal.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
 
         try
