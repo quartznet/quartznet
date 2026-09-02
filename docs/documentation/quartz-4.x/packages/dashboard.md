@@ -136,6 +136,24 @@ dashboard — with the authentication forwarding, execution limits and history s
 is designed in [#3387](https://github.com/quartznet/quartznet/issues/3387).
 :::
 
+### Writing your own `IQuartzApiClient`
+
+Two things the interface promises, so an implementation of your own renders the way the shipped one does:
+
+- **A missing thing is a `KeyNotFoundException`.** Every member taking a `schedulerName` raises it when
+  no scheduler goes by that name, and `GetScheduler`, `GetJobDetail`, `GetTrigger` and `GetCalendar`
+  raise it again when the thing itself is gone. Their return types are not nullable, so there is no
+  other answer they could give, and the dashboard's error boundary turns that exception into the
+  not-found page. Returning `null!` faults the page instead.
+- **Something you cannot report is a value, not a refusal.** `GetExecutionLimits` answers
+  `ExecutionLimitsDto.CannotReport` when the source cannot say — the overview draws that differently
+  from a scheduler that limits nothing.
+
+**The interface is additive from 4.0.0-beta.1 on: a member added to it during 4.x arrives as a default
+interface member**, so your implementation keeps compiling across a minor release. The default body
+reports the datum as unavailable rather than inventing one, the way `CannotReport` does — override it
+when your source can answer.
+
 ## The pages
 
 Ten of them, all served under `{DashboardPath}` — `/quartz` unless you said otherwise. Every one of
