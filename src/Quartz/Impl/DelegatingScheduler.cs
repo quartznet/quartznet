@@ -285,6 +285,24 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ResetTriggersFromErrorState(triggerKeys, cancellationToken);
     }
 
+    /// <summary>
+    /// Forwards the group form rather than letting <see cref="IScheduler" />'s default implementation
+    /// run here.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member is not inherited into a class's member set, so a decorator that does
+    /// not declare it lets the interface default execute *on the decorator* — decomposing into a query
+    /// and a second call, both of which come back through this class. That happens to give the right
+    /// answer for this member, and it is the wrong shape to rely on: an inner scheduler that can reset a
+    /// group in one statement never gets asked to, a listening decorator sees two calls where one was
+    /// made, and the first default whose decomposition is not equivalent would be a live bug.
+    /// <c>DelegatingForwardingTest</c> holds every member of the interface to being declared here.
+    /// </remarks>
+    public virtual ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        return scheduler.ResetTriggersFromErrorState(matcher, cancellationToken);
+    }
+
     public virtual ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
     {
         return scheduler.AddCalendar(calendarName, calendar, options, cancellationToken);

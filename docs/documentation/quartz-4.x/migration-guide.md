@@ -7358,6 +7358,17 @@ directly instead; nothing forces it through this base.
 decorator overrides only what it changes instead of shadowing members with `new` — which compiled, and
 then silently failed to intercept calls made through `IScheduler`.
 
+Both types also declare every **default interface member** of the contract they forward, which
+`DelegatingScheduler` did not until beta.1: it was missing
+`ResetTriggersFromErrorState(GroupMatcher<TriggerKey>, CancellationToken)`, and a member a forwarder
+does not declare is answered by the interface's own body running *on the forwarder*. The call
+decomposed into a `QueryTriggers` and a second reset, so the inner scheduler was asked two questions
+instead of the one that was put to it — the right answer in the wrong shape, and a live bug the day a
+default lands whose decomposition is not equivalent. `DelegatingForwardingTest` sweeps both types with
+`GetInterfaceMap` and no exemption list. The C# rule underneath is worth knowing while writing a
+decorator: a default interface member is not inherited into a class's member set, so it is callable
+only through an interface-typed reference unless the class declares it.
+
 ## Jobs take a CancellationToken
 
 `IJob.Execute` now takes the cancellation token as a parameter alongside the context:
