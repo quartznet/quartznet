@@ -129,6 +129,13 @@ jobs:
           # time. It does shrink the coverage denominator on main slightly, which is the price of the
           # family being complete rather than complete-until-someone-touches-another-example.
           #
+          # src/Quartz.Tests.Integration.Seeder is excused for the canary's reason: it is not code a
+          # test covers, it is a fixture generator that UpgradeRehearsalTest runs out of process --
+          # and it has to, because it compiles against the released Quartz 3.20.0 package, whose
+          # assembly identity is this repository's own. Nothing that could collect coverage can load
+          # it in the same process as the code under test. The `Compile` leg still builds it, which
+          # is what makes it rot loudly when a 3.20 API it uses goes away.
+          #
           # database/ is excused from copy-paste detection, from four PL/SQL rules and from a
           # coverage figure this workflow does not produce, and from nothing else. Its bug and
           # security rules still apply; these are the ones that have nothing true to say about it.
@@ -192,7 +199,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**" \
             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**,src/Quartz.Examples/**,src/Quartz.Examples.AspNetCore/**,src/Quartz.Examples.HttpClient/**,src/Quartz.Examples.Worker/**,database/**" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Tests.Integration.Seeder/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**,src/Quartz.Examples/**,src/Quartz.Examples.AspNetCore/**,src/Quartz.Examples.HttpClient/**,src/Quartz.Examples.Worker/**,database/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,generatedOracleGuardExceptions,repeatedObjectNames,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \
