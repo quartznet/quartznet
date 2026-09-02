@@ -37,7 +37,12 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
         triggers = parts.SelectMany(x => x.Triggers).ToList();
     }
 
-    public override bool OverwriteExistingData => options.Scheduling.OverwriteExistingData;
+    /// <remarks>
+    /// The effective value rather than the property: <see cref="SchedulingOptions.OverwriteExistingData" />
+    /// defaults to <see langword="true" />, and setting only
+    /// <see cref="SchedulingOptions.IgnoreDuplicates" /> means the default was never a statement.
+    /// </remarks>
+    public override bool OverwriteExistingData => options.Scheduling.EffectiveOverwriteExistingData;
     public override bool IgnoreDuplicates => options.Scheduling.IgnoreDuplicates;
     public override bool ScheduleTriggerRelativeToReplacedTrigger => options.Scheduling.ScheduleTriggerRelativeToReplacedTrigger;
 

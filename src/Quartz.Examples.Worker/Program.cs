@@ -18,8 +18,10 @@ builder.Services.AddHostedService<Worker>();
 // if you are using persistent job store, you might want to alter some options
 builder.Services.Configure<QuartzOptions>(options =>
 {
+    // pass over a declared job or trigger whose key is already stored, rather than replacing it.
+    // OverwriteExistingData defaults to true, and setting this turns that default off — writing both
+    // down would be asking for opposite things and is refused at startup.
     options.Scheduling.IgnoreDuplicates = true; // default: false
-    options.Scheduling.OverwriteExistingData = true; // default: true
 });
 
 // base configuration for DI. builder.AddQuartz reads the "Quartz" configuration section as well, so

@@ -268,8 +268,10 @@ treated is a setting of its own:
 ```csharp
 services.Configure<QuartzOptions>(options =>
 {
-    options.Scheduling.OverwriteExistingData = true; // default: true
-    options.Scheduling.IgnoreDuplicates = false;     // default: false
+    // Pass over a declared job or trigger whose key is already stored, rather than replacing it.
+    // OverwriteExistingData defaults to true, and this turns that default off; writing both down
+    // is asking for opposite things and is refused at startup.
+    options.Scheduling.IgnoreDuplicates = true; // default: false
 });
 ```
 <!-- endSnippet -->

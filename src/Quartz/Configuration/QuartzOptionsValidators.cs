@@ -735,23 +735,24 @@ internal sealed class QuartzOptionsValidator : IValidateOptions<QuartzOptions>
     /// <remarks>
     /// <see cref="SchedulingOptions.IgnoreDuplicates" /> is read only when
     /// <see cref="SchedulingOptions.OverwriteExistingData" /> is off, and that defaults to
-    /// <see langword="true" />. Setting the first without clearing the second therefore did nothing at
-    /// all: an application that meant "leave what is already there alone" got "replace it", which is
-    /// the opposite, in silence and at every start.
+    /// <see langword="true" /> — so the two of them are two answers to one question, and asking both is
+    /// asking for opposite things. Only an application that wrote both down is asking for both: the
+    /// default is not a statement, and <see cref="SchedulingOptions.IgnoreDuplicates" /> on its own now
+    /// turns overwriting off rather than being ignored.
     /// </remarks>
     private static ValidateOptionsResult ValidateScheduling(SchedulingOptions scheduling)
     {
         List<string>? failures = null;
 
-        if (scheduling.OverwriteExistingData && scheduling.IgnoreDuplicates)
+        if (scheduling.OverwriteExistingDataStated && scheduling.OverwriteExistingData && scheduling.IgnoreDuplicates)
         {
             (failures ??= []).Add(
-                "Quartz:Scheduling has both OverwriteExistingData and IgnoreDuplicates set. They are two "
+                "Quartz:Scheduling sets both OverwriteExistingData and IgnoreDuplicates. They are two "
                 + "answers to the same question and OverwriteExistingData wins, so IgnoreDuplicates would "
                 + "do nothing: a declared job or trigger whose key is already stored replaces it. Set "
-                + "OverwriteExistingData to false to pass over duplicates instead, or leave "
-                + "IgnoreDuplicates unset. OverwriteExistingData defaults to true, so it is set unless "
-                + "something cleared it.");
+                + "IgnoreDuplicates alone to pass over duplicates instead — its default of true for "
+                + "OverwriteExistingData is a default rather than a statement, and setting IgnoreDuplicates "
+                + "turns it off — or drop IgnoreDuplicates. Only writing both down is refused.");
         }
 
         return QuartzSchedulerOptionsValidator.Result(failures);

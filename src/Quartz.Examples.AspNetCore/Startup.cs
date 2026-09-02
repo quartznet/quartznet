@@ -78,8 +78,10 @@ public class Startup
         // if you are using persistent job store, you might want to alter some options
         services.Configure<QuartzOptions>(options =>
         {
+            // pass over a declared job or trigger whose key is already stored, rather than replacing it.
+            // OverwriteExistingData defaults to true, and setting this turns that default off — writing
+            // both down would be asking for opposite things and is refused at startup.
             options.Scheduling.IgnoreDuplicates = true; // default: false
-            options.Scheduling.OverwriteExistingData = true; // default: true
         });
 
         // custom connection provider

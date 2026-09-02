@@ -769,8 +769,12 @@ public class XmlSchedulingDataProcessorTest
         processor.ScheduleTriggerRelativeToReplacedTrigger.Should().BeTrue();
     }
 
+    /// <summary>
+    /// A document that asks for duplicates to be ignored and says nothing about overwriting gets
+    /// overwriting turned off: the two directives are answers to one question, and only one was asked.
+    /// </summary>
     [Test]
-    public async Task AnOmittedDirectiveKeepsItsDefaultWhenAnotherIsGiven()
+    public async Task AnIgnoreDuplicatesDirectiveOnItsOwnTurnsOverwritingOff()
     {
         TestProcessor processor = await Process(Document($"""
             <processing-directives>
@@ -784,8 +788,30 @@ public class XmlSchedulingDataProcessorTest
             </schedule>
             """));
 
-        processor.OverwriteExistingData.Should().BeTrue();
+        processor.OverwriteExistingData.Should().BeFalse(
+            "the default of true is a default rather than a statement, and a document asking for "
+            + "duplicates to be passed over cannot also mean 'replace them'");
         processor.IgnoreDuplicates.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task AnOmittedDirectiveKeepsItsDefaultWhenAnotherIsGiven()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <processing-directives>
+              <schedule-trigger-relative-to-replaced-trigger>true</schedule-trigger-relative-to-replaced-trigger>
+            </processing-directives>
+            <schedule>
+              <job>
+                <name>job1</name>
+                <job-type>{JobType}</job-type>
+              </job>
+            </schedule>
+            """));
+
+        processor.OverwriteExistingData.Should().BeTrue();
+        processor.IgnoreDuplicates.Should().BeFalse();
+        processor.ScheduleTriggerRelativeToReplacedTrigger.Should().BeTrue();
     }
 
     [Test]

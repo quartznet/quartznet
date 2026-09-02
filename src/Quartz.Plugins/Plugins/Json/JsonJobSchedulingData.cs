@@ -74,9 +74,15 @@ internal sealed class JsonDeleteTriggerCommand
     public string? Group { get; set; }
 }
 
+/// <remarks>
+/// <see cref="OverwriteExistingData" /> is nullable so that "the document did not say" can be told from
+/// "the document said true": a file that asks for duplicates to be ignored and says nothing about
+/// overwriting is asking for the two of them to agree, and the default of <see langword="true" /> would
+/// be the opposite answer to the same question.
+/// </remarks>
 internal sealed class JsonProcessingDirectives
 {
-    public bool OverwriteExistingData { get; set; } = true;
+    public bool? OverwriteExistingData { get; set; }
     public bool IgnoreDuplicates { get; set; }
     public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
 }
