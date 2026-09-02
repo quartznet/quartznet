@@ -280,13 +280,12 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// <c>MON-FRI</c> for a caller who wrote <c>mon-fri</c>.
     /// </remarks>
     /// <param name="cronExpression">String representation of the cron expression the new object should represent</param>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression"/> is <see langword="null" />.</exception>
+    /// <exception cref="FormatException"><paramref name="cronExpression"/> is not a valid cron expression.</exception>
     /// <see cref="CronExpressionString" />
     public CronExpression(string cronExpression)
     {
-        if (cronExpression is null)
-        {
-            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
-        }
+        ArgumentNullException.ThrowIfNull(cronExpression);
 
         CronExpressionString = CronMacros.Expand(CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim());
         BuildExpression(CronExpressionString);
@@ -514,6 +513,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// <param name="format">The dialect <paramref name="cronExpression"/> is written in.</param>
     /// <returns>The parsed expression.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="cronExpression"/> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a cron format.</exception>
     /// <exception cref="FormatException"><paramref name="cronExpression"/> is not a valid cron expression in <paramref name="format"/>.</exception>
     public static CronExpression Parse(string cronExpression, CronFormat format)
     {
@@ -528,11 +528,16 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// <param name="cronExpression">String representation of the cron expression; may be <see langword="null" />.</param>
     /// <param name="format">The dialect <paramref name="cronExpression"/> is written in.</param>
     /// <param name="result">The parsed expression, or <see langword="null" /> when parsing failed.</param>
-    /// <returns><see langword="true" /> when <paramref name="cronExpression"/> is a valid cron expression in <paramref name="format"/>.</returns>
+    /// <returns>
+    /// <see langword="true" /> when <paramref name="cronExpression"/> is a valid cron expression in
+    /// <paramref name="format"/>. An undefined <paramref name="format"/> answers
+    /// <see langword="false" /> as well: a <c>Try</c> that throws is a <c>Try</c> its caller has to
+    /// wrap, which is the thing it exists to save them.
+    /// </returns>
     /// <seealso cref="Parse(string, CronFormat)" />
     public static bool TryParse([NotNullWhen(true)] string? cronExpression, CronFormat format, [NotNullWhen(true)] out CronExpression? result)
     {
-        if (cronExpression is null)
+        if (cronExpression is null || !IsDefined(format))
         {
             result = null;
             return false;
@@ -549,6 +554,16 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             return false;
         }
     }
+
+    /// <summary>
+    /// Whether <paramref name="format"/> is one of the dialects <see cref="ToQuartzForm" /> reads.
+    /// </summary>
+    /// <remarks>
+    /// Not <see cref="Enum.IsDefined{TEnum}(TEnum)" />: what matters is whether the rewriter has an
+    /// arm for the value, so a member added to <see cref="CronFormat" /> without one is caught here
+    /// rather than answering <see langword="true" /> and throwing from inside the <c>try</c>.
+    /// </remarks>
+    private static bool IsDefined(CronFormat format) => format is CronFormat.Quartz or CronFormat.Unix;
 
     /// <summary>
     /// Reads an expression written in <paramref name="format"/> as the Quartz expression that says the

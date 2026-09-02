@@ -156,15 +156,12 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// </remarks>
     /// <param name="cronExpression">the cron expression to base the schedule on.</param>
     /// <returns>the new CronScheduleBuilder</returns>
-    /// <exception cref="ArgumentException"><paramref name="cronExpression" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression" /> is <see langword="null" />.</exception>
     /// <exception cref="FormatException"><paramref name="cronExpression" /> is not a valid cron expression.</exception>
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder Create(string cronExpression)
     {
-        if (cronExpression is null)
-        {
-            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
-        }
+        ArgumentNullException.ThrowIfNull(cronExpression);
 
         if (CronExpression.ContainsHashToken(cronExpression))
         {
@@ -199,13 +196,15 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// <param name="cronExpression">the cron expression to base the schedule on.</param>
     /// <param name="format">the dialect <paramref name="cronExpression"/> is written in.</param>
     /// <returns>the new CronScheduleBuilder</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format" /> is not a cron format.</exception>
+    /// <exception cref="FormatException">
+    /// <paramref name="cronExpression" /> is not a valid cron expression in <paramref name="format" />.
+    /// </exception>
     /// <seealso cref="CronExpression.Parse(string, CronFormat)" />
     public static CronScheduleBuilder Create(string cronExpression, CronFormat format)
     {
-        if (cronExpression is null)
-        {
-            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
-        }
+        ArgumentNullException.ThrowIfNull(cronExpression);
 
         // Rewriting first means the H handling, the validation and the deferral below all see one
         // dialect, so CronFormat.Unix costs this method nothing but the call.
