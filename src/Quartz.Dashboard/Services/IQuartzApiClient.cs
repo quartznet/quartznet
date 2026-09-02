@@ -53,6 +53,29 @@ namespace Quartz.Dashboard.Services;
 /// dashboard's own would have to be extended for every trigger kind and would still not describe a
 /// kind it had never heard of.
 /// </para>
+/// <para>
+/// <b>Missing things.</b> Every member that takes a <c>schedulerName</c> raises
+/// <see cref="KeyNotFoundException" /> when no scheduler goes by that name, and the four members that
+/// return the thing itself rather than a listing — <see cref="GetScheduler" />,
+/// <see cref="GetJobDetail" />, <see cref="GetTrigger" /> and <see cref="GetCalendar" /> — raise it
+/// again when the thing is gone. Their return types are non-nullable, so there is no other answer
+/// available to them, and the dashboard's error boundary renders that exception as the "not found"
+/// page. A replacement that answered <c>null!</c> instead would fault the page with a
+/// <see cref="NullReferenceException" /> somewhere further in.
+/// </para>
+/// <para>
+/// <b>Things this data source cannot report.</b> A capability the source does not have is a value,
+/// not an exception: <see cref="GetExecutionLimits" /> answers
+/// <see cref="ExecutionLimitsDto.CannotReport" /> where the underlying scheduler refuses with
+/// <see cref="NotSupportedException" />, because "this source cannot say" and "nothing is limited"
+/// are different facts and the overview draws them differently.
+/// </para>
+/// <para>
+/// <b>Additivity.</b> This interface is frozen from 4.0.0-beta.1 in the sense the release promises:
+/// a member added to it in 4.x arrives as a default interface member, so an implementation of an
+/// application's own keeps compiling. Its default body reports the datum as unavailable the way
+/// <see cref="ExecutionLimitsDto.CannotReport" /> does, rather than inventing one.
+/// </para>
 /// </remarks>
 public interface IQuartzApiClient
 {
@@ -72,6 +95,7 @@ public interface IQuartzApiClient
     /// answer; a registration nothing has built is reported by <see cref="GetSchedulers" /> and has no
     /// detail to read.
     /// </summary>
+    /// <exception cref="KeyNotFoundException">No scheduler goes by <paramref name="schedulerName" />.</exception>
     ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default);
 
     ValueTask Start(string schedulerName, CancellationToken cancellationToken = default);
@@ -101,6 +125,13 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<PagedResult<TriggerGroupDto>> QueryTriggerGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns the job's definition — its type, its durability and its data map.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">
+    /// No scheduler goes by <paramref name="schedulerName" />, or it holds no job under
+    /// <paramref name="jobKey" />.
+    /// </exception>
     ValueTask<JobDetailDto> GetJobDetail(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     ValueTask<List<TriggerHeaderDto>> GetTriggersOfJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
@@ -187,6 +218,10 @@ public interface IQuartzApiClient
     /// Returns the trigger itself — a <see cref="ICronTrigger" />, <see cref="ISimpleTrigger" /> or
     /// whichever kind it is, including one an application registered its own serializer for.
     /// </summary>
+    /// <exception cref="KeyNotFoundException">
+    /// No scheduler goes by <paramref name="schedulerName" />, or it holds no trigger under
+    /// <paramref name="triggerKey" />.
+    /// </exception>
     ValueTask<ITrigger> GetTrigger(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
     ValueTask<TriggerState> GetTriggerState(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
@@ -225,6 +260,10 @@ public interface IQuartzApiClient
     /// <summary>
     /// Returns the calendar itself, of whichever kind it is.
     /// </summary>
+    /// <exception cref="KeyNotFoundException">
+    /// No scheduler goes by <paramref name="schedulerName" />, or it holds no calendar named
+    /// <paramref name="calendarName" />.
+    /// </exception>
     ValueTask<ICalendar> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
 
     ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default);
