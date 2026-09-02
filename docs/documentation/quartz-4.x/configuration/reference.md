@@ -60,6 +60,7 @@ which Quartz still accepts. See [Legacy property keys](#legacy-property-keys).
 | `MaxBatchSize` | int | `1` | How many triggers may be acquired at once. Only an upper bound — `BatchTriggerAcquisitionFireAheadTimeWindow` decides how many are actually taken — and it may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
 | `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may be included in the current batch. The other half of `MaxBatchSize`: at the default of zero, neither batches anything. |
 | `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to the jobs still executing. |
+| `PropagateTraceContext` | bool | `true` | Leaves the ambient trace context on a trigger scheduled inside an `Activity`, under two reserved job-data keys, so the firing's span links back to the call that scheduled it. The two entries are visible wherever trigger data is — `MergedJobDataMap`, the dashboard, `GET /triggers`, `QRTZ_TRIGGERS.JOB_DATA` — so turn it off to keep them out of the store. See [OpenTelemetry integration](../packages/opentelemetry-integration.md). |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`) rather than assigning a new dictionary. |
 
 `ShutdownJobInterruption` has four values, because a shutdown either waits for running jobs or it
