@@ -35,6 +35,15 @@ namespace Quartz;
 /// <see cref="object" />-typed slots exactly as they were.
 /// </para>
 /// <para>
+/// <b>A property typed as a <see cref="TimeOfDay" /> is built rather than populated.</b> The type has
+/// two public constructors and no parameterless one, so a trigger written as a plain object graph could
+/// not be read back at all - the read threw on <c>EndTimeOfDay</c> - and <c>StartTimeOfDay</c>, whose
+/// getter hands out a default for Json.NET to populate, came back as <c>00:00:00</c> however it was
+/// stored, since every member of a <see cref="TimeOfDay" /> is read-only.
+/// <see cref="TimeOfDayConverter" /> is attached here per property, and reads only: the object form
+/// Json.NET has always written is still what goes out.
+/// </para>
+/// <para>
 /// This is a resolver rather than a <see cref="JsonConverter" /> on purpose: a converter registered
 /// on the serializer is not consulted for a value whose type came from a <c>$type</c> property - a
 /// trigger stored as a blob, say - and the rules here apply on every path.
@@ -43,6 +52,7 @@ namespace Quartz;
 internal sealed class QuartzContractResolver : DefaultContractResolver
 {
     private static readonly TimeZoneInfoConverter timeZoneInfoConverter = new TimeZoneInfoConverter();
+    private static readonly TimeOfDayConverter timeOfDayConverter = new TimeOfDayConverter();
 
     public QuartzContractResolver()
     {
@@ -61,6 +71,11 @@ internal sealed class QuartzContractResolver : DefaultContractResolver
         if (property.PropertyType == typeof(TimeZoneInfo))
         {
             property.Converter = timeZoneInfoConverter;
+        }
+
+        if (property.PropertyType == typeof(TimeOfDay))
+        {
+            property.Converter = timeOfDayConverter;
         }
 
         return property;
