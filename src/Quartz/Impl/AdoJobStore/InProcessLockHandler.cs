@@ -151,6 +151,20 @@ internal sealed class InProcessLockHandler : ILockHandler
     /// <seealso cref="ReleaseLock"/>
     public bool RequiresConnection => false;
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// Two <see cref="SemaphoreSlim" /> gates, neither of which anybody reads
+    /// <see cref="SemaphoreSlim.AvailableWaitHandle" /> from, so nothing an operating system knows
+    /// about is being handed back here. They are closed all the same: what the scheduler owns, it
+    /// gives back on the way down.
+    /// </remarks>
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
+    {
+        triggerLock.Dispose();
+        stateLock.Dispose();
+        return default;
+    }
+
     private ResourceLock GetLock(SchedulerLock lockKind)
     {
         switch (lockKind)
@@ -188,5 +202,7 @@ internal sealed class InProcessLockHandler : ILockHandler
             owner = null;
             semaphore.Release();
         }
+
+        public void Dispose() => semaphore.Dispose();
     }
 }

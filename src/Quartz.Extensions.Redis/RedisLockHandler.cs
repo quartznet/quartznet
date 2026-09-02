@@ -69,6 +69,7 @@ public sealed class RedisLockHandler : ILockHandler
 
     private IConnectionMultiplexer? redis;
     private readonly SemaphoreSlim connectionLock = new(1, 1);
+    private int shutdownEntered;
     private TimeSpan lockTimeToLive = TimeSpan.FromSeconds(30);
     private TimeSpan lockRetryInterval = TimeSpan.FromMilliseconds(100);
 
@@ -292,6 +293,54 @@ public sealed class RedisLockHandler : ILockHandler
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// The multiplexer is the whole reason this member exists. A handler opens one on its first lock
+    /// and keeps it for the life of the scheduler; before 4.0.0-beta.1 nothing ever closed it, so a
+    /// host that built, ran and shut down a scheduler left a live Redis connection and its heartbeat
+    /// behind — once per scheduler, for the life of the process (#3639).
+    /// </para>
+    /// <para>
+    /// A handler that never took a lock never connected, and closes nothing. Shutting down twice is
+    /// harmless: the field is cleared under the same gate the connect takes, so the second call finds
+    /// nothing to close.
+    /// </para>
+    /// </remarks>
+    public async ValueTask Shutdown(CancellationToken cancellationToken = default)
+    {
+        // One-shot, because the gates are closed below and a second call would queue on one that is
+        // already gone. The store calls this once; a handler shared between two stores would not.
+        if (Interlocked.Exchange(ref shutdownEntered, 1) == 1)
+        {
+            return;
+        }
+
+        // The same gate the connect takes, so a shutdown racing a first acquire closes the connection
+        // that acquire opened rather than stepping over it.
+        await connectionLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        IConnectionMultiplexer? opened;
+        try
+        {
+            opened = redis;
+            redis = null;
+        }
+        finally
+        {
+            connectionLock.Release();
+        }
+
+        if (opened is not null)
+        {
+            logger.ClosingRedisConnection();
+            await opened.DisposeAsync().ConfigureAwait(false);
+        }
+
+        connectionLock.Dispose();
+        triggerLock.Dispose();
+        stateLock.Dispose();
+    }
+
     private string BuildKey(string lockName)
     {
         if (!string.IsNullOrEmpty(SchedulerName))
@@ -300,6 +349,29 @@ public sealed class RedisLockHandler : ILockHandler
         }
 
         return $"{KeyPrefix}{lockName}";
+    }
+
+    /// <summary>
+    /// How the handler opens its multiplexer, and the multiplexer it opened.
+    /// </summary>
+    /// <remarks>
+    /// StackExchange.Redis offers neither an in-process server nor a seam over
+    /// <see cref="ConnectionMultiplexer.ConnectAsync(string, TextWriter)" />, so substituting the
+    /// connect is the only way a test can watch what a shutdown does to the connection. Nothing
+    /// outside this assembly's tests sets it, and the ownership is unchanged either way: the handler
+    /// closes whatever it opened through this.
+    /// </remarks>
+    internal Func<string, Task<IConnectionMultiplexer>> Connect { get; set; } = OpenConnection;
+
+    /// <summary>
+    /// The multiplexer this handler has opened, <see langword="null" /> before the first lock and
+    /// again after <see cref="Shutdown" />.
+    /// </summary>
+    internal IConnectionMultiplexer? Connection => redis;
+
+    private static async Task<IConnectionMultiplexer> OpenConnection(string configuration)
+    {
+        return await ConnectionMultiplexer.ConnectAsync(configuration).ConfigureAwait(false);
     }
 
     private async Task<IConnectionMultiplexer> GetConnectionAsync(CancellationToken cancellationToken = default)
@@ -318,7 +390,7 @@ public sealed class RedisLockHandler : ILockHandler
             }
 
             logger.ConnectingToRedis();
-            redis = await ConnectionMultiplexer.ConnectAsync(RedisConfiguration).ConfigureAwait(false);
+            redis = await Connect(RedisConfiguration).ConfigureAwait(false);
             return redis;
         }
         finally
@@ -363,5 +435,7 @@ public sealed class RedisLockHandler : ILockHandler
             owner = null;
             semaphore.Release();
         }
+
+        public void Dispose() => semaphore.Dispose();
     }
 }

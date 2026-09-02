@@ -7037,6 +7037,40 @@ back anything it had taken before the exception escapes:
   }
 ```
 
+## A lock handler is told when to close what it opened
+
+`ILockHandler` gained a second default interface member in 4.0.0-beta.1:
+
+```csharp
+ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
+```
+
+The job store calls it at the end of its own `Shutdown`, after the misfire handler, the cluster manager
+and the database provider have stopped, so a handler may assume no acquire is in flight by the time it
+runs. **An existing handler need not implement it** — the default body does nothing, which is right for
+a handler that holds nothing of its own, and that is every row-lock handler in the box. A handler that
+throws on the way down is logged, and the scheduler finishes shutting down.
+
+It exists because `RedisLockHandler` opens a `ConnectionMultiplexer` on its first lock and nothing could
+ever close it: a host that built a scheduler, ran it and shut it down left a live Redis connection and
+its heartbeat behind, once per scheduler, for the life of the process (#3639). The two in-process
+handlers close their `SemaphoreSlim` gates through the same hook.
+
+```csharp
+public sealed class ConsulLockHandler : ILockHandler
+{
+    private readonly HttpClient consul = new();
+
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
+    {
+        consul.Dispose();
+        return default;
+    }
+
+    // AcquireLock / ReleaseLock / RequiresConnection as before
+}
+```
+
 ## A job store of your own can join your transaction
 
 ::: warning
@@ -10643,6 +10677,7 @@ cast taught a `Quartz.Extensibility` type to people who needed neither. Additive
 | `SemaphoreContext` is `LockHandlerContext` | The record `Initialize` takes. Its members are unchanged |
 | `ILockHandler.AcquireLock` throws on cancellation instead of answering `false` | `false` means a re-entrant acquire and nothing else, so a cancelled acquire that answered it told the store the lock was already held. `SimpleSemaphore` and `RedisSemaphore` did; their 4.0 counterparts throw — see [A cancelled acquire throws, and `false` means only re-entry](#a-cancelled-acquire-throws-and-false-means-only-re-entry) |
 | `ILockHandler.Initialize(LockHandlerContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
+| `ILockHandler.Shutdown(CancellationToken)` added as a default interface member | The job store calls it after its own teardown, so a handler can close what it opened. **An existing handler need not implement it**: the default body does nothing. `RedisLockHandler` closes its multiplexer through it, which nothing did before — see [A lock handler is told when to close what it opened](#a-lock-handler-is-told-when-to-close-what-it-opened) |
 | `LockHandlerContext` also carries `TimeProvider` and `CommandTimeout` | The environment a handler locks in, beside the identity it locks under. `DbLockHandler` exposes the clock as a `protected TimeProvider` and both shipped row-lock handlers back off on it, so a retry is observable without waiting out the real second |
 | `LockHandlerContext.LoggerFactory` and `DriverDelegateContext.LoggerFactory` added | Where the handler and the delegate create their loggers, defaulting to `NullLoggerFactory.Instance`. The job store passes the factory its container gave it, so lock contention and statement failures reach an application that never called `LogProvider.SetLogProvider` — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |
 | The ADO stores take an optional `ILoggerFactory?`, through `AdoJobStoreDependencies.LoggerFactory` | The container fills it in, and the store, its cluster manager, its misfire handler and its units of work log through it. A store constructed by hand leaves it unset and keeps reading the ambient factory — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |

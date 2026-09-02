@@ -76,4 +76,9 @@ internal static partial class RedisLockHandlerLog
 
     [LoggerMessage(EventId = 8009, Level = LogLevel.Information, Message = "Connecting to Redis")]
     public static partial void ConnectingToRedis(this ILogger logger);
+
+    // The counterpart of 8009, at the same level: an operator who saw the connection opened is the one
+    // who wants to read that it was closed again.
+    [LoggerMessage(EventId = 8010, Level = LogLevel.Information, Message = "Closing the Redis connection")]
+    public static partial void ClosingRedisConnection(this ILogger logger);
 }

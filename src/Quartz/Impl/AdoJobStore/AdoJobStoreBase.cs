@@ -881,6 +881,37 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         {
             Logger.DatabaseShutdownFailed(sqle);
         }
+
+        // Last, after the store's own work: a handler is entitled to assume the store has stopped
+        // asking for locks by the time it is told to close, and whatever it opened - a Redis
+        // multiplexer, a semaphore - outlives the scheduler until it is. A handler that throws on the
+        // way down is logged rather than allowed to abandon the rest of the shutdown, which is the
+        // same treatment the provider above gets.
+        await ShutdownLockHandler(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Tells the lock handler to release what it opened, and reports rather than propagates a failure.
+    /// </summary>
+    /// <remarks>
+    /// The handler is null only for a store that was never initialized, which a host that failed
+    /// during startup can still shut down.
+    /// </remarks>
+    private async ValueTask ShutdownLockHandler(CancellationToken cancellationToken)
+    {
+        if (LockHandler is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await LockHandler.Shutdown(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Logger.LockHandlerShutdownFailed(LockHandler.GetType().Name, e);
+        }
     }
 
     /// <summary>
