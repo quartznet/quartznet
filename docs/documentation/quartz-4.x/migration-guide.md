@@ -630,6 +630,16 @@ shape changed — only what a mapping that stated nothing, and a contradictory p
   settings and the default that made one of them inert. `OverwriteExistingData` defaults to `true`, so
   a configuration that only sets `IgnoreDuplicates` is the one this catches; set
   `OverwriteExistingData` to `false` beside it.
+* **A persistent store refuses a repeat interval it cannot hold exactly.**
+  **Changed since alpha.5:** duration columns keep whole milliseconds, and
+  `StdAdoDelegate.GetDbTimeSpanValue` cast `TotalMilliseconds` to `long`, so a `SimpleTrigger` whose
+  repeat interval was shorter than a millisecond was stored as `0` - and a trigger read back with a
+  zero repeat interval throws `DivideByZeroException` out of `GetFireTimeAfter` on its next firing,
+  which the store logs and swallows, leaving the row in `ACQUIRED` for ever. A job that stopped
+  running and said nothing. Scheduling such a trigger into an ADO store now raises
+  `ArgumentException` naming the trigger, the column and the rule; `RAMJobStore` keeps taking it,
+  because it has no column to round the value to. Round the interval to a whole number of
+  milliseconds. See [#3673](https://github.com/quartznet/quartznet/issues/3673).
 
 ### What is on nobody's list because it did not change
 

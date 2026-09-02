@@ -69,4 +69,42 @@ internal static class AdoJobStoreUtil
         var unqualifiedPrefix = lastDot >= 0 ? tablePrefix.Substring(lastDot + 1) : tablePrefix;
         return string.Format(CultureInfo.InvariantCulture, query, tablePrefix, unqualifiedPrefix);
     }
+
+    /// <summary>
+    /// Refuses a duration the schema cannot hold exactly, naming the trigger and the column it was
+    /// going into.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Duration columns hold whole milliseconds - see <c>StdAdoDelegate.GetDbTimeSpanValue</c>, which
+    /// casts <c>TotalMilliseconds</c> to <c>long</c> - so a shorter interval used to be written as
+    /// <c>0</c>. For a simple trigger that is not merely lossy: the trigger read back has a zero
+    /// repeat interval, <c>SimpleTriggerImpl.GetFireTimeAfter</c> divides by it, and the resulting
+    /// <see cref="DivideByZeroException" /> is caught and logged by the store - leaving the row in
+    /// <c>ACQUIRED</c> for good, which is a job that stops running and says nothing (#3673).
+    /// </para>
+    /// <para>
+    /// Refused here rather than rounded, because rounding half a millisecond to zero and rounding it
+    /// to one are both schedules the caller did not ask for. The message names the column so that
+    /// what to change the value to is not a guess.
+    /// </para>
+    /// </remarks>
+    /// <param name="value">The duration about to be persisted.</param>
+    /// <param name="column">The column it is going into, as the schema spells it.</param>
+    /// <param name="triggerKey">The trigger that carries it.</param>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="value" /> carries ticks below a whole millisecond.
+    /// </exception>
+    public static void RequireStorableDuration(TimeSpan value, string column, TriggerKey triggerKey)
+    {
+        if (value.Ticks % TimeSpan.TicksPerMillisecond == 0)
+        {
+            return;
+        }
+
+        string message = string.Create(CultureInfo.InvariantCulture,
+            $"Trigger '{triggerKey}' has an interval of {value:c}, which a persistent job store cannot hold: {column} keeps whole milliseconds, so it would be stored as {(long) value.TotalMilliseconds} ms and read back as a different schedule. Round the interval to a whole number of milliseconds, or keep this trigger in the in-memory store.");
+
+        Throw.ArgumentException(message, nameof(value));
+    }
 }
