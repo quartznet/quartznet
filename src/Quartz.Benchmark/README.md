@@ -265,9 +265,11 @@ Docker Desktop, reached over loopback, at its shipped durability settings (`fsyn
 `synchronous_commit = on`). The 3.x rows were taken on `origin/3.x` at `b33c70487`, against a
 database built from **3.x's own** `database/tables/tables_postgres.sql` rather than 4.0's.
 
-**Read the Error column.** The machine was quiet for these, and it shows: every Error below is under
-1.5% of its Mean. That is unlike the older sections in this file, and it is why the 3.x-to-4.0 ratios
-here can be read as ratios rather than as directions.
+**Read the Error column.** This is a working machine and something else is usually running on it, so
+the means carry more spread than a dedicated box would give. These runs came out tight anyway -
+every Error below is under 1.5% of its Mean, which is unlike the older sections in this file - and
+that is what lets the 3.x-to-4.0 ratios be read as ratios rather than as directions. The allocation
+column is exact whatever the load, and the effects below are multiples rather than percentages.
 
 **Two settings are not at their defaults, and both had to move.** `MaxBatchSize` tracks
 `MaxConcurrency` - the scheduler refuses a batch larger than the pool that would have to run it, so
