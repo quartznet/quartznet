@@ -35,7 +35,7 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             writer.WriteValue(trigger.CalendarName);
 
             writer.WritePropertyName("JobDataMap");
-            writer.WriteJobDataMapValue(trigger.JobDataMap);
+            JobDataValues.WriteMap(writer, trigger.JobDataMap, serializer);
 
             writer.WritePropertyName("MisfireInstruction");
             writer.WriteValue(trigger.MisfireInstructionCode);
@@ -102,7 +102,7 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
     {
         try
         {
-            var source = JObject.Load(reader);
+            (JObject source, JobDataMap jobDataMap) = ReadTrigger(reader, serializer);
             var type = source["TriggerType"]!.Value<string>()!;
 
             var triggerSerializer = registry.GetTriggerSerializer(type);
@@ -112,7 +112,6 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             var jobKey = source.GetJobKey("JobKey");
             var description = source.Value<string>("Description");
             var calendarName = source.Value<string>("CalendarName");
-            var jobDataMap = source.Value<JObject>("JobDataMap").GetJobDataMap() ?? new JobDataMap();
             var misfireInstruction = source.Value<int>("MisfireInstruction");
             var endTimeUtc = source.Value<DateTimeOffset?>("EndTimeUtc");
             var startTimeUtc = source.Value<DateTimeOffset>("StartTimeUtc");
@@ -176,6 +175,58 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             // Quartz's exception, deliberately - see the note on the serialize side above.
             throw new Quartz.JsonSerializationException("Failed to parse ITrigger from json", e);
         }
+    }
+
+    /// <summary>
+    /// Reads the stored trigger, taking its job data map off the reader as the map is reached rather
+    /// than out of a token tree the whole trigger was parsed into first.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="JobDataValues.ReadMap" /> is the half the default path reads a map with, and it can
+    /// only do its work while the reader is still on the map: whether text that looks like a timestamp
+    /// becomes one is a reader setting, so a map that arrives inside a
+    /// <see cref="JObject.Load(JsonReader)" /> over the whole trigger has already had every such string
+    /// turned into a date — nested ones included, which is what made a stored string map come back with
+    /// values the application never put in it. Turning date parsing off for the whole trigger instead
+    /// would change what <c>StartTimeUtc</c> and its siblings read back as, and those are in databases
+    /// already.
+    /// </para>
+    /// <para>
+    /// The map is therefore the one property not among the returned object's. Nothing reads it from
+    /// there — the trigger a serializer's <c>DeserializeFields</c> is handed already carries the map —
+    /// and putting it back would mean parsing it a second time.
+    /// </para>
+    /// </remarks>
+    private static (JObject Source, JobDataMap JobDataMap) ReadTrigger(JsonReader reader, JsonSerializer serializer)
+    {
+        if (reader.TokenType != JsonToken.StartObject)
+        {
+            throw new Quartz.JsonSerializationException(
+                $"A trigger is stored as a JSON object, and this payload holds {reader.TokenType} where the trigger should be.");
+        }
+
+        JObject source = new();
+        JobDataMap jobDataMap = new();
+
+        while (reader.Read() && reader.TokenType == JsonToken.PropertyName)
+        {
+            string name = (string) reader.Value!;
+            reader.Read();
+
+            // A payload written before triggers carried a map has no such property at all, which is an
+            // empty map; one that has it explicitly null is the same thing said out loud.
+            if (name == "JobDataMap" && reader.TokenType != JsonToken.Null)
+            {
+                jobDataMap = new JobDataMap(JobDataValues.ReadMap(reader, serializer));
+                jobDataMap.ClearDirtyFlag();
+                continue;
+            }
+
+            source[name] = JToken.Load(reader);
+        }
+
+        return (source, jobDataMap);
     }
 
     public override bool CanConvert(Type objectType) => typeof(ITrigger).IsAssignableFrom(objectType);

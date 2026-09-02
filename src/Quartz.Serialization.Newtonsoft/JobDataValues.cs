@@ -86,6 +86,30 @@ internal static class JobDataValues
     }
 
     /// <summary>
+    /// Writes a whole map, entry by entry, as the object the System.Text.Json serializer writes for it.
+    /// </summary>
+    /// <remarks>
+    /// Both converters that write a job data map come through here — the one that writes a map on its
+    /// own and the one that writes the map inside a trigger — because a map written two ways is a map
+    /// that reads back two ways, which is how the trigger converter came to refuse a
+    /// <c>Dictionary&lt;string, string&gt;</c> that the write gate had already accepted.
+    /// </remarks>
+    public static void WriteMap(JsonWriter writer, IDictionary<string, object?> map, JsonSerializer serializer)
+    {
+        // Entry by entry rather than by handing Json.NET a Dictionary<string, object>, because the slot
+        // a value sits in is what decides whether a $type goes beside it - and a string map has to go
+        // out as the plain object the built-in serializer writes.
+        writer.WriteStartObject();
+        foreach (KeyValuePair<string, object?> pair in map)
+        {
+            writer.WritePropertyName(pair.Key);
+            Write(writer, pair.Value, serializer);
+        }
+
+        writer.WriteEndObject();
+    }
+
+    /// <summary>
     /// Writes one entry's value, as the bytes the System.Text.Json serializer writes for it.
     /// </summary>
     /// <remarks>
