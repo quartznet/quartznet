@@ -49,6 +49,17 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
     private readonly CancellationTokenSource _disposeCancellation = new CancellationTokenSource();
 
     /// <summary>
+    /// The dispatch loop's token, read off the source in the constructor rather than on the dispatch
+    /// thread. Dispose releases the source, after which asking it for its token throws, and a scheduler
+    /// disposed before its threads have got as far as their first statement is exactly the race the
+    /// misfire handler and the cluster manager are built around.
+    /// </summary>
+    private readonly CancellationToken _disposeToken;
+
+    /// <summary>Whether <see cref="Dispose"/> has already run, so that it runs exactly once.</summary>
+    private int _disposed;
+
+    /// <summary>
     /// The maximum allowed concurrency level of this scheduler.  If custom threads are
     /// used, this represents the number of created threads.
     /// </summary>
@@ -100,6 +111,9 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
             _concurrencyLevel = threadCount;
         }
 
+        // Read before any thread exists to read it, for the reason on the field.
+        _disposeToken = _disposeCancellation.Token;
+
         // Initialize the queue used for storing tasks
         _blockingTaskQueue = new BlockingCollection<Task>();
 
@@ -137,7 +151,7 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
                 try
                 {
                     // For each task queued to the scheduler, try to execute it.
-                    foreach (var task in _blockingTaskQueue.GetConsumingEnumerable(_disposeCancellation.Token))
+                    foreach (var task in _blockingTaskQueue.GetConsumingEnumerable(_disposeToken))
                     {
                         TryExecuteTask(task);
                     }
@@ -178,13 +192,15 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
     protected override void QueueTask(Task task)
     {
         // If we've been disposed, no one should be queueing
-        if (_disposeCancellation.IsCancellationRequested)
+        if (_disposeToken.IsCancellationRequested)
         {
             Throw.ObjectDisposedException(GetType().Name);
         }
 
-        // add the task to the blocking queue
-        _blockingTaskQueue.Add(task);
+        // add the task to the blocking queue. CancellationToken.None deliberately: the queue is
+        // unbounded, so this never waits, and QueueTask is an override with no token to forward -- a
+        // scheduler that refused work on a token would be lying to the TPL about having taken it.
+        _blockingTaskQueue.Add(task, CancellationToken.None);
     }
 
     /// <summary>Tries to execute a task synchronously on the current thread.</summary>
@@ -213,8 +229,23 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
     }
 
     /// <summary>Initiates shutdown of the scheduler.</summary>
+    /// <remarks>
+    /// One-shot, because both of the thread pool's teardown paths end here and a source that has been
+    /// released answers Cancel with an ObjectDisposedException rather than doing nothing. The queue is
+    /// deliberately not disposed with it: a dispatch thread still inside GetConsumingEnumerable would
+    /// meet that disposal as an exception on a thread with nobody to catch it.
+    /// </remarks>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        {
+            return;
+        }
+
+        // Cancel before releasing, which is the order that makes releasing safe: a linked source built
+        // from an already-cancelled token runs its callback inline instead of registering, so nothing
+        // reaches back into the source after this.
         _disposeCancellation.Cancel();
+        _disposeCancellation.Dispose();
     }
 }

@@ -147,12 +147,16 @@ jobs:
           #   measures the schema's shape rather than anything a reviewer can act on, which is why
           #   the vendored baselines above are already excused for the same reason.
           #
-          #   plsql:S1523, "make sure this dynamic execution of code is safe". Every instance in the
-          #   repository is a generated existence guard under database/migrations: Oracle has no
-          #   CREATE TABLE IF NOT EXISTS and no ALTER TABLE ... IF NOT EXISTS, so the only way to
-          #   write a re-runnable migration there is to read the catalog and EXECUTE IMMEDIATE. The
-          #   statement is a literal constant emitted by build/Build.DatabaseMigrations.cs with
-          #   nothing interpolated into it, so there is no injection channel to review.
+          #   plsql:S1523, "make sure this dynamic execution of code is safe". Every instance is an
+          #   Oracle existence guard, because Oracle has no CREATE TABLE IF NOT EXISTS, no ALTER TABLE
+          #   ... IF NOT EXISTS and no DROP TABLE IF EXISTS: the only way to write a re-runnable
+          #   statement there is to read the catalog, or to tolerate ORA-00942, and EXECUTE IMMEDIATE
+          #   inside a PL/SQL block. Under database/migrations the statement is a literal constant
+          #   emitted by build/Build.DatabaseMigrations.cs with nothing interpolated into it; in
+          #   database/tables/tables_oracle.sql it is the teardown preamble's DropQuartzTable, whose
+          #   argument is one of the eleven table-name literals a few lines below it. Either way there
+          #   is no caller and so no injection channel to review, which is why the scope is the whole
+          #   of database/ rather than the migrations alone.
           #
           #   plsql:DeleteOrUpdateWithoutWhereCheck, "the WHERE clause may be missing". Every
           #   instance is a whole-table statement that means it: the teardown preamble of
@@ -202,7 +206,7 @@ jobs:
             /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Tests.Integration.Seeder/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**,src/Quartz.Examples/**,src/Quartz.Examples.AspNetCore/**,src/Quartz.Examples.HttpClient/**,src/Quartz.Examples.Worker/**,database/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,generatedOracleGuardExceptions,repeatedObjectNames,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
-            /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \
+            /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/**/*.sql" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuardExceptions.ruleKey="plsql:ExecuteImmediateTrapExceptionsCheck" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuardExceptions.resourceKey="database/migrations/**/*.sql" \
             /d:sonar.issue.ignore.multicriteria.repeatedObjectNames.ruleKey="plsql:S1192" \

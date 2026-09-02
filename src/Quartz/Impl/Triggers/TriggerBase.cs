@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
 using Quartz.Extensibility;
@@ -913,6 +914,15 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// <returns>
     /// A hash code for the current <see cref="System.Object"></see>.
     /// </returns>
+    /// <remarks>
+    /// The identity hash is for a trigger that has no key yet — one a builder is still assembling, or
+    /// one deserialized before its key is written back. <see cref="Equals(TriggerBase)" /> answers
+    /// <see langword="false" /> for every comparison a keyless trigger takes part in, including with
+    /// itself, so it imposes no obligation on the hash at all; returning a constant instead would put
+    /// every keyless trigger in one bucket for no gain. Once there is a key, the key is the hash, and
+    /// that is the case the equality contract is about.
+    /// </remarks>
+    [SuppressMessage("Sonar", "S3249:Classes directly extending object should not call base in GetHashCode", Justification = "Only reached by a trigger with no key, which equals nothing at all; see the remarks.")]
     public override int GetHashCode()
     {
         if (Key is null)

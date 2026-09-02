@@ -14,6 +14,17 @@ internal sealed class MisfireHandler
     private int numFails;
 
     private readonly CancellationTokenSource cancellationTokenSource;
+
+    /// <summary>
+    /// The loop's token, read once here rather than off the source each time it is wanted: the source
+    /// is released at shutdown, after which asking it for its token throws, while the token itself
+    /// stays readable.
+    /// </summary>
+    private readonly CancellationToken cancellationToken;
+
+    /// <summary>Whether <see cref="Shutdown" /> has already run, so that it runs exactly once.</summary>
+    private int shutdownEntered;
+
     private readonly QueuedTaskScheduler taskScheduler;
     private Task task = null!;
 
@@ -33,6 +44,7 @@ internal sealed class MisfireHandler
         string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
         taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.UseBackgroundThreads);
         cancellationTokenSource = new CancellationTokenSource();
+        cancellationToken = cancellationTokenSource.Token;
     }
 
     public void Initialize()
@@ -42,11 +54,9 @@ internal sealed class MisfireHandler
 
     private async Task Run()
     {
-        var token = cancellationTokenSource.Token;
+        CancellationToken token = cancellationToken;
         while (!token.IsCancellationRequested)
         {
-            token.ThrowIfCancellationRequested();
-
             DateTimeOffset sTime = jobStoreSupport.timeProvider.GetUtcNow();
 
             RecoverMisfiredJobsResult recoverMisfiredJobsResult = await Manage().ConfigureAwait(false);
@@ -113,31 +123,50 @@ internal sealed class MisfireHandler
         return timeToSleep;
     }
 
+    /// <remarks>
+    /// One-shot: the token source is released at the end, and a source that has been released answers
+    /// Cancel with an ObjectDisposedException rather than doing nothing.
+    /// </remarks>
     public async ValueTask Shutdown()
     {
-        cancellationTokenSource.Cancel();
+        if (Interlocked.Exchange(ref shutdownEntered, 1) == 1)
+        {
+            return;
+        }
 
-        taskScheduler.Dispose();
-
-        // Wait for the task to complete, but with a timeout to handle the race condition where
-        // the scheduler was disposed before it could schedule the task.
-        // In that scenario, the task will remain in WaitingForActivation indefinitely.
-        // We use a short timeout because:
-        // 1. If the task was already running, it will complete quickly due to the cancellation
-        // 2. If the task was never scheduled, no amount of waiting will help
         try
         {
-            // CancellationToken.None deliberately: the loop's own token is already cancelled at this
-            // point, and passing it would abort the graceful wait we are here for.
-            await task.WaitAsync(ShutdownTimeout, jobStoreSupport.timeProvider, CancellationToken.None).ConfigureAwait(false);
+            cancellationTokenSource.Cancel();
+
+            taskScheduler.Dispose();
+
+            // Wait for the task to complete, but with a timeout to handle the race condition where
+            // the scheduler was disposed before it could schedule the task.
+            // In that scenario, the task will remain in WaitingForActivation indefinitely.
+            // We use a short timeout because:
+            // 1. If the task was already running, it will complete quickly due to the cancellation
+            // 2. If the task was never scheduled, no amount of waiting will help
+            try
+            {
+                // CancellationToken.None deliberately: the loop's own token is already cancelled at this
+                // point, and passing it would abort the graceful wait we are here for.
+                await task.WaitAsync(ShutdownTimeout, jobStoreSupport.timeProvider, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // The task didn't complete within the timeout, it was likely never scheduled
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when the task is cancelled
+            }
         }
-        catch (TimeoutException)
+        finally
         {
-            // The task didn't complete within the timeout, it was likely never scheduled
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected when the task is cancelled
+            // Cancelled first, which is what makes this safe: the loop reads a token it captured at
+            // construction, and everything it hands the token to sees a cancellation that has already
+            // happened rather than one it has to register for.
+            cancellationTokenSource.Dispose();
         }
     }
 

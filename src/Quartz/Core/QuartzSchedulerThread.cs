@@ -153,8 +153,9 @@ internal sealed class QuartzSchedulerThread
 
         if (pause)
         {
-            // Drain stale resume permits so the paused wait loop blocks properly
-            while (pauseSignal.Wait(0)) { }
+            // Drain stale resume permits so the paused wait loop blocks properly. CancellationToken.None
+            // deliberately: a zero timeout never waits, so there is nothing here to cancel.
+            while (pauseSignal.Wait(0, CancellationToken.None)) { }
             SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
         }
         else
@@ -239,8 +240,9 @@ internal sealed class QuartzSchedulerThread
         }
 
         // Drain any buffered permits so WaitAsync blocks cleanly on next call.
-        // Prevents stale permits from causing unbounded spurious wakeups.
-        while (schedulingChangeSignal.Wait(0)) { }
+        // Prevents stale permits from causing unbounded spurious wakeups. CancellationToken.None
+        // deliberately: a zero timeout never waits, so there is nothing here to cancel.
+        while (schedulingChangeSignal.Wait(0, CancellationToken.None)) { }
     }
 
     public bool IsScheduleChanged()
