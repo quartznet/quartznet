@@ -57,7 +57,7 @@ same fires-per-invocation constants, so `Mean` is the time one firing took on bo
 A millisecond rather than anything shorter because that is the smallest interval a persistent
 store can carry on either branch: `StdAdoDelegate.GetDbTimeSpanValue` writes a `TimeSpan` as whole
 milliseconds, and a simple trigger read back with a zero repeat interval throws
-`DivideByZeroException` out of `GetFireTimeAfter` on its next firing. Two thousand triggers rather
+`DivideByZeroException` out of `GetFireTimeAfter` on its next firing (#3673). Two thousand triggers rather
 than two hundred because the count sets the arrangement's own ceiling — a trigger repeating every
 millisecond sustains a thousand firings a second, so two thousand of them put the limit several
 times above what the fastest arm reaches.

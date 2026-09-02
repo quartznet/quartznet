@@ -71,7 +71,7 @@ internal static class FireThroughput
     /// milliseconds, so anything shorter than one is persisted as zero — and a simple trigger read
     /// back with a zero repeat interval throws <see cref="DivideByZeroException" /> out of
     /// <c>GetFireTimeAfter</c> on its next firing, which the store logs and swallows, leaving the row
-    /// stuck in <c>ACQUIRED</c>. This benchmark found that; it is filed rather than worked around, and
+    /// stuck in <c>ACQUIRED</c>. This benchmark found that; it is filed as #3673 rather than worked around, and
     /// a millisecond is simply the smallest interval both stores agree on.
     /// </para>
     /// <para>
