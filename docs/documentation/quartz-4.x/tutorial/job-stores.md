@@ -89,24 +89,32 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-One method per database:
+One method per database, and one NuGet package per method:
 
-| Method | Database | Driver |
+| Method | Database | Driver package |
 |---|---|---|
-| `UseSqlServer` | Microsoft SQL Server | Microsoft.Data.SqlClient |
-| `UsePostgres` | PostgreSQL | Npgsql |
-| `UseMySql` | MySQL | MySql.Data |
-| `UseMySqlConnector` | MySQL | MySqlConnector |
-| `UseOracle` | Oracle | Oracle's managed driver |
-| `UseFirebird` | Firebird | FirebirdSql.Data.FirebirdClient |
-| `UseSqlite` | SQLite | Microsoft.Data.Sqlite |
-| `UseSystemDataSqlite` | SQLite | the legacy System.Data.SQLite |
+| `UseSqlServer` | Microsoft SQL Server | `dotnet add package Microsoft.Data.SqlClient` |
+| `UsePostgres` | PostgreSQL | `dotnet add package Npgsql` |
+| `UseMySql` | MySQL | `dotnet add package MySql.Data` |
+| `UseMySqlConnector` | MySQL | `dotnet add package MySqlConnector` |
+| `UseOracle` | Oracle | `dotnet add package Oracle.ManagedDataAccess.Core` |
+| `UseFirebird` | Firebird | `dotnet add package FirebirdSql.Data.FirebirdClient` |
+| `UseSqlite` | SQLite | `dotnet add package Microsoft.Data.Sqlite` |
+| `UseSystemDataSqlite` | SQLite, legacy driver | `dotnet add package System.Data.SQLite.Core` |
 | `UseGenericDatabase` | anything else, using the generic SQL dialect | one you describe |
 
-The driver package itself is yours to reference: Quartz names the types, your project brings them. Each method
-also takes a callback over `DataSourceOptions` instead of a connection string, for a named connection string
-(`db => db.ConnectionStringName = "Scheduler"`) or for connecting through a `DbDataSource` the container already
-holds (`db => db.UseRegisteredDataSource = true`).
+**The driver package is yours to reference, and nothing checks for it until the scheduler starts.**
+Quartz names the driver's types as strings and loads them by name, so a project that calls
+`UsePostgres` without referencing Npgsql compiles perfectly and then fails as the store initializes:
+
+```text
+System.ArgumentException: Error while reading metadata information for provider 'Npgsql' (Parameter 'providerName')
+ ---> System.IO.FileNotFoundException: Could not load file or assembly 'Npgsql, ...'
+```
+
+Each method also takes a callback over `DataSourceOptions` instead of a connection string, for a named
+connection string (`db => db.ConnectionStringName = "Scheduler"`) or for connecting through a
+`DbDataSource` the container already holds (`db => db.UseRegisteredDataSource = true`).
 
 ::: warning
 SQLite cannot take part in a [cluster](advanced-enterprise-features.md): it locks in process rather than in the
@@ -218,6 +226,54 @@ deployment. Run those by hand and leave `SchemaProvisioning` at `Validate`.
 Validation, whichever position you leave the setting at, checks *tables* — all twelve of them, and not
 their columns. A database missing only a column gets past startup and fails on the first statement that
 names it, which is the other half of why the 4.0 migration is mandatory rather than merely recommended.
+
+### The cheapest persistent store to try
+
+Nothing above needs a database server. SQLite is a file, its driver is one package, and the store can
+create its own tables — so this is a whole persistent scheduler that runs on a laptop with no
+infrastructure at all:
+
+```shell
+dotnet add package Microsoft.Data.Sqlite
+```
+
+<!-- snippet: sample_job_stores_sqlite_file -->
+```csharp
+builder.AddQuartz(q =>
+{
+    q.UsePersistentStore(store =>
+    {
+        // a file beside the application; "Data Source=:memory:" would not survive a restart,
+        // which is the whole point of a persistent store
+        store.UseSqlite("Data Source=quartz.db");
+
+        // let the store create the twelve tables on first start
+        store.ProvisionSchema();
+
+        store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
+    });
+
+    q.ScheduleJob<HelloJob>(trigger => trigger
+        .WithIdentity("helloTrigger")
+        .StartNow()
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()));
+});
+
+builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+```
+<!-- endSnippet -->
+
+Start it, watch the job fire, stop it, start it again: the trigger's next fire time comes back out of
+`quartz.db` rather than being scheduled afresh, which is the difference from `UseInMemoryStore()` and
+the only thing worth checking here. The file appears beside the executable — `Data Source=quartz.db` is
+relative to the working directory, so give it an absolute path if the process might be started from
+somewhere else.
+
+Two things it will not do. It cannot [cluster](advanced-enterprise-features.md), for the reason in the
+warning above. And it is not a production store for a busy scheduler: SQLite serializes writers, so
+trigger acquisition, misfire handling and your own scheduling calls all queue behind one another. It is
+for a first persistent store, a single-node deployment, and tests — for which
+[Testing](testing.md) has more.
 
 ### Storing job data as strings
 

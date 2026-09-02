@@ -6,6 +6,16 @@ title: Hosted Services Integration
 [Quartz](https://www.nuget.org/packages/Quartz)
 provides integration with [hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
 
+## Installation
+
+The hosted service is in the core package; the host it plugs into is Microsoft's, and comes with the
+`worker` and `web` project templates. A plain `console` project needs it named:
+
+```shell
+dotnet add package Quartz
+dotnet add package Microsoft.Extensions.Hosting
+```
+
 ## Using
 
 You can add Quartz configuration by invoking an extension method `AddQuartzHostedService` on the host

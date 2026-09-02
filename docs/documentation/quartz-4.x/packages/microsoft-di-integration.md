@@ -19,6 +19,52 @@ Need several independent schedulers in one application? See [Multiple Schedulers
 
 ## Registering a scheduler
 
+Two packages. Quartz itself:
+
+```shell
+dotnet add package Quartz
+```
+
+and the host, which is not Quartz's — `Host.CreateApplicationBuilder` and
+`WebApplication.CreateBuilder` come from `Microsoft.Extensions.Hosting`, which the `worker` and `web`
+project templates already reference and a plain `console` project does not:
+
+```shell
+dotnet add package Microsoft.Extensions.Hosting
+```
+
+`ExampleJob`, referred to throughout this page, is an ordinary class:
+
+<!-- snippet: sample_di_example_job -->
+```csharp
+public sealed class ExampleJob : IJob
+{
+    private readonly ILogger<ExampleJob> logger;
+
+    public ExampleJob(ILogger<ExampleJob> logger)
+    {
+        this.logger = logger;
+    }
+
+    // Job data is applied onto properties of matching name and type before Execute runs,
+    // so each one needs a setter. Nothing here reads the job data map.
+    public string InjectedString { get; set; } = "";
+
+    public bool InjectedBool { get; set; }
+
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation(
+            "ExampleJob fired: InjectedString={InjectedString} InjectedBool={InjectedBool}",
+            InjectedString,
+            InjectedBool);
+
+        return default;
+    }
+}
+```
+<!-- endSnippet -->
+
 <!-- snippet: sample_di_registering_a_scheduler -->
 ```csharp
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -27,12 +73,18 @@ builder.AddQuartz(q =>
 {
     q.ScheduleJob<ExampleJob>(trigger => trigger
         .WithIdentity("example")
-        .WithCronSchedule("0 0/5 * * * ?"));
+        // every ten seconds, so a first run reports itself quickly;
+        // "0 0/5 * * * ?" is every five minutes
+        .WithCronSchedule("0/10 * * * * ?"));
 });
 
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
+
+That is `using Microsoft.Extensions.Hosting;` and `using Quartz;` at the top of the file. The ten-second
+schedule is deliberate: a first registration should say whether it worked while you are still looking at
+the console.
 
 `AddQuartz` and `AddQuartzHostedService` hang off `IHostApplicationBuilder`, so the same two calls work in a
 web application built with `WebApplication.CreateBuilder(args)`. Both are also available on
@@ -270,6 +322,15 @@ builder.Services.AddQuartz(q =>
 });
 ```
 <!-- endSnippet -->
+
+`UsingJobData(x => x.InjectedString, "Hello")` is not only a typed spelling of a map key. Before each
+fire, `MicrosoftDependencyInjectionJobFactory` — which derives from `PropertySettingJobFactory` — copies
+every entry of the firing's merged job data map onto the job property of the same name, so `ExampleJob`
+above sees `InjectedString` set without ever reading `context.MergedJobDataMap`. A property therefore
+needs a **setter**, and its type has to match the value; an entry that matches no property is ignored by
+default, and [`PropertyMismatchBehavior`](../tutorial/job-data-map.md#property-injection-the-other-read-side)
+turns that into a warning or a failure. Reading the map directly still works and is what a job that takes
+values it has no property for does.
 
 **Calendars**, to exclude days from a schedule:
 

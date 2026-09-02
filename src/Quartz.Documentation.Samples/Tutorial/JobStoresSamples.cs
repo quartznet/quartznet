@@ -68,6 +68,35 @@ public static class JobStoresSamples
         #endregion
     }
 
+    public static void SqliteFile(IHostApplicationBuilder builder)
+    {
+        #region sample_job_stores_sqlite_file
+
+        builder.AddQuartz(q =>
+        {
+            q.UsePersistentStore(store =>
+            {
+                // a file beside the application; "Data Source=:memory:" would not survive a restart,
+                // which is the whole point of a persistent store
+                store.UseSqlite("Data Source=quartz.db");
+
+                // let the store create the twelve tables on first start
+                store.ProvisionSchema();
+
+                store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
+            });
+
+            q.ScheduleJob<HelloJob>(trigger => trigger
+                .WithIdentity("helloTrigger")
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()));
+        });
+
+        builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        #endregion
+    }
+
     public static void StoreJobDataAsStrings(IPersistentStoreBuilder store)
     {
         #region sample_job_stores_store_job_data_as_strings
