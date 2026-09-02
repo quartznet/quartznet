@@ -53,6 +53,13 @@ internal static class QuartzTypedOptions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AdoJobStoreOptions>, AdoJobStoreOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ClusteringOptions>, ClusteringOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DataSourceOptions>, DataSourceOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<JobFactoryOptions>, JobFactoryOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzHealthCheckOptions>, QuartzHealthCheckOptionsValidator>());
+
+        // SchedulingOptions is a nested member of QuartzOptions rather than a bound type of its own, so
+        // QuartzOptionsValidator calls this one directly; the registration is here so that an
+        // application binding it on its own gets the same answer.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<SchedulingOptions>, SchedulingOptionsValidator>());
 
         // Not declared with ValidateOnStart: these options are per scheduler name, and the names are not
         // all known here — a named scheduler may be registered after this runs. Registering the validator

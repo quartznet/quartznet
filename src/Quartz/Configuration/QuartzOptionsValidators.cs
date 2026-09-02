@@ -729,22 +729,34 @@ internal sealed class QuartzOptionsValidator : IValidateOptions<QuartzOptions>
         return QuartzSchedulerOptionsValidator.Result(failures);
     }
 
-    /// <summary>
-    /// The one pair of <see cref="SchedulingOptions" /> values that cannot both be meant.
-    /// </summary>
     /// <remarks>
-    /// <see cref="SchedulingOptions.IgnoreDuplicates" /> is read only when
-    /// <see cref="SchedulingOptions.OverwriteExistingData" /> is off, and that defaults to
-    /// <see langword="true" /> — so the two of them are two answers to one question, and asking both is
-    /// asking for opposite things. Only an application that wrote both down is asking for both: the
-    /// default is not a statement, and <see cref="SchedulingOptions.IgnoreDuplicates" /> on its own now
-    /// turns overwriting off rather than being ignored.
+    /// <see cref="QuartzOptions.Scheduling" /> is a nested member rather than a container-bound options
+    /// type of its own, so its validator is called from here as well as being registered: nothing
+    /// resolves <c>IOptions&lt;SchedulingOptions&gt;</c>, and a rule only Microsoft.Extensions.Options
+    /// would run is a rule that never runs.
     /// </remarks>
     private static ValidateOptionsResult ValidateScheduling(SchedulingOptions scheduling)
+        => new SchedulingOptionsValidator().Validate(name: null, scheduling);
+}
+
+/// <summary>
+/// The one pair of <see cref="SchedulingOptions" /> values that cannot both be meant.
+/// </summary>
+/// <remarks>
+/// <see cref="SchedulingOptions.IgnoreDuplicates" /> is read only when
+/// <see cref="SchedulingOptions.OverwriteExistingData" /> is off, and that defaults to
+/// <see langword="true" /> — so the two of them are two answers to one question, and asking both is
+/// asking for opposite things. Only an application that wrote both down is asking for both: the
+/// default is not a statement, and <see cref="SchedulingOptions.IgnoreDuplicates" /> on its own turns
+/// overwriting off rather than being ignored.
+/// </remarks>
+internal sealed class SchedulingOptionsValidator : IValidateOptions<SchedulingOptions>
+{
+    public ValidateOptionsResult Validate(string? name, SchedulingOptions options)
     {
         List<string>? failures = null;
 
-        if (scheduling.OverwriteExistingDataStated && scheduling.OverwriteExistingData && scheduling.IgnoreDuplicates)
+        if (options.OverwriteExistingDataStated && options.OverwriteExistingData && options.IgnoreDuplicates)
         {
             (failures ??= []).Add(
                 "Quartz:Scheduling sets both OverwriteExistingData and IgnoreDuplicates. They are two "
@@ -753,6 +765,56 @@ internal sealed class QuartzOptionsValidator : IValidateOptions<QuartzOptions>
                 + "IgnoreDuplicates alone to pass over duplicates instead — its default of true for "
                 + "OverwriteExistingData is a default rather than a statement, and setting IgnoreDuplicates "
                 + "turns it off — or drop IgnoreDuplicates. Only writing both down is refused.");
+        }
+
+        return QuartzSchedulerOptionsValidator.Result(failures);
+    }
+}
+
+/// <summary>
+/// <see cref="JobFactoryOptions" />, which has nothing that can be wrong.
+/// </summary>
+/// <remarks>
+/// Its one member is a callback the application wrote; whether that callback is right is not something
+/// a validator can say, and leaving it unset is the ordinary case. The validator exists so that "every
+/// container-bound options type has an <see cref="IValidateOptions{TOptions}" />" is true of the whole
+/// set rather than of most of it — an exception list is a place for the next one to hide, while an
+/// empty validator is a place for the next member's check to go.
+/// </remarks>
+internal sealed class JobFactoryOptionsValidator : IValidateOptions<JobFactoryOptions>
+{
+    public ValidateOptionsResult Validate(string? name, JobFactoryOptions options) => ValidateOptionsResult.Success;
+}
+
+/// <summary>
+/// <see cref="QuartzHealthCheckOptions" />: the tags the check is filtered by have to be usable as tags.
+/// </summary>
+/// <remarks>
+/// A blank tag matches nothing and filters nothing, and a duplicate is a probe named twice — both are
+/// typos rather than intentions, and both are silent otherwise. The name is left alone: an unset one is
+/// how the check asks to be called after the scheduler it belongs to.
+/// </remarks>
+internal sealed class QuartzHealthCheckOptionsValidator : IValidateOptions<QuartzHealthCheckOptions>
+{
+    public ValidateOptionsResult Validate(string? name, QuartzHealthCheckOptions options)
+    {
+        List<string>? failures = null;
+
+        HashSet<string> seen = new(StringComparer.Ordinal);
+        foreach (string tag in options.Tags)
+        {
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                (failures ??= []).Add(
+                    "A health check tag is empty or whitespace. A tag is what a probe filters on, so a "
+                    + "blank one names nothing; remove it, or give it the name the probe asks for.");
+            }
+            else if (!seen.Add(tag))
+            {
+                (failures ??= []).Add(
+                    $"The health check tag '{tag}' is given more than once. Tags are a set, so the repeat "
+                    + "does nothing; remove it.");
+            }
         }
 
         return QuartzSchedulerOptionsValidator.Result(failures);
