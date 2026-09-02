@@ -739,6 +739,11 @@ lists the instruments, and [What to watch](../best-practices.md#what-to-watch).
 
 ## See also
 
+- [Before you go live](production-checklist.md) — the decisions this page assumes were made, as a list
+  to walk before the first deploy
+- [Upgrading a running deployment](migration-guide.md#upgrading-a-running-deployment) — the ordered
+  sequence this page's rolling upgrade is step four of
+- [Log Events](log-events.md) — every event id, its level and its message template
 - [Clustering](tutorial/advanced-enterprise-features.md) — configuring a cluster in the first place
 - [Troubleshooting](../troubleshooting.md) — symptoms and what to do about each
 - [Best Practices](../best-practices.md) — the decisions this page assumes have been made
