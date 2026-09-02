@@ -75,11 +75,20 @@ IJobDetail job = JobBuilder.Create<DirectoryScanJob>()
 `MinimumUpdateAge` is how long a file must have been left alone before the job reports it. Without it a file
 another process is still writing would be handed to the listener half-finished.
 
-The listener is found in one of two ways, in this order:
+The listener is found in one of three ways, in this order:
 
-1. **Dependency injection** (recommended): register your `IDirectoryScanListener` implementation in the
-   container, and name its type — `ScanListenerName = nameof(InboxListener)`.
-2. **`SchedulerContext`**: store the instance under a key, and name that key.
+1. **A keyed registration**: `AddKeyedSingleton<IDirectoryScanListener>("inbox", …)`, and
+   `ScanListenerName = "inbox"`.
+2. **Dependency injection by type name**: register your implementation **as `IDirectoryScanListener`** —
+   `AddSingleton<IDirectoryScanListener, InboxListener>()` — and name its type,
+   `ScanListenerName = nameof(InboxListener)`.
+3. **`SchedulerContext`**: store the instance under a key, and name that key.
+
+::: warning Registering the concrete type alone is no longer enough
+Until 4.0 rc.1 the name was resolved by sweeping every loaded assembly with `GetTypes()`, so
+`AddSingleton<InboxListener>()` was found. It is not any more, and neither is a same-named type from an
+assembly you did not mean. Register the listener under `IDirectoryScanListener`, or key it.
+:::
 
 <!-- snippet: sample_jobs_scan_listener_context -->
 ```csharp
@@ -92,7 +101,11 @@ Where the directories come from can be decided at run time instead of being list
 `DirectoryProviderName`. It is handed the merged job data and returns the paths to scan.
 
 The job keeps its own bookkeeping — the last modification time it saw and the file list it saw it in — in the
-job detail's data map, which is why it is `[PersistJobDataAfterExecution]`.
+job detail's data map, which is why it is `[PersistJobDataAfterExecution]`. The file list is stored as a
+`Dictionary<string, string>` of full path to last-write ticks under `CURRENT_FILE_LIST`, which is a shape both
+shipped serializers accept; before 4.0 rc.1 it was a `List<FileInfo>`, which neither can read back, so the
+first firing against a persistent store failed to persist and reading the job's data map over the HTTP API
+refused it.
 
 ### FileScanJob
 

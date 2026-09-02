@@ -4,10 +4,6 @@
     "Directory '{Directory}' contents unchanged."
 7002  Warning  DirectoryScanJobLog.DirectoryDoesNotExist
     "Directory '{DirectoryName}' does not exist."
-7010  Debug  DirectoryScanJobLog.SomeTypesNotLoaded
-    "Could not load some types from assembly {AssemblyName} while scanning for IDirectoryScanListener"
-7011  Debug  DirectoryScanJobLog.AssemblyNotLoaded
-    "Could not load assembly {AssemblyName} while scanning for IDirectoryScanListener"
 7100  Warning  FileScanJobLog.FileDoesNotExist
     "File '{FileName}' does not exist."
 7101  Information  FileScanJobLog.FileUpdated

@@ -3542,6 +3542,33 @@ The extensions are generic in the configurator, so both configuration surfaces k
 `JobBuilder<TJob>` chain still ends in `Build()`, and the `IJobConfigurator<TJob>` that `AddJob` hands
 you still chains its own members.
 
+### `DirectoryScanJob` finds its listener among what you registered
+
+The `DIRECTORY_SCAN_LISTENER_NAME` key used to be resolved by sweeping **every loaded assembly** with
+`GetTypes()` on the first miss, matching the simple type name from any of them, and remembering the
+answer — misses included — in a process-lifetime dictionary keyed on that name. The name is job data, so
+a job data map could grow an unbounded cache and pay for a full reflection sweep per distinct value, and
+a same-named type from an assembly you did not mean would win.
+
+Three bounded lookups replace it, in order:
+
+| How you register the listener | What to put in `ScanListenerName` |
+|---|---|
+| `AddKeyedSingleton<IDirectoryScanListener>("inbox", …)` | `"inbox"` |
+| `AddSingleton<IDirectoryScanListener, InboxListener>()` | `nameof(InboxListener)` |
+| `scheduler.Context["inbox"] = listener` | `"inbox"` |
+
+**`AddSingleton<InboxListener>()` alone no longer resolves** — register it under the interface, or key
+it. The failure names the listener and all three places the job looked.
+
+### `DirectoryScanJob` stores its file list as something a job store can write
+
+The job is `[PersistJobDataAfterExecution]` and kept its previous scan under `CURRENT_FILE_LIST` as a
+`List<FileInfo>` — a value neither shipped serializer can read back, and one both refuse outright. So the
+job's first firing against a persistent store failed to persist, and `GET …/jobs/{group}/{name}` refused
+the map. It is a `Dictionary<string, string>` of full path to last-write ticks now, which is one of the
+shapes both admit. A `List<FileInfo>` left in a running scheduler's in-memory map is still read.
+
 ### The SMTP password does not belong in job data
 
 `SendMailJob` read its credential from the `smtp_username` and `smtp_password` job data entries. Job
@@ -3573,6 +3600,17 @@ saying where the credential now lives. A credential from the container wins over
 
 `SendMailOptions.EnableSsl` (`smtp_enable_ssl`) is new, and `false` by default, which is `SmtpClient`'s
 own default. Turn it on for anything that authenticates: SMTP `AUTH LOGIN` is base64, not encryption.
+
+### `NativeJob` no longer redirects a stream nobody reads
+
+`NativeJob` redirected both of the child's streams whatever `ConsumeStreams` said, while the consumer
+threads were started only when it was on. With the defaults — `ConsumeStreams` off, `WaitForProcess` on —
+a process that wrote more than a pipe buffer holds blocked on its own write, and the synchronous
+`WaitForExit` held a Quartz worker thread for as long as that lasted, which was for ever. Nothing is
+redirected unless something is reading it, and the wait is `WaitForExitAsync(cancellationToken)`, so a
+shutdown reaches the job.
+
+`NativeJob.Execute` is `async` now; nothing about the override points changed.
 
 | 3.x | 4.x |
 |---|---|

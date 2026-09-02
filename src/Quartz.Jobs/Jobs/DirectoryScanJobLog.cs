@@ -44,10 +44,4 @@ internal static partial class DirectoryScanJobLog
 
     [LoggerMessage(EventId = 7002, Level = LogLevel.Warning, Message = "Directory '{DirectoryName}' does not exist.")]
     public static partial void DirectoryDoesNotExist(this ILogger logger, string directoryName);
-
-    [LoggerMessage(EventId = 7010, Level = LogLevel.Debug, Message = "Could not load some types from assembly {AssemblyName} while scanning for IDirectoryScanListener")]
-    public static partial void SomeTypesNotLoaded(this ILogger logger, string? assemblyName, Exception exception);
-
-    [LoggerMessage(EventId = 7011, Level = LogLevel.Debug, Message = "Could not load assembly {AssemblyName} while scanning for IDirectoryScanListener")]
-    public static partial void AssemblyNotLoaded(this ILogger logger, string? assemblyName, Exception exception);
 }

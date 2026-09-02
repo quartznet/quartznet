@@ -128,22 +128,35 @@ public class NativeJob : IJob
     /// </summary>
     /// <param name="context"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         NativeJobOptions options = NativeJobOptions.FromJobData(context.MergedJobDataMap);
 
-        int exitCode = RunNativeCommand(
+        int exitCode = await RunNativeCommand(
             options.Command,
             options.Parameters ?? "",
             options.WorkingDirectory,
             options.WaitForProcess,
-            options.ConsumeStreams);
+            options.ConsumeStreams,
+            cancellationToken).ConfigureAwait(false);
 
         context.Result = exitCode;
-        return default;
     }
 
-    private int RunNativeCommand(string command, string parameters, string? workingDirectory, bool wait, bool consumeStreams)
+    /// <remarks>
+    /// Both streams used to be redirected whatever <paramref name="consumeStreams" /> said, while the
+    /// consumer threads were started only when it was true — so a process that wrote more than a pipe
+    /// buffer holds (about 4 KB) blocked on its own write, and the synchronous <c>WaitForExit</c> below
+    /// held a worker thread for as long as that lasted, which was for ever. Nothing is redirected unless
+    /// somebody is reading it, and the wait is asynchronous.
+    /// </remarks>
+    private async ValueTask<int> RunNativeCommand(
+        string command,
+        string parameters,
+        string? workingDirectory,
+        bool wait,
+        bool consumeStreams,
+        CancellationToken cancellationToken)
     {
         string[] args = [command, parameters];
         int result = -1;
@@ -185,15 +198,18 @@ public class NativeJob : IJob
 
             logger.AboutToRun(cmd[0], temp);
 
-            Process proc = new Process();
+            using Process proc = new Process();
 
             proc.StartInfo.FileName = cmd[0];
             proc.StartInfo.Arguments = temp;
             proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             proc.StartInfo.CreateNoWindow = true;
             proc.StartInfo.UseShellExecute = false;
-            proc.StartInfo.RedirectStandardError = true;
-            proc.StartInfo.RedirectStandardOutput = true;
+
+            // Redirected only when somebody reads them. A redirected pipe nobody drains fills up and the
+            // process blocks writing to it.
+            proc.StartInfo.RedirectStandardError = consumeStreams;
+            proc.StartInfo.RedirectStandardOutput = consumeStreams;
 
             if (!string.IsNullOrEmpty(workingDirectory))
             {
@@ -202,22 +218,18 @@ public class NativeJob : IJob
 
             proc.Start();
 
-            // Consumes the stdout from the process
-            StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardOutput.BaseStream, StreamTypeStandardOutput);
-            Thread stdoutConsumerThread = new Thread(stdoutConsumer.Run);
-
-            // Consumes the stderr from the process
             if (consumeStreams)
             {
+                // Consumes the stdout and the stderr from the process
+                StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardOutput.BaseStream, StreamTypeStandardOutput);
                 StreamConsumer stderrConsumer = new StreamConsumer(this, proc.StandardError.BaseStream, StreamTypeError);
-                Thread stderrConsumerThread = new Thread(stderrConsumer.Run);
-                stdoutConsumerThread.Start();
-                stderrConsumerThread.Start();
+                new Thread(stdoutConsumer.Run).Start();
+                new Thread(stderrConsumer.Run).Start();
             }
 
             if (wait)
             {
-                proc.WaitForExit();
+                await proc.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
                 result = proc.ExitCode;
             }
             // any error message?

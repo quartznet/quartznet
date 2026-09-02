@@ -10,51 +10,59 @@ namespace Quartz.Tests.Unit.Job;
 [NonParallelizable]
 public class DirectoryScanJobTest
 {
-    [Test]
-    public async Task DirectoryScanJob_ShouldResolveListener_FromDependencyInjection()
+    /// <summary>
+    /// The listener the job data names is resolved from the container, either from a keyed registration
+    /// or by matching the type's name against what is registered as an <see cref="IDirectoryScanListener" />.
+    /// </summary>
+    /// <remarks>
+    /// It used to be found by sweeping every loaded assembly with <c>GetTypes()</c> on the first miss and
+    /// caching the answer, misses included, in a process-lifetime dictionary keyed on caller-controlled
+    /// job data. The tests that covered this asserted only that <c>TriggerJob</c> did not throw, which it
+    /// never would: a job's failure does not come back out of the call that fired it.
+    /// </remarks>
+    [TestCase(true, TestName = "TheListenerIsResolvedFromTheContainer(keyed)")]
+    [TestCase(false, TestName = "TheListenerIsResolvedFromTheContainer(by type name)")]
+    public async Task TheListenerIsResolvedFromTheContainer(bool keyed)
     {
-        // Arrange
         string testDirectory = Path.Combine(Path.GetTempPath(), $"QuartzTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(testDirectory);
 
-        Exception exception = null;
-
         try
         {
-            var serviceCollection = new ServiceCollection();
-            serviceCollection.AddLogging();
-            serviceCollection.AddTransient<TestDirectoryScanListener>();
-            var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
-
-            IScheduler scheduler = await QuartzSchedulerBuilder
-                .Create(q => q.UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider)))
-                .BuildScheduler();
-
-            var jobDetail = JobBuilder.Create<DirectoryScanJob>()
-                .WithIdentity("TestJob")
-                .UsingJobData(DirectoryScanJob.DirectoryNames, testDirectory)
-                .UsingJobData(DirectoryScanJob.DirectoryScanListenerName, nameof(TestDirectoryScanListener))
-                .StoreDurably()
-                .Build();
-
-            await scheduler.AddJob(jobDetail);
-            await scheduler.Start();
-
-            // First execution to initialize the job - this should not throw if DI resolution works
-            try
+            RecordingDirectoryScanListener listener = new();
+            ServiceCollection services = [];
+            if (keyed)
             {
-                await scheduler.TriggerJob(jobDetail.Key);
-                await Task.Delay(1000); // Give it time to complete first scan
+                services.AddKeyedSingleton<IDirectoryScanListener>("inbox", listener);
             }
-            catch (Exception ex)
+            else
             {
-                exception = ex;
+                services.AddSingleton<IDirectoryScanListener>(listener);
             }
 
-            await scheduler.Shutdown();
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
-            // Assert - the main test is that no exception was thrown (listener was found via DI)
-            exception.Should().BeNull("DirectoryScanJob should be able to resolve listener from DI without throwing");
+            DirectoryScanJob job = new(serviceProvider, TimeProvider.System);
+            IJobExecutionContext context = TestUtil.NewJobExecutionContextFor(job, new SchedulerContext());
+
+            await GivenAFileIn(testDirectory, "report.csv");
+
+            JobDataMap data = new DirectoryScanOptions
+            {
+                Directories = [testDirectory],
+                ScanListenerName = keyed ? "inbox" : nameof(RecordingDirectoryScanListener),
+                MinimumUpdateAge = TimeSpan.FromMilliseconds(1),
+            }.ToJobData();
+
+            foreach (KeyValuePair<string, object> pair in data)
+            {
+                context.MergedJobDataMap[pair.Key] = pair.Value;
+            }
+
+            await job.Execute(context);
+
+            listener.UpdatedFileNames.Should().Contain("report.csv",
+                "the listener the job data named is the one that was called");
         }
         finally
         {
@@ -65,47 +73,43 @@ public class DirectoryScanJobTest
         }
     }
 
+    /// <summary>
+    /// A name the container does not answer for still reaches the <see cref="SchedulerContext" />, which
+    /// is how <c>FileScanJob</c> has always found its own listener.
+    /// </summary>
     [Test]
-    public async Task DirectoryScanJob_ShouldResolveListener_FromSchedulerContext_ForBackwardCompatibility()
+    public async Task TheListenerIsResolvedFromTheSchedulerContextWhenTheContainerDoesNotAnswer()
     {
-        // Arrange
         string testDirectory = Path.Combine(Path.GetTempPath(), $"QuartzTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(testDirectory);
 
         try
         {
-            IScheduler scheduler = await QuartzSchedulerBuilder.Create().BuildScheduler();
+            RecordingDirectoryScanListener listener = new();
+            ServiceCollection services = [];
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
-            // Use legacy approach - put listener in SchedulerContext
-            var listener = new TestDirectoryScanListener();
-            scheduler.Context[nameof(TestDirectoryScanListener)] = listener;
+            SchedulerContext schedulerContext = new() { ["inbox"] = listener };
+            DirectoryScanJob job = new(serviceProvider, TimeProvider.System);
+            IJobExecutionContext context = TestUtil.NewJobExecutionContextFor(job, schedulerContext);
 
-            var jobDetail = JobBuilder.Create<DirectoryScanJob>()
-                .WithIdentity("TestJob2")
-                .UsingJobData(DirectoryScanJob.DirectoryNames, testDirectory)
-                .UsingJobData(DirectoryScanJob.DirectoryScanListenerName, nameof(TestDirectoryScanListener))
-                .StoreDurably()
-                .Build();
+            await GivenAFileIn(testDirectory, "report.csv");
 
-            await scheduler.AddJob(jobDetail);
-            await scheduler.Start();
-
-            // First execution to initialize the job - this should not throw if SchedulerContext lookup works
-            Exception exception = null;
-            try
+            JobDataMap data = new DirectoryScanOptions
             {
-                await scheduler.TriggerJob(jobDetail.Key);
-                await Task.Delay(1000); // Give it time to complete first scan
-            }
-            catch (Exception ex)
+                Directories = [testDirectory],
+                ScanListenerName = "inbox",
+                MinimumUpdateAge = TimeSpan.FromMilliseconds(1),
+            }.ToJobData();
+
+            foreach (KeyValuePair<string, object> pair in data)
             {
-                exception = ex;
+                context.MergedJobDataMap[pair.Key] = pair.Value;
             }
 
-            await scheduler.Shutdown();
+            await job.Execute(context);
 
-            // Assert - the main test is that no exception was thrown (listener was found in SchedulerContext)
-            exception.Should().BeNull("DirectoryScanJob should be able to resolve listener from SchedulerContext without throwing");
+            listener.UpdatedFileNames.Should().Contain("report.csv");
         }
         finally
         {
@@ -113,6 +117,136 @@ public class DirectoryScanJobTest
             {
                 Directory.Delete(testDirectory, true);
             }
+        }
+    }
+
+    /// <summary>
+    /// A name nothing answers for is a configuration mistake, and the message says every place the job
+    /// looked.
+    /// </summary>
+    [Test]
+    public async Task AListenerNameNothingAnswersForNamesWhereTheJobLooked()
+    {
+        string testDirectory = Path.Combine(Path.GetTempPath(), $"QuartzTest_{Guid.NewGuid()}");
+        Directory.CreateDirectory(testDirectory);
+
+        try
+        {
+            ServiceCollection services = [];
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            DirectoryScanJob job = new(serviceProvider, TimeProvider.System);
+            IJobExecutionContext context = TestUtil.NewJobExecutionContextFor(job, new SchedulerContext());
+
+            JobDataMap data = new DirectoryScanOptions
+            {
+                Directories = [testDirectory],
+                ScanListenerName = "NoSuchListener",
+            }.ToJobData();
+
+            foreach (KeyValuePair<string, object> pair in data)
+            {
+                context.MergedJobDataMap[pair.Key] = pair.Value;
+            }
+
+            Func<Task> act = async () => await job.Execute(context);
+
+            await act.Should().ThrowAsync<JobExecutionException>()
+                .WithMessage("*NoSuchListener*")
+                .WithMessage("*SchedulerContext*");
+        }
+        finally
+        {
+            if (Directory.Exists(testDirectory))
+            {
+                Directory.Delete(testDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The scan's bookkeeping is stored as something a job store can write back. The job is
+    /// <c>[PersistJobDataAfterExecution]</c>, and a <c>List&lt;FileInfo&gt;</c> is a value both shipped
+    /// serializers refuse outright - so the first firing against a persistent store failed to persist,
+    /// and reading the job's data map over the HTTP API refused it too.
+    /// </summary>
+    [Test]
+    public async Task TheScannedFileListIsStoredAsSomethingAJobStoreCanWrite()
+    {
+        string testDirectory = Path.Combine(Path.GetTempPath(), $"QuartzTest_{Guid.NewGuid()}");
+        Directory.CreateDirectory(testDirectory);
+
+        try
+        {
+            RecordingDirectoryScanListener listener = new();
+            SchedulerContext schedulerContext = new() { ["inbox"] = listener };
+            ServiceCollection services = [];
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            DirectoryScanJob job = new(serviceProvider, TimeProvider.System);
+            IJobExecutionContext context = TestUtil.NewJobExecutionContextFor(job, schedulerContext);
+
+            string path = await GivenAFileIn(testDirectory, "report.csv");
+
+            JobDataMap data = new DirectoryScanOptions
+            {
+                Directories = [testDirectory],
+                ScanListenerName = "inbox",
+                MinimumUpdateAge = TimeSpan.FromMilliseconds(1),
+            }.ToJobData();
+
+            foreach (KeyValuePair<string, object> pair in data)
+            {
+                context.MergedJobDataMap[pair.Key] = pair.Value;
+            }
+
+            await job.Execute(context);
+
+            object stored = context.JobDetail.JobDataMap["CURRENT_FILE_LIST"];
+            stored.Should().BeOfType<Dictionary<string, string>>(
+                "a string-to-string dictionary is a shape both serializers admit; a List<FileInfo> is not")
+                .Which.Should().ContainKey(path);
+        }
+        finally
+        {
+            if (Directory.Exists(testDirectory))
+            {
+                Directory.Delete(testDirectory, true);
+            }
+        }
+    }
+
+    private static async Task<string> GivenAFileIn(string directory, string fileName)
+    {
+        string path = Path.Combine(directory, fileName);
+        await File.WriteAllTextAsync(path, "content");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-1));
+        return path;
+    }
+
+    private sealed class RecordingDirectoryScanListener : IDirectoryScanListener
+    {
+        public List<string> UpdatedFileNames { get; } = [];
+
+        public List<string> DeletedFileNames { get; } = [];
+
+        public ValueTask FilesUpdatedOrAdded(IReadOnlyCollection<FileInfo> updatedFiles, CancellationToken cancellationToken = default)
+        {
+            foreach (FileInfo file in updatedFiles)
+            {
+                UpdatedFileNames.Add(file.Name);
+            }
+
+            return default;
+        }
+
+        public ValueTask FilesDeleted(IReadOnlyCollection<FileInfo> deletedFiles, CancellationToken cancellationToken = default)
+        {
+            foreach (FileInfo file in deletedFiles)
+            {
+                DeletedFileNames.Add(file.Name);
+            }
+
+            return default;
         }
     }
 
