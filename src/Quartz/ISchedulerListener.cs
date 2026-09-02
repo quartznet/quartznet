@@ -155,10 +155,44 @@ public interface ISchedulerListener
     /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
     /// has been interrupted.
     /// </summary>
+    /// <remarks>
+    /// The scheduler raises the <see cref="JobInterrupted(IScheduler, JobKey, string, CancellationToken)" />
+    /// overload, which says <em>which</em> firing was interrupted; this one is what that overload's
+    /// default body calls, so a listener written before the fire instance id existed keeps hearing about
+    /// every interruption. Implement one or the other, not both.
+    /// </remarks>
     /// <param name="scheduler">The scheduler raising the notification.</param>
     /// <param name="jobKey">The job that was interrupted.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
+    /// Called by the <see cref="IScheduler"/> when one firing of a <see cref="IJobDetail"/> has been
+    /// interrupted.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A job without <see cref="DisallowConcurrentExecutionAttribute" /> can have several firings in
+    /// flight at once, and the key names all of them — so a listener told only the key could not say
+    /// which execution was cancelled, could not correlate the interruption with the firing's own
+    /// <c>JobToBeExecuted</c>/<c>JobWasExecuted</c> notifications, and could not tell one
+    /// <c>Interrupt(jobKey)</c> that cancelled four firings from one that cancelled one.
+    /// </para>
+    /// <para>
+    /// <see cref="IScheduler.Interrupt(JobKey, CancellationToken)" /> raises this once per firing it
+    /// cancelled; <see cref="IScheduler.InterruptFireInstance" /> raises it once. The default body calls
+    /// the key-only overload, so an existing listener keeps working — and gets one call per interrupted
+    /// firing where it used to get one per call.
+    /// </para>
+    /// </remarks>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="jobKey">The job whose firing was interrupted.</param>
+    /// <param name="fireInstanceId">
+    /// The firing that was interrupted, which is <see cref="IJobExecutionContext.FireInstanceId" />.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, string fireInstanceId, CancellationToken cancellationToken = default)
+        => JobInterrupted(scheduler, jobKey, cancellationToken);
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a

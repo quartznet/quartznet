@@ -2721,7 +2721,10 @@ internal sealed class QuartzScheduler
         ArgumentNullException.ThrowIfNull(jobKey);
         var interruptableJobs = GetCurrentlyExecutingJobs().OfType<IInterruptableJobExecutionContext>();
 
-        bool interrupted = false;
+        // The firings that were cancelled, so that the notification can name each of them. A job without
+        // [DisallowConcurrentExecution] can have several in flight, and one notification carrying only
+        // the key cannot say which — or how many.
+        List<string> interruptedFirings = [];
 
         foreach (var interruptableContext in interruptableJobs)
         {
@@ -2731,16 +2734,18 @@ internal sealed class QuartzScheduler
             if (jobKey.Equals(jobDetail.Key))
             {
                 interruptableContext.Interrupt();
-                interrupted = true;
+                interruptedFirings.Add(interruptableContext.FireInstanceId);
             }
         }
 
-        if (interrupted)
+        foreach (string fireInstanceId in interruptedFirings)
         {
-            await NotifySchedulerListeners(l => l.JobInterrupted(Scheduler, jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
+            await NotifySchedulerListeners(
+                l => l.JobInterrupted(Scheduler, jobKey, fireInstanceId, cancellationToken),
+                "job interruption").ConfigureAwait(false);
         }
 
-        return interrupted;
+        return interruptedFirings.Count > 0;
     }
 
     /// <summary>
@@ -2770,7 +2775,9 @@ internal sealed class QuartzScheduler
 
         interruptableContext.Interrupt();
         var jobKey = interruptableContext.JobDetail.Key;
-        await NotifySchedulerListeners(l => l.JobInterrupted(Scheduler, jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
+        await NotifySchedulerListeners(
+            l => l.JobInterrupted(Scheduler, jobKey, fireInstanceId, cancellationToken),
+            "job interruption").ConfigureAwait(false);
         return true;
     }
 

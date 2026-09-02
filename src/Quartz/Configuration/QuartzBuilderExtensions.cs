@@ -680,7 +680,7 @@ public static class QuartzBuilderExtensions
     /// <strong>What a timeout does.</strong> The firing is interrupted through
     /// <see cref="IScheduler.InterruptFireInstance" />, exactly as an operator's interrupt would, so the
     /// job's <see cref="IJobExecutionContext.CancellationToken" /> — the one it was handed — is
-    /// cancelled and <see cref="ISchedulerListener.JobInterrupted" /> is raised. The middleware then
+    /// cancelled and <see cref="ISchedulerListener.JobInterrupted(IScheduler, JobKey, string, CancellationToken)" /> is raised. The middleware then
     /// raises a <see cref="JobExecutionException" /> naming the budget, which is what makes a timeout a
     /// <em>failure</em>: without it an interrupt looks like a completed job, and the trigger's
     /// <see cref="RetryPolicy" /> would never be consulted. With it, a timed-out firing is retried like
