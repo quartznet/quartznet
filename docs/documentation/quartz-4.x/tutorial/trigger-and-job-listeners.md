@@ -12,8 +12,13 @@ Trigger-related events include: trigger firings, trigger mis-firings (discussed 
 and trigger completions (the jobs fired off by the trigger is finished).
 
 ::: danger
-Make sure your trigger and job listeners never throw an exception (use a try-catch) and that they can handle internal problems.
-Jobs can get stuck after Quartz is unable to determine whether required logic in listener was completed successfully when listener notification failed.
+Make sure your trigger and job listeners never throw an exception (use a try-catch) and that they can handle
+internal problems. What a throwing listener costs is the *firing*: one that throws on the way in abandons it,
+so the job does not run, and one that throws on the way out cannot undo it, because the job has already run
+and the trigger has already decided what it wants done. In both cases the failure is reported to the
+scheduler listeners through `ISchedulerListener.SchedulerError`, wrapped in a `JobExecutionProcessException`
+that names the listener and the firing, and the trigger is released either way — including the siblings a
+`[DisallowConcurrentExecution]` job was blocking. Nothing gets stuck; the firing is simply lost.
 :::
 
 __The ITriggerListener Interface__
@@ -138,6 +143,11 @@ Passing no matcher at all means the same thing — a listener with no matchers h
 Registration is the only moment matchers are given. A listener that has to start hearing about something
 else is registered again under the same name, with the matchers it needs: the second registration replaces
 the listener and its matchers together, so the two can never be out of step.
+
+Listeners are notified in the order they were registered, and this is a promise rather than an accident of
+the implementation — so two listeners that are not independent, such as one that prepares something the next
+one reads, can be built on it. Registering again under the same name replaces a listener where it stands,
+and one registered after another was removed is notified last rather than in the removed one's place.
 
 The `Matchers` class is the entry point: its static factories build the roots (`Matchers.AllJobs()`,
 `Matchers.AllTriggers()`, `Matchers.Key(key)`, `Matchers.Group<JobKey>(StringOperator.StartsWith, "a")`,
