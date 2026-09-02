@@ -678,9 +678,14 @@ long job, a second node changes nothing about it.
 
 The check that ships with `Quartz` asserts two things: that the scheduler is in a state that can fire,
 and that its job store answers a query. It reports *healthy* for a running scheduler whose store
-responds, *degraded* for one in standby, and *unhealthy* for one that was created but never started, is
-shutting down, has shut down, or whose store threw. It registers on the standard `IHealthChecksBuilder`
-and needs nothing from ASP.NET Core, so a worker on a `dotnet/runtime` image carries it too.
+responds, *degraded* for one in standby, and *unhealthy* for one that is shutting down, has shut down,
+or whose store threw. A scheduler still in `Created` depends on who was going to start it: *unhealthy*
+when the hosted service was going to and has not, and *degraded* when `AutoStart` is `false` and the
+application starts it itself — the shape [an external leader election](how-tos/external-leader.md) and
+[embedding Quartz in a library](how-tos/embedding-quartz-in-a-library.md) teach, where sitting in
+`Created` is the configuration working rather than failing. It registers on the standard
+`IHealthChecksBuilder` and needs nothing from ASP.NET Core, so a worker on a `dotnet/runtime` image
+carries it too.
 
 <!-- snippet: sample_operations_readiness_probe -->
 ```csharp

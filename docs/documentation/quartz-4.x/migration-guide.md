@@ -1502,7 +1502,9 @@ as a connectivity problem. It reports the state it actually found instead:
 |---|---|
 | `Running` | the store probe decides: `Healthy`, or `Unhealthy` when the store cannot be reached |
 | `Standby` | `Degraded` — deliberate and reversible, so neither healthy nor a reason to take a node out of rotation |
-| `Created`, `ShuttingDown`, `Shutdown`, `Unknown` | `Unhealthy`, with a message naming the scheduler and the state |
+| `Created`, with `AutoStart` left on | `Unhealthy` — the host was going to start it and has not |
+| `Created`, with `AutoStart` set to `false` | `Degraded` — the application starts this one itself, so sitting in `Created` is the configuration working |
+| `ShuttingDown`, `Shutdown`, `Unknown` | `Unhealthy`, with a message naming the scheduler and the state |
 
 The check also no longer throws when it is registered for a default scheduler in a container that has
 only named ones: it reports `Unhealthy` and says to call `AddQuartzHealthChecks()` on the scheduler's own
