@@ -64,7 +64,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
         ILogger<JsonSchedulingDataProcessor> logger,
         ITypeLoader typeLoader,
         TimeProvider timeProvider)
-        : base(LogProvider.CreateLogger<XmlSchedulingDataProcessor>(), typeLoader, timeProvider)
+        : base(logger, typeLoader, timeProvider)
     {
         this.logger = logger;
         this.timeProvider = timeProvider;

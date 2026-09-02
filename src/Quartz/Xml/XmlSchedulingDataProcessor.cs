@@ -84,7 +84,7 @@ internal class XmlSchedulingDataProcessor
     private readonly List<string> jobGroupsToNeverDelete = new List<string>();
     private readonly List<string> triggerGroupsToNeverDelete = new List<string>();
 
-    private readonly ILogger<XmlSchedulingDataProcessor> logger;
+    private readonly ILogger logger;
     private readonly TimeProvider timeProvider;
 
     /// <summary>
@@ -92,6 +92,29 @@ internal class XmlSchedulingDataProcessor
     /// </summary>
     public XmlSchedulingDataProcessor(
         ILogger<XmlSchedulingDataProcessor> logger,
+        ITypeLoader typeLoader,
+        TimeProvider timeProvider)
+        : this((ILogger) logger, typeLoader, timeProvider)
+    {
+    }
+
+    /// <summary>
+    /// Constructor for a derived processor, which logs under its own category.
+    /// </summary>
+    /// <remarks>
+    /// Every message this class writes carries the category of the logger it was given, so a subclass
+    /// that hands up an <c>ILogger&lt;TSelf&gt;</c> makes the whole of its scheduling path filterable on
+    /// its own name. The three paths are <c>Quartz.Xml.XmlSchedulingDataProcessor</c> for a scheduling
+    /// file, <c>Quartz.Configuration.ContainerConfigurationProcessor</c> for what <c>AddQuartz</c>
+    /// declared, and <c>Quartz.Plugins.Json.JsonSchedulingDataProcessor</c> for a JSON file — which used
+    /// to be one category for all three, so "Adding 2 jobs, 2 triggers" said nothing about where they
+    /// came from. The event ids are the same on every path.
+    /// </remarks>
+    /// <param name="logger">Where this processor writes, and the category it writes under.</param>
+    /// <param name="typeLoader">Resolves the type names the declarations carry.</param>
+    /// <param name="timeProvider">The clock the parsed schedules are measured against.</param>
+    protected XmlSchedulingDataProcessor(
+        ILogger logger,
         ITypeLoader typeLoader,
         TimeProvider timeProvider)
     {
