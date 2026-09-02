@@ -1,0 +1,1 @@
+{"$type":"Quartz.Impl.Calendar.HolidayCalendar, Quartz","Description":"Seeded chained HolidayCalendar","TimeZoneId":"UTC","BaseCalendar":{"$type":"Quartz.Impl.Calendar.CronCalendar, Quartz","Description":"Seeded chained base","TimeZoneId":"UTC","BaseCalendar":null,"CronExpressionString":"0/5 * * * * ?"},"ExcludedDates":["2024-07-01T00:00:00Z"]}

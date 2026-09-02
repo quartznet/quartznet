@@ -1,0 +1,1 @@
+{"$type":"Quartz.Impl.Calendar.AnnualCalendar, Quartz","Description":"Seeded AnnualCalendar","TimeZoneId":"UTC","BaseCalendar":null,"ExcludedDays":["2000-07-01T00:00:00","2000-12-25T00:00:00"]}

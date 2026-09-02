@@ -451,7 +451,7 @@ public class MigrationScriptTest
         (string Version, string Name)[] chain,
         bool assertRerunnable)
     {
-        await ExecuteScriptAsync(connection, BaselineScript(dialect, prefix), dialect);
+        await ExecuteScriptAsync(connection, BaselineScript("3.16", dialect, prefix), dialect);
 
         // A second pass is the idempotence assertion: every migration checks before it acts, so
         // applying one to a database that already has it has to be a no-op rather than an error.
@@ -466,7 +466,12 @@ public class MigrationScriptTest
         }
     }
 
-    private static async Task AssertSchemaMatchesAsync(DbConnection connection, string dialect, string prefix)
+    /// <summary>
+    /// Internal rather than private because <see cref="UpgradeRehearsalTest" /> asserts the same thing
+    /// about a schema it migrated with rows in it. Structural equivalence is the same claim whether or
+    /// not the tables were empty, and two copies of it would be two things to keep in step.
+    /// </summary>
+    internal static async Task AssertSchemaMatchesAsync(DbConnection connection, string dialect, string prefix)
     {
         SchemaSnapshot fresh = await SchemaSnapshot.ReadAsync(connection, dialect, FreshPrefix);
         SchemaSnapshot migrated = await SchemaSnapshot.ReadAsync(connection, dialect, prefix);
@@ -481,7 +486,7 @@ public class MigrationScriptTest
     /// <summary>
     /// Runs a script, splitting it into the batches the dialect's own client would split it into.
     /// </summary>
-    private static async Task ExecuteScriptAsync(DbConnection connection, string script, string dialect)
+    internal static async Task ExecuteScriptAsync(DbConnection connection, string script, string dialect)
     {
         if (dialect != "sqlite")
         {
@@ -734,9 +739,16 @@ public class MigrationScriptTest
         return string.Join('\n', kept);
     }
 
-    private static string BaselineScript(string dialect, string prefix)
+    /// <summary>
+    /// A frozen fresh-install script from <c>SchemaBaselines/</c>, retargeted at the given prefix.
+    /// </summary>
+    /// <remarks>
+    /// 3.16 is a database that took none of the optional 3.x column migrations and 3.20 one that took
+    /// them all, which are the two ends of the range the 4.0 upgrade has to accept.
+    /// </remarks>
+    internal static string BaselineScript(string version, string dialect, string prefix)
     {
-        string script = File.ReadAllText(ResolveRepositoryFile("src", "Quartz.Tests.Integration", "SchemaBaselines", "3.16", $"tables_{dialect}.sql"));
+        string script = File.ReadAllText(ResolveRepositoryFile("src", "Quartz.Tests.Integration", "SchemaBaselines", version, $"tables_{dialect}.sql"));
         return PrepareForMigratedPrefix(script, dialect, prefix);
     }
 
@@ -753,7 +765,7 @@ public class MigrationScriptTest
         return StripDropStatements(FreshInstallScript(dialect));
     }
 
-    private static string MigrationScript(string version, string name, string dialect, string prefix)
+    internal static string MigrationScript(string version, string name, string dialect, string prefix)
     {
         string script = File.ReadAllText(ResolveRepositoryFile("database", "migrations", version, $"{name}_{dialect}.sql"));
         return Rewrite(script, prefix);
@@ -820,13 +832,14 @@ public class MigrationScriptTest
     }
 
     /// <summary>
-    /// Only the two baseline-built schemas need one: the current script names its triggers
+    /// Only the baseline-built schemas need one: the current script names its triggers
     /// <c>QRTZ_DELETE_*</c>, which <see cref="Rewrite" /> retargets like every other object.
     /// </summary>
     private static string SqliteTriggerPrefix(string prefix) => prefix switch
     {
         SteppedPrefix => "M_",
         DirectPrefix => "D_",
+        UpgradeRehearsalTest.RehearsalPrefix => "U_",
         _ => throw new ArgumentOutOfRangeException(nameof(prefix), prefix, "no SQLite trigger prefix for this table prefix")
     };
 
@@ -845,7 +858,7 @@ public class MigrationScriptTest
         return string.Join('\n', lines);
     }
 
-    private static string RequireConnectionString(string variable)
+    internal static string RequireConnectionString(string variable)
     {
         string value = Environment.GetEnvironmentVariable(variable);
         if (string.IsNullOrEmpty(value))
@@ -879,7 +892,7 @@ public class MigrationScriptTest
     /// SQLite has no container, so the test owns the whole database file: it creates the fresh schema
     /// the comparison needs, hands the caller an open connection, and deletes the file afterwards.
     /// </summary>
-    private static async Task WithSqliteAsync(Func<SqliteConnection, string, Task> body)
+    internal static async Task WithSqliteAsync(Func<SqliteConnection, string, Task> body)
     {
         string file = Path.Combine(Path.GetTempPath(), $"quartz-migration-{Guid.NewGuid():N}.db");
         string connectionString = $"Data Source={file};";

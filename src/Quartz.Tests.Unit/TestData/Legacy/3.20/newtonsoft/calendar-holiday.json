@@ -1,0 +1,1 @@
+{"$type":"Quartz.Impl.Calendar.HolidayCalendar, Quartz","Description":"Seeded HolidayCalendar","TimeZoneId":"UTC","BaseCalendar":null,"ExcludedDates":["2024-07-01T00:00:00Z","2024-12-25T00:00:00Z"]}

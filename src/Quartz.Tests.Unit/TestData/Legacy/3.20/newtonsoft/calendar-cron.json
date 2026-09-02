@@ -1,0 +1,1 @@
+{"$type":"Quartz.Impl.Calendar.CronCalendar, Quartz","Description":"Seeded CronCalendar","TimeZoneId":"UTC","BaseCalendar":null,"CronExpressionString":"0/5 * * * * ?"}

@@ -17,6 +17,10 @@
  */
 #endregion
 
+// Stated rather than inherited: this file is also compiled into Quartz.Tests.Integration, which
+// disables nullable reference types the way every test project here does.
+#nullable enable
+
 using System.Text.Json.Serialization;
 
 namespace Quartz.Tests.Integration.Seeder;
