@@ -89,4 +89,30 @@ public class JobExecutionContextTest
         ctx.MergedJobDataMap.Should().BeSameAs(merged,
             "the map is merged once and then published, so every later read sees that same fully built instance");
     }
+
+    /// <summary>
+    /// The documentation used to promise <see cref="TimeSpan.MinValue" /> until the job completed, and
+    /// a listener written against it (<c>if (context.JobRunTime == TimeSpan.MinValue)</c>) never took
+    /// its branch: mid-execution the value is the wall clock less the fire time, and once the scheduler
+    /// has measured the run it is what the scheduler stored.
+    /// </summary>
+    [Test]
+    public void JobRunTimeEstimatesWhileRunningAndReportsTheMeasurementOnceStored()
+    {
+        TriggerFiredBundle bundle = TestUtil.NewMinimalTriggerFiredBundle();
+        bundle = bundle with { FireTimeUtc = DateTimeOffset.UtcNow.AddMinutes(-5) };
+
+        JobExecutionContextImpl ctx = new(null, bundle, null);
+
+        ctx.JobRunTime.Should().BeGreaterThan(TimeSpan.Zero,
+            "a job that fired five minutes ago and has not finished has run for about five minutes");
+        ctx.JobRunTime.Should().NotBe(TimeSpan.MinValue,
+            "TimeSpan.MinValue is what the documentation used to promise and what the property has never returned");
+
+        ctx.JobRunTime = TimeSpan.FromMilliseconds(17);
+
+        ctx.JobRunTime.Should().Be(TimeSpan.FromMilliseconds(17),
+            "once the scheduler has measured the completed run, that measurement is the answer and the "
+            + "wall-clock estimate is not consulted again");
+    }
 }

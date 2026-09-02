@@ -314,12 +314,7 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// </remarks>
     public object? Result { get; set; }
 
-    /// <summary>
-    /// The amount of time the job ran for.  The returned
-    /// value will be <see cref="TimeSpan.MinValue" /> until the job has actually completed (or thrown an
-    /// exception), and is therefore generally only useful to
-    /// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
-    /// </summary>
+    /// <inheritdoc />
     public TimeSpan JobRunTime
     {
         get

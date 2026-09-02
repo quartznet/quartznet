@@ -625,32 +625,7 @@ internal sealed class StdScheduler : IScheduler
         return scheduler.GetCalendar(calendarName, cancellationToken);
     }
 
-    /// <summary>
-    /// Request the interruption, within this Scheduler instance, of all
-    /// currently executing instances of the identified <see cref="IJob" />.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// If more than one instance of the identified job is currently executing,
-    /// the cancellation token will be set on each instance.
-    /// However, there is a limitation that in the case that
-    /// <see cref="Interrupt(JobKey, CancellationToken)"/> on one instances throws an exception, all
-    /// remaining  instances (that have not yet been interrupted) will not have
-    /// their <see cref="Interrupt(JobKey, CancellationToken)"/> method called.
-    /// </para>
-    /// <para>
-    /// To interrupt one specific execution when several of the job are running, list them with
-    /// <see cref="QueryFireInstances"/> and pass the one you mean to
-    /// <see cref="InterruptFireInstance"/>.
-    /// </para>
-    /// <para>
-    /// This method is not cluster aware.  That is, it will only interrupt
-    /// instances of the identified InterruptableJob currently executing in this
-    /// Scheduler instance, not across the entire cluster.
-    /// </para>
-    /// </remarks>
-    /// <returns>true is at least one instance of the identified job was found and interrupted.</returns>
-    /// <seealso cref="QueryFireInstances"/>
+    /// <inheritdoc />
     public ValueTask<bool> Interrupt(
         JobKey jobKey,
         CancellationToken cancellationToken = default)

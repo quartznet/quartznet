@@ -147,5 +147,16 @@ public interface IJobDetail
     /// <param name="jobDataMap">The job data the returned detail carries.</param>
     IJobDetail WithJobData(JobDataMap jobDataMap);
 
+    /// <summary>
+    /// Returns a copy of this detail.
+    /// </summary>
+    /// <remarks>
+    /// The copy is shallow, and its job data map is a shallow copy too: the map itself is a new one,
+    /// so adding and removing entries in the copy leaves this detail's map alone, but the values in it
+    /// are the same objects. Mutating a value read out of the copy's <see cref="JobDataMap" />
+    /// therefore mutates this detail's as well, which is worth knowing before cloning a detail to edit
+    /// it. A store clones on the way in and on the way out, so what a caller holds is never the
+    /// instance the store holds.
+    /// </remarks>
     IJobDetail Clone();
 }

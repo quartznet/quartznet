@@ -184,11 +184,21 @@ public interface IJobExecutionContext
     object? Result { get; set; }
 
     /// <summary>
-    /// The amount of time the job ran for.  The returned
-    /// value will be <see cref="TimeSpan.MinValue" /> until the job has actually completed (or thrown an
-    /// exception), and is therefore generally only useful to
-    /// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
+    /// How long the job has run for.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Once the job has completed — or thrown — this is what the scheduler measured, from a monotonic
+    /// timestamp, and it is the value <see cref="IJobListener" />s and <see cref="ITriggerListener" />s
+    /// see. That is what the member is for.
+    /// </para>
+    /// <para>
+    /// Read while the job is still running, it is an estimate instead: the wall clock now, less
+    /// <see cref="FireTimeUtc" />. It is read from <see cref="DateTimeOffset.UtcNow" /> rather than
+    /// from the scheduler's <see cref="TimeProvider" />, so under a fake clock set to another instant
+    /// it is meaningless and can come out negative. The testing tutorial says more.
+    /// </para>
+    /// </remarks>
     TimeSpan JobRunTime { get; }
 
     /// <summary>

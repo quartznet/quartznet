@@ -2736,7 +2736,7 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Interrupt all instances of the identified InterruptableJob.
+    /// Cancels the token of every currently executing firing of the identified job.
     /// </summary>
     public async ValueTask<bool> Interrupt(
         JobKey jobKey,
@@ -2767,16 +2767,15 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Interrupt all instances of the identified InterruptableJob executing in this Scheduler instance.
+    /// Cancels the token of the one firing with the given fire instance id.
     /// </summary>
     /// <remarks>
-    /// This method is not cluster aware.  That is, it will only interrupt
-    /// instances of the identified InterruptableJob currently executing in this
-    /// Scheduler instance, not across the entire cluster.
+    /// This method is not cluster aware. That is, it will only interrupt a firing currently executing
+    /// in this scheduler instance, not across the entire cluster.
     /// </remarks>
-    /// <param name="fireInstanceId"></param>
+    /// <param name="fireInstanceId">The firing to interrupt.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
+    /// <returns><see langword="true" /> if the firing was found and interrupted.</returns>
     public async ValueTask<bool> InterruptFireInstance(
         string fireInstanceId,
         CancellationToken cancellationToken = default)

@@ -48,8 +48,8 @@ namespace Quartz;
 ///         <see cref="IJobDetail"/> objects are then created (also by the client) to
 ///         define a individual instances of the <see cref="IJob"/>.
 ///         <see cref="IJobDetail"/> instances can then be registered with the
-///         <see cref="IScheduler"/> via the %IScheduler.ScheduleJob(JobDetail,
-///         Trigger)% or %IScheduler.AddJob(JobDetail, AddJobOptions)% method.
+///         <see cref="IScheduler"/> via <see cref="ScheduleJob(IJobDetail, ITrigger, ScheduleJobOptions, CancellationToken)"/>
+///         or <see cref="AddJob(IJobDetail, AddJobOptions, CancellationToken)"/>.
 ///     </para>
 /// 	<para>
 /// 		<see cref="ITrigger"/> s can then be defined to fire individual
@@ -66,12 +66,12 @@ namespace Quartz;
 ///         logical groupings or categorizations of <see cref="IJob"/>s and
 ///         <see cref="ITrigger"/>s. If you don't have need for assigning a group to a
 ///         given <see cref="IJob"/>s of <see cref="ITrigger"/>s, then you can use
-///         the <see cref="Key{T}.DefaultGroup"/> constant defined on
-///         this interface.
+///         the <see cref="Key{T}.DefaultGroup"/> constant, which is what a
+///         <see cref="JobKey"/> or <see cref="TriggerKey"/> built without a group already uses.
 ///     </para>
 /// 	<para>
 ///         Stored <see cref="IJob"/> s can also be 'manually' triggered through the
-///         use of the %IScheduler.TriggerJob(JobKey)% function.
+///         use of <see cref="TriggerJob(JobKey, JobDataMap, CancellationToken)"/>.
 ///     </para>
 /// 	<para>
 ///         Client programs may also be interested in the 'listener' interfaces that are
@@ -1121,11 +1121,14 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <remarks>
     /// <para>
-    /// If more than one instance of the identified job is currently executing,
-    /// the cancellation token will be set on each instance.  However, there is a limitation that in the case that
-    /// <see cref="Interrupt(JobKey, CancellationToken)" /> on one instances throws an exception, all
-    /// remaining  instances (that have not yet been interrupted) will not have
-    /// their <see cref="Interrupt(JobKey, CancellationToken)" /> method called.
+    /// Interruption is cooperative. What the scheduler does is cancel the token the firing was given
+    /// — <see cref="IJobExecutionContext.CancellationToken" />, which is the same token
+    /// <see cref="IJob.Execute" /> receives — so a job that never observes it runs to completion.
+    /// </para>
+    /// <para>
+    /// If more than one instance of the identified job is currently executing, the token is cancelled
+    /// on each of them in turn. Cancelling runs whatever the running job registered on its token, so
+    /// if one of those throws, the instances not yet reached keep running.
     /// </para>
     ///
     /// <para>
@@ -1134,9 +1137,8 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="InterruptFireInstance" />.
     /// </para>
     /// <para>
-    /// This method is not cluster aware.  That is, it will only interrupt
-    /// instances of the identified InterruptableJob currently executing in this
-    /// Scheduler instance, not across the entire cluster.
+    /// This method is not cluster aware. That is, it will only interrupt instances of the identified
+    /// job currently executing in this scheduler instance, not across the entire cluster.
     /// </para>
     /// </remarks>
     /// <returns>
@@ -1150,9 +1152,15 @@ public interface IScheduler : IAsyncDisposable
     /// identified executing job instance.
     /// </summary>
     /// <remarks>
-    /// This method is not cluster aware.  That is, it will only interrupt
-    /// instances of the identified InterruptableJob currently executing in this
-    /// Scheduler instance, not across the entire cluster.
+    /// <para>
+    /// Interruption is cooperative, as it is for <see cref="Interrupt(JobKey, CancellationToken)" />:
+    /// the firing's <see cref="IJobExecutionContext.CancellationToken" /> is cancelled, and a job that
+    /// never observes it runs to completion.
+    /// </para>
+    /// <para>
+    /// This method is not cluster aware. That is, it will only interrupt an instance currently
+    /// executing in this scheduler instance, not across the entire cluster.
+    /// </para>
     /// </remarks>
     /// <seealso cref="QueryFireInstances" />
     /// <seealso cref="IJobExecutionContext.FireInstanceId" />
