@@ -13,6 +13,12 @@ namespace Quartz.Tests.AspNetCore.Dashboard;
 
 public class DashboardEndpointsTest
 {
+    /// <remarks>
+    /// A test here that starts its application says <c>AllowAnonymous()</c> at the map site unless it is
+    /// about authorization: the startup guard refuses a dashboard mapping that states nothing, and what
+    /// these tests are about is paths, assets and markup rather than who may see them. The ones that
+    /// configure a fail-closed <c>FallbackPolicy</c> have already answered the question and say nothing.
+    /// </remarks>
     private static WebApplication CreateApp(
         Action<QuartzDashboardOptions>? configureDashboard = null,
         Action<WebApplicationBuilder>? configureBuilder = null)
@@ -288,7 +294,7 @@ public class DashboardEndpointsTest
             builder => builder.Services.AddQuartz());
 
         app.UseAntiforgery();
-        app.MapQuartzDashboard();
+        app.MapQuartzDashboard().AllowAnonymous();
         await app.StartAsync();
         try
         {
@@ -318,7 +324,7 @@ public class DashboardEndpointsTest
             configureBuilder: builder => builder.Services.AddQuartz());
 
         app.UseAntiforgery();
-        app.MapQuartzDashboard();
+        app.MapQuartzDashboard().AllowAnonymous();
         await app.StartAsync();
         try
         {
@@ -346,7 +352,7 @@ public class DashboardEndpointsTest
         app.UsePathBase("/app");
         app.UseRouting();
         app.UseAntiforgery();
-        app.MapQuartzDashboard();
+        app.MapQuartzDashboard().AllowAnonymous();
         await app.StartAsync();
         try
         {
@@ -377,7 +383,7 @@ public class DashboardEndpointsTest
                 ["_content/Quartz.Dashboard/css/quartz-dashboard.css"] = "body { }"u8.ToArray(),
             }));
 
-        app.MapQuartzDashboard();
+        app.MapQuartzDashboard().AllowAnonymous();
         await app.StartAsync();
         try
         {
@@ -414,7 +420,7 @@ public class DashboardEndpointsTest
                 // the framework script is a static web asset served from the web root on .NET 10+
                 ["_framework/blazor.web.js"] = "// blazor.web.js"u8.ToArray(),
             }));
-        app.MapQuartzDashboard();
+        app.MapQuartzDashboard().AllowAnonymous();
         await app.StartAsync();
         try
         {
@@ -484,7 +490,7 @@ public class DashboardEndpointsTest
         await using WebApplication app = CreateApp(configureBuilder: builder => builder.Services.AddQuartz());
 
         app.UseAntiforgery();
-        app.MapQuartzDashboard("/my-api/quartz");
+        app.MapQuartzDashboard("/my-api/quartz").AllowAnonymous();
         await app.StartAsync();
         try
         {
@@ -539,7 +545,7 @@ public class DashboardEndpointsTest
         // the framework emits enhanced-navigation redirects as URLs relative to the document base,
         // so with a dashboard-rooted <base href> the browser requests them under the dashboard path
         await using WebApplication app = CreateApp(options => options.DashboardPath = "/my-api/quartz");
-        app.MapQuartzDashboard();
+        app.MapQuartzDashboard().AllowAnonymous();
 
         GetRouteEndpoints(app).Select(e => e.RoutePattern.RawText)
             .Should().Contain("/my-api/quartz/_framework/opaque-redirect");
@@ -565,7 +571,7 @@ public class DashboardEndpointsTest
     public async Task CustomDashboardPathShouldServeBlazorNegotiate()
     {
         await using WebApplication app = CreateApp(options => options.DashboardPath = "/my-api/quartz");
-        app.MapQuartzDashboard();
+        app.MapQuartzDashboard().AllowAnonymous();
         await app.StartAsync();
         try
         {

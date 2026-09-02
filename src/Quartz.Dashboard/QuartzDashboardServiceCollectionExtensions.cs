@@ -21,8 +21,10 @@ using System.Text.Json.Serialization;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
+using Quartz.AspNetCore;
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
@@ -56,6 +58,12 @@ public static class QuartzDashboardServiceCollectionExtensions
         {
             optionsBuilder.Configure(configure);
         }
+
+        // Refuses to start an application whose mapped dashboard nothing authorizes. Registered here
+        // rather than at the map site, because a hosted service added to a built application is too late.
+        services.TryAddSingleton<QuartzMappedEndpoints>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, QuartzEndpointAuthorizationGuard>());
 
         services.AddRazorComponents()
             .AddInteractiveServerComponents();
