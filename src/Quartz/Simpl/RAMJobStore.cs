@@ -2074,6 +2074,18 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                     SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Complete);
                     signaler.SignalSchedulingChange(null, cancellationToken);
                 }
+                else if (!tw.Trigger.GetNextFireTimeUtc().HasValue)
+                {
+                    // Every instruction that settles the trigger is above, so what reaches here is a
+                    // firing that never happened - one a job listener abandoned, or one the scheduler
+                    // could not dispatch - completed with no instruction. That settles nothing about the
+                    // schedule of a trigger that can fire again, and for those this branch is not taken.
+                    // This one cannot fire again: TriggersFired advanced it and left it with no fire
+                    // time, so left here it waits forever, never fired and never removed, and is listed
+                    // to an operator as a trigger that will fire (#3507). Nothing left to fire is
+                    // finished however the last firing ended, so it goes the way DeleteTrigger sends it.
+                    RemoveTriggerInternal(trigger.Key);
+                }
             }
         }
         return Task.CompletedTask;

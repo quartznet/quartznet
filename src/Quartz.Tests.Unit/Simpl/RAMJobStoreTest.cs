@@ -1068,6 +1068,68 @@ public class RAMJobStoreTest
             "the group is no longer paused, so a trigger stored into it now runs");
     }
 
+    /// <summary>
+    /// The leak #3507 reported. A firing can be abandoned between the store committing it and the job
+    /// running - a job listener that fails, a veto, a scheduler shutting down - and the run shell hands
+    /// such a firing back with no instruction, which settles nothing about the schedule. For a trigger
+    /// that can fire again that is right; for one <see cref="IJobStore.TriggersFired" /> already advanced
+    /// past its last firing it left a trigger that waits forever, never fired and never removed, and that
+    /// an operator still reads as about to fire.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteWithNoInstructionRemovesATriggerThatCannotFireAgain()
+    {
+        JobDetailImpl job = new JobDetailImpl("spentJob", "jobGroup1", typeof(NoOpJob));
+        job.Durable = false;
+        await fJobStore.StoreJob(job, false);
+
+        DateTimeOffset fireAt = DateTimeOffset.UtcNow.AddSeconds(30);
+        IOperableTrigger trigger = new SimpleTriggerImpl("once", "triggerGroup1", job.Name, job.Group, fireAt, null, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(fireAt.AddSeconds(10), 1, TimeSpan.Zero);
+        acquired.Should().HaveCount(1);
+
+        var fired = await fJobStore.TriggersFired(acquired);
+        TriggerFiredBundle bundle = fired.First().TriggerFiredBundle;
+        bundle.Should().NotBeNull();
+        bundle.Trigger.GetNextFireTimeUtc().Should().BeNull("the firing that was committed was this trigger's last");
+
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.RetrieveTrigger(trigger.Key)).Should().BeNull(
+            "the trigger's only firing is over, however badly it went, so nothing is left to keep");
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.None,
+            "a trigger with no fire time left in it must not be reported to an operator as one about to fire");
+        (await fJobStore.RetrieveJob(job.Key)).Should().BeNull(
+            "the job is not durable and its only trigger is gone, which is where DeleteTrigger sends it too");
+    }
+
+    /// <summary>
+    /// The other half of the same branch: no instruction settles nothing, so a trigger that still has a
+    /// firing ahead of it is left exactly as it was.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteWithNoInstructionLeavesATriggerThatCanFireAgain()
+    {
+        DateTimeOffset fireAt = DateTimeOffset.UtcNow.AddSeconds(30);
+        IOperableTrigger trigger = new SimpleTriggerImpl("repeating", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, fireAt, null, SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromMinutes(5));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(fireAt.AddSeconds(10), 1, TimeSpan.Zero);
+        var fired = await fJobStore.TriggersFired(acquired);
+        TriggerFiredBundle bundle = fired.First().TriggerFiredBundle;
+        bundle.Trigger.GetNextFireTimeUtc().Should().NotBeNull("the trigger repeats, so the firing was not its last");
+
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.RetrieveTrigger(trigger.Key)).Should().NotBeNull(
+            "an abandoned firing says nothing about a schedule that still has firings in it");
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+    }
+
     private Task StoreTriggerInGroup(string name, string group)
     {
         IOperableTrigger trigger = new SimpleTriggerImpl(
