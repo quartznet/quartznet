@@ -195,6 +195,11 @@ jobs:
           # acted on where it is reported. It arrives as PL/SQL whatever the dialect, which is how the
           # T-SQL file collects "define a constant instead of duplicating this literal", and the Oracle
           # one the same EXECUTE IMMEDIATE guards that database/migrations is already excused for.
+          # docs/.vuepress/configs/ is out of duplication analysis only. The sidebar there is one
+          # shape repeated once per documented version -- four "How To's" groups, four "Packages"
+          # groups -- and that repetition is the data, not a smell. A docs pull request changes a
+          # handful of lines in it and little else Sonar reads, so three repeated lines were 4.8 % of
+          # the new code and failed the 3 % gate on a change that added no code at all.
           dotnet-sonarscanner begin \
             /k:"quartznet_quartznet" \
             /o:"quartznet" \
@@ -202,7 +207,7 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**" \
-            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**" \
+            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**,docs/.vuepress/configs/**" \
             /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Tests.Integration.Seeder/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**,src/Quartz.Examples/**,src/Quartz.Examples.AspNetCore/**,src/Quartz.Examples.HttpClient/**,src/Quartz.Examples.Worker/**,database/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,generatedOracleGuardExceptions,repeatedObjectNames,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
