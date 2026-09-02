@@ -14,6 +14,9 @@ using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz;
 
+/// <summary>
+/// Registers and maps the Quartz HTTP API — the server half of <c>Quartz.HttpClient</c>.
+/// </summary>
 public static class QuartzAspNetCoreConfigurationExtensions
 {
     /// <summary>
