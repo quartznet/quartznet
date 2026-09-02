@@ -51,6 +51,7 @@ namespace Quartz.Tests.Unit.Simpl;
 public class JobDataMapPortabilityTest
 {
     private IObjectSerializer newtonsoftSerializer;
+    private IObjectSerializer newtonsoftTriggerConverterSerializer;
     private IObjectSerializer systemTextJsonSerializer;
 
     [SetUp]
@@ -58,6 +59,11 @@ public class JobDataMapPortabilityTest
     {
         newtonsoftSerializer = new NewtonsoftJsonObjectSerializer();
         systemTextJsonSerializer = new SystemTextJsonObjectSerializer();
+
+        // The second Json.NET store format: with the trigger converters registered a trigger is written
+        // as the object the built-in serializer writes rather than as Json.NET's reflection over the
+        // trigger type, which is what makes a blob either of them wrote readable by both.
+        newtonsoftTriggerConverterSerializer = new NewtonsoftJsonObjectSerializer { RegisterTriggerConverters = true };
     }
 
     /// <summary>
@@ -122,6 +128,95 @@ public class JobDataMapPortabilityTest
             {
                 throw new AssertionException($"{label}: reading '{key}' back threw {e.GetType().Name}: {e.Message}", e);
             }
+        }
+    }
+
+    /// <summary>
+    /// The same values again, carried where a job store actually carries most of them: inside a
+    /// trigger, written by the trigger converters rather than by the map's own converter.
+    /// </summary>
+    /// <remarks>
+    /// That path wrote its map by a route of its own, and the route could not write what the gate had
+    /// already accepted: a <c>Dictionary&lt;string, string&gt;</c> in a trigger's map failed with
+    /// "Unsupported type", so the value could not be stored at all. Reading it had the mirror problem —
+    /// the whole trigger was parsed before the map was reached, by which time a string inside a string
+    /// map that merely looked like a timestamp had become one.
+    /// </remarks>
+    [TestCaseSource(nameof(PortableValues))]
+    public void AValueTheAccessorsCoverSurvivesInsideATriggerToo(string key, object value, Action<JobDataMap> assert)
+    {
+        ITrigger original = TriggerBuilder.Create()
+            .WithIdentity("portable", "portability")
+            .ForJob("job", "jobs")
+            .UsingJobData(new JobDataMap { { key, value } })
+            .StartAt(new DateTimeOffset(2024, 7, 1, 0, 0, 0, TimeSpan.Zero))
+            .Build();
+
+        foreach ((string label, IObjectSerializer writer, IObjectSerializer reader) in TriggerPairings())
+        {
+            ITrigger restored = reader.Deserialize<IOperableTrigger>(writer.Serialize(original))!;
+
+            restored.JobDataMap.Should().ContainKey(key, "{0}: the key must survive the crossing", label);
+
+            try
+            {
+                assert(restored.JobDataMap);
+            }
+            catch (AssertionException e)
+            {
+                throw new AssertionException($"{label}: {e.Message}", e);
+            }
+            catch (Exception e)
+            {
+                throw new AssertionException($"{label}: reading '{key}' back threw {e.GetType().Name}: {e.Message}", e);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A trigger blob written before the map went through the shared halves. Its top-level entries are
+    /// what the reader made of them — a string shaped like a timestamp is a <see cref="DateTimeOffset" />,
+    /// because that is the one reading of it a job could have been storing — and reading has to keep
+    /// saying so, since these blobs are in databases already.
+    /// </summary>
+    /// <remarks>
+    /// Written out here rather than produced by the current writer, so that a writer which changes
+    /// again cannot change what this asserts.
+    /// </remarks>
+    [Test]
+    public void ATriggerBlobWrittenBeforeTheSharedHalvesStillReadsTheSame()
+    {
+        byte[] written = Encoding.UTF8.GetBytes(
+            """
+            {
+              "TriggerType": "SimpleTrigger",
+              "Key": { "Name": "legacy", "Group": "portability" },
+              "JobKey": { "Name": "job", "Group": "jobs" },
+              "Description": null,
+              "CalendarName": null,
+              "JobDataMap": { "when": "1982-06-28T01:01:01+03:00", "count": 3, "name": "monthly" },
+              "MisfireInstruction": 0,
+              "StartTimeUtc": "2024-07-01T00:00:00+00:00",
+              "EndTimeUtc": null,
+              "Priority": 5,
+              "NextFireTimeUtc": null,
+              "PreviousFireTimeUtc": null,
+              "RepeatCount": 0,
+              "RepeatIntervalTimeSpan": "00:00:00",
+              "TimesTriggered": 0
+            }
+            """);
+
+        foreach ((string label, IObjectSerializer reader) in TriggerReaders())
+        {
+            ITrigger restored = reader.Deserialize<IOperableTrigger>(written)!;
+
+            restored.StartTimeUtc.Should().Be(new DateTimeOffset(2024, 7, 1, 0, 0, 0, TimeSpan.Zero),
+                "{0}: how a trigger's own timestamps read back is not something a job data fix gets to change", label);
+            restored.JobDataMap.GetDateTimeOffset("when").Should().Be(new DateTimeOffset(1982, 6, 28, 1, 1, 1, TimeSpan.FromHours(3)),
+                "{0}: a top-level entry that parsed as a date read back as one, and an upgrade does not get to make a stored value unreadable", label);
+            restored.JobDataMap.GetInt("count").Should().Be(3, "{0}: numbers are numbers on either side", label);
+            restored.JobDataMap.GetString("name").Should().Be("monthly", "{0}: and a string that looks like nothing else is a string", label);
         }
     }
 
@@ -377,6 +472,24 @@ public class JobDataMapPortabilityTest
     private IEnumerable<(string Label, IObjectSerializer Reader)> Readers()
     {
         yield return ("newtonsoft", newtonsoftSerializer);
+        yield return ("system.text.json", systemTextJsonSerializer);
+    }
+
+    /// <summary>
+    /// The same crossings for a trigger, where the Json.NET side is the one with its trigger converters
+    /// registered — the only shape of Json.NET blob the built-in serializer can read a trigger out of.
+    /// </summary>
+    private IEnumerable<(string Label, IObjectSerializer Writer, IObjectSerializer Reader)> TriggerPairings()
+    {
+        yield return ("newtonsoft(converters) -> newtonsoft(converters)", newtonsoftTriggerConverterSerializer, newtonsoftTriggerConverterSerializer);
+        yield return ("newtonsoft(converters) -> system.text.json", newtonsoftTriggerConverterSerializer, systemTextJsonSerializer);
+        yield return ("system.text.json -> newtonsoft(converters)", systemTextJsonSerializer, newtonsoftTriggerConverterSerializer);
+        yield return ("system.text.json -> system.text.json", systemTextJsonSerializer, systemTextJsonSerializer);
+    }
+
+    private IEnumerable<(string Label, IObjectSerializer Reader)> TriggerReaders()
+    {
+        yield return ("newtonsoft(converters)", newtonsoftTriggerConverterSerializer);
         yield return ("system.text.json", systemTextJsonSerializer);
     }
 }

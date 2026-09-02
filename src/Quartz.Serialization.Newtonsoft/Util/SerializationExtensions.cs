@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Globalization;
 
 using Newtonsoft.Json;
@@ -242,37 +241,5 @@ internal static class Utf8JsonWriterExtensions
         var group = key.Value<string>("Group");
 
         return new JobKey(name!, group!);
-    }
-
-    public static void WriteJobDataMapValue(this JsonWriter writer, JobDataMap jobDataMap)
-    {
-        writer.WriteStartObject();
-
-        foreach (var pair in jobDataMap)
-        {
-            writer.WritePropertyName(pair.Key);
-            writer.WriteValue(pair.Value);
-        }
-
-        writer.WriteEndObject();
-    }
-
-    public static JobDataMap? GetJobDataMap(this JObject? jsonElement)
-    {
-        if (jsonElement == null)
-        {
-            return null;
-        }
-
-        var properties = jsonElement.ToObject<IDictionary>()!;
-
-        var result = new JobDataMap();
-        foreach (string key in properties.Keys)
-        {
-            result.Add(key, properties[key]);
-        }
-
-        result.ClearDirtyFlag();
-        return result;
     }
 }
