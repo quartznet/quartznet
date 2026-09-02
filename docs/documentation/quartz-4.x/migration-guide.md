@@ -6628,6 +6628,13 @@ parameter names the pair has to agree on are `AdoConstants.ParameterPageSkip` an
 `AdoConstants.ParameterPageTake` — new in 4.0, and public because a delegate outside Quartz has to
 spell them.
 
+A dialect that reads more than `%` and `_` as a `LIKE` wildcard says so in
+**`AdditionalLikeWildcards`**, which is `""` on `StdAdoDelegate` and `"["` on `SqlServerDelegate`: T-SQL
+reads `[` as the start of a character class, so `?nameContains=[a-z]` matched by class on SQL Server and
+Sybase and literally everywhere else. It cannot be escaped for everyone — the standard says an escape
+character must be followed by a wildcard or itself, and PostgreSQL enforces that. `EscapeSqlLikeWildcards`
+gained an overload taking the extra characters; the one-argument form still escapes the standard three.
+
 The value-conversion pairs on `IDbAccessor` are no longer all overridable on `StdAdoDelegate`: the
 boolean pair (`GetDbBooleanValue` / `GetBooleanFromDbValue`) stays virtual, because Oracle genuinely
 stores booleans differently, but the date/time and time-span conversions are frozen. UTC ticks and

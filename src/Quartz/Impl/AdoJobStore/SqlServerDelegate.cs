@@ -42,6 +42,12 @@ public class SqlServerDelegate : StdAdoDelegate
     /// </summary>
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.InProjection("TOP", count);
 
+    /// <summary>
+    /// T-SQL reads <c>[</c> as the start of a character class in a <c>LIKE</c> pattern, so a filter
+    /// asking for a name containing <c>[a-z]</c> would match by class here and literally everywhere else.
+    /// </summary>
+    protected override string AdditionalLikeWildcards => "[";
+
     /// <inheritdoc />
     public override void AddCommandParameter(
         DbCommand cmd,

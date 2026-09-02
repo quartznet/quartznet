@@ -2666,6 +2666,7 @@ namespace Quartz.Impl.AdoJobStore
     public class SqlServerDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public SqlServerDelegate() { }
+        protected override string AdditionalLikeWildcards { get; }
         protected override string? SchemaResourceName { get; }
         public override void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected override Quartz.Impl.AdoJobStore.SqlRowLimit GetRowLimit(int count) { }
@@ -2691,6 +2692,7 @@ namespace Quartz.Impl.AdoJobStore
     public class StdAdoDelegate : Quartz.Impl.AdoJobStore.IDbAccessor, Quartz.Impl.AdoJobStore.IDriverDelegate
     {
         public StdAdoDelegate() { }
+        protected virtual string AdditionalLikeWildcards { get; }
         protected virtual bool CanUseProperties { get; }
         protected Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; }
         public virtual bool FiltersAcquisitionJobTypeExclusions { get; }
@@ -2831,6 +2833,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerStatesFromOtherStates(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, Quartz.Extensibility.StoredTriggerState newState, System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.StoredTriggerState> oldStates, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> ValidateSchema(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         protected static string EscapeSqlLikeWildcards(string value) { }
+        protected static string EscapeSqlLikeWildcards(string value, string additionalWildcards) { }
         protected static bool IsMatcherEquals<T>(Quartz.StringMatcher<T> matcher)
             where T : Quartz.Key<T> { }
         protected static string ToSqlEqualsClause<T>(Quartz.StringMatcher<T> matcher)
