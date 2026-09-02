@@ -195,7 +195,8 @@ The rule above, for the things that are not names. The reason is on the member t
 Extension policy, not taste. `how-tos/extending-quartz.md` is the reader-facing form.
 
 - **A 4.0.x patch is additive.** Its baseline diff is additions only, and the database schema is frozen
-  for the whole 4.0 line: a fix needing a new column or a changed signature waits for 4.1.
+  for the whole 4.0 line: a fix needing a new column waits for 4.1, one needing a changed public
+  signature waits for 5.0.
 
 - **A collaborator is handed a context object** — parameterless ctor, `init` properties — never a
   parameter list: `DriverDelegateContext`, `LockHandlerContext`, `TriggerFiredBundle` and the rest. A
