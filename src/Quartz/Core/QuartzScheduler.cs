@@ -1456,11 +1456,6 @@ internal sealed class QuartzScheduler
         ArgumentNullException.ThrowIfNull(matcher);
         ValidateState();
 
-        if (matcher is null)
-        {
-            matcher = GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup);
-        }
-
         var pausedGroups = await resources.JobStore.PauseTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
@@ -1602,11 +1597,6 @@ internal sealed class QuartzScheduler
         ArgumentNullException.ThrowIfNull(matcher);
         ValidateState();
 
-        if (matcher is null)
-        {
-            matcher = GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup);
-        }
-
         var resumedGroups = await resources.JobStore.ResumeTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(resumedGroups.Select(x => NotifySchedulerListenersResumedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
@@ -1681,11 +1671,6 @@ internal sealed class QuartzScheduler
     {
         ArgumentNullException.ThrowIfNull(matcher);
         ValidateState();
-
-        if (matcher is null)
-        {
-            matcher = GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup);
-        }
 
         var resumedGroups = await resources.JobStore.ResumeJobGroups(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);

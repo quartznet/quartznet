@@ -55,6 +55,15 @@ public class SchedulerException : Exception
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="SchedulerException"/> class.
+    /// </summary>
+    /// <param name="message">What went wrong.</param>
+    /// <param name="innerException">The cause.</param>
+    public SchedulerException(string message, Exception? innerException) : base(message, innerException)
+    {
+    }
+
+    /// <summary>
     /// The cause's message, checked first: the base constructor call would otherwise dereference a null
     /// cause and answer a <see cref="NullReferenceException" /> from the base type of every exception
     /// Quartz raises.
@@ -63,15 +72,6 @@ public class SchedulerException : Exception
     {
         ArgumentNullException.ThrowIfNull(innerException);
         return innerException.Message;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SchedulerException"/> class.
-    /// </summary>
-    /// <param name="message">What went wrong.</param>
-    /// <param name="innerException">The cause.</param>
-    public SchedulerException(string message, Exception? innerException) : base(message, innerException)
-    {
     }
 
     /// <summary>
