@@ -1297,6 +1297,7 @@ namespace Quartz
     public sealed class QuartzHealthCheckOptions
     {
         public QuartzHealthCheckOptions() { }
+        public double? ClusterCheckinTolerance { get; set; }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
         public string? Name { get; set; }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? StandbyStatus { get; set; }

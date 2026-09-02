@@ -1630,6 +1630,14 @@ The check also no longer throws when it is registered for a default scheduler in
 only named ones: it reports `Unhealthy` and says to call `AddQuartzHealthChecks()` on the scheduler's own
 builder.
 
+**A clustered scheduler is also asked when this node last checked in.** The check-in loop runs on its
+own timer, so a node whose cluster manager has wedged still fires, still answers a store query and still
+reports `Running` — while its peers, to whom it looks dead, recover its triggers. A last check-in older
+than `QuartzHealthCheckOptions.ClusterCheckinTolerance` times that node's own configured check-in
+interval now reports `Degraded`, naming the node and how late it is. The tolerance is a `double`
+defaulting to `3`; set it to `null` or `0` to make no such query. **Nothing is read on an unclustered
+scheduler**, so an in-memory or single-node store is unaffected.
+
 ## Clustering is configured in one place
 
 `AdoJobStoreOptions` no longer carries `Clustered`, `ClusterCheckinInterval` and

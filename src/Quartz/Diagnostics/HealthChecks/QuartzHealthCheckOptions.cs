@@ -62,4 +62,32 @@ public sealed class QuartzHealthCheckOptions
     /// </para>
     /// </remarks>
     public HealthStatus? StandbyStatus { get; set; }
+
+    /// <summary>
+    /// How many of its own check-in intervals a clustered node may go without checking in before the
+    /// check reports <see cref="HealthStatus.Degraded" />. <c>3</c> by default; <see langword="null" />
+    /// or <c>0</c> turns the reading off.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The rest of this check asserts that the scheduler can fire and that its store answers. Neither
+    /// says anything about the cluster manager, which runs on its own timer: a node whose check-in loop
+    /// has wedged still answers a store query, still reports <see cref="SchedulerStatus.Running" />, and
+    /// is meanwhile being recovered by its peers — they take its triggers because it looks dead to them,
+    /// while its own probe says it is fine.
+    /// </para>
+    /// <para>
+    /// So a clustered scheduler is also asked when it last checked in, through
+    /// <see cref="SchedulerQueryExtensions" />' cluster listing, and a last check-in older than this
+    /// many of the node's own configured intervals is reported as degraded rather than healthy. Three
+    /// because that is the same order of magnitude cluster recovery uses to decide a node is gone — one
+    /// interval is an ordinary scheduling delay, and a node that has missed three is not merely late.
+    /// </para>
+    /// <para>
+    /// The reading happens only when the store says it is clustered, so a scheduler on an in-memory or
+    /// unclustered store makes no extra query. Set this to <see langword="null" /> or <c>0</c> to make
+    /// no query at all.
+    /// </para>
+    /// </remarks>
+    public double? ClusterCheckinTolerance { get; set; } = 3;
 }
