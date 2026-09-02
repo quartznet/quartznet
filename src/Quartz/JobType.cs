@@ -177,6 +177,49 @@ public sealed class JobType : IEquatable<JobType>
     internal static Type? Resolve(string fullName, Extensibility.ITypeLoader typeLoader) => FoundByName(typeLoader.LoadType(fullName));
 
     /// <summary>
+    /// Refuses a type that is not an <see cref="IJob" />, before anything constructs it.
+    /// </summary>
+    /// <remarks>
+    /// A job type that arrived as a name is checked only for the shape of a name, so the first thing that
+    /// establishes it is a job at all is the cast that follows construction — by which time the type's
+    /// static constructor, its module initializer and its instance constructor have run, with the
+    /// scheduler scope's services injected into them. The check therefore belongs in front of every path
+    /// that builds an instance: the container lookup, <c>ActivatorUtilities</c>, and
+    /// <see cref="Util.TypeActivator" />.
+    /// </remarks>
+    /// <exception cref="SchedulerException"><paramref name="jobType" /> does not implement <see cref="IJob" />.</exception>
+    internal static void EnsureIsJob(Type jobType)
+    {
+        if (!typeof(IJob).IsAssignableFrom(jobType))
+        {
+            Throw.SchedulerException($"Job type '{jobType.FullName}' does not implement {typeof(IJob).FullName}; no instance of it is created.");
+        }
+    }
+
+    /// <summary>
+    /// The type this instance already holds, without going looking for one: the <see cref="System.Type" />
+    /// it was built from, or the one an earlier resolution settled. <see langword="null" /> when all it
+    /// has is a name that nothing has resolved yet.
+    /// </summary>
+    /// <remarks>
+    /// For the readers that must answer about a job without probing for its assembly — projecting a job
+    /// onto the wire, rendering it on a dashboard — where a probe would be work done on a caller's say-so
+    /// and, on a client, work a *server* asked for. They report what is known and say nothing where
+    /// nothing is; <see cref="TryResolve" /> is for the callers that need the type itself.
+    /// </remarks>
+    [UnconditionalSuppressMessage("Trimming", "IL2073", Justification = "Both sources are values that arrived through an annotated path: the declared type, or a type FoundByName already returned.")]
+    [return: DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    internal Type? GetLoadedType()
+    {
+        if (DeclaredType is { } declared)
+        {
+            return declared;
+        }
+
+        return type.IsValueCreated ? type.Value : null;
+    }
+
+    /// <summary>
     /// Resolves the type for a caller that can carry on without it, without throwing and without settling
     /// <see cref="Type" />.
     /// </summary>

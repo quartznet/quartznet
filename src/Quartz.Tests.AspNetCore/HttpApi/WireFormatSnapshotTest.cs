@@ -41,6 +41,27 @@ public class WireFormatSnapshotTest : WebApiTest
         await VerifyBody(body);
     }
 
+    /// <summary>
+    /// The same body for a job whose type this process cannot resolve. The two attribute-derived flags
+    /// are the only fields that differ, and they are <c>null</c> rather than <c>false</c>: nothing here
+    /// knows what the type says, and reporting "not disallowed" would be an invention that a reader
+    /// holding the assembly would then have to unlearn.
+    /// </summary>
+    [Test]
+    public async Task JobDetailBodyForATypeThatResolvesNowhere()
+    {
+        JobKey unresolvableKey = new("UnresolvableJob", "DummyGroup");
+        A.CallTo(() => FakeScheduler.GetJobDetail(unresolvableKey, A<CancellationToken>._)).Returns(
+            JobBuilder.Create()
+                .OfType((JobType) "Quartz.Tests.AspNetCore.NoSuchJob, No.Such.Assembly")
+                .WithIdentity(unresolvableKey)
+                .StoreDurably()
+                .Build());
+
+        string body = await Get($"{SchedulerUrl}/jobs/{unresolvableKey.Group}/{unresolvableKey.Name}");
+        await VerifyBody(body);
+    }
+
     [Test]
     public async Task SimpleTriggerBody() => await VerifyTriggerBody(TestData.Wire.SimpleTrigger);
 

@@ -292,15 +292,15 @@ namespace Quartz.Dashboard.Services
     }
     public sealed record JobDetailDto : System.IEquatable<Quartz.Dashboard.Services.JobDetailDto>
     {
-        public JobDetailDto(string Name, string Group, string JobType, string? Description, bool Durable, bool RequestsRecovery, bool ConcurrentExecutionDisallowed, bool PersistJobDataAfterExecution, Quartz.JobDataMap JobDataMap) { }
-        public bool ConcurrentExecutionDisallowed { get; init; }
+        public JobDetailDto(string Name, string Group, string JobType, string? Description, bool Durable, bool RequestsRecovery, bool? ConcurrentExecutionDisallowed, bool? PersistJobDataAfterExecution, Quartz.JobDataMap JobDataMap) { }
+        public bool? ConcurrentExecutionDisallowed { get; init; }
         public string? Description { get; init; }
         public bool Durable { get; init; }
         public string Group { get; init; }
         public Quartz.JobDataMap JobDataMap { get; init; }
         public string JobType { get; init; }
         public string Name { get; init; }
-        public bool PersistJobDataAfterExecution { get; init; }
+        public bool? PersistJobDataAfterExecution { get; init; }
         public bool RequestsRecovery { get; init; }
     }
     public sealed record JobGroupDto : System.IEquatable<Quartz.Dashboard.Services.JobGroupDto>

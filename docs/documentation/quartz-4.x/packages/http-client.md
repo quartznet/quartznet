@@ -192,7 +192,16 @@ job data map. `GetJobDetail` reconstructs a standard job detail from those field
 in your type stays on the server.
 
 **The job type is a name.** It is the assembly-qualified type name as the server has it. The client
-does not need the type to exist locally to list, pause or trigger a job — only to reason about it.
+treats it as text: it never resolves it, never loads an assembly for it and never probes for one, in
+either direction. So the client does not need the type to exist locally to list, pause, trigger,
+schedule or add a job — only to reason about the type itself, which is your own call to make.
+
+**The two attribute-derived flags can be absent.** `concurrentExecutionDisallowed` and
+`persistJobDataAfterExecution` are nullable on the wire: a value means the sender stated it, `null`
+means "whatever `[DisallowConcurrentExecution]` / `[PersistJobDataAfterExecution]` on the type says".
+Omit them when adding a job and the side that resolves the type decides; state them and your value
+wins. A job whose type the answering process cannot resolve reports them as `null` rather than
+`false`, so reading such a job answers with what is known instead of failing.
 
 **Enums are names.** `status`, `state`, `repeatIntervalUnit`, `daysOfWeek` — all of them travel as the
 C# member name, and the names are the contract. Numeric forms are still accepted on input, which is
@@ -319,6 +328,30 @@ with the `Query*` members and a `Take` of your own, or raise the cap on the serv
 
 A `404` for a read is not an error: `GetJobDetail` and `GetTrigger` return `null`, exactly as a local
 scheduler would.
+
+## Security: what the server can and cannot make the client do
+
+The client trusts the server for *data*, and for nothing else.
+
+- **Names stay names.** A job type name in a response is never resolved, so a server cannot choose an
+  assembly simple name that your runtime then goes looking for — which would run a module initializer
+  in whatever matched and steer any `AssemblyResolve` handler your application registered. Nothing in
+  the client calls `Type.GetType` on a server-supplied string.
+- **Error bodies are matched against a closed list.** The server names the exception type in the
+  problem details, and the client rebuilds one of eight known Quartz exceptions from that name.
+  Anything else becomes an `HttpClientException` carrying the server's `detail` as text. No type is
+  loaded and none is activated by name.
+- **The transport is yours.** Quartz takes an `HttpClient` you configured. TLS and certificate
+  validation, redirect following (`HttpClientHandler.AllowAutoRedirect`, on by default), the response
+  buffer cap (`HttpClient.MaxResponseContentBufferSize`) and the timeout are all settings on that
+  client or its handler, and Quartz changes none of them. A server you do not control is a server whose
+  responses you should bound: set `MaxResponseContentBufferSize` and a `Timeout`, and turn redirects
+  off if your credentials travel in a header.
+- **Credentials are yours too.** Whatever `DelegatingHandler` or default header you attach goes on
+  every request to that `BaseAddress`; see [Authentication](#authentication).
+
+The API's own trust boundary is on the server side and is documented with it: see
+[Production hardening](http-api.md#production-hardening).
 
 ## See also
 

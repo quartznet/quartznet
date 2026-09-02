@@ -1953,6 +1953,20 @@ names. A `UseGenericDatabase` callback that sets them from `typeof(...)` already
 was therefore serialized when it fired but not when it was acquired, so a batch could hold two of its
 triggers and the second was released again. Both now ask the same question.
 
+### A named type is checked against `IJob` before it is constructed
+
+A job type given as a `Type` — `AddJob(Type)`, `new JobType(Type)` — was always checked for `IJob`. A
+job type given as a *name* was not, and the first thing that established it was a job at all was the
+cast that followed construction: the container was asked for the type (and `GetService` constructs
+whatever is registered for it), then `ActivatorUtilities`, so the type's static constructor, module
+initializer and instance constructor had all run — with the scheduler scope's services injected — before
+anything refused.
+
+The check now runs first, in the job factory, in the activator cache and in `TypeActivator`. A firing of
+a job whose type is not an `IJob` fails with a `JobInstantiationException` naming the type instead of an
+`InvalidCastException`, and nothing of that type runs. If you catch `InvalidCastException` around a
+firing for this reason, catch `SchedulerException` instead.
+
 ## A job type rename is declared as a map
 
 A persistent job store keeps the job's type as text, in `QRTZ_JOB_DETAILS.JOB_CLASS_NAME`. Renaming the
@@ -2503,6 +2517,41 @@ the server, the database, the login or the constraint. The exception's *type* wa
 path; its message is now withheld too, and both keep being logged.
 `QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` — the switch that already says "I am debugging
 this" — puts the real message back. A client matching on a `500`'s `detail` now matches on a constant.
+
+### A job's two attribute flags are nullable on the wire
+
+`concurrentExecutionDisallowed` and `persistJobDataAfterExecution` are `bool?` rather than `bool` in
+every job body the API reads or writes, and in `Quartz.Dashboard.Services.JobDetailDto`. Present means
+the sender stated the flag; absent means "whatever `[DisallowConcurrentExecution]` and
+`[PersistJobDataAfterExecution]` on the type say", which is what `JobBuilder` has always done with a
+flag nobody set.
+
+The old shape had no way to say "not stated", and JSON's default for a missing `bool` is `false`, so a
+well-formed `POST …/jobs` that simply did not mention concurrency stored a job its author had declared
+unsafe to run concurrently as safe to. A client that sent both fields is unaffected; one that omitted
+them now gets the attribute honoured.
+
+The other half is on the way out: a job whose type the answering process cannot resolve reports both
+flags as `null` instead of failing the whole read. `GET …/jobs/{group}/{name}` used to answer `500` for
+such a job — permanently, for every caller — because the projection read an effective value and the
+lazy getter threw. That is the ordinary heterogeneous-cluster case as much as it is a bad type name.
+
+Reading them off an `IJobDetail` in code is unchanged: `IJobDetail.ConcurrentExecutionDisallowed` is
+still `bool`, and now answers `false` for a type that cannot be resolved rather than throwing
+`InvalidOperationException`.
+
+### A job type name is never resolved by the contract types
+
+`JobDetailDto.AsIJobDetail()` and `JobDetailDto.Create()` no longer resolve a job type name, in either
+direction, and `JobBuilder.Build()` no longer deduces the two attribute flags — `JobDetailImpl` does it
+lazily, when something asks and the type is at hand.
+
+Two things follow. `Quartz.HttpClient` can schedule and add jobs whose type only the server has, which
+`packages/http-client.md` always promised and beta.1 could not do (`InvalidOperationException: Job type
+… cannot be resolved`); and a hostile or compromised server can no longer choose an assembly simple name
+that a client's runtime goes looking for. If you were relying on `Build()` to snapshot the attributes at
+build time — for instance by building a detail, unloading the assembly and reading the flags — read them
+before the assembly goes.
 
 ## One shape per registration method
 

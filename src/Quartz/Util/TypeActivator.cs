@@ -40,8 +40,19 @@ internal static class TypeActivator
     /// <summary>
     /// Instantiates an instance of the type specified.
     /// </summary>
+    /// <remarks>
+    /// The type is checked against <typeparamref name="T" /> <em>before</em> it is constructed, not by the
+    /// cast afterwards: a caller-named type that turns out not to be a <typeparamref name="T" /> would
+    /// otherwise have had its static constructor, its module initializer and its instance constructor run
+    /// before anything found out.
+    /// </remarks>
     public static T Instantiate<T>([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? type)
     {
+        if (type is not null && !typeof(T).IsAssignableFrom(type))
+        {
+            Throw.ArgumentException($"Type '{type.FullName}' is not assignable to '{typeof(T).FullName}'", nameof(type));
+        }
+
         ConstructorInfo ci = GetDefaultConstructor(type);
         return (T) ci.Invoke([]);
     }

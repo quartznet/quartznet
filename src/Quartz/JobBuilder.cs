@@ -148,42 +148,30 @@ public sealed class JobBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Requir
             Throw.InvalidOperationException("Job type has not been set");
         }
 
-        var concurrentExecutionDisallowed = _concurrentExecutionDisallowed;
-        var persistJobDataAfterExecution = _persistJobDataAfterExecution;
-
-        // When the user specified a job type, we can deduce the values for
-        // ConcurrentExecutionDisallowed and PersistJobDataAfterExecution if
-        // no explicit values were specified. The JobType resolves itself, so a type it was given directly
-        // is the one we get back rather than whatever its name happens to bind to.
-        if (_jobType.TryResolve(out var resolvedJobType))
+        // A typed builder that was pointed at some other job through OfType would hand its job data to a
+        // job that has no such properties. Nothing else can make these disagree, and a builder for IJob
+        // names no properties, so it has nothing to protect — which is also the only case where the type
+        // is a bare name, so this check never turns a name into an assembly probe.
+        if (typeof(TJob) != typeof(IJob) && _jobType.TryResolve(out var resolvedJobType)
+            && !typeof(TJob).IsAssignableFrom(resolvedJobType))
         {
-            // A typed builder that was pointed at some other job through OfType would hand its job data to
-            // a job that has no such properties. Nothing else can make these disagree, and a builder for
-            // IJob names no properties, so it has nothing to protect.
-            if (typeof(TJob) != typeof(IJob) && !typeof(TJob).IsAssignableFrom(resolvedJobType))
-            {
-                Throw.InvalidOperationException($"This builder configures a {typeof(TJob)}, but the job being built is a {resolvedJobType}.");
-            }
-
-            if (!_concurrentExecutionDisallowed.HasValue)
-            {
-                concurrentExecutionDisallowed = JobTypeInformation.GetOrCreate(resolvedJobType).ConcurrentExecutionDisallowed;
-            }
-
-            if (!persistJobDataAfterExecution.HasValue)
-            {
-                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(resolvedJobType).PersistJobDataAfterExecution;
-            }
+            Throw.InvalidOperationException($"This builder configures a {typeof(TJob)}, but the job being built is a {resolvedJobType}.");
         }
 
+        // The two attribute-derived flags are left as they were stated - which may be "not stated at all".
+        // JobDetailImpl deduces an unstated one from the type when something asks for it and the type is
+        // at hand, so building a job out of a name that arrived over the wire neither loads nor probes for
+        // an assembly on the way. That deferral is what lets a client schedule a job whose type only the
+        // server has, and it is what keeps a hostile server from choosing an assembly name a client's
+        // runtime goes looking for.
         return new JobDetailImpl(Key ?? new JobKey(Guid.NewGuid().ToString()),
             _jobType,
             _description,
             _durability,
             _shouldRecover,
             jobDataMap.IsEmpty ? null : jobDataMap,
-            concurrentExecutionDisallowed,
-            persistJobDataAfterExecution);
+            _concurrentExecutionDisallowed,
+            _persistJobDataAfterExecution);
     }
 
 

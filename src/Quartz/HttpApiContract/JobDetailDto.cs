@@ -21,11 +21,20 @@
 
 using System.Diagnostics.CodeAnalysis;
 
+using Quartz.Impl;
+
 // ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - Can be null when received from Web API
 // ReSharper disable NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
 
 namespace Quartz.HttpApiContract;
 
+/// <remarks>
+/// <c>ConcurrentExecutionDisallowed</c> and <c>PersistJobDataAfterExecution</c> are nullable: present
+/// means the caller stated the flag, absent means "whatever the type says". A wire format that cannot
+/// say "not stated" cannot help overriding <see cref="DisallowConcurrentExecutionAttribute" /> with the
+/// default of <see langword="bool" /> — a well-formed request that omitted the field used to store a job
+/// its author declared unsafe to run concurrently as safe to.
+/// </remarks>
 internal record JobDetailDto(
     string Name,
     string Group,
@@ -33,8 +42,8 @@ internal record JobDetailDto(
     string? Description,
     bool Durable,
     bool RequestsRecovery,
-    bool ConcurrentExecutionDisallowed,
-    bool PersistJobDataAfterExecution,
+    bool? ConcurrentExecutionDisallowed,
+    bool? PersistJobDataAfterExecution,
     JobDataMap JobDataMap
 ) : IValidatable
 {
@@ -77,18 +86,28 @@ internal record JobDetailDto(
         // The name is carried as a name. The cast stores it unresolved, so building the detail neither
         // loads nor probes for an assembly - the side the job actually runs on resolves it through the
         // type load path, when it needs the type. Explicit because that deferral is the leap being made.
-        IJobDetail jobDetail = JobBuilder.Create()
+        JobBuilder<IJob> builder = JobBuilder.Create()
             .OfType((JobType) JobType)
             .WithIdentity(Name, Group)
             .WithDescription(Description)
             .StoreDurably(Durable)
             .RequestRecovery(RequestsRecovery)
-            .DisallowConcurrentExecution(ConcurrentExecutionDisallowed)
-            .PersistJobDataAfterExecution(PersistJobDataAfterExecution)
-            .UsingJobData(JobDataMap ?? new JobDataMap())
-            .Build();
+            .UsingJobData(JobDataMap ?? new JobDataMap());
 
-        return (jobDetail, null);
+        // Stated only when the request stated them. An omitted flag leaves the deduction to the side that
+        // resolves the type, which is what keeps [DisallowConcurrentExecution] on a job whose author
+        // declared it and whose caller said nothing about it.
+        if (ConcurrentExecutionDisallowed.HasValue)
+        {
+            builder = builder.DisallowConcurrentExecution(ConcurrentExecutionDisallowed.Value);
+        }
+
+        if (PersistJobDataAfterExecution.HasValue)
+        {
+            builder = builder.PersistJobDataAfterExecution(PersistJobDataAfterExecution.Value);
+        }
+
+        return (builder.Build(), null);
     }
 
     /// <summary>
@@ -131,6 +150,12 @@ internal record JobDetailDto(
         return true;
     }
 
+    /// <remarks>
+    /// The two attribute-derived flags are projected as what is <em>known</em> rather than as an effective
+    /// value: a job whose type this process cannot resolve reports them as absent, so reading it answers
+    /// with what there is instead of failing, and the reader that does hold the assembly still derives the
+    /// right answer. Reading a job is not a reason to load one.
+    /// </remarks>
     public static JobDetailDto Create(IJobDetail jobDetail)
     {
         ArgumentNullException.ThrowIfNull(jobDetail);
@@ -142,8 +167,8 @@ internal record JobDetailDto(
             Description: jobDetail.Description,
             Durable: jobDetail.Durable,
             RequestsRecovery: jobDetail.RequestsRecovery,
-            ConcurrentExecutionDisallowed: jobDetail.ConcurrentExecutionDisallowed,
-            PersistJobDataAfterExecution: jobDetail.PersistJobDataAfterExecution,
+            ConcurrentExecutionDisallowed: JobDetailFlags.ConcurrentExecutionDisallowed(jobDetail),
+            PersistJobDataAfterExecution: JobDetailFlags.PersistJobDataAfterExecution(jobDetail),
             JobDataMap: jobDetail.JobDataMap
         );
     }

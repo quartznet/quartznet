@@ -20,6 +20,7 @@
 using Microsoft.Extensions.Options;
 
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Util;
 
 namespace Quartz.Dashboard.Services;
@@ -229,8 +230,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             Description: jobDetail.Description,
             Durable: jobDetail.Durable,
             RequestsRecovery: jobDetail.RequestsRecovery,
-            ConcurrentExecutionDisallowed: jobDetail.ConcurrentExecutionDisallowed,
-            PersistJobDataAfterExecution: jobDetail.PersistJobDataAfterExecution,
+            ConcurrentExecutionDisallowed: JobDetailFlags.ConcurrentExecutionDisallowed(jobDetail),
+            PersistJobDataAfterExecution: JobDetailFlags.PersistJobDataAfterExecution(jobDetail),
             JobDataMap: jobDetail.JobDataMap);
     }
 
@@ -601,17 +602,27 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         // The type name is stored unresolved on purpose: resolving a name that arrived with the request
         // would have this process probe its assemblies for whatever the caller named. The scheduler
         // resolves it through the type load path when the job runs.
-        IJobDetail jobDetail = JobBuilder.Create()
+        JobBuilder<IJob> builder = JobBuilder.Create()
             .OfType((JobType) source.JobType)
             .WithIdentity(source.Name, source.Group)
             .WithDescription(source.Description)
             .StoreDurably(source.Durable)
             .RequestRecovery(source.RequestsRecovery)
-            .DisallowConcurrentExecution(source.ConcurrentExecutionDisallowed)
-            .PersistJobDataAfterExecution(source.PersistJobDataAfterExecution)
-            .UsingJobData(jobDataMap)
-            .Build();
-        return jobDetail;
+            .UsingJobData(jobDataMap);
+
+        // Stated only when the request stated them, so that an omitted flag leaves
+        // [DisallowConcurrentExecution] on the job whose author declared it.
+        if (source.ConcurrentExecutionDisallowed.HasValue)
+        {
+            builder = builder.DisallowConcurrentExecution(source.ConcurrentExecutionDisallowed.Value);
+        }
+
+        if (source.PersistJobDataAfterExecution.HasValue)
+        {
+            builder = builder.PersistJobDataAfterExecution(source.PersistJobDataAfterExecution.Value);
+        }
+
+        return builder.Build();
     }
 
     private static async ValueTask ScheduleTriggerOnly(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
