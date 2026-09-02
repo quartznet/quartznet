@@ -202,6 +202,51 @@ public class SchedulerAuthorizationTest
     }
 
     /// <summary>
+    /// Switching the picker to a scheduler the visitor may not see changes nothing: the value on a
+    /// browser <c>change</c> event is not one the server rendered until it has been found in the
+    /// filtered listing.
+    /// </summary>
+    /// <remarks>
+    /// This is the path the frame cannot guard. Every page keeps a live subscription to
+    /// <c>OnSchedulerChanged</c> and re-reads on it, and the frame's own answer is recomputed by a
+    /// handler that cannot be awaited from an event — so before rc.1 the page's read for the foreign
+    /// scheduler went out first, and with a policy that yields its result was rendered.
+    /// </remarks>
+    [TestCase(false, TestName = "SwitchingThePickerToAForeignSchedulerReadsNothingOfIt(synchronous policy)")]
+    [TestCase(true, TestName = "SwitchingThePickerToAForeignSchedulerReadsNothingOfIt(policy that yields)")]
+    public async Task SwitchingThePickerToAForeignSchedulerReadsNothingOfIt(bool policyYields)
+    {
+        GivenSchedulers("acme", "globex");
+        context.WithSchedulerPolicy("acme");
+        context.AuthorizationService.Yields = policyYields;
+        context.SchedulerState.ActiveSchedulerName = "acme";
+
+        // What the foreign tenant's job listing would say, so that a read of it is visible in the markup
+        // as well as in the call log.
+        A.CallTo(() => context.Api.QueryJobs("globex", A<DashboardJobQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobKeyDto>([new JobKeyDto("secretgroup", "secretjob")], HasMore: false, TotalCount: 1));
+
+        IRenderedComponent<DashboardLayout> layout = RenderLayoutAround<Jobs>();
+        layout.WaitForAssertion(() => layout.FindAll("h1").Should().Contain(heading => heading.TextContent.Trim() == "Jobs",
+            "the visitor's own page has to be up before the switch, since a page that was never rendered has no subscription"));
+
+        layout.Find(".qz-scheduler-selector select").Change("globex");
+
+        // A policy that yields answers on a continuation, and the reads a switch sets off are async too;
+        // asserting straight after the dispatch would pass on work that has merely not happened yet.
+        await Task.Delay(TimeSpan.FromMilliseconds(200));
+
+        context.SchedulerState.ActiveSchedulerName.Should().Be("acme",
+            "a name the filtered listing does not carry is not a name the server offered, so the picker's value is discarded");
+        A.CallTo(() => context.Api.QueryJobs("globex", A<DashboardJobQuery>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => context.Api.GetScheduler("globex", A<CancellationToken>._))
+            .MustNotHaveHappened();
+        layout.Markup.Should().NotContain("secretgroup",
+            "nothing about the other tenant may reach the browser, not even for the render batch before the frame catches up");
+    }
+
+    /// <summary>
     /// Renders <typeparamref name="TPage" /> the way the dashboard does: inside the frame that decides
     /// whether it is rendered at all.
     /// </summary>

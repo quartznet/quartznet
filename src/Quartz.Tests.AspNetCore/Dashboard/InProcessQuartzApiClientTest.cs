@@ -8,6 +8,7 @@ using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Tests.AspNetCore.Dashboard.Support;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
@@ -903,6 +904,80 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// The per-scheduler policy is evaluated on every call, not only where a page frame happened to ask:
+    /// this client is the one place every read and every write goes through, which is where
+    /// <see cref="QuartzDashboardOptions.ReadOnly" /> is enforced and where the policy belongs too.
+    /// </summary>
+    /// <remarks>
+    /// The refusal comes before the repository is asked anything, so it cannot be told from a scheduler
+    /// that does not exist.
+    /// </remarks>
+    [Test]
+    public async Task EveryCallIsRefusedForASchedulerTheVisitorMayNotSee()
+    {
+        IScheduler scheduler = await CreateScheduler("SchedulerAuthorizationTest");
+        try
+        {
+            string name = scheduler.SchedulerName;
+            QuartzDashboardOptions options = new() { SchedulerAuthorizationPolicy = "SchedulerOwner" };
+            TestSchedulerAuthorizationService authorizationService = new();
+            InProcessQuartzApiClient client = CreateClient(scheduler, TestData.Dashboard.HistoryStore(), options, authorizationService);
+
+            Func<Task> read = async () => await client.QueryJobs(name, new DashboardJobQuery { Take = 25 });
+            await read.Should().ThrowAsync<UnauthorizedAccessException>(
+                "a read of a scheduler the visitor fails the policy for is refused at the chokepoint, "
+                + "whatever put that name in front of the client");
+
+            Func<Task> metadata = async () => await client.GetScheduler(name);
+            await metadata.Should().ThrowAsync<UnauthorizedAccessException>();
+
+            Func<Task> write = async () => await client.PauseJob(name, new JobKeyDto("group1", "job1"));
+            await write.Should().ThrowAsync<UnauthorizedAccessException>();
+
+            Func<Task> history = async () => await client.CountMisfires(name, DateTimeOffset.UnixEpoch);
+            await history.Should().ThrowAsync<UnauthorizedAccessException>(
+                "the history store's rows belong to a scheduler too, and it has no repository entry to be "
+                + "refused by");
+
+            (await client.GetSchedulers()).Should().BeEmpty(
+                "the listing is filtered here as well, so the count of tenants in a process is not "
+                + "something this client hands out");
+
+            authorizationService.Allowed.Add(name);
+            (await client.QueryJobs(name, new DashboardJobQuery { Take = 25 })).Items.Should().BeEmpty(
+                "the same call for a scheduler the visitor does pass for goes through");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// With no policy configured nothing is asked and nothing is refused, which is what keeps every
+    /// dashboard that never set the option exactly as it was.
+    /// </summary>
+    [Test]
+    public async Task WithNoPolicyConfiguredNothingIsAsked()
+    {
+        IScheduler scheduler = await CreateScheduler("NoSchedulerPolicyTest");
+        try
+        {
+            TestSchedulerAuthorizationService authorizationService = new();
+            InProcessQuartzApiClient client = CreateClient(
+                scheduler, TestData.Dashboard.HistoryStore(), new QuartzDashboardOptions(), authorizationService);
+
+            (await client.QueryJobs(scheduler.SchedulerName, new DashboardJobQuery { Take = 25 })).Items.Should().BeEmpty();
+            authorizationService.Asked.Should().BeEmpty(
+                "an unset policy is not a policy that always succeeds - there is nothing to evaluate");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     private static async Task<IScheduler> CreateScheduler(string testName)
     {
         NameValueCollection properties = new()
@@ -924,13 +999,25 @@ public class InProcessQuartzApiClientTest
         IDashboardHistoryStore historyStore,
         params string[] registeredButNotCreated)
     {
+        return CreateClient(scheduler, historyStore, new QuartzDashboardOptions(), new TestSchedulerAuthorizationService(), registeredButNotCreated);
+    }
+
+    private static InProcessQuartzApiClient CreateClient(
+        IScheduler scheduler,
+        IDashboardHistoryStore historyStore,
+        QuartzDashboardOptions dashboardOptions,
+        TestSchedulerAuthorizationService authorizationService,
+        params string[] registeredButNotCreated)
+    {
         SchedulerRepository repository = new();
         repository.Bind(scheduler);
+        IOptions<QuartzDashboardOptions> options = Options.Create(dashboardOptions);
         return new InProcessQuartzApiClient(
             repository,
             new StubSchedulerRegistry(repository, registeredButNotCreated),
-            Options.Create(new QuartzDashboardOptions()),
-            historyStore);
+            options,
+            historyStore,
+            new SchedulerAuthorization(options, authorizationService, new TestAuthenticationStateProvider()));
     }
 
     /// <summary>

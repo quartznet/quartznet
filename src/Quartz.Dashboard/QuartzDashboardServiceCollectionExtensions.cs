@@ -98,13 +98,14 @@ public static class QuartzDashboardServiceCollectionExtensions
         // The dashboard reads the schedulers in its own process: every page goes through the in-process
         // client, which hands the pages triggers, calendars and job data maps as themselves. TryAdd, so an
         // application that registers its own IQuartzApiClient first is the one that answers.
+        services.TryAddScoped<SchedulerState>();
+        services.TryAddScoped<SchedulerAuthorization>();
         services.TryAddScoped<IQuartzApiClient>(static provider => new InProcessQuartzApiClient(
             provider.GetRequiredService<ISchedulerRepository>(),
             provider.GetRequiredService<ISchedulerRegistry>(),
             provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
-            provider.GetRequiredService<IDashboardHistoryStore>()));
-        services.TryAddScoped<SchedulerState>();
-        services.TryAddScoped<SchedulerAuthorization>();
+            provider.GetRequiredService<IDashboardHistoryStore>(),
+            provider.GetRequiredService<SchedulerAuthorization>()));
         services.TryAddScoped<ToastService>();
         services.TryAddSingleton<IDashboardLiveConnectionFactory, SignalRDashboardLiveConnectionFactory>();
         // The store measures its retention window on the scheduler's clock, and falls back to the system
