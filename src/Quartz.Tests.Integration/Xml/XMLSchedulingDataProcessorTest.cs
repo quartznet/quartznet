@@ -427,9 +427,16 @@ public class XMLSchedulingDataProcessorTest
         }
     }
 
+    /// <summary>
+    /// The data source is the fixture's own, derived from its provider. It used to be the literal
+    /// "default", which nothing in this fixture registers: the two tests that call this passed only when
+    /// <c>AdoJobStoreSmokeTest</c> had run first in the same process and left a process-global "default"
+    /// pointing at SQL Server, so a filtered run failed before any assertion and a Postgres run updated
+    /// the wrong database (#3573).
+    /// </summary>
     private void ModifyStoredJobType()
     {
-        using (var conn = DBConnectionManager.Instance.GetConnection("default"))
+        using (var conn = DBConnectionManager.Instance.GetConnection(DatabaseHelper.GetDataSourceName(provider)))
         {
             conn.Open();
             using (IDbCommand dbCommand = conn.CreateCommand())
