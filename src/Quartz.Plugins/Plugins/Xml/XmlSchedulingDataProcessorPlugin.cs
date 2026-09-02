@@ -125,6 +125,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
 
     internal IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
+    /// <inheritdoc />
     public ValueTask FileUpdated(
         string fileName,
         CancellationToken cancellationToken = default)

@@ -56,11 +56,21 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
     private readonly ILogger<StructuredLoggingTriggerHistoryPlugin> logger;
     private readonly TimeProvider timeProvider;
 
+    /// <summary>
+    /// Creates the plugin with the static logger and the system clock, for a plugin the loader built
+    /// from a <c>quartz.plugin.&lt;name&gt;.type</c> key and so had nothing to inject into.
+    /// </summary>
     public StructuredLoggingTriggerHistoryPlugin()
         : this(LogProvider.CreateLogger<StructuredLoggingTriggerHistoryPlugin>(), TimeProvider.System)
     {
     }
 
+    /// <summary>
+    /// Creates the plugin with the logger and clock a container resolved, which is what
+    /// <c>UseStructuredTriggerLogging</c> uses.
+    /// </summary>
+    /// <param name="logger">Where the history events go.</param>
+    /// <param name="timeProvider">The clock the events are stamped with.</param>
     public StructuredLoggingTriggerHistoryPlugin(
         ILogger<StructuredLoggingTriggerHistoryPlugin> logger,
         TimeProvider timeProvider)

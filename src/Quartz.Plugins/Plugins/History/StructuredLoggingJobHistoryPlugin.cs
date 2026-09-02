@@ -59,11 +59,21 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
     private readonly ILogger<StructuredLoggingJobHistoryPlugin> logger;
     private readonly TimeProvider timeProvider;
 
+    /// <summary>
+    /// Creates the plugin with the static logger and the system clock, for a plugin the loader built
+    /// from a <c>quartz.plugin.&lt;name&gt;.type</c> key and so had nothing to inject into.
+    /// </summary>
     public StructuredLoggingJobHistoryPlugin()
         : this(LogProvider.CreateLogger<StructuredLoggingJobHistoryPlugin>(), TimeProvider.System)
     {
     }
 
+    /// <summary>
+    /// Creates the plugin with the logger and clock a container resolved, which is what
+    /// <c>UseStructuredJobLogging</c> uses.
+    /// </summary>
+    /// <param name="logger">Where the history events go.</param>
+    /// <param name="timeProvider">The clock the events are stamped with.</param>
     public StructuredLoggingJobHistoryPlugin(
         ILogger<StructuredLoggingJobHistoryPlugin> logger,
         TimeProvider timeProvider)

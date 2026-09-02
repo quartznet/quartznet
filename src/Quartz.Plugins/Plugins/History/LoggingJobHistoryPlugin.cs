@@ -256,10 +256,20 @@ public sealed class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     private readonly ILogger<LoggingJobHistoryPlugin> logger;
     private readonly TimeProvider timeProvider;
 
+    /// <summary>
+    /// Creates the plugin with the static logger and the system clock, for a plugin the loader built
+    /// from a <c>quartz.plugin.&lt;name&gt;.type</c> key and so had nothing to inject into.
+    /// </summary>
     public LoggingJobHistoryPlugin() : this(LogProvider.CreateLogger<LoggingJobHistoryPlugin>(), TimeProvider.System)
     {
     }
 
+    /// <summary>
+    /// Creates the plugin with the logger and clock a container resolved, which is what
+    /// <c>UseJobHistoryLogging</c> uses.
+    /// </summary>
+    /// <param name="logger">Where the history lines go.</param>
+    /// <param name="timeProvider">The clock the lines are stamped with.</param>
     public LoggingJobHistoryPlugin(
         ILogger<LoggingJobHistoryPlugin> logger,
         TimeProvider timeProvider)
