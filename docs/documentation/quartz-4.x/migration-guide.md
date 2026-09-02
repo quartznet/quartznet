@@ -257,8 +257,23 @@ the middle of a major version. The names are on `AdoConstants` as `ColumnRetryPo
 It mirrors `QRTZ_PAUSED_TRIGGER_GRPS`, and it is what makes
 [`JobGroup.Paused` truthful on the ADO store](#job-store-listings-became-queries). A group can be
 paused while it holds no jobs, so there is no row on `QRTZ_JOB_DETAILS` to hang a flag on — the
-trigger side made the same call for the same reason. 4.x validates the whole schema at startup, so
-**this migration is mandatory even for a 3.x database that took every optional migration going**.
+trigger side made the same call for the same reason. At startup 4.x validates that every table it will
+read exists, and `QRTZ_PAUSED_JOB_GRPS` is one of them, so **this migration is mandatory even for a 3.x
+database that took every optional migration going**.
+
+That check is a `SELECT 1` per table and nothing more: it does not look at columns. A database with all
+twelve tables but a column missing — a half-applied script, a hand-built table, a table whose prefix was
+mistyped — starts cleanly and fails later, on the first statement that names the column, with whatever
+your provider says. Run the script in full rather than section by section, and if a startup succeeded
+but a firing failed with a raw provider error, that is the first thing to check.
+
+A **paused job group does not survive the upgrade**, and cannot: 3.x's ADO store records nothing when
+it pauses one — its `IsJobGroupPaused` returns a hard-coded `false` and `PauseJobs` only pauses the
+individual triggers — so there is nothing for the migration to put in `QRTZ_PAUSED_JOB_GRPS`. The
+triggers that were paused stay paused, so no job starts running that was not running before; what is
+lost is the *group's* pause, so a trigger added to that job group after the upgrade is born running.
+Paused **trigger** groups are unaffected: they were already a `QRTZ_PAUSED_TRIGGER_GRPS` row on 3.x and
+migrate with the rest of the schema. If you rely on a paused job group, pause it again after upgrading.
 
 ::: warning
 Always run migration scripts in a test environment against a copy of your production database first.
@@ -7569,6 +7584,17 @@ The three `Get` methods are gone — they spent a while as `[Obsolete]` forwarde
 `TriggerBase` and have now been removed — so fix the call by deleting `Get` and `()`. The `Set` methods
 likewise have no stand-in, because a method and a property setter cannot share a name.
 
+The whole set, spelled out so that searching this page for the name you typed finds it. Every one of them
+is on `ITrigger`, `IOperableTrigger` or `TriggerBase`, and on all five `*TriggerImpl` types by inheritance:
+
+| 3.x | 4.x |
+|---|---|
+| `GetNextFireTimeUtc()` | `NextFireTimeUtc` |
+| `SetNextFireTimeUtc(value)` | `NextFireTimeUtc = value` |
+| `GetPreviousFireTimeUtc()` | `PreviousFireTimeUtc` |
+| `SetPreviousFireTimeUtc(value)` | `PreviousFireTimeUtc = value` |
+| `GetMayFireAgain()` | `MayFireAgain` |
+
 A **custom trigger deriving from `TriggerBase`** overrides the `MayFireAgain` property now, because that
 is the abstract member:
 
@@ -8561,7 +8587,8 @@ called out.
 | `DbMetadata.Init()` | Gone entirely: `DbMetadata` is an init-only record now, and the reflection its description implies happens internally instead of in a second phase you had to remember. `UseGenericDatabase`'s describing overloads take a `Func<DbMetadata>` returning `new DbMetadata { … }`; the dead `ParameterIsNullableProperty` went too |
 | `DbMetadata.DbBinaryType` and `.ParameterDbTypeProperty` are internal | Everything else on the record is something you *say* about a driver; these two were the lookups Quartz then performed — an `Enum.Parse` of `DbBinaryTypeName` against `ParameterDbType`, and a `GetProperty(ParameterDbTypePropertyName)` on `ParameterType`. Describe the driver with the four naming properties, which are unchanged and public; the resolved results are Quartz's business |
 | `AdoConstants.ColumnMifireInstruction` | `ColumnMisfireInstruction` (a typo; the column name is unchanged) |
-| `SchedulerConstants.FailedJobOriginalTriggerFiretime`, `…ScheduledFiretime` | `…TriggerFireTime`, `…ScheduledFireTime` (the string values are unchanged) |
+| `SchedulerConstants.FailedJobOriginalTriggerFiretime` | `SchedulerConstants.FailedJobOriginalTriggerFireTime` (the string value is unchanged) |
+| `SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime` | `SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime` (the string value is unchanged) |
 | `SchedulingOptions.OverWriteExistingData` | `OverwriteExistingData`. The configuration key is spelled `Quartz:Scheduling:OverwriteExistingData` now; keys are matched case-insensitively, so an existing file keeps binding, but code assigning the property has to change |
 | `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `RedisLockHandler.LockTimeToLive`, `.LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
 | `IObjectSerializer.DeSerialize` | `Deserialize`. `IObjectSerializer.Initialize()` went at the same time: a serializer builds whatever it needs on first use, and nothing was left for a separate initialization call to do |
@@ -9569,6 +9596,15 @@ positional and special forms (`OnWeekdays`, `OnLastDayOfMonth`, `OnLastDayOfWeek
 `OnNthDayOfWeekOfMonth`, `OnNearestWeekdayOfMonth`). A trigger takes the builder — or a built
 `CronExpression` — directly through `WithCronSchedule`, so the chain closes without naming
 `CronScheduleBuilder`.
+
+The three day-of-week members that 3.x spelled with `On*` were renamed by that rule. Only the name changed;
+each takes the same arguments and means the same thing:
+
+| 3.x | 4.x |
+|---|---|
+| `CronExpressionBuilder.OnDaysOfWeek(params DayOfWeek[])` | `CronExpressionBuilder.WithDaysOfWeek(params DayOfWeek[])` |
+| `CronExpressionBuilder.OnDayOfWeekRange(DayOfWeek, DayOfWeek)` | `CronExpressionBuilder.WithDayOfWeekRange(DayOfWeek, DayOfWeek)` |
+| `CronExpressionBuilder.OnDayOfWeekIncrements(DayOfWeek, int)` | `CronExpressionBuilder.WithDayOfWeekIncrements(DayOfWeek, int)` |
 
 The four that took a time of day take it as one `TimeOnly` now, through `AtTime` — which sets the second,
 minute and hour fields together, so the "at 09:30" half of each old factory is one call and the "on these

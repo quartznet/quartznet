@@ -136,6 +136,91 @@ for a ready-made hybrid serializer. Either let the system migrate gradually as i
 or write a small program that loads and writes back every serialized asset in the
 database.
 
+#### Which blobs rewrite themselves, and which never do
+
+"Let the system migrate gradually as it runs" is only half a plan, because two of the four blob columns
+are never written by running. What the store actually writes, on 3.x and 4.x alike:
+
+| Column | Rewritten by running? |
+|---|---|
+| `QRTZ_BLOB_TRIGGERS.BLOB_DATA` | **Yes.** The whole trigger is re-serialized on every write to the trigger, firings included. |
+| `QRTZ_TRIGGERS.JOB_DATA` | **Only if the map changed.** The trigger `UPDATE` leaves the column out entirely when `JobDataMap.Dirty` is false, so a trigger whose data nobody touches fires forever without rewriting it. |
+| `QRTZ_JOB_DETAILS.JOB_DATA` | **Only if the job is stored again**, or after a firing when the job carries `[PersistJobDataAfterExecution]` *and* the map was modified. Both conditions, not either. |
+| `QRTZ_CALENDARS.CALENDAR` | **Never.** Only `AddCalendar` writes it, so a calendar added once at deployment is never rewritten however long the scheduler runs. |
+
+So the calendars are the ones a gradual migration silently leaves behind, and the job data maps are the
+ones it leaves behind for every job that does not write to its own map. Anything belonging to a
+**paused** trigger, or to one whose next fire time is months out, is not touched until it resumes or
+fires either. A program that loads and writes back every asset is the only approach that finishes; the
+`SchedulerConstants.ForceJobDataMapDirty` key is the lever that makes a loaded map look modified, so a
+re-store writes it.
+
+`BLOB_TRIGGERS.BLOB_DATA` migrates itself as the scheduler runs and still has to be done on 3.x — see
+[below](#blob-triggers-cannot-be-migrated-from-4-x) — because on 4.x it cannot be read at all.
+
+#### Finding what is left
+
+A `BinaryFormatter` payload begins `0x00 0x01 0x00 0x00 0x00`; a JSON one begins `{`, which is `0x7B`.
+One byte is enough to tell them apart, so each dialect can count what is still binary:
+
+**SQL Server**
+
+```sql
+SELECT 'QRTZ_JOB_DETAILS' AS SOURCE, COUNT(*) AS STILL_BINARY FROM QRTZ_JOB_DETAILS   WHERE SUBSTRING(JOB_DATA,  1, 1) = 0x00
+UNION ALL SELECT 'QRTZ_TRIGGERS',      COUNT(*) FROM QRTZ_TRIGGERS      WHERE SUBSTRING(JOB_DATA,  1, 1) = 0x00
+UNION ALL SELECT 'QRTZ_CALENDARS',     COUNT(*) FROM QRTZ_CALENDARS     WHERE SUBSTRING(CALENDAR,  1, 1) = 0x00
+UNION ALL SELECT 'QRTZ_BLOB_TRIGGERS', COUNT(*) FROM QRTZ_BLOB_TRIGGERS WHERE SUBSTRING(BLOB_DATA, 1, 1) = 0x00;
+```
+
+**PostgreSQL**
+
+```sql
+SELECT 'QRTZ_JOB_DETAILS' AS SOURCE, COUNT(*) AS STILL_BINARY FROM QRTZ_JOB_DETAILS   WHERE GET_BYTE(JOB_DATA,  0) = 0
+UNION ALL SELECT 'QRTZ_TRIGGERS',      COUNT(*) FROM QRTZ_TRIGGERS      WHERE GET_BYTE(JOB_DATA,  0) = 0
+UNION ALL SELECT 'QRTZ_CALENDARS',     COUNT(*) FROM QRTZ_CALENDARS     WHERE GET_BYTE(CALENDAR,  0) = 0
+UNION ALL SELECT 'QRTZ_BLOB_TRIGGERS', COUNT(*) FROM QRTZ_BLOB_TRIGGERS WHERE GET_BYTE(BLOB_DATA, 0) = 0;
+```
+
+**MySQL**
+
+```sql
+SELECT 'QRTZ_JOB_DETAILS' AS SOURCE, COUNT(*) AS STILL_BINARY FROM QRTZ_JOB_DETAILS   WHERE SUBSTRING(JOB_DATA,  1, 1) = 0x00
+UNION ALL SELECT 'QRTZ_TRIGGERS',      COUNT(*) FROM QRTZ_TRIGGERS      WHERE SUBSTRING(JOB_DATA,  1, 1) = 0x00
+UNION ALL SELECT 'QRTZ_CALENDARS',     COUNT(*) FROM QRTZ_CALENDARS     WHERE SUBSTRING(CALENDAR,  1, 1) = 0x00
+UNION ALL SELECT 'QRTZ_BLOB_TRIGGERS', COUNT(*) FROM QRTZ_BLOB_TRIGGERS WHERE SUBSTRING(BLOB_DATA, 1, 1) = 0x00;
+```
+
+**Oracle**
+
+```sql
+SELECT 'QRTZ_JOB_DETAILS' AS SOURCE, COUNT(*) AS STILL_BINARY FROM QRTZ_JOB_DETAILS   WHERE DBMS_LOB.SUBSTR(JOB_DATA,  1, 1) = HEXTORAW('00')
+UNION ALL SELECT 'QRTZ_TRIGGERS',      COUNT(*) FROM QRTZ_TRIGGERS      WHERE DBMS_LOB.SUBSTR(JOB_DATA,  1, 1) = HEXTORAW('00')
+UNION ALL SELECT 'QRTZ_CALENDARS',     COUNT(*) FROM QRTZ_CALENDARS     WHERE DBMS_LOB.SUBSTR(CALENDAR,  1, 1) = HEXTORAW('00')
+UNION ALL SELECT 'QRTZ_BLOB_TRIGGERS', COUNT(*) FROM QRTZ_BLOB_TRIGGERS WHERE DBMS_LOB.SUBSTR(BLOB_DATA, 1, 1) = HEXTORAW('00');
+```
+
+**SQLite**
+
+```sql
+SELECT 'QRTZ_JOB_DETAILS' AS SOURCE, COUNT(*) AS STILL_BINARY FROM QRTZ_JOB_DETAILS   WHERE HEX(SUBSTR(JOB_DATA,  1, 1)) = '00'
+UNION ALL SELECT 'QRTZ_TRIGGERS',      COUNT(*) FROM QRTZ_TRIGGERS      WHERE HEX(SUBSTR(JOB_DATA,  1, 1)) = '00'
+UNION ALL SELECT 'QRTZ_CALENDARS',     COUNT(*) FROM QRTZ_CALENDARS     WHERE HEX(SUBSTR(CALENDAR,  1, 1)) = '00'
+UNION ALL SELECT 'QRTZ_BLOB_TRIGGERS', COUNT(*) FROM QRTZ_BLOB_TRIGGERS WHERE HEX(SUBSTR(BLOB_DATA, 1, 1)) = '00';
+```
+
+**Firebird**
+
+```sql
+SELECT 'QRTZ_JOB_DETAILS' AS SOURCE, COUNT(*) AS STILL_BINARY FROM QRTZ_JOB_DETAILS   WHERE CAST(SUBSTRING(JOB_DATA  FROM 1 FOR 1) AS VARCHAR(1) CHARACTER SET OCTETS) = x'00'
+UNION ALL SELECT 'QRTZ_TRIGGERS',      COUNT(*) FROM QRTZ_TRIGGERS      WHERE CAST(SUBSTRING(JOB_DATA  FROM 1 FOR 1) AS VARCHAR(1) CHARACTER SET OCTETS) = x'00'
+UNION ALL SELECT 'QRTZ_CALENDARS',     COUNT(*) FROM QRTZ_CALENDARS     WHERE CAST(SUBSTRING(CALENDAR  FROM 1 FOR 1) AS VARCHAR(1) CHARACTER SET OCTETS) = x'00'
+UNION ALL SELECT 'QRTZ_BLOB_TRIGGERS', COUNT(*) FROM QRTZ_BLOB_TRIGGERS WHERE CAST(SUBSTRING(BLOB_DATA FROM 1 FOR 1) AS VARCHAR(1) CHARACTER SET OCTETS) = x'00';
+```
+
+Replace `QRTZ_` with your configured table prefix. A null column is neither binary nor JSON, so no clause
+counts it. Zero everywhere means the gradual migration finished; anything else names the table to go and
+rewrite by hand, and in practice `QRTZ_CALENDARS` is the one still holding rows.
+
 If you must read legacy binary data after upgrading to Quartz 4 on .NET 9 or later, you
 can re-enable `BinaryFormatter` with Microsoft's unsupported
 [compatibility package](https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-migration-guide/compatibility-package).
@@ -165,6 +250,8 @@ A blob whose job data holds a key, or a class of the application's own, needs th
 `AddJobDataValueType<T>()` on the registry the migrator's inner serializer is built from — otherwise the
 value reads out of the binary payload and is refused on the way back in, which is
 [the gate described above](#what-a-job-data-map-may-hold) doing its job at the one moment it is unwelcome.
+
+#### Blob triggers cannot be migrated from 4.x
 
 One column is the exception: `BLOB_TRIGGERS.BLOB_DATA` holds whole trigger objects, and
 `BinaryFormatter` records private base-class fields under the base class's *name* - which 4.0
