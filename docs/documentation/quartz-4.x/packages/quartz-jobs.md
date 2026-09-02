@@ -165,7 +165,7 @@ referenced, and it starts the executable its job data names with the arguments i
 unauthenticated Quartz endpoint in a process that references this package is remote code execution rather
 than an information leak.
 
-From `4.0.0-beta.1` neither surface will start when its mapping says nothing about authorization, which
+Neither surface will start when its mapping says nothing about authorization, which
 is what closes the common way into this. `DirectoryScanJob` and `FileScanJob` read the paths they scan
 from job data the same way, and `SendMailJob` reads an SMTP credential from job data unless one is
 registered — see [Keep the SMTP credential out of job data](#keep-the-smtp-credential-out-of-job-data).

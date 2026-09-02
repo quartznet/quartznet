@@ -709,7 +709,7 @@ That is about 162 firings a second per node on PostgreSQL and about 460,000 to 5
 medians of five alternating pairs taken under load rather than the single tight figures the PostgreSQL
 rows are, so read their ratio and not their absolute; the benchmark README carries the ranges.
 
-The `RAMJobStore` rows went the other way before beta.1 — 4.0 was 1.4x *slower* there, which
+The `RAMJobStore` rows once went the other way — 4.0 measured 1.4x *slower* there, which
 [#3674](https://github.com/quartznet/quartznet/issues/3674) was filed to explain. It was not the
 per-firing machinery a reader would guess: measured one at a time, the DI scope, the middleware
 pipeline, the execution-group ledger and the retry-policy check are each cheaper than the 3.x code
@@ -741,7 +741,7 @@ one aggregate per acquisition attempt.
 
 ### What has been run against a cluster
 
-Before the 4.0.0-beta.1 tag, two clustered nodes sharing one scheduler name were run for **30 minutes
+Two clustered nodes sharing one scheduler name were run for **30 minutes
 against PostgreSQL and 30 minutes against SQL Server**, carrying every trigger family including
 recurrence, a `[DisallowConcurrentExecution]` job behind an overlap detector, a retry policy over a
 job that always fails, a job that overruns the budget `AddJobTimeout` enforces, and induced failures

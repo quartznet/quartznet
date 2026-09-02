@@ -305,7 +305,7 @@ covers both halves, and it carries the RFC 7807 problem details in its message. 
 `QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` on the server puts the server's stack trace in
 there too — useful in development, and not something to ship.
 
-A `500` is the exception. From `4.0.0-beta.1` its problem-details `detail` is one fixed sentence —
+A `500` is the exception. Its problem-details `detail` is one fixed sentence —
 *"The scheduler failed to handle the request. The failure is recorded in the server's log."* — rather than
 the exception's message, so an `HttpClientException` raised by a server fault says only that and points
 at the server's log. `IncludeStackTraceInProblemDetails` puts the message back.
