@@ -3182,6 +3182,60 @@ public class AdoJobStoreBaseTest
             .MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// A firing that was in flight when its node died, of a job that did not ask to be recovered, is
+    /// cleaned up and not rescheduled.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="JobBuilder{TJob}.RequestRecovery()" /> is opt-in because re-running a job that may
+    /// have half-finished is the caller's decision, not the store's — a payment taken again is worse
+    /// than a report not produced. Every other recovery case here leaves <c>requestsRecovery</c> at its
+    /// default, so the negative was covered only by accident: nothing named an executing row of a job
+    /// that declined recovery and asserted no replacement trigger was written.
+    /// </remarks>
+    [Test]
+    public async Task ClusterRecover_ShouldNotScheduleRecoveryForAJobThatDidNotAskForIt()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        TriggerKey original = new("t-original", "tg");
+        JobKey jobKey = new("no-recovery-wanted", "jg");
+
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, original, jobKey, requestsRecovery: false));
+
+        A.CallTo(() => driverDelegate.JobExists(conn, jobKey, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        A.CallTo(() => driverDelegate.InsertTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IOperableTrigger>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<IJobDetail>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // No recovery trigger is built, so nothing reads the original trigger's data map either.
+        A.CallTo(() => driverDelegate.SelectTriggerJobDataMap(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerKey>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // The job is still there, so it is the flag deciding the outcome rather than the job having
+        // been deleted, which is the neighbouring case. And the dead node's row is still cleaned up:
+        // declining recovery means the firing is not re-run, not that its trace is left behind for the
+        // next pass to find again.
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == DeadInstanceId),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
     [Test]
     public async Task ClusterRecover_ShouldDeferRecoveryOfAnExecutingNonConcurrentJobWithinTheGracePeriod()
     {
