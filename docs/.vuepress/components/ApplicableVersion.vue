@@ -6,7 +6,17 @@
         Version compatibility
     </p>
     <p>
-        This documentation relates to Quartz version 3.0 and later.
+        This documentation relates to Quartz version {{ version }} and later.
     </p>
 </div>
 </template>
+
+<script setup>
+defineProps({
+    /** The first Quartz version the page applies to. */
+    version: {
+        type: String,
+        default: '3.0'
+    }
+})
+</script>

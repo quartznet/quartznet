@@ -4,11 +4,6 @@ title: Dashboard
 
 [Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) is a Blazor-based dashboard for Quartz.NET that runs inside your ASP.NET Core app and renders the schedulers registered in that same application.
 
-::: warning
-Quartz Dashboard is currently a work in progress.
-The dashboard API surface may change between releases.
-:::
-
 ## Features
 
 Ten pages, listed under [The pages](#the-pages). What they are built on, which is what decides where
@@ -359,13 +354,6 @@ It does this with `ConfigureAllQuartzSchedulers`, so nothing extra is written at
 schedulers those are is what [the Schedulers page](#schedulers) lists — every registration in the
 container, built or not.
 
-::: warning Fixed in 4.0.0-alpha.2
-The dashboard's plugins used to be registered without a service key, which meant only a scheduler
-registered by `AddQuartz()` — the unnamed, default one — ever ran them. A named scheduler appeared in the
-scheduler selector and its jobs and triggers rendered, but its Live Logs view and its History page were
-silently always empty. There was nothing to configure to get them; this is a fix rather than a new option.
-:::
-
 ## Hosting under a custom path
 
 When the dashboard hosts its own Blazor root, it can be served from a custom base path. Name it where the endpoints are mapped, the way the rest of ASP.NET Core reads (`MapHealthChecks("/health")`):
@@ -560,23 +548,6 @@ schedulers* each of those shows; it does not narrow what may be done to the ones
 Note what read-only is not: it hides the dashboard's controls and does nothing to the HTTP API, which is
 mapped and authorized separately. A dashboard in read-only mode over an API that anyone may post to is
 read-only in appearance alone.
-
-::: warning Fixed in 4.0.0-alpha.2
-The dashboard's controls did not work. Blazor's event handlers and two-way binding are directive
-attributes contributed by tag helpers in `Microsoft.AspNetCore.Components.Web`, and a tag helper only
-applies where its namespace is in scope; the package carried no `_Imports.razor`, so the Razor
-compiler emitted `@onclick`, `@bind`, `@oninput`, `@onchange` and `@onkeydown` as literal HTML
-attributes -- silently, with nothing in the build to say so.
-
-Nineteen components carry such an attribute and eighteen of them had every one dead: 69 handlers and
-6 `@onclick:stopPropagation` / `:preventDefault` modifiers. The one exception was the layout, which
-imported that namespace itself, so the theme and time zone pickers were the only working controls.
-The confirmation dialog was among the eighteen, so every action that asks first -- delete a job,
-unschedule a trigger, shut a scheduler down -- could not be completed even where the button that
-opens the dialog was live.
-
-There was nothing to configure to get these working; this is a fix rather than a new option.
-:::
 
 ### API key or custom authorization checks
 

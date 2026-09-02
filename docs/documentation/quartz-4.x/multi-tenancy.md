@@ -914,12 +914,10 @@ factory with nothing left to shut down, so the two compose and the disposal only
 :::
 
 ::: warning Unbinding is not offboarding
-`Remove` makes a tenant invisible; only the disposal stops it. That distinction used to be fatal — in
-4.0.0-alpha.1 disposing the factory disposed only its container, so this recipe took the tenant out of
-`GetAllSchedulers`, off the dashboard and out of the HTTP API while it went on firing its triggers for
-the rest of the process's life, with nothing left able to reach it
-([#3380](https://github.com/quartznet/quartznet/issues/3380)). Disposal shuts the scheduler down as of
-4.0.0-alpha.2, which is what makes the steps above safe in either order.
+`Remove` makes a tenant invisible; only the disposal stops it. A recipe that unbinds without disposing
+takes the tenant out of `GetAllSchedulers`, off the dashboard and out of the HTTP API while it goes on
+firing its triggers for the rest of the process's life, with nothing left able to reach it. Disposing
+the factory shuts its scheduler down, which is what makes the two steps above safe in either order.
 :::
 
 Weigh that against the group-per-tenant model, where onboarding is a `ScheduleJob` call and none of

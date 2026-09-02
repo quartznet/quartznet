@@ -230,13 +230,6 @@ routes answer `404` for both.
 registered, `Runtime` for one that is in the repository without a registration behind it — a scheduler
 bound by hand, or a remote one from `AddQuartzHttpClient`.
 
-::: warning Changed in 4.0.0-alpha.3
-This listing used to read `ISchedulerRepository`, so it carried only schedulers something had already
-created, and every entry had a status and an instance id. A reader that assumed both are present needs
-to handle `null`, and one that treated the listing as "the schedulers that are running" should now filter
-on `status`.
-:::
-
 ## Enums travel as names
 
 Every enum the API puts on the wire — a scheduler's `status`, a trigger's `state`, a trigger's
@@ -251,11 +244,6 @@ The names are the contract, so they are stable across versions; the numeric form
 input, which is what makes an older client's `?state=1` keep working. Filters given in the query string
 take a name too: `?state=Paused`.
 
-::: warning Changed in 4.x
-`status` and `state` were emitted as integers in the 4.0 previews (`"status": 1`). A client that read
-them as numbers needs to read names instead, or parse both.
-:::
-
 ## Durations travel as `TimeSpan`
 
 Every duration on the wire is a `TimeSpan` in its invariant form, both ways: a trigger body says
@@ -265,11 +253,6 @@ the same way.
 ```
 POST {ApiPath}/schedulers/{name}/start?delay=00:00:30
 ```
-
-::: warning Changed in 4.x
-That parameter was `?delayMilliseconds=30000` in the 4.0 previews. `TimeSpan` matches every other
-duration the API carries and does not round a sub-millisecond delay away.
-:::
 
 ## The scheduler context travels as text
 
@@ -297,13 +280,6 @@ Text is all a remote reader has — the endpoint hands out a snapshot of a live 
 client reading it back gets every entry as a string whatever it was in the scheduler's process. An
 entry whose type a caller has to act on belongs in an endpoint of its own rather than in the context.
 
-::: warning Changed in 4.x
-This endpoint answered `500` for every container-built scheduler in the 4.0 previews: the DI
-integration seeded the `IServiceProvider` into `scheduler.Context["Quartz.ServiceProvider"]`, and the
-endpoint refused any value that was not a string. Both are gone — nothing writes the container to the
-context, and no value is refused.
-:::
-
 ## Response-shape conventions
 
 **A `200` carries a body exactly when the operation has something to say that the caller could not
@@ -326,24 +302,9 @@ The flag is always one boolean, and it is **named for the fact it reports**: `ap
 existed and the operation changed it. There is no second spelling; an operation that cannot answer
 that question about a single entity is a key-set form, and answers with the keys instead.
 
-::: warning Changed in 4.x
-Five endpoints spelled the applied flag their own way in the 4.0 previews, and the two key-set forms
-answered with a flag they could not honestly name:
-
-| Endpoint | 4.0 preview | 4.0 |
-|---|---|---|
-| `DELETE …/jobs/{group}/{name}` | `{ "jobFound": … }` | `{ "applied": … }` |
-| `POST …/jobs/{group}/{name}/interrupt`, `POST …/jobs/interrupt/{fireInstanceId}` | `{ "interrupted": … }` | `{ "applied": … }` |
-| `POST …/triggers/{group}/{name}/unschedule` | `{ "triggerFound": … }` | `{ "applied": … }` |
-| `DELETE …/calendars/{name}` | `{ "calendarFound": … }` | `{ "applied": … }` |
-| `POST …/jobs/delete` | `{ "allJobsFound": … }` | `{ "jobs": [ … ] }` |
-| `POST …/triggers/unschedule` | `{ "allTriggersFound": … }` | `{ "triggers": [ … ] }` |
-
-The last two changed shape, not just spelling: a partial hit **still deletes the keys it found**, and
-a single boolean could only say that not all of them were found — which a caller could not tell from
-nothing having happened. `jobs.length === request.jobs.length` is the old answer, computed from the
-new one.
-:::
+A partial hit on a key-set form **still deletes or unschedules the keys it found**, which is why those
+two answer with the keys rather than with a flag: a boolean could only say that not all of them were
+found, and a caller could not tell that from nothing having happened.
 
 ### Errors are one shape per kind
 
@@ -383,12 +344,8 @@ readily as it names anything else. The `detail` is one fixed sentence, and the r
 Turning on `IncludeStackTraceInProblemDetails` — the switch that already says "I am debugging this" —
 puts the message back beside the stack trace.
 
-::: warning Changed in 4.x
-`Quartz-ExceptionType` rode only on the `SchedulerException` path in the 4.0 previews, so a `400`
-raised by request validation and a `400` raised by the scheduler were two different shapes and a
-client could not tell an absent member from one that is never sent.
-
-**Changed in `4.0.0-beta.1`:** a `500` used to return `exception.Message` verbatim.
+::: warning Changed in `4.0.0-beta.1`
+A `500` used to return `exception.Message` verbatim.
 :::
 
 There is one case where a `400` has **no** body at all, and it is not the API's doing: a query
@@ -449,10 +406,9 @@ not a wildcard.
 
 ### Fire instances
 
-`GET {ApiPath}/schedulers/{name}/jobs/fire-instances` replaces 4.0-preview's
-`GET …/jobs/currently-executing`, which returned a bare array of whole job-execution contexts and could
-only ever describe the node that answered. The listing is store-backed, so with a persistent job store it
-covers the whole cluster.
+`GET {ApiPath}/schedulers/{name}/jobs/fire-instances` lists firings rather than job-execution contexts,
+and it is store-backed, so with a persistent job store it covers the whole cluster rather than the node
+that answered.
 
 Its `state` filter is the one listing filter with a non-empty default: naming no `state` lists what is
 running (`Executing`), because that is the question the endpoint is usually asked. Ask for everything with
@@ -559,14 +515,6 @@ state). The group-matcher forms — `POST …/jobs/pause`, `…/jobs/resume`, `�
 Those four are the wire form of `PauseJobGroups`, `ResumeJobGroups`, `PauseTriggerGroups` and
 `ResumeTriggerGroups`: a group operation, answering with the groups it recorded, where the
 `…/keys/pause` and `…/keys/resume` routes beside them answer with the keys they moved.
-
-::: warning Changed in 4.x
-The pause, resume and reset-from-error-state endpoints previously returned `200 OK` with an empty
-body. Old clients that ignored the body keep working, but a 4.0-final `HttpScheduler` against a
-4.0-preview server throws on these calls because it expects the body — upgrade the server first. The
-delete, unschedule and interrupt endpoints always answered with a body; only the name of the field
-changed, [as tabulated above](#response-shape-conventions).
-:::
 
 ### A whole set of keys in one call
 
