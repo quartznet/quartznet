@@ -173,6 +173,10 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     {
         var jobType = bundle.JobDetail.JobType.ResolvedType;
 
+        // Before the container is asked anything: GetService constructs whatever is registered for the
+        // type it is handed, and a cast afterwards is a cast on an object that already exists.
+        JobType.EnsureIsJob(jobType);
+
         var job = schedulerKey is null ? null : (IJob?) serviceProvider.GetKeyedService(jobType, schedulerKey);
         job ??= (IJob?) serviceProvider.GetService(jobType);
 

@@ -1,0 +1,11 @@
+﻿{
+  "name": "UnresolvableJob",
+  "group": "DummyGroup",
+  "jobType": "Quartz.Tests.AspNetCore.NoSuchJob, No.Such.Assembly",
+  "description": null,
+  "durable": true,
+  "requestsRecovery": false,
+  "concurrentExecutionDisallowed": null,
+  "persistJobDataAfterExecution": null,
+  "jobDataMap": {}
+}

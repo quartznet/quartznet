@@ -582,9 +582,17 @@ public sealed record TriggerHeaderDto(
     string? ExecutionGroup);
 
 /// <remarks>
+/// <para>
 /// <see cref="JobDataMap" /> holds whatever the job was given, of whatever type — but that is exactly
 /// what <see cref="Quartz.JobDataMap" /> is for, and it is what the scheduler hands back, so there is
 /// no honesty to be had from a looser type here.
+/// </para>
+/// <para>
+/// <c>ConcurrentExecutionDisallowed</c> and <c>PersistJobDataAfterExecution</c> are nullable: present
+/// means the value was stated, absent means "whatever the type says". Reading a job whose type this
+/// process cannot resolve reports them as absent rather than as <see langword="false" />, and writing one
+/// without them leaves <see cref="DisallowConcurrentExecutionAttribute" /> to say what it says.
+/// </para>
 /// </remarks>
 public sealed record JobDetailDto(
     string Name,
@@ -593,8 +601,8 @@ public sealed record JobDetailDto(
     string? Description,
     bool Durable,
     bool RequestsRecovery,
-    bool ConcurrentExecutionDisallowed,
-    bool PersistJobDataAfterExecution,
+    bool? ConcurrentExecutionDisallowed,
+    bool? PersistJobDataAfterExecution,
     JobDataMap JobDataMap);
 
 /// <summary>

@@ -246,6 +246,38 @@ The names are the contract, so they are stable across versions; the numeric form
 input, which is what makes an older client's `?state=1` keep working. Filters given in the query string
 take a name too: `?state=Paused`.
 
+## A job type is a name, and its two attribute flags may be absent
+
+`jobType` is an assembly-qualified type name and the API treats it as text. The server does not resolve
+a name that arrived with a request, and it does not resolve one on the way out either: the type is
+loaded where it is needed — when the job fires, and when a store derives a job's attributes — and
+nowhere else.
+
+`concurrentExecutionDisallowed` and `persistJobDataAfterExecution` are therefore **nullable**:
+
+- **stated** (`true` / `false`) — your value, and it wins over the type's attributes;
+- **omitted or `null`** — whatever `[DisallowConcurrentExecution]` and `[PersistJobDataAfterExecution]`
+  on the type say, decided by the side that resolves the type.
+
+```json
+{
+  "job": {
+    "name": "nightly", "group": "reports",
+    "jobType": "Acme.Jobs.NightlyReport, Acme.Jobs",
+    "durable": true,
+    "jobDataMap": {}
+  },
+  "replace": true
+}
+```
+
+That request adds a job whose `[DisallowConcurrentExecution]` is intact. Before 4.0 rc.1 the two fields
+were plain booleans, so an omitted field arrived as `false` and stored a job its author had declared
+unsafe to run concurrently as safe to.
+
+On the way out, a job whose type the answering process cannot resolve reports both flags as `null` —
+which is what an operator on a node without the job's assembly sees, rather than a `500`.
+
 ## Durations travel as `TimeSpan`
 
 Every duration on the wire is a `TimeSpan` in its invariant form, both ways: a trigger body says

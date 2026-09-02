@@ -410,18 +410,42 @@ internal sealed class JobDetailImpl : IJobDetail
     /// <see langword="false"/>.
     /// </value>
     /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
+    /// <remarks>
+    /// A type that cannot be resolved answers <see langword="false" /> rather than throwing: reading a job
+    /// is not the moment to insist on its assembly, and a node of a heterogeneous cluster that lacks it
+    /// must still be able to list the job. The deduction is not memoized in that case, so the answer
+    /// improves the moment the assembly arrives.
+    /// </remarks>
     public bool PersistJobDataAfterExecution
     {
         get
         {
             if (!persistJobDataAfterExecution.HasValue)
             {
-                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(JobType.ResolvedType).PersistJobDataAfterExecution;
+                if (!JobType.TryResolve(out Type? resolved))
+                {
+                    return false;
+                }
+
+                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(resolved).PersistJobDataAfterExecution;
             }
 
             return persistJobDataAfterExecution.GetValueOrDefault();
         }
     }
+
+    /// <summary>
+    /// What is known about <see cref="PersistJobDataAfterExecution" /> without going looking for the job's
+    /// type: the value that was stated, or the type's attribute when the type is already at hand.
+    /// <see langword="null" /> when neither is.
+    /// </summary>
+    /// <remarks>
+    /// The nullable view is what the wire carries, so that an omitted field means "read the attribute"
+    /// rather than <see langword="false" />; see <see cref="JobType.GetLoadedType" /> for why a projection
+    /// does not probe.
+    /// </remarks>
+    internal bool? StatedPersistJobDataAfterExecution
+        => persistJobDataAfterExecution ?? DeduceFromLoadedType()?.PersistJobDataAfterExecution;
 
     /// <summary>
     /// Gets a value indicating whether concurrent execution of the job should be disallowed.
@@ -430,17 +454,38 @@ internal sealed class JobDetailImpl : IJobDetail
     /// <see langword="true"/> if concurrent execution is disallowed; otherwise, <see langword="false"/>.
     /// </value>
     /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
+    /// <inheritdoc cref="PersistJobDataAfterExecution" path="/remarks" />
     public bool ConcurrentExecutionDisallowed
     {
         get
         {
             if (!disallowConcurrentExecution.HasValue)
             {
-                disallowConcurrentExecution = JobTypeInformation.GetOrCreate(JobType.ResolvedType).ConcurrentExecutionDisallowed;
+                if (!JobType.TryResolve(out Type? resolved))
+                {
+                    return false;
+                }
+
+                disallowConcurrentExecution = JobTypeInformation.GetOrCreate(resolved).ConcurrentExecutionDisallowed;
             }
 
             return disallowConcurrentExecution.GetValueOrDefault();
         }
+    }
+
+    /// <inheritdoc cref="StatedPersistJobDataAfterExecution" />
+    internal bool? StatedConcurrentExecutionDisallowed
+        => disallowConcurrentExecution ?? DeduceFromLoadedType()?.ConcurrentExecutionDisallowed;
+
+    /// <summary>
+    /// The attribute information of the job's type when the type is already at hand, and
+    /// <see langword="null" /> when only a name is — which is the case a projection must not turn into a
+    /// probe.
+    /// </summary>
+    private JobTypeInformation? DeduceFromLoadedType()
+    {
+        Type? loaded = JobType.GetLoadedType();
+        return loaded is null ? null : JobTypeInformation.GetOrCreate(loaded);
     }
 
     /// <summary>
