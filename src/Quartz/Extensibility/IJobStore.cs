@@ -109,7 +109,9 @@ public interface IJobStore
     /// <param name="job">The <see cref="IJobDetail" /> to be stored.</param>
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <throws>  ObjectAlreadyExistsException </throws>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A job or a trigger is already stored under one of the two keys. Nothing is stored.
+    /// </exception>
     ValueTask ScheduleJob(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -141,7 +143,10 @@ public interface IJobStore
     ///     <see cref="ObjectAlreadyExistsException" /> and none of the batch is stored.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <throws>  ObjectAlreadyExistsException </throws>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A key in the batch is already stored and <see cref="ScheduleJobOptions.Replace" /> was not
+    /// asked for. None of the batch is stored.
+    /// </exception>
     ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -219,7 +224,10 @@ public interface IJobStore
     ///     <see cref="ObjectAlreadyExistsException" />.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <throws>  ObjectAlreadyExistsException </throws>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A trigger is already stored under the same key and <see cref="AddTriggerOptions.Replace" />
+    /// was not asked for.
+    /// </exception>
     ValueTask AddTrigger(IOperableTrigger trigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -373,7 +381,10 @@ public interface IJobStore
     /// referencing it have their next fire time re-computed. Defaults to neither.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <throws>  ObjectAlreadyExistsException </throws>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A calendar is already stored under the same name and
+    /// <see cref="AddCalendarOptions.Replace" /> was not asked for.
+    /// </exception>
     ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default);
 
     /// <summary>
