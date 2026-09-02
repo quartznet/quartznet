@@ -23,6 +23,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Quartz.Diagnostics;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;
@@ -367,8 +368,37 @@ internal sealed class QuartzScheduler
         status = SchedulerStatus.Running;
 
         logger.SchedulerStarted(resources.GetUniqueIdentifier());
+        WarnIfSubscribedToTheLegacyDiagnosticListener();
 
         await NotifySchedulerListenersStarted(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The <see cref="DiagnosticListener" /> 3.x published its activities on, kept only so that a
+    /// subscriber to it can be noticed.
+    /// </summary>
+    /// <remarks>
+    /// Nothing is ever written to it. OpenTelemetry's community package subscribes to a
+    /// listener of this name and to two legacy activity sources, all three of which 4.x stopped
+    /// producing — so an upgraded application that kept <c>AddQuartzInstrumentation()</c> sees no spans,
+    /// no exception and no warning, and has nothing to go on. A subscriber can only attach to a listener
+    /// that exists, so publishing one is what makes the mistake visible; <c>AllListeners</c> replays to a
+    /// subscriber that arrives later, so the order the two are created in does not matter.
+    /// </remarks>
+    private static readonly DiagnosticListener legacyDiagnosticListener = new(QuartzInstrumentation.ActivitySourceName);
+
+    /// <summary>
+    /// Says so, once per start, when something is listening where 4.x no longer speaks.
+    /// </summary>
+    private void WarnIfSubscribedToTheLegacyDiagnosticListener()
+    {
+        if (legacyDiagnosticListener.IsEnabled())
+        {
+            logger.LegacyDiagnosticListenerSubscribed(
+                QuartzInstrumentation.ActivitySourceName,
+                QuartzInstrumentation.ActivitySourceName,
+                QuartzInstrumentation.MeterName);
+        }
     }
 
     public ValueTask StartDelayed(
@@ -565,6 +595,17 @@ internal sealed class QuartzScheduler
             }
             else
             {
+                // Loud, because this is a shutdown that abandoned work. The default is 3.x's and stays,
+                // but "the process stopped and four jobs were half-done" is not something to find out
+                // from the absence of a completion. Counted before the pool is shut down, since that is
+                // what empties the list.
+                int stillExecuting = GetCurrentlyExecutingJobs().Count;
+                if (stillExecuting > 0)
+                {
+                    logger.ShuttingDownWithJobsStillExecuting(
+                        resources.GetUniqueIdentifier(), stillExecuting, resources.ShutdownJobInterruption);
+                }
+
                 await resources.ThreadPool.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
             }
 

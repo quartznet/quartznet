@@ -98,6 +98,16 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1019, Level = LogLevel.Error, Message = "Error while notifying SchedulerListener of {Action}")]
     public static partial void ListenerNotificationFailed(this ILogger logger, string action, Exception exception);
 
+    // Warning, and both settings named, because this is a shutdown that abandoned work rather than one
+    // that finished it -- and the two settings are the only things that decide whether it did.
+    [LoggerMessage(EventId = 1020, Level = LogLevel.Warning, Message = "Scheduler {SchedulerIdentifier} is shutting down with {ExecutingJobCount} job(s) still executing, and is not waiting for them. Pass waitForJobsToComplete: true (or set QuartzHostedServiceOptions.WaitForJobsToComplete) to let them finish; ShutdownJobInterruption is {ShutdownJobInterruption}, which decides whether they are asked to stop rather than simply abandoned.")]
+    public static partial void ShuttingDownWithJobsStillExecuting(this ILogger logger, string schedulerIdentifier, int executingJobCount, ShutdownJobInterruption shutdownJobInterruption);
+
+    // Warning, because the subscriber is attached and producing nothing: a deployment that added
+    // OpenTelemetry.Instrumentation.Quartz and sees no spans has no other way to find that out.
+    [LoggerMessage(EventId = 1021, Level = LogLevel.Warning, Message = "Something is subscribed to the DiagnosticListener named '{DiagnosticListenerName}', which Quartz 3.x published on and 4.x does not. Nothing will arrive there. 4.x emits spans on ActivitySource(\"{ActivitySourceName}\") and metrics on Meter(\"{MeterName}\") -- subscribe with AddSource(QuartzInstrumentation.ActivitySourceName) and AddMeter(QuartzInstrumentation.MeterName), and drop OpenTelemetry.Instrumentation.Quartz, which emits nothing here.")]
+    public static partial void LegacyDiagnosticListenerSubscribed(this ILogger logger, string diagnosticListenerName, string activitySourceName, string meterName);
+
     [LoggerMessage(EventId = 1030, Level = LogLevel.Debug, Message = "Batch acquisition of {TriggerCount} triggers")]
     public static partial void TriggerBatchAcquired(this ILogger logger, int triggerCount);
 

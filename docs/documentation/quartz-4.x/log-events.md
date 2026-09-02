@@ -74,6 +74,8 @@ matching on its text is not.
 | 1017 | Error | `Quartz` | `"Error while notifying SchedulerListener of resumed job: {JobKey}"` |
 | 1018 | Error | `Quartz` | `"Error while notifying SchedulerListener of resumed group: {Group}"` |
 | 1019 | Error | `Quartz` | `"Error while notifying SchedulerListener of {Action}"` |
+| 1020 | Warning | `Quartz` | `"Scheduler {SchedulerIdentifier} is shutting down with {ExecutingJobCount} job(s) still executing, and is not waiting for them. Pass waitForJobsToComplete: true (or set QuartzHostedServiceOptions.WaitForJobsToComplete) to let them finish; ShutdownJobInterruption is {ShutdownJobInterruption}, which decides whether they are asked to stop rather than simply abandoned."` |
+| 1021 | Warning | `Quartz` | `"Something is subscribed to the DiagnosticListener named '{DiagnosticListenerName}', which Quartz 3.x published on and 4.x does not. Nothing will arrive there. 4.x emits spans on ActivitySource("{ActivitySourceName}") and metrics on Meter("{MeterName}") -- subscribe with AddSource(QuartzInstrumentation.ActivitySourceName) and AddMeter(QuartzInstrumentation.MeterName), and drop OpenTelemetry.Instrumentation.Quartz, which emits nothing here."` |
 | 1030 | Debug | `Quartz` | `"Batch acquisition of {TriggerCount} triggers"` |
 | 1031 | Error | `Quartz` | `"quartzSchedulerThreadLoop: RuntimeException {Message}"` |
 | 1032 | Error | `Quartz` | `"DbException while firing trigger {Trigger}"` |
