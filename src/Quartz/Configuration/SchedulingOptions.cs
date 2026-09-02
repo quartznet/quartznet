@@ -50,7 +50,8 @@ public sealed class SchedulingOptions
     /// </summary>
     /// <remarks>
     /// Only consulted when <see cref="OverwriteExistingData" /> is off, since replacing is already an
-    /// answer to a duplicate key.
+    /// answer to a duplicate key. Setting both is refused at startup rather than resolved silently in
+    /// favour of replacing, which is the opposite of what asking for this one means.
     /// </remarks>
     /// <seealso cref="OverwriteExistingData"/>
     public bool IgnoreDuplicates { get; set; }
@@ -59,9 +60,10 @@ public sealed class SchedulingOptions
     /// Whether a replaced trigger hands its firing history to the trigger replacing it.
     /// </summary>
     /// <remarks>
-    /// Only consulted when <see cref="OverwriteExistingData" /> is on. The new trigger adopts the old
-    /// one's last fire time, and computes its next fire time from there rather than from its own start
-    /// time — so restarting an application does not re-fire a schedule that has already run.
+    /// Only consulted when <see cref="OverwriteExistingData" /> is on, since nothing is replaced
+    /// otherwise. The new trigger adopts the old one's last fire time, and computes its next fire time
+    /// from there rather than from its own start time — so restarting an application does not re-fire a
+    /// schedule that has already run.
     /// </remarks>
     public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
 }

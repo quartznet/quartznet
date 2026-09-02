@@ -407,6 +407,36 @@ public class StringOperatorTest
         });
     }
 
+    /// <summary>
+    /// The limit the type's own documentation now states: matching in memory calls
+    /// <see cref="StringOperator.Evaluate" />, and matching in a database turns the operator into a SQL
+    /// <c>LIKE</c> pattern, which is only defined for the five that ship. A custom operator therefore
+    /// passes every unit test written against <c>RAMJobStore</c> and fails on the persistent store, at
+    /// query time.
+    /// </summary>
+    [Test]
+    public void ACustomOperatorMatchesInMemoryAndIsRefusedByAPersistentStore()
+    {
+        StringOperator custom = new NothingOperator();
+
+        custom.Evaluate("anything", "anything").Should().BeFalse(
+            "in-memory matching is this method and nothing else, so a custom operator works there");
+
+        Action translate = () => new TranslatingDelegate().Translate(custom, "group");
+
+        translate.Should().Throw<ArgumentOutOfRangeException>(
+            "no persistent store can guess what LIKE pattern an operator of somebody's own means")
+            .WithMessage("*SQL*");
+    }
+
+    /// <summary>
+    /// Reaches the protected translation the ADO stores use, which is where the refusal lives.
+    /// </summary>
+    private sealed class TranslatingDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
+    {
+        public string Translate(StringOperator compareWith, string compareToValue) => ToSqlLikeClause(compareWith, compareToValue);
+    }
+
     private sealed class NothingOperator : StringOperator
     {
         public override string Name => "Nothing";

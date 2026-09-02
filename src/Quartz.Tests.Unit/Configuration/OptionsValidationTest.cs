@@ -452,6 +452,59 @@ public class OptionsValidationTest
         act.Should().NotThrow();
     }
 
+    /// <summary>
+    /// The two settings are two answers to the same question, <c>OverwriteExistingData</c> wins, and it
+    /// defaults to <see langword="true" /> — so asking to pass over duplicates without also clearing it
+    /// got the opposite, replacing them, in silence and at every start.
+    /// </summary>
+    [Test]
+    public void AskingToIgnoreDuplicatesWhileStillOverwritingThemFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*IgnoreDuplicates*", "the setting that would do nothing is named")
+            .WithMessage("*OverwriteExistingData*", "and so is the one that made it do nothing")
+            .WithMessage("*defaults to true*", "which a reader who never set it needs told");
+    }
+
+    [Test]
+    public void IgnoringDuplicatesInsteadOfOverwritingThemPassesValidation()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options =>
+        {
+            options.Scheduling.OverwriteExistingData = false;
+            options.Scheduling.IgnoreDuplicates = true;
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow("this is the pair that says 'leave what is already stored alone'");
+    }
+
+    [Test]
+    public void TheDefaultSchedulingSettingsPassValidation()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow("OverwriteExistingData is on by default and the other two are off, which is a pair that agrees");
+    }
+
     [Test]
     public void TheFlatKeysASchedulerIsConfiguredWithPassValidation()
     {
