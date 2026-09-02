@@ -136,9 +136,8 @@ public class NewtonsoftTriggerTimeZoneTest
     }
 
     /// <summary>
-    /// The daily trigger's write side is asserted on its own because its read side cannot be reached
-    /// with the trigger converters off - see
-    /// <see cref="ReadingADailyTimeIntervalTriggerAsAPlainObjectGraphFailsOnItsTimeOfDay" />.
+    /// The daily trigger's write side is asserted on its own as well as through the round trip, because
+    /// the zone's written shape is the thing #3494 was about.
     /// </summary>
     [TestCase(true)]
     [TestCase(false)]
@@ -154,47 +153,50 @@ public class NewtonsoftTriggerTimeZoneTest
             "the spelling of a resolved zone's id belongs to the platform and the tz database, so it is compared against the zone in hand");
     }
 
-    [Test]
-    public void DailyTimeIntervalTriggerKeepsItsTimeZone()
+    /// <summary>
+    /// #3508. With the trigger converters off - which is the default - a
+    /// <see cref="DailyTimeIntervalTriggerImpl" /> could not be read back at all:
+    /// <see cref="TimeOfDay" /> has two public constructors and no parameterless one, so Json.NET had
+    /// nothing to build <c>EndTimeOfDay</c> with and the read threw. <c>StartTimeOfDay</c> was the
+    /// silent half - its getter hands out a default <c>00:00:00</c> for Json.NET to populate, and every
+    /// member of a <see cref="TimeOfDay" /> is read-only, so a trigger stored starting at 03:30 came
+    /// back starting at midnight with nothing said.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public void DailyTimeIntervalTriggerKeepsItsTimeZone(bool registerTriggerConverters)
     {
         DailyTimeIntervalTriggerImpl trigger = CreateDailyTimeIntervalTrigger();
 
-        DailyTimeIntervalTriggerImpl restored = RoundTrip(trigger, registerTriggerConverters: true);
+        DailyTimeIntervalTriggerImpl restored = RoundTrip(trigger, registerTriggerConverters);
 
-        restored.StartTimeOfDay.Should().Be(new TimeOfDay(3, 30), "the rest of the trigger has to read as it always did");
-        restored.EndTimeOfDay.Should().Be(new TimeOfDay(4, 40));
+        restored.StartTimeOfDay.Should().Be(new TimeOfDay(3, 30),
+            "a start of day read back as midnight is a trigger firing hours before the window it was given");
+        restored.EndTimeOfDay.Should().Be(new TimeOfDay(4, 40),
+            "the end of day is the half the read used to fail on outright");
+        restored.RepeatInterval.Should().Be(42, "the rest of the trigger has to read as it always did");
+        restored.RepeatIntervalUnit.Should().Be(IntervalUnit.Second);
         restored.DaysOfWeek.Should().BeEquivalentTo(new[] { DayOfWeek.Monday, DayOfWeek.Wednesday });
         restored.TimeZone.Should().Be(NonLocalZone,
             "the daily window is wall-clock time in the stored zone, so a lost zone moves every firing");
     }
 
     /// <summary>
-    /// A defect of the same family as #3494 and deliberately not fixed here: with the trigger
-    /// converters off a <see cref="DailyTimeIntervalTriggerImpl" /> cannot be read back at all, because
-    /// <see cref="TimeOfDay" /> has two public constructors and no parameterless one, so Json.NET has
-    /// nothing to build <c>EndTimeOfDay</c> with. It has nothing to do with the time zone - the zone is
-    /// written correctly, as
-    /// <see cref="DailyTimeIntervalTriggerWritesItsTimeZoneAsAnId" /> shows - and repairing it needs a
-    /// converter of its own, so it is recorded here rather than quietly folded in.
+    /// The converter reads and does not write, so the object form Json.NET has always written for a
+    /// <see cref="TimeOfDay" /> is still what goes out - which is what makes the fix reach the blobs that
+    /// are already in job store columns rather than only the ones written from now on.
     /// </summary>
-    /// <remarks>
-    /// This is a loud failure rather than a silent one, which is why it is the lesser bug: nothing
-    /// comes back wrong, the read throws. <c>StartTimeOfDay</c> is the silent half of it - its getter
-    /// hands out a default <c>00:00:00</c> for Json.NET to populate, and every member of a
-    /// <see cref="TimeOfDay" /> is read-only.
-    /// </remarks>
     [Test]
-    public void ReadingADailyTimeIntervalTriggerAsAPlainObjectGraphFailsOnItsTimeOfDay()
+    public void ADailyTimeIntervalTriggerStillWritesItsTimesOfDayAsObjects()
     {
-        JsonObjectSerializer serializer = CreateSerializer(registerTriggerConverters: false);
-        byte[] bytes = serializer.Serialize(CreateDailyTimeIntervalTrigger());
+        JObject written = Write(CreateDailyTimeIntervalTrigger(), registerTriggerConverters: false);
 
-        Action read = () => serializer.DeSerialize<DailyTimeIntervalTriggerImpl>(bytes);
-
-        read.Should().Throw<Newtonsoft.Json.JsonSerializationException>()
-            .WithInnerException<Newtonsoft.Json.JsonSerializationException>()
-            .WithMessage("*Quartz.TimeOfDay*",
-                "the read fails on the time of day and not on the zone, which is what makes this a separate defect");
+        written["StartTimeOfDay"].Type.Should().Be(JTokenType.Object);
+        written["StartTimeOfDay"]["Hour"].Value<int>().Should().Be(3);
+        written["StartTimeOfDay"]["Minute"].Value<int>().Should().Be(30);
+        written["StartTimeOfDay"]["Second"].Value<int>().Should().Be(0);
+        written["EndTimeOfDay"]["Hour"].Value<int>().Should().Be(4);
+        written["EndTimeOfDay"]["Minute"].Value<int>().Should().Be(40);
     }
 
     private static DailyTimeIntervalTriggerImpl CreateDailyTimeIntervalTrigger()
