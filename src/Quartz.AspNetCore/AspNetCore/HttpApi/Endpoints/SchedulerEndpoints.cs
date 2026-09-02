@@ -270,10 +270,14 @@ internal static class SchedulerEndpoints
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             ExecutionLimits? limits = null;
-            if (request.Limits is { Count: > 0 })
+
+            // A request that names no group and asks for no derivation is the one that clears the limits.
+            // Asking for the derivation alone still configures something - every trigger is then limited
+            // as though its trigger group were its execution group - so it is built rather than dropped.
+            if (request.Limits is { Count: > 0 } || request.UseTriggerGroupWhenUnset)
             {
                 ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create();
-                foreach (KeyValuePair<string, ExecutionLimitDto> kvp in request.Limits)
+                foreach (KeyValuePair<string, ExecutionLimitDto> kvp in request.Limits ?? [])
                 {
                     string key = kvp.Key.Trim();
                     int? maxConcurrent = kvp.Value.MaxConcurrent;

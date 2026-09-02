@@ -77,9 +77,11 @@ public class SchedulerEndpointsTest : WebApiTest
             .ForGroup("tenant", 8, ExecutionLimitScope.Cluster)
             .ForOtherGroups(1, ExecutionLimitScope.Cluster)
             .ForDefaultGroup(3)
+            .UseTriggerGroupWhenUnset()
             .Build());
 
         captured.Should().NotBeNull("the server builds the limits it was sent before anything can be read back");
+        captured.UsesTriggerGroupWhenUnset.Should().BeTrue("the derivation decides which bucket an ungrouped trigger is counted in, so the server has to be told");
 
         ExecutionLimits? readBack = await HttpScheduler.GetExecutionLimits();
 
@@ -91,6 +93,58 @@ public class SchedulerEndpointsTest : WebApiTest
             new ExecutionGroupLimit(ExecutionGroupScope.OtherGroups, 1, ExecutionLimitScope.Cluster),
             new ExecutionGroupLimit(ExecutionGroupScope.Default, 3),
         });
+        readBack.UsesTriggerGroupWhenUnset.Should().BeTrue("the flag comes back with the limits it was set beside");
+    }
+
+    /// <summary>
+    /// The trigger-group derivation survives the round trip on its own, with no group limit beside it.
+    /// </summary>
+    /// <remarks>
+    /// It is the case both ends used to drop. The server built limits only when the request named a
+    /// group, so a request carrying the flag alone <em>cleared</em> the limits; the client answered null
+    /// whenever the limits map was empty, discarding a flag the server had sent. Nothing was limited
+    /// either way, so nothing went wrong loudly — but <c>GetExecutionLimits</c> answered null where the
+    /// scheduler held limits, and setting them through the client threw the configuration away.
+    /// </remarks>
+    [Test]
+    public async Task ExecutionLimitsRoundTripKeepsTheTriggerGroupDerivationWithNoGroupLimits()
+    {
+        ExecutionLimits? captured = null;
+        A.CallTo(() => FakeScheduler.SetExecutionLimits(A<ExecutionLimits>._, A<CancellationToken>._))
+            .Invokes((ExecutionLimits limits, CancellationToken _) => captured = limits);
+        A.CallTo(() => FakeScheduler.GetExecutionLimits(A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<ExecutionLimits?>(captured));
+
+        await HttpScheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create().UseTriggerGroupWhenUnset().Build());
+
+        captured.Should().NotBeNull("asking for the derivation is configuration, not the absence of it");
+        captured.IsEmpty.Should().BeTrue("no group was named");
+        captured.UsesTriggerGroupWhenUnset.Should().BeTrue();
+
+        ExecutionLimits? readBack = await HttpScheduler.GetExecutionLimits();
+
+        readBack.Should().NotBeNull("the server said the derivation is on, and an empty group map is not the same answer as none");
+        readBack.IsEmpty.Should().BeTrue();
+        readBack.UsesTriggerGroupWhenUnset.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Passing null still clears the limits, which is the answer that has to stay distinguishable from
+    /// the empty-but-configured one above.
+    /// </summary>
+    [Test]
+    public async Task ClearingExecutionLimitsLeavesTheSchedulerWithNone()
+    {
+        ExecutionLimits? captured = ExecutionLimitsBuilder.Create().ForGroup("batch", 2).Build();
+        A.CallTo(() => FakeScheduler.SetExecutionLimits(A<ExecutionLimits>._, A<CancellationToken>._))
+            .Invokes((ExecutionLimits limits, CancellationToken _) => captured = limits);
+        A.CallTo(() => FakeScheduler.GetExecutionLimits(A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<ExecutionLimits?>(captured));
+
+        await HttpScheduler.SetExecutionLimits(null);
+
+        captured.Should().BeNull();
+        (await HttpScheduler.GetExecutionLimits()).Should().BeNull();
     }
 
     /// <summary>
