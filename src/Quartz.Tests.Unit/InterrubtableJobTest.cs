@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Collections.Concurrent;
 using System.Collections.Specialized;
 
 using Quartz.Listeners;
@@ -156,6 +157,8 @@ public class InterruptableJobTest
         FiringInterruptionListener listener = new();
         scheduler.ListenerManager.AddSchedulerListener(listener);
 
+        BusyJob.Expect(firings: 2);
+
         IJobDetail job = JobBuilder.Create<BusyJob>().WithIdentity("concurrent").StoreDurably().Build();
         await scheduler.AddJob(job);
 
@@ -174,7 +177,15 @@ public class InterruptableJobTest
 
         try
         {
-            List<string> running = await WaitForFirings(scheduler, count: 2);
+            // Both firings have to be *inside* Execute before the interrupt, and the job says so itself
+            // rather than the test inferring it from a listing: a fired-trigger row reads as executing a
+            // moment before the job the scheduler will interrupt has been registered, so polling the
+            // listing made this a race that a loaded runner lost.
+            BusyJob.Running.Wait(TimeSpan.FromSeconds(30)).Should().BeTrue(
+                "both firings have to be running before the interrupt, or the test is about scheduling latency");
+
+            List<string> running = BusyJob.StartedFirings;
+            running.Should().HaveCount(2);
 
             (await scheduler.Interrupt(job.Key)).Should().BeTrue();
 
@@ -188,36 +199,42 @@ public class InterruptableJobTest
         }
     }
 
-    private static async Task<List<string>> WaitForFirings(IScheduler scheduler, int count)
-    {
-        for (int attempt = 0; attempt < 200; attempt++)
-        {
-            PagedResult<FireInstance> firings = await scheduler.QueryFireInstances(new FireInstanceQuery());
-            List<string> ids = firings.Items
-                .Where(instance => instance.State == FireInstanceState.Executing)
-                .Select(instance => instance.FireInstanceId)
-                .ToList();
-
-            if (ids.Count >= count)
-            {
-                return ids;
-            }
-
-            await Task.Delay(25);
-        }
-
-        throw new InvalidOperationException($"Only saw fewer than {count} executing firings.");
-    }
-
     /// <summary>
-    /// Busy until its token is cancelled, and sharing none of the static state
-    /// <see cref="TestInterruptableJob" /> signals through — two executions of that one would set the
-    /// same event twice and leave it set for the test after.
+    /// Busy until its token is cancelled, announcing each firing as it enters.
     /// </summary>
+    /// <remarks>
+    /// Its own static state rather than <see cref="TestInterruptableJob" />'s: two executions of that one
+    /// would set the same event twice and leave it set for the test after. The announcement is what makes
+    /// the test deterministic — a firing that has signalled is a firing the scheduler is holding an
+    /// interruptable context for.
+    /// </remarks>
     private sealed class BusyJob : IJob
     {
+        private static readonly ConcurrentQueue<string> started = new();
+
+        public static CountdownEvent Running { get; private set; } = new(1);
+
+        public static List<string> StartedFirings => [.. started];
+
+        public static void Expect(int firings)
+        {
+            started.Clear();
+            Running.Dispose();
+            Running = new CountdownEvent(firings);
+        }
+
         public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
+            started.Enqueue(context.FireInstanceId);
+
+            // Guarded, so that a firing the test did not expect fails the count assertion rather than
+            // throwing out of a job and being reported as something else entirely.
+            CountdownEvent running = Running;
+            if (!running.IsSet)
+            {
+                running.Signal();
+            }
+
             try
             {
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
