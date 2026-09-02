@@ -190,6 +190,22 @@ The rule above, for the things that are not names. The reason is on the member t
   the same places, or squat on a reserved data-map key. As with `[DisallowConcurrentExecution]`. Nothing
   enforces it until `AddJobTimeout` registers the middleware.
 
+### Promises the beta makes (#3647)
+
+Extension policy, not taste. `how-tos/extending-quartz.md` is the reader-facing form.
+
+- **A collaborator is handed a context object** — parameterless ctor, `init` properties — never a
+  parameter list: `DriverDelegateContext`, `LockHandlerContext`, `TriggerFiredBundle` and the rest. A
+  new datum is a non-`required` property, so it is source- and binary-compatible.
+- **A member added to a public interface lands as a default interface member.** `IJobStore` has nine,
+  `IScheduler` one, `ILockHandler` and `ITriggerPersistenceDelegate` one each; that is what makes
+  freezing `IQuartzApiClient` and `ITriggerSerializer` without default bodies safe, and the baselines
+  mark DIMs so the promise is checkable. A forwarder must *declare* every such member — an omitted one
+  runs the default on the forwarder; `DelegatingForwardingTest` sweeps both delegating types for it.
+- **Read-replica routing, if ever, is a DIM `IDbProvider.CreateReadConnection()`** — never a `readOnly`
+  parameter on `CreateConnection`, which would break both public `IDbProvider` implementations.
+- **`MON/2` stays rejected** (ratified 2026-09-01); 4.1 may accept it additively.
+
 ## Build & Test
 
 Build the solution (uses the [Fallout](https://fallout.build/) build system):
