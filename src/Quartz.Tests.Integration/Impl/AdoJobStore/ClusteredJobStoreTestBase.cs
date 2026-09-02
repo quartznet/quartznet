@@ -75,11 +75,23 @@ public abstract class ClusteredJobStoreTestBase
             ("schedulerName", SchedulerName));
     }
 
+    /// <summary>
+    /// Builds one node of this fixture's cluster.
+    /// </summary>
+    /// <param name="instanceId">The node's instance id, which is what its rows are keyed by.</param>
+    /// <param name="checkinIntervalMs">How often this node writes its check-in row.</param>
+    /// <param name="checkinMisfireThresholdMs">How stale a peer's row has to be to be called dead.</param>
+    /// <param name="configure">Adjusts the flat properties before the scheduler is built.</param>
+    /// <param name="configureBuilder">
+    /// Adjusts the same scheduler through the typed builder, for the things flat properties cannot say
+    /// — <c>AddJobTimeout</c> registers middleware, and middleware has no property key.
+    /// </param>
     protected async Task<IScheduler> CreateScheduler(
         string instanceId,
         int checkinIntervalMs = 1000,
         int checkinMisfireThresholdMs = 2000,
-        Action<NameValueCollection> configure = null)
+        Action<NameValueCollection> configure = null,
+        Action<IQuartzBuilder> configureBuilder = null)
     {
         var properties = new NameValueCollection
         {
@@ -106,7 +118,7 @@ public abstract class ClusteredJobStoreTestBase
         // Cluster nodes share the scheduler (instance) name, and a factory's repository lookup is
         // name-only — but each factory owns its own repository, so every call here builds a genuinely
         // separate node rather than handing back the first one.
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create(configureBuilder).UseProperties(properties).Build();
         return await factory.GetScheduler();
     }
 
