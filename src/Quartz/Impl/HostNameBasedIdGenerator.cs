@@ -35,6 +35,9 @@ namespace Quartz.Impl;
 /// <author>Marko Lahma</author>
 public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
 {
+    /// <summary>
+    /// The longest instance id the scheduler state table's column holds.
+    /// </summary>
     protected const int IdMaxLength = 50;
 
     private readonly ILogger<HostNameBasedIdGenerator> logger;
@@ -57,6 +60,12 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
     /// </returns>
     public abstract ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The machine's host name, shortened to <paramref name="maxLength" /> and logged when it had to be.
+    /// </summary>
+    /// <param name="maxLength">The most characters the caller can use.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="SchedulerException">The host name could not be read.</exception>
     protected async ValueTask<string> GetHostName(
         int maxLength,
         CancellationToken cancellationToken = default)
@@ -79,6 +88,11 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
         }
     }
 
+    /// <summary>
+    /// Looks the machine up. Overridable so that a generator can name the host some other way — a
+    /// container's, a pod's — without reimplementing the shortening around it.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     protected virtual ValueTask<IPHostEntry> GetHostAddress(
         CancellationToken cancellationToken = default)
     {

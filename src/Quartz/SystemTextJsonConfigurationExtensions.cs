@@ -6,6 +6,10 @@ using Quartz.Impl;
 
 namespace Quartz;
 
+/// <summary>
+/// Choosing System.Text.Json as a persistent store's serializer, and registering the serializers for
+/// trigger and calendar types of the application's own.
+/// </summary>
 public static class SystemTextJsonConfigurationExtensions
 {
     /// <summary>

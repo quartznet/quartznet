@@ -198,6 +198,7 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
         }
     }
 
+    /// <inheritdoc />
     public TriggerBuilder<IJob> GetTriggerBuilder()
     {
         // This trigger's own clock, so that rebuilding a trigger keeps the reading of "now" it was
@@ -224,6 +225,7 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
             .WithSchedule(GetScheduleBuilder());
     }
 
+    /// <inheritdoc />
     public abstract IScheduleBuilder GetScheduleBuilder();
 
     /// <summary>

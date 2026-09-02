@@ -12,16 +12,19 @@ namespace Quartz.Impl.AdoJobStore;
 /// <see cref="IRecurrenceTrigger"/>
 public sealed class RecurrenceTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
 {
+    /// <inheritdoc />
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {
         return trigger is RecurrenceTriggerImpl;
     }
 
+    /// <inheritdoc />
     public override string GetHandledTriggerTypeDiscriminator()
     {
         return AdoConstants.TriggerTypeRecurrence;
     }
 
+    /// <inheritdoc />
     protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
     {
         RecurrenceTriggerImpl recTrig = (RecurrenceTriggerImpl) trigger;
@@ -41,6 +44,7 @@ public sealed class RecurrenceTriggerPersistenceDelegate : SimplePropertiesTrigg
         };
     }
 
+    /// <inheritdoc />
     protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
     {
         TimeZoneInfo? tz = null;

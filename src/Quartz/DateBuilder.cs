@@ -163,6 +163,13 @@ public sealed class DateBuilder
         return this;
     }
 
+    /// <summary>
+    /// Set the hour (0-23), minute (0-59) and second (0-59) for the date that will be built by this
+    /// builder.
+    /// </summary>
+    /// <param name="hour">The hour of the day.</param>
+    /// <param name="minute">The minute of the hour.</param>
+    /// <param name="second">The second of the minute.</param>
     public DateBuilder AtHourMinuteAndSecond(int hour, int minute, int second)
     {
         ValidateHour(hour);
@@ -201,6 +208,12 @@ public sealed class DateBuilder
         return this;
     }
 
+    /// <summary>
+    /// Set the month (1-12) and the day of the month (1-31) for the date that will be built by this
+    /// builder.
+    /// </summary>
+    /// <param name="month">The month of the year.</param>
+    /// <param name="day">The day of the month.</param>
     public DateBuilder InMonthOnDay(int month, int day)
     {
         ValidateMonth(month);

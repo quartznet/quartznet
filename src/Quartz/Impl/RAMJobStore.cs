@@ -384,6 +384,7 @@ public sealed class RAMJobStore : IJobStore
         return found;
     }
 
+    /// <inheritdoc />
     public async ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
@@ -442,6 +443,7 @@ public sealed class RAMJobStore : IJobStore
         return deleted;
     }
 
+    /// <inheritdoc />
     public async ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
@@ -497,6 +499,7 @@ public sealed class RAMJobStore : IJobStore
         return deleted;
     }
 
+    /// <inheritdoc />
     public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
@@ -1043,6 +1046,7 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -3261,10 +3265,13 @@ public sealed class RAMJobStore : IJobStore
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => TimeSpan.FromMilliseconds(5);
 
+    /// <inheritdoc />
     public bool Clustered => false;
 
+    /// <inheritdoc />
     public TimeSpan GetAcquireRetryDelay(int failureCount) => TimeSpan.FromMilliseconds(20);
 
     /// <summary>

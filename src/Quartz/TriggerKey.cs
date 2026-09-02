@@ -40,14 +40,24 @@ namespace Quartz;
 [Serializable]
 public sealed class TriggerKey : Key<TriggerKey>, IComparable<TriggerKey>, IEquatable<TriggerKey>, IParsable<TriggerKey>
 {
+    /// <summary>
+    /// Names a trigger in the default group.
+    /// </summary>
+    /// <param name="name">The name, unique within the group.</param>
     public TriggerKey(string name) : base(name)
     {
     }
 
+    /// <summary>
+    /// Names a trigger in a group.
+    /// </summary>
+    /// <param name="name">The name, unique within the group.</param>
+    /// <param name="group">The group.</param>
     public TriggerKey(string name, string group) : base(name, group)
     {
     }
 
+    /// <inheritdoc />
     public bool Equals(TriggerKey? other)
     {
         return other is not null && (ReferenceEquals(this, other) || (Group == other.Group && Name == other.Name));

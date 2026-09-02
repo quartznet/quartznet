@@ -63,80 +63,285 @@ public static class AdoConstants
     ];
 
     // Table names
+    /// <summary>
+    /// The <c>JOB_DETAILS</c> table, without the table prefix.
+    /// </summary>
     public const string TableJobDetails = "JOB_DETAILS";
+
+    /// <summary>
+    /// The <c>TRIGGERS</c> table, without the table prefix.
+    /// </summary>
     public const string TableTriggers = "TRIGGERS";
+
+    /// <summary>
+    /// The <c>SIMPLE_TRIGGERS</c> table, without the table prefix.
+    /// </summary>
     public const string TableSimpleTriggers = "SIMPLE_TRIGGERS";
+
+    /// <summary>
+    /// The <c>SIMPROP_TRIGGERS</c> table, without the table prefix.
+    /// </summary>
     public const string TableSimplePropertiesTriggers = "SIMPROP_TRIGGERS";
+
+    /// <summary>
+    /// The <c>CRON_TRIGGERS</c> table, without the table prefix.
+    /// </summary>
     public const string TableCronTriggers = "CRON_TRIGGERS";
+
+    /// <summary>
+    /// The <c>BLOB_TRIGGERS</c> table, without the table prefix.
+    /// </summary>
     public const string TableBlobTriggers = "BLOB_TRIGGERS";
+
+    /// <summary>
+    /// The <c>FIRED_TRIGGERS</c> table, without the table prefix.
+    /// </summary>
     public const string TableFiredTriggers = "FIRED_TRIGGERS";
+
+    /// <summary>
+    /// The <c>CALENDARS</c> table, without the table prefix.
+    /// </summary>
     public const string TableCalendars = "CALENDARS";
+
+    /// <summary>
+    /// The <c>PAUSED_TRIGGER_GRPS</c> table, without the table prefix.
+    /// </summary>
     public const string TablePausedTriggers = "PAUSED_TRIGGER_GRPS";
+
+    /// <summary>
+    /// The <c>PAUSED_JOB_GRPS</c> table, without the table prefix.
+    /// </summary>
     public const string TablePausedJobs = "PAUSED_JOB_GRPS";
+
+    /// <summary>
+    /// The <c>LOCKS</c> table, without the table prefix.
+    /// </summary>
     public const string TableLocks = "LOCKS";
+
+    /// <summary>
+    /// The <c>SCHEDULER_STATE</c> table, without the table prefix.
+    /// </summary>
     public const string TableSchedulerState = "SCHEDULER_STATE";
 
     // TableJobDetails columns names
+    /// <summary>
+    /// The <c>SCHED_NAME</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnSchedulerName = "SCHED_NAME";
+
+    /// <summary>
+    /// The <c>JOB_NAME</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnJobName = "JOB_NAME";
+
+    /// <summary>
+    /// The <c>JOB_GROUP</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnJobGroup = "JOB_GROUP";
+
+    /// <summary>
+    /// The <c>IS_DURABLE</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnIsDurable = "IS_DURABLE";
+
+    /// <summary>
+    /// The <c>IS_NONCONCURRENT</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnIsNonConcurrent = "IS_NONCONCURRENT";
+
+    /// <summary>
+    /// The <c>IS_UPDATE_DATA</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnIsUpdateData = "IS_UPDATE_DATA";
+
+    /// <summary>
+    /// The <c>REQUESTS_RECOVERY</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";
+
+    /// <summary>
+    /// The <c>JOB_DATA</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnJobDataMap = "JOB_DATA";
+
+    /// <summary>
+    /// The <c>JOB_CLASS_NAME</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnJobClass = "JOB_CLASS_NAME";
+
+    /// <summary>
+    /// The <c>DESCRIPTION</c> column of <see cref="TableJobDetails" />.
+    /// </summary>
     public const string ColumnDescription = "DESCRIPTION";
 
     // TableTriggers columns names
+    /// <summary>
+    /// The <c>TRIGGER_NAME</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnTriggerName = "TRIGGER_NAME";
+
+    /// <summary>
+    /// The <c>TRIGGER_GROUP</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnTriggerGroup = "TRIGGER_GROUP";
+
+    /// <summary>
+    /// The <c>NEXT_FIRE_TIME</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnNextFireTime = "NEXT_FIRE_TIME";
+
+    /// <summary>
+    /// The <c>PREV_FIRE_TIME</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnPreviousFireTime = "PREV_FIRE_TIME";
+
+    /// <summary>
+    /// The <c>TRIGGER_STATE</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnTriggerState = "TRIGGER_STATE";
+
+    /// <summary>
+    /// The <c>TRIGGER_TYPE</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnTriggerType = "TRIGGER_TYPE";
+
+    /// <summary>
+    /// The <c>START_TIME</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnStartTime = "START_TIME";
+
+    /// <summary>
+    /// The <c>END_TIME</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnEndTime = "END_TIME";
+
+    /// <summary>
+    /// The <c>MISFIRE_INSTR</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnMisfireInstruction = "MISFIRE_INSTR";
+
+    /// <summary>
+    /// The <c>PRIORITY</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnPriority = "PRIORITY";
+
+    /// <summary>
+    /// The <c>MISFIRE_ORIG_FIRE_TIME</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnMisfireOriginalFireTime = "MISFIRE_ORIG_FIRE_TIME";
+
+    /// <summary>
+    /// The <c>EXECUTION_GROUP</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnExecutionGroup = "EXECUTION_GROUP";
+
+    /// <summary>
+    /// The <c>PREFERRED_NODE</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnPreferredNode = "PREFERRED_NODE";
+
+    /// <summary>
+    /// The <c>PREFERRED_NODE_AUTO</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnPreferredNodeAuto = "PREFERRED_NODE_AUTO";
 
     // Retry columns, added by the 4.0 schema so that no later release has to add a column to
     // QRTZ_TRIGGERS. No statement selects or writes them yet (#3520).
+    /// <summary>
+    /// The <c>RETRY_POLICY</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnRetryPolicy = "RETRY_POLICY";
+
+    /// <summary>
+    /// The <c>RETRY_ATTEMPT</c> column of <see cref="TableTriggers" />.
+    /// </summary>
     public const string ColumnRetryAttempt = "RETRY_ATTEMPT";
 
     // TableSimpleTriggers columns names
+    /// <summary>
+    /// The <c>REPEAT_COUNT</c> column of <see cref="TableSimpleTriggers" />.
+    /// </summary>
     public const string ColumnRepeatCount = "REPEAT_COUNT";
+
+    /// <summary>
+    /// The <c>REPEAT_INTERVAL</c> column of <see cref="TableSimpleTriggers" />.
+    /// </summary>
     public const string ColumnRepeatInterval = "REPEAT_INTERVAL";
+
+    /// <summary>
+    /// The <c>TIMES_TRIGGERED</c> column of <see cref="TableSimpleTriggers" />.
+    /// </summary>
     public const string ColumnTimesTriggered = "TIMES_TRIGGERED";
 
     // TableCronTriggers columns names
+    /// <summary>
+    /// The <c>CRON_EXPRESSION</c> column of <see cref="TableCronTriggers" />.
+    /// </summary>
     public const string ColumnCronExpression = "CRON_EXPRESSION";
 
     // TableBlobTriggers columns names
+    /// <summary>
+    /// The <c>BLOB_DATA</c> column of <see cref="TableBlobTriggers" />.
+    /// </summary>
     public const string ColumnBlob = "BLOB_DATA";
+
+    /// <summary>
+    /// The <c>TIME_ZONE_ID</c> column of <see cref="TableBlobTriggers" />.
+    /// </summary>
     public const string ColumnTimeZoneId = "TIME_ZONE_ID";
 
     // TableFiredTriggers columns names
+    /// <summary>
+    /// The <c>INSTANCE_NAME</c> column of <see cref="TableFiredTriggers" />.
+    /// </summary>
     public const string ColumnInstanceName = "INSTANCE_NAME";
+
+    /// <summary>
+    /// The <c>FIRED_TIME</c> column of <see cref="TableFiredTriggers" />.
+    /// </summary>
     public const string ColumnFiredTime = "FIRED_TIME";
+
+    /// <summary>
+    /// The <c>SCHED_TIME</c> column of <see cref="TableFiredTriggers" />.
+    /// </summary>
     public const string ColumnScheduledTime = "SCHED_TIME";
+
+    /// <summary>
+    /// The <c>ENTRY_ID</c> column of <see cref="TableFiredTriggers" />.
+    /// </summary>
     public const string ColumnEntryId = "ENTRY_ID";
+
+    /// <summary>
+    /// The <c>STATE</c> column of <see cref="TableFiredTriggers" />.
+    /// </summary>
     public const string ColumnEntryState = "STATE";
 
     // TableCalendars columns names
+    /// <summary>
+    /// The <c>CALENDAR_NAME</c> column of <see cref="TableCalendars" />.
+    /// </summary>
     public const string ColumnCalendarName = "CALENDAR_NAME";
+
+    /// <summary>
+    /// The <c>CALENDAR</c> column of <see cref="TableCalendars" />.
+    /// </summary>
     public const string ColumnCalendar = "CALENDAR";
 
     // TableLocks columns names
+    /// <summary>
+    /// The <c>LOCK_NAME</c> column of <see cref="TableLocks" />.
+    /// </summary>
     public const string ColumnLockName = "LOCK_NAME";
 
-    // TableLocks columns names
+    // TableSchedulerState columns names
+    /// <summary>
+    /// The <c>LAST_CHECKIN_TIME</c> column of <see cref="TableSchedulerState" />.
+    /// </summary>
     public const string ColumnLastCheckinTime = "LAST_CHECKIN_TIME";
+
+    /// <summary>
+    /// The <c>CHECKIN_INTERVAL</c> column of <see cref="TableSchedulerState" />.
+    /// </summary>
     public const string ColumnCheckinInterval = "CHECKIN_INTERVAL";
 
     // PARAMETER NAMES A DIALECT DELEGATE HAS TO AGREE WITH
@@ -169,18 +374,61 @@ public static class AdoConstants
     public const string ParameterPageTake = "pageTake";
 
     // MISC CONSTANTS
+    /// <summary>
+    /// The table prefix a store uses when the configuration names none.
+    /// </summary>
     public const string DefaultTablePrefix = "QRTZ_";
 
     // STATES
+    /// <summary>
+    /// The stored state of a trigger waiting for its next fire time.
+    /// </summary>
     public const string StateWaiting = "WAITING";
+
+    /// <summary>
+    /// The stored state of a trigger acquired by a node, which will fire it.
+    /// </summary>
     public const string StateAcquired = "ACQUIRED";
+
+    /// <summary>
+    /// The stored state of a trigger firing now.
+    /// </summary>
     public const string StateExecuting = "EXECUTING";
+
+    /// <summary>
+    /// The stored state of a trigger finished and will not fire again.
+    /// </summary>
     public const string StateComplete = "COMPLETE";
+
+    /// <summary>
+    /// The stored state of a trigger held back because another firing of its non-concurrent job is running.
+    /// </summary>
     public const string StateBlocked = "BLOCKED";
+
+    /// <summary>
+    /// The stored state of a trigger in error, and will not fire until it is reset.
+    /// </summary>
     public const string StateError = "ERROR";
+
+    /// <summary>
+    /// The stored state of a trigger paused.
+    /// </summary>
     public const string StatePaused = "PAUSED";
+
+    /// <summary>
+    /// The stored state of a trigger paused and blocked at once, so resuming it leaves it blocked.
+    /// </summary>
     public const string StatePausedBlocked = "PAUSED_BLOCKED";
+
+    /// <summary>
+    /// The stored state of a trigger deleted, which is a transient marker rather than a resting state.
+    /// </summary>
     public const string StateDeleted = "DELETED";
+
+    /// <summary>
+    /// The group name a store records in the paused-groups table to mean that every group is paused,
+    /// including the ones added next.
+    /// </summary>
     public const string AllGroupsPaused = "_$_ALL_GROUPS_PAUSED_$_";
 
     // TRIGGER TYPES

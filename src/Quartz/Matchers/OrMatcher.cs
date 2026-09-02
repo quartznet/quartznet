@@ -42,15 +42,23 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         RightOperand = rightOperand;
     }
 
+    /// <inheritdoc />
     public bool IsMatch(TKey key)
     {
         return LeftOperand.IsMatch(key) || RightOperand.IsMatch(key);
     }
 
+    /// <summary>
+    /// The first of the two matchers, and the only one consulted when it matches.
+    /// </summary>
     public IMatcher<TKey> LeftOperand { get; private set; } = null!;
 
+    /// <summary>
+    /// The second matcher, consulted when the first does not match.
+    /// </summary>
     public IMatcher<TKey> RightOperand { get; private set; } = null!;
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         const int prime = 31;
@@ -60,6 +68,7 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         return result;
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj))

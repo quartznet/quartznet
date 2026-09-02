@@ -36,5 +36,9 @@ namespace Quartz;
 /// <typeparam name="T"></typeparam>
 public interface IMatcher<T> where T : Key<T>
 {
+    /// <summary>
+    /// Whether <paramref name="key" /> is one of the keys this matcher selects.
+    /// </summary>
+    /// <param name="key">The key to test.</param>
     bool IsMatch(T key);
 }

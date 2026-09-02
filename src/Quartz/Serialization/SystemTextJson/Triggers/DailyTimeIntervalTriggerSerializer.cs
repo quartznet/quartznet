@@ -4,10 +4,20 @@ using Quartz.Impl.Triggers;
 
 namespace Quartz.Serialization.SystemTextJson.Triggers;
 
+/// <summary>
+/// How a <see cref="IDailyTimeIntervalTrigger" /> is written to and read from the store's JSON.
+/// </summary>
+/// <remarks>
+/// Public and unsealed on purpose: a trigger deriving from the built-in implementation pairs with a
+/// serializer deriving from this one, overriding <c>SerializeFields</c> and <c>DeserializeFields</c>
+/// and calling base so the built-in fields keep their stored shape.
+/// </remarks>
 public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeIntervalTriggerImpl>
 {
+    /// <inheritdoc />
     public override string TriggerTypeName => "DailyTimeIntervalTrigger";
 
+    /// <inheritdoc />
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {
         var repeatCount = jsonElement.GetProperty(options.GetPropertyName("RepeatCount")).GetInt32();
@@ -27,6 +37,7 @@ public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeInt
             .InTimeZone(timeZone);
     }
 
+    /// <inheritdoc />
     protected override void SerializeFields(Utf8JsonWriter writer, DailyTimeIntervalTriggerImpl trigger, JsonSerializerOptions options)
     {
         writer.WriteNumber(options.GetPropertyName("RepeatCount"), trigger.RepeatCount);
@@ -39,6 +50,7 @@ public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeInt
         writer.WriteNumber(options.GetPropertyName("TimesTriggered"), trigger.TimesTriggered);
     }
 
+    /// <inheritdoc />
     protected override void DeserializeFields(DailyTimeIntervalTriggerImpl trigger, JsonElement jsonElement, JsonSerializerOptions options)
     {
         // This property might not exist in the JSON if trigger was serialized with older version

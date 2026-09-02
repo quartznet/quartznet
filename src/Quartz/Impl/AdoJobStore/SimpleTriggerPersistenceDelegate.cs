@@ -38,6 +38,7 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
 
     private string SchedulerName { get; set; } = null!;
 
+    /// <inheritdoc />
     public void Initialize(TriggerPersistenceDelegateContext context)
     {
         TablePrefix = context.TablePrefix;
@@ -45,16 +46,19 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         DbAccessor = context.DbAccessor;
     }
 
+    /// <inheritdoc />
     public string GetHandledTriggerTypeDiscriminator()
     {
         return AdoConstants.TriggerTypeSimple;
     }
 
+    /// <inheritdoc />
     public bool CanHandleTriggerType(IOperableTrigger trigger)
     {
         return trigger is SimpleTriggerImpl impl && !impl.HasAdditionalProperties;
     }
 
+    /// <inheritdoc />
     public async ValueTask<int> DeleteExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -68,6 +72,7 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<int> InsertExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -88,6 +93,7 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -108,6 +114,7 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         return default;
     }
 
+    /// <inheritdoc />
     public ValueTask<Dictionary<TriggerKey, TriggerPropertyBundle>> LoadExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
@@ -124,6 +131,7 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
             cancellationToken);
     }
 
+    /// <inheritdoc />
     public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
     {
         int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
@@ -137,6 +145,7 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         return new TriggerPropertyBundle(sb, t => ((SimpleTriggerImpl) t).TimesTriggered = timesTriggered);
     }
 
+    /// <inheritdoc />
     public async ValueTask<int> UpdateExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -153,6 +162,7 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public bool TryDescribeUpdateExtendedTriggerProperties(
         IOperableTrigger trigger,
         StoredTriggerState state,

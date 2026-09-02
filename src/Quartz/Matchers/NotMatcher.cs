@@ -40,13 +40,18 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         Operand = operand;
     }
 
+    /// <inheritdoc />
     public bool IsMatch(TKey key)
     {
         return !Operand.IsMatch(key);
     }
 
+    /// <summary>
+    /// The matcher whose answer is inverted.
+    /// </summary>
     public IMatcher<TKey> Operand { get; private set; } = null!;
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         const int Prime = 31;
@@ -55,6 +60,7 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         return result;
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj))

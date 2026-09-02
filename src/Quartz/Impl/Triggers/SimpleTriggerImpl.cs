@@ -159,6 +159,7 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     /// <inheritdoc />
     public SimpleTriggerMisfireInstruction MisfireInstruction => (SimpleTriggerMisfireInstruction) MisfireInstructionCode;
 
+    /// <inheritdoc />
     public override IScheduleBuilder GetScheduleBuilder()
     {
         SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()

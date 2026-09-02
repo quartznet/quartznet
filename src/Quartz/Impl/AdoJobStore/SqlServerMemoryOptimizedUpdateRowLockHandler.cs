@@ -45,5 +45,6 @@ public sealed class SqlServerMemoryOptimizedUpdateRowLockHandler : UpdateRowLock
     {
     }
 
+    /// <inheritdoc />
     protected override int RetryCount => 5;
 }

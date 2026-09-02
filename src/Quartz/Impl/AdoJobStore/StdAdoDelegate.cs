@@ -110,6 +110,9 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
 
     private readonly ConcurrentDictionary<int, string> misfireRecoverySqlByCount = new();
 
+    /// <summary>
+    /// The database this delegate reads and writes through.
+    /// </summary>
     protected IDbProvider DbProvider { get; private set; } = null!;
 
     /// <summary>
@@ -155,6 +158,13 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         }
     }
 
+    /// <summary>
+    /// Registers the persistence delegates for the five trigger families Quartz ships.
+    /// </summary>
+    /// <remarks>
+    /// Called before the delegates a container supplied, so those override a built-in one by
+    /// declaring the same discriminator.
+    /// </remarks>
     protected virtual void AddDefaultTriggerPersistenceDelegates()
     {
         AddTriggerPersistenceDelegate(new SimpleTriggerPersistenceDelegate());
@@ -164,6 +174,13 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         AddTriggerPersistenceDelegate(new RecurrenceTriggerPersistenceDelegate());
     }
 
+    /// <summary>
+    /// Whether job data is stored as a name-value table of strings rather than as a serialized map.
+    /// </summary>
+    /// <remarks>
+    /// The store's <c>StoreJobDataAsStrings</c> setting. A store that has written blobs cannot be
+    /// switched to strings without rewriting them, which is why this is read rather than decided here.
+    /// </remarks>
     protected virtual bool CanUseProperties => useProperties;
 
     //---------------------------------------------------------------------------
@@ -428,11 +445,21 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
             : (likeSql, ToSqlLikeClause(matcher));
     }
 
+    /// <summary>
+    /// Whether <paramref name="matcher" /> is an exact-match one, which becomes <c>=</c> rather than
+    /// <c>LIKE</c>.
+    /// </summary>
+    /// <param name="matcher">The matcher being translated.</param>
     protected static bool IsMatcherEquals<T>(StringMatcher<T> matcher) where T : Key<T>
     {
         return matcher.CompareWithOperator.Equals(StringOperator.Equality);
     }
 
+    /// <summary>
+    /// The value an exact-match matcher compares with, which needs no escaping because it is bound as
+    /// a parameter rather than built into the statement.
+    /// </summary>
+    /// <param name="matcher">The matcher being translated.</param>
     protected static string ToSqlEqualsClause<T>(StringMatcher<T> matcher) where T : Key<T>
     {
         return matcher.CompareToValue;
@@ -561,6 +588,15 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         return retValue;
     }
 
+    /// <summary>
+    /// The key of the first value in <paramref name="data" /> the serializer cannot write, or
+    /// <see langword="null" /> when every value round-trips.
+    /// </summary>
+    /// <remarks>
+    /// Used to name the offending entry in the failure, rather than reporting that a job data map
+    /// somewhere could not be stored.
+    /// </remarks>
+    /// <param name="data">The map being stored.</param>
     protected object? GetKeyOfNonSerializableValue(JobDataMap data)
     {
         foreach (KeyValuePair<string, object?> entry in data)
@@ -685,11 +721,13 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         return await rs.GetFieldValueAsync<byte[]>(colIndex, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public virtual DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
     {
         return adoUtil.PrepareCommand(cth, commandText);
     }
 
+    /// <inheritdoc />
     public virtual void AddCommandParameter(
         DbCommand cmd,
         string paramName,

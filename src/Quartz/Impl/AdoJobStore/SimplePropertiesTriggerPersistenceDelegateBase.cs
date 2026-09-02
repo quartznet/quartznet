@@ -54,17 +54,64 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
     // they stay protected. The four statements below are not: they name every column this base class
     // writes, so a subclass replacing one would either be writing the same statement again or writing
     // a statement this class's parameter binding does not match.
+    /// <summary>
+    /// The <c>STR_PROP_1</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnStrProp1 = "STR_PROP_1";
+
+    /// <summary>
+    /// The <c>STR_PROP_2</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnStrProp2 = "STR_PROP_2";
+
+    /// <summary>
+    /// The <c>STR_PROP_3</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnStrProp3 = "STR_PROP_3";
+
+    /// <summary>
+    /// The <c>INT_PROP_1</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnIntProp1 = "INT_PROP_1";
+
+    /// <summary>
+    /// The <c>INT_PROP_2</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnIntProp2 = "INT_PROP_2";
+
+    /// <summary>
+    /// The <c>LONG_PROP_1</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnLongProp1 = "LONG_PROP_1";
+
+    /// <summary>
+    /// The <c>LONG_PROP_2</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnLongProp2 = "LONG_PROP_2";
+
+    /// <summary>
+    /// The <c>DEC_PROP_1</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnDecProp1 = "DEC_PROP_1";
+
+    /// <summary>
+    /// The <c>DEC_PROP_2</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnDecProp2 = "DEC_PROP_2";
+
+    /// <summary>
+    /// The <c>BOOL_PROP_1</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnBoolProp1 = "BOOL_PROP_1";
+
+    /// <summary>
+    /// The <c>BOOL_PROP_2</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnBoolProp2 = "BOOL_PROP_2";
+
+    /// <summary>
+    /// The <c>TIME_ZONE_ID</c> column of <see cref="TableSimplePropertiesTriggers" />.
+    /// </summary>
     protected const string ColumnTimeZoneId = "TIME_ZONE_ID";
 
     /// <summary>
@@ -112,6 +159,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
                                                       + " AND " + AdoConstants.ColumnTriggerName
                                                       + " = @" + SqlParameters.TriggerName + " AND " + AdoConstants.ColumnTriggerGroup + " = @" + SqlParameters.TriggerGroup;
 
+    /// <inheritdoc />
     public void Initialize(TriggerPersistenceDelegateContext context)
     {
         TablePrefix = context.TablePrefix;
@@ -129,16 +177,32 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
     /// </summary>
     public abstract string GetHandledTriggerTypeDiscriminator();
 
+    /// <summary>
+    /// Reads a trigger of the derived delegate's own family into the generic property columns.
+    /// </summary>
+    /// <param name="trigger">The trigger being stored.</param>
     protected abstract SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger);
 
+    /// <summary>
+    /// Builds the schedule of a trigger of the derived delegate's own family back out of the generic
+    /// property columns.
+    /// </summary>
+    /// <param name="properties">The columns as they were read.</param>
     protected abstract TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties properties);
 
+    /// <summary>
+    /// The table prefix the store was configured with.</summary>
     protected string TablePrefix { get; private set; } = null!;
 
+    /// <summary>
+    /// The scheduler whose rows this delegate reads and writes.</summary>
     protected string SchedulerName { get; private set; } = null!;
 
+    /// <summary>
+    /// How a value is bound to a command and read back out of a row.</summary>
     protected IDbAccessor DbAccessor { get; private set; } = null!;
 
+    /// <inheritdoc />
     public async ValueTask<int> DeleteExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -152,6 +216,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<int> InsertExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -182,6 +247,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -202,6 +268,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         return default;
     }
 
+    /// <inheritdoc />
     public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
     {
         SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties
@@ -223,6 +290,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         return GetTriggerPropertyBundle(properties);
     }
 
+    /// <inheritdoc />
     public async ValueTask<int> UpdateExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -239,6 +307,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public bool TryDescribeUpdateExtendedTriggerProperties(
         IOperableTrigger trigger,
         StoredTriggerState state,

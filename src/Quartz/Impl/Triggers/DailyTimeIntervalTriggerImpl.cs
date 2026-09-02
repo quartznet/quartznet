@@ -269,6 +269,7 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     /// </summary>
     public int TimesTriggered { get; set; }
 
+    /// <inheritdoc />
     public TimeZoneInfo TimeZone
     {
         get
@@ -283,6 +284,11 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
         set => timeZone = value;
     }
 
+    /// <summary>
+    /// Whether the code is one of <see cref="DailyTimeIntervalTriggerMisfireInstruction" />'s values,
+    /// or the family-agnostic "not set" and "smart policy".
+    /// </summary>
+    /// <param name="misfireInstruction">The code being assigned.</param>
     protected override bool ValidateMisfireInstruction(int misfireInstruction)
     {
         if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)

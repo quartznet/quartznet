@@ -3,6 +3,15 @@ using System.Linq.Expressions;
 
 namespace Quartz;
 
+/// <summary>
+/// Declares one job inside <c>AddQuartz(…)</c>: its key, its description, its durability and its
+/// job data.
+/// </summary>
+/// <remarks>
+/// The job type is the type argument rather than a value, which is what lets the data-map members
+/// take a property expression and what carries the trimming annotation to the container.
+/// </remarks>
+/// <typeparam name="TJob">The job type being declared.</typeparam>
 public interface IJobConfigurator<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob> where TJob : IJob
 {
     /// <summary>

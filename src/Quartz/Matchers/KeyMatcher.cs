@@ -37,13 +37,18 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         CompareToValue = compareTo;
     }
 
+    /// <inheritdoc />
     public bool IsMatch(TKey key)
     {
         return CompareToValue.Equals(key);
     }
 
+    /// <summary>
+    /// The one key this matcher selects.
+    /// </summary>
     public TKey CompareToValue { get; private set; } = null!;
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         const int Prime = 31;
@@ -52,6 +57,7 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         return result;
     }
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj))

@@ -23,6 +23,14 @@ using Quartz.Util;
 
 namespace Quartz;
 
+/// <summary>
+/// Time zone lookup that answers the same way on every platform.
+/// </summary>
+/// <remarks>
+/// <see cref="TimeZoneInfo.FindSystemTimeZoneById" /> resolves a different set of ids on Windows,
+/// on Linux and under ICU, so an expression that named a zone on the developer's machine could
+/// fail to resolve on the server. These members translate the spellings each platform is missing.
+/// </remarks>
 public static class TimeZones
 {
     /// <summary>
@@ -177,6 +185,12 @@ public static class TimeZones
         return timeZoneInfo.GetUtcOffset(dateTimeOffset);
     }
 
+    /// <summary>
+    /// The zone's offset at the given instant, resolving an ambiguous local time to the earlier of the
+    /// two — which is the daylight one, and the one time reaches first.
+    /// </summary>
+    /// <param name="dateTime">The instant to read the offset at.</param>
+    /// <param name="timeZoneInfo">The zone.</param>
     public static TimeSpan GetUtcOffset(DateTime dateTime, TimeZoneInfo timeZoneInfo)
     {
         // Unlike the default behavior of TimeZoneInfo.GetUtcOffset, it is prefered to choose

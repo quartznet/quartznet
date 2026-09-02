@@ -58,6 +58,9 @@ public class UpdateRowLockHandler : DbLockHandler
     protected const string InsertLock =
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
+    /// <summary>
+    /// How many times a contended lock attempt is retried before it fails.
+    /// </summary>
     protected virtual int RetryCount => 2;
 
     /// <summary>
@@ -93,6 +96,15 @@ public class UpdateRowLockHandler : DbLockHandler
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateRowLockHandler" /> class for a derived
+    /// handler that spells its own statements — a dialect whose <c>UPDATE</c> needs a hint, for instance.
+    /// </summary>
+    /// <param name="tablePrefix">The table prefix the store was configured with.</param>
+    /// <param name="schedulerName">The scheduler whose lock rows these are.</param>
+    /// <param name="updateForLockSql">The statement that takes the lock.</param>
+    /// <param name="insertLockSql">The statement that creates the lock row.</param>
+    /// <param name="dbProvider">The database the statements run against.</param>
     protected UpdateRowLockHandler(
         string tablePrefix,
         string? schedulerName,

@@ -19,13 +19,44 @@ namespace Quartz.Diagnostics;
 /// </remarks>
 public static class ActivityTags
 {
+    /// <summary>
+    /// The scheduler's name.
+    /// </summary>
     public const string SchedulerName = "quartz.scheduler.name";
+
+    /// <summary>
+    /// The scheduler's instance id, which is what tells two nodes of a cluster apart.
+    /// </summary>
     public const string SchedulerId = "quartz.scheduler.id";
+
+    /// <summary>
+    /// The identity of one firing, which is what an interrupt names.
+    /// </summary>
     public const string FireInstanceId = "quartz.fire.instance.id";
+
+    /// <summary>
+    /// The trigger's group.
+    /// </summary>
     public const string TriggerGroup = "quartz.trigger.group";
+
+    /// <summary>
+    /// The trigger's name.
+    /// </summary>
     public const string TriggerName = "quartz.trigger.name";
+
+    /// <summary>
+    /// The job's type, as the assembly-qualified name the store holds.
+    /// </summary>
     public const string JobType = "quartz.job.type";
+
+    /// <summary>
+    /// The job's group.
+    /// </summary>
     public const string JobGroup = "quartz.job.group";
+
+    /// <summary>
+    /// The job's name.
+    /// </summary>
     public const string JobName = "quartz.job.name";
 
     /// <summary>
@@ -39,7 +70,14 @@ public static class ActivityTags
     public const string ExecutionGroup = "quartz.execution.group";
 
     // Job store operation tags
+    /// <summary>
+    /// How many triggers a store operation was asked for, or handed back.
+    /// </summary>
     public const string TriggerCount = "quartz.jobstore.trigger.count";
+
+    /// <summary>
+    /// How many triggers the scheduler asked its store for in one acquisition attempt.
+    /// </summary>
     public const string BatchSize = "quartz.jobstore.batch.size";
 
     /// <summary>
