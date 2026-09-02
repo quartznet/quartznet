@@ -79,6 +79,22 @@ A non-null `AuthorizationOptions.FallbackPolicy` satisfies the check as well, si
 endpoint that states nothing, and so does a `RequireAuthorization()` on a `MapGroup` the API is mapped
 into — group metadata flows into the endpoints. An application that calls `AddQuartzHttpApi()` and never
 maps anything serves nothing and is left alone.
+
+**An `AllowAnonymous()` on a group counts as the statement, and it wins.** `app.MapGroup("/ops").AllowAnonymous()`
+with `MapQuartzHttpApi()` mapped into it starts cleanly and serves the whole mutating API to anyone,
+*even if* the mapping also says `RequireAuthorization()` — ASP.NET Core's authorization middleware gives
+`IAllowAnonymous` precedence over any `IAuthorizeData` on the same endpoint, whatever order the
+conventions were added in. That is the framework's rule rather than Quartz's, and it is the reason
+`AllowAnonymous()` is listed above as a way of saying what you meant: the guard cannot tell a deliberate
+one from an inherited one.
+
+**For a mapping the guard cannot see before start-up, the refusal comes a moment late.** The check runs
+in `IHostedLifecycleService.StartingAsync`, before the server binds its listener — but it can only see
+endpoints reachable from the route builder `Map*` was called on, and a `RouteGroupBuilder`'s endpoints do
+not carry the group's conventions yet. So a `MapGroup(...).MapQuartzHttpApi()`, and anything mapped from
+`Startup.Configure`/`UseEndpoints`, is checked in `StartedAsync` instead. The host still stops, but an
+unauthorized API of that shape answers requests for the window between the web host starting and the
+guard throwing. Map it on the application directly if that window matters to you.
 :::
 
 ### Where the API is served
@@ -315,6 +331,16 @@ happens to enumerate them.
 Text is all a remote reader has — the endpoint hands out a snapshot of a live in-process map, and a
 client reading it back gets every entry as a string whatever it was in the scheduler's process. An
 entry whose type a caller has to act on belongs in an endpoint of its own rather than in the context.
+
+::: warning The scheduler context is not a secret store
+**Every** entry is returned, and the fallback rendering is `Convert.ToString` — which for a record or a
+struct with a compiler-generated `ToString` is every field it has. One authorized `GET` therefore dumps
+the application's own map, connection strings and API keys included, and
+[Jobs](quartz-jobs.md#directoryscanjob) teaches putting shared instances there. The context is exactly as
+secret as a job's data map, which is to say not at all: an authorized caller reads both. Keep secrets in
+`IConfiguration`, a key vault or the container, and put a *name* in the context if a job needs to find
+one.
+:::
 
 ## Response-shape conventions
 

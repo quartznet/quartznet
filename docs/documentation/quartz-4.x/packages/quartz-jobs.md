@@ -96,6 +96,14 @@ scheduler.Context["inboxListener"] = new InboxListener();
 ```
 <!-- endSnippet -->
 
+::: warning The scheduler context is not a secret store
+`GET {ApiPath}/schedulers/{name}/context` returns **every** entry, rendered with `Convert.ToString` as
+the fallback — which for a record or a struct with a compiler-generated `ToString` is every field it has.
+So the context is exactly as secret as a job's data map, which is to say not at all: an authorized caller
+reads both. Put a shared *instance* there, or a name; keep the connection string and the API key in
+`IConfiguration`, a key vault or the container.
+:::
+
 Where the directories come from can be decided at run time instead of being listed: implement
 `IDirectoryProvider`, put the instance in the `SchedulerContext`, and name that key as
 `DirectoryProviderName`. It is handed the merged job data and returns the paths to scan.
