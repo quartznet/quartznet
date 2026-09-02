@@ -95,18 +95,20 @@ scheduler is holding a worker slot for it.
 
 After that, you just need to build Quartz trigger in `Program.cs`, which guarantees that the job will run according to the preset interval.
 
+One job with one trigger is what `ScheduleJob<TJob>` is for: it registers the job, builds the trigger, and
+names the job after the trigger, so there is no `JobKey` to declare and no `ForJob` to keep in step. A job
+that several triggers share is registered with `AddJob` and given each trigger with `AddTrigger` — see
+[Microsoft DI Integration](microsoft-di-integration.md#a-worked-configuration).
+
 **Example Program.cs configuration**
 
 <!-- snippet: sample_aspnetcore_schedule_job -->
 ```csharp
 builder.AddQuartz(q =>
 {
-    // Just use the name of your job that you created in the Jobs folder.
-    JobKey jobKey = new("SendEmailJob");
-    q.AddJob<SendEmailJob>(opts => opts.WithIdentity(jobKey));
-
-    q.AddTrigger<SendEmailJob>(opts => opts
-        .ForJob(jobKey)
+    // One job and the one trigger that fires it. The job class you wrote in the
+    // Jobs folder is the type argument; the job takes its identity from the trigger.
+    q.ScheduleJob<SendEmailJob>(trigger => trigger
         .WithIdentity("SendEmailJob-trigger")
         // This Cron interval can be described as "run every minute" (when second is zero)
         .WithCronSchedule("0 * * ? * *"));

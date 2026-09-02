@@ -59,12 +59,9 @@ public static class AspNetCoreSamples
 
         builder.AddQuartz(q =>
         {
-            // Just use the name of your job that you created in the Jobs folder.
-            JobKey jobKey = new("SendEmailJob");
-            q.AddJob<SendEmailJob>(opts => opts.WithIdentity(jobKey));
-
-            q.AddTrigger<SendEmailJob>(opts => opts
-                .ForJob(jobKey)
+            // One job and the one trigger that fires it. The job class you wrote in the
+            // Jobs folder is the type argument; the job takes its identity from the trigger.
+            q.ScheduleJob<SendEmailJob>(trigger => trigger
                 .WithIdentity("SendEmailJob-trigger")
                 // This Cron interval can be described as "run every minute" (when second is zero)
                 .WithCronSchedule("0 * * ? * *"));
