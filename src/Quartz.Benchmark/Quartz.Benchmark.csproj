@@ -50,4 +50,15 @@
     <Compile Include="..\Quartz.Tests.Unit\TestJobStores.cs" />
   </ItemGroup>
 
+  <!--
+    The 3.x half of the published fire-throughput comparison. It is source for a 3.x checkout, not
+    source for this project: it names JobStoreTX, StdSchedulerFactory and a Task-returning IJob, none
+    of which exist here. Kept in the tree so the baseline can be re-run rather than taken on trust —
+    baseline-3x/README.md says how.
+  -->
+  <ItemGroup>
+    <Compile Remove="baseline-3x\**" />
+    <None Include="baseline-3x\**" />
+  </ItemGroup>
+
 </Project>
