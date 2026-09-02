@@ -772,15 +772,8 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// <returns>A standard cron expression string with all H tokens resolved to numeric values</returns>
     public static string ResolveHash(string cronExpression, string hashKey)
     {
-        if (cronExpression is null)
-        {
-            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
-        }
-
-        if (hashKey is null)
-        {
-            Throw.ArgumentException("hashKey cannot be null", nameof(hashKey));
-        }
+        ArgumentNullException.ThrowIfNull(cronExpression);
+        ArgumentNullException.ThrowIfNull(hashKey);
 
         return ResolveHashTokens(
             CronMacros.Expand(CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim()),
@@ -800,10 +793,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// <returns>A standard cron expression string with all H tokens resolved to numeric values</returns>
     public static string ResolveHash(string cronExpression, int hashSeed)
     {
-        if (cronExpression is null)
-        {
-            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
-        }
+        ArgumentNullException.ThrowIfNull(cronExpression);
 
         return ResolveHashTokens(
             CronMacros.Expand(CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim()),

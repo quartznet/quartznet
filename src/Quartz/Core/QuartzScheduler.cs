@@ -1719,6 +1719,7 @@ internal sealed class QuartzScheduler
     /// </summary>
     public async ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKey);
         ValidateState();
 
         var triggersForJob = await resources.JobStore.GetTriggersForJob(jobKey, cancellationToken).ConfigureAwait(false);
@@ -1845,6 +1846,7 @@ internal sealed class QuartzScheduler
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKey);
         ValidateState();
 
         return resources.JobStore.GetJob(jobKey, cancellationToken);
@@ -1859,6 +1861,7 @@ internal sealed class QuartzScheduler
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKey);
         ValidateState();
 
         return await resources.JobStore.GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1878,6 +1881,7 @@ internal sealed class QuartzScheduler
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKey);
         ValidateState();
 
         return resources.JobStore.Exists(jobKey, cancellationToken);
@@ -1896,6 +1900,7 @@ internal sealed class QuartzScheduler
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKey);
         ValidateState();
 
         return resources.JobStore.Exists(triggerKey, cancellationToken);
@@ -1912,6 +1917,7 @@ internal sealed class QuartzScheduler
         string calendarName,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(calendarName);
         ValidateState();
 
         // A name nobody registered answers false, and a blank name is one of those — the same shape
@@ -1940,6 +1946,7 @@ internal sealed class QuartzScheduler
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKey);
         ValidateState();
 
         return resources.JobStore.GetTriggerState(triggerKey, cancellationToken);
@@ -2007,6 +2014,7 @@ internal sealed class QuartzScheduler
     /// </summary>
     public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(calendarName);
         ValidateState();
         return resources.JobStore.GetCalendar(calendarName, cancellationToken);
     }

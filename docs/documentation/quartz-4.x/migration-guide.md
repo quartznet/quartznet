@@ -583,6 +583,17 @@ exactly on it is listed.
 
 ### Null arguments raise `ArgumentNullException`
 
+**Every** `IScheduler` member does, reading as well as mutating — `GetJobDetail`, `GetTrigger`,
+`GetTriggerState`, `GetTriggersOfJob`, `GetCalendar`, the three `Exists` overloads and the six `Query*`
+members included. beta.1 brought the mutation members under the rule and left the reads as they were,
+which is two contracts on one interface with nothing to tell a caller which member is which; a read
+that was handed a null used to fault wherever the null was first dereferenced, which for a store-backed
+read is inside the store.
+
+`CronExpression.ResolveHash`'s two overloads are aligned too: they raised the base `ArgumentException`
+while the constructor and `Parse` on the same type raised `ArgumentNullException`. `ArgumentNullException`
+derives from `ArgumentException`, so an existing `catch` still catches.
+
 `IScheduler`'s mutation members raise `ArgumentNullException`, naming the parameter, where 3.x raised
 `SchedulerException("JobDetail cannot be null")` from `ScheduleJob(null, trigger)` and its neighbours.
 That was Java parity and it was undocumented, so a caller writing `catch (ArgumentNullException)`
