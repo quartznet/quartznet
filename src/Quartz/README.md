@@ -57,6 +57,7 @@ await scheduler.Start();
 | Package | For |
 |---|---|
 | [Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) | the HTTP API |
+| [Quartz.Aspire](https://www.nuget.org/packages/Quartz.Aspire) | a persistent store, its telemetry and its health check from an Aspire connection name |
 | [Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) | the web dashboard |
 | [Quartz.HttpClient](https://www.nuget.org/packages/Quartz.HttpClient) | driving a remote scheduler over the HTTP API |
 | [Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) | ready-made jobs: file scanning, sending mail, running a process |

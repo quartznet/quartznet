@@ -151,6 +151,14 @@ The last of those is the one that surprises people: **standby means "not acquiri
 database"**. A process that has never been elected at all is genuinely inert, because the misfire handler
 does not exist until the first `Start()`. A process that led once and stood down is not.
 
+::: tip A process that only writes the schedule
+Standby is right here, because a follower is a leader-in-waiting and must be able to fire the moment it
+is elected. A process that will *never* be elected — an admin API, a migration tool, anything that
+schedules work for other processes to run — wants `q.UseThreadPool<ZeroSizeThreadPool>()` instead, which
+is why that type is public. It creates no worker threads, and the two members a running scheduler calls
+throw `NotSupportedException`, so such a scheduler is never started and says so if something starts it.
+:::
+
 The health check follows the same distinction. It reports *degraded* — not *unhealthy* — both while a
 scheduler sits in `Created` with `AutoStart = false` and while it is in `Standby`, because in both cases it
 is doing exactly what it was configured to do. A non-leader replica therefore stays in rotation for

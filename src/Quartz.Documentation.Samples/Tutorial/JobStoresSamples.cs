@@ -34,7 +34,6 @@ public static class JobStoresSamples
             q.UsePersistentStore(store =>
             {
                 store.UseSqlServer("Server=localhost;Database=quartz;Trusted_Connection=True;Encrypt=False");
-                store.UseSystemTextJsonSerializer();
 
                 store.ConfigureStore(options =>
                 {
@@ -56,7 +55,6 @@ public static class JobStoresSamples
             q.UsePersistentStore(store =>
             {
                 store.UsePostgres(connectionString);
-                store.UseSystemTextJsonSerializer();
 
                 // outside production, where whatever applies the rest of the database's
                 // schema applies this one too

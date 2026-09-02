@@ -290,6 +290,6 @@ is allowed to have.
 
 ## See also
 
-- [Testing](testing.md) — the fake-clock rules, and the three levels of Quartz test
+- [Testing](testing.md) — the fake-clock rules, and the four levels of Quartz test
 - [Configuration Reference](../configuration/reference.md) — `IdleWaitTime`, misfire thresholds and the rest
 - [CronTriggers](crontriggers.md) — time zones and DST in cron schedules

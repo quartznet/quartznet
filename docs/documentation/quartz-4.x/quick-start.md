@@ -27,8 +27,12 @@ The optional packages, added the same way when you want them:
 | [Quartz.Serialization.Newtonsoft](packages/json-serialization.md) | persisting with Newtonsoft.Json instead of System.Text.Json |
 | [Quartz.Jobs](packages/quartz-jobs.md) | the ready-made jobs — file scanning, sending mail, running a process |
 | [Quartz.Plugins](packages/quartz-plugins.md) | history logging, JSON (and XML) schedule files, the interrupt monitor |
+| [Quartz.Plugins.TimeZoneConverter](packages/timezoneconverter-integration.md) | Windows and IANA time zone ids resolving on either operating system |
 | [Quartz.AspNetCore](packages/aspnet-core-integration.md) | the HTTP API |
 | [Quartz.Dashboard](packages/dashboard.md) | the web dashboard |
+| [Quartz.HttpClient](packages/http-client.md) | driving a remote scheduler over that API |
+| [Quartz.Aspire](packages/aspire.md) | a persistent store, its telemetry and its health check from an Aspire connection name |
+| [Quartz.Extensions.Redis](packages/redis.md) | Redis distributed locks for a cluster |
 
 ## Configuration
 

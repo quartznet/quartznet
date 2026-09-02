@@ -30,7 +30,6 @@ builder.Services.AddQuartz(q =>
     q.UsePersistentStore(store =>
     {
         store.UseSqlServer(connectionString);
-        store.UseSystemTextJsonSerializer();
         store.UseClustering();
     });
 });

@@ -319,7 +319,6 @@ q.UseJsonSchedulingConfiguration(x =>
 {
     x.Files.Add("~/quartz_jobs.json");
     x.ScanInterval = TimeSpan.FromSeconds(2);
-    x.FailOnFileNotFound = true;
     x.FailOnSchedulingError = true;
 });
 

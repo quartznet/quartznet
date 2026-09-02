@@ -405,3 +405,38 @@ Trigger 'DEFAULT.myTrigger' is defined more than once in the scheduling data.
 The same holds for the XML format's `<overwrite-existing-data>` and `<ignore-duplicates>`. Before
 Quartz.NET 4, the last definition of a repeated key won and said so only at `Debug`.
 :::
+
+## When a file is wrong
+
+Two settings on the plugin decide what a bad file does, and they answer different questions.
+Both are on [`FileSchedulingOptions`](../packages/quartz-plugins.md#configuration), and everything below
+is the same for the XML format.
+
+**A file that is not there.** `FailOnFileNotFound` is **`true`** by default, so a named file that does
+not exist stops the scheduler being built, with a `SchedulerException` naming it:
+
+```text
+File named 'quartz_jobs.json' does not exist.
+```
+
+Set it to `false` and the file is logged as missing and skipped, which is what an optional overlay file
+wants.
+
+**A file that is there and is wrong.** Whatever went wrong — malformed JSON, a trigger with two schedule
+blocks, a `JobType` that will not load, a key declared twice — the processor raises it, the plugin logs
+it, wraps it in a `SchedulerException` naming the file, and hands that to every registered
+`ISchedulerListener` through `SchedulerError`. It is rethrown only when `FailOnSchedulingError` is
+`true`, and that setting is **`false`** by default: the scheduler otherwise starts without the schedule
+the file was carrying. Turn it on where a schedule that failed to load should stop the deployment
+instead of running a scheduler with nothing in it.
+
+**Which exception, and why it matters.** `Quartz.SchedulingDataValidationException` — a
+`SchedulerException` — is the one that carries **every** violation it found rather than the first:
+`ValidationExceptions` is the list and `Message` is every message, one per line. A document is checked
+against the schema, and its keys checked for duplicates, before any of it is applied, so a file with
+three mistakes in it reports three. Everything else a file can get wrong is an ordinary
+`SchedulerException` raised where it happens — a `JobType` that will not load, a non-durable job with no
+trigger — so it names the one thing that failed.
+
+Neither makes the file a transaction against the store. `PreProcessingCommands` have already run by the
+time a job is stored, and a document with several jobs applies them one at a time.

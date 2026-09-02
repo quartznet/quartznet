@@ -39,6 +39,7 @@ sections are:
 | `JobStore:Clustering` | `ClusteringOptions` | [below](#clustering) |
 | `DataSource` | `DataSourceOptions`, one per named data source | [below](#data-source) |
 | `Scheduling` | `SchedulingOptions` — what happens when registered jobs and triggers already exist in the store | [below](#scheduling) |
+| `TypeLoader` | `TypeLoaderOptions` — the container's, not a scheduler's | [below](#type-loader) |
 | `Schedulers` | one sub-section per named scheduler | [below](#several-schedulers) |
 | `Schedule`, `ProcessingDirectives` | jobs and triggers declared in configuration | [JSON configuration](json.md) |
 
@@ -107,6 +108,13 @@ services.AddQuartz(q => q.UseThreadPool<MyThreadPool>());
 ```
 <!-- endSnippet -->
 
+Two shipped pools are worth knowing by name, because `UseThreadPool<T>()` is how you reach either:
+
+| Type | For |
+|---|---|
+| `Quartz.Impl.ZeroSizeThreadPool` | a scheduler that exists only to *write* the schedule and is never started. `UseThreadPool<ZeroSizeThreadPool>()` creates no worker threads at all, and both of the members a running scheduler would call throw `NotSupportedException` — so calling `Start()` on such a scheduler fails loudly rather than sitting there firing nothing |
+| `Quartz.Impl.TaskSchedulingThreadPool` | the open base of `DefaultThreadPool`. A pool of your own derives from it and overrides one member, `GetDefaultScheduler()`, rather than implementing `IThreadPool`'s six from scratch |
+
 `ThreadPoolOptions` belongs to the built-in pools — they are what read `MaxConcurrency` — so
 `UseThreadPool<T>()` takes no callback for it. A pool of your own has options of its own:
 
@@ -151,7 +159,6 @@ that speaks its SQL dialect, so a connection string is all you normally supply:
 services.AddQuartz(q => q.UsePersistentStore(store =>
 {
     store.UseSqlServer(connectionString);
-    store.UseSystemTextJsonSerializer();
 }));
 ```
 <!-- endSnippet -->
@@ -528,7 +535,6 @@ services.AddQuartz(q =>
             cluster.CheckinInterval = TimeSpan.FromSeconds(10);
             cluster.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
         });
-        store.UseSystemTextJsonSerializer();
     });
 });
 ```
@@ -538,12 +544,21 @@ services.AddQuartz(q =>
 
 ## Serialization
 
-A persistent store must be told how to serialize job data.
+Whatever a persistent store cannot write as a string goes through an `IObjectSerializer`.
+**A store that names none gets `SystemTextJsonObjectSerializer`**, registered as the fallback the way
+the driver delegate is — so `UseSystemTextJsonSerializer()` with no argument selects what the store
+already had, and only two things are worth writing:
 
 <!-- snippet: sample_reference_serializers -->
 ```csharp
-store.UseSystemTextJsonSerializer();
-store.UseNewtonsoftJsonSerializer();   // Quartz.Serialization.Newtonsoft
+// Newtonsoft.Json, from the Quartz.Serialization.Newtonsoft package: what reads data
+// a 3.x scheduler's Newtonsoft serializer wrote
+store.UseNewtonsoftJsonSerializer();
+
+// System.Text.Json with something to say about it — a trigger or calendar type of
+// your own that the built-in serializers do not know
+store.UseSystemTextJsonSerializer(json =>
+    json.AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer()));
 ```
 <!-- endSnippet -->
 
@@ -635,6 +650,7 @@ identically under `AddQuartz` and inside `QuartzSchedulerBuilder.Create(q => …
 | `UseTimeProvider(timeProvider)` | the clock every trigger, store and misfire calculation reads | `TimeProvider.System`, or the container's registration when there is one |
 | `UseTypeLoader<T>()` | how a type named by a string — a stored `JOB_CLASS_NAME`, a `.type` key — is resolved | resolution through the container's assemblies, with the 3.x namespace fallbacks |
 | `UseTypeLoader(configure)` | *configures* that loader rather than replacing it: `loader.Map(oldName, typeof(NewType))` declares what a renamed type is called now, and `Quartz:TypeLoader:Aliases` is the same map from configuration. See [Job deserialization failures after refactoring](../../troubleshooting.md#job-deserialization-failures-after-refactoring) | no aliases |
+| `UseSimpleTypeLoader()` | asks for the built-in loader by name. `SimpleTypeLoader` is internal — a type-loading strategy is not something to derive from — so there is no `UseTypeLoader<SimpleTypeLoader>()` to write; this is it. It is already the default, so it matters only where something else registered a loader first | this is the default |
 | `UseInstanceIdGenerator<T>()` | how `InstanceId` is derived when `GenerateInstanceId` is on | `SimpleInstanceIdGenerator`: host name plus a timestamp |
 | `UseJobStore<T>()`, `UseJobStore<T, TOptions>()` | the job store, for one that is neither of the two Quartz ships | the in-memory store |
 | `UseDriverDelegate<T>()`, `UseDriverDelegate(factory)` (on the persistent store builder) | the SQL dialect the ADO.NET store speaks | selected by the database method — `UseSqlServer` picks `SqlServerDelegate`, and so on |

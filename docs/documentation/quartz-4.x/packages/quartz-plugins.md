@@ -42,6 +42,20 @@ They hang off `IQuartzBuilder`, so they work the same under `AddQuartz` and insi
 [configuration reference](../configuration/reference.md#listeners-calendars-and-plugins) for how a plugin
 is registered and named.
 
+`FileSchedulingOptions` is what the two schedule-file plugins take, and what it does by default is worth
+knowing before you set anything:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `Files` | `List<string>` | empty | The files to read the schedule from. Get-only, so add to it. |
+| `FailOnFileNotFound` | bool | **`true`** | A named file that is not there stops the scheduler from starting. |
+| `FailOnSchedulingError` | bool | `false` | A file that parses but whose contents cannot be scheduled is logged and skipped. Turn it on to fail startup instead. |
+| `ScanInterval` | TimeSpan | `00:00:00` | How often the files are re-read. **Zero means they are read once**, at startup — a change then needs a restart, not merely a save. |
+
+The two history-logging options types — `JobHistoryLoggingOptions` and `TriggerHistoryLoggingOptions` —
+carry nothing but message templates, and every one of them defaults to `null`, meaning the plugin's own.
+[LoggingJobHistoryPlugin](#loggingjobhistoryplugin) shows the shape they have to have.
+
 An options type in that table is the scheduler's own named options, so a plugin is configurable from
 `appsettings.json` like anything else the container builds — bind the section and the values reach the
 plugin:
@@ -173,7 +187,6 @@ services.AddQuartz(q =>
     {
         x.Files.Add("quartz_jobs.json");
         x.ScanInterval = TimeSpan.FromMinutes(1);
-        x.FailOnFileNotFound = true;
         x.FailOnSchedulingError = true;
     });
 });
@@ -203,7 +216,6 @@ services.AddQuartz(q =>
     {
         x.Files.Add("~/quartz_jobs.config");
         x.ScanInterval = TimeSpan.FromMinutes(1);
-        x.FailOnFileNotFound = true;
         x.FailOnSchedulingError = true;
     });
 });
