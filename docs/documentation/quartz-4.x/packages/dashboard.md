@@ -555,6 +555,26 @@ Note what read-only is not: it hides the dashboard's controls and does nothing t
 mapped and authorized separately. A dashboard in read-only mode over an API that anyone may post to is
 read-only in appearance alone.
 
+### Browser security headers are the host's
+
+Quartz sets no CORS policy and no browser security headers — that is right for a library that maps into
+your pipeline, and ASP.NET Core sends no `Access-Control-Allow-Origin` unless asked, so the API is
+same-origin by default. One consequence is worth acting on: **the dashboard is framable**, and its
+mutating controls are one confirm dialog away, so a page that frames an authenticated operator's
+dashboard can drive a two-click sequence. Send the header your other admin surfaces send:
+
+```csharp
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'none'";
+    await next();
+});
+```
+
+The same goes for the antiforgery middleware the setup above shows: `app.UseAntiforgery()` is the
+application's call, and `MapRazorComponents` requires it.
+
 ### API key or custom authorization checks
 
 If you need machine-to-machine access, use your API auth scheme (for example, an API key handler) and bind that to a policy used by `MapQuartzHttpApi()`.
