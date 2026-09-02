@@ -101,6 +101,18 @@ public class SendMailJob : IJob
     public const string PropertyEncoding = "encoding";
 
     /// <summary>
+    /// Whether to negotiate TLS with the SMTP server (<c>STARTTLS</c>). Optional; defaults to
+    /// <see langword="false" />, which is <see cref="SmtpClient" />'s own default.
+    /// </summary>
+    /// <remarks>
+    /// Off by default because turning it on fails outright against a server that does not offer TLS,
+    /// and a job that has been sending for years through a relay on the same host would stop. Turn it
+    /// on for anything that crosses a network you do not own, and for anything that authenticates:
+    /// SMTP <c>AUTH LOGIN</c> is base64, which is not encryption.
+    /// </remarks>
+    public const string PropertyEnableSsl = "smtp_enable_ssl";
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="SendMailJob" /> class.
     /// </summary>
     /// <param name="credentials">
@@ -127,6 +139,10 @@ public class SendMailJob : IJob
         SendMailOptions options = SendMailOptions.FromJobData(data);
         MailMessage message = BuildMessage(options);
 
+        // Outside the try, so that a refusal to hand a credential to a host nobody vouched for reaches
+        // the operator as itself rather than as "unable to send mail".
+        NetworkCredential? resolved = ResolveCredentials(data, options);
+
         try
         {
             var info = new MailInfo
@@ -134,7 +150,8 @@ public class SendMailJob : IJob
                 MailMessage = message,
                 SmtpHost = options.SmtpHost,
                 SmtpPort = options.SmtpPort,
-                Credentials = ResolveCredentials(data)
+                EnableSsl = options.EnableSsl,
+                Credentials = resolved
             };
             await Send(info, cancellationToken).ConfigureAwait(false);
         }
@@ -181,13 +198,53 @@ public class SendMailJob : IJob
     }
 
     /// <summary>
-    /// The credential registered with the container, or the one in job data when there is none.
+    /// The credential registered with the container — for the host this firing names, and only if the
+    /// container vouched for that host — or the one in job data when nothing is registered.
     /// </summary>
-    private ICredentialsByHost? ResolveCredentials(JobDataMap data)
+    /// <remarks>
+    /// <para>
+    /// The host to send through is job data, which anyone who can schedule this job writes. A
+    /// <see cref="NetworkCredential" /> answers <see cref="ICredentialsByHost.GetCredential" /> with
+    /// itself for every host, so registering one and letting the job data pick the server hands the
+    /// operator's SMTP login to whatever host that data names — as base64 <c>AUTH LOGIN</c>, to a
+    /// listener the caller controls. That is refused rather than sent.
+    /// </para>
+    /// <para>
+    /// A <see cref="CredentialCache" /> is the .NET way to say which host a credential is for, and it
+    /// answers <see langword="null" /> for every other one — so a job pointed elsewhere sends
+    /// unauthenticated instead of authenticating to a stranger. Any other
+    /// <see cref="ICredentialsByHost" /> is asked the same question and its answer is taken as its
+    /// author's decision.
+    /// </para>
+    /// <para>
+    /// The job-data credential is not affected: whoever wrote <c>smtp_username</c> wrote
+    /// <c>smtp_host</c> beside it, so there is no host they did not choose.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="JobExecutionException">
+    /// The registered credential answers for every host while the host comes from job data.
+    /// </exception>
+    private NetworkCredential? ResolveCredentials(JobDataMap data, SendMailOptions options)
     {
         if (credentials is not null)
         {
-            return credentials;
+            if (credentials is NetworkCredential)
+            {
+                throw new JobExecutionException(
+                    $"The SMTP credential registered with the container is a {nameof(NetworkCredential)}, which "
+                    + $"answers for every host, and the host to send through — '{options.SmtpHost}' — comes from "
+                    + $"this job's data. Sending would hand the credential to whatever that data names. Register a "
+                    + $"{nameof(CredentialCache)} bound to the server instead: "
+                    + $"cache.Add(\"{options.SmtpHost}\", {options.SmtpPort ?? DefaultSmtpPort}, \"Basic\", credential). "
+                    + $"A cache with no entry for the host in job data sends unauthenticated rather than refusing.");
+            }
+
+            // Asked for the host this firing names, so a cache bound to one server answers for that
+            // server and null for anything else. Both spellings, because SMTP's mechanism name is what
+            // reaches an ICredentialsByHost and callers bind under either.
+            int port = options.SmtpPort ?? DefaultSmtpPort;
+            return credentials.GetCredential(options.SmtpHost, port, "Basic")
+                ?? credentials.GetCredential(options.SmtpHost, port, "login");
         }
 
         NetworkCredential? fromJobData = SendMailOptions.ReadJobDataCredentials(data);
@@ -198,6 +255,12 @@ public class SendMailJob : IJob
 
         return fromJobData;
     }
+
+    /// <summary>
+    /// The port a credential is looked up under when the job data names none, which is
+    /// <see cref="SmtpClient" />'s own default.
+    /// </summary>
+    private const int DefaultSmtpPort = 25;
 
     /// <summary>
     /// Sends the built message. Override to route mail through something other than
@@ -218,6 +281,8 @@ public class SendMailJob : IJob
             {
                 client.Port = mailInfo.SmtpPort.Value;
             }
+
+            client.EnableSsl = mailInfo.EnableSsl;
 
             await client.SendMailAsync(mailInfo.MailMessage, cancellationToken).ConfigureAwait(false);
         }

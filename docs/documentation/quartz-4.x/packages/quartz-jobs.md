@@ -165,6 +165,11 @@ referenced, and it starts the executable its job data names with the arguments i
 unauthenticated Quartz endpoint in a process that references this package is remote code execution rather
 than an information leak.
 
+**You may have this package without a line for it in your project.** `Quartz.Plugins` takes a plain
+package dependency on `Quartz.Jobs`, so an application that installed the plugins — for XML scheduling,
+say — has `NativeJob` on its probing path with nothing in its own csproj that names `Quartz.Jobs`. Check
+your restored graph, not your project file.
+
 Neither surface will start when its mapping says nothing about authorization, which
 is what closes the common way into this. `DirectoryScanJob` and `FileScanJob` read the paths they scan
 from job data the same way, and `SendMailJob` reads an SMTP credential from job data unless one is
@@ -203,9 +208,22 @@ IJobDetail job = JobBuilder.Create<SendMailJob>()
 | `Subject` | `subject` | required |
 | `Message` | `message` | required |
 | `Encoding` | `encoding` | the default |
+| `EnableSsl` | `smtp_enable_ssl` | `false` |
 
 Override `Send(MailInfo, CancellationToken)` to route the mail through something other than `SmtpClient`, or
 `BuildMessage(SendMailOptions)` to add to the message — an attachment, a header — before it goes.
+
+::: warning This job is an authenticated relay for whoever can schedule it
+`Sender`, `Recipient`, `Subject` and `Message` are all caller data, and so is `SmtpHost`. Anyone who can
+schedule a job can therefore send mail claiming to be from any address, to any address, through your
+server. That is the same trust boundary the rest of this page describes — an authorized caller is trusted
+— but it is worth naming, because "send mail" reads as harmless in a way that "start a process" does not.
+:::
+
+`EnableSsl` is off by default, which is `SmtpClient`'s own default: turning it on fails outright against a
+server that does not offer TLS, and a relay on the same host that has been taking this job's mail for
+years would stop. Turn it on for anything that crosses a network you do not own, and for anything that
+authenticates — SMTP `AUTH LOGIN` is base64, not encryption.
 
 #### Keep the SMTP credential out of job data
 
@@ -213,20 +231,41 @@ Override `Send(MailInfo, CancellationToken)` to route the mail through something
 it to `QRTZ_JOB_DETAILS`, every node in the cluster reads it, the dashboard shows it, and any export of that
 table carries it. A password put there is a password in all of those places.
 
-Register the credential with the container instead, and the job authenticates with it:
+Register the credential with the container instead, **bound to the server it belongs to**, and the job
+authenticates with it:
 
 <!-- snippet: sample_jobs_smtp_credentials -->
 ```csharp
-services.AddSingleton<ICredentialsByHost>(new NetworkCredential("mailer", smtpPassword));
+// Bound to the server it belongs to. The host to send through is job data, so a credential that
+// answers for every host would go to whatever that data names.
+CredentialCache credentials = new();
+credentials.Add("smtp.example.com", 587, "Basic", new NetworkCredential("mailer", smtpPassword));
+
+services.AddSingleton<ICredentialsByHost>(credentials);
 ```
 <!-- endSnippet -->
 
-`ICredentialsByHost` is what `SmtpClient.Credentials` takes, so a `CredentialCache` covers several servers.
+`CredentialCache` is the **security** choice here, not merely the multi-server convenience. `smtp_host` is
+job data, so the host to authenticate to is chosen by whoever scheduled the job; a bare `NetworkCredential`
+answers `ICredentialsByHost.GetCredential` with itself for *every* host, so pairing the two would hand the
+registered login to whatever host that job data names — as base64 `AUTH LOGIN`, to a listener the caller
+controls. So:
+
+- a `CredentialCache` with an entry for the host in job data → that entry is used;
+- a `CredentialCache` with **no** entry for it → the mail goes out unauthenticated, rather than
+  authenticating to a stranger;
+- a bare `NetworkCredential` → the job **refuses to send**, with a message naming the host and how to bind
+  the credential to it.
+
+Any other `ICredentialsByHost` of your own is asked `GetCredential(host, port, "Basic")` and then
+`"login"`, and its answer is taken as its author's decision.
+
 The password itself belongs wherever the rest of your secrets live — user secrets in development, a key vault
 or an environment variable in production — and reaches this registration through `IConfiguration`.
 
 The `smtp_username` and `smtp_password` job data keys are still read when nothing is registered, so a job
-scheduled by an earlier version keeps sending. The job logs a warning when it uses them, and a credential from
+scheduled by an earlier version keeps sending; that path is unaffected by the rule above, because whoever
+wrote the user name wrote the host beside it. The job logs a warning when it uses them, and a credential from
 the container wins.
 
 ### NoOpJob

@@ -152,18 +152,20 @@ public class SendMailJobTest
         job.actualCredentials.Should().BeNull("nothing named a credential, in job data or in the container");
     }
 
+    /// <summary>
+    /// A credential the container holds is handed only to a host the container vouched for. A
+    /// <see cref="CredentialCache" /> bound to the server says which one that is.
+    /// </summary>
     [Test]
     public void ShouldPreferTheCredentialFromTheContainer()
     {
         var registered = new NetworkCredential("registered", "secret");
-        var job = new TestSendMailJob(registered);
-        var context = TestUtil.NewJobExecutionContextFor(job);
+        CredentialCache cache = new();
+        cache.Add("someserver", 25, "Basic", registered);
 
-        context.MergedJobDataMap[SendMailJob.PropertySmtpHost] = "someserver";
-        context.MergedJobDataMap[SendMailJob.PropertyRecipient] = "christian@acca.co.uk";
-        context.MergedJobDataMap[SendMailJob.PropertySender] = "katie@acca.co.uk";
-        context.MergedJobDataMap[SendMailJob.PropertySubject] = "test mail";
-        context.MergedJobDataMap[SendMailJob.PropertyMessage] = "test mail body";
+        var job = new TestSendMailJob(cache);
+        var context = TestUtil.NewJobExecutionContextFor(job);
+        GivenAMessage(context, "someserver");
         context.MergedJobDataMap[SendMailJob.PropertyUsername] = "from job data";
         context.MergedJobDataMap[SendMailJob.PropertyPassword] = "also from job data";
 
@@ -171,6 +173,118 @@ public class SendMailJobTest
 
         job.actualCredentials.Should().BeSameAs(registered,
             "a credential the application registered beats one that was left in the job store");
+    }
+
+    /// <summary>
+    /// The host to send through is job data, which anyone who can schedule this job writes. A bare
+    /// <see cref="NetworkCredential" /> answers for every host, so pairing the two would hand the
+    /// operator's SMTP login to whatever host that data names — in base64, over <c>AUTH LOGIN</c>, to a
+    /// listener the caller controls.
+    /// </summary>
+    [Test]
+    public void AHostAgnosticCredentialIsNeverSentToAHostJobDataNamed()
+    {
+        var registered = new NetworkCredential("registered", "secret");
+        var job = new TestSendMailJob(registered);
+        var context = TestUtil.NewJobExecutionContextFor(job);
+        GivenAMessage(context, "attacker.example.com");
+
+        Func<Task> act = async () => await job.Execute(context);
+
+        act.Should().ThrowAsync<JobExecutionException>()
+            .GetAwaiter().GetResult()
+            .WithMessage("*CredentialCache*", "the message names the way to bind the credential to a server")
+            .WithMessage("*attacker.example.com*", "and the host it would otherwise have gone to");
+
+        job.actualCredentials.Should().BeNull("nothing was sent, so nothing was handed to an SmtpClient");
+        job.actualSmtpHost.Should().Be("ad", "Send was never reached");
+    }
+
+    /// <summary>
+    /// A cache with no entry for the host in job data sends unauthenticated rather than refusing: the
+    /// cache said what it vouches for, and this host is not it.
+    /// </summary>
+    [Test]
+    public void ACacheThatDoesNotCoverTheHostSendsUnauthenticated()
+    {
+        CredentialCache cache = new();
+        cache.Add("mail.acme.example", 25, "Basic", new NetworkCredential("registered", "secret"));
+
+        var job = new TestSendMailJob(cache);
+        var context = TestUtil.NewJobExecutionContextFor(job);
+        GivenAMessage(context, "attacker.example.com");
+
+        job.Execute(context);
+
+        job.actualSmtpHost.Should().Be("attacker.example.com");
+        job.actualCredentials.Should().BeNull(
+            "the cache vouches for one server and this is not it, so the mail goes out with no credential "
+            + "rather than authenticating to a stranger");
+    }
+
+    /// <summary>
+    /// The credential is looked up under the port the job data names, so a cache bound to a submission
+    /// port answers for it.
+    /// </summary>
+    [Test]
+    public void TheCredentialIsLookedUpUnderTheHostAndPortTheJobNames()
+    {
+        var registered = new NetworkCredential("registered", "secret");
+        CredentialCache cache = new();
+        cache.Add("mail.acme.example", 587, "Basic", registered);
+
+        var job = new TestSendMailJob(cache);
+        var context = TestUtil.NewJobExecutionContextFor(job);
+        GivenAMessage(context, "mail.acme.example");
+        context.MergedJobDataMap[SendMailJob.PropertySmtpPort] = 587;
+
+        job.Execute(context);
+
+        job.actualCredentials.Should().BeSameAs(registered);
+    }
+
+    [Test]
+    public void TlsIsOffByDefaultAndAskedForByJobData()
+    {
+        var job = new TestSendMailJob();
+        var context = TestUtil.NewJobExecutionContextFor(job);
+        GivenAMessage(context, "someserver");
+
+        job.Execute(context);
+        job.actualEnableSsl.Should().BeFalse("SmtpClient's own default, and a relay that offers no TLS still works");
+
+        var withTls = new TestSendMailJob();
+        var tlsContext = TestUtil.NewJobExecutionContextFor(withTls);
+        GivenAMessage(tlsContext, "someserver");
+        tlsContext.MergedJobDataMap[SendMailJob.PropertyEnableSsl] = true;
+
+        withTls.Execute(tlsContext);
+        withTls.actualEnableSsl.Should().BeTrue();
+    }
+
+    [Test]
+    public void TypedOptionsRoundTripTls()
+    {
+        JobDataMap data = new SendMailOptions
+        {
+            SmtpHost = "someserver",
+            Recipient = "christian@acca.co.uk",
+            Sender = "katie@acca.co.uk",
+            Subject = "test mail",
+            Message = "test mail body",
+            EnableSsl = true,
+        }.ToJobData();
+
+        SendMailOptions.FromJobData(data).EnableSsl.Should().BeTrue();
+    }
+
+    private static void GivenAMessage(IJobExecutionContext context, string smtpHost)
+    {
+        context.MergedJobDataMap[SendMailJob.PropertySmtpHost] = smtpHost;
+        context.MergedJobDataMap[SendMailJob.PropertyRecipient] = "christian@acca.co.uk";
+        context.MergedJobDataMap[SendMailJob.PropertySender] = "katie@acca.co.uk";
+        context.MergedJobDataMap[SendMailJob.PropertySubject] = "test mail";
+        context.MergedJobDataMap[SendMailJob.PropertyMessage] = "test mail body";
     }
 }
 
@@ -221,6 +335,7 @@ internal sealed class TestSendMailJob : SendMailJob
     public string actualSmtpHost = "ad";
     public ICredentialsByHost actualCredentials;
     public int? actualSmtpPort;
+    public bool actualEnableSsl;
 
     public TestSendMailJob(ICredentialsByHost credentials = null) : base(credentials)
     {
@@ -232,6 +347,7 @@ internal sealed class TestSendMailJob : SendMailJob
         actualSmtpHost = mailInfo.SmtpHost;
         actualCredentials = mailInfo.Credentials;
         actualSmtpPort = mailInfo.SmtpPort;
+        actualEnableSsl = mailInfo.EnableSsl;
         return default;
     }
 }

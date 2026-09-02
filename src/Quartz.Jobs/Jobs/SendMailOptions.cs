@@ -94,6 +94,18 @@ public sealed record SendMailOptions
     public string? Encoding { get; init; }
 
     /// <summary>
+    /// Whether to negotiate TLS with the SMTP server. <see langword="false" /> by default, which is
+    /// <see cref="System.Net.Mail.SmtpClient" />'s own default.
+    /// </summary>
+    /// <remarks>
+    /// Off by default because turning it on fails outright against a server that does not offer TLS,
+    /// and a relay on the same host that has been taking this job's mail for years would stop. Turn it
+    /// on for anything that crosses a network you do not own, and for anything that authenticates:
+    /// SMTP <c>AUTH LOGIN</c> is base64, not encryption.
+    /// </remarks>
+    public bool EnableSsl { get; init; }
+
+    /// <summary>
     /// Reads the options out of a job's data.
     /// </summary>
     /// <param name="data">
@@ -117,6 +129,7 @@ public sealed record SendMailOptions
             Subject = Required(data, SendMailJob.PropertySubject),
             Message = Required(data, SendMailJob.PropertyMessage),
             Encoding = Optional(data, SendMailJob.PropertyEncoding),
+            EnableSsl = ReadFlag(data, SendMailJob.PropertyEnableSsl),
         };
     }
 
@@ -154,6 +167,11 @@ public sealed record SendMailOptions
             data[SendMailJob.PropertyEncoding] = Encoding;
         }
 
+        if (EnableSsl)
+        {
+            data[SendMailJob.PropertyEnableSsl] = true;
+        }
+
         return data;
     }
 
@@ -185,6 +203,25 @@ public sealed record SendMailOptions
     {
         data.TryGetString(key, out string? value);
         return string.IsNullOrEmpty(value) ? null : value;
+    }
+
+    /// <summary>
+    /// A flag the job data may carry as a <see langword="bool" /> or as its text, and absent means
+    /// <see langword="false" />.
+    /// </summary>
+    private static bool ReadFlag(JobDataMap data, string key)
+    {
+        if (!data.TryGetValue(key, out object? raw) || raw is null)
+        {
+            return false;
+        }
+
+        if (raw is bool flag)
+        {
+            return flag;
+        }
+
+        return raw is string text && bool.TryParse(text, out bool parsed) && parsed;
     }
 
     private static int? ReadPort(JobDataMap data)
