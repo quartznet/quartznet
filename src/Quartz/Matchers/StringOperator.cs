@@ -24,6 +24,20 @@ namespace Quartz;
 /// <summary>
 /// Operators available for comparing string values.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The five shipped operators work on every store. An operator of your own works on
+/// <see cref="Quartz.Impl.RAMJobStore" />, where matching is <see cref="Evaluate" /> over the values
+/// in memory — and on no persistent store, where a matcher becomes a SQL <c>LIKE</c> pattern and the
+/// translation recognises the five by identity. A query carrying an operator it does not recognise is
+/// refused, at query time, naming the operator.
+/// </para>
+/// <para>
+/// So a matcher that passes its unit test can fail in production. Derive from
+/// <see cref="StringOperator" /> for a scheduler you know is in memory; for one that is not, compose
+/// the shipped operators with <see cref="Matchers" /> instead, or filter the result of a wider query.
+/// </para>
+/// </remarks>
 public abstract class StringOperator : IEquatable<StringOperator>
 {
     /// <summary>
@@ -60,6 +74,11 @@ public abstract class StringOperator : IEquatable<StringOperator>
     /// </summary>
     public abstract string Name { get; }
 
+    /// <summary>
+    /// Whether <paramref name="value" /> matches <paramref name="compareTo" /> under this operator.
+    /// </summary>
+    /// <param name="value">The value being matched — a job or trigger group, or a calendar name.</param>
+    /// <param name="compareTo">What the matcher was built with.</param>
     public abstract bool Evaluate(string value, string compareTo);
 
     private sealed class EqualityOperator : StringOperator

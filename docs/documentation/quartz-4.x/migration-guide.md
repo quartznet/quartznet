@@ -505,6 +505,18 @@ these as part of 4.0 and nothing more.
   compiler now says so; that is the point. `IJobExecutionContext.FireInstanceId` is unchanged and
   non-nullable — a context exists only for a firing.
 
+One more startup refusal arrived with them, and is not a freeze exception because nothing about the
+shape changed — only what a contradictory pair of values does:
+
+* **`Quartz:Scheduling` refuses `IgnoreDuplicates` while `OverwriteExistingData` is on.**
+  **Changed since alpha.5:** the two are answers to the same question and `OverwriteExistingData`
+  wins, so setting `IgnoreDuplicates` without also clearing it did nothing at all — an application
+  asking to *pass over* a declared job or trigger whose key is already stored got *replace it*, which
+  is the opposite, in silence and at every start. The scheduler now refuses to start, naming both
+  settings and the default that made one of them inert. `OverwriteExistingData` defaults to `true`, so
+  a configuration that only sets `IgnoreDuplicates` is the one this catches; set
+  `OverwriteExistingData` to `false` beside it.
+
 ### What is on nobody's list because it did not change
 
 Worth stating, because the reasonable fear is that everything moved. These were checked against both

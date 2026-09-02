@@ -40,6 +40,7 @@ public class SchedulerException : Exception
     /// <summary>
     /// Initializes a new instance of the <see cref="SchedulerException"/> class.
     /// </summary>
+    /// <param name="message">What went wrong.</param>
     public SchedulerException(string message) : base(message)
     {
     }
@@ -47,15 +48,27 @@ public class SchedulerException : Exception
     /// <summary>
     /// Initializes a new instance of the <see cref="SchedulerException"/> class.
     /// </summary>
-    /// <param name="innerException">The cause.</param>
-    public SchedulerException(Exception innerException) : base(innerException.Message, innerException)
+    /// <param name="innerException">The cause, whose message becomes this exception's.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="innerException" /> is <see langword="null" />.</exception>
+    public SchedulerException(Exception innerException) : base(MessageOf(innerException), innerException)
     {
+    }
+
+    /// <summary>
+    /// The cause's message, checked first: the base constructor call would otherwise dereference a null
+    /// cause and answer a <see cref="NullReferenceException" /> from the base type of every exception
+    /// Quartz raises.
+    /// </summary>
+    private static string MessageOf(Exception innerException)
+    {
+        ArgumentNullException.ThrowIfNull(innerException);
+        return innerException.Message;
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SchedulerException"/> class.
     /// </summary>
-    /// <param name="message">The MSG.</param>
+    /// <param name="message">What went wrong.</param>
     /// <param name="innerException">The cause.</param>
     public SchedulerException(string message, Exception? innerException) : base(message, innerException)
     {
@@ -65,9 +78,8 @@ public class SchedulerException : Exception
     /// Creates and returns a string representation of the current exception.
     /// </summary>
     /// <returns>
-    /// A string representation of the current exception.
+    /// A string representation of the current exception, with the cause appended when there is one.
     /// </returns>
-    /// <PermissionSet><IPermission class="System.Security.Permissions.FileIOPermission, mscorlib, Version=2.0.3600.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" version="1" PathDiscovery="*AllFiles*"/></PermissionSet>
     public override string ToString()
     {
         if (InnerException is null)

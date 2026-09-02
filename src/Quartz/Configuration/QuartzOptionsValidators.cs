@@ -691,6 +691,12 @@ internal sealed class QuartzOptionsValidator : IValidateOptions<QuartzOptions>
 {
     public ValidateOptionsResult Validate(string? name, QuartzOptions options)
     {
+        ValidateOptionsResult scheduling = ValidateScheduling(options.Scheduling);
+        if (scheduling.Failed)
+        {
+            return scheduling;
+        }
+
         if (options.Properties.Count == 0)
         {
             return ValidateOptionsResult.Success;
@@ -718,6 +724,34 @@ internal sealed class QuartzOptionsValidator : IValidateOptions<QuartzOptions>
                 + "if it is a Quartz setting — a section already named Quartz does not supply the prefix — or set "
                 + $"'{LegacyPropertyKeys.CheckConfiguration}' to false if the key is yours. Settings that have a typed "
                 + "option belong on that option rather than here; see the migration guide.");
+        }
+
+        return QuartzSchedulerOptionsValidator.Result(failures);
+    }
+
+    /// <summary>
+    /// The one pair of <see cref="SchedulingOptions" /> values that cannot both be meant.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SchedulingOptions.IgnoreDuplicates" /> is read only when
+    /// <see cref="SchedulingOptions.OverwriteExistingData" /> is off, and that defaults to
+    /// <see langword="true" />. Setting the first without clearing the second therefore did nothing at
+    /// all: an application that meant "leave what is already there alone" got "replace it", which is
+    /// the opposite, in silence and at every start.
+    /// </remarks>
+    private static ValidateOptionsResult ValidateScheduling(SchedulingOptions scheduling)
+    {
+        List<string>? failures = null;
+
+        if (scheduling is { OverwriteExistingData: true, IgnoreDuplicates: true })
+        {
+            (failures ??= []).Add(
+                "Quartz:Scheduling has both OverwriteExistingData and IgnoreDuplicates set. They are two "
+                + "answers to the same question and OverwriteExistingData wins, so IgnoreDuplicates would "
+                + "do nothing: a declared job or trigger whose key is already stored replaces it. Set "
+                + "OverwriteExistingData to false to pass over duplicates instead, or leave "
+                + "IgnoreDuplicates unset. OverwriteExistingData defaults to true, so it is set unless "
+                + "something cleared it.");
         }
 
         return QuartzSchedulerOptionsValidator.Result(failures);
