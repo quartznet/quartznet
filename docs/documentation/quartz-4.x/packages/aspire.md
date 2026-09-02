@@ -34,6 +34,17 @@ Quartz 4.0 or later required. Documented against **Aspire 13.5**.
 dotnet add package Quartz.Aspire
 ```
 
+The ADO.NET driver for whichever database the connection string turns out to name is still the
+application's own reference, exactly as it is without Aspire — `Npgsql` for a PostgreSQL string,
+`Microsoft.Data.SqlClient` for SQL Server, and so on
+([the full table](../tutorial/job-stores.md#configuring-a-persistent-store)). An Aspire client
+integration such as `Aspire.Npgsql` brings its driver with it, which is why a worker that already has one
+needs nothing more; a worker that only reads a connection string out of configuration does not:
+
+```shell
+dotnet add package Npgsql
+```
+
 The package takes **no `Aspire.*` package reference**. `IHostApplicationBuilder` is the whole of its
 contract, so it is not tied to Aspire's release cadence and works in any generic-host application that has
 a `ConnectionStrings:` entry — an AppHost is where the string usually comes from, not something the package

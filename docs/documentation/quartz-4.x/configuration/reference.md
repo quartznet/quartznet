@@ -193,17 +193,22 @@ legacy `quartz.jobStore.driverDelegateInitString` key still translates to the sa
 
 ### Databases
 
-| Method | Database |
-|---|---|
-| `UseSqlServer` | Microsoft SQL Server |
-| `UsePostgres` | PostgreSQL |
-| `UseMySql` | MySQL, using the MySql.Data driver |
-| `UseMySqlConnector` | MySQL, using the MySqlConnector driver |
-| `UseOracle` | Oracle |
-| `UseFirebird` | Firebird |
-| `UseSqlite` | SQLite, using the Microsoft.Data.Sqlite driver |
-| `UseSystemDataSqlite` | SQLite, using the legacy System.Data.SQLite driver |
-| `UseGenericDatabase` | Anything else, using the generic SQL dialect — and the only one that can [describe its own driver](#describing-a-driver-quartz-does-not-know) |
+| Method | Database | Driver package your project references |
+|---|---|---|
+| `UseSqlServer` | Microsoft SQL Server | `Microsoft.Data.SqlClient` |
+| `UsePostgres` | PostgreSQL | `Npgsql` |
+| `UseMySql` | MySQL, using the MySql.Data driver | `MySql.Data` |
+| `UseMySqlConnector` | MySQL, using the MySqlConnector driver | `MySqlConnector` |
+| `UseOracle` | Oracle | `Oracle.ManagedDataAccess.Core` |
+| `UseFirebird` | Firebird | `FirebirdSql.Data.FirebirdClient` |
+| `UseSqlite` | SQLite, using the Microsoft.Data.Sqlite driver | `Microsoft.Data.Sqlite` |
+| `UseSystemDataSqlite` | SQLite, using the legacy System.Data.SQLite driver | `System.Data.SQLite.Core` |
+| `UseGenericDatabase` | Anything else, using the generic SQL dialect — and the only one that can [describe its own driver](#describing-a-driver-quartz-does-not-know) | the one your driver ships in |
+
+Quartz references none of them, so the package is `dotnet add package`'d by the application; a method
+called without its driver present compiles and fails at startup with
+`Could not load file or assembly`. [Job Stores](../tutorial/job-stores.md#configuring-a-persistent-store)
+has the whole story.
 
 Each takes either a connection string or a callback over `DataSourceOptions`:
 

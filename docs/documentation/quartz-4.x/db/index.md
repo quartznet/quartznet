@@ -21,6 +21,11 @@ When using an ADO.NET-based job store (the usual being `LocalTransactionJobStore
 
 The scripts to create these tables for various providers can be found [here](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
+Whichever route you take, the ADO.NET driver itself is a package reference of the application's:
+`UsePostgres` needs `Npgsql`, `UseSqlServer` needs `Microsoft.Data.SqlClient`, and a project missing one
+compiles and then fails as the store initializes with `Could not load file or assembly`. The
+[method-to-package table](../tutorial/job-stores.md#configuring-a-persistent-store) lists all eight.
+
 Upgrading an existing database instead? See [Database Schema Changes](../../database/schema-changes.md) — upgrading from 3.x to 4.x is **mandatory**, because 4.x no longer probes for the optional 3.x columns.
 
 ## Creating it, and why migrating it is different

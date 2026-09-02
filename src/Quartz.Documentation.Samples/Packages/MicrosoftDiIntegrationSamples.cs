@@ -23,7 +23,9 @@ public static class MicrosoftDiIntegrationSamples
         {
             q.ScheduleJob<ExampleJob>(trigger => trigger
                 .WithIdentity("example")
-                .WithCronSchedule("0 0/5 * * * ?"));
+                // every ten seconds, so a first run reports itself quickly;
+                // "0 0/5 * * * ?" is every five minutes
+                .WithCronSchedule("0/10 * * * * ?"));
         });
 
         builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);

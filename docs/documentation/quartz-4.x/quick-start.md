@@ -41,8 +41,31 @@ configuration files, so there is one vocabulary to learn.
 
 ### In an application with a host
 
-Most applications register Quartz into their service collection. This is a whole `Program.cs` — a
-worker service, a persistent store, and one job that runs every ten seconds:
+Most applications register Quartz into their service collection. The host itself is not Quartz's:
+`Host.CreateApplicationBuilder` and `WebApplication.CreateBuilder` come from
+`Microsoft.Extensions.Hosting`, which the `worker` and `web` project templates already reference and a
+plain `console` project does not.
+
+```shell
+dotnet add package Microsoft.Extensions.Hosting
+```
+
+A job is an ordinary class with one method. This one is the `HelloJob` the registration below schedules:
+
+<!-- snippet: sample_quick_start_job -->
+```csharp
+public sealed class HelloJob : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        await Console.Out.WriteLineAsync("Greetings from HelloJob!");
+    }
+}
+```
+<!-- endSnippet -->
+
+This is a whole `Program.cs` — a worker service, a persistent store, and one job that runs every ten
+seconds:
 
 <!-- snippet: sample_quick_start_host -->
 ```csharp
@@ -87,16 +110,29 @@ await host.RunAsync();
 ```
 <!-- endSnippet -->
 
-`HelloJob` is [the class below](#trying-out-the-application-and-adding-jobs); a job registered this way
-is constructed from the container for every fire, so it can take a logger, a `DbContext` or a typed
-`HttpClient` in its constructor. `WebApplication.CreateBuilder(args)` works exactly the same way — both
-`AddQuartz` and `AddQuartzHostedService` hang off `IHostApplicationBuilder`. The hosted service starts
-the scheduler with the application and shuts it down with it.
+A job registered this way is constructed from the container for every fire, so it can take a logger, a
+`DbContext` or a typed `HttpClient` in its constructor. `WebApplication.CreateBuilder(args)` works
+exactly the same way — both `AddQuartz` and `AddQuartzHostedService` hang off `IHostApplicationBuilder`.
+The hosted service starts the scheduler with the application and shuts it down with it.
 
 The ADO.NET driver for whichever database you named is a package reference of your own: Quartz names the
-types and your project brings them. The table of dialect methods, and what each one needs, is in
+types and your project brings them. `UseSqlServer` above names Microsoft's SQL Server driver, so that
+application needs one more line:
+
+```shell
+dotnet add package Microsoft.Data.SqlClient
+```
+
+Without it the application still compiles, and fails as the scheduler initializes with
+`Could not load file or assembly 'Microsoft.Data.SqlClient'`. The table of dialect methods and the
+package each one needs is in
 [Job Stores](tutorial/job-stores.md#configuring-a-persistent-store). Nothing here says which serializer to use,
 because System.Text.Json is what a store gets when nothing else claims the slot.
+
+The store is also the one part of this sample that needs something outside the process. Swapping
+`UsePersistentStore(…)` for `UseInMemoryStore()` — no database, no driver package, no connection string —
+makes the rest of it run as printed, and is the shortest way to see a job fire; the cheapest persistent
+store to try after that is [a SQLite file](tutorial/job-stores.md#the-cheapest-persistent-store-to-try).
 
 `ScheduleJob`, `AddJob` and `AddTrigger` are the whole of the schedule for most applications, and
 [Lesson 1](tutorial/using-quartz.md) is where they are taught properly. A schedule that has to change
@@ -240,7 +276,14 @@ Run it now and nothing happens: ten seconds pass and the program ends. Let us ad
 Quartz logs through `Microsoft.Extensions.Logging`. Under a host it uses whatever the application already
 configured, and there is nothing to do. A console application like this one has no container of its own
 to configure, so it tells Quartz where to log by handing `LogProvider` a logger factory — before building
-the scheduler, since that is when the loggers are created:
+the scheduler, since that is when the loggers are created.
+
+`AddSimpleConsole` is a console *provider*, which lives in its own package and is not one of Quartz's
+dependencies:
+
+```shell
+dotnet add package Microsoft.Extensions.Logging.Console
+```
 
 ```csharp
 using Microsoft.Extensions.Logging;

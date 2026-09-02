@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Extensibility;
@@ -7,21 +8,39 @@ using Quartz.Jobs;
 
 namespace Quartz.Documentation.Samples;
 
-/// <summary>
-/// The jobs, listeners and option classes the documentation samples refer to.
-/// </summary>
-/// <remarks>
-/// A page that shows one of these in full wraps it in its own region; the rest are here only so the
-/// samples that name them compile.
-/// </remarks>
+// The jobs, listeners and option classes the documentation samples refer to. A page that shows one of
+// these in full wraps it in its own region; the rest are here only so the samples that name them
+// compile.
+
+#region sample_di_example_job
+
 public sealed class ExampleJob : IJob
 {
+    private readonly ILogger<ExampleJob> logger;
+
+    public ExampleJob(ILogger<ExampleJob> logger)
+    {
+        this.logger = logger;
+    }
+
+    // Job data is applied onto properties of matching name and type before Execute runs,
+    // so each one needs a setter. Nothing here reads the job data map.
     public string InjectedString { get; set; } = "";
 
     public bool InjectedBool { get; set; }
 
-    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation(
+            "ExampleJob fired: InjectedString={InjectedString} InjectedBool={InjectedBool}",
+            InjectedString,
+            InjectedBool);
+
+        return default;
+    }
 }
+
+#endregion
 
 public sealed class SlowJob : IJob
 {

@@ -12,6 +12,12 @@ dotnet add package Quartz
 That is everything a scheduler needs: dependency injection, hosting, the scheduler health check and
 System.Text.Json serialization are part of this package, where Quartz 3 shipped them separately.
 
+Two things Quartz deliberately does not bring. The host below is Microsoft's — a project that has no
+`Microsoft.Extensions.Hosting` reference yet (a plain `console` one; the `worker` and `web` templates
+already have it) adds `dotnet add package Microsoft.Extensions.Hosting`. And a persistent store loads
+its ADO.NET driver by name, so `UseSqlServer` needs `Microsoft.Data.SqlClient` referenced,
+`UsePostgres` needs `Npgsql`, and so on.
+
 ## Quick start
 
 A job is a class with one method:
