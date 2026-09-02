@@ -731,6 +731,16 @@ IScheduler scheduler = await QuartzSchedulerBuilder.Create()
 than silently ignored; set `quartz.checkConfiguration` to `false` to allow keys of your own.
 Configuration written in code wins over the properties whichever order the two are applied in.
 
+**The check applies to a property bag you wrote, not to `appsettings.json`.** It runs for
+`UseProperties` and the `AddQuartz(services, properties, …)` overloads — the shape a 3.x application
+migrates in, and the one the removed-key advice is written for. Keys that came out of an
+`IConfiguration` section are deliberately not checked, because there every key under `Quartz:` becomes
+a `quartz.*` key whether Quartz reads it or not, so a section holding your own settings would be
+rejected. A misspelled key in `appsettings.json` is therefore read by nobody and reported by nothing —
+`Quartz:JobStore:TabelPrefix` configures no table prefix and says so nowhere — so check a key you have
+just typed against the tables above. Casing is not the risk: configuration keys are matched
+case-insensitively, so `Quartz:Jobstore:TablePrefix` is the same key as `Quartz:JobStore:TablePrefix`.
+
 ## Legacy property keys
 
 Earlier versions configured Quartz with flat `quartz.*` string keys. They still work, and mean exactly
@@ -766,12 +776,31 @@ Two differences are worth knowing:
 | `quartz.jobStore.openConnection` | `JobStore:OpenConnection`, read only by the ambient-transaction store |
 | `quartz.jobStore.clusterCheckinInterval` | `JobStore:Clustering:CheckinInterval` |
 | `quartz.jobStore.clusterCheckinMisfireThreshold` | `JobStore:Clustering:CheckinMisfireThreshold` |
+| `quartz.jobStore.clustering.enabled` | `JobStore:Clustering:Enabled` — the hierarchical spelling of `quartz.jobStore.clustered` |
+| `quartz.jobStore.clustering.checkinInterval` | `JobStore:Clustering:CheckinInterval` |
+| `quartz.jobStore.clustering.checkinMisfireThreshold` | `JobStore:Clustering:CheckinMisfireThreshold` |
+| `quartz.jobStore.driverDelegateType` | `JobStore:DriverDelegateType`; the `UseSqlServer()` family sets it for you |
+| `quartz.jobStore.schemaProvisioning` | `JobStore:SchemaProvisioning` — `None`, `Validate` or `Create` |
+| `quartz.jobStore.performSchemaValidation` | `JobStore:SchemaProvisioning` — `true` means `Validate`, `false` means `None`; the key above says all three |
+| `quartz.jobStore.useDBLocks` | `JobStore:UseDbLocks` |
+| `quartz.jobStore.lockOnInsert` | `JobStore:LockOnInsert` |
+| `quartz.jobStore.acquireTriggersWithinLock` | `JobStore:AcquireTriggersWithinLock` |
+| `quartz.jobStore.selectWithLockSQL` | `JobStore:SelectWithLockSql` |
+| `quartz.jobStore.txIsolationLevelSerializable` | `JobStore:TransactionIsolationLevel` — `true` means `Serializable`; unset says nothing rather than `ReadCommitted` |
+| `quartz.jobStore.misfireHandlerFrequency` | `JobStore:MisfireHandlerFrequency` |
+| `quartz.jobStore.maxMisfiresToHandleAtATime` | `JobStore:MaxMisfiresToHandleAtATime` |
+| `quartz.jobStore.doubleCheckLockMisfireHandler` | `JobStore:DoubleCheckLockMisfireHandler` |
+| `quartz.jobStore.maxTransientRetries` | `JobStore:MaxTransientRetries` |
+| `quartz.jobStore.transientRetryInterval` | `JobStore:TransientRetryInterval` |
+| `quartz.jobStore.dbRetryInterval` | `JobStore:DbRetryInterval` |
+| `quartz.jobStore.retryableActionErrorLogThreshold` | `JobStore:RetryableActionErrorLogThreshold` |
 | `quartz.jobStore.dataSource` | set for you by the database methods |
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |
 | `quartz.dataSource.NAME.connectionString` | `DataSource:NAME:ConnectionString` |
 | `quartz.dataSource.NAME.connectionStringName` | `DataSource:NAME:ConnectionStringName` |
 | `quartz.dbprovider.NAME.*` | the metadata factory on `UseGenericDatabase`; the keys still work |
 | `quartz.serializer.type` | `UseSystemTextJsonSerializer()` / `UseNewtonsoftJsonSerializer()` |
+| `quartz.serializer.PROPERTY` | any other key under this prefix sets that property on the serializer — `quartz.serializer.RegisterTriggerConverters = true`, for instance |
 | `quartz.plugin.NAME.type` | `AddPlugin<T>()` or the plugin's own `Use*` method |
 | `quartz.jobStore.lockHandler.type` | `UseLockHandler<T>()` |
 | `quartz.scheduler.jobFactory.type` | `UseJobFactory<T>()` |
@@ -779,7 +808,9 @@ Two differences are worth knowing:
 | `quartz.scheduler.instanceIdGenerator.type` | `UseInstanceIdGenerator<T>()`; other `quartz.scheduler.instanceIdGenerator.*` keys configure it |
 | `quartz.timeProvider.type` | `UseTimeProvider(timeProvider)` |
 
-Four keys are rejected rather than ignored, because they no longer configure anything.
+Nine key prefixes are rejected rather than ignored, because they no longer configure anything. Each is
+reported by name, with the replacement, instead of as an unknown property — a configuration still
+carrying one of these was configuring something real, and "unknown property" reads like a typo.
 
 `quartz.scheduler.threadName` and `quartz.scheduler.makeSchedulerThreadDaemon`: the scheduling loop is
 a `Task` rather than a `Thread`, so it has no name to set and never held a process open. Remove them;
@@ -791,6 +822,15 @@ could carry no matchers, so it heard everything, and the type it named had to be
 `AddJobListener<T>(matchers)` and `AddTriggerListener<T>(matchers)` take the matchers *and* build the
 listener through the container. Registration is where a listener's matchers belong, so there is nothing
 the keys said that the registration cannot.
+
+`quartz.jobStore.lockHandler.tablePrefix`, `quartz.jobStore.lockHandler.schedName` and
+`quartz.jobStore.lockHandler.schedulerName`: a lock handler is told its table prefix and its scheduler's
+name by the job store, through `ILockHandler.Initialize`. Set `quartz.jobStore.tablePrefix` and
+`quartz.scheduler.instanceName` and remove these — a 3.x configuration that sets them meets a startup
+exception rather than being ignored.
+
+`quartz.scheduler.proxy*` and `quartz.scheduler.exporter*` are the remaining two, described at the end
+of this section.
 
 Every key has both spellings. `quartz.jobStore.tablePrefix` and `JobStore:TablePrefix` are the same
 setting said two ways, and so are the ones that select an implementation rather than set a value —
