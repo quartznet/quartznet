@@ -16,7 +16,6 @@
     <File Path="Directory.Build.targets" />
     <File Path="Directory.Packages.props" />
     <File Path="package.json" />
-    <File Path="qodana.yaml" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Solution Items/.github/" />
@@ -24,9 +23,7 @@
     <File Path=".github/workflows/build.yml" />
     <File Path=".github/workflows/docs-pr.yml" />
     <File Path=".github/workflows/docs.yml" />
-    <File Path=".github/workflows/pr-tests-integration-postgres.yml" />
     <File Path=".github/workflows/pr-tests-unit.yml" />
-    <File Path=".github/workflows/qodana_code_quality.yml" />
   </Folder>
   <Folder Name="/Solution Items/Analyzers/">
     <File Path="Analyzers/bannedsymbols.txt" />

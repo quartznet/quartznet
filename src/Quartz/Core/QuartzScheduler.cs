@@ -19,8 +19,6 @@
 
 #endregion
 
-#pragma warning disable CA2012
-
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
