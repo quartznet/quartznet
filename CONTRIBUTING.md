@@ -19,15 +19,19 @@ Run `build.cmd` or `build.sh` from the command line. The scripts restore the [Fa
 Integration tests provision their database dependencies through Testcontainers for .NET.
 
 * Ensure your Docker daemon is running
-* Run the build command with flags: `.\build.cmd Compile UnitTest IntegrationTest`
+* Name the database to run against: `.\build.cmd Compile UnitTest IntegrationTest --database postgres`.
+  The values are `postgres`, `sqlserver`, `mysql`, `oracle`, `firebird`, `sqlite`, `basic` (everything
+  that needs no database) and `all`, and they set both the test-category filter and the
+  `QUARTZ_TEST_DATABASE` variable the Testcontainers fixture reads. Naming none means `all`, which
+  starts six containers — including Oracle — before a single test runs.
 
-This builds and runs tests like the CI server does.
+This builds and runs tests the way the CI server does.
 
 ## Documentation
 
-The documentation website is built and published from this **`main`** branch. All versioned docs live under `docs/documentation/` (for example `docs/documentation/quartz-3.x/` for the current stable line and `docs/documentation/quartz-4.x/` for the next release). Edit the docs here; the `3.x` maintenance branch no longer carries the docs site.
+The documentation website is built and published from this **`main`** branch. All versioned docs live under `docs/documentation/` — `docs/documentation/quartz-3.x/` for the 3.x maintenance line and `docs/documentation/quartz-4.x/` for 4.x. Edit the docs here; the `3.x` branch no longer carries the docs site, and `quartz-3.x/` keeps 3.x's names, so a rename that lands on `main` is written into `quartz-4.x/` only.
 
-The published Quartz 3.x package pages under `docs/documentation/quartz-3.x/packages/` are mirrored, in compact NuGet-rendered form, by the per-package `src/<Project>/README.md` files on the `3.x` branch (which are packed into the NuGet packages). When you change one, update the other in a companion PR so the published page and the shipped package README stay consistent.
+Both branches carry a `src/<Project>/README.md` per packable project, and each one describes the package as that branch builds it. When a change spans both — a 3.x page under `docs/documentation/quartz-3.x/packages/` and its `3.x` readme, say — update them in a companion PR so the published page and the shipped package README stay consistent.
 
 ### Package readmes
 

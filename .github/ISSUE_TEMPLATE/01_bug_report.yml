@@ -22,7 +22,7 @@ body:
           required: true
         - label: I have checked the [documentation](https://www.quartz-scheduler.net/documentation/index.html).
           required: true
-        - label: I can reproduce this against a recent release of Quartz.NET (or the latest pre-release).
+        - label: I can reproduce this against the latest 4.x or 3.x release of Quartz.NET.
           required: true
 
   - type: textarea
@@ -97,6 +97,17 @@ body:
     validations:
       required: false
 
+  - type: dropdown
+    id: line
+    attributes:
+      label: Quartz.NET line
+      description: Which release line this is against. The two are maintained separately.
+      options:
+        - 4.x
+        - 3.x
+    validations:
+      required: true
+
   - type: input
     id: version-quartz
     attributes:
@@ -144,7 +155,7 @@ body:
     attributes:
       label: Serializer
       options:
-        - System.Text.Json (Quartz.Serialization.SystemTextJson)
+        - System.Text.Json (the default)
         - Newtonsoft.Json (Quartz.Serialization.Newtonsoft)
         - Not applicable (RAMJobStore)
         - Other (specify in Additional context)
@@ -166,11 +177,13 @@ body:
     id: hosting
     attributes:
       label: Hosting / integration
-      description: Select all that apply.
+      description: Select all that apply. On 4.x hosting, DI and the health check are part of `Quartz` itself.
       options:
-        - label: Quartz.Extensions.Hosting (IHostedService)
-        - label: Quartz.Extensions.DependencyInjection
-        - label: Quartz.AspNetCore (health checks, dashboard)
+        - label: Quartz (AddQuartz / AddQuartzHostedService / the health check)
+        - label: Quartz.AspNetCore (the HTTP API)
+        - label: Quartz.Dashboard
+        - label: Quartz.Aspire
+        - label: Quartz.HttpClient
         - label: Plain console / manually managed scheduler
 
   - type: dropdown

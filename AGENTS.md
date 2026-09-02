@@ -190,9 +190,12 @@ The rule above, for the things that are not names. The reason is on the member t
   the same places, or squat on a reserved data-map key. As with `[DisallowConcurrentExecution]`. Nothing
   enforces it until `AddJobTimeout` registers the middleware.
 
-### Promises the beta makes (#3647)
+### Promises 4.0 makes (#3647)
 
 Extension policy, not taste. `how-tos/extending-quartz.md` is the reader-facing form.
+
+- **A 4.0.x patch is additive.** Its baseline diff is additions only, and the database schema is frozen
+  for the whole 4.0 line: a fix needing a new column or a changed signature waits for 4.1.
 
 - **A collaborator is handed a context object** — parameterless ctor, `init` properties — never a
   parameter list: `DriverDelegateContext`, `LockHandlerContext`, `TriggerFiredBundle` and the rest. A
