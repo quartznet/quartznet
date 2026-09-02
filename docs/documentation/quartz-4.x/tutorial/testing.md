@@ -78,6 +78,58 @@ clock you passed rather than the machine's.
 
 Calendars are testable the same way: `ICalendar.IsTimeIncluded(when)` needs nothing but the calendar.
 
+### Crossing a daylight-saving transition
+
+The question a DST test asks is "what does my schedule do on the two days a year the local clock is not
+monotonic", and level 0 answers it exactly: put the fake clock a day before a transition, put the trigger
+in a real time zone, and ask for the window. No scheduler, no waiting, and the assertion is the answer
+rather than a proxy for it.
+
+```csharp
+[Test]
+public void DailyCronKeepsItsLocalTimeAcrossSpringForward()
+{
+    // Europe/Helsinki springs forward at 03:00 local on 2026-03-29
+    TimeZoneInfo helsinki = TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki");
+    FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 27, 0, 0, 0, TimeSpan.Zero));
+
+    ITrigger trigger = TriggerBuilder.Create(clock)
+        .WithIdentity("nightly")
+        .StartAt(clock.GetUtcNow())
+        .WithCronSchedule("0 30 2 * * ?", x => x.InTimeZone(helsinki))
+        .Build();
+
+    List<DateTimeOffset> fires = TriggerFireTimes.ComputeBetween(
+        trigger,
+        calendar: null,
+        from: new DateTimeOffset(2026, 3, 27, 0, 0, 0, TimeSpan.Zero),
+        to: new DateTimeOffset(2026, 3, 31, 0, 0, 0, TimeSpan.Zero));
+
+    // 02:30 local every day: +02:00 before the transition, +03:00 after it
+    fires.Select(fire => TimeZoneInfo.ConvertTime(fire, helsinki).TimeOfDay)
+        .Should().AllBeEquivalentTo(new TimeSpan(2, 30, 0),
+            "a cron trigger keeps its local wall-clock time, so the UTC instant moves instead");
+}
+```
+
+Three more cases are worth a test of their own, and all three are the same shape:
+
+- **A time that does not exist**, in the hour spring-forward skips — `0 30 3 * * ?` in the zone above.
+  Assert on the instant the trigger actually picks rather than assuming one: on 2026-03-29 that schedule
+  fires at 04:00 local, the moment the clock jumps to, and not at 03:30 of either offset.
+- **A time that happens twice**, in the hour fall-back repeats. Assert on the *count* in the window: one
+  firing or two is the whole question.
+- **An interval schedule across the same boundary.** Interval triggers count *elapsed time* by default,
+  so a 24-hour `SimpleTrigger` that fired at 02:30 fires at 03:30 local afterwards — and so does a
+  one-day `CalendarIntervalTrigger`, unless it is asked otherwise.
+  `PreserveHourOfDayAcrossDaylightSavings()` is the ask, and it is the one that keeps 02:30 across the
+  transition. Which of the two your schedule wants is a decision, and this is the test that shows you
+  made it.
+
+`TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki")` resolves IANA ids on Windows too since .NET 6;
+[Quartz.Plugins.TimeZoneConverter](../packages/timezoneconverter-integration.md) is for the cases it
+still cannot.
+
 ## Level 1: one job, one context
 
 A job's `Execute` takes an `IJobExecutionContext`. Build one and call it:
@@ -390,17 +442,48 @@ Set `WaitForJobsToComplete = true` on `QuartzHostedServiceOptions` in tests so t
 race a running job. `AwaitApplicationStarted` and `StartDelay` are the other two knobs, and both change
 *when* jobs first become eligible — worth setting explicitly rather than inheriting.
 
+### Against a persistent store, without Docker
+
+Most of what you want from a persistent store in a test is *persistence*: that a job survives a restart,
+that job data round-trips through the serializer, that your trigger's persistence delegate writes what it
+reads. None of that needs a server. A **file** SQLite database plus `ProvisionSchema()` gives you a real
+ADO job store in milliseconds, with no container to start:
+
+```csharp
+string databasePath = Path.Combine(Path.GetTempPath(), $"quartz-{Guid.NewGuid():N}.db");
+
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+    .Create(q =>
+    {
+        q.ConfigureScheduler(options => options.InstanceName = $"test-{Guid.NewGuid():N}");
+        q.UsePersistentStore(store =>
+        {
+            store.UseSqlite($"Data Source={databasePath}");
+
+            // creates the twelve tables in the empty file; see Creating the schema
+            store.ProvisionSchema();
+        });
+    })
+    .Build();
+```
+
+A file, not `:memory:` — an in-memory SQLite database lives as long as its connection, and the store
+opens and closes one per operation, so the tables vanish between them. Delete the file in teardown.
+
+What this level cannot tell you is anything dialect-specific: the SQL a `SqlServerDelegate` emits, how
+Postgres locks a row, whether an index is used. It also
+[cannot be clustered](job-stores.md#configuring-a-persistent-store) — SQLite locks in process rather than in the
+database, and `UseClustering()` with it is refused at startup. For those, go one level further.
+
 ### Against a real database
 
-An ADO job store test needs a real database, because the behaviour under test is largely SQL. Provision
-one per fixture with Testcontainers, and **create the schema from the shipped DDL** —
-`database/tables/tables_<dialect>.sql` — rather than from a hand-maintained copy. Applying it with the
-engine's own client is what handles the dialect's batch separator (`GO`, `/`, `SET TERM`); a plain
-`ExecuteNonQuery` over the whole file will not.
+A test whose subject is the SQL — a driver delegate, a lock handler, a migration, an index — needs the
+engine it is written for. Provision one per fixture with Testcontainers, and **create the schema from the
+shipped DDL** — `database/tables/tables_<dialect>.sql` — rather than from a hand-maintained copy.
+Applying it with the engine's own client is what handles the dialect's batch separator (`GO`, `/`,
+`SET TERM`); a plain `ExecuteNonQuery` over the whole file will not.
 
 A container per fixture, not per test: starting SQL Server takes longer than every test in the class.
-Isolate the tests inside it with a unique scheduler name, which is what `SCHED_NAME` partitions the
-tables by.
 
 ## Isolation rules
 
@@ -416,6 +499,19 @@ Four things keep tests from contaminating each other:
   disposes its container. A leaked scheduler keeps a scheduling loop running for the rest of the run.
 - **`Shutdown(waitForJobsToComplete: true)`** when a job may still be in flight and you need it
   finished before assertions or cleanup.
+
+A persistent store adds two more, because the state now outlives the process that wrote it:
+
+- **`SCHED_NAME` is the partition.** Every Quartz table carries it, and every statement the store issues
+  filters on it, so a unique `InstanceName` per test isolates tests *inside one database* — which is what
+  makes a container per fixture affordable. It is not a substitute for the unique name above; it is the
+  same setting doing a second job.
+- **Give each test its own database file, or clean up after it.** A shared file plus unique names works
+  and leaves the file growing; a file per test is simpler and costs nothing at SQLite's price. Where a
+  fixture is shared, `IScheduler.Clear()` is the cheap reset: for that scheduler name it deletes the
+  jobs, the triggers of every type, the calendars, the paused job and trigger groups, and the
+  fired-trigger rows. What it leaves behind is the node's own `QRTZ_SCHEDULER_STATE` check-in row, which
+  is why a test asserting on `QueryClusterNodes()` wants a name nothing else has used.
 
 ## Anti-patterns
 

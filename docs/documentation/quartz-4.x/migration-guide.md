@@ -6,7 +6,7 @@ title: Migration Guide
 *This document outlines changes needed when upgrading from Quartz.NET 3.x to 4.x. You should also check [the release notes](https://github.com/quartznet/quartznet/releases) for each version.*
 
 ::: tip
-If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)
+If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/)
 :::
 
 ## The road from 3.x, phase by phase

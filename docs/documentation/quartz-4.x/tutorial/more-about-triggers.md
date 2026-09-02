@@ -68,8 +68,22 @@ schedule builder for that family, so the only values in scope are the ones that 
 <!-- endSnippet -->
 
 Every family has `SmartPolicy`, which is the default, and `IgnoreMisfires`, which fires every missed firing as
-fast as it can once the scheduler is back. `SmartPolicy` has dynamic behaviour chosen by the trigger type and its
-configuration; what it resolves to is described in the lesson for each trigger type.
+fast as it can once the scheduler is back. `SmartPolicy` is not itself a behaviour: the trigger resolves it
+to one of its own instructions when the misfire is handled, and only `SimpleTrigger` looks at anything to
+decide:
+
+| Trigger family | `SmartPolicy` resolves to | Which means |
+|---|---|---|
+| **Simple**, `RepeatCount = 0` | `SimpleTriggerMisfireInstruction.FireNow` | fire the missed occurrence immediately |
+| **Simple**, repeating forever | `SimpleTriggerMisfireInstruction.NextWithRemainingCount` | skip what was missed and wait for the next scheduled time |
+| **Simple**, a finite repeat count | `SimpleTriggerMisfireInstruction.NowWithExistingCount` | fire now and keep the count that is left, so the series still runs to its full length |
+| **Cron** | `CronTriggerMisfireInstruction.FireAndProceed` | fire once now, then carry on with the schedule |
+| **Calendar interval** | `CalendarIntervalTriggerMisfireInstruction.FireAndProceed` | the same |
+| **Daily time interval** | `DailyTimeIntervalTriggerMisfireInstruction.FireAndProceed` | the same |
+| **Recurrence (RRULE)** | `RecurrenceTriggerMisfireInstruction.FireAndProceed` | the same |
+
+However many firings were missed, a resolved instruction produces **one** catch-up firing at most — the
+trigger is moved forward, not replayed. `IgnoreMisfires` is the instruction that replays them.
 
 ## Retry Policies
 

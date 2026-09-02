@@ -35,6 +35,31 @@ public static class EmbeddingSamples
         #endregion
     }
 
+    #region sample_embedding_library_options
+
+    public static IServiceCollection AddAcmeOutboxScheduler(
+        this IServiceCollection services,
+        Action<AcmeOutboxOptions>? configure = null)
+    {
+        services.AddQuartz("acme.outbox", q =>
+        {
+            // The library's own settings, named for this scheduler. A component the container
+            // builds for "acme.outbox" and taking IOptions<AcmeOutboxOptions> is handed these.
+            q.ConfigureOptions<AcmeOutboxOptions>(options =>
+            {
+                options.DrainInterval = TimeSpan.FromSeconds(30);
+                configure?.Invoke(options);
+            });
+
+            // AddPlugin<T, TOptions> is the same thing said for a plugin
+            q.AddPlugin<AcmeOutboxPlugin, AcmeOutboxOptions>(name: "acmeOutbox");
+        });
+
+        return services;
+    }
+
+    #endregion
+
     public static void SharedSchedulerExecutionGroup(IServiceCollection services)
     {
         #region sample_embedding_execution_group
