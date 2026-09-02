@@ -239,3 +239,106 @@ key's cached hash before the name — costs 64 ns more than the disease. Orderin
 that the ordinal order keeps adjacent, so the tree walk it lengthens costs more than the string
 comparison it skips; and a string's hash is seeded per process, so the order would stop being the
 same order twice. The tie-break stays the key.
+
+## Fire throughput and per-fire allocation (2026-09-02, AMD Ryzen 9 5950X)
+
+Taken on `1e6af15e1` to answer #3653. The numbers already in this file are about parsing an
+expression and putting a trigger into a store; this section is about the thing a production reader
+actually asks - **how many trigger firings a second, and how much garbage per firing** - and it is
+the first time 4.0 has had one. It is also where the migration guide's claim that the batched fire
+path replaced "six to nine round trips" with one finally gets a figure.
+
+`FireThroughputBenchmark` and `FireThroughputPostgresBenchmark` are the harness, and
+`baseline-3x/FireThroughputBaselineBenchmark.cs` is the 3.x half of the comparison - the same
+workload and the same settings written against 3.x's API, so both sides came off one machine in one
+sitting. `baseline-3x/README.md` says how to re-run it.
+
+**How to read the table.** One operation is one firing, so `Mean` is the time a firing took and fires
+per second is `1e9 / Mean(ns)`. `Allocated` is process-wide over the measured window rather than
+per-thread - BenchmarkDotNet reads `GC.GetTotalAllocatedBytes` - so it is what a firing costs the
+process, acquisition loop and worker threads included, not what one thread of it cost.
+
+**Machine and runtime.** BenchmarkDotNet v0.15.8; Windows 11 (10.0.26200.9168/25H2); AMD Ryzen 9
+5950X 3.40 GHz, 1 CPU, 32 logical and 16 physical cores; .NET SDK 10.0.400; host and job
+.NET 10.0.11 (10.0.1126.37416), X64 RyuJIT x86-64-v3, Concurrent Workstation GC. PostgreSQL 15.1 in
+Docker Desktop, reached over loopback, at its shipped durability settings (`fsync = on`,
+`synchronous_commit = on`). The 3.x rows were taken on `origin/3.x` at `b33c70487`, against a
+database built from **3.x's own** `database/tables/tables_postgres.sql` rather than 4.0's.
+
+**Read the Error column.** The machine was quiet for these, and it shows: every Error below is under
+1.5% of its Mean. That is unlike the older sections in this file, and it is why the 3.x-to-4.0 ratios
+here can be read as ratios rather than as directions.
+
+**Two settings are not at their defaults, and both had to move.** `MaxBatchSize` tracks
+`MaxConcurrency` - the scheduler refuses a batch larger than the pool that would have to run it, so
+across a 10-and-50 sweep the two cannot be varied independently, and the batch is the pool.
+`BatchTriggerAcquisitionFireAheadTimeWindow` is **one second** rather than the shipped zero: the
+store ends a batch at the first acquired trigger's own fire time plus the window, so at the default a
+batch is one trigger however large `MaxBatchSize` is. A deployment left at the shipped defaults gets
+the batch-of-one shape, which is one acquisition round trip per firing.
+
+**The workload.** Two thousand simple triggers over a hundred jobs, repeating indefinitely every
+millisecond under the ignore-misfires instruction, over a job that counts and returns. Every trigger
+is therefore permanently overdue, so the scheduler never waits and what is measured is the fire path
+rather than the clock. Two thousand of them put the arrangement's own ceiling at two million firings
+a second, several times what the fastest arm here reaches.
+
+**One node, and not clustered.** What is measured is acquire, fire, complete. Clustering adds a
+check-in loop, a cluster-wide lock on every acquisition cycle and a second node competing for the
+same rows; those are real costs and none of them is in these numbers.
+
+### RAMJobStore
+
+| Version | MaxConcurrency | Mean     | Error     | Allocated | Fires/second |
+|-------- |--------------- |---------:|----------:|----------:|-------------:|
+| 4.0     | 10             | 3.436 us | 0.0258 us |   3.62 KB |      291,000 |
+| 4.0     | 50             | 3.024 us | 0.0352 us |   3.63 KB |      330,700 |
+| 3.20    | 10             | 2.314 us | 0.0266 us |   3.25 KB |      432,200 |
+| 3.20    | 50             | 2.228 us | 0.0317 us |   3.25 KB |      448,800 |
+
+### PostgreSQL
+
+| Version | MaxConcurrency | Mean     | Error     | Allocated | Fires/second |
+|-------- |--------------- |---------:|----------:|----------:|-------------:|
+| 4.0     | 10             | 6.177 ms | 0.0911 ms |  56.47 KB |          162 |
+| 4.0     | 50             | 6.129 ms | 0.0638 ms |  52.78 KB |          163 |
+| 3.20    | 10             | 9.865 ms | 0.1322 ms | 136.09 KB |          101 |
+| 3.20    | 50             | 9.212 ms | 0.1014 ms | 132.10 KB |          109 |
+
+### Verdict
+
+**On a persistent store, 4.0 is 1.5x faster per firing than 3.20 and allocates 2.4x less** - 6.1 ms
+against 9.2-9.9 ms, and 53-56 KB against 132-136 KB. That is the batched fire path, and it is the
+number the migration guide's round-trip claim never had. Counted at the database rather than in the
+client, a firing now costs **1.27 commits** - 42,337 transactions over 33,404 firings in one run -
+which is one `TriggeredJobComplete` plus a share of an acquisition and a `TriggersFired` amortised
+across the batch.
+
+**On `RAMJobStore`, 4.0 is about 1.4x slower per firing than 3.20 and allocates 11% more** - 3.0-3.4
+us against 2.2-2.3 us. Recorded rather than acted on, and not investigated here: the 4.0 fire path
+carries things 3.x's did not, including a DI scope per firing, the job-execution middleware pipeline,
+the execution-group ledger and the retry-policy check. Against 3 us of scheduler work the persistent
+store's 6 ms makes this invisible in any deployment that has a database, which is why it is at the
+bottom of this section rather than the top. Filed as #3674.
+
+**Pool size does not move either store much, and on PostgreSQL it does not move it at all.** Five
+times the threads buys 14% on `RAMJobStore` and nothing measurable on PostgreSQL, because the store's
+own operations serialise on the trigger-access lock: what a bigger pool buys is more *jobs* running
+at once, not more firings being started. This is the same fact `operations.md` states as "adding
+nodes does not make a single trigger fire faster", measured.
+
+**The PostgreSQL figure is a commit-latency figure as much as a Quartz one.** Re-running the 4.0 arm
+with `synchronous_commit = off` gives 3.605 ms at `MaxConcurrency` 10 and 4.140 ms at 50 - 1.7x
+faster, so roughly 40% of the 6.1 ms is this container's fsync. A deployment on faster storage will
+see more firings a second than the table says; one on slower storage will see fewer. Read the
+3.20-to-4.0 ratio, which is taken on one machine and one database, rather than the absolute.
+
+### A finding, filed rather than fixed
+
+Writing this benchmark surfaced one: **a simple trigger with a sub-millisecond repeat interval is
+silently broken by any ADO store.** `StdAdoDelegate.GetDbTimeSpanValue` casts `TotalMilliseconds` to
+`long`, so an interval below a millisecond persists as **zero**; `SimpleTriggerImpl.GetFireTimeAfter`
+then divides by `repeatInterval.Ticks` and throws `DivideByZeroException` on the trigger's next
+firing, which `AdoJobStoreBase` logs and swallows - leaving the row in `ACQUIRED` for good. Nothing
+surfaces it, and `RAMJobStore` keeps the interval, so the two stores disagree. Filed as #3673. The
+workload above uses a millisecond because that is the smallest interval both stores agree on.
