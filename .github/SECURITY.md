@@ -40,8 +40,11 @@ report of one will be closed with a link back to this section — so please save
   *identity*, not integrity — the .NET runtime does not verify strong-name signatures — so a key anyone
   can read is how an open-source library gives its consumers a stable identity to bind against.
   `InternalsVisibleTo` is therefore not a security boundary either, and nothing in Quartz treats it as
-  one. What answers "did this come from us, unaltered" is the package signature: every `.nupkg` Quartz
-  publishes is signed, and nuget.org verifies it.
+  one. Quartz author-signs nothing; what stands behind a published package is that nuget.org applies its
+  own repository signature to everything it serves, and that a package can only reach nuget.org from
+  this repository's `publish.yml` running on a `v*.*.*` tag, through
+  [trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing) — a GitHub OIDC
+  token exchanged for a short-lived key, with no long-lived credential to steal.
 - **Job data is not a secret store.** A `JobDataMap` is persisted in the job store, is readable through
   the HTTP API and the dashboard, and appears in logs and traces. A password or a connection string
   belongs in configuration or a secret manager and reaches the job through the container —
