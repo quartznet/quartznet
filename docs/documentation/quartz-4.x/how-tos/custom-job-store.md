@@ -334,9 +334,11 @@ not symmetric:
 - **Jobs go through `JobBuilder`.** `JobDetailImpl` is internal, so `JobBuilder` is the only supported
   construction path — which is what the ADO store does too.
 - **Triggers can be constructed directly.** `Quartz.Impl.Triggers.*TriggerImpl` are public, and
-  `TriggerBase` is public and abstract. Note that three of the five are `sealed`
-  (`CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl`, `RecurrenceTriggerImpl`); only
-  `SimpleTriggerImpl` and `CronTriggerImpl` can be subclassed.
+  `TriggerBase` is public and abstract. All five are subclassable — three of them were sealed during
+  4.x's development and reopened for exactly this. Pair a subclassed trigger with a serializer derived
+  from that trigger's built-in serializer, which is public and unsealed for the same reason;
+  `BuiltInTriggerSerializerDerivationTest` guards both halves, in both JSON packages. See
+  [Persisting a Custom Trigger Type](trigger-persistence-delegate.md).
 
 ## Testing one
 

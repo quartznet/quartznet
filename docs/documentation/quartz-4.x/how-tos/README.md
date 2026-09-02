@@ -21,8 +21,9 @@ Short, task-shaped recipes. Each page answers one question; the
 * [Running under an External Leader Election](external-leader.md) — one instance, started and stopped by somebody else's election
 * [Publishing Trimmed and Native AOT](trimming-and-native-aot.md) — what each package claims, what still warns, and what to do about it
 
-Extending Quartz — the four seams the `Quartz.Impl.AdoJobStore` types exist for:
+Extending Quartz — start with the index, then the four seams the `Quartz.Impl.AdoJobStore` types exist for:
 
+* [Extending Quartz](extending-quartz.md) — what is open, what is closed and why, and how to ask for a seam
 * [A Job Store of Your Own](custom-job-store.md) — keeping scheduling data somewhere new, or decorating a store
 * [A Driver Delegate for a New Database](dialect-delegate.md) — supporting a database Quartz does not ship a dialect for
 * [Persisting a Custom Trigger Type](trigger-persistence-delegate.md) — storing a trigger family of your own without a blob

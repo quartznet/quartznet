@@ -150,6 +150,7 @@ export const sidebarEn: SidebarConfig = [
               "/documentation/quartz-4.x/how-tos/embedding-quartz-in-a-library",
               "/documentation/quartz-4.x/how-tos/external-leader",
               "/documentation/quartz-4.x/how-tos/trimming-and-native-aot",
+              "/documentation/quartz-4.x/how-tos/extending-quartz",
               "/documentation/quartz-4.x/how-tos/custom-job-store",
               "/documentation/quartz-4.x/how-tos/dialect-delegate",
               "/documentation/quartz-4.x/how-tos/trigger-persistence-delegate",
