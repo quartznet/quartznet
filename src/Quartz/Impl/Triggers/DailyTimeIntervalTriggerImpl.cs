@@ -416,10 +416,14 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     }
 
     /// <summary>
-    ///
+    /// Moves the next fire time past whatever the calendar now excludes, so that a calendar added or
+    /// changed after the trigger was stored takes effect on its next firing.
     /// </summary>
-    /// <param name="calendar"></param>
-    /// <param name="misfireThreshold"></param>
+    /// <param name="calendar">The calendar the trigger is now to observe.</param>
+    /// <param name="misfireThreshold">
+    /// How far into the past a computed fire time may be before it counts as a misfire rather than as a
+    /// firing that is merely late.
+    /// </param>
     /// <see cref="TriggerBase.UpdateWithNewCalendar"/>
     public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
     {

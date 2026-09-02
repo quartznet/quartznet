@@ -146,6 +146,10 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     /// Produce the <see cref="ITrigger" />.
     /// </summary>
     /// <remarks>
+    /// The builder can be built more than once and answers with the same identity each time: a key it
+    /// generated is kept rather than generated afresh, so two builds of one builder are the same trigger
+    /// twice rather than two triggers. Any <c>H</c> token in a cron schedule is resolved here, from that
+    /// identity, which is why it has to be settled first.
     /// </remarks>
     /// <returns>a Trigger that meets the specifications of the builder.</returns>
     public ITrigger Build()

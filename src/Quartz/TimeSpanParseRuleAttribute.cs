@@ -33,22 +33,22 @@ public sealed class TimeSpanParseRuleAttribute : Attribute
 public enum TimeSpanParseRule
 {
     /// <summary>
-    ///
+    /// The number is milliseconds, which is what a bare number in a property bag has always meant.
     /// </summary>
     Milliseconds = 0,
 
     /// <summary>
-    ///
+    /// The number is seconds.
     /// </summary>
     Seconds = 1,
 
     /// <summary>
-    ///
+    /// The number is minutes.
     /// </summary>
     Minutes = 2,
 
     /// <summary>
-    ///
+    /// The number is hours.
     /// </summary>
     Hours = 3
 }
