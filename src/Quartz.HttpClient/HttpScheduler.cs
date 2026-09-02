@@ -126,6 +126,30 @@ public sealed class HttpScheduler : IScheduler
         return new NotSupportedException($"{nameof(HttpScheduler)}.{member} is not supported: {reason}.");
     }
 
+    /// <summary>
+    /// Hands back a page, unless the caller asked for every match and the server answered fewer.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PagedQuery.All" /> travels as the API's <c>all</c>, which a server with
+    /// <c>QuartzHttpApiOptions.MaxPageSize</c> set answers with that many rows and a <c>hasMore</c> of
+    /// true. Handing those back as if they were everything is the one thing worse than not answering:
+    /// the 3.x-compatible listings — <c>GetJobKeys</c>, <c>GetTriggerKeys</c>, <c>GetCalendarNames</c> —
+    /// return a bare list, so a truncated page would read as the whole store. Below the cap there is
+    /// nothing to say and this costs a comparison.
+    /// </remarks>
+    private static PagedResult<T> WholeAnswer<T>(PagedQuery query, PagedResult<T> result)
+    {
+        if (query.Take == PagedQuery.All && result.HasMore)
+        {
+            throw new HttpClientException(
+                "The request asked for every match and the server answered a bounded page: it has "
+                + "QuartzHttpApiOptions.MaxPageSize set below the number of matches. Read the result a page "
+                + "at a time with a Take of your own, or raise MaxPageSize on the server.");
+        }
+
+        return result;
+    }
+
     public async ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default)
     {
         var schedulerDto = await GetSchedulerDetails(cancellationToken).ConfigureAwait(false);
@@ -178,7 +202,7 @@ public sealed class HttpScheduler : IScheduler
             .Get<PagedResultDto<FireInstanceDto>>($"{JobEndpointUrl()}/fire-instances{parameters}", jsonSerializerOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        return new PagedResult<FireInstance>(result.Items.Select(x => x.AsFireInstance()).ToList(), result.HasMore, result.TotalCount);
+        return WholeAnswer(query, new PagedResult<FireInstance>(result.Items.Select(x => x.AsFireInstance()).ToList(), result.HasMore, result.TotalCount));
     }
 
     public async ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
@@ -584,7 +608,7 @@ public sealed class HttpScheduler : IScheduler
             .Get<PagedResultDto<JobHeaderDto>>($"{JobEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        return new PagedResult<JobHeader>(result.Items.Select(x => x.AsJobHeader()).ToList(), result.HasMore, result.TotalCount);
+        return WholeAnswer(query, new PagedResult<JobHeader>(result.Items.Select(x => x.AsJobHeader()).ToList(), result.HasMore, result.TotalCount));
     }
 
     public async ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
@@ -616,7 +640,7 @@ public sealed class HttpScheduler : IScheduler
             .Get<PagedResultDto<TriggerHeaderDto>>($"{TriggerEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        return new PagedResult<TriggerHeader>(result.Items.Select(x => x.AsTriggerHeader()).ToList(), result.HasMore, result.TotalCount);
+        return WholeAnswer(query, new PagedResult<TriggerHeader>(result.Items.Select(x => x.AsTriggerHeader()).ToList(), result.HasMore, result.TotalCount));
     }
 
     public async ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
@@ -636,7 +660,7 @@ public sealed class HttpScheduler : IScheduler
             .Get<PagedResultDto<JobGroupDto>>($"{JobEndpointUrl()}/groups{parameters}", jsonSerializerOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        return new PagedResult<JobGroup>(result.Items.Select(x => x.AsJobGroup()).ToList(), result.HasMore, result.TotalCount);
+        return WholeAnswer(query, new PagedResult<JobGroup>(result.Items.Select(x => x.AsJobGroup()).ToList(), result.HasMore, result.TotalCount));
     }
 
     public async ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
@@ -656,7 +680,7 @@ public sealed class HttpScheduler : IScheduler
             .Get<PagedResultDto<TriggerGroupDto>>($"{TriggerEndpointUrl()}/groups{parameters}", jsonSerializerOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        return new PagedResult<TriggerGroup>(result.Items.Select(x => x.AsTriggerGroup()).ToList(), result.HasMore, result.TotalCount);
+        return WholeAnswer(query, new PagedResult<TriggerGroup>(result.Items.Select(x => x.AsTriggerGroup()).ToList(), result.HasMore, result.TotalCount));
     }
 
     public async ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
@@ -671,7 +695,7 @@ public sealed class HttpScheduler : IScheduler
             .Get<PagedResultDto<string>>($"{CalendarEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        return new PagedResult<string>([..result.Items], result.HasMore, result.TotalCount);
+        return WholeAnswer(query, new PagedResult<string>([..result.Items], result.HasMore, result.TotalCount));
     }
 
     public async ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)

@@ -101,7 +101,7 @@ internal static class JobEndpoints
         string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
-        int? takeItems = EndpointHelper.ParsePaging(skip, take);
+        int? takeItems = endpointHelper.ParsePaging(skip, take);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             GroupMatcher<JobKey> matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
@@ -213,7 +213,7 @@ internal static class JobEndpoints
         string? state = null,
         CancellationToken cancellationToken = default)
     {
-        int? takeItems = EndpointHelper.ParsePaging(skip, take);
+        int? takeItems = endpointHelper.ParsePaging(skip, take);
 
         // A state is parsed here rather than bound as a nullable enum, because null already means
         // something on the query record — every state — and an unnamed parameter must instead mean
@@ -517,7 +517,7 @@ internal static class JobEndpoints
         string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
-        int? takeItems = EndpointHelper.ParsePaging(skip, take);
+        int? takeItems = endpointHelper.ParsePaging(skip, take);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             JobGroupQuery query = new()

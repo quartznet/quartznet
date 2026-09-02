@@ -52,7 +52,43 @@ public sealed class QuartzHttpApiOptions
     /// <summary>
     /// Whether a failure's stack trace is included in the problem details returned to the caller.
     /// </summary>
+    /// <remarks>
+    /// It also puts the real message of a <c>500</c> back in the response body. Both are things to read
+    /// while developing and neither is something to ship: a fault's message routinely names the server,
+    /// the database, the login or the constraint that produced it.
+    /// </remarks>
     public bool IncludeStackTraceInProblemDetails { get; set; }
+
+    /// <summary>
+    /// The most items one paged request may return: 1000 by default, and <c>0</c> for no limit.
+    /// A <c>take</c> naming a number above it is a <c>400</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A page size is the only thing on this API a caller can use to make the server do arbitrary work,
+    /// and until 4.0.0-beta.1 nothing bounded it: one request could materialize every trigger in the
+    /// store while the bulk key fetch next door refused 1001 keys. The default is that same 1000.
+    /// </para>
+    /// <para>
+    /// <c>?take=all</c> is bounded by this rather than refused by it. It does not name a number — it says
+    /// "as many as you will give me" — so it is answered with this many, and <c>hasMore</c> says whether
+    /// that was all of them. A listing whose matches fit under the cap therefore answers exactly as it
+    /// would with no cap at all, which is what keeps the 3.x-compatible listings
+    /// (<c>GetJobKeys</c> and its neighbours) working through <c>HttpScheduler</c>: they ask for
+    /// everything whether the answer is three rows or three million.
+    /// </para>
+    /// <para>
+    /// Set it to <c>0</c> where an export or a migration really has to take everything in one call, and
+    /// put the API behind something that says who may.
+    /// </para>
+    /// </remarks>
+    public int MaxPageSize { get; set; } = DefaultMaxPageSize;
+
+    /// <summary>
+    /// The default <see cref="MaxPageSize" />, which is <c>EndpointHelper.MaxKeysToFetch</c>: one request
+    /// asking for a thousand things is one limit, whichever endpoint it asks on.
+    /// </summary>
+    internal const int DefaultMaxPageSize = 1000;
 
     /// <summary>
     /// The authorization policy every route that names a scheduler is held to, evaluated against a
@@ -116,6 +152,12 @@ internal sealed class QuartzHttpApiOptionsValidator : IValidateOptions<QuartzHtt
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(QuartzHttpApiOptions.ApiPath)} is required and must start with '/', was '{options.ApiPath}'.");
+        }
+
+        if (options.MaxPageSize < 0)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(QuartzHttpApiOptions.MaxPageSize)} must not be negative, was {options.MaxPageSize}. Use 0 to leave paged requests unbounded.");
         }
 
         // A policy name with no IAuthorizationService behind it is a security setting that silently does

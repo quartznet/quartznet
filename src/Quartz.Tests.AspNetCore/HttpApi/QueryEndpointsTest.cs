@@ -402,8 +402,14 @@ public class QueryEndpointsTest : WebApiTest
         (await Names(raw, jobs + "?take=all")).Should().Equal("job1", "job2", "job3", "job1", "job2");
         (await Names(raw, jobs + "?take=ALL")).Should().HaveCount(5, "a sentinel a human types is read case-insensitively");
         (await Names(raw, jobs + "?take=2")).Should().Equal(["job1", "job2"], "a number still means a number");
-        (await Names(raw, jobs + $"?take={int.MaxValue}")).Should().HaveCount(5,
-            "the number behind the sentinel is still accepted, so a client that sends one keeps working");
+
+        using HttpResponseMessage theNumberBehindIt = await raw.GetAsync(jobs + $"?take={int.MaxValue}");
+        theNumberBehindIt.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "a number is a page size the server can meet or cannot, and this one is above "
+            + "QuartzHttpApiOptions.MaxPageSize - which the sentinel beside it is bounded by rather than "
+            + "refused by, because that is what makes it usable at all");
+        (await theNumberBehindIt.Content.ReadAsStringAsync()).Should().Contain("all",
+            "the refusal has to name the spelling that would have worked");
     }
 
     [Test]

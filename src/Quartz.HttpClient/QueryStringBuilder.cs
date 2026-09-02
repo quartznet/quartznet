@@ -21,6 +21,7 @@
 
 using System.Globalization;
 
+using Quartz.HttpApiContract;
 using Quartz.Util;
 
 namespace Quartz;
@@ -46,7 +47,19 @@ internal sealed class QueryStringBuilder
 
         // Always sent: omitting the parameter would hand the decision to the server's default,
         // and Take = int.MaxValue - the explicit unbounded opt-in - would silently truncate.
-        Add("take", query.Take);
+        //
+        // Spelled the way the API spells it. A server with QuartzHttpApiOptions.MaxPageSize set refuses
+        // a number above the cap and bounds "all" to it, so a listing asking for everything answers
+        // whatever the server will give and says hasMore; the number would be a 400 however few rows
+        // match. HttpScheduler is the one that reads hasMore back.
+        if (query.Take == PagedQuery.All)
+        {
+            Add("take", HttpApiConstants.AllItems);
+        }
+        else
+        {
+            Add("take", query.Take);
+        }
 
         if (query.IncludeTotalCount)
         {

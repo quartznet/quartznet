@@ -12,6 +12,7 @@ namespace Quartz
         public QuartzHttpApiOptions() { }
         public string ApiPath { get; set; }
         public bool IncludeStackTraceInProblemDetails { get; set; }
+        public int MaxPageSize { get; set; }
         public string? SchedulerAuthorizationPolicy { get; set; }
     }
     public sealed record SchedulerResource : System.IEquatable<Quartz.SchedulerResource>
