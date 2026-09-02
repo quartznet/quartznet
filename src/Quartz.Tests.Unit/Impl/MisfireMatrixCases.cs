@@ -19,7 +19,7 @@
 
 using System.Globalization;
 
-namespace Quartz.Tests.Integration.Impl;
+namespace Quartz.Tests.Impl;
 
 /// <summary>
 /// The trigger shapes the matrix runs. Five families, six shapes: a repeating simple trigger and a

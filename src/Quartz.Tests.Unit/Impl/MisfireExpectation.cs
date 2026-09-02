@@ -22,7 +22,7 @@ using System.Globalization;
 using Quartz.Extensibility;
 using Quartz.Impl.Triggers;
 
-namespace Quartz.Tests.Integration.Impl;
+namespace Quartz.Tests.Impl;
 
 /// <summary>
 /// What a store must leave behind once it has applied a trigger's misfire policy, worked out by

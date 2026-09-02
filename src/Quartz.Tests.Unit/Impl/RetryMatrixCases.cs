@@ -19,7 +19,7 @@
 
 using System.Globalization;
 
-namespace Quartz.Tests.Integration.Impl;
+namespace Quartz.Tests.Impl;
 
 /// <summary>
 /// The trigger shapes the retry matrix runs. The same five families

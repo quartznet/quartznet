@@ -21,6 +21,7 @@ using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Extensibility;
 using Quartz.Impl.Calendar;
+using Quartz.Tests.Impl;
 
 namespace Quartz.Tests.Integration.Impl;
 

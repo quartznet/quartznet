@@ -26,6 +26,15 @@
       reference both; the file is BCL-only for exactly that reason.
     -->
     <Compile Include="..\Quartz.Tests.Integration.Seeder\SeedManifest.cs" />
+    <!--
+      The misfire scaffolding: a store on a clock the test moves, driven through one misfire pass by
+      hand. It needs nothing but a SQLite file, so the matrices themselves live in the unit project
+      where the coverage gate can see them; the fixtures that stayed here — a calendar's exclusion and
+      a paused or blocked trigger — share the same scaffolding rather than a copy of it.
+    -->
+    <Compile Include="..\Quartz.Tests.Unit\Impl\MisfireThroughAStoreTestBase.cs" />
+    <Compile Include="..\Quartz.Tests.Unit\Impl\MisfireExpectation.cs" />
+    <Compile Include="..\Quartz.Tests.Unit\Impl\MisfireMatrixCases.cs" />
   </ItemGroup>
 
   <ItemGroup>
