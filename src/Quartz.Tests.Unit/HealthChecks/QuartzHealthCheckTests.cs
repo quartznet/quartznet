@@ -4,6 +4,7 @@ using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Quartz.Tests.Unit.HealthChecks;
 
@@ -200,20 +201,129 @@ public class QuartzHealthCheckTests
     /// container at all, which is the case that leaves <c>AutoStart</c> at its default.
     /// </param>
     /// <param name="check">Configures the health check's own options.</param>
+    /// <summary>
+    /// A clustered node whose cluster manager has stopped checking in reports degraded, although it is
+    /// running and its store answers.
+    /// </summary>
+    /// <remarks>
+    /// This is the failure the check could not see: the check-in loop runs on its own timer, so a node
+    /// whose loop has wedged still fires, still answers a store query and still says
+    /// <see cref="SchedulerStatus.Running" /> — while its peers, to whom it looks dead, take its
+    /// triggers. Measured on the scheduler's own clock, so the test moves time rather than waiting.
+    /// </remarks>
+    [Test]
+    public async Task AClusteredNodeThatHasStoppedCheckingInIsDegraded()
+    {
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero));
+        DateTimeOffset lastCheckIn = clock.GetUtcNow();
+
+        // Three intervals is the default tolerance, so four is late.
+        clock.Advance(TimeSpan.FromSeconds(4 * 15));
+
+        HealthReportEntry result = await Check(
+            SchedulerStatus.Running,
+            clustered: true,
+            clock: clock,
+            nodes: [new ClusterNode("node-a", lastCheckIn, TimeSpan.FromSeconds(15), ClusterNodeState.Alive, IsCurrentNode: true)]);
+
+        result.Status.Should().Be(HealthStatus.Degraded);
+        result.Description.Should().Contain("node-a").And.Contain("check-in interval");
+    }
+
+    [Test]
+    public async Task AClusteredNodeStillCheckingInIsHealthy()
+    {
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero));
+        DateTimeOffset lastCheckIn = clock.GetUtcNow();
+        clock.Advance(TimeSpan.FromSeconds(20));
+
+        HealthReportEntry result = await Check(
+            SchedulerStatus.Running,
+            clustered: true,
+            clock: clock,
+            nodes: [new ClusterNode("node-a", lastCheckIn, TimeSpan.FromSeconds(15), ClusterNodeState.Alive, IsCurrentNode: true)]);
+
+        result.Status.Should().Be(HealthStatus.Healthy,
+            "one interval late is an ordinary scheduling delay rather than a stopped cluster manager");
+    }
+
+    [Test]
+    public async Task TheCheckinReadingIsTurnedOffByClearingTheTolerance()
+    {
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero));
+        DateTimeOffset lastCheckIn = clock.GetUtcNow();
+        clock.Advance(TimeSpan.FromHours(1));
+
+        HealthReportEntry result = await Check(
+            SchedulerStatus.Running,
+            clustered: true,
+            clock: clock,
+            nodes: [new ClusterNode("node-a", lastCheckIn, TimeSpan.FromSeconds(15), ClusterNodeState.Alive, IsCurrentNode: true)],
+            check: options => options.ClusterCheckinTolerance = null);
+
+        result.Status.Should().Be(HealthStatus.Healthy);
+    }
+
+    /// <summary>
+    /// An unclustered scheduler is not asked about check-ins at all, so its store sees no extra query.
+    /// </summary>
+    [Test]
+    public async Task AnUnclusteredSchedulerIsNotAskedAboutCheckIns()
+    {
+        IScheduler scheduler = FakeScheduler(SchedulerStatus.Running, clustered: false, clock: null, nodes: []);
+
+        HealthReportEntry result = await CheckWith(scheduler, check: null, hostedService: null);
+
+        result.Status.Should().Be(HealthStatus.Healthy);
+        A.CallTo(() => scheduler.QueryClusterNodes(A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
     private static async Task<HealthReportEntry> Check(
         SchedulerStatus status,
         SchedulerException? storeFailure = null,
         Action<QuartzHostedServiceOptions>? hostedService = null,
-        Action<QuartzHealthCheckOptions>? check = null)
+        Action<QuartzHealthCheckOptions>? check = null,
+        bool clustered = false,
+        TimeProvider? clock = null,
+        List<ClusterNode>? nodes = null)
     {
-        IScheduler scheduler = A.Fake<IScheduler>();
-        A.CallTo(() => scheduler.SchedulerName).Returns("core");
-        A.CallTo(() => scheduler.Status).Returns(status);
+        IScheduler scheduler = FakeScheduler(status, clustered, clock, nodes);
 
         if (storeFailure is not null)
         {
             A.CallTo(() => scheduler.Exists(A<JobKey>._, A<CancellationToken>._)).Throws(storeFailure);
         }
+
+        return await CheckWith(scheduler, check, hostedService);
+    }
+
+    private static IScheduler FakeScheduler(SchedulerStatus status, bool clustered, TimeProvider? clock, List<ClusterNode>? nodes)
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("core");
+        A.CallTo(() => scheduler.Status).Returns(status);
+        A.CallTo(() => scheduler.TimeProvider).Returns(clock ?? TimeProvider.System);
+        A.CallTo(() => scheduler.GetMetadata(A<CancellationToken>._))
+            .Returns(new SchedulerMetadata
+            {
+                SchedulerName = "core",
+                SchedulerInstanceId = "one",
+                SchedulerTypeName = "Quartz.Core.QuartzScheduler",
+                JobStoreTypeName = "Quartz.Impl.RAMJobStore",
+                ThreadPoolTypeName = "Quartz.Impl.DefaultThreadPool",
+                Status = status,
+                JobStoreClustered = clustered,
+                Version = "4.0.0.0"
+            });
+        A.CallTo(() => scheduler.QueryClusterNodes(A<CancellationToken>._)).Returns(nodes ?? []);
+        return scheduler;
+    }
+
+    private static async Task<HealthReportEntry> CheckWith(
+        IScheduler scheduler,
+        Action<QuartzHealthCheckOptions>? check,
+        Action<QuartzHostedServiceOptions>? hostedService)
+    {
 
         ISchedulerFactory factory = A.Fake<ISchedulerFactory>();
         A.CallTo(() => factory.GetScheduler(A<CancellationToken>._)).Returns(new ValueTask<IScheduler>(scheduler));

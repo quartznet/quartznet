@@ -92,17 +92,85 @@ internal sealed class QuartzHealthCheck : IHealthCheck
                 return HealthCheckResult.Unhealthy($"Quartz scheduler '{name}' did not report a state it is in");
         }
 
+        SchedulerMetadata metadata;
         try
         {
             // Ask for a job we know doesn't exist
             await scheduler.Exists(new JobKey(Guid.NewGuid().ToString()), cancellationToken).ConfigureAwait(false);
+            metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
         }
         catch (SchedulerException)
         {
             return HealthCheckResult.Unhealthy($"Quartz scheduler '{name}' cannot connect to the store");
         }
 
+        if (metadata.JobStoreClustered && CheckinTolerance() is { } tolerance)
+        {
+            HealthCheckResult? checkin = await CheckClusterCheckin(scheduler, name, tolerance, cancellationToken).ConfigureAwait(false);
+            if (checkin is { } degraded)
+            {
+                return degraded;
+            }
+        }
+
         return HealthCheckResult.Healthy($"Quartz scheduler '{name}' is ready");
+    }
+
+    /// <summary>
+    /// Whether this node's cluster manager is still checking in, or <see langword="null" /> when it is.
+    /// </summary>
+    /// <remarks>
+    /// Everything above this asserts that the scheduler can fire and that the store answers. A node
+    /// whose check-in loop has stopped passes both while its peers are recovering its triggers, because
+    /// to them it is dead — which is the one failure a health check over a clustered scheduler most
+    /// needs to report, and the one it could not.
+    /// </remarks>
+    private static async ValueTask<HealthCheckResult?> CheckClusterCheckin(
+        IScheduler scheduler,
+        string name,
+        double tolerance,
+        CancellationToken cancellationToken)
+    {
+        List<ClusterNode> nodes;
+        try
+        {
+            nodes = await scheduler.QueryClusterNodes(cancellationToken).ConfigureAwait(false);
+        }
+        catch (SchedulerException)
+        {
+            return HealthCheckResult.Unhealthy($"Quartz scheduler '{name}' cannot read its cluster's check-in state");
+        }
+
+        ClusterNode? self = nodes.FirstOrDefault(node => node.IsCurrentNode);
+        if (self is null || self.LastCheckInUtc is not { } lastCheckIn || self.CheckInInterval is not { } interval)
+        {
+            // A node that has not checked in yet has no row to read, and a store that keeps no check-in
+            // history has nothing to say either. Neither is a wedged cluster manager.
+            return null;
+        }
+
+        TimeSpan allowed = interval * tolerance;
+        TimeSpan since = scheduler.TimeProvider.GetUtcNow() - lastCheckIn;
+        if (since <= allowed)
+        {
+            return null;
+        }
+
+        return HealthCheckResult.Degraded(
+            $"Quartz scheduler '{name}' last checked in {since.TotalSeconds:F0}s ago on node "
+            + $"'{self.InstanceId}', which is more than {tolerance:0.##} × its {interval.TotalSeconds:F0}s "
+            + "check-in interval. Its cluster manager is not running, so its peers will recover its "
+            + "triggers while it reports itself as running.");
+    }
+
+    /// <summary>
+    /// How many check-in intervals this scheduler may miss, or <see langword="null" /> when the reading
+    /// is turned off.
+    /// </summary>
+    private double? CheckinTolerance()
+    {
+        double? tolerance = checkOptions.Get(target.SchedulerName ?? Options.DefaultName).ClusterCheckinTolerance;
+        return tolerance is > 0 ? tolerance : null;
     }
 
     /// <summary>

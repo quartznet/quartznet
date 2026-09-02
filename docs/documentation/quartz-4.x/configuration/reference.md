@@ -664,6 +664,23 @@ identically under `AddQuartz` and inside `QuartzSchedulerBuilder.Create(q => …
 `GetFireTimeAfter` and misfire calculations see the time you set. It does not drive the scheduler's own
 waiting, which is on the real clock.
 
+## Health check
+
+`QuartzHealthCheckOptions`, configured by `AddHealthChecks().AddQuartz(configure)` or by the scheduler's
+own `AddQuartzHealthChecks(configure)`. The options are per scheduler name, like every other setting
+here.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `Name` | string? | `quartz-scheduler`, or `quartz-scheduler-<scheduler name>` | What the check is registered as. |
+| `Tags` | List&lt;string&gt; | empty | What a probe filters on. Add to it rather than assigning; a blank or repeated tag is refused at startup. |
+| `FailureStatus` | HealthStatus? | `Unhealthy` | What a failed check reports. |
+| `StandbyStatus` | HealthStatus? | `Degraded` | What a scheduler in standby reports. Standby alone — a scheduler waiting for the application to press start keeps reporting degraded. |
+| `ClusterCheckinTolerance` | double? | `3` | How many of its own check-in intervals a **clustered** node may miss before the check reports degraded. `null` or `0` makes no such query. Nothing is read on an unclustered scheduler. |
+
+See [Health checks and probes](../operations.md#health-checks-and-probes) for what each verdict means to
+a probe, and what the check deliberately does not assert.
+
 ## Listeners, calendars and plugins
 
 <!-- snippet: sample_reference_listeners_and_plugins -->

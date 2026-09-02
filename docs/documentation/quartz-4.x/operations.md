@@ -762,8 +762,9 @@ The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`; it is opt-
 
 ## Health checks and probes
 
-The check that ships with `Quartz` asserts two things: that the scheduler is in a state that can fire,
-and that its job store answers a query. It reports *healthy* for a running scheduler whose store
+The check that ships with `Quartz` asserts three things: that the scheduler is in a state that can fire,
+that its job store answers a query, and — on a clustered scheduler — that this node is still checking
+in. It reports *healthy* for a running scheduler whose store
 responds, *degraded* for one in standby, and *unhealthy* for one that is shutting down, has shut down,
 or whose store threw. A scheduler still in `Created` depends on who was going to start it: *unhealthy*
 when the hosted service was going to and has not, and *degraded* when `AutoStart` is `false` and the
@@ -801,9 +802,15 @@ high-cardinality and should be dropped in a view before they reach the backend. 
 whose *absence* is the incident rather than its lateness, the store is a second source: a trigger whose
 `NextFireTimeUtc` is far in the past, or one in `Error`, is a row you can query.
 
-**It says nothing about the cluster.** A node that has stopped checking in — because its cluster
-manager is wedged on the database while the rest of the process is fine — still answers healthy. The
-node listing is where that shows, not the health endpoint.
+**It reports a node that has stopped checking in, and nothing else about the cluster.** A node whose
+cluster manager is wedged on the database while the rest of the process is fine still fires, still
+answers a store query and still says `Running` — while its peers, to whom it looks dead, recover its
+triggers. So a **clustered** scheduler is also asked when it last checked in, and a last check-in older
+than `QuartzHealthCheckOptions.ClusterCheckinTolerance` (`3` by default) times that node's own
+configured check-in interval reports *degraded*, naming the node and how late it is. Set the option to
+`null` or `0` to make no such query. Nothing else about the cluster is asserted — how many peers are
+alive, and whether any of them is behind, is what the
+[node listing](tutorial/advanced-enterprise-features.md) is for.
 
 **Degraded does not survive an HTTP probe by default.** ASP.NET Core maps `Degraded` to 200, exactly as
 it maps `Healthy`, so a standby scheduler looks healthy to anything that reads the status code. Map
