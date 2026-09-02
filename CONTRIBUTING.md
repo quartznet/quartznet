@@ -5,6 +5,10 @@ Then we can decide if and how a feature or a change could be implemented and if 
 
 Also read this first: [Being a good open source citizen](https://hackernoon.com/being-a-good-open-source-citizen-9060d0ab9732#.x3hocgw85)
 
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md), which is the Contributor
+Covenant 2.1. Security reports go through [SECURITY.md](.github/SECURITY.md) rather than a public
+issue.
+
 ## General feedback and discussions
 
 Please start a discussion on the [core repo issue tracker](https://github.com/quartznet/quartznet/issues).

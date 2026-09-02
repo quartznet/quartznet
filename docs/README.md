@@ -30,6 +30,6 @@ footer: Apache 2.0 Licensed | Copyright © 2007-present Marko Lahma
 
 Quartz.NET is a full-featured, open source job scheduling system that can be used from smallest apps to large scale enterprise systems.
 
-### Latest News
+## Latest News
 
 <BlogExcerpt />

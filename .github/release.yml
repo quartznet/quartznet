@@ -1,0 +1,30 @@
+# What GitHub's "Generate release notes" button produces, and what the 4.0.x patch train ships with.
+#
+# The 4.0.0 notes are hand-written: a major release's story is not a list of pull requests. Every
+# patch after it is small enough that the generated list is the story, so the categories below are the
+# shape those notes take. A pull request lands in the first category whose labels it carries, so the
+# order matters — "breaking" wins over everything, and "Other changes" is the catch-all.
+changelog:
+  exclude:
+    labels:
+      - dependencies
+      - dependabot
+  categories:
+    - title: Breaking changes
+      labels:
+        - breaking
+    - title: Features
+      labels:
+        - feature
+        - type:feature
+    - title: Fixes
+      labels:
+        - bug
+        - type:bug
+    - title: Documentation
+      labels:
+        - documentation
+        - type:docs
+    - title: Other changes
+      labels:
+        - "*"

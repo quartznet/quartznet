@@ -63,6 +63,7 @@ The new group applies from the next acquisition cycle; a job already running kee
 group it was acquired under.
 
 The following names are reserved and cannot be used as execution group names:
+
 - `*` — used for the "other groups" catch-all limit
 - `_` — used as a property-config alias for the default (ungrouped) triggers
 - `null` (case-insensitive) — same alias as `_`
@@ -73,7 +74,7 @@ Empty or whitespace-only strings are normalized to `null` (no group).
 
 ### Via properties
 
-```
+```properties
 quartz.executionLimit.batch-jobs = 2
 quartz.executionLimit.high-cpu = 3
 quartz.executionLimit._ = 10
@@ -96,6 +97,7 @@ than a magic value under the existing one, because every key under `quartz.execu
 name and every value is a count, so neither half had a spelling to spare.
 
 Special values for the limit:
+
 - `unlimited`, `none`, or `null` — no restriction (same as not listing the group); it takes no scope,
   since unlimited on a node and unlimited across the cluster are the same permission
 - `0` — completely forbidden
@@ -157,13 +159,13 @@ await scheduler.SetExecutionLimits(
 With the option on, a trigger that carries no execution group is limited as though its group were its own
 `TriggerKey.Group`. Three things are worth knowing:
 
-* **An explicit execution group always wins.** A trigger that names one is limited by that one, whatever
+- **An explicit execution group always wins.** A trigger that names one is limited by that one, whatever
   group it is in. The derivation only fills a gap.
-* **Nothing is persisted differently.** `ITrigger.ExecutionGroup` still reads `null`, and the store still
+- **Nothing is persisted differently.** `ITrigger.ExecutionGroup` still reads `null`, and the store still
   writes `null` to `EXECUTION_GROUP`. The rule is applied where a limit is evaluated — the scheduler
   thread's in-flight counting and both job stores' acquisition filters — and nowhere else. Turning it off
   again changes nothing but how the limits are read.
-* **`ForDefaultGroup` stops applying.** With the derivation on, no trigger is ungrouped, so ungrouped
+- **`ForDefaultGroup` stops applying.** With the derivation on, no trigger is ungrouped, so ungrouped
   triggers fall under `ForGroup`/`ForOtherGroups` like any other. The one exception is a trigger whose
   group is spelled like a name the limits reserve (`*`, `_`, `null`): it stays ungrouped rather than being
   folded into the bucket that spelling means.
@@ -227,6 +229,7 @@ On each trigger acquisition cycle, the scheduler thread:
 4. When a job starts, the running count for its group is incremented; when it completes, the count is decremented.
 
 This means:
+
 - The overall thread pool limit (`quartz.threadPool.threadCount`) still applies as a global cap.
 - Execution group limits provide additional per-group caps within that global pool.
 - In the worst case, a group might be slightly under-utilized for one cycle if a slot opens between computation and acquisition.
@@ -239,7 +242,8 @@ A node-scoped limit is configuration each node declares and enforces for itself.
 different nodes in a cluster may have different hardware capabilities.
 
 Example: in a cluster with dedicated batch nodes and API nodes:
-```
+
+```properties
 # batch-node.properties
 quartz.executionLimit.batch-jobs = 8
 quartz.executionLimit.* = 2
@@ -412,6 +416,7 @@ RAMJobStore requires no schema changes.
 ## Dashboard
 
 The Quartz Dashboard shows execution group information:
+
 - The overview page carries an execution-group panel: one row per group with its limit, the scope that
   limit is counted in, what it has in flight and the headroom left — cluster-wide when the job store is
   persistent — which is where to look to see whether a ceiling set here is the thing holding work back
@@ -436,7 +441,7 @@ q.UseExecutionLimits(limits =>
 
 ### Dedicating a node to specific workloads
 
-```
+```properties
 # Only run "reports" group on this node
 quartz.executionLimit.reports = 10
 quartz.executionLimit.* = 0

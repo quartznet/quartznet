@@ -2348,12 +2348,12 @@ hold rather than about what scheduled anything.)
 
 Two consequences worth knowing:
 
-- **Two more entries per trigger row.** They are ordinary string job data, so they travel through
+* **Two more entries per trigger row.** They are ordinary string job data, so they travel through
   `StoreJobDataAsStrings`, the System.Text.Json write gate, the Newtonsoft serializer, the binary blob
   column and the HTTP wire without any of them knowing about it — and they are visible in
   `MergedJobDataMap`, in the dashboard and in `GET /triggers`, like every other `QRTZ_*` reserved key.
   Turn the option off if that is not wanted.
-- **The trigger's map, never the job's.** `[PersistJobDataAfterExecution]` writes back only the job's
+* **The trigger's map, never the job's.** `[PersistJobDataAfterExecution]` writes back only the job's
   map, so the two never meet and a persisted job cannot carry a `traceparent` forward into its next
   firing.
 
@@ -2824,13 +2824,13 @@ public sealed record SchedulerRegistration(string Name, SchedulerOrigin Origin, 
 public enum SchedulerOrigin { Container, Runtime }
 ```
 
-- **`Status` is `null` exactly when nothing has been built under that name.** Asking does not build it —
+* **`Status` is `null` exactly when nothing has been built under that name.** Asking does not build it —
   that is the whole point.
-- **`Origin.Container`** is a scheduler `AddQuartz()` or `AddQuartz(name, …)` registered.
+* **`Origin.Container`** is a scheduler `AddQuartz()` or `AddQuartz(name, …)` registered.
   **`Origin.Runtime`** is one that is in the repository without a registration behind it: a
   `QuartzSchedulerBuilder` scheduler bound by hand, or a remote scheduler from `AddQuartzHttpClient`.
   Nothing in the container owns a runtime scheduler's lifetime.
-- The default scheduler is listed under its configured `InstanceName`, which is the one name that is not
+* The default scheduler is listed under its configured `InstanceName`, which is the one name that is not
   the name it was registered under — it has no service key at all.
 
 Nothing is removed: `GetAllSchedulers()` still means what it always meant, and it is still the call to
@@ -3860,7 +3860,7 @@ failure belonged to whoever next ran the job.
 
 Writing now refuses such a value, naming the entry and the type:
 
-```
+```text
 Job data entry 'recipients' holds a System.Collections.Generic.List`1[[System.String, …]], which Quartz's
 JSON format cannot read back. A job data value has to be one of the types JobDataMap declares an accessor
 for (string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan, Guid,
@@ -3889,7 +3889,7 @@ same declaration System.Text.Json refuses against — not a copy of that list, t
 cannot come to accept different things, and a value written by one serializer is a value the other's
 reader has an answer for. The message is the same but for the way out it names:
 
-```
+```text
 Job data entry 'zone' holds a System.TimeZoneInfo, which Quartz's JSON format cannot read back. … or a
 type the application declares through NewtonsoftJsonSerializerRegistry.AddJobDataValueType. …
 ```
@@ -3942,7 +3942,7 @@ no type beside it, and hands back a Json.NET `JObject` instead of the dictionary
 **`$type` is now a reserved name inside a stored string map.** Both serializers refuse a map that stores an
 entry under it, the same way and at the same moment as any other value they cannot read back:
 
-```
+```text
 Job data entry 'headers' holds a string map with an entry named '$type'. '$type' is the name Json.NET
 writes a value's type under, so Quartz's JSON format reads it as metadata rather than as an entry and no
 reader can hand it back. Store that entry under a name of its own.
@@ -4575,7 +4575,7 @@ exotic stored type. A type Quartz has no string form for, such as an options cla
 plain type test it always was. So the named accessors are down to the set the tutorials teach, and the
 exotic tail is spelled generically:
 
-| 4.0 preview | 4.0 | 
+| Named accessor | 4.0 |
 |---|---|
 | `GetGuid` / `TryGetGuid` | `Get<Guid>` / `TryGet<Guid>` |
 | `GetTimeSpan` / `TryGetTimeSpan` | `Get<TimeSpan>` / `TryGet<TimeSpan>` |
@@ -6146,29 +6146,29 @@ Two contracts moved to make it possible:
 
 Behavioral notes:
 
-- The fired-trigger row is written from the scheduled fire time the store hands `ApplyTriggerFired`, not
+* The fired-trigger row is written from the scheduled fire time the store hands `ApplyTriggerFired`, not
   from the trigger's own next fire time. It used to be read off the trigger, which meant the row had to be
   written before `Triggered()` advanced it — an ordering constraint a batch cannot honour, and one that was
   never written down anywhere.
-- A batch that fails is replayed statement by statement so the exception names the statement that failed —
+* A batch that fails is replayed statement by statement so the exception names the statement that failed —
   unless the failure was transient, in which case it surfaces as itself. A replay against a connection that
   has just dropped, or a transaction the server has already doomed, produces a different and unrecognisable
   failure, and the store's retry only recognises a transient failure from the exception it is handed. This
   applies to the batched misfire writes above as well.
-- The exception a failed fire raises now names the fire rather than the individual statement:
+* The exception a failed fire raises now names the fire rather than the individual statement:
   `Couldn't record the fire of trigger '…' for '…' job`, where it used to be one of `Couldn't update fired
   trigger`, `Couldn't update states of blocked triggers` or `Couldn't store trigger '…'`.
-- **`IDriverDelegate.UpdateFiredTrigger` is gone.** It was the fire path's only caller, and `ApplyTriggerFired`
+* **`IDriverDelegate.UpdateFiredTrigger` is gone.** It was the fire path's only caller, and `ApplyTriggerFired`
   writes that row as one command of its batch instead. A delegate that overrode it to change what a fire
   records has to override `ApplyTriggerFired` — which is why the member was removed rather than left in
   place: an override that is never invoked fails silently, and a customisation discovered to have stopped
   working in production is worse than one that fails to compile at upgrade time. The statement itself is
   unchanged; the internal `StdAdoConstants.SqlUpdateFiredTrigger` still spells it.
-- The fire path also no longer calls `TriggerExists` or `UpdateTrigger`, both of which stay because other
+* The fire path also no longer calls `TriggerExists` or `UpdateTrigger`, both of which stay because other
   paths still use them. **A delegate that overrode either of those to change what a fire stores has to move
   that override to `ApplyTriggerFired` as well** — they still compile and still work, they are simply no
   longer on this path.
-- Completion no longer loads a job's triggers to ask the database for each one's state. It asks for the
+* Completion no longer loads a job's triggers to ask the database for each one's state. It asks for the
   keys in the state it cares about, loads those in one read, and applies their misfire policies as one
   batched write, which is what misfire recovery already did. A trigger that runs out of fire times while
   blocked is still stored `COMPLETE`, still finalized to the scheduler listeners, and still deleted.
@@ -6203,14 +6203,14 @@ report a row count; a caller wanting one old state passes a set of one.
 
 Behavioural notes:
 
-- `ClusterRecover` is a sequence of named steps — release, unblock, reschedule, delete the fired rows,
+* `ClusterRecover` is a sequence of named steps — release, unblock, reschedule, delete the fired rows,
   delete the triggers those rows were the last of, give up the failed node's registration — rather than
   one pass that did all of it per row. The steps are grouped by what they do instead of issued row by
   row, which is only safe because they run in one transaction under one lock and touch disjoint rows.
   What another node can observe is unchanged.
-- Scheduling a replacement firing is still row by row: each one reads whether its job still exists and
+* Scheduling a replacement firing is still row by row: each one reads whether its job still exists and
   what its trigger's data map holds, and both answers decide whether anything is written at all.
-- **A node that finds its own `QRTZ_SCHEDULER_STATE` row gone now handles it.** On 3.x it logged
+* **A node that finds its own `QRTZ_SCHEDULER_STATE` row gone now handles it.** On 3.x it logged
   `This scheduler instance (…) is still active but was recovered by another instance in the cluster` and
   carried on. It now writes its row back, names the peer that recovered it where the remaining rows say
   which one that must have been, counts the event on `quartz.cluster.recovery.trigger` under its own
@@ -6264,18 +6264,18 @@ backstop is skipped entirely, so the shipped dialects pay nothing per candidate 
 
 Behavioral notes:
 
-- `StdAdoDelegate.SelectTriggersForJob` is now the job's trigger keys followed by one `SelectTriggers` for
+* `StdAdoDelegate.SelectTriggersForJob` is now the job's trigger keys followed by one `SelectTriggers` for
   the set, where it used to read each trigger back on its own. The triggers and their order are the same.
-- `StdAdoDelegate.SelectTriggers` and `InsertFiredTriggers` answer a one-element set through
+* `StdAdoDelegate.SelectTriggers` and `InsertFiredTriggers` answer a one-element set through
   `SelectTrigger` and `InsertFiredTrigger`. One key is one statement either way, and the set forms pay for
   a key-set predicate and a `DbBatch` to say the same thing — which matters because the scheduler's
   default acquisition batch size is one. An override of either singular member therefore also takes
   effect for a set of one.
-- Pausing or resuming a job no longer materializes that job's triggers to reach their keys. The schedule in
+* Pausing or resuming a job no longer materializes that job's triggers to reach their keys. The schedule in
   a trigger's type table was read and never looked at.
-- `PauseAll` and `ResumeAll` pass the any-group matcher once rather than naming each trigger group in turn.
+* `PauseAll` and `ResumeAll` pass the any-group matcher once rather than naming each trigger group in turn.
   The statements are the same ones; there is one set of them instead of one set per group.
-- A resume still applies each overdue trigger's misfire policy with that trigger's own write, because
+* A resume still applies each overdue trigger's misfire policy with that trigger's own write, because
   recovering a misfire recomputes one trigger's schedule and cannot be expressed as a set operation.
 
 ## Job store listings became queries
