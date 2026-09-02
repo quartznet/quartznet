@@ -187,8 +187,9 @@ public class EnlistedTransactionTest
     /// Only the <see cref="DbTransaction" /> form. Microsoft.Data.Sqlite implements no
     /// <see cref="System.Data.Common.DbConnection.EnlistTransaction" />, so a connection opened inside
     /// a <see cref="TransactionScope" /> does not join it and the scope's outcome governs nothing —
-    /// which is a fact about the driver rather than about Quartz, and is written down on
-    /// <c>tutorial/job-stores.md</c> beside the in-process locking caveat.
+    /// which is a fact about the driver rather than about Quartz. <c>EnlistConnection</c> refuses such
+    /// a connection instead of writing through it, which
+    /// <c>EnlistmentRefusalSqliteTest</c> pins in the unit project against this very driver.
     /// </remarks>
     [Test]
     public Task SqliteRollingBackTheApplicationTransactionDiscardsTheSchedule()

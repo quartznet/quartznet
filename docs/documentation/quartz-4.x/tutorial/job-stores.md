@@ -357,11 +357,21 @@ Things worth knowing before you enable this:
   process, so a concurrent scheduler operation there can fail with "database is locked" until your transaction
   completes. Quartz logs a warning about it at startup.
 * On SQLite, enlist a `DbTransaction` and not a `TransactionScope`. `Microsoft.Data.Sqlite` implements no
-  `DbConnection.EnlistTransaction`, so a connection opened inside a scope never joins it: `EnlistConnection` then hands
-  the store a connection whose writes commit on the spot, and rolling the scope back leaves the schedule behind.
+  `DbConnection.EnlistTransaction`, so a connection opened inside a scope never joins it. `EnlistConnection` refuses
+  such a connection rather than handing it to the store, with a `SchedulerException` that names the driver:
+
+  ```text
+  Scheduler 'MyScheduler' cannot take part in the ambient transaction through a Microsoft.Data.Sqlite.SqliteConnection
+  (Microsoft.Data.Sqlite): the driver implements no DbConnection.EnlistTransaction, so the connection never joined the
+  TransactionScope and every statement the job store issued on it would commit on the spot - a scope that rolled back
+  would leave the schedule behind. Begin a transaction on the connection and enlist that instead:
+  scheduler.EnlistTransaction(connection.BeginTransaction()).
+  ```
+
   `EnlistTransaction(connection.BeginTransaction())` is unaffected, because there the transaction is the connection's
-  own and Quartz uses it directly. This is a property of the driver rather than of Quartz, and it is the reason
-  `EnlistedTransactionTest` runs only the `DbTransaction` cases for SQLite.
+  own and Quartz uses it directly. Which drivers can join an ambient transaction is a property of the driver rather
+  than of Quartz — the other five all can — and the connection is asked to join whichever driver it comes from, so a
+  provider Quartz has never heard of is held to the same answer.
 * An operation that fails halfway leaves its statements in your transaction; there is no savepoint to roll back to.
 * Work the scheduler does on its own - acquiring triggers, handling misfires, cluster check-in - always uses its own
   connections and is unaffected.
