@@ -122,11 +122,24 @@ partial class Build : FalloutBuild, ICompile, IPack
             ArtifactsDirectory.CreateOrCleanDirectory();
         });
 
+    /// <summary>
+    /// Whether this build is the one whose output is published, which is every build on GitHub Actions.
+    /// </summary>
+    /// <remarks>
+    /// It sets <c>ContinuousIntegrationBuild</c>, which is what makes the SDK normalize the source paths
+    /// embedded in a PDB into <c>/_/</c>-rooted ones SourceLink can resolve. Without it a shipped symbol
+    /// package carries the runner's absolute paths, a debugger can only step into sources on a machine
+    /// laid out the same way, and no two builds of the same commit produce the same bytes. Off locally,
+    /// deliberately: a developer debugging their own build wants the paths on their own disk.
+    /// </remarks>
+    static bool IsContinuousIntegrationBuild => GitHubActions.Instance is not null;
+
     public Configure<DotNetBuildSettings> CompileSettings => _ => _
         .SetAssemblyVersion(VersionPrefix)
         .SetFileVersion(VersionPrefix)
         .SetVersionPrefix(VersionPrefix)
-        .SetVersionSuffix(VersionSuffix);
+        .SetVersionSuffix(VersionSuffix)
+        .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild);
 
     /// <summary>
     /// Publishes the example applications, one of which is a trim canary, and runs the trim canary that
@@ -539,7 +552,8 @@ partial class Build : FalloutBuild, ICompile, IPack
         .SetAssemblyVersion(VersionPrefix)
         .SetFileVersion(VersionPrefix)
         .SetVersionPrefix(VersionPrefix)
-        .SetVersionSuffix(VersionSuffix);
+        .SetVersionSuffix(VersionSuffix)
+        .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild);
 
     Target PackZip => _ => _
         .TriggeredBy<IPack>()
