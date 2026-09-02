@@ -19,6 +19,13 @@
       moves is corrected in one place.
     -->
     <Compile Include="..\Quartz.Tests.Unit\TestTimeZones.cs" />
+    <!--
+      The manifest UpgradeRehearsalTest reads its expectations from, shared with the project that
+      writes it by source rather than by reference. Quartz.Tests.Integration.Seeder builds against the
+      released Quartz 3.20.0 package, whose assembly identity is this repository's own, so nothing may
+      reference both; the file is BCL-only for exactly that reason.
+    -->
+    <Compile Include="..\Quartz.Tests.Integration.Seeder\SeedManifest.cs" />
   </ItemGroup>
 
   <ItemGroup>

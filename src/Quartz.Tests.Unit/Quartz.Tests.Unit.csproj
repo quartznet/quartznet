@@ -23,6 +23,12 @@
       the repository root is relative to wherever the test assembly was built.
     -->
     <EmbeddedResource Include="..\..\database\tables\tables_sqlite.sql" LogicalName="tables_sqlite.sql" />
+
+    <!--
+      Blob columns dumped byte for byte from a released Quartz 3.20.0 run, which LegacyJsonPayloadTest
+      reads. See TestData/Legacy/3.20/README.md for how they are regenerated.
+    -->
+    <Content Include="TestData\Legacy\3.20\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

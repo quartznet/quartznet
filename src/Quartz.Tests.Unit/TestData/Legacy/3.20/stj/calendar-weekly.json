@@ -1,0 +1,1 @@
+{"$type":"Quartz.Impl.Calendar.WeeklyCalendar, Quartz","Description":"Seeded WeeklyCalendar","TimeZoneId":"UTC","BaseCalendar":null,"ExcludedDays":[true,false,false,true,false,false,true]}
