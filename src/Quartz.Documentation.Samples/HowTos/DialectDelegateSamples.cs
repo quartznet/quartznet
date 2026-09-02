@@ -70,6 +70,15 @@ internal sealed class DialectDelegateOverrides : StdAdoDelegate
 
     #endregion
 
+    #region sample_dialect_delegate_schema_resource
+
+    // The schema script this delegate creates its tables from, embedded beside it with
+    // <EmbeddedResource Include="MyDatabase.sql" /> and named the way the compiler names one:
+    // <RootNamespace>.<folder path>.<file name>. Statements are separated by a line reading "--;;".
+    protected override string? SchemaResourceName => "MyCompany.Quartz.MyDatabase.sql";
+
+    #endregion
+
     // The rest of this class is not on the page. It is one override per category of statement hook, so
     // that a category which stops being reachable from outside Quartz breaks the build here rather than
     // in somebody's application.
@@ -88,6 +97,23 @@ internal sealed class DialectDelegateOverrides : StdAdoDelegate
     /// <inheritdoc cref="GetSelectNextTriggerToAcquireSql" />
     protected override string GetCountMisfiredTriggersInStateSql()
         => base.GetCountMisfiredTriggersInStateSql().Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS /*+ index */ WHERE");
+
+    /// <summary>
+    /// The lock-free acquisition path's claim on a trigger, wrapped rather than replaced. It is the
+    /// statement a dialect is likeliest to need to reshape, and the base's work is still reachable
+    /// through <see langword="base" />.
+    /// </summary>
+    public override ValueTask<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
+        DateTimeOffset nextFireTime,
+        CancellationToken cancellationToken = default)
+    {
+        return base.UpdateTriggerStateFromOtherStateWithNextFireTime(
+            conn, triggerKey, newState, oldState, nextFireTime, cancellationToken);
+    }
 
     /// <summary>
     /// A whole <see cref="IDriverDelegate" /> member written out, rather than a statement handed back to

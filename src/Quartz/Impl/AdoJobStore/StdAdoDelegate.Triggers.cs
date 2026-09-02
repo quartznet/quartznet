@@ -732,7 +732,15 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public async ValueTask<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
+    /// <remarks>
+    /// Virtual like every other statement-issuing member on this class, and worth saying why on this
+    /// one: it is the lock-free acquisition path's claim on a trigger, so it is the statement a dialect
+    /// is most likely to need to reshape — an index hint, a different way of spelling the conditional
+    /// update. It was the one <see cref="IDriverDelegate" /> member <see cref="StdAdoDelegate" />
+    /// implemented non-virtually, which was an oversight rather than a decision; the value conversions
+    /// that are deliberately not virtual say so on themselves.
+    /// </remarks>
+    public virtual async ValueTask<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         StoredTriggerState newState,
