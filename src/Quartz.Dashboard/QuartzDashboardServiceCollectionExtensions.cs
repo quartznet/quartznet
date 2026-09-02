@@ -31,8 +31,26 @@ using Quartz.Extensibility;
 
 namespace Quartz;
 
+/// <summary>
+/// Registers the Quartz.NET Dashboard's services.
+/// </summary>
 public static class QuartzDashboardServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers everything the dashboard renders with — its Blazor components, its SignalR hub, the
+    /// history store and the <see cref="IQuartzApiClient" /> the pages read — and adds its two plugins
+    /// to every scheduler in the container.
+    /// </summary>
+    /// <remarks>
+    /// No option points the dashboard at a scheduler: it renders the schedulers this application
+    /// registered. The client is registered with <c>TryAdd</c>, so an application that registers its own
+    /// <see cref="IQuartzApiClient" /> first is the one the pages read. Call
+    /// <c>MapQuartzDashboard()</c> on the built application to map the endpoints.
+    /// </remarks>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">Configures the dashboard, including the path it is served under.</param>
+    /// <returns>The same collection, so calls can be chained.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="services" /> is null.</exception>
     public static IServiceCollection AddQuartzDashboard(
         this IServiceCollection services,
         Action<QuartzDashboardOptions>? configure = null)

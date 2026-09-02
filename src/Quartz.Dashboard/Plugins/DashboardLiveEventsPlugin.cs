@@ -26,6 +26,17 @@ using Quartz.Extensibility;
 
 namespace Quartz.Dashboard.Plugins;
 
+/// <summary>
+/// Pushes a scheduler's events to the browsers watching it, which is what makes the dashboard's live
+/// view live.
+/// </summary>
+/// <remarks>
+/// It is all three listener kinds at once because the live view draws all three: a job starting and
+/// finishing, a trigger firing and misfiring, and the scheduler's own lifecycle. Registered by
+/// <c>AddQuartzDashboard</c> against every scheduler in the container rather than named by a
+/// <c>quartz.plugin.*.type</c> key, and told its own scheduler's name when it is initialized — which is
+/// the SignalR group it broadcasts to.
+/// </remarks>
 public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, ITriggerListener, ISchedulerListener
 {
     private readonly IServiceProvider serviceProvider;
@@ -42,8 +53,10 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         this.serviceProvider = serviceProvider;
     }
 
+    /// <inheritdoc />
     public string Name { get; private set; } = "QuartzDashboardLiveEvents";
 
+    /// <inheritdoc />
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
@@ -55,10 +68,13 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return default;
     }
 
+    /// <inheritdoc />
     public ValueTask Start(CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobEventDto payload = new(
@@ -71,6 +87,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(context.Scheduler.SchedulerName, client => client.JobExecuting(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobExecutionResultDto payload = new(
@@ -85,6 +102,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(context.Scheduler.SchedulerName, client => client.JobExecuted(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
         JobExecutionResultDto payload = new(
@@ -99,6 +117,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(context.Scheduler.SchedulerName, client => client.JobExecuted(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         TriggerEventDto payload = new(
@@ -110,11 +129,13 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(context.Scheduler.SchedulerName, client => client.TriggerFired(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         return ValueTask.FromResult(false);
     }
 
+    /// <inheritdoc />
     public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         TriggerEventDto payload = new(
@@ -126,6 +147,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.TriggerMisfired(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask TriggerComplete(
         ITrigger trigger,
         IJobExecutionContext context,
@@ -141,50 +163,65 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(context.Scheduler.SchedulerName, client => client.TriggerCompleted(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask JobScheduled(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobUnscheduled(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask TriggerFinalized(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask TriggerPaused(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         TriggerLifecycleDto payload = new(scheduler.SchedulerInstanceId, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.TriggerPaused(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask TriggersPaused(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask TriggerResumed(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         TriggerLifecycleDto payload = new(scheduler.SchedulerInstanceId, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.TriggerResumed(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask TriggersResumed(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobAdded(IScheduler scheduler, IJobDetail jobDetail, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobDeleted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobPaused(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
     {
         JobLifecycleDto payload = new(scheduler.SchedulerInstanceId, new JobKeyDto(jobKey.Group, jobKey.Name));
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.JobPaused(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobsPaused(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobResumed(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
     {
         JobLifecycleDto payload = new(scheduler.SchedulerInstanceId, new JobKeyDto(jobKey.Group, jobKey.Name));
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.JobResumed(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask JobsResumed(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
     {
         SchedulerErrorDto payload = new(
@@ -198,11 +235,13 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.SchedulerError(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask SchedulerInStandbyMode(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         return BroadcastState(scheduler, SchedulerStatus.Standby);
     }
 
+    /// <inheritdoc />
     public ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         return BroadcastState(scheduler, SchedulerStatus.Running);
@@ -218,11 +257,13 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     /// </remarks>
     public ValueTask SchedulerStarting(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask SchedulerShutdown(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         return BroadcastState(scheduler, SchedulerStatus.Shutdown);
     }
 
+    /// <inheritdoc />
     public ValueTask SchedulerShuttingDown(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         return BroadcastState(scheduler, SchedulerStatus.ShuttingDown);
@@ -237,6 +278,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.SchedulerStateChanged(payload));
     }
 
+    /// <inheritdoc />
     public ValueTask SchedulingDataCleared(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
     private async ValueTask BroadcastToScheduler(string schedulerName, Func<IQuartzDashboardHubClient, Task> send)

@@ -42,6 +42,11 @@ public sealed class QuartzDashboardOptions
     /// </remarks>
     public string DashboardPath { get; set; } = DefaultDashboardPath;
 
+    /// <summary>
+    /// The authorization policy the dashboard's pages, hub, circuit and assets are held to. Null — the
+    /// default — applies none of its own, so what guards the dashboard is whatever the application's
+    /// pipeline already does.
+    /// </summary>
     public string? AuthorizationPolicy { get; set; }
 
     /// <summary>
@@ -66,6 +71,14 @@ public sealed class QuartzDashboardOptions
     /// </remarks>
     public string? SchedulerAuthorizationPolicy { get; set; }
 
+    /// <summary>
+    /// Hides every mutating action — pause, resume, trigger now, reschedule, unschedule, delete — so the
+    /// dashboard is a view of the schedulers rather than a way to drive them.
+    /// </summary>
+    /// <remarks>
+    /// Enforced by the client rather than by the pages alone: a mutation refused here is refused
+    /// wherever it is called from, so hiding a button is not what makes it safe.
+    /// </remarks>
     public bool ReadOnly { get; set; }
 
     /// <summary>
