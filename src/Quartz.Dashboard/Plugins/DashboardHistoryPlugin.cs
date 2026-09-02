@@ -24,6 +24,17 @@ using Quartz.Extensibility;
 
 namespace Quartz.Dashboard.Plugins;
 
+/// <summary>
+/// Records what a scheduler has run and what it has missed, so the history and misfire pages have
+/// something to show.
+/// </summary>
+/// <remarks>
+/// The rows go to the <see cref="IDashboardHistoryStore" /> in the container, which by default keeps
+/// them in memory for <c>HistoryRetention</c> — a dashboard's history is an operator's recent view
+/// rather than an audit log. Registered by <c>AddQuartzDashboard</c> against every scheduler in the
+/// container, and told its own scheduler's name when it is initialized, which is what its rows are
+/// keyed by.
+/// </remarks>
 public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener, ITriggerListener
 {
     private readonly IServiceProvider serviceProvider;
@@ -50,8 +61,10 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener, ITr
         this.timeProvider = timeProvider ?? TimeProvider.System;
     }
 
+    /// <inheritdoc />
     public string Name { get; private set; } = "QuartzDashboardHistory";
 
+    /// <inheritdoc />
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
@@ -60,14 +73,19 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener, ITr
         return default;
     }
 
+    /// <inheritdoc />
     public ValueTask Start(CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
         try
@@ -98,8 +116,10 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener, ITr
         }
     }
 
+    /// <inheritdoc />
     public ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 
+    /// <inheritdoc />
     public ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         return ValueTask.FromResult(false);
@@ -141,6 +161,7 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener, ITr
         }
     }
 
+    /// <inheritdoc />
     public ValueTask TriggerComplete(
         ITrigger trigger,
         IJobExecutionContext context,

@@ -5,11 +5,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Quartz.Dashboard</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <!--
-      Undocumented public members. P5 (#3646) is the sweep that turns this on for the side packages;
-      Quartz itself is clean and enforces it. Delete the line when this package is documented.
-    -->
-    <NoWarn>$(NoWarn);1591</NoWarn>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
       Not trimmable, said out loud rather than left to the default (issue #3431). Blazor Server is a

@@ -96,6 +96,9 @@ public sealed record DashboardMisfireEntry(
 /// </remarks>
 public interface IDashboardHistoryStore
 {
+    /// <summary>
+    /// Records one execution, which the history page then reads back.
+    /// </summary>
     ValueTask AddExecution(DashboardHistoryEntry entry, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -103,6 +106,9 @@ public interface IDashboardHistoryStore
     /// </summary>
     ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Records one misfire, which the misfires page and the overview's tile then read back.
+    /// </summary>
     ValueTask AddMisfire(DashboardMisfireEntry entry, CancellationToken cancellationToken = default);
 
     /// <summary>

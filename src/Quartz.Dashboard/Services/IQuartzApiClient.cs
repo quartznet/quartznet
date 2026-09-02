@@ -98,14 +98,30 @@ public interface IQuartzApiClient
     /// <exception cref="KeyNotFoundException">No scheduler goes by <paramref name="schedulerName" />.</exception>
     ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Starts the scheduler, so its triggers begin firing.
+    /// </summary>
     ValueTask Start(string schedulerName, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Puts the scheduler in standby: it keeps its state and stops firing until it is started again.
+    /// </summary>
     ValueTask Standby(string schedulerName, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Shuts the scheduler down, waiting for the jobs in flight. A scheduler that has shut down cannot
+    /// be started again.
+    /// </summary>
     ValueTask Shutdown(string schedulerName, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Pauses every trigger group, so nothing fires until <see cref="ResumeAll" />.
+    /// </summary>
     ValueTask PauseAll(string schedulerName, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Resumes every trigger group, applying each trigger's misfire instruction to what it missed.
+    /// </summary>
     ValueTask ResumeAll(string schedulerName, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -134,6 +150,10 @@ public interface IQuartzApiClient
     /// </exception>
     ValueTask<JobDetailDto> GetJobDetail(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns every trigger scheduled against the job, which is a short list rather than a page: a job
+    /// has as many triggers as somebody wrote for it.
+    /// </summary>
     ValueTask<List<TriggerHeaderDto>> GetTriggersOfJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -206,6 +226,9 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<bool> DeleteJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Stores a job with no trigger, for one that is triggered by hand or scheduled later.
+    /// </summary>
     ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -224,6 +247,10 @@ public interface IQuartzApiClient
     /// </exception>
     ValueTask<ITrigger> GetTrigger(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns the trigger's state, which is <see cref="TriggerState.None" /> when there is no such
+    /// trigger — the one read here that answers rather than raising.
+    /// </summary>
     ValueTask<TriggerState> GetTriggerState(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -244,6 +271,9 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Schedules a trigger, together with the job it fires when the request carries one.
+    /// </summary>
     ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -253,8 +283,14 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<bool> UnscheduleJob(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Replaces the trigger with the one in the request, keeping the job it fires.
+    /// </summary>
     ValueTask RescheduleJob(string schedulerName, TriggerKeyDto triggerKey, RescheduleRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns the names of every calendar the scheduler holds — a short list rather than a page.
+    /// </summary>
     ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -266,6 +302,9 @@ public interface IQuartzApiClient
     /// </exception>
     ValueTask<ICalendar> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Stores a calendar under a name, which triggers refer to in order to exclude times from firing.
+    /// </summary>
     ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -338,6 +377,9 @@ public sealed record DashboardGroupQuery : PagedQuery
 /// </summary>
 public sealed record DashboardJobQuery : PagedQuery
 {
+    /// <summary>
+    /// Lists only the jobs whose group name contains this, or every job when null.
+    /// </summary>
     public string? GroupContains { get; init; }
 }
 
@@ -346,8 +388,14 @@ public sealed record DashboardJobQuery : PagedQuery
 /// </summary>
 public sealed record DashboardTriggerQuery : PagedQuery
 {
+    /// <summary>
+    /// Lists only the triggers whose group name contains this, or every trigger when null.
+    /// </summary>
     public string? GroupContains { get; init; }
 
+    /// <summary>
+    /// Lists only the triggers in this state, or every state when null.
+    /// </summary>
     public TriggerState? State { get; init; }
 }
 
@@ -356,6 +404,9 @@ public sealed record DashboardTriggerQuery : PagedQuery
 /// </summary>
 public sealed record DashboardFireInstanceQuery : PagedQuery
 {
+    /// <summary>
+    /// Lists only the firings whose trigger group name contains this, or every firing when null.
+    /// </summary>
     public string? GroupContains { get; init; }
 
     /// <summary>
@@ -373,6 +424,9 @@ public sealed record DashboardFireInstanceQuery : PagedQuery
 /// </remarks>
 public sealed record DashboardHistoryQuery : PagedQuery
 {
+    /// <summary>
+    /// The scheduler whose history to list. Required: the store keeps every scheduler's rows together.
+    /// </summary>
     public required string SchedulerName { get; init; }
 
     /// <summary>
@@ -380,8 +434,14 @@ public sealed record DashboardHistoryQuery : PagedQuery
     /// </summary>
     public string? SchedulerInstanceId { get; init; }
 
+    /// <summary>
+    /// Lists only the executions whose job key matches this, or every job's when null.
+    /// </summary>
     public string? JobFilter { get; init; }
 
+    /// <summary>
+    /// Lists only the executions whose trigger key matches this, or every trigger's when null.
+    /// </summary>
     public string? TriggerFilter { get; init; }
 }
 
@@ -393,6 +453,9 @@ public sealed record DashboardHistoryQuery : PagedQuery
 /// </remarks>
 public sealed record DashboardMisfireQuery : PagedQuery
 {
+    /// <summary>
+    /// The scheduler whose misfires to list. Required: the store keeps every scheduler's rows together.
+    /// </summary>
     public required string SchedulerName { get; init; }
 
     /// <summary>
@@ -400,6 +463,9 @@ public sealed record DashboardMisfireQuery : PagedQuery
     /// </summary>
     public string? SchedulerInstanceId { get; init; }
 
+    /// <summary>
+    /// Lists only the misfires whose trigger key matches this, or every trigger's when null.
+    /// </summary>
     public string? TriggerFilter { get; init; }
 }
 
@@ -472,12 +538,32 @@ public sealed record SchedulerDetailDto(
     int JobsExecuted,
     string Version);
 
+/// <summary>
+/// A job's identity, as the pages carry it.
+/// </summary>
+/// <param name="Group">The job's group.</param>
+/// <param name="Name">The job's name, unique within the group.</param>
 public sealed record JobKeyDto(string Group, string Name);
 
+/// <summary>
+/// One job group, and whether it is paused.
+/// </summary>
+/// <param name="Name">The group's name.</param>
+/// <param name="Paused">Whether the group is paused, so what is added to it starts paused too.</param>
 public sealed record JobGroupDto(string Name, bool Paused);
 
+/// <summary>
+/// One trigger group, and whether it is paused.
+/// </summary>
+/// <param name="Name">The group's name.</param>
+/// <param name="Paused">Whether the group is paused, so what is added to it starts paused too.</param>
 public sealed record TriggerGroupDto(string Name, bool Paused);
 
+/// <summary>
+/// A trigger's identity, as the pages carry it.
+/// </summary>
+/// <param name="Group">The trigger's group.</param>
+/// <param name="Name">The trigger's name, unique within the group.</param>
 public sealed record TriggerKeyDto(string Group, string Name);
 
 /// <summary>
@@ -553,8 +639,27 @@ public sealed record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job);
 /// </summary>
 public sealed record RescheduleRequest(ITrigger NewTrigger);
 
+/// <summary>
+/// The calendar to store, and what to do about what is already there.
+/// </summary>
+/// <param name="CalendarName">The name to store it under.</param>
+/// <param name="Calendar">The calendar itself, of whichever kind it is.</param>
+/// <param name="Replace">Whether a calendar already under that name may be overwritten.</param>
+/// <param name="UpdateTriggers">
+/// Whether the triggers referring to that name are recomputed against the new calendar. Off, they keep
+/// firing on the schedule the old one produced.
+/// </param>
 public sealed record AddCalendarRequest(string CalendarName, ICalendar Calendar, bool Replace, bool UpdateTriggers);
 
+/// <summary>
+/// The job to store, and what to do about what is already there.
+/// </summary>
+/// <param name="Job">The job's definition.</param>
+/// <param name="Replace">Whether a job already under that key may be overwritten.</param>
+/// <param name="StoreNonDurableWhileAwaitingScheduling">
+/// Whether a non-durable job may be stored with no trigger yet, or <see langword="null" /> to leave the
+/// scheduler's own default. A non-durable job stored this way is removed again if nothing schedules it.
+/// </param>
 public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling);
 
 /// <summary>

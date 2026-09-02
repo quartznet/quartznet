@@ -41,6 +41,9 @@ using Quartz.Dashboard.Hubs;
 
 namespace Quartz;
 
+/// <summary>
+/// Maps the Quartz.NET Dashboard's pages, hub and assets into an application's routes.
+/// </summary>
 public static class QuartzDashboardEndpointRouteBuilderExtensions
 {
     /// <summary>

@@ -46,29 +46,70 @@ namespace Quartz.Dashboard.Hubs;
 /// </remarks>
 public interface IQuartzDashboardHubClient
 {
+    /// <summary>
+    /// A job has begun running.
+    /// </summary>
     Task JobExecuting(JobEventDto jobEvent);
 
+    /// <summary>
+    /// A job has finished, successfully, with an exception, or vetoed before it started.
+    /// </summary>
     Task JobExecuted(JobExecutionResultDto result);
 
+    /// <summary>
+    /// A trigger has fired.
+    /// </summary>
     Task TriggerFired(TriggerEventDto triggerEvent);
 
+    /// <summary>
+    /// A trigger will not fire again: its schedule has run out.
+    /// </summary>
     Task TriggerCompleted(TriggerEventDto triggerEvent);
 
+    /// <summary>
+    /// A trigger missed a firing and its misfire instruction has been applied.
+    /// </summary>
     Task TriggerMisfired(TriggerEventDto triggerEvent);
 
+    /// <summary>
+    /// A trigger has been paused.
+    /// </summary>
     Task TriggerPaused(TriggerLifecycleDto triggerEvent);
 
+    /// <summary>
+    /// A trigger has been resumed.
+    /// </summary>
     Task TriggerResumed(TriggerLifecycleDto triggerEvent);
 
+    /// <summary>
+    /// A job has been paused, and with it every trigger that fires it.
+    /// </summary>
     Task JobPaused(JobLifecycleDto jobEvent);
 
+    /// <summary>
+    /// A job has been resumed.
+    /// </summary>
     Task JobResumed(JobLifecycleDto jobEvent);
 
+    /// <summary>
+    /// One node's scheduler has entered a new lifecycle state.
+    /// </summary>
     Task SchedulerStateChanged(SchedulerStateDto state);
 
+    /// <summary>
+    /// A scheduler reported an error it handled itself, such as a store operation it is retrying.
+    /// </summary>
     Task SchedulerError(SchedulerErrorDto schedulerError);
 }
 
+/// <summary>
+/// A job that has begun running, and the node running it.
+/// </summary>
+/// <param name="SchedulerInstanceId">The node that raised the event.</param>
+/// <param name="JobKey">The job that is running.</param>
+/// <param name="TriggerKey">The trigger that fired it.</param>
+/// <param name="FireTimeUtc">When it fired.</param>
+/// <param name="FireInstanceId">This firing's id, which is what an interrupt names.</param>
 public sealed record JobEventDto(
     string SchedulerInstanceId,
     JobKeyDto JobKey,
@@ -76,6 +117,16 @@ public sealed record JobEventDto(
     DateTimeOffset FireTimeUtc,
     string? FireInstanceId);
 
+/// <summary>
+/// How a job execution ended, and the node it ran on.
+/// </summary>
+/// <param name="SchedulerInstanceId">The node that raised the event.</param>
+/// <param name="JobKey">The job that ran.</param>
+/// <param name="TriggerKey">The trigger that fired it.</param>
+/// <param name="FireTimeUtc">When it fired.</param>
+/// <param name="RunTime">How long it ran.</param>
+/// <param name="Vetoed">Whether a listener vetoed it, in which case it never ran at all.</param>
+/// <param name="ExceptionMessage">What it faulted with, or null when it succeeded.</param>
 /// <remarks>
 /// <see cref="RunTime" /> is a <see cref="TimeSpan" />, as every other duration on the wire is — it
 /// carries <see cref="IJobExecutionContext.JobRunTime" /> unrounded, where the milliseconds it used to
@@ -90,6 +141,13 @@ public sealed record JobExecutionResultDto(
     bool Vetoed,
     string? ExceptionMessage);
 
+/// <summary>
+/// A trigger that fired, completed or misfired, and the node it happened on.
+/// </summary>
+/// <param name="SchedulerInstanceId">The node that raised the event.</param>
+/// <param name="TriggerKey">The trigger the event is about.</param>
+/// <param name="JobKey">The job it fires, where the event knows it.</param>
+/// <param name="FireTimeUtc">When it fired, where the event has a time to give.</param>
 public sealed record TriggerEventDto(
     string SchedulerInstanceId,
     TriggerKeyDto TriggerKey,
@@ -121,6 +179,15 @@ public sealed record JobLifecycleDto(string SchedulerInstanceId, JobKeyDto JobKe
 /// </remarks>
 public sealed record SchedulerStateDto(string SchedulerName, string SchedulerInstanceId, SchedulerStatus Status);
 
+/// <summary>
+/// An error a scheduler reported, and the node that reported it.
+/// </summary>
+/// <param name="SchedulerName">The scheduler the error belongs to.</param>
+/// <param name="SchedulerInstanceId">The node that raised the event.</param>
+/// <param name="Message">What went wrong.</param>
+/// <param name="Cause">The underlying failure, where there was one.</param>
+/// <param name="TriggerKey">The trigger the error was about, where the scheduler could say.</param>
+/// <param name="JobKey">The job the error was about, where the scheduler could say.</param>
 /// <remarks>
 /// <see cref="TriggerKey" /> and <see cref="JobKey" /> are null when the scheduler could not say what
 /// the error was about — a store retrying a failed operation names neither.
