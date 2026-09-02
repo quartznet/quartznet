@@ -1219,6 +1219,69 @@ public class RAMJobStoreTest
     }
 
     /// <summary>
+    /// Pausing wrote Paused over every state but Complete, so a trigger that had failed into Error lost
+    /// that state the moment its group, its job or the trigger itself was paused: the failure vanished
+    /// from every listing, and <see cref="IJobStore.ResetTriggerFromErrorState" /> had nothing left to
+    /// reset. The ADO store only writes PAUSED over WAITING and ACQUIRED, and PAUSED_BLOCKED over
+    /// BLOCKED, and this store now names the same pausable set.
+    /// </summary>
+    [Test]
+    public async Task PausingATriggerInErrorLeavesTheErrorWhereItIs()
+    {
+        TriggerKey key = await StoreAndFailATrigger("failing");
+
+        (await fJobStore.GetTriggerState(key)).Should().Be(TriggerState.Error);
+
+        await fJobStore.PauseTrigger(key);
+        (await fJobStore.GetTriggerState(key)).Should().Be(TriggerState.Error,
+            "a trigger in error is a failure somebody has to see, not something a pause may quietly clear");
+
+        await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(key.Group));
+        (await fJobStore.GetTriggerState(key)).Should().Be(TriggerState.Error,
+            "pausing the group the trigger is in is the way the error used to disappear");
+
+        await fJobStore.ResetTriggerFromErrorState(key);
+        (await fJobStore.GetTriggerState(key)).Should().Be(TriggerState.Paused,
+            "the group is paused, so the trigger comes out of error into the pause rather than past it");
+    }
+
+    /// <summary>
+    /// The pausable set is named rather than excluded one state at a time, so the states that are
+    /// pausable have to keep pausing.
+    /// </summary>
+    [Test]
+    public async Task PausingAWaitingTriggerStillPausesIt()
+    {
+        await StoreTriggerInGroup("waiting", "triggerGroup1");
+        TriggerKey key = new TriggerKey("waiting", "triggerGroup1");
+
+        await fJobStore.PauseTrigger(key);
+
+        (await fJobStore.GetTriggerState(key)).Should().Be(TriggerState.Paused);
+    }
+
+    /// <summary>
+    /// Stores a repeating trigger, fires it and completes the firing in error, which is the only way a
+    /// store gets a trigger into <see cref="TriggerState.Error" />.
+    /// </summary>
+    private async Task<TriggerKey> StoreAndFailATrigger(string name)
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        IOperableTrigger trigger = new SimpleTriggerImpl(name, "triggerGroup1", fJobDetail.Name, fJobDetail.Group, now.AddSeconds(30), null, SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromMinutes(5));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(now.AddSeconds(60), 1, TimeSpan.Zero);
+        acquired.Should().HaveCount(1);
+
+        var fired = await fJobStore.TriggersFired(acquired);
+        TriggerFiredBundle bundle = fired.First().TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.SetTriggerError);
+
+        return trigger.Key;
+    }
+
+    /// <summary>
     /// Fires one trigger of the given job and hands back the bundle, which is what leaves a
     /// <see cref="DisallowConcurrentExecutionAttribute" /> job blocked.
     /// </summary>
