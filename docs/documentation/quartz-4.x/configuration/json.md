@@ -262,6 +262,12 @@ All trigger types support these optional fields:
 | `EndTime` | ISO 8601 end time |
 | `JobDataMap` | Key-value pairs for the trigger's data map |
 
+One trigger property has no field here and is not an oversight: a
+[preferred node](../tutorial/node-affinity.md) pins a trigger to one member of a cluster, which is a
+statement about a deployment rather than about a schedule — the same file read on a machine that does not
+have that node would pin the trigger to nothing. Set it in code, or through the
+[HTTP API](../packages/http-api.md).
+
 ## Multiple Named Schedulers
 
 When the `Quartz` section contains a `Schedulers` sub-section, each child is automatically registered as a named scheduler:

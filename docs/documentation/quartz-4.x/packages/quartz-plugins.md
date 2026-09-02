@@ -171,7 +171,7 @@ Recommended over `LoggingTriggerHistoryPlugin` when using structured logging pro
 
 ### JsonSchedulingDataProcessorPlugin
 
-This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. JSON is the maintained scheduling-file format: everything a trigger can carry is expressible in it, and [the XML format is frozen](#the-xml-format-is-frozen).
+This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. JSON is the maintained scheduling-file format — it is the one that gains a field when a trigger gains one, and [the XML format is frozen](#the-xml-format-is-frozen) at what it can already express. One trigger property is expressible in neither: a [preferred node](../tutorial/node-affinity.md) pins a trigger to a cluster member, which is a deployment's decision rather than a schedule's, so it is set in code or through the [HTTP API](http-api.md). Everything else a trigger carries has a field — see [Common Trigger Fields](../configuration/json.md#common-trigger-fields).
 
 ::: warning
 The periodically scanning of files for changes is not currently supported in a clustered environment.
