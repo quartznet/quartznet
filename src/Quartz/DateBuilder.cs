@@ -127,8 +127,6 @@ public sealed class DateBuilder
     /// <summary>
     /// Set the hour (0-23) for the Date that will be built by this builder.
     /// </summary>
-    /// <param name="hour"></param>
-    /// <returns></returns>
     public DateBuilder AtHourOfDay(int hour)
     {
         ValidateHour(hour);
@@ -140,8 +138,6 @@ public sealed class DateBuilder
     /// <summary>
     /// Set the minute (0-59) for the Date that will be built by this builder.
     /// </summary>
-    /// <param name="minute"></param>
-    /// <returns></returns>
     public DateBuilder AtMinute(int minute)
     {
         ValidateMinute(minute);
@@ -153,8 +149,6 @@ public sealed class DateBuilder
     /// <summary>
     /// Set the second (0-59) for the Date that will be built by this builder, and truncate the milliseconds to 000.
     /// </summary>
-    /// <param name="second"></param>
-    /// <returns></returns>
     public DateBuilder AtSecond(int second)
     {
         ValidateSecond(second);
@@ -185,8 +179,6 @@ public sealed class DateBuilder
     /// <summary>
     /// Set the day of month (1-31) for the Date that will be built by this builder.
     /// </summary>
-    /// <param name="day"></param>
-    /// <returns></returns>
     public DateBuilder OnDay(int day)
     {
         ValidateDayOfMonth(day);
@@ -198,8 +190,6 @@ public sealed class DateBuilder
     /// <summary>
     /// Set the month (1-12) for the Date that will be built by this builder.
     /// </summary>
-    /// <param name="month"></param>
-    /// <returns></returns>
     public DateBuilder InMonth(int month)
     {
         ValidateMonth(month);
@@ -227,8 +217,6 @@ public sealed class DateBuilder
     /// <summary>
     /// Set the year for the Date that will be built by this builder.
     /// </summary>
-    /// <param name="year"></param>
-    /// <returns></returns>
     public DateBuilder InYear(int year)
     {
         ValidateYear(year);
@@ -240,8 +228,6 @@ public sealed class DateBuilder
     /// <summary>
     /// Set the TimeZoneInfo for the Date that will be built by this builder (if "null", system default will be used)
     /// </summary>
-    /// <param name="timeZone"></param>
-    /// <returns></returns>
     public DateBuilder InTimeZone(TimeZoneInfo? timeZone)
     {
         tz = timeZone;

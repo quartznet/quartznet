@@ -146,7 +146,6 @@ internal sealed class InProcessLockHandler : ILockHandler
     /// Whether this lock handler requires a database connection for its lock
     /// management operations.
     /// </summary>
-    /// <value></value>
     /// <seealso cref="AcquireLock"/>
     /// <seealso cref="ReleaseLock"/>
     public bool RequiresConnection => false;

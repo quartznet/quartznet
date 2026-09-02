@@ -126,7 +126,7 @@ public class NativeJob : IJob
     /// execution.
     /// </para>
     /// </summary>
-    /// <param name="context"></param>
+    /// <param name="context">The firing this job is running for, whose merged job data names the command.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {

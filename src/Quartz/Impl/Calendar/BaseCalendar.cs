@@ -84,8 +84,6 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     /// <summary>
     /// Serialization constructor.
     /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
     protected BaseCalendar(SerializationInfo info, StreamingContext context)
     {
         int version;
@@ -176,7 +174,6 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     /// <summary>
     /// Set a new base calendar or remove the existing one
     /// </summary>
-    /// <value></value>
     public ICalendar? CalendarBase { get; set; }
 
     /// <summary>

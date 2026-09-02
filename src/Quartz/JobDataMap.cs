@@ -132,8 +132,6 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
     /// including the pre-2.x form whose entries were prefixed <c>DirtyFlagMap+</c> and whose
     /// payload was a <see cref="Hashtable" />.
     /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
     private JobDataMap(SerializationInfo info, StreamingContext context)
     {
         int version;

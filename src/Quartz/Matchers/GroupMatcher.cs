@@ -37,8 +37,6 @@ public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TK
     /// <summary>
     /// Create a GroupMatcher that matches groups equaling the given string.
     /// </summary>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
     public static GroupMatcher<TKey> GroupEquals(string compareTo)
     {
         return new GroupMatcher<TKey>(compareTo, StringOperator.Equality);
@@ -47,8 +45,6 @@ public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TK
     /// <summary>
     /// Create a GroupMatcher that matches groups starting with the given string.
     /// </summary>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
     public static GroupMatcher<TKey> GroupStartsWith(string compareTo)
     {
         return new GroupMatcher<TKey>(compareTo, StringOperator.StartsWith);
@@ -57,8 +53,6 @@ public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TK
     /// <summary>
     /// Create a GroupMatcher that matches groups ending with the given string.
     /// </summary>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
     public static GroupMatcher<TKey> GroupEndsWith(string compareTo)
     {
         return new GroupMatcher<TKey>(compareTo, StringOperator.EndsWith);
@@ -67,8 +61,6 @@ public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TK
     /// <summary>
     /// Create a GroupMatcher that matches groups containing the given string.
     /// </summary>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
     public static GroupMatcher<TKey> GroupContains(string compareTo)
     {
         return new GroupMatcher<TKey>(compareTo, StringOperator.Contains);

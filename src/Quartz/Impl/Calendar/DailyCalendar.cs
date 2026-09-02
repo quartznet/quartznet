@@ -89,8 +89,6 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
     /// <summary>
     /// Serialization constructor.
     /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
     private DailyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;
@@ -159,8 +157,6 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
     /// Determine whether the given time  is 'included' by the
     /// Calendar.
     /// </summary>
-    /// <param name="timeUtc"></param>
-    /// <returns></returns>
     public override bool IsTimeIncluded(DateTimeOffset timeUtc)
     {
         if (CalendarBase is not null
@@ -217,8 +213,6 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
     /// had already been told was excluded - minutes of spinning for an answer months out of place
     /// (#3466).
     /// </remarks>
-    /// <param name="timeUtc"></param>
-    /// <returns></returns>
     /// <seealso cref="ICalendar.GetNextIncludedTimeUtc"/>
     public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
     {
@@ -465,7 +459,6 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
     /// begins at uses <see cref="TimeZones.StartOfLocalDay" />.
     /// </remarks>
     /// <param name="time">The time, already expressed in the calendar's zone.</param>
-    /// <returns></returns>
     private static DateTimeOffset GetStartOfDay(DateTimeOffset time)
     {
         return new DateTimeOffset(time.Date, time.Offset);
@@ -478,7 +471,6 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
     /// A wall-clock comparand; see <see cref="GetStartOfDay" />.
     /// </remarks>
     /// <param name="time">The time, already expressed in the calendar's zone.</param>
-    /// <returns></returns>
     private static DateTimeOffset GetEndOfDay(DateTimeOffset time)
     {
         return new DateTimeOffset(time.Date.AddDays(1).AddMilliseconds(-1), time.Offset);

@@ -587,7 +587,6 @@ internal sealed class JobDetailImpl : IJobDetail
     /// Checks equality between given job detail and this instance.
     /// </summary>
     /// <param name="detail">The detail to compare this instance with.</param>
-    /// <returns></returns>
     public bool Equals(JobDetailImpl detail)
     {
         return IsEqual(detail);

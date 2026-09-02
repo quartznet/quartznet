@@ -341,7 +341,6 @@ public sealed class JobBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Requir
     /// <remarks>
     /// If not explicitly set, the default value is <see langword="false" />.
     /// </remarks>
-    /// <param name="shouldRecover"></param>
     /// <returns>the updated JobBuilder</returns>
     public JobBuilder<TJob> RequestRecovery(bool shouldRecover = true)
     {

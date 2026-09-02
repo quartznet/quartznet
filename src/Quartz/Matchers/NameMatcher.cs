@@ -41,8 +41,6 @@ public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKe
     /// <summary>
     /// Create a NameMatcher that matches names equaling the given string.
     /// </summary>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
     public static NameMatcher<TKey> NameEquals(string compareTo)
     {
         return new NameMatcher<TKey>(compareTo, StringOperator.Equality);
@@ -51,8 +49,6 @@ public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKe
     /// <summary>
     /// Create a NameMatcher that matches names starting with the given string.
     /// </summary>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
     public static NameMatcher<TKey> NameStartsWith(string compareTo)
     {
         return new NameMatcher<TKey>(compareTo, StringOperator.StartsWith);
@@ -61,8 +57,6 @@ public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKe
     /// <summary>
     /// Create a NameMatcher that matches names ending with the given string.
     /// </summary>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
     public static NameMatcher<TKey> NameEndsWith(string compareTo)
     {
         return new NameMatcher<TKey>(compareTo, StringOperator.EndsWith);
@@ -71,8 +65,6 @@ public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKe
     /// <summary>
     /// Create a NameMatcher that matches names containing the given string.
     /// </summary>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
     public static NameMatcher<TKey> NameContains(string compareTo)
     {
         return new NameMatcher<TKey>(compareTo, StringOperator.Contains);

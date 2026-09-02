@@ -71,8 +71,6 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// Create a SimpleScheduleBuilder.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <returns>the new SimpleScheduleBuilder</returns>
     public static SimpleScheduleBuilder Create()
     {
@@ -84,8 +82,6 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     /// but will rather be invoked by a TriggerBuilder which this
     /// ScheduleBuilder is given to.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <seealso cref="TriggerBuilder{TJob}.WithSchedule(IScheduleBuilder)" />
     public IMutableTrigger Build()
     {
@@ -100,8 +96,6 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// Specify the interval at which the trigger repeats.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="timeSpan">the time span at which the trigger should repeat.</param>
     /// <returns>the updated SimpleScheduleBuilder</returns>
     /// <seealso cref="ISimpleTrigger.RepeatInterval" />
@@ -116,8 +110,6 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     /// Specify a the number of time the trigger will repeat - total number of
     /// firings will be this number + 1.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="repeatCount">the number of times the trigger should repeat.</param>
     /// <returns>the updated SimpleScheduleBuilder</returns>
     /// <seealso cref="ISimpleTrigger.RepeatCount" />
@@ -131,8 +123,6 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// Specify that the trigger will repeat indefinitely.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <returns>the updated SimpleScheduleBuilder</returns>
     /// <seealso cref="ISimpleTrigger.RepeatCount" />
     /// <seealso cref="SimpleTriggerImpl.RepeatIndefinitely" />

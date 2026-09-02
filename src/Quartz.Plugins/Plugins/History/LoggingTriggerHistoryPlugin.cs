@@ -248,7 +248,6 @@ public sealed class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerList
     /// <summary>
     /// Get the name of the <see cref="ITriggerListener" />.
     /// </summary>
-    /// <value></value>
     public string Name { get; private set; } = "Logging Trigger History Plugin";
 
     /// <summary>

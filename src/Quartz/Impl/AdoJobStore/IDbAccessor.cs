@@ -14,7 +14,6 @@ public interface IDbAccessor
     /// </summary>
     /// <param name="cth">Connection and transaction pair</param>
     /// <param name="commandText">SQL to run</param>
-    /// <returns></returns>
     DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
 
     /// <summary>
@@ -31,41 +30,35 @@ public interface IDbAccessor
     /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.
     /// </summary>
     /// <param name="booleanValue">Value to map to database.</param>
-    /// <returns></returns>
     object GetDbBooleanValue(bool booleanValue);
 
     /// <summary>
     /// Gets the boolean value from db presentation. Subclasses can overwrite this behaviour.
     /// </summary>
     /// <param name="columnValue">Value to map from database.</param>
-    /// <returns></returns>
     bool GetBooleanFromDbValue(object columnValue);
 
     /// <summary>
     /// Gets the db presentation for date/time value. Subclasses can overwrite this behaviour.
     /// </summary>
     /// <param name="dateTimeValue">Value to map to database.</param>
-    /// <returns></returns>
     object? GetDbDateTimeValue(DateTimeOffset? dateTimeValue);
 
     /// <summary>
     /// Gets the date/time value from db presentation. Subclasses can overwrite this behaviour.
     /// </summary>
     /// <param name="columnValue">Value to map from database.</param>
-    /// <returns></returns>
     DateTimeOffset? GetDateTimeFromDbValue(object columnValue);
 
     /// <summary>
     /// Gets the db presentation for time span value. Subclasses can overwrite this behaviour.
     /// </summary>
     /// <param name="timeSpanValue">Value to map to database.</param>
-    /// <returns></returns>
     object? GetDbTimeSpanValue(TimeSpan? timeSpanValue);
 
     /// <summary>
     /// Gets the time span value from db presentation. Subclasses can overwrite this behaviour.
     /// </summary>
     /// <param name="columnValue">Value to map from database.</param>
-    /// <returns></returns>
     TimeSpan? GetTimeSpanFromDbValue(object columnValue);
 }

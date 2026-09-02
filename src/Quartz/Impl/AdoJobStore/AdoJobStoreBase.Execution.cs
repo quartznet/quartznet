@@ -167,7 +167,6 @@ internal abstract partial class AdoJobStoreBase
     /// <summary>
     /// Gets the connection and starts a new transaction.
     /// </summary>
-    /// <returns></returns>
     protected virtual async ValueTask<ConnectionAndTransactionHolder> GetConnection(CancellationToken cancellationToken = default)
     {
         var enlisted = await GetEnlistedConnection(cancellationToken).ConfigureAwait(false);

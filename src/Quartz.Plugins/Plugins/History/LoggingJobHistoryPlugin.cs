@@ -304,7 +304,6 @@ public sealed class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// <summary>
     /// Get the name of the <see cref="IJobListener" />.
     /// </summary>
-    /// <value></value>
     public string Name { get; private set; } = "Logging Job History Plugin";
 
     /// <summary>

@@ -67,7 +67,7 @@ public class SelectForUpdateLockHandler : DbLockHandler
     /// <param name="tablePrefix">The table prefix.</param>
     /// <param name="schedulerName">the scheduler name</param>
     /// <param name="selectWithLockSql">The select with lock SQL.</param>
-    /// <param name="dbProvider"></param>
+    /// <param name="dbProvider">The database this handler takes its locks in.</param>
     public SelectForUpdateLockHandler(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
         : this(tablePrefix, schedulerName, selectWithLockSql, InsertLock, dbProvider)
     {

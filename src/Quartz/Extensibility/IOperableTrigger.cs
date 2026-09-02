@@ -85,8 +85,6 @@ public interface IOperableTrigger : IMutableTrigger
     /// given the Calendar's new settings).
     /// </para>
     /// </summary>
-    /// <param name="calendar"> </param>
-    /// <param name="misfireThreshold"></param>
     void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold);
 
     /// <summary>

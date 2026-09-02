@@ -151,6 +151,17 @@ public class XmlDocumentationTest
     }
 
     /// <summary>
+    /// The documentation elements that must say something where they appear at all.
+    /// </summary>
+    /// <remarks>
+    /// <c>&lt;example&gt;</c>, <c>&lt;exception&gt;</c> and <c>&lt;seealso&gt;</c> are not here: the
+    /// first two are rare enough to read by eye, and a <c>&lt;seealso cref="…" /&gt;</c> is meant to
+    /// carry nothing but its target.
+    /// </remarks>
+    private static readonly string[] ElementsThatMustSaySomething =
+        ["summary", "returns", "param", "typeparam", "remarks", "value"];
+
+    /// <summary>
     /// A documentation element a consumer can see says something.
     /// </summary>
     /// <remarks>
@@ -158,17 +169,23 @@ public class XmlDocumentationTest
     /// CS1591 says a public member has a comment; nothing says the comment has words in it. An empty
     /// <c>&lt;summary /&gt;</c> is a member with no description at all, and it reads in an IDE exactly
     /// as one with no comment does — except that CS1591 is satisfied, so nothing ever mentions it again.
+    /// An empty <c>&lt;returns /&gt;</c> is worse than absent: it renders as an empty "Returns" heading
+    /// in an IDE and in a generated API reference, so it takes space and promises a sentence that is not
+    /// there.
     /// </para>
     /// <para>
-    /// This covers <c>&lt;summary&gt;</c> alone for now. The other empty elements — 115
-    /// <c>&lt;returns&gt;</c>, 77 <c>&lt;param&gt;</c>, 47 <c>&lt;remarks&gt;</c>, 10
-    /// <c>&lt;value&gt;</c> and one <c>&lt;typeparam&gt;</c> across the shipped packages — are a
-    /// separate job, and for most of them deleting the empty element is a better answer than inventing
-    /// prose for it. Widening the check is what that job ends with.
+    /// The fix for an empty one is usually deletion rather than prose — a <c>&lt;returns /&gt;</c> beside
+    /// a summary that already says what the member returns adds nothing. <c>&lt;param&gt;</c> is the
+    /// exception: CS1573 fires the moment a member documents some of its parameters and not others, so
+    /// there the choice is all of them or none.
+    /// </para>
+    /// <para>
+    /// An element holding only an <c>&lt;inheritdoc /&gt;</c> has no text of its own and is not meant
+    /// to, which is why the check is "has an element or has text" rather than "has text".
     /// </para>
     /// </remarks>
     [TestCaseSource(nameof(ShippedAssemblies))]
-    public void NoVisibleMemberCarriesAnEmptySummary(Assembly assembly)
+    public void NoVisibleMemberCarriesAnEmptyDocumentationElement(Assembly assembly)
     {
         string documentation = Path.ChangeExtension(assembly.Location, ".xml");
 
@@ -191,23 +208,29 @@ public class XmlDocumentationTest
                 continue;
             }
 
-            foreach (XElement summary in member.Elements("summary"))
+            foreach (XElement node in member.Descendants())
             {
-                // A <summary><inheritdoc /></summary> has no text of its own and is not meant to.
-                if (summary.Descendants().Any() || !string.IsNullOrWhiteSpace(summary.Value))
+                if (!ElementsThatMustSaySomething.Contains(node.Name.LocalName, StringComparer.Ordinal))
                 {
                     continue;
                 }
 
-                offenders.Add(documented);
+                if (node.Elements().Any() || !string.IsNullOrWhiteSpace(node.Value))
+                {
+                    continue;
+                }
+
+                string named = node.Attribute("name")?.Value is { } name ? $" name=\"{name}\"" : "";
+                offenders.Add($"{documented}  <{node.Name.LocalName}{named} />");
             }
         }
 
         offenders.Order(StringComparer.Ordinal).Should().BeEmpty(
-            "an empty <summary /> is a member with no description at all, and it reads in an IDE exactly "
-            + "as one with no comment does - while satisfying CS1591, so nothing mentions it again. "
-            + "Write one, or use <inheritdoc /> where the description belongs to something else. These "
-            + "have none:"
+            "an empty documentation element promises a sentence that is not there: an empty <summary /> "
+            + "reads in an IDE exactly as no comment does while satisfying CS1591, and an empty "
+            + "<returns /> renders as an empty heading. Delete it, or write it — and for <param />, "
+            + "either document every parameter or none, because CS1573 refuses a mixture. These say "
+            + "nothing:"
             + Environment.NewLine
             + string.Join(Environment.NewLine, offenders.Order(StringComparer.Ordinal).Select(x => "    " + x)));
     }

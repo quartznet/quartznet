@@ -62,8 +62,6 @@ public sealed class HolidayCalendar : BaseCalendar, IEquatable<HolidayCalendar>
     /// <summary>
     /// Serialization constructor.
     /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
     private HolidayCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;

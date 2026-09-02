@@ -72,7 +72,6 @@ public interface IJobConfigurator<[DynamicallyAccessedMembers(JobTypeMembers.Req
     /// <remarks>
     /// If not explicitly set, the default value is <see langword="false" />.
     /// </remarks>
-    /// <param name="shouldRecover"></param>
     /// <returns>the updated JobBuilder</returns>
     IJobConfigurator<TJob> RequestRecovery(bool shouldRecover = true);
 

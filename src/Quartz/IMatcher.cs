@@ -33,7 +33,6 @@ namespace Quartz;
 /// redeclare them.
 /// </remarks>
 /// <author>James House</author>
-/// <typeparam name="T"></typeparam>
 public interface IMatcher<T> where T : Key<T>
 {
     /// <summary>

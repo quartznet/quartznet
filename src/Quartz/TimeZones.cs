@@ -161,9 +161,6 @@ public static class TimeZones
     /// <summary>
     /// TimeZoneInfo.ConvertTime is not supported under mono
     /// </summary>
-    /// <param name="dateTimeOffset"></param>
-    /// <param name="timeZoneInfo"></param>
-    /// <returns></returns>
     internal static DateTimeOffset ConvertTime(DateTimeOffset dateTimeOffset, TimeZoneInfo timeZoneInfo)
     {
         return TimeZoneInfo.ConvertTime(dateTimeOffset, timeZoneInfo);
@@ -172,9 +169,6 @@ public static class TimeZones
     /// <summary>
     /// TimeZoneInfo.GetUtcOffset(DateTimeOffset) is not supported under mono
     /// </summary>
-    /// <param name="dateTimeOffset"></param>
-    /// <param name="timeZoneInfo"></param>
-    /// <returns></returns>
     internal static TimeSpan GetUtcOffset(DateTimeOffset dateTimeOffset, TimeZoneInfo timeZoneInfo)
     {
         if (QuartzEnvironment.IsRunningOnMono)
@@ -396,7 +390,6 @@ public static class TimeZones
     /// Tries to find time zone with given id, has ability do some fallbacks when necessary.
     /// </summary>
     /// <param name="id">System id of the time zone.</param>
-    /// <returns></returns>
     public static TimeZoneInfo FindById(string id)
     {
         TimeZoneInfo? info = null;

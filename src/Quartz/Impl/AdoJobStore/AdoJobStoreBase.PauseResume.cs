@@ -91,7 +91,6 @@ internal abstract partial class AdoJobStoreBase
     /// <param name="conn">The conn.</param>
     /// <param name="triggerKey">The key identifying the trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
     protected ValueTask<TriggerState> GetTriggerState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,

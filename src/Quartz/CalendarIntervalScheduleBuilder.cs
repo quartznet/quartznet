@@ -52,7 +52,6 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// Create a CalendarIntervalScheduleBuilder.
     /// </summary>
-    /// <returns></returns>
     public static CalendarIntervalScheduleBuilder Create()
     {
         return new CalendarIntervalScheduleBuilder();
@@ -63,7 +62,6 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
     /// but will rather be invoked by a TriggerBuilder which this
     /// ScheduleBuilder is given to.
     /// </summary>
-    /// <returns></returns>
     public IMutableTrigger Build()
     {
         CalendarIntervalTriggerImpl st = new CalendarIntervalTriggerImpl();
@@ -80,8 +78,6 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// Specify the time unit and interval for the Trigger to be produced.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="interval">the interval at which the trigger should repeat.</param>
     /// <param name="unit"> the time unit (IntervalUnit) of the interval.</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>

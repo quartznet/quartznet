@@ -545,7 +545,6 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// <remarks>
     /// If not explicitly set, the default value is <i>5</i>.
     /// </remarks>
-    /// <returns></returns>
     /// <see cref="TriggerConstants.DefaultPriority" />
     public virtual int Priority { get; set; } = TriggerConstants.DefaultPriority;
 
@@ -814,7 +813,6 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// Validates the misfire instruction.
     /// </summary>
     /// <param name="misfireInstruction">The misfire instruction.</param>
-    /// <returns></returns>
     protected abstract bool ValidateMisfireInstruction(int misfireInstruction);
 
     /// <summary>
@@ -839,8 +837,6 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// given the Calendar's new settings).
     /// </para>
     /// </summary>
-    /// <param name="calendar"> </param>
-    /// <param name="misfireThreshold"></param>
     public abstract void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold);
 
     /// <summary>
@@ -896,7 +892,6 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// <summary>
     /// Trigger equality is based upon the equality of the TriggerKey.
     /// </summary>
-    /// <param name="trigger"></param>
     /// <returns>true if the key of this Trigger equals that of the given Trigger</returns>
     public virtual bool Equals(TriggerBase? trigger)
     {

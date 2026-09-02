@@ -254,8 +254,6 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// <summary>
     /// The <see cref="TimeZoneInfo" /> in which to base the schedule.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
     /// system's local time zone.</param>
     /// <returns>the updated CronScheduleBuilder</returns>

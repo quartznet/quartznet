@@ -315,7 +315,7 @@ internal abstract partial class AdoJobStoreBase
     /// that have no scheduler state record.  Checkin timestamp and interval are
     /// left as zero on these dummy <see cref="SchedulerStateRecord" /> objects.
     /// </summary>
-    /// <param name="conn"></param>
+    /// <param name="conn">The connection and transaction this read runs in.</param>
     /// <param name="schedulerStateRecords">List of all current <see cref="SchedulerStateRecord" />s</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask<List<SchedulerStateRecord>> FindOrphanedFailedInstances(
