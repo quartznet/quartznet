@@ -74,6 +74,29 @@ public sealed class RAMJobStore : IJobStore
     private readonly Dictionary<TriggerKey, Dictionary<string, FireInstanceEntry>> executingFireInstances = [];
 
     /// <summary>
+    /// The fire-instance maps no execution is using, kept for the next firing rather than left to the
+    /// collector.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A trigger gets one of those maps when a firing starts and no other execution of it is in flight,
+    /// and loses it when its last execution completes. An ordinary schedule runs one firing of a trigger
+    /// at a time, so that is a dictionary allocated and thrown away on <em>every</em> firing — around
+    /// four hundred bytes of the roughly three and a half kilobytes a <c>RAMJobStore</c> firing costs.
+    /// Handing it back here instead costs a push and a pop.
+    /// </para>
+    /// <para>
+    /// It cannot grow without bound: a map reaches this stack only after having been live, so the number
+    /// in existence is the largest number of triggers that have ever been executing at once, which the
+    /// thread pool caps. Only <see cref="ReleaseExecutionNoLock" /> returns one, and only after taking it
+    /// out of <see cref="executingFireInstances" /> — the trigger-removal paths drop their maps rather
+    /// than pooling them, because <see cref="ReplaceTrigger" /> keeps a reference to put back should the
+    /// replacement fail. Guarded by the store lock, like everything else here.
+    /// </para>
+    /// </remarks>
+    private readonly Stack<Dictionary<string, FireInstanceEntry>> spareFireInstanceMaps = new();
+
+    /// <summary>
     /// What one running execution is, beyond its id. The in-memory counterpart of an EXECUTING row of
     /// the ADO store's FIRED_TRIGGERS table, and the source of the <see cref="FireInstance" />s
     /// <see cref="QueryFireInstances" /> reports.
@@ -1036,6 +1059,12 @@ public sealed class RAMJobStore : IJobStore
     /// Records that an execution of the trigger has finished, forgetting the trigger entirely once its
     /// last one has. An unknown fire instance is a no-op, so a repeated completion cannot miscount.
     /// </summary>
+    /// <remarks>
+    /// The emptied map goes to <see cref="spareFireInstanceMaps" /> for the next firing to use. It has
+    /// left <see cref="executingFireInstances" /> by then and held nothing when it did, so what comes
+    /// back out of the stack is reachable from nowhere else and carries no execution of the trigger it
+    /// used to belong to.
+    /// </remarks>
     private void ReleaseExecutionNoLock(TriggerKey triggerKey, string fireInstanceId)
     {
         if (executingFireInstances.TryGetValue(triggerKey, out var fireInstances)
@@ -1043,6 +1072,7 @@ public sealed class RAMJobStore : IJobStore
             && fireInstances.Count == 0)
         {
             executingFireInstances.Remove(triggerKey);
+            spareFireInstanceMaps.Push(fireInstances);
         }
     }
 
@@ -3027,7 +3057,7 @@ public sealed class RAMJobStore : IJobStore
                 // behind that no completion will ever clear. Released in TriggeredJobComplete.
                 if (!executingFireInstances.TryGetValue(tw.TriggerKey, out var fireInstances))
                 {
-                    fireInstances = [];
+                    fireInstances = spareFireInstanceMaps.TryPop(out var spare) ? spare : [];
                     executingFireInstances[tw.TriggerKey] = fireInstances;
                 }
 
