@@ -24,8 +24,7 @@ namespace Quartz.Tests.AspNetCore.HttpApi;
 /// <c>AuthorizationHandler&lt;SchedulerOwnerRequirement, SchedulerResource&gt;</c>, because the promise
 /// being tested is that an application writes one of those and Quartz does the rest.
 /// </remarks>
-[NonParallelizable]
-public sealed class SchedulerAuthorizationEndpointTest
+public abstract class SchedulerAuthorizationEndpointTest
 {
     private const string JobsRoute = "schedulers/globex/jobs";
 
@@ -253,9 +252,9 @@ public sealed class SchedulerAuthorizationEndpointTest
         WebApplicationFactory<Program> configured = root.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
         {
             services.AddTenantAuthorization();
-            services.AddQuartz("acme", q => q.UseInMemoryStore());
-            services.AddQuartz("globex", q => q.UseInMemoryStore());
-            services.AddQuartz("zeta", q => q.UseInMemoryStore());
+            services.AddQuartz("acme", ConfigureStore);
+            services.AddQuartz("globex", ConfigureStore);
+            services.AddQuartz("zeta", ConfigureStore);
             services.AddQuartzHttpApi(options => options.SchedulerAuthorizationPolicy = policyName);
         }));
 
@@ -263,4 +262,10 @@ public sealed class SchedulerAuthorizationEndpointTest
 
         return configured;
     }
+
+    /// <summary>
+    /// The store each tenant is given. The in-memory one here; a derived fixture runs the same contract
+    /// over a persistent one.
+    /// </summary>
+    protected virtual void ConfigureStore(IQuartzBuilder builder) => builder.UseInMemoryStore();
 }

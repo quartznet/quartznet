@@ -32,6 +32,10 @@
     </PackageReference>
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- A file-backed SQLite database is what lets the HTTP API and dashboard fixtures run their
+         contract over a persistent store as well as over RAMJobStore; the store creates its own
+         schema, so nothing else is needed. -->
+    <PackageReference Include="Microsoft.Data.SQLite" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit" />
