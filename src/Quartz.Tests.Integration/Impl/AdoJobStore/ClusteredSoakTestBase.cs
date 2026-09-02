@@ -145,6 +145,9 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
                 {
                     // Both nodes, not one. A single node in standby leaves the other acquiring, so
                     // nothing misfires; what produces a misfire is a due trigger that no node takes.
+                    // The issue asked for one node in standby; both is what that asks for with two
+                    // nodes, and it was ratified as written rather than replaced with a PreferredNode
+                    // pin that would have made the misfire a property of node affinity instead.
                     await nodeA.Standby();
                     await nodeB.Standby();
                     standbyDone = true;

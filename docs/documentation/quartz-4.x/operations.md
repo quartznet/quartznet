@@ -677,6 +677,81 @@ Adding nodes does not make a single trigger fire faster, and it does not shorten
 capacity for concurrent firings and it adds a node to fail over to. If the schedule is dominated by one
 long job, a second node changes nothing about it.
 
+## Performance
+
+The numbers below are the only end-to-end firing figures published for 4.0. They come from
+[`src/Quartz.Benchmark/README.md`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Benchmark/README.md),
+which carries the full method, the machine, the settings and the caveats; this is the summary, and it
+is here because a page about running a cluster is where somebody asks the question.
+
+**Read them as ratios, not as a capacity plan.** One machine, one PostgreSQL container over loopback,
+one node, no clustering. Your storage, your network and your jobs decide the absolute; what carries
+across is how 4.0 compares with 3.20 on the same box on the same day.
+
+### A firing, end to end
+
+One firing means acquire, fire, run a job that does nothing, complete. `MaxBatchSize` tracks
+`MaxConcurrency` in these runs, because the scheduler refuses a batch larger than the pool that would
+have to run it, and `BatchTriggerAcquisitionFireAheadTimeWindow` is one second rather than the shipped
+zero — without a window a batch is one trigger however large `MaxBatchSize` is, which is the shape a
+deployment left at the defaults gets.
+
+| Store         | MaxConcurrency | 3.20               | 4.0                | Per firing  |
+|-------------- |--------------- |------------------- |------------------- |------------ |
+| PostgreSQL    | 10             | 9.87 ms / 136 KB   | 6.18 ms / 56 KB    | 1.6x faster, 2.4x less garbage |
+| PostgreSQL    | 50             | 9.21 ms / 132 KB   | 6.13 ms / 53 KB    | 1.5x faster, 2.5x less garbage |
+| `RAMJobStore` | 10             | 2.31 µs / 3.25 KB  | 3.44 µs / 3.62 KB  | 1.5x slower |
+| `RAMJobStore` | 50             | 2.23 µs / 3.25 KB  | 3.02 µs / 3.63 KB  | 1.4x slower |
+
+That is about 162 firings a second per node on PostgreSQL and about 300,000 on `RAMJobStore`, on this
+machine. The persistent-store gain is the batched fire path: a firing now costs **1.27 database
+commits**, where it used to cost one round trip per statement. The in-memory loss is 4.0's per-firing
+machinery — a DI scope, the middleware pipeline, the execution-group ledger — and against six
+milliseconds of database it is invisible in any deployment that has one
+([#3674](https://github.com/quartznet/quartznet/issues/3674)).
+
+**A bigger pool does not start firings faster.** Five times the threads bought 14 % on `RAMJobStore`
+and nothing measurable on PostgreSQL, because a node's store operations serialise on the
+`TRIGGER_ACCESS` lock. What `MaxConcurrency` buys is more *jobs* running at once, which is the point
+of it — see [Sizing a cluster](#sizing-a-cluster) above.
+
+### Scheduling and cron
+
+Also measured against 3.14, and also in the benchmark README:
+
+| Operation                                       | 3.14                | 4.0                 |
+|------------------------------------------------ |-------------------- |-------------------- |
+| Parse a `CronExpression`                        | 3.0–4.6 µs / 8.7–12.9 KB | 236–338 ns / 576–688 B |
+| `GetNextValidTimeAfter`                         | ~1.29 µs / ~3.2 KB  | 315–373 ns / **0 B** |
+| `ScheduleJob`, cron trigger, into `RAMJobStore` | 31 µs / 38.7 KB     | 10.5 µs / 5 KB      |
+
+Two other measurements live closer to what they are about:
+[the acquisition index](db/index.md#indexes-and-the-acquisition-index-in-particular), over a hundred
+thousand triggers on four engines, and
+[the cluster-wide execution ceiling](tutorial/execution-groups.md#cluster-scoped-limits), which costs
+one aggregate per acquisition attempt.
+
+### What has been run against a cluster
+
+Before the 4.0.0-beta.1 tag, two clustered nodes sharing one scheduler name were run for **30 minutes
+against PostgreSQL and 30 minutes against SQL Server**, carrying every trigger family including
+recurrence, a `[DisallowConcurrentExecution]` job behind an overlap detector, a retry policy over a
+job that always fails, a job that overruns the budget `AddJobTimeout` enforces, and induced failures
+along the way: both nodes into standby past the misfire threshold, then one node killed with an
+`EXECUTING` row left behind and its check-in aged, then replaced once the survivor had recovered it.
+
+Both runs passed. Each ended with no `ACQUIRED` or `BLOCKED` triggers and an empty
+`QRTZ_FIRED_TRIGGERS`, every trigger family still firing at its schedule, **no overlapping firing of
+the serial job across the two nodes** — peak observed concurrency 1 over 2,662 firings of it on
+PostgreSQL and 2,367 on SQL Server — the retry policy re-firing a failing job 356 and 346 times, the
+timeout middleware interrupting 178 and 175 overruns, exactly one interrupted firing recovered by
+the survivor in each run, no unexpected scheduler error, no unobserved task exception, and a live
+heap and handle count no larger at the end than at the start (5 MB and ~635 handles throughout on
+PostgreSQL; 5 MB and ~730 on SQL Server).
+
+The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`; it is opt-in
+(`[Category("LongRunning")]`, `QUARTZ_SOAK_MINUTES`) and is run before a tag rather than in CI.
+
 ## Health checks and probes
 
 The check that ships with `Quartz` asserts two things: that the scheduler is in a state that can fire,
@@ -749,6 +824,7 @@ lists the instruments, and [What to watch](../best-practices.md#what-to-watch).
 - [Best Practices](../best-practices.md) — the decisions this page assumes have been made
 - [Database Schema](db/) and [Schema Changes](../database/schema-changes.md) — what the tables hold and
   what each version added
+- [`Quartz.Benchmark`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Benchmark/README.md) — the numbers above, with their method and caveats
 - [Configuration Reference](configuration/reference.md#persistent-job-store) — every setting named here,
   with its default
 
