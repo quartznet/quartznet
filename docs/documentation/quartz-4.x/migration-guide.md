@@ -3671,6 +3671,27 @@ Ids are allocated in ranges by area, and are stable from 4.0 onwards:
 | 8000–8099 | `Quartz.Extensions.Redis` — the Redis lock handler |
 | 9000–9099 | `Quartz.AspNetCore` — the HTTP API |
 
+### Each scheduling path logs under its own category
+
+Jobs and triggers can be declared three ways — in a scheduling file, in a JSON scheduling file, or with
+`AddJob`/`AddTrigger` inside `AddQuartz` — and one class does the work for all three. It used to log for
+all three as well: `ContainerConfigurationProcessor` and `JsonSchedulingDataProcessor` both handed
+`XmlSchedulingDataProcessor` an `ILogger<XmlSchedulingDataProcessor>`, so `Adding 2 jobs, 2 triggers`
+arrived under `Quartz.Xml.XmlSchedulingDataProcessor` whichever path put them there.
+
+Each path now logs under itself:
+
+| What declared them | Category |
+|---|---|
+| a scheduling file | `Quartz.Xml.XmlSchedulingDataProcessor` |
+| `AddQuartz(q => q.AddJob…)` | `Quartz.Configuration.ContainerConfigurationProcessor` |
+| a JSON scheduling file | `Quartz.Plugins.Json.JsonSchedulingDataProcessor` |
+
+The **event ids are unchanged**, because it is the same event from a different source — so a filter or
+an alert keyed on the id keeps matching all three, and one keyed on the category can now tell them
+apart. A logging filter that silenced `Quartz.Xml` to quiet the container path no longer does, which is
+the point.
+
 6400–6599 was the interrupt monitor and the shutdown hook. Both plugins are retired, so no 4.0
 assembly raises an event in that range — a job's timeout is middleware in the core package and logs
 under the scheduler's own range, as `1090`–`1092`. See

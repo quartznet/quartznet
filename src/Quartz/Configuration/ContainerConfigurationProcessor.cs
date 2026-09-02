@@ -21,7 +21,7 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
     /// handed its own of both instead of every scheduler sharing the default scheduler's.
     /// </remarks>
     public ContainerConfigurationProcessor(
-        ILogger<XmlSchedulingDataProcessor> logger,
+        ILogger<ContainerConfigurationProcessor> logger,
         ITypeLoader typeLoader,
         TimeProvider timeProvider,
         QuartzOptions options,
