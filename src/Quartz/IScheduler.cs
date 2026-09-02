@@ -195,6 +195,7 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="query">What to select and which page of it to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <seealso cref="FireInstance" />
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -223,6 +224,7 @@ public interface IScheduler : IAsyncDisposable
     /// </remarks>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <seealso cref="ClusterNode" />
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -271,6 +273,10 @@ public interface IScheduler : IAsyncDisposable
     /// <seealso cref="Start"/>
     /// <seealso cref="Standby"/>
     /// <seealso cref="Shutdown"/>
+    /// <exception cref="SchedulerException">The scheduler has been shut down, and cannot be restarted.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="delay" /> is negative, or longer than a timer will wait.
+    /// </exception>
     ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -347,6 +353,16 @@ public interface IScheduler : IAsyncDisposable
     /// cannot lose a race with another node doing the same thing.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jobDetail" /> or <paramref name="trigger" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">
+    /// The scheduler has been shut down; or <paramref name="trigger" /> names a different job, names a
+    /// calendar that is not registered, or will never fire; or it is not one of Quartz's own trigger
+    /// implementations.
+    /// </exception>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// The job or the trigger is already stored under the same key and
+    /// <see cref="ScheduleJobOptions.Replace" /> was not asked for.
+    /// </exception>
     ValueTask<DateTimeOffset> ScheduleJob(
         IJobDetail jobDetail,
         ITrigger trigger,
@@ -370,6 +386,15 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="IJobExecutionContext.PreviousFireTimeUtc" /> is not told the schedule has never fired
     /// merely because its trigger was rewritten.
     /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="trigger" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">
+    /// The scheduler has been shut down; or <paramref name="trigger" /> names a calendar that is not
+    /// registered, or will never fire; or it is not one of Quartz's own trigger implementations.
+    /// </exception>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A trigger is already stored under the same key and
+    /// <see cref="ScheduleJobOptions.Replace" /> was not asked for.
+    /// </exception>
     ValueTask<DateTimeOffset> ScheduleJob(
         ITrigger trigger,
         ScheduleJobOptions options = default,
@@ -383,6 +408,12 @@ public interface IScheduler : IAsyncDisposable
     /// specifically, if the keys are not unique) and <see cref="ScheduleJobOptions.Replace" />
     /// is not set then an exception will be thrown.</para>
     /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="triggersAndJobs" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A key in the batch is already stored and <see cref="ScheduleJobOptions.Replace" /> was not
+    /// asked for. None of the batch is stored.
+    /// </exception>
     ValueTask ScheduleJobs(
         IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
         ScheduleJobOptions options = default,
@@ -396,6 +427,12 @@ public interface IScheduler : IAsyncDisposable
     /// specifically, if the keys are not unique) and <see cref="ScheduleJobOptions.Replace" />
     /// is not set then an exception will be thrown.
     /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="jobDetail" /> or <paramref name="triggersForJob" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// The job or one of the triggers is already stored under the same key and
+    /// <see cref="ScheduleJobOptions.Replace" /> was not asked for. Nothing is stored.
+    /// </exception>
     ValueTask ScheduleJob(
         IJobDetail jobDetail,
         IReadOnlyCollection<ITrigger> triggersForJob,
@@ -407,6 +444,8 @@ public interface IScheduler : IAsyncDisposable
     /// <para>If the related job does not have any other triggers, and the job is
     /// not durable, then the job will also be deleted.</para>
     /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> UnscheduleJob(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default);
@@ -433,6 +472,8 @@ public interface IScheduler : IAsyncDisposable
     /// found" answer, and the list itself says which ones when it is not.
     /// </returns>
     /// <seealso cref="UnscheduleJob" />
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<TriggerKey>> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -459,6 +500,8 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The keys of the triggers this call removed.</returns>
     /// <seealso cref="UnscheduleJobs(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<TriggerKey>> UnscheduleJobs(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -478,6 +521,11 @@ public interface IScheduler : IAsyncDisposable
     /// new trigger is therefore not stored),  otherwise
     /// the first fire time of the newly scheduled trigger.
     /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> or <paramref name="newTrigger" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">
+    /// The scheduler has been shut down; or <paramref name="newTrigger" /> names a calendar that is not
+    /// registered, or will never fire; or it is not one of Quartz's own trigger implementations.
+    /// </exception>
     ValueTask<DateTimeOffset?> RescheduleJob(
         TriggerKey triggerKey,
         ITrigger newTrigger,
@@ -493,6 +541,8 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="update">The details to update. See <see cref="TriggerDetailsUpdate"/> for available properties.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> or <paramref name="update" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> UpdateTriggerDetails(
         TriggerKey triggerKey,
         TriggerDetailsUpdate update,
@@ -537,6 +587,15 @@ public interface IScheduler : IAsyncDisposable
     /// non-durable job may be stored while it awaits a trigger. Defaults to neither.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jobDetail" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">
+    /// The scheduler has been shut down; or the job is not durable and
+    /// <see cref="AddJobOptions.StoreNonDurableWhileAwaitingScheduling" /> was not asked for.
+    /// </exception>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A job is already stored under the same key and <see cref="AddJobOptions.Replace" /> was not
+    /// asked for.
+    /// </exception>
     ValueTask AddJob(
         IJobDetail jobDetail,
         AddJobOptions options = default,
@@ -547,6 +606,8 @@ public interface IScheduler : IAsyncDisposable
     /// associated <see cref="ITrigger" />s.
     /// </summary>
     /// <returns> true if the Job was found and deleted.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> DeleteJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default);
@@ -572,6 +633,8 @@ public interface IScheduler : IAsyncDisposable
     /// answer, and the list itself says which ones when it is not.
     /// </returns>
     /// <seealso cref="DeleteJob" />
+    /// <exception cref="ArgumentNullException"><paramref name="jobKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -598,6 +661,8 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The keys of the jobs this call deleted.</returns>
     /// <seealso cref="DeleteJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -611,6 +676,9 @@ public interface IScheduler : IAsyncDisposable
     /// associated with the trigger that fires the job immediately.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="JobPersistenceException">No job is stored under <paramref name="jobKey" />.</exception>
     ValueTask TriggerJob(
         JobKey jobKey,
         JobDataMap? data = null,
@@ -625,6 +693,8 @@ public interface IScheduler : IAsyncDisposable
     /// triggers — <see langword="false" /> if there is no job with the given key. No listener
     /// events are raised when nothing was found.
     /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> PauseJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default);
@@ -644,6 +714,8 @@ public interface IScheduler : IAsyncDisposable
     /// </returns>
     /// <seealso cref="PauseJob" />
     /// <seealso cref="ResumeJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />
+    /// <exception cref="ArgumentNullException"><paramref name="jobKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<JobKey>> PauseJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default);
@@ -681,6 +753,8 @@ public interface IScheduler : IAsyncDisposable
     /// </remarks>
     /// <returns>The names of the job groups that were paused by this call.</returns>
     /// <seealso cref="ResumeJobGroups" />
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -692,6 +766,8 @@ public interface IScheduler : IAsyncDisposable
     /// paused, or it is in a state that cannot be paused (e.g. complete). No listener events are
     /// raised when nothing changed.
     /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -710,6 +786,8 @@ public interface IScheduler : IAsyncDisposable
     /// </returns>
     /// <seealso cref="PauseTrigger" />
     /// <seealso cref="ResumeTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<TriggerKey>> PauseTriggers(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default);
@@ -746,6 +824,8 @@ public interface IScheduler : IAsyncDisposable
     /// </remarks>
     /// <returns>The names of the trigger groups that were paused by this call.</returns>
     /// <seealso cref="ResumeTriggerGroups" />
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<string>> PauseTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default);
@@ -764,6 +844,8 @@ public interface IScheduler : IAsyncDisposable
     /// triggers — <see langword="false" /> if there is no job with the given key. No listener
     /// events are raised when nothing was found.
     /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -786,6 +868,8 @@ public interface IScheduler : IAsyncDisposable
     /// </returns>
     /// <seealso cref="ResumeJob" />
     /// <seealso cref="PauseJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />
+    /// <exception cref="ArgumentNullException"><paramref name="jobKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<JobKey>> ResumeJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default);
@@ -808,6 +892,8 @@ public interface IScheduler : IAsyncDisposable
     /// </remarks>
     /// <returns>The names of the job groups that were resumed by this call.</returns>
     /// <seealso cref="PauseJobGroups" />
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -823,6 +909,8 @@ public interface IScheduler : IAsyncDisposable
     /// call, <see langword="false" /> if there is no trigger with the given key or it was not
     /// paused. No listener events are raised when nothing changed.
     /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -845,6 +933,8 @@ public interface IScheduler : IAsyncDisposable
     /// </returns>
     /// <seealso cref="ResumeTrigger" />
     /// <seealso cref="PauseTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<TriggerKey>> ResumeTriggers(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default);
@@ -867,6 +957,8 @@ public interface IScheduler : IAsyncDisposable
     /// </remarks>
     /// <returns>The names of the trigger groups that were resumed by this call.</returns>
     /// <seealso cref="PauseTriggerGroups" />
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<string>> ResumeTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default);
@@ -884,6 +976,7 @@ public interface IScheduler : IAsyncDisposable
     /// <seealso cref="ResumeAll" />
     /// <seealso cref="PauseTriggerGroups" />
     /// <seealso cref="Standby" />
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask PauseAll(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -895,6 +988,7 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
     /// <seealso cref="PauseAll" />
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask ResumeAll(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -903,6 +997,7 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <param name="query">What to select and which page of it to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -912,6 +1007,7 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <param name="query">What to select and which page of it to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -919,6 +1015,7 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <param name="query">What to select and which page of it to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -926,6 +1023,7 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <param name="query">What to select and which page of it to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -933,6 +1031,7 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <param name="query">Which names to select and which page of them to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -941,6 +1040,7 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <param name="jobKeys">The keys of the jobs to retrieve.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -954,6 +1054,7 @@ public interface IScheduler : IAsyncDisposable
     /// </remarks>
     /// <param name="triggerKeys">The keys of the triggers to retrieve.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -965,6 +1066,7 @@ public interface IScheduler : IAsyncDisposable
     /// JobDetail.  If you wish to modify the JobDetail, you must re-store the
     /// JobDetail afterward (e.g. see <see cref="AddJob" />).
     /// </remarks>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -975,6 +1077,7 @@ public interface IScheduler : IAsyncDisposable
     /// trigger.  If you wish to modify the trigger, you must re-store the
     /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger, CancellationToken)" />).
     /// </remarks>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -987,6 +1090,7 @@ public interface IScheduler : IAsyncDisposable
     /// <seealso cref="TriggerState.Error" />
     /// <seealso cref="TriggerState.None" />
     /// <seealso cref="TriggerState.Executing" />
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<TriggerState> GetTriggerState(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default);
@@ -1011,6 +1115,8 @@ public interface IScheduler : IAsyncDisposable
     /// key or it was not in the error state.
     /// </returns>
     /// <seealso cref="TriggerState"/>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1028,6 +1134,8 @@ public interface IScheduler : IAsyncDisposable
     /// throw.
     /// </returns>
     /// <seealso cref="ResetTriggerFromErrorState" />
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default);
@@ -1059,6 +1167,8 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The keys this call reset.</returns>
     /// <seealso cref="ResetTriggersFromErrorState(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     async ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
@@ -1091,6 +1201,12 @@ public interface IScheduler : IAsyncDisposable
     /// the triggers that reference it have their next fire time re-computed. Defaults to neither.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="calendarName" /> or <paramref name="calendar" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A calendar is already registered under the same name and
+    /// <see cref="AddCalendarOptions.Replace" /> was not asked for.
+    /// </exception>
     ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
@@ -1108,11 +1224,18 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="calendarName">Name of the calendar.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if the Calendar was found and deleted.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="calendarName" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="JobPersistenceException">
+    /// A trigger still references the calendar, so removing it would leave that trigger pointing at
+    /// nothing.
+    /// </exception>
     ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the <see cref="ICalendar" /> instance with the given name.
     /// </summary>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1145,6 +1268,11 @@ public interface IScheduler : IAsyncDisposable
     /// true is at least one instance of the identified job was found and interrupted.
     /// </returns>
     /// <seealso cref="QueryFireInstances" />
+    /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="OperationCanceledException">
+    /// <paramref name="cancellationToken" /> was cancelled part-way through, which leaves the
+    /// firings already reached interrupted.
+    /// </exception>
     ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1170,6 +1298,8 @@ public interface IScheduler : IAsyncDisposable
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if the identified job instance was found and interrupted.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="fireInstanceId" /> is <see langword="null" />.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken" /> was cancelled.</exception>
     ValueTask<bool> InterruptFireInstance(string fireInstanceId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1179,6 +1309,7 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1188,6 +1319,7 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="triggerKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1202,11 +1334,13 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="calendarName">the name to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a calendar is registered under the given name</returns>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar"/>s.
     /// </summary>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask Clear(CancellationToken cancellationToken = default);
 }

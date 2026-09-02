@@ -471,6 +471,23 @@ exactly on it is listed.
   sorted listing of keys comes out in a different order — see
   [`Key<T>` moved to `Quartz` and is immutable](#key-t-moved-to-quartz-and-is-immutable).
 
+### Between the alphas and beta.1
+
+The 4.0 surface froze at `4.0.0-alpha.5`. Three exceptions were taken deliberately, because each was a
+statement the API made that was not true; if you are coming from 3.x rather than from an alpha, read
+these as part of 4.0 and nothing more.
+
+* **`IScheduler`'s mutation members raise `ArgumentNullException` for a null argument.**
+  **Changed since alpha.5:** `ScheduleJob(null, trigger)` and its neighbours raised
+  `SchedulerException("JobDetail cannot be null")` — Java parity, and undocumented, so a caller writing
+  `catch (ArgumentNullException)` caught nothing while one writing `catch (SchedulerException)` around a
+  scheduling call was swallowing its own bug along with the scheduler's failures. Every mutation member
+  now raises `ArgumentNullException` naming the parameter, which is what the
+  `SchedulerQueryExtensions` methods on the same type have always done. `RescheduleJob` raised
+  `ArgumentException`, of which `ArgumentNullException` is a subclass, so a `catch` there still catches.
+  The `<exception>` tags on `IScheduler` say all of it, along with which members refuse what — there
+  were two of them over 65 members and there are ninety-seven now.
+
 ### What is on nobody's list because it did not change
 
 Worth stating, because the reasonable fear is that everything moved. These were checked against both
