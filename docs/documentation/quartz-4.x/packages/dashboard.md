@@ -79,7 +79,9 @@ app.MapQuartzDashboard().RequireAuthorization();
 By default, dashboard UI is available at `/quartz`.
 
 The [HTTP API](http-api.md) is enabled above because it is useful alongside the dashboard, not because
-the dashboard needs it: the pages read the schedulers in this process directly.
+the dashboard needs it: the pages read the schedulers in this process directly. The order of the four
+`Add…` calls does not matter — they register services and configuration callbacks, and nothing is built
+until the provider is.
 
 Three lines in that pipeline are the host's rather than the dashboard's, and each of them is load-bearing:
 

@@ -18,8 +18,11 @@ and where that code disagrees with received wisdom the sentence says so.
 
 ### Schema first, then nodes
 
-Quartz.NET never creates or migrates its own schema. A deployment therefore has two steps in a fixed
-order, and the order is not negotiable in either direction:
+Quartz.NET never *migrates* its own schema, and creates one only when asked — `ProvisionSchema()`, which
+is [`JobStore:SchemaProvisioning = CreateIfMissing`](tutorial/job-stores.md#creating-the-schema), runs
+the fresh-install DDL for a database that has none and is a no-op for one that already has the tables.
+It never alters a table it finds, so a schema that is merely *behind* is untouched by it. A deployment
+therefore has two steps in a fixed order, and the order is not negotiable in either direction:
 
 1. **Apply the migration**, from [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations),
    every folder between the version the database is at and the version you are going to, in ascending

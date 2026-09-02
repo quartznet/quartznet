@@ -85,7 +85,6 @@ public static class ReferenceSamples
         services.AddQuartz(q => q.UsePersistentStore(store =>
         {
             store.UseSqlServer(connectionString);
-            store.UseSystemTextJsonSerializer();
         }));
 
         #endregion
@@ -166,7 +165,6 @@ public static class ReferenceSamples
                     cluster.CheckinInterval = TimeSpan.FromSeconds(10);
                     cluster.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
                 });
-                store.UseSystemTextJsonSerializer();
             });
         });
 
@@ -177,8 +175,14 @@ public static class ReferenceSamples
     {
         #region sample_reference_serializers
 
-        store.UseSystemTextJsonSerializer();
-        store.UseNewtonsoftJsonSerializer();   // Quartz.Serialization.Newtonsoft
+        // Newtonsoft.Json, from the Quartz.Serialization.Newtonsoft package: what reads data
+        // a 3.x scheduler's Newtonsoft serializer wrote
+        store.UseNewtonsoftJsonSerializer();
+
+        // System.Text.Json with something to say about it — a trigger or calendar type of
+        // your own that the built-in serializers do not know
+        store.UseSystemTextJsonSerializer(json =>
+            json.AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer()));
 
         #endregion
     }

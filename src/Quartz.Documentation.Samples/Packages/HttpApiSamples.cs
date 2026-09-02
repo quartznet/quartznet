@@ -14,9 +14,8 @@ public static class HttpApiSamples
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-        builder.Services.AddQuartzHttpApi();
-
         builder.AddQuartz(q => { });
+        builder.Services.AddQuartzHttpApi();
         builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
         #endregion

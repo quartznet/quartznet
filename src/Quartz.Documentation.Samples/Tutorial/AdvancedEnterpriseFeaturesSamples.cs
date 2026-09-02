@@ -28,7 +28,6 @@ public static class AdvancedEnterpriseFeaturesSamples
             q.UsePersistentStore(store =>
             {
                 store.UseSqlServer(connectionString);
-                store.UseSystemTextJsonSerializer();
                 store.UseClustering();
             });
         });

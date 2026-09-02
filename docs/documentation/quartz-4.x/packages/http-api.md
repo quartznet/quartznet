@@ -23,9 +23,8 @@ Configure Quartz and enable the HTTP API:
 ```csharp
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddQuartzHttpApi();
-
 builder.AddQuartz(q => { });
+builder.Services.AddQuartzHttpApi();
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
@@ -34,6 +33,10 @@ The API serves every scheduler in the container through one set of endpoints —
 scheduler it is for — so it is added to the container rather than to a scheduler. There is deliberately
 no `IQuartzBuilder` form: written inside `AddQuartz(name, …)` it would look like that scheduler's API
 while configuring everybody's.
+
+The order of those three calls does not matter. Every `Add…` here registers services and configuration
+callbacks, and nothing is built until the provider is; `AddQuartzHttpApi()` before `AddQuartz()` means
+what it means after. The pages show one order for the sake of showing one.
 
 Map endpoints:
 

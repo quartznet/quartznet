@@ -78,7 +78,6 @@ builder.Services.AddQuartz(q =>
     q.UsePersistentStore(store =>
     {
         store.UseSqlServer("Server=localhost;Database=quartz;Trusted_Connection=True;Encrypt=False");
-        store.UseSystemTextJsonSerializer();
 
         store.ConfigureStore(options =>
         {
@@ -145,7 +144,6 @@ builder.Services.AddQuartz(q =>
     q.UsePersistentStore(store =>
     {
         store.UsePostgres(connectionString);
-        store.UseSystemTextJsonSerializer();
 
         // outside production, where whatever applies the rest of the database's
         // schema applies this one too
@@ -243,13 +241,18 @@ The flat key for the same setting is `quartz.jobStore.useProperties`, which is t
 ### Choosing a serializer
 
 Whatever is not stored as a string — a calendar, a trigger's own state, a job data value under
-`StoreJobDataAsStrings = false` — is written through an `IObjectSerializer`, and a store has to be told which
-one. There are two, both JSON:
+`StoreJobDataAsStrings = false` — is written through an `IObjectSerializer`. There are two, both JSON:
 
 * System.Text.Json, built into Quartz: `store.UseSystemTextJsonSerializer()`
 * Newtonsoft.Json, from the separate
   [Quartz.Serialization.Newtonsoft](../packages/json-serialization.md) package:
   `store.UseNewtonsoftJsonSerializer()`
+
+**A store that names neither gets the System.Text.Json one.** It is registered as the fallback, the way
+the driver delegate is, so the argumentless `UseSystemTextJsonSerializer()` selects what the store
+already had — which is why the snippets above do not carry it. Write it when you have something to say
+with it: `UseSystemTextJsonSerializer(json => …)` registers serializers for
+[trigger and calendar types of your own](../packages/system-text-json.md).
 
 Reach for the Newtonsoft one only when you have data written by 3.x's Newtonsoft serializer, whose format it
 reads. New applications want System.Text.Json.

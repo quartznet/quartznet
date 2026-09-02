@@ -106,7 +106,6 @@ public static class QuartzPluginsSamples
             {
                 x.Files.Add("~/quartz_jobs.config");
                 x.ScanInterval = TimeSpan.FromMinutes(1);
-                x.FailOnFileNotFound = true;
                 x.FailOnSchedulingError = true;
             });
         });
@@ -124,7 +123,6 @@ public static class QuartzPluginsSamples
             {
                 x.Files.Add("quartz_jobs.json");
                 x.ScanInterval = TimeSpan.FromMinutes(1);
-                x.FailOnFileNotFound = true;
                 x.FailOnSchedulingError = true;
             });
         });
