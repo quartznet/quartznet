@@ -230,11 +230,9 @@ XML format will be for the life of 4.x. It declares three trigger kinds — `sim
 |---|---|---|
 | a simple, cron or calendar-interval trigger | `<simple>`, `<cron>`, `<calendar-interval>` | `Simple`, `Cron`, `CalendarInterval` |
 | a daily time interval trigger | not expressible, and will not be | `DailyTimeInterval` |
+| a [recurrence trigger](../tutorial/recurrencetrigger.md) | not expressible, and will not be | [`Recurrence`](../configuration/json.md#recurrence-trigger) |
 | a trigger with a [retry policy](../how-tos/retrying-failed-jobs.md) | not expressible, and will not be | `RetryPolicy` |
 | a trigger in an [execution group](../tutorial/execution-groups.md) | not expressible, and will not be | `ExecutionGroup` |
-
-[Recurrence triggers](../tutorial/recurrencetrigger.md) are in neither format; a recurrence rule is
-scheduled in code.
 
 This is a decision, not a backlog. Two file formats that both grow means two parsers, two schemas and
 two sets of documentation for one feature, and the XML one is the one carrying twenty years of files

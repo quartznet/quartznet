@@ -279,28 +279,31 @@ internal static class JsonSchedulingHelper
         var cronSection = triggerSection.GetSection(nameof(JsonTriggerDefinition.Cron));
         var calendarSection = triggerSection.GetSection(nameof(JsonTriggerDefinition.CalendarInterval));
         var dailySection = triggerSection.GetSection(nameof(JsonTriggerDefinition.DailyTimeInterval));
+        var recurrenceSection = triggerSection.GetSection(nameof(JsonTriggerDefinition.Recurrence));
 
         var scheduleCount = 0;
         if (simpleSection.Exists()) scheduleCount++;
         if (cronSection.Exists()) scheduleCount++;
         if (calendarSection.Exists()) scheduleCount++;
         if (dailySection.Exists()) scheduleCount++;
+        if (recurrenceSection.Exists()) scheduleCount++;
 
         if (scheduleCount == 0)
         {
             throw new SchedulerConfigException(
-                $"JSON trigger '{triggerName}' must specify exactly one schedule type: Simple, Cron, CalendarInterval, or DailyTimeInterval.");
+                $"JSON trigger '{triggerName}' must specify exactly one schedule type: Simple, Cron, CalendarInterval, DailyTimeInterval, or Recurrence.");
         }
 
         if (scheduleCount > 1)
         {
             throw new SchedulerConfigException(
-                $"JSON trigger '{triggerName}' has multiple schedule types. Specify exactly one: Simple, Cron, CalendarInterval, or DailyTimeInterval.");
+                $"JSON trigger '{triggerName}' has multiple schedule types. Specify exactly one: Simple, Cron, CalendarInterval, DailyTimeInterval, or Recurrence.");
         }
 
         if (simpleSection.Exists()) return BuildSimpleSchedule(simpleSection);
         if (cronSection.Exists()) return BuildCronSchedule(cronSection, triggerName);
         if (calendarSection.Exists()) return BuildCalendarIntervalSchedule(calendarSection);
+        if (recurrenceSection.Exists()) return BuildRecurrenceSchedule(recurrenceSection, triggerName);
         return BuildDailyTimeIntervalSchedule(dailySection);
     }
 
@@ -353,6 +356,48 @@ internal static class JsonSchedulingHelper
         if (misfireInstruction is not null)
         {
             builder.WithMisfireInstruction((CronTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Cron, misfireInstruction));
+        }
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Reads a recurrence schedule, whose rule is the whole of the repetition and whose anchor is the
+    /// trigger's own start time.
+    /// </summary>
+    /// <remarks>
+    /// The rule is validated here rather than at the first firing, for the reason a cron expression is:
+    /// a schedule file that names a rule nobody can parse is a mistake to report while the application
+    /// is still starting.
+    /// </remarks>
+    private static RecurrenceScheduleBuilder BuildRecurrenceSchedule(IConfigurationSection section, string triggerName)
+    {
+        var rule = section[nameof(JsonRecurrenceSchedule.Rule)];
+        if (string.IsNullOrWhiteSpace(rule))
+        {
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': Recurrence schedule is missing required 'Rule' property.");
+        }
+
+        RecurrenceScheduleBuilder builder;
+        try
+        {
+            builder = RecurrenceScheduleBuilder.Create(rule!);
+        }
+        catch (Exception ex)
+        {
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid recurrence rule '{rule}'. {ex.Message}", ex);
+        }
+
+        var timeZoneStr = section[nameof(JsonRecurrenceSchedule.TimeZone)];
+        if (timeZoneStr is not null)
+        {
+            builder.InTimeZone(TimeZones.FindById(timeZoneStr));
+        }
+
+        var misfireInstruction = section[nameof(JsonRecurrenceSchedule.MisfireInstruction)];
+        if (misfireInstruction is not null)
+        {
+            builder.WithMisfireInstruction((RecurrenceTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Recurrence, misfireInstruction));
         }
 
         return builder;
