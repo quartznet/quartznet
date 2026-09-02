@@ -123,6 +123,7 @@ internal sealed class JsonFileTriggerDefinition
     public JsonFileCronSchedule? Cron { get; set; }
     public JsonFileCalendarIntervalSchedule? CalendarInterval { get; set; }
     public JsonFileDailyTimeIntervalSchedule? DailyTimeInterval { get; set; }
+    public JsonFileRecurrenceSchedule? Recurrence { get; set; }
 }
 
 internal sealed class JsonFileSimpleSchedule
@@ -143,6 +144,26 @@ internal sealed class JsonFileCalendarIntervalSchedule
 {
     public int RepeatInterval { get; set; }
     public string RepeatIntervalUnit { get; set; } = "Day";
+    public string? MisfireInstruction { get; set; }
+}
+
+/// <summary>
+/// A schedule stated as an RFC 5545 recurrence rule.
+/// </summary>
+/// <remarks>
+/// The rule says how the firings repeat and the trigger's own <c>StartTime</c> says what they repeat
+/// from — a rule is anchored to a moment, exactly as <c>DTSTART</c> anchors an iCalendar one, so
+/// <c>FREQ=WEEKLY;INTERVAL=2</c> means "every second week counted from the start time" and a trigger
+/// given no start time is anchored to the moment the file was read.
+/// </remarks>
+internal sealed class JsonFileRecurrenceSchedule
+{
+    /// <summary>
+    /// The RFC 5545 rule, for example <c>FREQ=WEEKLY;INTERVAL=2;BYDAY=MO</c>.
+    /// </summary>
+    public string Rule { get; set; } = "";
+
+    public string? TimeZone { get; set; }
     public string? MisfireInstruction { get; set; }
 }
 

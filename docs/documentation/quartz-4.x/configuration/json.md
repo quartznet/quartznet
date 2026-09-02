@@ -143,7 +143,8 @@ Jobs and triggers can be defined declaratively in `appsettings.json` under a `Sc
 
 ### Trigger Types
 
-Exactly one schedule type must be specified per trigger. The trigger type is determined by which nested object is present.
+Exactly one schedule type must be specified per trigger — `Simple`, `Cron`, `CalendarInterval`,
+`DailyTimeInterval` or `Recurrence`. The trigger type is determined by which nested object is present.
 
 #### Simple Trigger
 
@@ -209,6 +210,37 @@ Exactly one schedule type must be specified per trigger. The trigger type is det
   }
 }
 ```
+
+#### Recurrence Trigger
+
+```json
+{
+  "Name": "recurrenceTrigger",
+  "JobName": "myJob",
+  "StartTime": "2026-01-05T09:00:00Z",
+  "Recurrence": {
+    "Rule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+    "TimeZone": "America/New_York",
+    "MisfireInstruction": "DoNothing"
+  }
+}
+```
+
+- `Rule`: the RFC 5545 recurrence rule, required. See [Recurrence Triggers](../tutorial/recurrencetrigger.md) for what a rule can say.
+- `TimeZone`: the zone the rule's days and times are read in. Defaults to the machine's local zone, so name it if the schedule has to mean the same thing wherever it runs.
+- `MisfireInstruction`: `SmartPolicy` (the default), `FireOnceNow`, `DoNothing` or `IgnoreMisfirePolicy`.
+
+The rule says how the firings repeat; the trigger's own `StartTime` says what they repeat **from**, the
+way `DTSTART` anchors an iCalendar rule. `FREQ=WEEKLY;INTERVAL=2` therefore means "every second week
+counted from the start time", and a trigger given no `StartTime` is anchored to the moment its
+scheduler read the declaration. A rule that cannot be parsed is refused as the file is read, naming
+the rule, rather than at the first firing.
+
+::: tip
+This trigger kind is JSON only. The XML format is [frozen](../packages/quartz-plugins.md#the-xml-format-is-frozen)
+at the three kinds its schema already declares and will not gain a `<recurrence>` element, so a
+recurrence rule is declared in JSON or written in code.
+:::
 
 ### Common Trigger Fields
 

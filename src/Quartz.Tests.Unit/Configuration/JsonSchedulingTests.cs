@@ -61,6 +61,76 @@ public class JsonSchedulingTests
         trigger.RepeatInterval.Should().Be(TimeSpan.FromSeconds(10));
     }
 
+    /// <summary>
+    /// A recurrence rule is a schedule a file can declare, and everything the declaration says has to
+    /// reach the trigger: the rule, the anchor it repeats from, the misfire instruction and the zone
+    /// the rule's days and times are read in.
+    /// </summary>
+    /// <remarks>
+    /// The anchor is the trigger's own <c>StartTime</c> rather than a field of the recurrence section:
+    /// a rule repeats from a moment the way <c>DTSTART</c> does, and every other schedule type in this
+    /// format already starts from that field.
+    /// </remarks>
+    [Test]
+    public void AddQuartz_WithRecurrenceTriggerInJson_CarriesTheRuleAnchorMisfireAndZone()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "recurringJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "recurrenceTrigger" },
+            { "Schedule:Triggers:0:JobName", "recurringJob" },
+            { "Schedule:Triggers:0:StartTime", "2026-01-05T09:00:00Z" },
+            { "Schedule:Triggers:0:Recurrence:Rule", "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO" },
+            { "Schedule:Triggers:0:Recurrence:TimeZone", "America/New_York" },
+            { "Schedule:Triggers:0:Recurrence:MisfireInstruction", "DoNothing" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        var provider = services.BuildServiceProvider();
+
+        IRecurrenceTrigger trigger = provider.ScheduledTriggers().Should().ContainSingle()
+            .Which.Should().BeAssignableTo<IRecurrenceTrigger>(
+                "a Recurrence section is what makes the trigger a recurrence one").Subject;
+
+        trigger.RecurrenceRule.Should().Be("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO");
+        trigger.StartTimeUtc.Should().Be(new DateTimeOffset(2026, 1, 5, 9, 0, 0, TimeSpan.Zero),
+            "every second week is counted from somewhere, and the trigger's start time is where");
+        trigger.MisfireInstruction.Should().Be(RecurrenceTriggerMisfireInstruction.DoNothing);
+        trigger.TimeZone.Should().Be(TimeZones.FindById("America/New_York"),
+            "a rule naming a day names it in some zone, and a schedule read on a machine in another one has to fire the same");
+    }
+
+    [Test]
+    public void AddQuartz_WithAnUnparseableRecurrenceRule_IsRejected()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "recurringJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "recurrenceTrigger" },
+            { "Schedule:Triggers:0:JobName", "recurringJob" },
+            { "Schedule:Triggers:0:Recurrence:Rule", "FREQ=FORTNIGHTLY" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        var provider = services.BuildServiceProvider();
+
+        Action act = () => provider.ScheduledTriggers();
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a rule nobody can parse is a mistake to report while the application is still starting")
+            .WithMessage("*FREQ=FORTNIGHTLY*");
+    }
+
     [TestCase("DoNothing", 2)]
     [TestCase("FireOnceNow", 1)]
     [TestCase("FireAndProceed", 1)]

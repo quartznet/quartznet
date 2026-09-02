@@ -4168,8 +4168,8 @@ plugin-based setup sees no change at all.
 
 **Nor will it change.** The schema is frozen at what it already says: `simple`, `cron` and
 `calendar-interval` triggers, and none of the trigger kinds or trigger settings written since. A
-daily time interval trigger, a [retry policy](#a-trigger-can-carry-a-retry-policy) and an execution
-group are expressible in the JSON format and are not expressible in XML, now or later — two file
+daily time interval trigger, a recurrence rule, a [retry policy](#a-trigger-can-carry-a-retry-policy)
+and an execution group are expressible in the JSON format and are not expressible in XML, now or later — two file
 formats that both grow is two parsers and two schemas for one feature, and the XML one is the one that
 has to keep loading files written twenty years ago. It does: **XML scheduling is not deprecated and is
 not going away in 4.x**, and a schedule that only needs the three trigger kinds above never has to

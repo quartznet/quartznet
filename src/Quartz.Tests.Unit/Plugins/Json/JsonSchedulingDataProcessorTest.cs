@@ -103,6 +103,69 @@ public class JsonSchedulingDataProcessorTest
         trigger.DaysOfWeek.Should().BeEquivalentTo(new[] { DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday });
     }
 
+    /// <summary>
+    /// A recurrence rule is a schedule a file can declare, and everything the declaration says has to
+    /// reach the trigger: the rule, the anchor it repeats from, the misfire instruction and the zone
+    /// the rule's days and times are read in.
+    /// </summary>
+    /// <remarks>
+    /// The anchor is the trigger's own <c>StartTime</c> rather than a field of the recurrence section:
+    /// a rule repeats from a moment the way <c>DTSTART</c> does, and every other schedule type in this
+    /// format already starts from that field.
+    /// </remarks>
+    [Test]
+    public void ParsesRecurrenceTrigger()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "rJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Triggers": [{
+                    "Name": "rTrigger", "JobName": "rJob",
+                    "StartTime": "2026-01-05T09:00:00Z",
+                    "Recurrence": {
+                        "Rule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+                        "TimeZone": "America/New_York",
+                        "MisfireInstruction": "DoNothing"
+                    }
+                }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        var trigger = (IRecurrenceTrigger) processor.ParsedTriggers[0];
+        trigger.RecurrenceRule.Should().Be("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO");
+        trigger.StartTimeUtc.Should().Be(new DateTimeOffset(2026, 1, 5, 9, 0, 0, TimeSpan.Zero),
+            "every second week is counted from somewhere, and the trigger's start time is where");
+        trigger.MisfireInstruction.Should().Be(RecurrenceTriggerMisfireInstruction.DoNothing);
+        trigger.TimeZone.Should().Be(TimeZones.FindById("America/New_York"),
+            "a rule naming a day names it in some zone, and a file read on a machine in another one has to fire the same");
+    }
+
+    [Test]
+    public void RejectsAnUnparseableRecurrenceRule()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "rJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Triggers": [{ "Name": "rTrigger", "JobName": "rJob", "Recurrence": { "Rule": "FREQ=FORTNIGHTLY" } }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+
+        Action act = () => processor.ProcessJsonContent(json);
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a rule nobody can parse is a mistake to report while the scheduler is still starting")
+            .WithMessage("*FREQ=FORTNIGHTLY*");
+    }
+
     [Test]
     public void ParsesJobDataMap()
     {

@@ -349,14 +349,16 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
     private IScheduleBuilder BuildSchedule(JsonFileTriggerDefinition def, string triggerName)
     {
         var count = (def.Simple is not null ? 1 : 0) + (def.Cron is not null ? 1 : 0) +
-                    (def.CalendarInterval is not null ? 1 : 0) + (def.DailyTimeInterval is not null ? 1 : 0);
+                    (def.CalendarInterval is not null ? 1 : 0) + (def.DailyTimeInterval is not null ? 1 : 0) +
+                    (def.Recurrence is not null ? 1 : 0);
 
-        if (count == 0) throw new SchedulerConfigException($"JSON trigger '{triggerName}' must specify exactly one schedule type: Simple, Cron, CalendarInterval, or DailyTimeInterval.");
+        if (count == 0) throw new SchedulerConfigException($"JSON trigger '{triggerName}' must specify exactly one schedule type: Simple, Cron, CalendarInterval, DailyTimeInterval, or Recurrence.");
         if (count > 1) throw new SchedulerConfigException($"JSON trigger '{triggerName}' has multiple schedule types. Specify exactly one.");
 
         if (def.Simple is not null) return BuildSimpleSchedule(def.Simple);
         if (def.Cron is not null) return BuildCronSchedule(def.Cron, triggerName);
         if (def.CalendarInterval is not null) return BuildCalendarIntervalSchedule(def.CalendarInterval);
+        if (def.Recurrence is not null) return BuildRecurrenceSchedule(def.Recurrence, triggerName);
         return BuildDailyTimeIntervalSchedule(def.DailyTimeInterval!);
     }
 
@@ -385,6 +387,35 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
 
         if (cron.TimeZone is not null) builder.InTimeZone(TimeZones.FindById(cron.TimeZone));
         if (cron.MisfireInstruction is not null) builder.WithMisfireInstruction((CronTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Cron, cron.MisfireInstruction, logger));
+        return builder;
+    }
+
+    /// <summary>
+    /// Reads a recurrence schedule, whose rule is the whole of the repetition and whose anchor is the
+    /// trigger's own start time.
+    /// </summary>
+    /// <remarks>
+    /// The rule is validated here rather than at the first firing, for the reason a cron expression is:
+    /// a schedule file that names a rule nobody can parse is a mistake to report while the application
+    /// is still starting.
+    /// </remarks>
+    private RecurrenceScheduleBuilder BuildRecurrenceSchedule(JsonFileRecurrenceSchedule recurrence, string triggerName)
+    {
+        if (string.IsNullOrWhiteSpace(recurrence.Rule))
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': Recurrence schedule is missing required 'Rule' property.");
+
+        RecurrenceScheduleBuilder builder;
+        try
+        {
+            builder = RecurrenceScheduleBuilder.Create(recurrence.Rule);
+        }
+        catch (Exception ex)
+        {
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid recurrence rule '{recurrence.Rule}'. {ex.Message}", ex);
+        }
+
+        if (recurrence.TimeZone is not null) builder.InTimeZone(TimeZones.FindById(recurrence.TimeZone));
+        if (recurrence.MisfireInstruction is not null) builder.WithMisfireInstruction((RecurrenceTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Recurrence, recurrence.MisfireInstruction, logger));
         return builder;
     }
 
