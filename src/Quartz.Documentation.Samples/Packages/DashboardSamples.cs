@@ -38,7 +38,7 @@ public static class DashboardSamples
         app.UseAntiforgery();
 
         app.MapQuartzHttpApi().RequireAuthorization();
-        app.MapQuartzDashboard();
+        app.MapQuartzDashboard().RequireAuthorization();
 
         #endregion
     }
@@ -47,7 +47,7 @@ public static class DashboardSamples
     {
         #region sample_dashboard_map_path
 
-        app.MapQuartzDashboard("/my-api/quartz");
+        app.MapQuartzDashboard("/my-api/quartz").RequireAuthorization();
 
         #endregion
     }
@@ -151,7 +151,7 @@ public static class DashboardSamples
             .AddInteractiveServerRenderMode();
 
         app.MapQuartzHttpApi().RequireAuthorization();
-        app.MapQuartzDashboard(blazor);
+        app.MapQuartzDashboard(blazor).RequireAuthorization();
 
         #endregion
     }

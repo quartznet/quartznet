@@ -28,14 +28,20 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 WebApplication app = builder.Build();
 
 app.UseAntiforgery();
-app.MapQuartzHttpApi();
-app.MapQuartzDashboard();
+app.MapQuartzHttpApi().RequireAuthorization();
+app.MapQuartzDashboard().RequireAuthorization();
 ```
 <!-- endSnippet -->
 
 The UI is then at `/quartz`. `MapQuartzDashboard("/ops/quartz")` serves it somewhere else — pages,
 assets and the Blazor circuit all move with it — and `AddQuartzDashboard(options => …)` takes an
 authorization policy, which is what a deployment reachable by anyone but you needs.
+
+The `RequireAuthorization()` on both map calls is not decoration. The dashboard and the API add no
+authentication of their own, both are fully mutating, and a job scheduled through either names its type
+as a string the request supplies — which, with `Quartz.Jobs` on the host's probing path, reaches
+`NativeJob` and its process. A mapping that says nothing about authorization refuses to start; say
+`AllowAnonymous()` where you mean it.
 
 Execution-history views stay empty until the scheduler records history: add
 `q.UseJobHistoryLogging()` and `q.UseTriggerHistoryLogging()` from

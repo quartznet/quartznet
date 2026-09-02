@@ -48,6 +48,30 @@ app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 ```
 <!-- endSnippet -->
 
+::: danger A mapping that says nothing about authorization does not start
+`RequireAuthorization()` there is not decoration. The API adds no authentication and no authorization of
+its own, every endpoint below mutates the scheduler it names — `shutdown` and `clear` among them — and a
+job scheduled through it carries its type as a **string the request supplies**, stored unresolved and
+resolved later with `Type.GetType` against whatever is on the host's probing path. With
+[`Quartz.Jobs`](quartz-jobs.md) on that path the string reaches `NativeJob`, which starts a process named
+in job data: an unauthenticated endpoint here is remote code execution rather than an information leak.
+
+Through `4.0.0-alpha.5`, `app.MapQuartzHttpApi()` with nothing else said served all sixty routes
+anonymously. From `4.0.0-beta.1` it fails at startup instead — in `IHostedLifecycleService.StartingAsync`,
+which runs before the server binds its listener — with a message naming the three ways to say what you
+meant:
+
+- `app.MapQuartzHttpApi().RequireAuthorization()` authorizes the whole API;
+- `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` authorizes each scheduler on its own — see
+  [Authorizing per scheduler](#authorizing-per-scheduler);
+- `app.MapQuartzHttpApi().AllowAnonymous()` serves it to anyone, deliberately.
+
+A non-null `AuthorizationOptions.FallbackPolicy` satisfies the check as well, since it covers every
+endpoint that states nothing, and so does a `RequireAuthorization()` on a `MapGroup` the API is mapped
+into — group metadata flows into the endpoints. An application that calls `AddQuartzHttpApi()` and never
+maps anything serves nothing and is left alone.
+:::
+
 ### Where the API is served
 
 `/quartz-api` is the default, and there are two ways to say something else:
@@ -55,7 +79,7 @@ app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 <!-- snippet: sample_httpapi_path -->
 ```csharp
 // at the map site, beside the application's other routes
-app.MapQuartzHttpApi("/ops/api");
+app.MapQuartzHttpApi("/ops/api").RequireAuthorization();
 
 // or at registration
 builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
@@ -337,23 +361,29 @@ A client maps the Quartz exception names — `SchedulerException`, `JobPersisten
 `HttpScheduler` does exactly that. `Quartz-ExceptionStackTrace` joins them only when
 `IncludeStackTraceInProblemDetails` is on.
 
-A **`500` deliberately does not carry `Quartz-ExceptionType`.** It is a fault the caller cannot act
-on, so naming the type behind it would say something about the server's internals and nothing a
-client could use:
+A **`500` carries neither `Quartz-ExceptionType` nor the exception's message.** It is a fault the caller
+cannot act on, so naming what produced it says something about the server's internals and nothing a
+client could use — and a driver's message names the server, the database, the login or the constraint as
+readily as it names anything else. The `detail` is one fixed sentence, and the real message is logged:
 
 ```json
 {
   "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
   "title": "An error occurred while processing your request.",
   "status": 500,
-  "detail": "…"
+  "detail": "The scheduler failed to handle the request. The failure is recorded in the server's log."
 }
 ```
+
+Turning on `IncludeStackTraceInProblemDetails` — the switch that already says "I am debugging this" —
+puts the message back beside the stack trace.
 
 ::: warning Changed in 4.x
 `Quartz-ExceptionType` rode only on the `SchedulerException` path in the 4.0 previews, so a `400`
 raised by request validation and a `400` raised by the scheduler were two different shapes and a
 client could not tell an absent member from one that is never sent.
+
+**Changed in `4.0.0-beta.1`:** a `500` used to return `exception.Message` verbatim.
 :::
 
 There is one case where a `400` has **no** body at all, and it is not the API's doing: a query
@@ -375,11 +405,27 @@ Every listing endpoint — jobs, triggers, calendars, and the two group listings
 }
 ```
 
-`take` defaults to 250 (`PagedQuery.DefaultTake`) when the request names none — ask for everything
-explicitly with **`?take=all`** (`?take=2147483647`, the number behind it, is still accepted and means
-the same thing; `PagedQuery.All` is how it is spelled in code) — `hasMore` is exact, and `totalCount` is `null` unless
-`includeTotalCount=true` was asked for, because computing it costs a second database query. A count
-with no rows is `?take=0&includeTotalCount=true`, which the stores answer with the count query alone.
+`take` defaults to 250 (`PagedQuery.DefaultTake`) when the request names none — ask for as many as the
+server will give with **`?take=all`** (`PagedQuery.All` is how it is spelled in code) — `hasMore` is
+exact, and `totalCount` is `null` unless `includeTotalCount=true` was asked for, because computing it
+costs a second database query. A count with no rows is `?take=0&includeTotalCount=true`, which the stores
+answer with the count query alone.
+
+`QuartzHttpApiOptions.MaxPageSize` bounds how many items one request may return, and defaults to
+**1000** — the same limit the [bulk key fetch](#a-whole-set-of-keys-in-one-call) has always had. The two
+spellings of `take` are answered differently on purpose:
+
+- a **number** above the cap is a `400` naming the cap and the setting that would raise it. `?take=2147483647`
+  is one of those: the number behind the sentinel is no longer accepted at the default cap;
+- **`all`** is *bounded* by the cap rather than refused by it, because it does not name a number — it says
+  "as many as you will give me". A listing whose matches fit under the cap therefore answers exactly as it
+  would with no cap at all, and `hasMore` says when it did not. This is what keeps the 3.x-compatible
+  listings (`GetJobKeys` and its neighbours) working through
+  [`HttpScheduler`](http-client.md): they ask for everything whether the answer is three rows or three
+  million. `HttpScheduler` turns a truncated answer to one of those into an exception rather than a short
+  list.
+
+Set `MaxPageSize` to `0` where an export or a migration really has to take everything in one call.
 
 | Endpoint | Returns | Filters (besides paging) |
 |---|---|---|
@@ -577,7 +623,8 @@ and nothing when the group was empty.
 | Option | Default | What it does |
 |---|---|---|
 | `ApiPath` | `/quartz-api` | The base path every endpoint is served under — see [Where the API is served](#where-the-api-is-served) |
-| `IncludeStackTraceInProblemDetails` | `false` | Adds `Quartz-ExceptionStackTrace` to RFC 7807 error payloads |
+| `IncludeStackTraceInProblemDetails` | `false` | Adds `Quartz-ExceptionStackTrace` to RFC 7807 error payloads, and puts a `500`'s real message back in `detail` |
+| `MaxPageSize` | `1000` | The most items one paged request may return; `0` leaves them unbounded — see [Listing endpoints are paged](#listing-endpoints-are-paged) |
 | `SchedulerAuthorizationPolicy` | none | The policy every route that names a scheduler is held to, evaluated against that scheduler — see [Authorizing per scheduler](#authorizing-per-scheduler) |
 
 There is one set of these per process, not one per scheduler: `ApiPath` describes the endpoints, and
@@ -651,7 +698,15 @@ that remains is over the payload rather than over the contract.
 
 ## Production hardening
 
-- Require authentication/authorization on `MapQuartzHttpApi()`
-- Keep `IncludeStackTraceInProblemDetails` disabled in production
+- Require authentication/authorization on `MapQuartzHttpApi()`. Startup refuses a mapping that states
+  nothing, but `AllowAnonymous()` is a way to say nothing that startup accepts — do not reach for it to
+  make the message go away
+- Do not expose either this or the [dashboard](dashboard.md) to a network you would not hand a shell on:
+  a job's type is a string the request names, and `Quartz.Jobs` puts `NativeJob` within reach of it
+- Keep `IncludeStackTraceInProblemDetails` disabled in production — it returns the stack trace *and* a
+  `500`'s real message
 - Restrict mutating operations (schedule, delete, pause/resume, shutdown) to trusted operator roles
+- Leave `MaxPageSize` set. One request cannot then materialize an unbounded result
 - In clustered setups, treat API calls as scheduler control operations that affect cluster-wide behavior
+- There is **no rate limiting** on this surface. ASP.NET Core's own rate limiter middleware applies to it
+  like any other endpoint, and nothing in Quartz configures one

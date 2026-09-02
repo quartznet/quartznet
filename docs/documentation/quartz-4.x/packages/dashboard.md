@@ -73,7 +73,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapQuartzHttpApi().RequireAuthorization();
-app.MapQuartzDashboard();
+app.MapQuartzDashboard().RequireAuthorization();
 ```
 <!-- endSnippet -->
 
@@ -81,6 +81,35 @@ By default, dashboard UI is available at `/quartz`.
 
 The [HTTP API](http-api.md) is enabled above because it is useful alongside the dashboard, not because
 the dashboard needs it: the pages read the schedulers in this process directly.
+
+::: danger A mapping that says nothing about authorization does not start
+The `RequireAuthorization()` on both lines is not decoration. The dashboard adds no authentication of its
+own; its pages start, stand by, shut down, pause, resume, delete and trigger, and `ReadOnly` is `false`
+by default. `AddJob` there — as on the HTTP API — carries a job's type as a **string the request
+supplies**, resolved later with `Type.GetType` against whatever is on the host's probing path. With
+[`Quartz.Jobs`](quartz-jobs.md) on that path the string reaches `NativeJob`, which starts a process named
+in job data: an unauthenticated dashboard is remote code execution rather than an information leak. Its
+execution history also carries every job exception's message.
+
+Through `4.0.0-alpha.5`, `app.MapQuartzDashboard()` with nothing else said left the pages and the hub
+with no authorization metadata at all. From `4.0.0-beta.1` it fails at startup instead — before the
+server binds its listener — with a message naming the three ways to say what you meant:
+
+- `app.MapQuartzDashboard().RequireAuthorization()` authorizes its pages and its live-events hub;
+- `QuartzDashboardOptions.AuthorizationPolicy` authorizes those, the Blazor circuit and the static assets
+  with them — see [Policy and role-based authorization](#policy-and-role-based-authorization);
+- `app.MapQuartzDashboard().AllowAnonymous()` serves it to anyone, deliberately.
+
+A non-null `AuthorizationOptions.FallbackPolicy` satisfies the check as well. An application that calls
+`AddQuartzDashboard()` and never maps it serves nothing and is left alone.
+:::
+
+::: tip What `MapQuartzDashboard` returns
+An `IEndpointConventionBuilder` covering the dashboard's pages **and** its live-events hub, so
+`RequireAuthorization()` on it is a statement about the dashboard rather than about half of it. Before
+`4.0.0-beta.1` it returned the `RazorComponentsEndpointConventionBuilder`, which reached the pages and
+not the hub — and in the integrated overload reached the host application's own pages too.
+:::
 
 ## Options
 
@@ -306,7 +335,7 @@ When the dashboard hosts its own Blazor root, it can be served from a custom bas
 
 <!-- snippet: sample_dashboard_map_path -->
 ```csharp
-app.MapQuartzDashboard("/my-api/quartz");
+app.MapQuartzDashboard("/my-api/quartz").RequireAuthorization();
 ```
 <!-- endSnippet -->
 
@@ -432,10 +461,12 @@ app.MapQuartzDashboard();
 
 When `AuthorizationPolicy` is set, the policy is applied to the dashboard pages, the SignalR hub, the Blazor circuit (`/_blazor`) and the dashboard static asset endpoint, so the whole dashboard is gated consistently — including under a fail-closed `FallbackPolicy`.
 
-Without a policy the dashboard adds no authorization of its own:
+Without a policy the dashboard adds no authorization of its own, and something else has to say what was
+meant — a `RequireAuthorization()` or an `AllowAnonymous()` on what `MapQuartzDashboard` returns, or a
+fail-closed `FallbackPolicy`. Startup refuses a mapping where none of them did:
 
-- The static asset endpoint (`_content/Quartz.Dashboard/*`) and the Blazor circuit (`/_blazor`) explicitly allow anonymous access so the dashboard's plumbing keeps working under a fail-closed `FallbackPolicy` — these are public package content.
-- The dashboard **pages** and the **SignalR hub** carry no authorization metadata of their own, so they remain governed by your host's policies. Under a fail-closed `FallbackPolicy`, an unauthenticated request to `/quartz` is redirected to login (by design) while authenticated users get the full dashboard. To expose the dashboard to unauthenticated users, either don't enforce a fail-closed `FallbackPolicy` over the dashboard paths, or set an `AuthorizationPolicy` your users satisfy.
+- The static asset endpoint (`_content/Quartz.Dashboard/*`) and the Blazor circuit (`/_blazor`) explicitly allow anonymous access so the dashboard's plumbing keeps working under a fail-closed `FallbackPolicy` — these are public package content, and they are not what the startup check is about.
+- The dashboard **pages** and the **SignalR hub** carry no authorization metadata of their own, so they remain governed by your host's policies. Under a fail-closed `FallbackPolicy`, an unauthenticated request to `/quartz` is redirected to login (by design) while authenticated users get the full dashboard. To expose the dashboard to unauthenticated users, either don't enforce a fail-closed `FallbackPolicy` over the dashboard paths, or set an `AuthorizationPolicy` your users satisfy — and say `AllowAnonymous()` at the map site so the intent is written down.
 
 ::: warning Fail-closed `FallbackPolicy` with `MapStaticAssets()`
 Assets served by the host's `app.MapStaticAssets()` (the .NET 9/10 default) and the framework script `_framework/blazor.web.js` are served by **host/framework-owned endpoints** that Quartz cannot annotate, so a fail-closed `FallbackPolicy` blocks them for unauthenticated users regardless of the dashboard configuration. If you need them reachable before authentication (for example so the login page is styled), mark your static assets anonymous with `app.MapStaticAssets().AllowAnonymous();` — static web assets are public content. The classic `app.UseStaticFiles()` middleware runs before authorization and is not subject to the `FallbackPolicy`. See [API-only projects](#api-only-projects-no-razor-files) for the related `RequiresAspNetWebAssets` setting.
@@ -542,7 +573,7 @@ RazorComponentsEndpointConventionBuilder blazor = app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapQuartzHttpApi().RequireAuthorization();
-app.MapQuartzDashboard(blazor);
+app.MapQuartzDashboard(blazor).RequireAuthorization();
 ```
 <!-- endSnippet -->
 

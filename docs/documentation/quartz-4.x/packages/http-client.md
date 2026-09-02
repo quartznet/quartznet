@@ -19,7 +19,7 @@ The server has to be running the Quartz HTTP API, from `Quartz.AspNetCore`:
 ```csharp
 builder.Services.AddQuartzHttpApi();
 // ...
-app.MapQuartzHttpApi("/quartz-api");
+app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 ```
 <!-- endSnippet -->
 
@@ -285,6 +285,18 @@ Anything the server rejects arrives as an `HttpClientException`, which derives f
 `SchedulerException`, with the RFC 7807 problem details in the message. Turning on
 `QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` on the server puts the server's stack trace in
 there too — useful in development, and not something to ship.
+
+A `500` is the exception. From `4.0.0-beta.1` its problem-details `detail` is one fixed sentence —
+*"The scheduler failed to handle the request. The failure is recorded in the server's log."* — rather than
+the exception's message, so an `HttpClientException` raised by a server fault says only that and points
+at the server's log. `IncludeStackTraceInProblemDetails` puts the message back.
+
+The 3.x-compatible listings — `GetJobKeys`, `GetTriggerKeys`, `GetCalendarNames`, `GetJobGroupNames`,
+`GetTriggerGroupNames`, `GetPausedTriggerGroups` — ask the server for every match, and a server with
+`QuartzHttpApiOptions.MaxPageSize` set (it defaults to 1000) answers with at most that many. Below the cap
+they behave exactly as they always have; above it the client raises an `HttpClientException` naming
+`MaxPageSize` rather than handing back a page that would read as the whole store. Read a large listing
+with the `Query*` members and a `Take` of your own, or raise the cap on the server.
 
 A `404` for a read is not an error: `GetJobDetail` and `GetTrigger` return `null`, exactly as a local
 scheduler would.

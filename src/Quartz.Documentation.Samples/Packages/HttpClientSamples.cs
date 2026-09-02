@@ -18,7 +18,7 @@ public static class HttpClientSamples
 
         builder.Services.AddQuartzHttpApi();
         // ...
-        app.MapQuartzHttpApi("/quartz-api");
+        app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 
         #endregion
     }

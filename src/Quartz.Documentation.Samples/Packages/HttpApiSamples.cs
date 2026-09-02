@@ -41,7 +41,7 @@ public static class HttpApiSamples
         #region sample_httpapi_path
 
         // at the map site, beside the application's other routes
-        app.MapQuartzHttpApi("/ops/api");
+        app.MapQuartzHttpApi("/ops/api").RequireAuthorization();
 
         // or at registration
         builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
