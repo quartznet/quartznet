@@ -4,7 +4,10 @@
     The code the documentation shows.
 
     Every fenced sample on a converted docs page is a #region in this project, injected into the
-    markdown by MarkdownSnippets (see mdsnippets.json). Nothing here ships, and nothing here runs:
+    markdown by the MarkdownSnippets library, driven from build/Build.Docs.Snippets.cs — there is no
+    mdsnippets.json, because the `mdsnippets` command line tool is deliberately not what runs: its
+    directory filter never scans a directory named `packages`, which is where the package pages live.
+    Nothing here ships, and nothing here runs:
     the point is that `dotnet build` refuses a sample that no longer compiles, so a documented call
     cannot outlive the API it names. See CONTRIBUTING.md, "Code samples in the documentation".
   -->
