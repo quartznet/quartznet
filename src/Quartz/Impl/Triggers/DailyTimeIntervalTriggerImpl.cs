@@ -215,15 +215,19 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
     }
 
     /// <summary>
-    /// The time at which the <see cref="IDailyTimeIntervalTrigger" /> should occur.
+    /// The time at which the <see cref="IDailyTimeIntervalTrigger" /> should occur, rounded down to
+    /// the whole second.
     /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="ToWholeSeconds" path="/summary" />
+    /// </remarks>
     public override DateTimeOffset StartTimeUtc
     {
         get
         {
             if (startTimeUtc == DateTimeOffset.MinValue)
             {
-                startTimeUtc = SystemTime.UtcNow();
+                startTimeUtc = ToWholeSeconds(SystemTime.UtcNow());
             }
             return startTimeUtc;
         }
@@ -234,33 +238,53 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
                 throw new ArgumentException("Start time cannot be DateTimeOffset.MinValue");
             }
 
+            DateTimeOffset rounded = ToWholeSeconds(value);
+
             DateTimeOffset? eTime = EndTimeUtc;
-            if (eTime != null && eTime < value)
+            if (eTime != null && eTime < rounded)
             {
                 throw new ArgumentException("End time cannot be before start time");
             }
 
-            startTimeUtc = value;
+            startTimeUtc = rounded;
         }
     }
 
     /// <summary>
-    /// the time at which the <see cref="IDailyTimeIntervalTrigger" /> should quit repeating.
+    /// the time at which the <see cref="IDailyTimeIntervalTrigger" /> should quit repeating, rounded
+    /// down to the whole second.
     /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="ToWholeSeconds" path="/summary" />
+    /// </remarks>
     /// <see cref="DailyTimeIntervalTriggerImpl.FinalFireTimeUtc"/>
     public override DateTimeOffset? EndTimeUtc
     {
         get => endTimeUtc;
         set
         {
+            DateTimeOffset? rounded = value == null ? null : ToWholeSeconds(value.Value);
+
             DateTimeOffset sTime = StartTimeUtc;
-            if (value != null && sTime > value)
+            if (rounded != null && sTime > rounded)
             {
                 throw new ArgumentException("End time cannot be before start time");
             }
 
-            endTimeUtc = value;
+            endTimeUtc = rounded;
         }
+    }
+
+    /// <summary>
+    /// This trigger's boundary times carry no sub-second part, the way <c>CronTriggerImpl</c>'s start
+    /// time does not: <see cref="GetFireTimeAfter" /> counts whole seconds from the start of the day,
+    /// so a start time of <c>22:50:00.68</c> truncated to 74100 seconds after a 02:15 start-of-day
+    /// landed exactly on a 5-minute boundary and produced a first fire time of <c>22:50:00.000</c> -
+    /// before the trigger's own start.
+    /// </summary>
+    private static DateTimeOffset ToWholeSeconds(DateTimeOffset value)
+    {
+        return value.AddTicks(-(value.Ticks % TimeSpan.TicksPerSecond));
     }
 
     /// <summary>
