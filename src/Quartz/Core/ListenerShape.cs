@@ -15,9 +15,10 @@ namespace Quartz.Core;
 /// only the notifications it cares about. The price is that a member with the wrong signature is not a
 /// compile error: it simply stops being an implementation of anything. The default body runs instead,
 /// and the method becomes dead code the scheduler never calls. Three migrations produce exactly that
-/// shape — a 3.x listener whose members return <see cref="Task" />, a 4.0.0-alpha.1 listener whose
-/// callbacks do not take the scheduler first, and a listener whose <c>TriggerMisfired</c> still leads
-/// with the scheduler rather than the trigger — and nothing in the build names the dead member.
+/// shape — a 3.x listener whose members return <see cref="Task" />, a listener written against an
+/// earlier 4.0 preview whose callbacks do not take the scheduler first, and one whose
+/// <c>TriggerMisfired</c> still leads with the scheduler rather than the trigger — and nothing in the
+/// build names the dead member.
 /// </para>
 /// <para>
 /// So the shape is checked once, where the listener is registered, and a method whose name matches a
@@ -145,7 +146,7 @@ internal static class ListenerShape
 
         if (MissesTheScheduler(method, shadowed))
         {
-            message.Append("Listener callbacks take IScheduler scheduler first since 4.0.0-alpha.2. ");
+            message.Append("Listener callbacks take IScheduler scheduler first in 4.0. ");
             section ??= "#listeners-are-told-which-scheduler-is-calling";
         }
 
@@ -156,7 +157,7 @@ internal static class ListenerShape
             if (listenerInterface == typeof(ITriggerListener)
                 && string.Equals(shadowed.Name, nameof(ITriggerListener.TriggerMisfired), StringComparison.Ordinal))
             {
-                message.Append("TriggerMisfired takes the trigger first since 4.0.0-alpha.5. ");
+                message.Append("TriggerMisfired takes the trigger first in 4.0. ");
                 section ??= "#triggermisfired-takes-the-trigger-first";
             }
         }
@@ -181,7 +182,7 @@ internal static class ListenerShape
 
     /// <summary>
     /// Whether the notification leads with the scheduler and the method does not, which is the shape a
-    /// listener written against 4.0.0-alpha.1 has.
+    /// listener written against an earlier 4.0 preview has.
     /// </summary>
     private static bool MissesTheScheduler(MethodInfo method, MethodInfo shadowed)
     {

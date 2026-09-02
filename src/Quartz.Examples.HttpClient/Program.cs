@@ -58,17 +58,32 @@ var mySecondScheduler = host.Services.GetRequiredKeyedService<IScheduler>("MySec
 // A class of your own reaches one the same way: [FromKeyedServices("MyScheduler")] IScheduler scheduler.
 var httpScheduler = host.Services.GetRequiredService<IScheduler>();*/
 
+// One reading first, then a prompt only where somebody is there to answer it. Blocking on Console.ReadLine
+// before the first call made this example unrunnable from a script, a container or a CI step -- and the
+// one thing it exists to show is that the call works.
+ReportStatus();
+
+if (!Environment.UserInteractive || Console.IsInputRedirected)
+{
+    return;
+}
+
 while (true)
 {
     Console.WriteLine();
-    Console.Write("Press enter to check if scheduler is started");
+    Console.Write("Press enter to check again, or type 'exit' to quit: ");
 
     var line = Console.ReadLine();
-    if (line == "exit")
+    if (line is null or "exit")
     {
         break;
     }
 
+    ReportStatus();
+}
+
+void ReportStatus()
+{
     try
     {
         Console.WriteLine("Scheduler.Status: " + httpScheduler.Status);

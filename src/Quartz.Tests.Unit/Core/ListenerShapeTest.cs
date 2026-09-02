@@ -145,7 +145,7 @@ public class ListenerShapeTest
                 "the signature that was written is how the reader finds the method")
             .And.Contain("SchedulerError(IScheduler, SchedulerErrorContext, CancellationToken)",
                 "and the signature it has to become is the fix")
-            .And.Contain("take IScheduler scheduler first since 4.0.0-alpha.2");
+            .And.Contain("take IScheduler scheduler first in 4.0");
     }
 
     [Test]
@@ -156,7 +156,7 @@ public class ListenerShapeTest
         act.Should().Throw<SchedulerConfigException>()
             .Which.Message.Should()
             .Contain(nameof(ISchedulerListener.SchedulerShuttingDown))
-            .And.Contain("take IScheduler scheduler first since 4.0.0-alpha.2");
+            .And.Contain("take IScheduler scheduler first in 4.0");
     }
 
     [Test]
@@ -181,7 +181,7 @@ public class ListenerShapeTest
             .Contain(nameof(ITriggerListener.TriggerMisfired))
             .And.Contain("in a different order",
                 "the two signatures hold the same types, so a reader comparing them finds everything they expect")
-            .And.Contain("takes the trigger first since 4.0.0-alpha.5");
+            .And.Contain("takes the trigger first in 4.0");
     }
 
     [Test]
@@ -240,7 +240,7 @@ public class ListenerShapeTest
         });
 
         act.Should().Throw<SchedulerConfigException>()
-            .Which.Message.Should().Contain("take IScheduler scheduler first since 4.0.0-alpha.2");
+            .Which.Message.Should().Contain("take IScheduler scheduler first in 4.0");
     }
 
     [Test]

@@ -1,8 +1,18 @@
 IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder(args);
 
+// A password the AppHost does not invent afresh on every run. The container and its volume outlive the
+// AppHost (see below), so a generated password would leave run two holding a credential the surviving
+// database has never heard of - and the symptom is not an error but a worker that never starts, because
+// WaitFor never completes. A parameter with a value is the Aspire idiom for pinning one; a real
+// deployment supplies it from user secrets or the environment
+// (`builder.AddParameter("postgres-password", secret: true)`), which is what the AppHost warns about
+// when nothing does.
+IResourceBuilder<ParameterResource> postgresPassword =
+    builder.AddParameter("postgres-password", "quartz-examples-local-only", secret: true);
+
 // A data volume and a persistent container, because a persistent job store whose rows disappear
 // between runs is an in-memory store with more moving parts.
-IResourceBuilder<PostgresServerResource> postgres = builder.AddPostgres("postgres")
+IResourceBuilder<PostgresServerResource> postgres = builder.AddPostgres("postgres", password: postgresPassword)
     .WithDataVolume()
     .WithLifetime(ContainerLifetime.Persistent);
 
