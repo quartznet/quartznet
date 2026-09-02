@@ -266,7 +266,7 @@ public class LegacyPropertyKeyExhaustivenessTest
         supported.Should().OnlyContain(key => key.StartsWith(Prefix, StringComparison.Ordinal) && key.Length > Prefix.Length,
             "the validator only ever looks at keys under the quartz. prefix, so an entry outside it can never match");
         supported.Should().OnlyContain(key => !key.StartsWith("quartz.server", StringComparison.Ordinal),
-            "quartz.server.* belongs to Quartz.Server's own settings and is skipped before this list is consulted");
+            "quartz.server.* belonged to 3.x's Quartz.Server host and is skipped before this list is consulted");
     }
 
     [Test]
@@ -333,8 +333,8 @@ public class LegacyPropertyKeyExhaustivenessTest
     public void QuartzServerKeysAreNotSchedulerKeys()
     {
         Rejection("quartz.server.scheduler.instanceName").Should().BeNull(
-            "Quartz.Server reads its own settings out of the same file, and they are not misspelled "
-            + "scheduler keys");
+            "3.x's Quartz.Server host read its own settings out of the same file, and a configuration "
+            + "carried over from it still has them - they are not misspelled scheduler keys");
     }
 
     /// <summary>

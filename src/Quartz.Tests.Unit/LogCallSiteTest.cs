@@ -26,8 +26,8 @@ namespace Quartz.Tests.Unit;
 /// <c>Quartz.Examples*</c> and <c>Quartz.Documentation.Samples</c> are application code shown to a
 /// reader, and application code logs with <c>logger.LogInformation(…)</c> — a sample that routed its
 /// one message through a generated class would be teaching the wrong lesson about how to use Quartz.
-/// <c>Quartz.Server</c>, <c>Quartz.Benchmark</c>, <c>Quartz.Trimming.Canary</c> and the test projects
-/// have no operator to serve at all.
+/// <c>Quartz.Benchmark</c>, <c>Quartz.Trimming.Canary</c> and the test projects have no operator to
+/// serve at all.
 /// </para>
 /// </remarks>
 public class LogCallSiteTest

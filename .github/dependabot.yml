@@ -58,7 +58,6 @@ updates:
         patterns:
           - "Serilog*"
           - "NLog*"
-          - "log4net"
           - "Microsoft.Extensions.Logging*"
       telemetry:
         patterns:
