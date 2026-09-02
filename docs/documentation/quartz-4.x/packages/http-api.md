@@ -48,6 +48,11 @@ app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 ```
 <!-- endSnippet -->
 
+`UseAuthentication` there is the application's, and it needs a scheme the application registered —
+`AddAuthentication(…).AddJwtBearer()`, an API-key handler, whatever you already use. Quartz supplies
+none: it authorizes, and something else authenticates. Calling `UseAuthentication()` in an application
+that registered no scheme fails at startup, resolving `IAuthenticationSchemeProvider`.
+
 ::: danger A mapping that says nothing about authorization does not start
 `RequireAuthorization()` there is not decoration. The API adds no authentication and no authorization of
 its own, every endpoint below mutates the scheduler it names — `shutdown` and `clear` among them — and a

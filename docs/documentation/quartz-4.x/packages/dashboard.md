@@ -72,6 +72,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+// the dashboard's stylesheet and scripts are static web assets, so something
+// has to serve them
+app.MapStaticAssets();
+
 app.MapQuartzHttpApi().RequireAuthorization();
 app.MapQuartzDashboard().RequireAuthorization();
 ```
@@ -81,6 +85,21 @@ By default, dashboard UI is available at `/quartz`.
 
 The [HTTP API](http-api.md) is enabled above because it is useful alongside the dashboard, not because
 the dashboard needs it: the pages read the schedulers in this process directly.
+
+Three lines in that pipeline are the host's rather than the dashboard's, and each of them is load-bearing:
+
+- **`app.MapStaticAssets()`** serves the dashboard's stylesheet and scripts, which ship as static web
+  assets under `_content/Quartz.Dashboard/`. Without it — or without the older
+  `app.UseStaticFiles()` — every request for one answers 404 and the pages render unstyled and inert.
+  A project with no `.razor` files of its own also needs
+  [`<RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>`](#api-only-projects-no-razor-files), or
+  `/_framework/blazor.web.js` is missing too and nothing on the pages responds to a click.
+- **`app.UseAuthentication()`** needs an authentication scheme to have been registered — an
+  `AddAuthentication(…).AddCookie()`, an OpenID Connect handler, whatever your application already uses.
+  Quartz registers none: it authorizes, and something else authenticates. A pipeline that calls
+  `UseAuthentication()` in an application with no scheme fails at startup, resolving
+  `IAuthenticationSchemeProvider`.
+- **`.RequireAuthorization()`** is what the startup check below is looking for.
 
 ::: danger A mapping that says nothing about authorization does not start
 The `RequireAuthorization()` on both lines is not decoration. The dashboard adds no authentication of its

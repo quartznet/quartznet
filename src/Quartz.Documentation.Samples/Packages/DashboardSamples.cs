@@ -37,6 +37,10 @@ public static class DashboardSamples
         app.UseAuthorization();
         app.UseAntiforgery();
 
+        // the dashboard's stylesheet and scripts are static web assets, so something
+        // has to serve them
+        app.MapStaticAssets();
+
         app.MapQuartzHttpApi().RequireAuthorization();
         app.MapQuartzDashboard().RequireAuthorization();
 
