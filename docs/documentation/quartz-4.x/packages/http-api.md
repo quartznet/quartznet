@@ -662,7 +662,11 @@ that remains is over the payload rather than over the contract.
   a job's type is a string the request names, and `Quartz.Jobs` puts `NativeJob` within reach of it
 - Keep `IncludeStackTraceInProblemDetails` disabled in production — it returns the stack trace *and* a
   `500`'s real message
-- Restrict mutating operations (schedule, delete, pause/resume, shutdown) to trusted operator roles
+- Restrict mutating operations (schedule, delete, pause/resume, shutdown) to trusted operator roles.
+  Quartz has no per-operation permission model to do it with: **a caller who passes authorization is
+  trusted with the whole API**, down to reading every job's data map. `SchedulerAuthorizationPolicy`
+  narrows *which schedulers* a caller reaches and nothing else, so anything finer belongs in the policy
+  or in a gateway in front of this
 - Leave `MaxPageSize` set. One request cannot then materialize an unbounded result
 - In clustered setups, treat API calls as scheduler control operations that affect cluster-wide behavior
 - There is **no rate limiting** on this surface. ASP.NET Core's own rate limiter middleware applies to it

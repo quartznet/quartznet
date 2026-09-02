@@ -20,6 +20,34 @@ Use GitHub's private vulnerability reporting:
 - Provide a clear description, the affected version(s), and a proof of concept or reproduction steps
 - Indicate the impact (e.g. data loss, deadlock, information disclosure, remote code execution)
 
+## What is not a vulnerability
+
+These four come up regularly. Each is a deliberate design decision, documented where it applies, and a
+report of one will be closed with a link back to this section — so please save your time and ours.
+
+- **An authorized caller of the HTTP API or the dashboard is trusted fully.** Quartz has no
+  per-operation permission model: whoever passes the authorization you configured can schedule, trigger,
+  pause, delete and shut down every scheduler they can see, and can read every job's data map. A job's
+  type is a string the request carries, so an authorized caller scheduling `NativeJob` is the API working
+  as designed. `QuartzDashboardOptions.ReadOnly` and the two `SchedulerAuthorizationPolicy` settings are
+  the only narrowings on offer. Authorize these surfaces the way you would authorize a shell —
+  [HTTP API](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/http-api.html#production-hardening),
+  [dashboard](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html#production-hardening).
+- **There is no rate limiting on any Quartz surface**, by design. ASP.NET Core's own rate limiter
+  middleware applies to Quartz's endpoints like any others, and configuring one is the application's
+  call rather than a scheduling library's.
+- **The strong-name key pair is committed to this repository and is public.** Strong naming is assembly
+  *identity*, not integrity — the .NET runtime does not verify strong-name signatures — so a key anyone
+  can read is how an open-source library gives its consumers a stable identity to bind against.
+  `InternalsVisibleTo` is therefore not a security boundary either, and nothing in Quartz treats it as
+  one. What answers "did this come from us, unaltered" is the package signature: every `.nupkg` Quartz
+  publishes is signed, and nuget.org verifies it.
+- **Job data is not a secret store.** A `JobDataMap` is persisted in the job store, is readable through
+  the HTTP API and the dashboard, and appears in logs and traces. A password or a connection string
+  belongs in configuration or a secret manager and reaches the job through the container —
+  [Keep the SMTP credential out of job data](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/quartz-jobs.html#keep-the-smtp-credential-out-of-job-data)
+  is the worked example.
+
 ## What to expect
 
 - Acknowledgment of your report within a few business days.

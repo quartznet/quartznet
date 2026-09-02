@@ -348,6 +348,11 @@ appearing would mean the claim had broken. Nor should you see a warning in a Qua
 package's `TrimAnalysisBaseline.cs` does not list. Either of those is worth reporting — those files are
 the whole record, and they are checked on every pull request.
 
+The `IL2xxx` that do remain are the string-named paths in the table above, and closing them is tracked
+by [#3341](https://github.com/quartznet/quartznet/issues/3341) rather than by this release. They are why
+`IsAotCompatible` is the narrow claim [What Quartz claims](#what-quartz-claims) spells out: nothing needs
+code generated at run time, and a name resolved from a string still needs the recipe below.
+
 ## The two packages that are not trimmable
 
 `Quartz.Serialization.Newtonsoft` and `Quartz.Dashboard` declare `IsTrimmable=false`, in their csproj

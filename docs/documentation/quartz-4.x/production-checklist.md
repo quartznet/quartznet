@@ -24,7 +24,13 @@ with no web stack owes you nothing on the security ones.
    setting that keeps a stored map readable and free of class-versioning problems —
    [Storing job data as strings](tutorial/job-stores.md#storing-job-data-as-strings).
 4. **`MaxConcurrency` is a number you chose**, derived from what the database can serve across every node
-   rather than from the default — [Sizing a cluster](operations.md#sizing-a-cluster).
+   rather than from the default of **10** — [Sizing a cluster](operations.md#sizing-a-cluster). It bounds
+   `MaxBatchSize`, and startup says so when the two disagree:
+
+   ```text
+   MaxBatchSize is 25, which is more than the thread pool's MaxConcurrency of 10. Triggers acquired
+   beyond the number of threads available to run them are held by this node until the pool drains.
+   ```
 5. **The connection pool is at least `MaxConcurrency` plus three.** The scheduling loop, the misfire handler
    and the cluster check-in each need one that is not a job's —
    [The connection pool is the thread pool plus three](../best-practices.md#the-connection-pool-is-the-thread-pool-plus-three).
