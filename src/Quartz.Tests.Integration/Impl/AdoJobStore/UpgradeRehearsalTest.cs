@@ -63,6 +63,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// rehearsal runs the jobs at all — so the guide's advice is exercised rather than merely written down.
 /// </para>
 /// </remarks>
+/// <remarks>
+/// Not parallelizable: every leg rebuilds a schema with DDL on the same database the other migration
+/// fixtures use, and Firebird refuses concurrent metadata updates with a deadlock (SQLSTATE 40001) --
+/// which is exactly what the first CI run of this fixture hit when it overlapped <see cref="MigrationScriptTest" />.
+/// </remarks>
+[NonParallelizable]
 [Category("migrations")]
 public class UpgradeRehearsalTest
 {
