@@ -300,8 +300,6 @@ matching on its text is not.
 | 7000 | Information | `Quartz.Jobs` | `"Directory {DirectoryName} contents updated, notifying listener."` |
 | 7001 | Debug | `Quartz.Jobs` | `"Directory '{Directory}' contents unchanged."` |
 | 7002 | Warning | `Quartz.Jobs` | `"Directory '{DirectoryName}' does not exist."` |
-| 7010 | Debug | `Quartz.Jobs` | `"Could not load some types from assembly {AssemblyName} while scanning for IDirectoryScanListener"` |
-| 7011 | Debug | `Quartz.Jobs` | `"Could not load assembly {AssemblyName} while scanning for IDirectoryScanListener"` |
 | 7100 | Warning | `Quartz.Jobs` | `"File '{FileName}' does not exist."` |
 | 7101 | Information | `Quartz.Jobs` | `"File '{FileName}' updated, notifying listener."` |
 | 7102 | Debug | `Quartz.Jobs` | `"File '{FileName}' unchanged."` |

@@ -1,9 +1,6 @@
-using System.Collections.Concurrent;
-using System.Reflection;
+using System.Globalization;
 
-using Microsoft.Extensions.Logging;
-
-using Quartz.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Quartz.Jobs;
 
@@ -12,9 +9,6 @@ namespace Quartz.Jobs;
 /// </summary>
 internal sealed class DirectoryScanJobModel
 {
-    private static readonly ConcurrentDictionary<string, Type?> listenerTypeCache = new();
-    private static readonly ILogger<DirectoryScanJobModel> logger = LogProvider.CreateLogger<DirectoryScanJobModel>();
-
     /// <summary>
     /// We only want this type of object to be instantiated by inspecting the data
     /// of a IJobExecutionContext <see cref="IJobExecutionContext"/>. Use the
@@ -67,9 +61,7 @@ internal sealed class DirectoryScanJobModel
             JobDetailJobDataMap = context.JobDetail.JobDataMap,
             DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap, options.DirectoryProviderName)
                 .Distinct().ToList(),
-            CurrentFileList = mergedJobDataMap.TryGetValue(DirectoryScanJob.CurrentFileList, out object? value)
-                ? (List<FileInfo>) value!
-                : [],
+            CurrentFileList = ReadFileList(mergedJobDataMap),
         };
 
         return model;
@@ -93,10 +85,54 @@ internal sealed class DirectoryScanJobModel
     /// <summary>
     /// Updates the file list for comparison in next iteration
     /// </summary>
-    /// <param name="fileList"></param>
+    /// <remarks>
+    /// Stored as a <see cref="Dictionary{TKey,TValue}" /> of full path to last-write ticks, because this
+    /// job is <c>[PersistJobDataAfterExecution]</c> and a job data map is written to
+    /// <c>QRTZ_JOB_DETAILS</c> by whichever serializer is configured. A <c>List&lt;FileInfo&gt;</c> is
+    /// not a value either serializer can read back — it is refused outright — so the job's first firing
+    /// against a persistent store failed to persist, and reading the job's data map over the HTTP API or
+    /// the dashboard refused it too. A string-to-string dictionary is one of the shapes both admit, and a
+    /// path is what the comparison actually uses.
+    /// </remarks>
+    /// <param name="fileList">What this scan saw.</param>
     internal void UpdateFileList(List<FileInfo> fileList)
     {
-        JobDetailJobDataMap[DirectoryScanJob.CurrentFileList] = fileList;
+        Dictionary<string, string> stored = new(fileList.Count, StringComparer.Ordinal);
+        foreach (FileInfo file in fileList)
+        {
+            stored[file.FullName] = file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
+        }
+
+        JobDetailJobDataMap[DirectoryScanJob.CurrentFileList] = stored;
+    }
+
+    /// <summary>
+    /// What the previous scan saw, as the paths it recorded.
+    /// </summary>
+    /// <remarks>
+    /// A <c>List&lt;FileInfo&gt;</c> is still read, because a scheduler that has been running since
+    /// before this changed holds one in its in-memory map; nothing persistent can, since storing one
+    /// always failed.
+    /// </remarks>
+    private static List<FileInfo> ReadFileList(JobDataMap mergedJobDataMap)
+    {
+        if (!mergedJobDataMap.TryGetValue(DirectoryScanJob.CurrentFileList, out object? value) || value is null)
+        {
+            return [];
+        }
+
+        if (value is Dictionary<string, string> stored)
+        {
+            List<FileInfo> files = new(stored.Count);
+            foreach (string path in stored.Keys)
+            {
+                files.Add(new FileInfo(path));
+            }
+
+            return files;
+        }
+
+        return value as List<FileInfo> ?? [];
     }
 
 
@@ -117,45 +153,37 @@ internal sealed class DirectoryScanJobModel
     }
 
 
+    /// <summary>
+    /// The listener the job data names: a keyed registration, a registered
+    /// <see cref="IDirectoryScanListener" /> whose type carries the name, or an entry in the
+    /// <see cref="SchedulerContext" /> — which is how <see cref="FileScanJob" /> has always found its own.
+    /// </summary>
+    /// <remarks>
+    /// The name is caller-controlled job data. It used to be looked up by sweeping <em>every loaded
+    /// assembly</em> with <c>GetTypes()</c> on the first miss and remembering the answer — including the
+    /// misses — in a process-lifetime dictionary keyed on that name, so a job data map could grow an
+    /// unbounded cache and pay for a full reflection sweep per distinct value. It also matched on the
+    /// simple type name from any assembly, which is not an identity. All three lookups here are bounded
+    /// by what the application registered.
+    /// </remarks>
     private static IDirectoryScanListener GetListener(string listenerName, SchedulerContext schedCtxt, IServiceProvider? serviceProvider)
     {
-        // First, try to resolve from DI if service provider is available
         if (serviceProvider is not null)
         {
-            // Try to get listener by type name from DI (with caching to avoid repeated reflection)
-            var listenerType = listenerTypeCache.GetOrAdd(listenerName, name =>
+            // A keyed registration is the precise form: AddKeyedSingleton<IDirectoryScanListener>(name).
+            if (serviceProvider is IKeyedServiceProvider
+                && serviceProvider.GetKeyedService<IDirectoryScanListener>(listenerName) is { } keyed)
             {
-                return AppDomain.CurrentDomain.GetAssemblies()
-                    .SelectMany(assembly =>
-                    {
-                        try
-                        {
-                            return assembly.GetTypes();
-                        }
-                        catch (ReflectionTypeLoadException ex)
-                        {
-                            // Some types in the assembly couldn't be loaded, but we can still use the ones that did load
-                            logger.SomeTypesNotLoaded(assembly.FullName, ex);
-                            return ex.Types.Where(t => t != null)!;
-                        }
-                        catch (Exception ex) when (ex is FileNotFoundException or BadImageFormatException or NotSupportedException)
-                        {
-                            // Assembly can't be loaded - skip it
-                            logger.AssemblyNotLoaded(assembly.FullName, ex);
-                            return Array.Empty<Type>();
-                        }
-                    })
-                    .FirstOrDefault(type =>
-                        typeof(IDirectoryScanListener).IsAssignableFrom(type) &&
-                        type.Name == name);
-            });
+                return keyed;
+            }
 
-            if (listenerType is not null)
+            // Otherwise the registered listeners, matched by their type's name, which is what
+            // ScanListenerName = nameof(InboxListener) says.
+            foreach (IDirectoryScanListener candidate in serviceProvider.GetServices<IDirectoryScanListener>())
             {
-                var listener = serviceProvider.GetService(listenerType);
-                if (listener is not null)
+                if (string.Equals(candidate.GetType().Name, listenerName, StringComparison.Ordinal))
                 {
-                    return (IDirectoryScanListener) listener;
+                    return candidate;
                 }
             }
         }
@@ -163,8 +191,10 @@ internal sealed class DirectoryScanJobModel
         // Fall back to SchedulerContext (legacy behavior)
         if (!schedCtxt.TryGetValue(listenerName, out var listenerFromContext))
         {
-            throw new JobExecutionException($"IDirectoryScanListener named '{listenerName}' not found in SchedulerContext");
-
+            throw new JobExecutionException(
+                $"IDirectoryScanListener named '{listenerName}' was not found. Register it in the container as an "
+                + $"IDirectoryScanListener - keyed on '{listenerName}', or with a type named '{listenerName}' - or "
+                + $"put the instance in the SchedulerContext under that key.");
         }
 
         return (IDirectoryScanListener) listenerFromContext!;
