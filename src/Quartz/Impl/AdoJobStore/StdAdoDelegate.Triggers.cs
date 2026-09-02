@@ -2603,6 +2603,8 @@ public partial class StdAdoDelegate
         var persistenceDelegate = FindTriggerPersistenceDelegate(trigger);
         if (trigger is ISimpleTrigger simpleTrigger && persistenceDelegate is not null)
         {
+            AdoJobStoreUtil.RequireStorableDuration(simpleTrigger.RepeatInterval, AdoConstants.ColumnRepeatInterval, trigger.Key);
+
             into.Add(new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger),
             [
                 new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName),
