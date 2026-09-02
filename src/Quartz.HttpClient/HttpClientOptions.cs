@@ -25,6 +25,15 @@ using Microsoft.Extensions.Options;
 
 namespace Quartz;
 
+/// <summary>
+/// What <c>AddQuartzHttpClient</c> needs to build an <see cref="HttpScheduler" />: which remote
+/// scheduler to address, and which <see cref="System.Net.Http.HttpClient" /> to reach it with.
+/// </summary>
+/// <remarks>
+/// The client is named or built, never held: exactly one of <see cref="HttpClientName" /> and
+/// <see cref="CreateHttpClient" /> is given, and the options are validated when the scheduler is first
+/// resolved rather than when they are bound.
+/// </remarks>
 public sealed class HttpClientOptions
 {
     /// <summary>

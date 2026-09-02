@@ -281,8 +281,29 @@ The endpoint accepts **at most 1000 keys per call**; page the keys if you have m
 
 ## Errors
 
-Anything the server rejects arrives as an `HttpClientException`, which derives from
-`SchedulerException`, with the RFC 7807 problem details in the message. Turning on
+**What the server rejects arrives as the exception it named.** The API's problem details carry the type
+the failure came from, and the client rebuilds it — so a `catch` written against a local scheduler fires
+the same way against a remote one. Eight names are mapped back:
+
+| The server raised | The client rethrows |
+|---|---|
+| `SchedulerException` | `SchedulerException` |
+| `InvalidConfigurationException` | `InvalidConfigurationException` |
+| `JobExecutionException` | `JobExecutionException` |
+| `JobPersistenceException` | `JobPersistenceException` |
+| `SchedulerConfigException` | `SchedulerConfigException` |
+| `LockException` | `LockException` |
+| `NoSuchDelegateException` | `NoSuchDelegateException` |
+| `ObjectAlreadyExistsException` | `ObjectAlreadyExistsException` |
+| anything else | `HttpClientException` |
+
+`ObjectAlreadyExistsException` is the one most code depends on: it is what `ScheduleJob` and `AddJob`
+raise for a duplicate, and catching it works over HTTP exactly as it does in process.
+
+Everything else is an `HttpClientException` — a request the endpoint rejected before it reached a
+scheduler, a scheduler name the server does not hold, a response carrying no problem details, a body
+that could not be read. It derives from `SchedulerException`, so a single `catch (SchedulerException)`
+covers both halves, and it carries the RFC 7807 problem details in its message. Turning on
 `QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` on the server puts the server's stack trace in
 there too — useful in development, and not something to ship.
 
