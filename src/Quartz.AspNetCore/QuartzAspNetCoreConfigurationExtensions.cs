@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
+using Quartz.AspNetCore;
 using Quartz.AspNetCore.HttpApi;
 using Quartz.AspNetCore.HttpApi.Endpoints;
 using Quartz.AspNetCore.HttpApi.Util;
@@ -46,6 +48,12 @@ public static class QuartzAspNetCoreConfigurationExtensions
 
         services.TryAddSingleton<ExceptionHandler>();
         services.TryAddSingleton<EndpointHelper>();
+
+        // Refuses to start an application whose mapped API nothing authorizes. Registered here rather
+        // than at the map site, because a hosted service added to a built application is too late.
+        services.TryAddSingleton<QuartzMappedEndpoints>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, QuartzEndpointAuthorizationGuard>());
 
         // The HTTP API serves every scheduler in the container through one set of endpoints, so it cannot
         // read any single scheduler's serializers. It reads the container's registry instead: register a
@@ -110,6 +118,8 @@ public static class QuartzAspNetCoreConfigurationExtensions
             throw new InvalidOperationException("HTTP API not configured. Call services.AddQuartzHttpApi() first.");
         }
 
+        builder.ServiceProvider.GetRequiredService<QuartzMappedEndpoints>().Track(builder);
+
         var options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzHttpApiOptions>>().Value;
         if (pattern is not null)
         {
@@ -148,7 +158,8 @@ public static class QuartzAspNetCoreConfigurationExtensions
             .Union(triggerEndpoints)
             .ToArray();
 
-        if (!string.IsNullOrWhiteSpace(options.SchedulerAuthorizationPolicy))
+        bool authorizedPerScheduler = !string.IsNullOrWhiteSpace(options.SchedulerAuthorizationPolicy);
+        if (authorizedPerScheduler)
         {
             // Applied after the endpoints are built, so that every route added by any of the four groups
             // is covered by the one rule: a route that carries {schedulerName} is authorized against that
@@ -156,10 +167,26 @@ public static class QuartzAspNetCoreConfigurationExtensions
             // are. The scheduler listing carries no such parameter and filters its own answer instead.
             foreach (RouteHandlerBuilder endpoint in allEndpoints)
             {
-                endpoint.RequireSchedulerAuthorization(options.SchedulerAuthorizationPolicy);
+                endpoint.RequireSchedulerAuthorization(options.SchedulerAuthorizationPolicy!);
             }
         }
 
-        return new QuartzApiConventionBuilder(allEndpoints);
+        QuartzApiConventionBuilder conventionBuilder = new(allEndpoints);
+
+        // Says "Quartz mapped this" on every route, which is what QuartzEndpointAuthorizationGuard reads
+        // at startup. Added through the returned builder rather than to each group, so a route added to
+        // any of the four later carries it by being one of them.
+        QuartzEndpointMarker marker = new(HttpApiSurface, HttpApiRemedies, authorizedPerScheduler);
+        conventionBuilder.Add(endpointBuilder => endpointBuilder.Metadata.Add(marker));
+
+        return conventionBuilder;
     }
+
+    private const string HttpApiSurface = "The Quartz HTTP API";
+
+    private const string HttpApiRemedies = """
+          - app.MapQuartzHttpApi().RequireAuthorization() authorizes the whole API;
+          - services.AddQuartzHttpApi(options => options.SchedulerAuthorizationPolicy = "...") authorizes each scheduler on its own;
+          - app.MapQuartzHttpApi().AllowAnonymous() serves it to anyone, deliberately.
+        """;
 }
