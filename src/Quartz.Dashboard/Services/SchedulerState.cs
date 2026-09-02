@@ -29,6 +29,8 @@ internal sealed class SchedulerState
     private const string timeZoneCookieName = "qz_tz";
 
     private string? activeSchedulerName;
+    private IReadOnlyList<SchedulerHeaderDto> availableSchedulers = [];
+    private bool schedulersListed;
     private string selectedTimeZoneId = TimeZoneInfo.Local.Id;
     private string selectedTheme = "system";
 
@@ -55,11 +57,33 @@ internal sealed class SchedulerState
 
     public event EventHandler? OnSchedulerChanged;
 
+    /// <summary>
+    /// The scheduler the dashboard is currently about. Assigning one that the last listing did not carry
+    /// leaves the previous value in place.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The listing in <see cref="AvailableSchedulers" /> is always the authorization-filtered one, so it
+    /// is the set of names this visitor may be pointed at. The picker's value, on the other hand, arrives
+    /// on a browser <c>change</c> event, and Blazor does not check that such a value was one of the
+    /// options the server rendered — so without this the browser could name any scheduler in the process
+    /// and every subscribed page would re-read for it, which is what it did before rc.1.
+    /// </para>
+    /// <para>
+    /// Before the first listing there is nothing to check against and the value is taken as given; that is
+    /// the dashboard's own start-up assignment, which happens before anything is rendered.
+    /// </para>
+    /// </remarks>
     public string? ActiveSchedulerName
     {
         get => activeSchedulerName;
         set
         {
+            if (schedulersListed && !string.IsNullOrWhiteSpace(value) && Find(value) is null)
+            {
+                return;
+            }
+
             if (activeSchedulerName != value)
             {
                 activeSchedulerName = value;
@@ -69,14 +93,26 @@ internal sealed class SchedulerState
     }
 
     /// <summary>
-    /// Every scheduler the container knows about, registrations that nothing has built included.
+    /// Every scheduler the container knows about that the visitor may see, registrations that nothing has
+    /// built included.
     /// </summary>
     /// <remarks>
     /// The headers rather than the names, because whether a scheduler exists is the one thing a picker
     /// has to know about a name it is offering: a registration nobody has built has nothing to show, and
-    /// omitting it would make the tenant look as if it had never been registered.
+    /// omitting it would make the tenant look as if it had never been registered. Every write is a
+    /// filtered listing, which is what makes this the set <see cref="ActiveSchedulerName" /> validates
+    /// against — recording that a listing happened at all, so that a visitor who passes for no scheduler
+    /// gets an empty one rather than an unchecked name.
     /// </remarks>
-    public IReadOnlyList<SchedulerHeaderDto> AvailableSchedulers { get; set; } = [];
+    public IReadOnlyList<SchedulerHeaderDto> AvailableSchedulers
+    {
+        get => availableSchedulers;
+        set
+        {
+            availableSchedulers = value;
+            schedulersListed = true;
+        }
+    }
 
     /// <summary>
     /// The scheduler the dashboard should be about when nothing has chosen one: the first that exists,

@@ -28,17 +28,29 @@ internal sealed class TestSchedulerAuthorizationService : IAuthorizationService
     /// </summary>
     public List<(string PolicyName, object? Resource)> Asked { get; } = [];
 
+    /// <summary>
+    /// Whether the answer arrives asynchronously, which is what any handler that reads a tenant table
+    /// does. A policy that completes synchronously hides every ordering bug the dashboard can have
+    /// between "the visitor changed the scheduler" and "the frame has decided about the new one".
+    /// </summary>
+    public bool Yields { get; set; }
+
     public Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, IEnumerable<IAuthorizationRequirement> requirements)
     {
         throw new NotSupportedException("The dashboard evaluates a named policy, never a bare requirement set.");
     }
 
-    public Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, string policyName)
+    public async Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, string policyName)
     {
         Asked.Add((policyName, resource));
 
+        if (Yields)
+        {
+            await Task.Yield();
+        }
+
         bool succeeded = resource is SchedulerResource scheduler && Allowed.Contains(scheduler.SchedulerName);
-        return Task.FromResult(succeeded ? AuthorizationResult.Success() : AuthorizationResult.Failed());
+        return succeeded ? AuthorizationResult.Success() : AuthorizationResult.Failed();
     }
 }
 

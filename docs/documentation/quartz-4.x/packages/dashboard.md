@@ -507,9 +507,13 @@ in the process they then see, and by default they see all of them. Name a policy
 `SchedulerAuthorizationPolicy` and each scheduler is authorized on its own, evaluated as
 `IAuthorizationService.AuthorizeAsync(user, new SchedulerResource(name), policy)`:
 
-- the scheduler picker and the **Schedulers** page offer only the schedulers the visitor passes for;
+- the scheduler picker and the **Schedulers** page offer only the schedulers the visitor passes for, and
+  the picker refuses a value that was not in the listing it rendered;
 - a page opened on one they do not renders a *not authorized* frame, and reads nothing about that
   scheduler — the page is never created, so no `IQuartzApiClient` call is made on their behalf;
+- **every call the dashboard's own `IQuartzApiClient` makes is authorized again on its way through**,
+  the way `ReadOnly` is, so a page that has the wrong scheduler name — however it got there — is refused
+  rather than served;
 - the live-events hub refuses a connection's request to join that scheduler's group.
 
 The three policies compose rather than replace one another: `AuthorizationPolicy` decides who is in,
@@ -522,9 +526,10 @@ HTTP API together. The worked example is in
 ::: warning Standalone hosting is where this applies today
 The *not authorized* frame is drawn by the dashboard's own layout, which is in the render tree only when
 the dashboard owns its Blazor root — the `MapQuartzDashboard()` overloads that take no components builder.
-Every scheduler listing the dashboard writes is filtered in both hosting modes, and so is the hub
-subscription, so nothing in the dashboard itself will ever point a visitor at a scheduler they fail the
-policy for. But when the components are hosted under an application's own layout
+Every scheduler listing the dashboard writes is filtered in both hosting modes, so is the hub
+subscription, and so is every call through the dashboard's own `IQuartzApiClient` — so nothing in the
+dashboard itself will ever point a visitor at a scheduler they fail the policy for, and a component that
+tried would be refused rather than served. But when the components are hosted under an application's own layout
 ([Integrating with an existing Blazor Server app](#integrating-with-an-existing-blazor-server-app)) the
 frame is not rendered, so an application that routes a visitor to a scheduler by its own means is
 responsible for not routing them to one they fail for.
