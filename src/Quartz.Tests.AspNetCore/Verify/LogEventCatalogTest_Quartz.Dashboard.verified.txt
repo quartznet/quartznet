@@ -1,0 +1,8 @@
+﻿9100  Information  DashboardLog.ActionPerformed
+    "Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome}"
+9101  Information  DashboardLog.ActionFailed
+    "Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason}"
+9102  Debug  DashboardLog.HubConnected
+    "Dashboard connection {ConnectionId} opened for user {User}"
+9103  Debug  DashboardLog.HubDisconnected
+    "Dashboard connection {ConnectionId} closed for user {User}"

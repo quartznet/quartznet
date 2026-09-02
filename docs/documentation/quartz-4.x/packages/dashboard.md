@@ -316,6 +316,17 @@ so switching schedulers re-filters it. That makes it a recent-activity view rath
 and it records only what *this process's dashboard* did. An action taken through the HTTP API, from
 another node, or by another operator's dashboard is not in it, and nothing in it survives a restart.
 
+**Every entry is also logged**, at `Information`, through the application's own `ILogger` — event `9100`
+for an action that succeeded and `9101` for one that failed, each naming the visitor, the action, the
+target and the scheduler. That is the copy that survives a restart and reaches whatever your logs go to;
+the page above is the last 250 in this process's memory. A connection opening or closing is logged at
+`Debug` (`9102` and `9103`), which is diagnostic detail rather than a record of what was done. All four
+are in [Log Events](../log-events.md).
+
+The visitor is `ClaimsPrincipal.Identity.Name` — `(anonymous)` where nothing authenticated, which for a
+dashboard mapped with `AllowAnonymous()` is every entry. Authorize the dashboard if the name is what you
+are after.
+
 ## Execution groups
 
 The panel joins the limits the scheduler is running with — `IScheduler.GetExecutionLimits` — to the
@@ -696,10 +707,11 @@ So it is a *local* trap almost exclusively: an unpublished build started with
 
 - **The dashboard renders its own process.** There is no address to point it at another one; a remote
   dashboard is [#3387](https://github.com/quartznet/quartznet/issues/3387) and is 4.1.
-- **Nothing here is the record.** Live Logs is a live view that starts when the page opens and keeps a
+- **Neither *page* is the record.** Live Logs is a live view that starts when the page opens and keeps a
   hundred events; the Action Log keeps 250 and only what this process's dashboard did. Neither survives
-  a restart, and neither is lossless — use logging and
-  [metrics](opentelemetry-integration.md) for anything you need to be able to go back to.
+  a restart, and neither is lossless — use [metrics](opentelemetry-integration.md) for anything you need
+  to be able to go back to. Every Action Log entry is also written to your `ILogger`, and that copy does
+  survive.
 - **The history store is in-memory and per-process**, so history does not survive a restart and one
   node cannot show another's unless you register a shared `IDashboardHistoryStore`. A database-backed
   one ships with 4.1.

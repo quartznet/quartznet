@@ -116,6 +116,10 @@ public static class QuartzDashboardServiceCollectionExtensions
             provider.GetService<TimeProvider>() ?? TimeProvider.System));
         services.TryAddSingleton<DashboardActionLogService>();
 
+        // Scoped over the singleton store: the entries are the process's, and who made one is the
+        // circuit's. Pages talk to this, which writes both the page's own log and the application's.
+        services.TryAddScoped<DashboardActionLog>();
+
         // The dashboard's own plugins, registered rather than named by a quartz.plugin.*.type key. A type
         // name in a property bag is how a plugin is configured from a file; a package that knows its own
         // plugin types has no reason to spell them as strings and have them loaded back by reflection.
