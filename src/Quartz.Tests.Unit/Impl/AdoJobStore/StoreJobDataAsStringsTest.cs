@@ -182,10 +182,16 @@ public sealed class StoreJobDataAsStringsTest
                 .UsingJobData("count", 5)
                 .Build());
 
-        (await act.Should().ThrowAsync<SchedulerException>(
+        SchedulerException failure = (await act.Should().ThrowAsync<SchedulerException>(
                 "a value the properties format cannot carry has to fail where it was written, not read "
                 + "back later as something else"))
-            .WithMessage("*count*", "the entry the application has to change is the one named");
+            .Which;
+
+        failure.Message.Should()
+            .Contain("must be strings", "the reader is told what the format can carry")
+            .And.Contain("count",
+                "and which entry broke it — a map has as many entries as the application put in it, and "
+                + "finding the offender by bisection is not a diagnostic");
 
         (await scheduler.GetJobDetail(new JobKey("refused", "data"))).Should().BeNull(
             "the refusal happens before the insert, so nothing half-written is left behind");
