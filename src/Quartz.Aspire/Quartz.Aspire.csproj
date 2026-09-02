@@ -7,11 +7,6 @@
     <Description>Quartz.NET Aspire client integration - wires a persistent job store, its telemetry and its health check from an Aspire connection name; $(Description)</Description>
     <PackageTags>$(PackageTags);aspire;aspire-integration</PackageTags>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <!--
-      Undocumented public members. P5 (#3646) is the sweep that turns this on for the side packages;
-      Quartz itself is clean and enforces it. Delete the line when this package is documented.
-    -->
-    <NoWarn>$(NoWarn);1591</NoWarn>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
       Binding is the compiler's job here, not the reflection binder's, for the same reason it is in
