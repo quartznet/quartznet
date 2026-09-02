@@ -117,9 +117,18 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
     /// Builds the store under test. Overridden by the fixture that runs the contract against
     /// <see cref="ExternalTransactionJobStore" />.
     /// </summary>
-    private protected virtual AdoJobStoreBase CreateJobStore(IDbProvider dbProvider, IDriverDelegate driverDelegate)
+    /// <param name="dbProvider">The provider reaching the database this fixture prepared.</param>
+    /// <param name="driverDelegate">The dialect's delegate.</param>
+    /// <param name="storeJobDataAsStrings">
+    /// Whether the store writes job data as name-value pairs. Only the one case about that setting
+    /// passes <see langword="true" />; everything else runs against the default.
+    /// </param>
+    private protected virtual AdoJobStoreBase CreateJobStore(
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        bool storeJobDataAsStrings = false)
     {
-        return new LocalTransactionJobStore(StoreDependencies(dbProvider, driverDelegate));
+        return new LocalTransactionJobStore(StoreDependencies(dbProvider, driverDelegate, storeJobDataAsStrings));
     }
 
     /// <summary>
@@ -128,11 +137,14 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
     /// configuration builder injects one only when the application asked for a specific one. SQLite
     /// therefore gets SqliteLockHandler here exactly as it would in an application.
     /// </summary>
-    private protected AdoJobStoreDependencies StoreDependencies(IDbProvider dbProvider, IDriverDelegate driverDelegate)
+    private protected AdoJobStoreDependencies StoreDependencies(
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        bool storeJobDataAsStrings = false)
     {
         return TestJobStores.Dependencies(
             schedulerOptions: TestJobStores.SchedulerOptions(SchedulerName, InstanceId),
-            storeOptions: TestJobStores.StoreOptions(DataSourceName),
+            storeOptions: TestJobStores.StoreOptions(DataSourceName, configure: options => options.StoreJobDataAsStrings = storeJobDataAsStrings),
             dbProvider: dbProvider,
             driverDelegate: driverDelegate) with
         {
@@ -140,13 +152,19 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
         };
     }
 
+    /// <summary>
+    /// The database this fixture's store was built against, kept so that a second store can be built
+    /// over the same rows rather than over a fresh file.
+    /// </summary>
+    private string preparedConnectionString;
+
     protected override async ValueTask<IJobStore> CreateStore()
     {
-        string connectionString = await PrepareDatabase();
+        preparedConnectionString = await PrepareDatabase();
 
         // The store reads through the provider it is constructed with, so the test only has to build
         // one.
-        IDbProvider dbProvider = new DbProvider(DbProviderName, connectionString);
+        IDbProvider dbProvider = new DbProvider(DbProviderName, preparedConnectionString);
 
         AdoJobStoreBase store = CreateJobStore(dbProvider, CreateDriverDelegate());
 
@@ -154,6 +172,27 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
 
         // Whatever the previous test left behind is this scheduler name's rows, and nothing else is.
         await store.Clear();
+
+        return store;
+    }
+
+    /// <summary>
+    /// A second store over the same database with <see cref="AdoJobStoreOptions.StoreJobDataAsStrings" />
+    /// on, which is the delegate's <c>useProperties</c> and the setting the tutorial recommends.
+    /// </summary>
+    /// <remarks>
+    /// Built from the connection string the fixture already prepared rather than by preparing another
+    /// one — for a container that would be the same database anyway, and for the SQLite fixtures it
+    /// would be a second file that nothing deletes. Deliberately not cleared either: it shares this
+    /// fixture's scheduler name, and the store the fixture built cleared those rows as it was built.
+    /// </remarks>
+    protected override async ValueTask<IJobStore> CreateStoreWritingJobDataAsStrings()
+    {
+        IDbProvider dbProvider = new DbProvider(DbProviderName, preparedConnectionString);
+
+        AdoJobStoreBase store = CreateJobStore(dbProvider, CreateDriverDelegate(), storeJobDataAsStrings: true);
+
+        await store.Initialize(new SchedulerIdentity { SchedulerName = SchedulerName, InstanceId = InstanceId });
 
         return store;
     }

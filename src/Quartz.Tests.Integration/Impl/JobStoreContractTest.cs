@@ -89,6 +89,13 @@ public abstract class JobStoreContractTest
     [TearDown]
     public async Task ShutDownStoreUnderTest()
     {
+        foreach (IJobStore extra in extraStores)
+        {
+            await extra.Shutdown();
+        }
+
+        extraStores.Clear();
+
         if (Store is not null)
         {
             // Every store this fixture builds is shut down, the ADO one included: its background
@@ -2770,6 +2777,71 @@ public abstract class JobStoreContractTest
             "the scheduler thread adds this to the time it is willing to look ahead, so zero or less "
             + "says a hand-over is free and nothing is ever acquired early enough to fire on time");
     }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Job data written as name-value pairs
+    //
+    // StoreJobDataAsStrings is what tutorial/job-stores.md calls "the recommended configuration",
+    // and it changes how a persistent store writes a job's data map. What it must not change is
+    // anything a caller can see, which is what this asserts — on the in-memory store, where the
+    // setting does not exist, and on every dialect, where it does.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AStringOnlyJobDataMapRoundTripsThroughAStoreThatWritesItAsStrings()
+    {
+        IJobStore store = await GivenAStoreWritingJobDataAsStrings();
+
+        JobDataMap data = new()
+        {
+            ["where"] = "home",
+            ["count"] = "5",
+        };
+
+        IJobDetail job = CreateJob<ContractTestJob>("as-strings", JobGroupA, data);
+        IOperableTrigger trigger = CreateTrigger("as-strings", TriggerGroupA, job.Key);
+
+        await store.ScheduleJob(job, trigger);
+
+        JobDataMap readBack = (await store.GetJob(job.Key)).JobDataMap;
+
+        using (new AssertionScope())
+        {
+            readBack["where"].Should().Be("home");
+            readBack["count"].Should().Be("5",
+                "a value written as a string comes back a string: the whole promise of the setting is "
+                + "that no type information is needed to read the map back");
+            readBack.Should().HaveCount(2, "and nothing was added or lost on the way");
+        }
+    }
+
+    /// <summary>
+    /// A store over the same data, told to write job data as name-value pairs rather than as a
+    /// serialized object. A store with no such mode answers with itself.
+    /// </summary>
+    /// <remarks>
+    /// A second store rather than a second fixture axis: the setting changes one column's format, and
+    /// running all of this suite's cases twice per dialect would buy nothing for the container time it
+    /// costs.
+    /// </remarks>
+    protected virtual ValueTask<IJobStore> CreateStoreWritingJobDataAsStrings() => new(Store);
+
+    private async ValueTask<IJobStore> GivenAStoreWritingJobDataAsStrings()
+    {
+        IJobStore store = await CreateStoreWritingJobDataAsStrings();
+
+        if (!ReferenceEquals(store, Store))
+        {
+            extraStores.Add(store);
+        }
+
+        return store;
+    }
+
+    /// <summary>
+    /// Stores a case built for itself, shut down with the one the fixture built.
+    /// </summary>
+    private readonly List<IJobStore> extraStores = [];
 
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Helpers
