@@ -51,4 +51,15 @@ internal static class HttpApiConstants
     /// explicitly instead, and a request that names no state gets the record's default.
     /// </remarks>
     public const string AnyFireInstanceState = "Any";
+
+    /// <summary>
+    /// The <c>take</c> a listing asks for when it wants every match, however many that is.
+    /// </summary>
+    /// <remarks>
+    /// The wire spelling of <see cref="PagedQuery.All" />. The number behind it is
+    /// <c>2147483647</c>, which is what the documentation used to tell a reader to type into a URL —
+    /// unreadable, and indistinguishable from a mistake in a log of request lines. The number is
+    /// still accepted and means the same thing.
+    /// </remarks>
+    public const string AllItems = "all";
 }

@@ -21,10 +21,12 @@ namespace Quartz
     {
         public static Quartz.IQuartzBuilder UseJobHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseJsonSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
+        public static Quartz.IQuartzBuilder UseJsonSchedulingConfiguration(this Quartz.IQuartzBuilder builder, params string[] files) { }
         public static Quartz.IQuartzBuilder UseStructuredJobLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseStructuredTriggerLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TriggerHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseTriggerHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TriggerHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseXmlSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
+        public static Quartz.IQuartzBuilder UseXmlSchedulingConfiguration(this Quartz.IQuartzBuilder builder, params string[] files) { }
     }
     public sealed class TriggerHistoryLoggingOptions
     {

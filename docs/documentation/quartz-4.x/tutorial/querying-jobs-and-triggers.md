@@ -130,14 +130,18 @@ was left out. Ask for everything explicitly:
 
 <!-- snippet: sample_querying_everything -->
 ```csharp
-JobQuery everything = new() { Take = int.MaxValue };
+JobQuery everything = new() { Take = PagedQuery.All };
 ```
 <!-- endSnippet -->
+
+`PagedQuery.All` is `int.MaxValue`. It has a name because a call site that says `int.MaxValue` reads
+as an overflow guard rather than as a decision, and over HTTP the same thing is spelled
+[`?take=all`](../packages/http-api.md#listing-endpoints-are-paged).
 
 ::: warning Changed in 4.x
 In the 4.0 previews `Take` defaulted to `int.MaxValue`. Code that built a query without setting `Take`
 and expected the whole result now gets the first 250 items with `HasMore = true`. Set
-`Take = int.MaxValue` where you meant everything.
+`Take = PagedQuery.All` where you meant everything.
 :::
 
 `HasMore` is exact and effectively free — the stores read one row past `Take` to answer it.
@@ -399,7 +403,7 @@ methods on `IScheduler`:
 | `IsJobGroupPaused(name)` / `IsTriggerGroupPaused(name)` | the group listings |
 
 They exist so a 3.x port compiles, and each one **enumerates the entire result** — they pass
-`Take = int.MaxValue` deliberately. That is fine for a group-name list and a bad idea for a trigger
+`Take = PagedQuery.All` deliberately. That is fine for a group-name list and a bad idea for a trigger
 listing on a busy scheduler. Treat them as a migration aid: anywhere the result can be large, or where
 the row needs state or fire times, move to the query member.
 

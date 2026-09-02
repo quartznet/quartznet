@@ -902,7 +902,7 @@ public interface IJobStore
         CancellationToken cancellationToken)
     {
         PagedResult<JobHeader> matching = await store.QueryJobs(
-            new JobQuery { Group = matcher, Take = int.MaxValue },
+            new JobQuery { Group = matcher, Take = PagedQuery.All },
             cancellationToken).ConfigureAwait(false);
 
         List<JobKey> keys = new List<JobKey>(matching.Items.Count);
@@ -921,7 +921,7 @@ public interface IJobStore
         CancellationToken cancellationToken)
     {
         PagedResult<TriggerHeader> matching = await store.QueryTriggers(
-            new TriggerQuery { Group = matcher, Take = int.MaxValue },
+            new TriggerQuery { Group = matcher, Take = PagedQuery.All },
             cancellationToken).ConfigureAwait(false);
 
         List<TriggerKey> keys = new List<TriggerKey>(matching.Items.Count);

@@ -89,7 +89,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int? take = null,
+        string? take = null,
         bool includeTotalCount = false,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -101,7 +101,7 @@ internal static class JobEndpoints
         string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
-        EndpointHelper.AssertPaging(skip, take);
+        int? takeItems = EndpointHelper.ParsePaging(skip, take);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             GroupMatcher<JobKey> matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
@@ -114,9 +114,9 @@ internal static class JobEndpoints
             };
 
             // a request that names no take gets the query record's own default page size
-            if (take.HasValue)
+            if (takeItems.HasValue)
             {
-                query = query with { Take = take.Value };
+                query = query with { Take = takeItems.Value };
             }
 
             PagedResult<JobHeader> page = await scheduler.QueryJobs(query, cancellationToken).ConfigureAwait(false);
@@ -197,7 +197,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int? take = null,
+        string? take = null,
         bool includeTotalCount = false,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -213,7 +213,7 @@ internal static class JobEndpoints
         string? state = null,
         CancellationToken cancellationToken = default)
     {
-        EndpointHelper.AssertPaging(skip, take);
+        int? takeItems = EndpointHelper.ParsePaging(skip, take);
 
         // A state is parsed here rather than bound as a nullable enum, because null already means
         // something on the query record — every state — and an unnamed parameter must instead mean
@@ -254,9 +254,9 @@ internal static class JobEndpoints
             }
 
             // a request that names no take gets the query record's own default page size
-            if (take.HasValue)
+            if (takeItems.HasValue)
             {
-                query = query with { Take = take.Value };
+                query = query with { Take = takeItems.Value };
             }
 
             PagedResult<FireInstance> page = await scheduler.QueryFireInstances(query, cancellationToken).ConfigureAwait(false);
@@ -508,7 +508,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int? take = null,
+        string? take = null,
         bool includeTotalCount = false,
         bool? paused = null,
         string? nameContains = null,
@@ -517,7 +517,7 @@ internal static class JobEndpoints
         string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
-        EndpointHelper.AssertPaging(skip, take);
+        int? takeItems = EndpointHelper.ParsePaging(skip, take);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             JobGroupQuery query = new()
@@ -529,9 +529,9 @@ internal static class JobEndpoints
             };
 
             // a request that names no take gets the query record's own default page size
-            if (take.HasValue)
+            if (takeItems.HasValue)
             {
-                query = query with { Take = take.Value };
+                query = query with { Take = takeItems.Value };
             }
 
             PagedResult<JobGroup> page = await scheduler.QueryJobGroups(query, cancellationToken).ConfigureAwait(false);

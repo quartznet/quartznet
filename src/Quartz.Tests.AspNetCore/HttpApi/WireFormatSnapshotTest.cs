@@ -425,10 +425,14 @@ public class WireFormatSnapshotTest : WebApiTest
             await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?skip=-1", HttpStatusCode.BadRequest);
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs", HttpStatusCode.BadRequest, """{"replace":true}""");
 
+            // take is read by the endpoint rather than bound by the framework, because ?take=all is a
+            // spelling only the endpoint knows - so an unparseable one carries problem details saying so
+            await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?take=not-a-number", HttpStatusCode.BadRequest);
+
             // ...but a 400 does not always carry a body: a query parameter the framework could not bind
             // never reaches the endpoint, so it answers with the status code alone, where a request the
             // endpoint rejected answers with problem details saying why
-            await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?take=not-a-number", HttpStatusCode.BadRequest, expectedBody: "");
+            await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?skip=not-a-number", HttpStatusCode.BadRequest, expectedBody: "");
             await Row(HttpMethod.Get, $"{SchedulerUrl}/triggers?state=not-a-state", HttpStatusCode.BadRequest, expectedBody: "");
         }
 

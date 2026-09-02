@@ -18,9 +18,12 @@ public class PagedQueryTest
     [Test]
     public void UnboundedIsAnExplicitOptIn()
     {
-        JobQuery query = new JobQuery { Take = int.MaxValue };
+        JobQuery query = new JobQuery { Take = PagedQuery.All };
 
         query.Take.Should().Be(int.MaxValue, "int.MaxValue is the documented 'everything' opt-in");
+        PagedQuery.All.Should().Be(int.MaxValue,
+            "the constant is a name for the number the documentation used to tell readers to type, not a "
+            + "different bound - a query written against either spelling asks for the same thing");
     }
 
     [Test]

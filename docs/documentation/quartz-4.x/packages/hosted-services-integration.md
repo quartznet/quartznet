@@ -151,6 +151,10 @@ builder.Services.AddHealthChecks().AddQuartz(options =>
     options.Name = "quartz-scheduler";   // the default, or quartz-scheduler-<name> for a named scheduler
     options.Tags.AddRange(["ready", "live"]);
     options.FailureStatus = HealthStatus.Unhealthy;
+
+    // What a scheduler in standby reports. Degraded by default; say Unhealthy where a standby
+    // node must leave the rotation and there is no HTTP probe to remap the status code at.
+    options.StandbyStatus = HealthStatus.Unhealthy;
 });
 ```
 <!-- endSnippet -->
@@ -158,6 +162,14 @@ builder.Services.AddHealthChecks().AddQuartz(options =>
 The callback is one source of `QuartzHealthCheckOptions` among several: the settings go through the
 options pipeline, so `services.Configure<QuartzHealthCheckOptions>(...)` and a bound configuration
 section mean the same thing, whichever order they are written in.
+
+`StandbyStatus` is the one setting that changes a *verdict* rather than the registration. Standby is
+deliberate and reversible, so *degraded* is the default — but degraded answers HTTP 200, and a worker
+project has no endpoint on which to map it to anything else, so a deployment whose standby nodes must
+leave the rotation says `StandbyStatus = HealthStatus.Unhealthy` here instead. It covers standby and
+nothing else: a scheduler still in `Created` because `AutoStart` is `false` keeps reporting degraded,
+because that is a window rather than a state a node sits in. `FailureStatus`, by contrast, is what the
+*registration* reports when the check says it failed.
 
 A named scheduler has a check of its own, reporting on *its* scheduler. Name it on the health checks
 builder, or ask for one from inside `AddQuartz`:

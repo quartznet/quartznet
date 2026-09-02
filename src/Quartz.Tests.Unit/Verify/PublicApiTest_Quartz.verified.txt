@@ -1164,6 +1164,7 @@ namespace Quartz
     }
     public abstract record PagedQuery : System.IEquatable<Quartz.PagedQuery>
     {
+        public const int All = 2147483647;
         public const int DefaultTake = 250;
         protected PagedQuery() { }
         public bool IncludeTotalCount { get; init; }
@@ -1297,6 +1298,7 @@ namespace Quartz
         public QuartzHealthCheckOptions() { }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
         public string? Name { get; set; }
+        public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? StandbyStatus { get; set; }
         public System.Collections.Generic.List<string> Tags { get; }
     }
     public static class QuartzHostApplicationBuilderExtensions
@@ -1934,6 +1936,18 @@ namespace Quartz.Diagnostics
     {
         public const string ActivitySourceName = "Quartz";
         public const string MeterName = "Quartz";
+        public static class Instruments
+        {
+            public const string ClusterCheckinDuration = "quartz.cluster.checkin.duration";
+            public const string ClusterRecoveryTrigger = "quartz.cluster.recovery.trigger";
+            public const string JobExecutionActive = "quartz.job.execution.active";
+            public const string JobExecutionDuration = "quartz.job.execution.duration";
+            public const string JobStoreOperationDuration = "quartz.jobstore.operation.duration";
+            public const string TriggerAcquired = "quartz.trigger.acquired";
+            public const string TriggerAcquisitionDuration = "quartz.trigger.acquisition.duration";
+            public const string TriggerMisfire = "quartz.trigger.misfire";
+            public const string TriggerRetry = "quartz.trigger.retry";
+        }
     }
 }
 namespace Quartz.Extensibility
@@ -2124,8 +2138,11 @@ namespace Quartz.Extensibility
     public static class TriggerFireTimes
     {
         public static System.Collections.Generic.List<System.DateTimeOffset> Compute(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
+        public static System.Collections.Generic.List<System.DateTimeOffset> Compute(Quartz.ITrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
         public static System.Collections.Generic.List<System.DateTimeOffset> ComputeBetween(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, System.DateTimeOffset from, System.DateTimeOffset to) { }
+        public static System.Collections.Generic.List<System.DateTimeOffset> ComputeBetween(Quartz.ITrigger trigger, Quartz.ICalendar? calendar, System.DateTimeOffset from, System.DateTimeOffset to) { }
         public static System.DateTimeOffset? ComputeEndTimeForCount(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
+        public static System.DateTimeOffset? ComputeEndTimeForCount(Quartz.ITrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
     }
     public sealed record TriggerFiredBundle : System.IEquatable<Quartz.Extensibility.TriggerFiredBundle>
     {

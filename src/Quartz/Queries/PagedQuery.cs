@@ -56,6 +56,18 @@ public abstract record PagedQuery
     public const int DefaultTake = 250;
 
     /// <summary>
+    /// The <see cref="Take" /> that asks for everything the filter matches, however many that is.
+    /// </summary>
+    /// <remarks>
+    /// It is <see cref="int.MaxValue" />, which is what the documentation used to tell readers to
+    /// type — a magic number for a decision worth stating out loud, and one that reads as an overflow
+    /// guard rather than as an intention at a call site. Asking for everything is a real thing to
+    /// want (a group-name list, an export, a migration) and a bad default, which is why
+    /// <see cref="Take" /> starts at <see cref="DefaultTake" /> and this has to be written.
+    /// </remarks>
+    public const int All = int.MaxValue;
+
+    /// <summary>
     /// The number of matching items to skip before the first returned item.
     /// </summary>
     public int Skip
@@ -72,7 +84,7 @@ public abstract record PagedQuery
     /// The maximum number of items to return. Defaults to <see cref="DefaultTake" /> so an
     /// unpaged call cannot accidentally materialize an unbounded result;
     /// <see cref="PagedResult{T}.HasMore" /> reports whether anything was left out. Ask for
-    /// everything explicitly with <see cref="int.MaxValue" />. Zero is valid and returns no
+    /// everything explicitly with <see cref="All" />. Zero is valid and returns no
     /// items — combined with <see cref="IncludeTotalCount" /> it turns the query into a count.
     /// </summary>
     public int Take

@@ -32,7 +32,7 @@ builder.Services.AddQuartz(q =>
 {
     q.UseStructuredJobLogging();
     q.UseStructuredTriggerLogging();
-    q.UseJsonSchedulingConfiguration(x => x.Files.Add("quartz_jobs.json"));
+    q.UseJsonSchedulingConfiguration("quartz_jobs.json");
 });
 ```
 <!-- endSnippet -->

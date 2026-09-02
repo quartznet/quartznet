@@ -37,4 +37,29 @@ public sealed class QuartzHealthCheckOptions
     /// the default (<see cref="HealthStatus.Unhealthy" />) is used.
     /// </summary>
     public HealthStatus? FailureStatus { get; set; }
+
+    /// <summary>
+    /// The <see cref="HealthStatus" /> reported while the scheduler is in
+    /// <see cref="SchedulerStatus.Standby" />. When <see langword="null" /> the default
+    /// (<see cref="HealthStatus.Degraded" />) is used.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Degraded is the right default and the wrong answer for some deployments. Standby is deliberate
+    /// and reversible, so calling it healthy would hide an application that never started its
+    /// scheduler and calling it unhealthy would take a node out of rotation for doing what it was
+    /// told. But a report is only read by whoever it reaches: an ASP.NET Core application can remap
+    /// degraded on the endpoint with <c>MapHealthChecks(…, new HealthCheckOptions { ResultStatusCodes
+    /// = … })</c>, while a worker has no endpoint at all — its only reader is the probe that asks the
+    /// <c>HealthCheckService</c> directly, and a standby node it must not route to has to say
+    /// <see cref="HealthStatus.Unhealthy" /> here.
+    /// </para>
+    /// <para>
+    /// This is the standby verdict alone. A scheduler still in <see cref="SchedulerStatus.Created" />
+    /// because <see cref="QuartzHostedServiceOptions.AutoStart" /> is <see langword="false" /> also
+    /// reports degraded, and keeps doing so: that is a window between the host starting and the
+    /// application pressing start, not a state a node sits in.
+    /// </para>
+    /// </remarks>
+    public HealthStatus? StandbyStatus { get; set; }
 }

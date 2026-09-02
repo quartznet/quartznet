@@ -46,7 +46,7 @@ public static class QueryingJobsAndTriggersSamples
     {
         #region sample_querying_everything
 
-        JobQuery everything = new() { Take = int.MaxValue };
+        JobQuery everything = new() { Take = PagedQuery.All };
 
         #endregion
     }

@@ -107,15 +107,21 @@ job cannot carry a `traceparent` forward into its next firing.
 
 ## Metrics
 
-Eight instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
+Nine instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
 `quartz.scheduler.id`** — the name says which scheduler, the id says which node of it, and a cluster is
 several nodes sharing one name.
+
+Each name is a `const string` on `QuartzInstrumentation.Instruments`, so a view, an alert rule or a
+dashboard built in code can name one without spelling it: `QuartzInstrumentation.Instruments.JobExecutionDuration`
+is `quartz.job.execution.duration`. The meter builds its instruments from those constants and a test
+holds the two sets equal in both directions, so the table below cannot drift from what is emitted.
 
 | Instrument | Type | Unit | Extra attributes | What it measures |
 |---|---|---|---|---|
 | `quartz.job.execution.duration` | `Histogram<double>` | `s` | `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`, `quartz.job.name`, `quartz.execution.group`¹, `error.type`² | How long a job took. Its **count** is the number of executions. |
 | `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the same identity attributes, `quartz.execution.group`¹ | How many jobs are running right now. |
 | `quartz.trigger.misfire` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Firings that were owed and did not happen on time. |
+| `quartz.trigger.retry` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Retries the scheduler scheduled after a job failed — counted per retry scheduled, not per attempt configured, so a policy that is never used contributes nothing. |
 | `quartz.trigger.acquisition.duration` | `Histogram<double>` | `s` | — | How long the scheduling loop waited on its store for the next batch. |
 | `quartz.trigger.acquired` | `Counter<long>` | `{trigger}` | — | How many triggers those rounds came back with. |
 | `quartz.cluster.checkin.duration` | `Histogram<double>` | `s` | `error.type`² | How long a cluster check-in took. Recorded per attempt, so a retried one is two measurements. |
@@ -130,8 +136,8 @@ than an empty one, so the two are not folded into one series.
 string finds a slow operation in a trace and in a metric. Its histogram's count is how many of each
 operation there were, and the `error.type`-tagged part of that count is how many failed.
 
-The two cluster instruments come from the ADO.NET store, which is the only clustered one. The other five
-are store-agnostic.
+The two cluster instruments come from the ADO.NET store, which is the only clustered one. The other
+seven are store-agnostic.
 
 ### Reading the numbers
 

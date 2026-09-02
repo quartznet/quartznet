@@ -18,19 +18,23 @@ internal sealed class QuartzHealthCheck : IHealthCheck
     private readonly IServiceProvider serviceProvider;
     private readonly SchedulerHealthCheckTarget target;
     private readonly IOptionsMonitor<QuartzHostedServiceOptions> hostedServiceOptions;
+    private readonly IOptionsMonitor<QuartzHealthCheckOptions> checkOptions;
 
     public QuartzHealthCheck(
         IServiceProvider serviceProvider,
         SchedulerHealthCheckTarget target,
-        IOptionsMonitor<QuartzHostedServiceOptions> hostedServiceOptions)
+        IOptionsMonitor<QuartzHostedServiceOptions> hostedServiceOptions,
+        IOptionsMonitor<QuartzHealthCheckOptions> checkOptions)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(hostedServiceOptions);
+        ArgumentNullException.ThrowIfNull(checkOptions);
 
         this.serviceProvider = serviceProvider;
         this.target = target;
         this.hostedServiceOptions = hostedServiceOptions;
+        this.checkOptions = checkOptions;
     }
 
     async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
@@ -63,9 +67,10 @@ internal sealed class QuartzHealthCheck : IHealthCheck
 
             // Alive, reachable and deliberately firing nothing. Reporting healthy would hide an
             // application that never started its scheduler; reporting unhealthy would take a node out of
-            // rotation for doing exactly what it was told.
+            // rotation for doing exactly what it was told. QuartzHealthCheckOptions.StandbyStatus is
+            // there for the deployment that needs the other answer and has no endpoint to remap it on.
             case SchedulerStatus.Standby:
-                return HealthCheckResult.Degraded($"Quartz scheduler '{name}' is in standby");
+                return new HealthCheckResult(StandbyStatus(), $"Quartz scheduler '{name}' is in standby");
 
             // The same argument as standby, one step earlier: a scheduler whose AutoStart is false was
             // never meant to be started by the host, so its being Created is the configuration working
@@ -113,5 +118,19 @@ internal sealed class QuartzHealthCheck : IHealthCheck
     private bool StartedByTheApplication()
     {
         return !hostedServiceOptions.Get(target.SchedulerName ?? Options.DefaultName).AutoStart;
+    }
+
+    /// <summary>
+    /// What standby reports for this scheduler: <see cref="HealthStatus.Degraded" />, unless
+    /// <see cref="QuartzHealthCheckOptions.StandbyStatus" /> asks for something else.
+    /// </summary>
+    /// <remarks>
+    /// Read here rather than at registration, because the registration's <c>failureStatus</c> is
+    /// ASP.NET Core's own slot for "what this check reports when it says it failed" and standby is not
+    /// a failure. Read under the scheduler's name, like every other per-scheduler setting.
+    /// </remarks>
+    private HealthStatus StandbyStatus()
+    {
+        return checkOptions.Get(target.SchedulerName ?? Options.DefaultName).StandbyStatus ?? HealthStatus.Degraded;
     }
 }

@@ -2485,6 +2485,12 @@ because that is what code and a configuration binder say naturally, and the plug
 `FileNames` string because `quartz.plugin.<name>.fileNames` is one. The join happens in
 `UseXmlSchedulingConfiguration` / `UseJsonSchedulingConfiguration`, and both plugins now agree about it.
 
+Both also take a `params string[]` overload as of beta.1 —
+`q.UseJsonSchedulingConfiguration("~/quartz_jobs.json")` — for the case every sample showed, which is
+one file and nothing else to say about it. It adds to `Files` rather than replacing it, so it composes
+with the callback form and with itself; rescanning and the two `FailOn*` settings still need the
+callback.
+
 ### The container is not in the scheduler context
 
 3.x's `ServiceCollectionSchedulerFactory` put the `IServiceProvider` into
@@ -3029,6 +3035,14 @@ The health-check overload that took `IEnumerable<string> healthCheckTags` is gon
 + services.AddHealthChecks().AddQuartz(options => options.Tags.AddRange(["ready", "live"]));
 ```
 
+`QuartzHealthCheckOptions.StandbyStatus` (beta.1) is the one setting that changes a **verdict** rather
+than the registration: a scheduler in standby reports `Degraded`, and setting this reports something
+else. Degraded is the right default — standby is deliberate and reversible — but ASP.NET Core maps it
+to HTTP 200, and a worker project has no endpoint on which to remap it, so a deployment whose standby
+nodes must leave the rotation had nothing to say. It covers standby alone: a scheduler still in
+`Created` because `AutoStart` is `false` keeps reporting degraded. `FailureStatus` is unrelated and
+unchanged — it is what the *registration* reports when the check says it failed.
+
 ## The OpenAPI calendar schema names the properties the payload actually uses
 
 The HTTP API's endpoints handle `ICalendar`, which OpenAPI cannot describe, so the published document has
@@ -3539,6 +3553,13 @@ services.AddOpenTelemetry()
 ```
 
 Both are still `"Quartz"`, so an existing `AddSource("Quartz")` keeps working.
+
+The nine **instrument** names joined them in beta.1, on the nested `QuartzInstrumentation.Instruments`:
+`JobExecutionActive`, `JobExecutionDuration`, `TriggerMisfire`, `TriggerRetry`,
+`TriggerAcquisitionDuration`, `TriggerAcquired`, `ClusterCheckinDuration`, `ClusterRecoveryTrigger` and
+`JobStoreOperationDuration`. They were string literals inside the meter, so a dashboard or a metrics
+view could only copy them out of a documentation page. The values are unchanged and the meter builds
+its instruments from the constants, with a test holding the two sets equal in both directions.
 
 ### Two instruments, not four
 
@@ -6102,12 +6123,17 @@ bounded page, and `HasMore` says whether anything was left out. Earlier 4.0 prev
 `int.MaxValue`. The bound is the one value in one place: the HTTP endpoints apply the same default when a
 request names no `take`, the `HttpScheduler` always puts `take` on the wire (earlier previews omitted the
 parameter for `int.MaxValue`, which after this change would have silently handed the decision to the
-server), and the compat extension methods below pin `Take = int.MaxValue` so their 3.x semantics — return
+server), and the compat extension methods below pin `Take = PagedQuery.All` so their 3.x semantics — return
 everything — cannot silently narrow. Asking for everything is an explicit opt-in:
 
 ```csharp
-PagedResult<JobHeader> everything = await scheduler.QueryJobs(new JobQuery { Take = int.MaxValue });
+PagedResult<JobHeader> everything = await scheduler.QueryJobs(new JobQuery { Take = PagedQuery.All });
 ```
+
+**`PagedQuery.All`** is `int.MaxValue` under a name, and `?take=all` is what it is called on the wire.
+Both are additive: `Take = int.MaxValue` and `?take=2147483647` still say the same thing and go on
+working. They exist because "everything" was a magic number in a place where a magic number reads as an
+overflow guard, and because `?take=2147483647` in a request line is indistinguishable from a mistake.
 
 The count idiom — `Take = 0, IncludeTotalCount = true` — is recognized by the stores, which then run only
 the count and skip the page select entirely.
@@ -10390,8 +10416,14 @@ Parameters and behavior are unchanged:
 + using Quartz.Extensibility;
 
 - var times = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, calendar, 10);
-+ var times = TriggerFireTimes.Compute((IOperableTrigger) trigger, calendar, 10);
++ var times = TriggerFireTimes.Compute(trigger, calendar, 10);
 ```
+
+The cast is gone in beta.1: each of the three has an `ITrigger` overload beside its `IOperableTrigger`
+one, which does the cast and answers with an `ArgumentException` naming the type if the trigger is one
+that cannot be advanced. Testing a schedule is the most mainstream use these have, and requiring the
+cast taught a `Quartz.Extensibility` type to people who needed neither. Additive: the
+`IOperableTrigger` overloads are unchanged, and a call site that casts still binds to them.
 
 ## Other Breaking Changes
 

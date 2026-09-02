@@ -1,4 +1,6 @@
 using System.Collections.Specialized;
+using System.Net;
+using System.Text.Json;
 
 using AwesomeAssertions.Execution;
 
@@ -379,6 +381,55 @@ public class QueryEndpointsTest : WebApiTest
             (await client.GetTriggerGroupNames()).Should().Equal("alpha", "beta");
             (await client.GetCalendarNames()).Should().Equal("cal-a", "cal-b", "cal-c");
         }
+    }
+
+    /// <summary>
+    /// <c>?take=all</c> asks for every match, and is the readable spelling of the number the
+    /// documentation used to tell a reader to type into a URL.
+    /// </summary>
+    /// <remarks>
+    /// Driven over raw HTTP rather than through <see cref="HttpScheduler" />, because the client sends
+    /// the number and the sentinel is for whoever is holding the URL — a browser, a <c>curl</c>, a
+    /// runbook. Five jobs against a default page size of 250 would not tell the two apart, so the
+    /// bounded request beside it is what says the parameter is being read at all.
+    /// </remarks>
+    [Test]
+    public async Task AListingTakesAllWhenTheRequestSaysSo()
+    {
+        using HttpClient raw = WebApplicationFactory.CreateClient();
+        string jobs = $"schedulers/{scheduler.SchedulerName}/jobs";
+
+        (await Names(raw, jobs + "?take=all")).Should().Equal("job1", "job2", "job3", "job1", "job2");
+        (await Names(raw, jobs + "?take=ALL")).Should().HaveCount(5, "a sentinel a human types is read case-insensitively");
+        (await Names(raw, jobs + "?take=2")).Should().Equal(["job1", "job2"], "a number still means a number");
+        (await Names(raw, jobs + $"?take={int.MaxValue}")).Should().HaveCount(5,
+            "the number behind the sentinel is still accepted, so a client that sends one keeps working");
+    }
+
+    [Test]
+    public async Task ATakeThatIsNeitherANumberNorTheSentinelIsRefusedWithAReason()
+    {
+        using HttpClient raw = WebApplicationFactory.CreateClient();
+
+        using HttpResponseMessage response = await raw.GetAsync(
+            $"schedulers/{scheduler.SchedulerName}/jobs?take=lots");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).Should().Contain("all",
+            "the message has to name the one word that is not a number, or 'take must be a number' reads "
+            + "as a flat contradiction of the documentation");
+    }
+
+    private static async Task<List<string>> Names(HttpClient raw, string url)
+    {
+        using HttpResponseMessage response = await raw.GetAsync(url);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using JsonDocument document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(x => x.GetProperty("name").GetString()!)
+            .ToList();
     }
 
     private async Task Seed()
