@@ -49,9 +49,10 @@ public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
     }
 
     /// <summary>
-    /// Constructor
+    /// Creates a calendar that excludes no day of the month of its own and defers to
+    /// <paramref name="baseCalendar" /> for the days it excludes.
     /// </summary>
-    /// <param name="baseCalendar">The base calendar.</param>
+    /// <param name="baseCalendar">The calendar this one is layered over.</param>
     public MonthlyCalendar(ICalendar baseCalendar) : base(baseCalendar)
     {
     }

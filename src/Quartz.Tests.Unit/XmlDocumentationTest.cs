@@ -3,6 +3,8 @@
 using System.Reflection;
 using System.Xml.Linq;
 
+using Quartz.Serialization.Newtonsoft;
+
 namespace Quartz.Tests.Unit;
 
 /// <summary>
@@ -120,6 +122,92 @@ public class XmlDocumentationTest
             "documentation on a member a consumer can see is documentation a consumer reads, and it must "
             + "not send them to a type they cannot name. The compiler accepts these because the target "
             + "resolves inside the assembly:"
+            + Environment.NewLine
+            + string.Join(Environment.NewLine, offenders.Order(StringComparer.Ordinal).Select(x => "    " + x)));
+    }
+
+    /// <summary>
+    /// The shipped assemblies this project can reach, each with its generated XML documentation file.
+    /// </summary>
+    /// <remarks>
+    /// <c>Quartz.AspNetCore</c> and <c>Quartz.Dashboard</c> are not here: only
+    /// <c>Quartz.Tests.AspNetCore</c> can reference them, for the reason issue #3532 gives.
+    /// </remarks>
+    private static IEnumerable<TestCaseData> ShippedAssemblies()
+    {
+        Assembly[] assemblies =
+        [
+            typeof(IScheduler).Assembly,
+            typeof(HttpScheduler).Assembly,
+            typeof(Quartz.Jobs.NoOpJob).Assembly,
+            typeof(Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin).Assembly,
+            typeof(NewtonsoftJsonSerializerRegistry).Assembly,
+        ];
+
+        foreach (Assembly assembly in assemblies)
+        {
+            yield return new TestCaseData(assembly).SetName(assembly.GetName().Name);
+        }
+    }
+
+    /// <summary>
+    /// A documentation element a consumer can see says something.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// CS1591 says a public member has a comment; nothing says the comment has words in it. An empty
+    /// <c>&lt;summary /&gt;</c> is a member with no description at all, and it reads in an IDE exactly
+    /// as one with no comment does — except that CS1591 is satisfied, so nothing ever mentions it again.
+    /// </para>
+    /// <para>
+    /// This covers <c>&lt;summary&gt;</c> alone for now. The other empty elements — 115
+    /// <c>&lt;returns&gt;</c>, 77 <c>&lt;param&gt;</c>, 47 <c>&lt;remarks&gt;</c>, 10
+    /// <c>&lt;value&gt;</c> and one <c>&lt;typeparam&gt;</c> across the shipped packages — are a
+    /// separate job, and for most of them deleting the empty element is a better answer than inventing
+    /// prose for it. Widening the check is what that job ends with.
+    /// </para>
+    /// </remarks>
+    [TestCaseSource(nameof(ShippedAssemblies))]
+    public void NoVisibleMemberCarriesAnEmptySummary(Assembly assembly)
+    {
+        string documentation = Path.ChangeExtension(assembly.Location, ".xml");
+
+        File.Exists(documentation).Should().BeTrue(
+            $"{assembly.GetName().Name} ships its XML documentation, so the file is beside the assembly");
+
+        Dictionary<string, Type> types = assembly.GetTypes()
+            .Where(x => x.FullName is not null)
+            .GroupBy(x => x.FullName!.Replace('+', '.'), StringComparer.Ordinal)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.Ordinal);
+
+        List<string> offenders = [];
+
+        foreach (XElement member in XDocument.Load(documentation).Descendants("member"))
+        {
+            string documented = member.Attribute("name")?.Value ?? "";
+
+            if (!IsVisibleApi(documented, types))
+            {
+                continue;
+            }
+
+            foreach (XElement summary in member.Elements("summary"))
+            {
+                // A <summary><inheritdoc /></summary> has no text of its own and is not meant to.
+                if (summary.Descendants().Any() || !string.IsNullOrWhiteSpace(summary.Value))
+                {
+                    continue;
+                }
+
+                offenders.Add(documented);
+            }
+        }
+
+        offenders.Order(StringComparer.Ordinal).Should().BeEmpty(
+            "an empty <summary /> is a member with no description at all, and it reads in an IDE exactly "
+            + "as one with no comment does - while satisfying CS1591, so nothing mentions it again. "
+            + "Write one, or use <inheritdoc /> where the description belongs to something else. These "
+            + "have none:"
             + Environment.NewLine
             + string.Join(Environment.NewLine, offenders.Order(StringComparer.Ordinal).Select(x => "    " + x)));
     }

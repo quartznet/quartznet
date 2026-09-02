@@ -2999,6 +2999,8 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
 internal readonly record struct ValueAndPosition(int Value, int Position);
 
 /// <summary>
+/// Where one step of the next-fire-time search left off: the date it reached, and whether the search
+/// has to start again from the top because that step moved a coarser field.
 /// </summary>
 /// <param name="RestartLoop">Indicate if the Next fire date progressor loop should restart</param>
 /// <param name="Date">NextFireDate calculated progress result</param>

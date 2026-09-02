@@ -735,8 +735,14 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Replaces the trigger.
+    /// Replaces one trigger with another for the same job, keeping the job and every other trigger of
+    /// it as they are.
     /// </summary>
+    /// <remarks>
+    /// The replacement must name the same job: a trigger that pointed somewhere else would move work
+    /// from one job to another under a call that says it is replacing a schedule. A trigger that was
+    /// paused stays paused, and one that was blocked is re-evaluated against the job's current state.
+    /// </remarks>
     /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
     /// <param name="trigger">The new trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
