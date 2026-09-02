@@ -29,7 +29,9 @@ against is **Aspire 13.5**.
 
 There is no *hosting* integration — no `Aspire.Hosting.Quartz` package, no `AddQuartz` resource for the
 AppHost. Everything below is ordinary Quartz configuration in an application that Aspire happens to be
-running.
+running, and none of it needs the AppHost to exist: `Quartz.Aspire` wants a connection string under a
+name, and where that comes from is not its business. [Without an AppHost](#without-an-apphost) is that
+case written out.
 
 ## What the package subscribes for you
 
@@ -68,6 +70,23 @@ That is the whole of the telemetry integration. Everything below is about the da
 the logs.
 
 ## The AppHost
+
+If you already have one, skip to the code. If you do not, this is where it comes from — and
+[Without an AppHost](#without-an-apphost) is the answer if you would rather not have one at all, which
+is a supported way to use `Quartz.Aspire`.
+
+```shell
+dotnet new install Aspire.ProjectTemplates
+dotnet new aspire-apphost -n AppHost
+dotnet sln add AppHost/AppHost.csproj
+```
+
+`aspire-service-defaults` is the other template, for the ServiceDefaults project the next section
+mentions. What you need on the machine is a **container runtime** — Docker Desktop, Podman — because the
+AppHost starts containers. What you do not need is the `aspire` CLI or an Aspire workload:
+`Aspire.AppHost.Sdk` brings the dashboard and the Developer Control Plane as package payload, so
+`dotnet run` on the AppHost project is enough. [Aspire's own getting started](https://aspire.dev/get-started/first-app/)
+covers the rest.
 
 A Postgres server, a database on it, and the worker that uses them:
 
@@ -119,10 +138,20 @@ builder.AddQuartz();
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 
-`AddServiceDefaults` is generic over `IHostApplicationBuilder`, so a worker gets it as readily as a web
-application does. `AddNpgsqlDataSource("quartz")` reads the connection string that `WithReference` injected
-and registers Npgsql's data source; among the services it registers is an unkeyed `DbDataSource`, and that
-is the one `AddQuartzPersistentStore` looks for.
+Neither of the first two lines is Quartz's, and neither comes from a package you install by that name.
+`AddServiceDefaults` is written by the `aspire-service-defaults` template into a project of your own, so
+it is *your* code — generic over `IHostApplicationBuilder`, which is why a worker gets it as readily as a
+web application does. `AddNpgsqlDataSource` comes from
+[`Aspire.Npgsql`](https://www.nuget.org/packages/Aspire.Npgsql), Aspire's own PostgreSQL client
+integration, which brings the Npgsql driver with it:
+
+```shell
+dotnet add package Aspire.Npgsql
+```
+
+It reads the connection string that `WithReference` injected and registers Npgsql's data source; among
+the services it registers is an unkeyed `DbDataSource`, and that is the one `AddQuartzPersistentStore`
+looks for.
 
 The order of those last three lines does not matter — the store is contributed to every scheduler in the
 container, so it can be named before or after `AddQuartz`. The order of the *data source* does:
@@ -134,6 +163,41 @@ data source registered afterwards is one it never sees. Register it first, as As
 [Quartz.NET repository](https://github.com/quartznet/quartznet/tree/main/src) are this page as two projects
 that build. They are in the solution, so a call on this page that stops compiling fails the build.
 :::
+
+### Without an AppHost
+
+**`Quartz.Aspire` does not need one.** The package takes no `Aspire.*` reference —
+`IHostApplicationBuilder` is the whole of its contract — and `AddQuartzPersistentStore(name)` reads
+`ConnectionStrings:<name>` from `IConfiguration`, wherever that came from. An AppHost is the usual way a
+connection string arrives; it is not the only one, and it is not required.
+
+So the worker above runs on its own, with `appsettings.json` supplying what `WithReference` otherwise
+would and the two Aspire lines dropped:
+
+```json
+{
+  "ConnectionStrings": {
+    "quartz": "Host=localhost;Database=quartz;Username=postgres;Password=postgres"
+  }
+}
+```
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddQuartzPersistentStore("quartz");
+builder.AddQuartz();
+builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+```
+
+That gets the whole worker side: the provider inferred from the connection string, `Aspire:Quartz:*`
+binding, per-scheduler sections, the health check, the telemetry subscriptions, and schema provisioning
+under `Development`. The ADO.NET driver is then your own reference — `dotnet add package Npgsql` — since
+there is no `Aspire.Npgsql` bringing it.
+
+What an AppHost buys is what an orchestrator buys: the database container, the connection string, the
+startup ordering, and the dashboard the rest of this page describes. Everything from
+[The AppHost](#the-apphost) down assumes one.
 
 ### What the call chose, and how to choose it yourself
 

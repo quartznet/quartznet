@@ -634,6 +634,39 @@ If your host project has no `.razor` files of its own (for example a pure API pr
 
 This property tells the .NET SDK to include the Blazor framework scripts (`_framework/blazor.web.js`, `blazor.server.js`) in the app's static web assets. Without it, requests to `/_framework/blazor.web.js` return HTTP 404: as of .NET 10 these files are no longer embedded in the ASP.NET Core assemblies — they are served as static web assets instead.
 
+### The third symptom: an empty `200`
+
+A missing `MapStaticAssets()` and a missing `RequiresAspNetWebAssets` both show as **404**, which is
+easy to recognise. There is a third failure that looks like success: **every static asset answers `200`
+with `Content-Length: 0`.**
+
+```text
+/_framework/blazor.web.js       200   0 bytes
+/_framework/blazor.server.js    200   0 bytes
+/YourApp.styles.css             200   0 bytes
+```
+
+The pages still return `200` and still prerender, so the dashboard *looks* right — it just never becomes
+interactive, because the Blazor circuit has no script to start it. The only clue is a startup warning:
+
+```text
+warn: Microsoft.AspNetCore.Hosting.Diagnostics[15]
+      The WebRootPath was not found: ...\wwwroot. Static files may be unavailable.
+```
+
+This is ASP.NET Core's static web assets behaviour rather than anything of Quartz's. Static web assets
+are described by a manifest the SDK writes, and an **unpublished build resolves that manifest only in
+the `Development` environment**. Run the same unpublished build with no `ASPNETCORE_ENVIRONMENT` — so
+Production — and the endpoints exist but resolve to nothing.
+
+Two things make it go away, and either is enough:
+
+- run it in `Development` (`dotnet run` with the project's launch profile normally does), or
+- `dotnet publish` it and run the published output, which is what a deployment does anyway.
+
+So it is a *local* trap almost exclusively: an unpublished build started with
+`dotnet run --no-launch-profile`, or from a shell where `ASPNETCORE_ENVIRONMENT` is not set.
+
 ## Current limitations
 
 - **The dashboard renders its own process.** There is no address to point it at another one; a remote

@@ -625,11 +625,16 @@ await scheduler.TriggerJob(new JobKey("nightly-report"));
 <!-- endSnippet -->
 
 In an application with a container, register it instead and inject `IScheduler` as usual — naming the
-`IHttpClientFactory` client that carries the base address and the authentication:
+`IHttpClientFactory` client that carries the base address and the authentication.
+
+**The base address is the site root plus `ApiPath`, and it must end with `/`.** The endpoint paths this
+page documents are relative to it, so a base address of the site root alone answers `404` on every call,
+and one without the trailing slash is refused by the `HttpScheduler` constructor.
 
 <!-- snippet: sample_httpapi_client_registration -->
 ```csharp
-builder.Services.AddHttpClient("quartz", client => client.BaseAddress = new Uri("https://scheduler.example.com/"));
+// The base address is the site root *plus the API path*, and it must end with "/"
+builder.Services.AddHttpClient("quartz", client => client.BaseAddress = new Uri("https://scheduler.example.com/quartz-api/"));
 builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientName: "quartz");
 ```
 <!-- endSnippet -->

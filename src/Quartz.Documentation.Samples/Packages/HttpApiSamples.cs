@@ -62,7 +62,8 @@ public static class HttpApiSamples
     {
         #region sample_httpapi_client_registration
 
-        builder.Services.AddHttpClient("quartz", client => client.BaseAddress = new Uri("https://scheduler.example.com/"));
+        // The base address is the site root *plus the API path*, and it must end with "/"
+        builder.Services.AddHttpClient("quartz", client => client.BaseAddress = new Uri("https://scheduler.example.com/quartz-api/"));
         builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientName: "quartz");
 
         #endregion
