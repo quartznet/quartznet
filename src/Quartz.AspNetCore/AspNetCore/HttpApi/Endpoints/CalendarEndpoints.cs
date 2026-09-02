@@ -45,7 +45,7 @@ internal static class CalendarEndpoints
         string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
-        int? takeItems = EndpointHelper.ParsePaging(skip, take);
+        int? takeItems = endpointHelper.ParsePaging(skip, take);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             CalendarQuery query = new()

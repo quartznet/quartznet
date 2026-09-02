@@ -105,7 +105,7 @@ internal static class TriggerEndpoints
         TriggerState? state = null,
         CancellationToken cancellationToken = default)
     {
-        int? takeItems = EndpointHelper.ParsePaging(skip, take);
+        int? takeItems = endpointHelper.ParsePaging(skip, take);
 
         bool hasJobName = !string.IsNullOrWhiteSpace(jobName);
         bool hasJobGroup = !string.IsNullOrWhiteSpace(jobGroup);
@@ -356,7 +356,7 @@ internal static class TriggerEndpoints
         string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
-        int? takeItems = EndpointHelper.ParsePaging(skip, take);
+        int? takeItems = endpointHelper.ParsePaging(skip, take);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             TriggerGroupQuery query = new()

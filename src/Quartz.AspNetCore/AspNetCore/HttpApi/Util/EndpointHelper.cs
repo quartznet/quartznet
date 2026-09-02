@@ -15,15 +15,19 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 internal sealed class EndpointHelper
 {
     private readonly IOptions<JsonOptions> jsonOptions;
+    private readonly int maxPageSize;
 
     /// <summary>
     /// Takes the application's HTTP JSON options, which <see cref="QuartzJsonOptionsSetup" /> has taught
     /// the wire contract by the time they are read. The endpoints already receive this type as a
-    /// parameter, so writing a response through it costs no registration and no extra lookup.
+    /// parameter, so writing a response through it costs no registration and no extra lookup — which is
+    /// also why <see cref="QuartzHttpApiOptions.MaxPageSize" /> is read here rather than at each of the
+    /// six listing endpoints.
     /// </summary>
-    public EndpointHelper(IOptions<JsonOptions> jsonOptions)
+    public EndpointHelper(IOptions<JsonOptions> jsonOptions, IOptions<QuartzHttpApiOptions> apiOptions)
     {
         this.jsonOptions = jsonOptions;
+        maxPageSize = apiOptions.Value.MaxPageSize;
     }
 
     /// <summary>
@@ -163,17 +167,29 @@ internal sealed class EndpointHelper
     /// stand.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>take</c> is bound as a string rather than an <see cref="int" /> so that
     /// <c>?take=all</c> can mean <see cref="PagedQuery.All" />. Asking for everything is a real thing
     /// to want — an export, a group-name list, a migration — and the number behind it is
     /// <c>2147483647</c>, which reads in a URL as a mistake rather than as an intention. The number
     /// is still accepted, so a client that sends one keeps working; only the spelling is new.
+    /// </para>
+    /// <para>
+    /// <see cref="QuartzHttpApiOptions.MaxPageSize" /> bounds both spellings, and answers them
+    /// differently on purpose. A number is a request the server can meet or cannot, so one above the cap
+    /// is a <c>400</c> naming it. <c>all</c> is not a number — it says "as many as you will give me" —
+    /// so it is answered with the cap, and <c>hasMore</c> says whether that was all of them. Which means
+    /// a listing whose matches fit under the cap answers exactly as it would with no cap at all: this is
+    /// what every <c>SchedulerQueryExtensions</c> listing asks for through <c>HttpScheduler</c>,
+    /// three matches or three million, and a cap that refused it would refuse a three-job listing.
+    /// </para>
     /// </remarks>
     /// <exception cref="BadHttpRequestException">
-    /// <paramref name="skip" /> is negative, or <paramref name="take" /> is negative or is neither a
-    /// number nor the "everything" sentinel.
+    /// <paramref name="skip" /> is negative, or <paramref name="take" /> is negative, is neither a
+    /// number nor the "everything" sentinel, or is a number above
+    /// <see cref="QuartzHttpApiOptions.MaxPageSize" />.
     /// </exception>
-    public static int? ParsePaging(int skip, string? take)
+    public int? ParsePaging(int skip, string? take)
     {
         if (skip < 0)
         {
@@ -187,7 +203,7 @@ internal sealed class EndpointHelper
 
         if (string.Equals(take, HttpApiConstants.AllItems, StringComparison.OrdinalIgnoreCase))
         {
-            return PagedQuery.All;
+            return maxPageSize > 0 ? maxPageSize : PagedQuery.All;
         }
 
         if (!int.TryParse(take, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
@@ -199,6 +215,14 @@ internal sealed class EndpointHelper
         if (parsed < 0)
         {
             throw new BadHttpRequestException("take must not be negative");
+        }
+
+        if (maxPageSize > 0 && parsed > maxPageSize)
+        {
+            throw new BadHttpRequestException(
+                $"take must be at most {maxPageSize}, was {parsed.ToString(CultureInfo.InvariantCulture)}. "
+                + $"Ask for '{HttpApiConstants.AllItems}' to take as many as the server allows, page the request, "
+                + $"or raise {nameof(QuartzHttpApiOptions)}.{nameof(QuartzHttpApiOptions.MaxPageSize)}.");
         }
 
         return parsed;

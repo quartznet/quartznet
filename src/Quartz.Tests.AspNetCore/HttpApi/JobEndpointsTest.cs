@@ -43,8 +43,8 @@ public class JobEndpointsTest : WebApiTest
             Fake.ClearRecordedCalls(FakeScheduler);
             await HttpScheduler.GetJobKeys(matcher);
 
-            // the compat listing is deliberately unbounded
-            A.CallTo(() => FakeScheduler.QueryJobs(new JobQuery { Group = matcher, Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+            // the compat listing asks for everything, and the server bounds it to QuartzHttpApiOptions.MaxPageSize
+            A.CallTo(() => FakeScheduler.QueryJobs(new JobQuery { Group = matcher, Take = QuartzHttpApiOptions.DefaultMaxPageSize }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
 
@@ -103,10 +103,12 @@ public class JobEndpointsTest : WebApiTest
             .MustHaveHappened(1, Times.Exactly);
 
         // the explicit unbounded opt-in must survive the wire instead of being silently replaced
-        // by the server default (the old behavior omitted the parameter for int.MaxValue)
+        // by the server default (the old behavior omitted the parameter for int.MaxValue). It travels
+        // as the API's 'all', so what reaches the scheduler is QuartzHttpApiOptions.MaxPageSize rather
+        // than the 250 a request naming no take would have got
         Fake.ClearRecordedCalls(FakeScheduler);
         await HttpScheduler.QueryJobs(new JobQuery { Take = int.MaxValue });
-        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>.That.Matches(query => query.Take == int.MaxValue), A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>.That.Matches(query => query.Take == QuartzHttpApiOptions.DefaultMaxPageSize), A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
     }
 
@@ -616,7 +618,8 @@ public class JobEndpointsTest : WebApiTest
         jobGroupNames.Should().ContainSingle(x => x == "group1");
         jobGroupNames.Should().ContainSingle(x => x == "group2");
 
-        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        // the compat listing asks for everything, and the server bounds it to QuartzHttpApiOptions.MaxPageSize
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Take = QuartzHttpApiOptions.DefaultMaxPageSize }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]

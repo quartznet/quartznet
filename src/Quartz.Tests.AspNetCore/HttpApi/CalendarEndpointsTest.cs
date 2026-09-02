@@ -22,7 +22,8 @@ public class CalendarEndpointsTest : WebApiTest
             calendarNames.Should().ContainSingle(x => x == "Calendar 2");
         }
 
-        A.CallTo(() => FakeScheduler.QueryCalendarNames(new CalendarQuery { Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        // the compat listing asks for everything, and the server bounds it to QuartzHttpApiOptions.MaxPageSize
+        A.CallTo(() => FakeScheduler.QueryCalendarNames(new CalendarQuery { Take = QuartzHttpApiOptions.DefaultMaxPageSize }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
