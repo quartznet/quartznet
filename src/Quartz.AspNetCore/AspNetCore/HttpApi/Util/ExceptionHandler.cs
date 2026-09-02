@@ -33,7 +33,13 @@ internal sealed class ExceptionHandler
     /// </para>
     /// <para>
     /// A <c>500</c> is a fault the caller cannot act on, and naming the type that produced it buys
-    /// nothing it does not also leak.
+    /// nothing it does not also leak. Nor does its message: an <c>ArgumentOutOfRangeException</c> from a
+    /// driver names the server, the database, the login or the constraint as readily as it names a
+    /// number, and the caller can do nothing with any of it. So the detail on that path is
+    /// <see cref="ServerFaultDetail" />, one fixed sentence, and the real message goes to the log where
+    /// the operator reading it is the one entitled to it.
+    /// <see cref="QuartzHttpApiOptions.IncludeStackTraceInProblemDetails" /> — the switch that already
+    /// says "I am debugging this" — puts it back.
     /// </para>
     /// </remarks>
     public IResult HandleException(Exception exception, HttpContext context)
@@ -63,8 +69,21 @@ internal sealed class ExceptionHandler
         }
 
         logger.ExceptionHandlingRequest(context.Request.GetDisplayUrl(), exception);
-        return Problem(exception, exception.Message, StatusCodes.Status500InternalServerError, nameTheExceptionType: false);
+        return Problem(
+            exception,
+            includeStackTrace ? exception.Message : ServerFaultDetail,
+            StatusCodes.Status500InternalServerError,
+            nameTheExceptionType: false);
     }
+
+    /// <summary>
+    /// What a <c>500</c> says instead of the exception's message.
+    /// </summary>
+    /// <remarks>
+    /// Fixed text rather than an empty detail, so a client that renders the detail has something to
+    /// render and one that matches on it matches on a constant rather than on whichever driver failed.
+    /// </remarks>
+    internal const string ServerFaultDetail = "The scheduler failed to handle the request. The failure is recorded in the server's log.";
 
     private static string GetMessageWithInnerExceptionMessage(Exception exception)
     {
