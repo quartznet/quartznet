@@ -2675,7 +2675,7 @@ await scheduler.Start();
 await scheduler.Shutdown(waitForJobsToComplete: true);
 ```
 
-`Quartz.Server` already shuts down this way and never used the plugin.
+3.x's `Quartz.Server` host already shut down this way and never used the plugin.
 
 ## Registered schedulers can be listed without being started
 

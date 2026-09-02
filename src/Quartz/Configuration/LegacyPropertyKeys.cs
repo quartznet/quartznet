@@ -44,8 +44,14 @@ internal static class LegacyPropertyKeys
     internal const string Prefix = "quartz.";
 
     /// <summary>
-    /// The prefix Quartz.Server uses for its own settings, which are not scheduler settings.
+    /// The prefix 3.x's <c>Quartz.Server</c> host used for its own settings, which are not scheduler
+    /// settings.
     /// </summary>
+    /// <remarks>
+    /// The host itself is not part of 4.x, but a configuration file carried over from 3.x still has the
+    /// keys in it, and treating one as a misspelled scheduler key would fail a startup over a setting
+    /// that was never the scheduler's to begin with.
+    /// </remarks>
     private const string ServerPrefix = "quartz.server";
 
     internal const string SchedulerInstanceName = "quartz.scheduler.instanceName";

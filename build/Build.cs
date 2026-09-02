@@ -578,7 +578,7 @@ partial class Build : FalloutBuild, ICompile, IPack
             (RootDirectory / ".config").Copy(zipTempDirectory / ".config");
 
             var binaries = solution.Projects
-                .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");
+                .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example"));
 
             foreach (var project in binaries)
             {
