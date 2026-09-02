@@ -398,8 +398,8 @@ ALTER TABLE QRTZ_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);
 The standard 4.x schema also includes an `EXECUTION_GROUP` column on `QRTZ_FIRED_TRIGGERS`. It records
 the execution group a firing belongs to, which two things read: `IScheduler.QueryFireInstances` reports
 it from any node in the cluster, and a **cluster-scoped** limit is counted by aggregating over it. Which
-triggers are candidates is still decided from `QRTZ_TRIGGERS`. Rows written by a 4.0 preview before it
-went live hold `NULL`. If upgrading from 3.x, add it alongside the `QRTZ_TRIGGERS` column:
+triggers are candidates is still decided from `QRTZ_TRIGGERS`. If upgrading from 3.x, add it alongside
+the `QRTZ_TRIGGERS` column:
 
 ```sql
 ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;  -- SQL Server

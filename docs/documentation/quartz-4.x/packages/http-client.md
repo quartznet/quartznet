@@ -211,10 +211,8 @@ All three throw `NotSupportedException`, with a message that names the member an
 Listeners are the important one: a `TriggerListener` registered on a client would never see anything,
 because nothing fires here. Register listeners where the scheduler actually runs.
 
-`Context` is the one that changed shape in the 4.0 alpha series: it used to make a synchronous HTTP
-call from a property getter and hand back a detached copy of the remote context, which blocked the
-calling thread and silently discarded anything written to it. Read scheduler-wide state from the
-endpoint (`GET {apiPath}/schedulers/{name}/context`) if you need it.
+Read scheduler-wide state from the endpoint (`GET {apiPath}/schedulers/{name}/context`) where you would
+have reached for `Context`.
 
 ## Blocking members
 

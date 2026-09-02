@@ -53,14 +53,6 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
 ```
 <!-- endSnippet -->
 
-::: warning Changed in 4.0.0-alpha.5
-Earlier previews let you chain configuration directly on the builder —
-`Create().UseInMemoryStore().Build()` — because the type re-declared every `IQuartzBuilder` member and
-every builder extension with a covariant return. That facade is gone; configuration goes in the
-callback. The fix is mechanical: wrap what was chained between `Create()` and the terminal call in
-`Create(q => q…)`.
-:::
-
 ## Build, or BuildScheduler
 
 Two endings, for two different needs:
@@ -126,13 +118,6 @@ await scheduler.Shutdown(waitForJobsToComplete: true);
 
 Disposing twice does nothing the second time, and disposing a factory whose `GetScheduler()` was never
 called does nothing at all: a scheduler is never built merely to be torn down.
-
-::: warning Fixed in 4.0.0-alpha.2
-In 4.0.0-alpha.1 disposing the factory disposed only the container. The scheduler stayed running and
-kept firing, and where something had injected `IScheduler` the synchronous `Dispose()` threw
-`InvalidOperationException` instead of shutting anything down
-([#3380](https://github.com/quartznet/quartznet/issues/3380)).
-:::
 
 **Never disposing is a supported choice.** A console application whose scheduler runs until the process
 ends behaves exactly as it did with the process-lifetime scheduler of earlier versions. The dispose

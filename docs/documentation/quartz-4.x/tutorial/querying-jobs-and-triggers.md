@@ -138,12 +138,6 @@ JobQuery everything = new() { Take = PagedQuery.All };
 as an overflow guard rather than as a decision, and over HTTP the same thing is spelled
 [`?take=all`](../packages/http-api.md#listing-endpoints-are-paged).
 
-::: warning Changed in 4.x
-In the 4.0 previews `Take` defaulted to `int.MaxValue`. Code that built a query without setting `Take`
-and expected the whole result now gets the first 250 items with `HasMore = true`. Set
-`Take = PagedQuery.All` where you meant everything.
-:::
-
 `HasMore` is exact and effectively free — the stores read one row past `Take` to answer it.
 `TotalCount` is `null` unless you ask for it, because on a persistent store it costs a second query:
 

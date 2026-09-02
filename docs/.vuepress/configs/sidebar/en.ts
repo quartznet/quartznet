@@ -85,7 +85,7 @@ export const sidebarEn: SidebarConfig = [
     ],
   },
   {
-    text: "Unreleased Releases",
+    text: "Next Release",
     collapsible: true,
     children: [
       {

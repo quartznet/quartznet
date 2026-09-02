@@ -5,7 +5,7 @@ prev: false
 next: false
 ---
 
-<ApplicableVersion />
+<ApplicableVersion version="4.0" />
 
 * [Lesson 1: Using Quartz](using-quartz.md)
 * [Lesson 2: Jobs And Triggers](jobs-and-triggers.md)
