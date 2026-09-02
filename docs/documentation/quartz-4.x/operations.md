@@ -129,15 +129,25 @@ stores a string map therefore has to keep its writes on the 3.x nodes until the 
 store the map as a string it serializes itself. Nothing else in job data is affected, and a cluster on
 System.Text.Json is not affected at all.
 
-**Defer section 5 of the migration until the last 3.x node is gone.** Sections 1 to 4 are the required
-ones; section 5 realigns the index set, and it *drops seven indexes that the 3.20 migration created for
+**Defer section 6 of the migration until the last 3.x node is gone.** Sections 1 to 5 are the required
+ones; section 6 realigns the index set, and it *drops seven indexes that the 3.20 migration created for
 3.x* — `IDX_QRTZ_T_G_J`, `IDX_QRTZ_T_N_STATE`, `IDX_QRTZ_T_N_G_STATE`, `IDX_QRTZ_T_NEXT_FIRE_TIME`,
 `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP`, `IDX_QRTZ_FT_G_J` and `IDX_QRTZ_FT_G_T`. Its replacements have the
 leading columns 4.x's queries want, not 3.x's; one of them, `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP`, serves a
 3.x statement that has no 4.x counterpart at all. Nothing breaks, but a 3.x node scans where it used to
 seek, which on a large schedule is the difference between a misfire sweep that finishes and one that
-times out. The script is guarded and re-runnable, so running sections 1 to 4 now and the whole file
+times out. The script is guarded and re-runnable, so running sections 1 to 5 now and the whole file
 again afterwards costs nothing.
+
+**A retry policy is invisible to a 3.x node, and a 3.x reschedule destroys one.** `RETRY_POLICY` and
+`RETRY_ATTEMPT` are new in 4.x, so a job that fails on a 3.x node is not retried and its attempt count
+is not advanced — that half is only a feature being absent. The half that loses data is rescheduling:
+3.x implements `IScheduler.RescheduleJob` as a delete followed by an insert, and its insert names no
+`RETRY_POLICY` or `RETRY_ATTEMPT` column, so the trigger comes back with both null and the policy is
+gone with no error anywhere. An in-place update is safe — 3.x's trigger `UPDATE` sets a fixed column
+list that omits the two, so it leaves whatever 4.0 wrote alone. So: **do not reschedule a trigger from a
+3.x node during the window if it carries a retry policy.** Pausing, resuming, deleting and firing it are
+all fine.
 
 **Treat cluster-scoped execution limits as unavailable during the window, not merely approximate.**
 `ExecutionLimitScope.Cluster` is 4.x only, and a 4.0 node enforces it by counting `QRTZ_FIRED_TRIGGERS`
@@ -172,7 +182,7 @@ same environment just fine, thanks to forward compatibility", and gates its risk
 the list above is what it offers instead.
 
 Rolling back is available for the same reason the window works: the migration is additive, so a 3.x node
-starts against the 4.0 schema without anything being undone. Only section 5's index drops would need
+starts against the 4.0 schema without anything being undone. Only section 6's index drops would need
 putting back, by re-running [`migrations/3.20`](https://github.com/quartznet/quartznet/tree/main/database/migrations/3.20) —
 and any calendar a 4.0 node wrote would need rewriting from a 3.x one.
 
