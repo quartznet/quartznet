@@ -700,20 +700,28 @@ deployment left at the defaults gets.
 |-------------- |--------------- |------------------- |------------------- |------------ |
 | PostgreSQL    | 10             | 9.87 ms / 136 KB   | 6.18 ms / 56 KB    | 1.6x faster, 2.4x less garbage |
 | PostgreSQL    | 50             | 9.21 ms / 132 KB   | 6.13 ms / 53 KB    | 1.5x faster, 2.5x less garbage |
-| `RAMJobStore` | 10             | 2.31 µs / 3.25 KB  | 3.44 µs / 3.62 KB  | 1.5x slower |
-| `RAMJobStore` | 50             | 2.23 µs / 3.25 KB  | 3.02 µs / 3.63 KB  | 1.4x slower |
+| `RAMJobStore` | 10             | 2.58 µs / 3.25 KB  | 2.16 µs / 2.57 KB  | 1.2x faster, 21 % less garbage |
+| `RAMJobStore` | 50             | 2.71 µs / 3.29 KB  | 1.81 µs / 2.57 KB  | 1.5x faster, 21 % less garbage |
 
-That is about 162 firings a second per node on PostgreSQL and about 300,000 on `RAMJobStore`, on this
-machine. The persistent-store gain is the batched fire path: a firing now costs **1.27 database
-commits**, where it used to cost one round trip per statement. The in-memory loss is 4.0's per-firing
-machinery — a DI scope, the middleware pipeline, the execution-group ledger — and against six
-milliseconds of database it is invisible in any deployment that has one
-([#3674](https://github.com/quartznet/quartznet/issues/3674)).
+That is about 162 firings a second per node on PostgreSQL and about 460,000 to 550,000 on
+`RAMJobStore`, on this machine. The persistent-store gain is the batched fire path: a firing now costs
+**1.27 database commits**, where it used to cost one round trip per statement. The in-memory rows are
+medians of five alternating pairs taken under load rather than the single tight figures the PostgreSQL
+rows are, so read their ratio and not their absolute; the benchmark README carries the ranges.
 
-**A bigger pool does not start firings faster.** Five times the threads bought 14 % on `RAMJobStore`
-and nothing measurable on PostgreSQL, because a node's store operations serialise on the
-`TRIGGER_ACCESS` lock. What `MaxConcurrency` buys is more *jobs* running at once, which is the point
-of it — see [Sizing a cluster](#sizing-a-cluster) above.
+The `RAMJobStore` rows went the other way before beta.1 — 4.0 was 1.4x *slower* there, which
+[#3674](https://github.com/quartznet/quartznet/issues/3674) was filed to explain. It was not the
+per-firing machinery a reader would guess: measured one at a time, the DI scope, the middleware
+pipeline, the execution-group ledger and the retry-policy check are each cheaper than the 3.x code
+they replaced or cost nothing at all. It was two things in the in-memory store — a dictionary
+allocated and discarded on every firing, and a lock taken asynchronously where 3.x takes a monitor, so
+that most store calls on the fire path suspended and cost a thread-pool hop. Both are fixed.
+
+**A bigger pool does not start firings faster.** Five times the threads bought about 17 % on
+`RAMJobStore` and nothing measurable on PostgreSQL, because a node's store operations serialise on one
+lock — `TRIGGER_ACCESS` on a persistent store, the store's own monitor on the in-memory one. What
+`MaxConcurrency` buys is more *jobs* running at once, which is the point of it — see
+[Sizing a cluster](#sizing-a-cluster) above.
 
 ### Scheduling and cron
 

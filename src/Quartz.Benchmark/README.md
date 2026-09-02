@@ -242,7 +242,8 @@ same order twice. The tie-break stays the key.
 
 ## Fire throughput and per-fire allocation (2026-09-02, AMD Ryzen 9 5950X)
 
-Taken on `1e6af15e1` to answer #3653. The numbers already in this file are about parsing an
+Taken on `1e6af15e1` to answer #3653, and the `RAMJobStore` half re-taken after #3676 - see that
+subsection, which says what moved and why. The numbers already in this file are about parsing an
 expression and putting a trigger into a store; this section is about the thing a production reader
 actually asks - **how many trigger firings a second, and how much garbage per firing** - and it is
 the first time 4.0 has had one. It is also where the migration guide's claim that the batched fire
@@ -263,13 +264,17 @@ process, acquisition loop and worker threads included, not what one thread of it
 .NET 10.0.11 (10.0.1126.37416), X64 RyuJIT x86-64-v3, Concurrent Workstation GC. PostgreSQL 15.1 in
 Docker Desktop, reached over loopback, at its shipped durability settings (`fsync = on`,
 `synchronous_commit = on`). The 3.x rows were taken on `origin/3.x` at `b33c70487`, against a
-database built from **3.x's own** `database/tables/tables_postgres.sql` rather than 4.0's.
+database built from **3.x's own** `database/tables/tables_postgres.sql` rather than 4.0's; the
+re-taken `RAMJobStore` rows are `origin/3.x` at `9ee33fec1` against `main` at `e74dd6345` plus #3676.
 
 **Read the Error column.** This is a working machine and something else is usually running on it, so
-the means carry more spread than a dedicated box would give. These runs came out tight anyway -
-every Error below is under 1.5% of its Mean, which is unlike the older sections in this file - and
-that is what lets the 3.x-to-4.0 ratios be read as ratios rather than as directions. The allocation
-column is exact whatever the load, and the effects below are multiples rather than percentages.
+the means carry more spread than a dedicated box would give. The PostgreSQL sitting came out tight -
+every Error there is under 1.5% of its Mean, which is unlike the older sections in this file - and
+that is what lets its 3.x-to-4.0 ratios be read as ratios rather than as directions. The
+`RAMJobStore` sitting did not: it was re-run under load, so those rows carry ranges over five
+alternating pairs and Errors up to 10%, and the safe reading of them is the medians and the
+allocation column. The allocation column is exact whatever the load, and the effects below are
+multiples rather than percentages.
 
 **Two settings are not at their defaults, and both had to move.** `MaxBatchSize` tracks
 `MaxConcurrency` - the scheduler refuses a batch larger than the pool that would have to run it, so
@@ -291,12 +296,22 @@ same rows; those are real costs and none of them is in these numbers.
 
 ### RAMJobStore
 
-| Version | MaxConcurrency | Mean     | Error     | Allocated | Fires/second |
-|-------- |--------------- |---------:|----------:|----------:|-------------:|
-| 4.0     | 10             | 3.436 us | 0.0258 us |   3.62 KB |      291,000 |
-| 4.0     | 50             | 3.024 us | 0.0352 us |   3.63 KB |      330,700 |
-| 3.20    | 10             | 2.314 us | 0.0266 us |   3.25 KB |      432,200 |
-| 3.20    | 50             | 2.228 us | 0.0317 us |   3.25 KB |      448,800 |
+**Re-measured on 2026-09-02 after #3676, which is what #3674 turned into.** The first sitting had 4.0
+at 3.4 us and 3.62 KB a firing against 3.20's 2.3 us and 3.25 KB; the rows below replace it. Both arms
+were re-run in one sitting on this machine, **five alternating pairs**, the order reversed between
+them, and the machine was busy throughout - so these are ranges over the five runs rather than the one
+figure a quiet box would give, and the medians are what the verdict below reads.
+
+| Version | MaxConcurrency | Mean (5 runs)   | Median   | Error       | Allocated       | Fires/second      |
+|-------- |--------------- |---------------: |--------: |-----------: |---------------: |-----------------: |
+| 4.0     | 10             | 1.865-2.604 us  | 2.164 us | 1.6%-2.7%   | 2.56-2.58 KB    | 384,000-536,000   |
+| 4.0     | 50             | 1.347-2.102 us  | 1.805 us | 0.9%-7.8%   | 2.56-2.57 KB    | 476,000-742,000   |
+| 3.20    | 10             | 2.456-3.237 us  | 2.579 us | 1.7%-6.0%   | 3.21-3.28 KB    | 309,000-407,000   |
+| 3.20    | 50             | 2.234-4.382 us  | 2.713 us | 1.6%-10.5%  | 3.25-3.30 KB    | 228,000-448,000   |
+
+The allocation column is the one to trust without qualification: four of the five 4.0 runs read
+2.56 KB or 2.57 KB at both pool sizes and the fifth read 3.35 KB at `MaxConcurrency` 50 with an 8%
+Error, which is the only reading in the set that does not repeat.
 
 ### PostgreSQL
 
@@ -316,18 +331,25 @@ client, a firing now costs **1.27 commits** - 42,337 transactions over 33,404 fi
 which is one `TriggeredJobComplete` plus a share of an acquisition and a `TriggersFired` amortised
 across the batch.
 
-**On `RAMJobStore`, 4.0 is about 1.4x slower per firing than 3.20 and allocates 11% more** - 3.0-3.4
-us against 2.2-2.3 us. Recorded rather than acted on, and not investigated here: the 4.0 fire path
-carries things 3.x's did not, including a DI scope per firing, the job-execution middleware pipeline,
-the execution-group ledger and the retry-policy check. Against 3 us of scheduler work the persistent
-store's 6 ms makes this invisible in any deployment that has a database, which is why it is at the
-bottom of this section rather than the top. Filed as #3674.
+**On `RAMJobStore`, 4.0 is faster per firing than 3.20 and allocates 21% less** - 2.56 KB against
+3.25 KB, and 2.16 us against 2.58 us by the medians at `MaxConcurrency` 10, 1.81 us against 2.71 us at
+50. It was not, until #3676. The first sitting had it 1.4x *slower*, which is what #3674 was filed to
+explain, and the explanation was not the list this paragraph used to carry - a DI scope per firing,
+the middleware pipeline, the execution-group ledger, the retry-policy check. Measured one at a time,
+every one of those is *cheaper* than the 3.x code it replaced or costs nothing at all: the scope 328
+bytes against 456, the execution context 248 against 480, the listener notifications 48 against 720,
+and the pipeline, the activity, the meters and the retry check zero apiece. The regression was two
+things in the store, both fixed in #3676: a `Dictionary` allocated and thrown away on every firing to
+hold the trigger's running executions, and a lock taken with `await SemaphoreSlim.WaitAsync` where
+3.x's is a monitor, which made 64% of `TriggersFired` calls, 41% of `TriggeredJobComplete` calls and
+31% of acquisitions suspend and cost a thread-pool hop each. The full attribution is on #3674.
 
 **Pool size does not move either store much, and on PostgreSQL it does not move it at all.** Five
-times the threads buys 14% on `RAMJobStore` and nothing measurable on PostgreSQL, because the store's
-own operations serialise on the trigger-access lock: what a bigger pool buys is more *jobs* running
-at once, not more firings being started. This is the same fact `operations.md` states as "adding
-nodes does not make a single trigger fire faster", measured.
+times the threads buys about 17% on 4.0's `RAMJobStore` by the medians above, nothing on 3.20's, and
+nothing measurable on PostgreSQL, because the store's own operations serialise on one lock - the
+trigger-access lock on a persistent store, the monitor on the in-memory one. What a bigger pool buys
+is more *jobs* running at once, not more firings being started. This is the same fact `operations.md`
+states as "adding nodes does not make a single trigger fire faster", measured.
 
 **The PostgreSQL figure is a commit-latency figure as much as a Quartz one.** Re-running the 4.0 arm
 with `synchronous_commit = off` gives 3.605 ms at `MaxConcurrency` 10 and 4.140 ms at 50 - 1.7x

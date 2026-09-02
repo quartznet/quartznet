@@ -46,7 +46,30 @@ namespace Quartz.Impl;
 /// <author>Marko Lahma (.NET)</author>
 public sealed class RAMJobStore : IJobStore
 {
-    private readonly SemaphoreSlim lockObject = new(initialCount: 1, maxCount: 1);
+    /// <summary>
+    /// The one lock every operation of this store is serialised on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A monitor rather than a <see cref="SemaphoreSlim" /> awaited on, which is what #3674 measured
+    /// the cost of: every section it guards is synchronous in-memory work of a microsecond or two —
+    /// every <c>await</c> in this file raises <see cref="PendingSignals" /> <em>after</em> the lock —
+    /// so an asynchronous wait bought nothing and cost a great deal. Under ten workers on
+    /// <c>FireThroughputBenchmark</c>, 64% of <see cref="TriggersFired" /> calls, 41% of
+    /// <see cref="TriggeredJobComplete" /> calls and 31% of acquisitions did not complete on the thread
+    /// that began them: each of those boxed a state machine, allocated a wait node and cost a
+    /// thread-pool hop. 3.x, which has always taken a monitor here, suspends nowhere on that path, and
+    /// taking one back is worth about a microsecond and 0.7 KB a firing.
+    /// </para>
+    /// <para>
+    /// The consequence to know about is that <b>a caller waiting for this lock does not observe its
+    /// cancellation token</b>. It could not usefully: the wait is bounded by the section in front of
+    /// it, which does no I/O and cannot block. Cancellation is still observed everywhere it means
+    /// something — the token reaches the store, and the signaler notifications raised after the lock
+    /// take it. 3.x behaves the same way, for the same reason.
+    /// </para>
+    /// </remarks>
+    private readonly Lock lockObject = new();
 
     private readonly ConcurrentDictionary<JobKey, JobWrapper> jobsByKey = [];
     private readonly ConcurrentDictionary<TriggerKey, TriggerWrapper> triggersByKey = new();
@@ -233,8 +256,7 @@ public sealed class RAMJobStore : IJobStore
     {
         PendingSignals pending = default;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             // unschedule jobs (delete triggers)
             foreach (string group in new List<string>(triggersByGroup.Keys))
@@ -265,10 +287,6 @@ public sealed class RAMJobStore : IJobStore
             resumedJobsInPausedGroups.Clear();
             executingFireInstances.Clear();
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
@@ -287,15 +305,10 @@ public sealed class RAMJobStore : IJobStore
         // with its trigger is one operation, and between the two locks another caller could see the job
         // without the trigger that gives it a reason to exist. The ADO store has always done both
         // inside one ExecuteInLock.
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             AddJobNoLock(job, replace: false);
             AddTriggerNoLock(trigger, replace: false, ref pending);
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -307,17 +320,14 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="job">The <see cref="IJob" /> to be stored.</param>
     /// <param name="options">How to store it; see <see cref="IJobStore.AddJob" />.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async ValueTask AddJob(IJobDetail job, AddJobOptions options = default, CancellationToken cancellationToken = default)
+    public ValueTask AddJob(IJobDetail job, AddJobOptions options = default, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             AddJobNoLock(job, options.Replace);
         }
-        finally
-        {
-            lockObject.Release();
-        }
+
+        return default;
     }
 
     private void AddJobNoLock(IJobDetail job, bool replace)
@@ -366,14 +376,9 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         bool deleted;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             deleted = RemoveJobNoLock(jobKey, ref pending);
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -413,8 +418,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         List<JobKey> deleted = new List<JobKey>(jobKeys.Count);
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (JobKey key in jobKeys)
             {
@@ -423,10 +427,6 @@ public sealed class RAMJobStore : IJobStore
                     deleted.Add(key);
                 }
             }
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -444,8 +444,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         List<JobKey> deleted;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             List<JobKey> matching = GetJobKeysNoLock(matcher);
             deleted = new List<JobKey>(matching.Count);
@@ -456,10 +455,6 @@ public sealed class RAMJobStore : IJobStore
                     deleted.Add(key);
                 }
             }
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -472,8 +467,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         List<TriggerKey> deleted = new List<TriggerKey>(triggerKeys.Count);
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (TriggerKey key in triggerKeys)
             {
@@ -482,10 +476,6 @@ public sealed class RAMJobStore : IJobStore
                     deleted.Add(key);
                 }
             }
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -500,8 +490,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         List<TriggerKey> deleted;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             List<TriggerKey> matching = GetTriggerKeysNoLock(matcher);
             deleted = new List<TriggerKey>(matching.Count);
@@ -513,10 +502,6 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
         return deleted;
@@ -527,8 +512,7 @@ public sealed class RAMJobStore : IJobStore
     {
         PendingSignals pending = default;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             // make sure there are no collisions...
             if (!options.Replace)
@@ -562,10 +546,6 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
@@ -593,14 +573,9 @@ public sealed class RAMJobStore : IJobStore
     {
         PendingSignals pending = default;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             AddTriggerNoLock(trigger, options.Replace, ref pending);
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -702,14 +677,9 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         bool deleted;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             deleted = RemoveTriggerNoLock(key, removeOrphanedJob, keepExecutions: false, ref pending);
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -775,8 +745,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         bool found;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             found = triggersByKey.TryGetValue(triggerKey, out var tw);
 
@@ -817,31 +786,26 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
         return found;
     }
 
     /// <inheritdoc />
-    public async ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
+    public ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             if (!triggersByKey.TryGetValue(triggerKey, out TriggerWrapper? tw))
             {
-                return false;
+                return new ValueTask<bool>(false);
             }
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
                 && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
                 && !update.HasExecutionGroup && !update.HasRetryPolicy)
             {
-                return true;
+                return new ValueTask<bool>(true);
             }
 
             IOperableTrigger trigger = tw.Trigger;
@@ -910,11 +874,7 @@ public sealed class RAMJobStore : IJobStore
                 trigger.RetryPolicy = update.RetryPolicy;
             }
 
-            return true;
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<bool>(true);
         }
     }
 
@@ -925,17 +885,12 @@ public sealed class RAMJobStore : IJobStore
     /// <returns>
     /// The desired <see cref="IJob" />, or null if there is no match.
     /// </returns>
-    public async ValueTask<IJobDetail?> GetJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<IJobDetail?> GetJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             jobsByKey.TryGetValue(jobKey, out JobWrapper? jw);
-            return jw?.JobDetail.Clone();
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<IJobDetail?>(jw?.JobDetail.Clone());
         }
     }
 
@@ -945,17 +900,12 @@ public sealed class RAMJobStore : IJobStore
     /// <returns>
     /// The desired <see cref="ITrigger" />, or null if there is no match.
     /// </returns>
-    public async ValueTask<IOperableTrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<IOperableTrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             triggersByKey.TryGetValue(triggerKey, out var tw);
-            return (IOperableTrigger?) tw?.Trigger.Clone();
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<IOperableTrigger?>((IOperableTrigger?) tw?.Trigger.Clone());
         }
     }
 
@@ -966,16 +916,11 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
-    public async ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
-            return jobsByKey.ContainsKey(jobKey);
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<bool>(jobsByKey.ContainsKey(jobKey));
         }
     }
 
@@ -986,16 +931,11 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="triggerKey">triggerKey the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>
-    public async ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
-            return triggersByKey.ContainsKey(triggerKey);
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<bool>(triggersByKey.ContainsKey(triggerKey));
         }
     }
 
@@ -1006,18 +946,13 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="calendarName">the name to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a calendar is stored under the given name</returns>
-    public async ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
+    public ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             // Deliberately not GetCalendar: that clones the calendar, which for an AnnualCalendar with a
             // decade of excluded days copies every one of them to answer a yes-or-no question.
-            return calendarsByName.ContainsKey(calendarName);
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<bool>(calendarsByName.ContainsKey(calendarName));
         }
     }
 
@@ -1031,18 +966,13 @@ public sealed class RAMJobStore : IJobStore
     /// <seealso cref="TriggerState.Blocked" />
     /// <seealso cref="TriggerState.None"/>
     /// <seealso cref="TriggerState.Executing" />
-    public async ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             // Both facts have to be read under the same lock, or a fire landing between the two reads
             // would produce a state that was never actually true.
-            return triggersByKey.TryGetValue(triggerKey, out var tw) ? ToTriggerStateNoLock(tw) : TriggerState.None;
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<TriggerState>(triggersByKey.TryGetValue(triggerKey, out var tw) ? ToTriggerStateNoLock(tw) : TriggerState.None);
         }
     }
 
@@ -1077,28 +1007,22 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <inheritdoc />
-    public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
-            return ResetTriggerFromErrorStateNoLock(triggerKey);
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<bool>(ResetTriggerFromErrorStateNoLock(triggerKey));
         }
     }
 
     /// <summary>
     /// Resets the whole set inside one lock pass rather than taking the lock per key.
     /// </summary>
-    public async ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
+    public ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             List<TriggerKey> reset = new List<TriggerKey>(triggerKeys.Count);
             foreach (TriggerKey triggerKey in triggerKeys)
@@ -1109,11 +1033,7 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
 
-            return reset;
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<List<TriggerKey>>(reset);
         }
     }
 
@@ -1152,7 +1072,7 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="options">Whether an existing calendar of the same name may be over-written,
     /// and whether the triggers referencing it have their next fire time re-computed.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async ValueTask AddCalendar(
+    public ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
         AddCalendarOptions options = default,
@@ -1160,8 +1080,7 @@ public sealed class RAMJobStore : IJobStore
     {
         calendar = calendar.Clone();
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             calendarsByName.TryGetValue(calendarName, out var obj);
 
@@ -1192,10 +1111,8 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
+
+        return default;
     }
 
     /// <summary>
@@ -1212,16 +1129,11 @@ public sealed class RAMJobStore : IJobStore
     /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     /// </returns>
-    public async ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
+    public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
-            return RemoveCalendarNoLock(calendarName);
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<bool>(RemoveCalendarNoLock(calendarName));
         }
     }
 
@@ -1253,17 +1165,12 @@ public sealed class RAMJobStore : IJobStore
     /// <returns>
     /// The desired <see cref="ICalendar" />, or null if there is no match.
     /// </returns>
-    public async ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             calendarsByName.TryGetValue(calendarName, out var calendar);
-            return calendar?.Clone();
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<ICalendar?>(calendar?.Clone());
         }
     }
 
@@ -1340,14 +1247,13 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <inheritdoc />
-    public async ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         List<IJobDetail> matches = [];
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             GroupMatcher<JobKey>? matcher = query.Group;
             NameMatcher<JobKey>? nameMatcher = query.Name;
@@ -1383,10 +1289,6 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         if (query.Take > 0)
         {
@@ -1394,7 +1296,7 @@ public sealed class RAMJobStore : IJobStore
             matches.Sort(static (left, right) => CompareByGroupThenName(left.Key.Group, left.Key.Name, right.Key.Group, right.Key.Name));
         }
 
-        return Page(matches, query, static job => new JobHeader(
+        return new ValueTask<PagedResult<JobHeader>>(Page(matches, query, static job => new JobHeader(
             job.Key,
             job.Description,
             // the ADO store persists JobType.FullName, so a listing has to report the same string
@@ -1402,18 +1304,17 @@ public sealed class RAMJobStore : IJobStore
             job.Durable,
             job.ConcurrentExecutionDisallowed,
             job.PersistJobDataAfterExecution,
-            job.RequestsRecovery));
+            job.RequestsRecovery)));
     }
 
     /// <inheritdoc />
-    public async ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         List<TriggerMatch> matches = [];
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             GroupMatcher<TriggerKey>? matcher = query.Group;
             if (matcher is not null && StringOperator.Equality.Equals(matcher.CompareWithOperator))
@@ -1436,10 +1337,6 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         if (query.Take > 0)
         {
@@ -1451,7 +1348,7 @@ public sealed class RAMJobStore : IJobStore
                 right.Trigger.Key.Name));
         }
 
-        return Page(matches, query, static match => new TriggerHeader(
+        return new ValueTask<PagedResult<TriggerHeader>>(Page(matches, query, static match => new TriggerHeader(
             match.Trigger.Key,
             match.Trigger.JobKey,
             match.Trigger.Description,
@@ -1465,7 +1362,7 @@ public sealed class RAMJobStore : IJobStore
             match.Trigger.Priority,
             match.Trigger.ExecutionGroup,
             match.Trigger.RetryPolicy?.ToStoredString(),
-            match.Trigger.RetryAttempt));
+            match.Trigger.RetryAttempt)));
     }
 
     private void CollectMatchingTriggersNoLock(
@@ -1502,14 +1399,13 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <inheritdoc />
-    public async ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         List<JobGroup> groups = [];
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             if (query.Paused == true)
             {
@@ -1539,25 +1435,20 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         groups.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
 
-        return Page(groups, query, static group => group);
+        return new ValueTask<PagedResult<JobGroup>>(Page(groups, query, static group => group));
     }
 
     /// <inheritdoc />
-    public async ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         List<TriggerGroup> groups = [];
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             if (query.Paused == true)
             {
@@ -1587,14 +1478,10 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         groups.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
 
-        return Page(groups, query, static group => group);
+        return new ValueTask<PagedResult<TriggerGroup>>(Page(groups, query, static group => group));
     }
 
     /// <summary>
@@ -1606,15 +1493,14 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <inheritdoc />
-    public async ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         NameMatcher? nameMatcher = query.Name;
         List<string> names = [];
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (string calendarName in calendarsByName.Keys)
             {
@@ -1624,18 +1510,14 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         names.Sort(StringComparer.Ordinal);
 
-        return Page(names, query, static name => name);
+        return new ValueTask<PagedResult<string>>(Page(names, query, static name => name));
     }
 
     /// <inheritdoc />
-    public async ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -1648,8 +1530,7 @@ public sealed class RAMJobStore : IJobStore
 
         if (thisNode)
         {
-            await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            lock (lockObject)
             {
                 // Everything is projected into records under the lock and nothing that could still change
                 // escapes it, so the page is a snapshot rather than a view.
@@ -1662,10 +1543,6 @@ public sealed class RAMJobStore : IJobStore
                 {
                     CollectAcquiredFireInstancesNoLock(query, matches);
                 }
-            }
-            finally
-            {
-                lockObject.Release();
             }
         }
 
@@ -1686,7 +1563,7 @@ public sealed class RAMJobStore : IJobStore
             });
         }
 
-        return Page(matches, query, static instance => instance);
+        return new ValueTask<PagedResult<FireInstance>>(Page(matches, query, static instance => instance));
     }
 
     private void CollectExecutingFireInstancesNoLock(FireInstanceQuery query, List<FireInstance> matches)
@@ -1827,15 +1704,14 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <inheritdoc />
-    public async ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    public ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jobKeys);
 
         List<IJobDetail> jobs = new(jobKeys.Count);
         HashSet<JobKey> seen = new(jobKeys.Count);
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (JobKey jobKey in jobKeys)
             {
@@ -1845,24 +1721,19 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
-        return jobs;
+        return new ValueTask<List<IJobDetail>>(jobs);
     }
 
     /// <inheritdoc />
-    public async ValueTask<List<IOperableTrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    public ValueTask<List<IOperableTrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(triggerKeys);
 
         List<IOperableTrigger> triggers = new(triggerKeys.Count);
         HashSet<TriggerKey> seen = new(triggerKeys.Count);
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (TriggerKey triggerKey in triggerKeys)
             {
@@ -1872,12 +1743,8 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
-        return triggers;
+        return new ValueTask<List<IOperableTrigger>>(triggers);
     }
 
     /// <summary>
@@ -1944,10 +1811,9 @@ public sealed class RAMJobStore : IJobStore
     /// If there are no matches, a zero-length array should be returned.
     /// </para>
     /// </summary>
-    public async ValueTask<List<IOperableTrigger>> GetTriggersForJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<List<IOperableTrigger>> GetTriggersForJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             if (triggersByJob.TryGetValue(jobKey, out List<TriggerWrapper>? jobList))
             {
@@ -1956,14 +1822,10 @@ public sealed class RAMJobStore : IJobStore
                 {
                     trigList.Add((IOperableTrigger) jobList[i].Trigger.Clone());
                 }
-                return trigList;
+                return new ValueTask<List<IOperableTrigger>>(trigList);
             }
 
-            return [];
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<List<IOperableTrigger>>([]);
         }
     }
 
@@ -2014,28 +1876,22 @@ public sealed class RAMJobStore : IJobStore
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
-            return PauseTriggerNoLock(triggerKey);
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<bool>(PauseTriggerNoLock(triggerKey));
         }
     }
 
     /// <summary>
     /// Pauses the whole set inside one lock pass rather than taking the lock per key.
     /// </summary>
-    public async ValueTask<List<TriggerKey>> PauseTriggers(
+    public ValueTask<List<TriggerKey>> PauseTriggers(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             List<TriggerKey> paused = new List<TriggerKey>(triggerKeys.Count);
             foreach (TriggerKey triggerKey in triggerKeys)
@@ -2046,11 +1902,7 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
 
-            return paused;
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<List<TriggerKey>>(paused);
         }
     }
 
@@ -2097,16 +1949,11 @@ public sealed class RAMJobStore : IJobStore
     /// paused.
     /// </para>
     /// </summary>
-    public async ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
-            return PauseTriggersNoLock(matcher);
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<List<string>>(PauseTriggersNoLock(matcher));
         }
     }
 
@@ -2153,28 +2000,22 @@ public sealed class RAMJobStore : IJobStore
     /// Pause the <see cref="IJobDetail" /> with the given
     /// name - by pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
-    public async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
-            return PauseJobNoLock(jobKey);
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<bool>(PauseJobNoLock(jobKey));
         }
     }
 
     /// <summary>
     /// Pauses the whole set inside one lock pass rather than taking the lock per key.
     /// </summary>
-    public async ValueTask<List<JobKey>> PauseJobs(
+    public ValueTask<List<JobKey>> PauseJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             List<JobKey> paused = new List<JobKey>(jobKeys.Count);
             foreach (JobKey jobKey in jobKeys)
@@ -2185,11 +2026,7 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
 
-            return paused;
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<List<JobKey>>(paused);
         }
     }
 
@@ -2219,10 +2056,9 @@ public sealed class RAMJobStore : IJobStore
     /// paused.
     /// </para>
     /// </summary>
-    public async ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             List<string> pausedGroups = [];
             StringOperator op = matcher.CompareWithOperator;
@@ -2261,11 +2097,7 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
 
-            return pausedGroups;
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<List<string>>(pausedGroups);
         }
     }
 
@@ -2281,14 +2113,9 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         bool resumed;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             resumed = ResumeTriggerNoLock(triggerKey, ref pending);
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -2305,8 +2132,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         List<TriggerKey> resumed = new List<TriggerKey>(triggerKeys.Count);
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (TriggerKey triggerKey in triggerKeys)
             {
@@ -2315,10 +2141,6 @@ public sealed class RAMJobStore : IJobStore
                     resumed.Add(triggerKey);
                 }
             }
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -2372,14 +2194,9 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         List<string> resumedGroups;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             resumedGroups = ResumeTriggersNoLock(matcher, ref pending);
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -2437,14 +2254,9 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         bool resumed;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             resumed = ResumeJobNoLock(jobKey, ref pending);
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -2461,8 +2273,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         List<JobKey> resumed = new List<JobKey>(jobKeys.Count);
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (JobKey jobKey in jobKeys)
             {
@@ -2471,10 +2282,6 @@ public sealed class RAMJobStore : IJobStore
                     resumed.Add(jobKey);
                 }
             }
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -2516,8 +2323,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         var resumedGroups = new List<string>();
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             var keys = GetJobKeysNoLock(matcher);
 
@@ -2544,10 +2350,6 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
         return resumedGroups;
@@ -2562,20 +2364,17 @@ public sealed class RAMJobStore : IJobStore
     /// </para>
     /// </summary>
     /// <seealso cref="ResumeAll(CancellationToken)" />
-    public async ValueTask PauseAll(CancellationToken cancellationToken = default)
+    public ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (string groupName in triggersByGroup.Keys)
             {
                 PauseTriggersNoLock(GroupMatcher<TriggerKey>.GroupEquals(groupName));
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
+
+        return default;
     }
 
     /// <summary>
@@ -2591,8 +2390,7 @@ public sealed class RAMJobStore : IJobStore
     {
         PendingSignals pending = default;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             // TODO need a match all here!
             pausedJobGroups.Clear();
@@ -2605,10 +2403,6 @@ public sealed class RAMJobStore : IJobStore
 
             // make sure we don't have anything left in groups
             pausedTriggerGroups.Clear();
-        }
-        finally
-        {
-            lockObject.Release();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -2714,8 +2508,7 @@ public sealed class RAMJobStore : IJobStore
         PendingSignals pending = default;
         List<IOperableTrigger> result = [];
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             // return empty list if store has no triggers. Returning from inside the lock skips the
             // notification flush below, which is only safe because nothing has been recorded yet.
@@ -2877,10 +2670,6 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         // Before the batch is handed back, so that every misfire this pass applied has been announced
         // by the time the caller can fire anything it acquired.
@@ -2893,10 +2682,9 @@ public sealed class RAMJobStore : IJobStore
     /// fire the given <see cref="ITrigger" />, that it had previously acquired
     /// (reserved).
     /// </summary>
-    public async ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
+    public ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             // Releasing means the scheduler is not going to run this fire after all, so anything recorded
             // for it has to go: the scheduler releases the whole batch when TriggersFired fails part-way,
@@ -2912,10 +2700,8 @@ public sealed class RAMJobStore : IJobStore
                 timeTriggers.Add(tw);
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
+
+        return default;
     }
 
     /// <summary>
@@ -2923,10 +2709,9 @@ public sealed class RAMJobStore : IJobStore
     /// given <see cref="ITrigger" /> (executing its associated <see cref="IJob" />),
     /// that it had previously acquired (reserved).
     /// </summary>
-    public async ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
+    public ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             List<TriggerFiredResult> results = new(triggers.Count);
 
@@ -3074,11 +2859,7 @@ public sealed class RAMJobStore : IJobStore
                 results.Add(TriggerFiredResult.Fired(bndle));
             }
 
-            return results;
-        }
-        finally
-        {
-            lockObject.Release();
+            return new ValueTask<List<TriggerFiredResult>>(results);
         }
     }
 
@@ -3093,8 +2874,7 @@ public sealed class RAMJobStore : IJobStore
     {
         PendingSignals pending = default;
 
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             // It's possible that the job is null if:
             //   1- it was deleted during execution
@@ -3287,10 +3067,6 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
@@ -3330,12 +3106,11 @@ public sealed class RAMJobStore : IJobStore
     /// Peeks the triggers.
     /// </summary>
     /// <returns></returns>
-    internal async ValueTask<string> PeekTriggers()
+    internal ValueTask<string> PeekTriggers()
     {
         StringBuilder str = new StringBuilder();
 
-        await lockObject.WaitAsync().ConfigureAwait(false);
-        try
+        lock (lockObject)
         {
             foreach (TriggerWrapper tw in triggersByKey.Values)
             {
@@ -3351,19 +3126,20 @@ public sealed class RAMJobStore : IJobStore
                 str.Append("->");
             }
         }
-        finally
-        {
-            lockObject.Release();
-        }
 
-        return str.ToString();
+        return new ValueTask<string>(str.ToString());
     }
 
     /// <summary>
-    /// Whether some caller is currently inside the store's critical section. For tests that assert
-    /// where a notification is raised from; nothing in the store's own logic asks.
+    /// Whether the calling thread is currently inside the store's critical section. For tests that
+    /// assert where a notification is raised from; nothing in the store's own logic asks.
     /// </summary>
-    internal bool LockHeld => lockObject.CurrentCount == 0;
+    /// <remarks>
+    /// A notification is raised on the thread that ran the section it belongs to, so what those tests
+    /// want to know is whether <em>this</em> thread still holds the lock — which is also the only
+    /// question a monitor can answer without racing.
+    /// </remarks>
+    internal bool LockHeld => lockObject.IsHeldByCurrentThread;
 
     /// <summary>
     /// The notifications a locked section owes the signaler, raised once the lock is released.
@@ -3371,11 +3147,15 @@ public sealed class RAMJobStore : IJobStore
     /// <remarks>
     /// <para>
     /// Every notification this store raises runs listener code on the calling thread, and a listener is
-    /// entitled to call back into the scheduler, which calls straight back into this store. The store's
-    /// lock is a <see cref="SemaphoreSlim" /> and is not re-entrant, so a notification raised from
-    /// inside it deadlocks the caller against itself. The sites that would notify therefore record
-    /// instead, and each public entry point raises what it collected after releasing the lock, in the
-    /// order it was recorded.
+    /// entitled to call back into the scheduler, which calls straight back into this store. It is also
+    /// entitled to take as long as it likes, and to <see langword="await" /> — which C# will not let it
+    /// do under <see cref="lockObject" /> at all (CS1996). Raising a notification inside the lock would
+    /// therefore mean running arbitrary listener code with the whole store held, and, because a monitor
+    /// is re-entrant where the semaphore this used to be was not, letting that listener re-enter and
+    /// mutate the store half-way through an operation instead of deadlocking against it. The sites that
+    /// would notify record instead, and each public entry point raises what it collected after leaving
+    /// the lock, in the order it was recorded. That is also what keeps every locked section here
+    /// synchronous, which is the property the monitor depends on.
     /// </para>
     /// <para>
     /// A <see langword="default" /> value is an empty collector that has allocated nothing, which is
