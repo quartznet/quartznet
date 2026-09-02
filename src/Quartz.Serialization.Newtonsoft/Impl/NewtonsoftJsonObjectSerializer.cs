@@ -82,6 +82,15 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
         }
     }
 
+    /// <summary>
+    /// Builds the settings every serialization goes through — the converters for Quartz's own types,
+    /// and the type handling a stored blob is read back with.
+    /// </summary>
+    /// <remarks>
+    /// Override to add a converter of your own, calling base and adding to what it returns rather than
+    /// replacing it: a setting dropped here changes the shape of every blob this scheduler writes.
+    /// The result is cached until <see cref="RegisterTriggerConverters" /> changes.
+    /// </remarks>
     protected virtual JsonSerializerSettings CreateSerializerSettings()
     {
         var settings = new JsonSerializerSettings

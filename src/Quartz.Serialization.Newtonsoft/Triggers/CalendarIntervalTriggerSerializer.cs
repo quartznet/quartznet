@@ -5,10 +5,19 @@ using Quartz.Impl.Triggers;
 
 namespace Quartz.Serialization.Newtonsoft.Triggers;
 
+/// <summary>
+/// Stores an <see cref="ICalendarIntervalTrigger" /> as its interval, unit, time zone and the two
+/// daylight-saving choices.
+/// </summary>
+/// <remarks>
+/// <inheritdoc cref="SimpleTriggerSerializer" path="/remarks" />
+/// </remarks>
 public class CalendarIntervalTriggerSerializer : TriggerSerializer<CalendarIntervalTriggerImpl>
 {
+    /// <inheritdoc />
     public override string TriggerTypeName => "CalendarIntervalTrigger";
 
+    /// <inheritdoc />
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {
         var repeatIntervalUnit = source["RepeatIntervalUnit"]!.ToObject<IntervalUnit>();
@@ -24,6 +33,7 @@ public class CalendarIntervalTriggerSerializer : TriggerSerializer<CalendarInter
             .SkipDayIfHourDoesNotExist(skipDayIfHourDoesNotExist);
     }
 
+    /// <inheritdoc />
     protected override void SerializeFields(JsonWriter writer, CalendarIntervalTriggerImpl trigger)
     {
         writer.WritePropertyName("RepeatInterval");
@@ -45,6 +55,7 @@ public class CalendarIntervalTriggerSerializer : TriggerSerializer<CalendarInter
         writer.WriteValue(trigger.TimesTriggered);
     }
 
+    /// <inheritdoc />
     protected override void DeserializeFields(CalendarIntervalTriggerImpl trigger, JObject source)
     {
         // This properties might not exist in the JSON if trigger was serialized with older version

@@ -6,10 +6,19 @@ using Quartz.Util;
 
 namespace Quartz.Serialization.Newtonsoft.Triggers;
 
+/// <summary>
+/// Stores an <see cref="IDailyTimeIntervalTrigger" /> as its daily window, interval, days of the week
+/// and repeat count.
+/// </summary>
+/// <remarks>
+/// <inheritdoc cref="SimpleTriggerSerializer" path="/remarks" />
+/// </remarks>
 public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeIntervalTriggerImpl>
 {
+    /// <inheritdoc />
     public override string TriggerTypeName => "DailyTimeIntervalTrigger";
 
+    /// <inheritdoc />
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {
         var repeatCount = source.Value<int>("RepeatCount");
@@ -29,6 +38,7 @@ public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeInt
             .InTimeZone(timeZone);
     }
 
+    /// <inheritdoc />
     protected override void SerializeFields(JsonWriter writer, DailyTimeIntervalTriggerImpl trigger)
     {
         writer.WritePropertyName("RepeatCount");
@@ -51,6 +61,7 @@ public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeInt
         writer.WriteValue(trigger.TimesTriggered);
     }
 
+    /// <inheritdoc />
     protected override void DeserializeFields(DailyTimeIntervalTriggerImpl trigger, JObject source)
     {
         // This properties might not exist in the JSON if trigger was serialized with older version

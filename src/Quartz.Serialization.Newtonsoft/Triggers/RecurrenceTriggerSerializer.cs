@@ -5,10 +5,18 @@ using Quartz.Impl.Triggers;
 
 namespace Quartz.Serialization.Newtonsoft.Triggers;
 
+/// <summary>
+/// Stores an <see cref="IRecurrenceTrigger" /> as its RFC 5545 recurrence rule and time zone.
+/// </summary>
+/// <remarks>
+/// <inheritdoc cref="SimpleTriggerSerializer" path="/remarks" />
+/// </remarks>
 public class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerImpl>
 {
+    /// <inheritdoc />
     public override string TriggerTypeName => "RecurrenceTrigger";
 
+    /// <inheritdoc />
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {
         var recurrenceRule = source.Value<string>("RecurrenceRule")!;
@@ -18,6 +26,7 @@ public class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerIm
             .InTimeZone(timeZone);
     }
 
+    /// <inheritdoc />
     protected override void SerializeFields(JsonWriter writer, RecurrenceTriggerImpl trigger)
     {
         writer.WritePropertyName("RecurrenceRule");
@@ -30,6 +39,7 @@ public class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerIm
         writer.WriteValue(trigger.TimesTriggered);
     }
 
+    /// <inheritdoc />
     protected override void DeserializeFields(RecurrenceTriggerImpl trigger, JObject source)
     {
         var timesTriggered = source.Value<int?>("TimesTriggered");
