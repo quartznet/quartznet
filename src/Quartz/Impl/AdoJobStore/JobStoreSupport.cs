@@ -4524,6 +4524,25 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateError, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
+            else if (!trigger.GetNextFireTimeUtc().HasValue)
+            {
+                // Every instruction that settles the trigger is above, so what reaches here is a
+                // firing that never happened - one a job listener abandoned, or one the scheduler
+                // could not dispatch - completed with no instruction. That settles nothing about the
+                // schedule of a trigger that can fire again, and for those this branch is not taken.
+                // This one cannot fire again: TriggerFired stored it COMPLETE because firing left it
+                // with no fire time, and outside a cluster nothing ever sweeps a COMPLETE row up, so
+                // the trigger is one GetTrigger keeps handing back for good (#3507). The row is
+                // deleted the way the DeleteTrigger branch above deletes one.
+                var stat = await Delegate.SelectTriggerStatus(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                if (stat != null && !stat.NextFireTimeUtc.HasValue)
+                {
+                    // Read back rather than trusted, exactly as the DeleteTrigger branch does: the
+                    // trigger may have been rescheduled while the firing was in flight, and a trigger
+                    // with a fire time ahead of it is nobody's leftover.
+                    await RemoveTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                }
+            }
 
             if (jobDetail.ConcurrentExecutionDisallowed)
             {

@@ -476,13 +476,20 @@ public class QuartzSchedulerThread
                                 {
                                     // the scheduler is being stopped, so we can't run the job
                                     // use TriggeredJobComplete to properly unblock other triggers
-                                    // for DisallowConcurrentExecution jobs (TriggersFired already ran)
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
+                                    // for DisallowConcurrentExecution jobs (TriggersFired already ran).
+                                    // The bundle's trigger rather than the acquired one, here and in the
+                                    // three completions below: it is the copy the firing advanced - which
+                                    // the run shell also completes with - and its fire time is how the
+                                    // store tells an abandoned firing of a spent trigger from one of a
+                                    // trigger that will fire again (#3507). The in-memory store advances
+                                    // the acquired instance itself, so only the ADO store can tell the
+                                    // two copies apart, and only it was left with the leftover.
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
                                 }
                                 else
                                 {
                                     // we consider this a serious error and expect that job instantiation will never succeed in the future either
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
                                 }
 
                                 continue;
@@ -520,14 +527,14 @@ public class QuartzSchedulerThread
                                     // Use TriggeredJobComplete to properly unblock other triggers
                                     // for DisallowConcurrentExecution jobs (TriggersFired already ran)
                                     Log.Debug("ThreadPool.RunInThread() returned false due to scheduler shutdown, completing trigger");
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
                                 }
                                 else
                                 {
                                     // this case should never happen, as it is indicative of a bug in the thread pool or
                                     // a thread pool being used concurrently - which the docs say not to do...
                                     Log.Error("ThreadPool.RunInThread() returned false");
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
                                 }
                             }
                         }

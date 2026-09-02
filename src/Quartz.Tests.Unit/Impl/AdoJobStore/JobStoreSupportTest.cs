@@ -767,6 +767,72 @@ public class JobStoreSupportTest
             .MustHaveHappenedOnceExactly();
     }
 
+    /// <summary>
+    /// The leak #3507 reported, on the store that leaves a row behind. A firing abandoned between the
+    /// commit and the job - a job listener that fails, a veto, a scheduler shutting down - comes back
+    /// with no instruction, and <c>TriggerFired</c> had already stored the trigger COMPLETE because
+    /// firing left it with no fire time. Outside a cluster nothing ever sweeps a COMPLETE row up, so
+    /// the trigger was one <c>GetTrigger</c> kept handing back for good.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteWithNoInstructionDeletesATriggerThatCannotFireAgain()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        trigger.SetNextFireTimeUtc(null);
+        IJobDetail job = CreateConcurrentJob();
+
+        A.CallTo(() => driverDelegate.SelectTriggerStatus(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(new TriggerStatus(AdoConstants.StateComplete, null, trigger.Key, job.Key)));
+
+        await jobStoreSupport.CallTriggeredJobComplete(conn, trigger, job, SchedulerInstruction.NoInstruction);
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// No instruction settles nothing, so a trigger with a firing still ahead of it is left alone - and
+    /// so is one that was rescheduled while the firing was in flight, which is what the read-back is for.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteWithNoInstructionLeavesATriggerThatCanFireAgain()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        trigger.SetNextFireTimeUtc(SystemTime.UtcNow().AddHours(1));
+        IJobDetail job = CreateConcurrentJob();
+
+        await jobStoreSupport.CallTriggeredJobComplete(conn, trigger, job, SchedulerInstruction.NoInstruction);
+
+        A.CallTo(() => driverDelegate.SelectTriggerStatus(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.DeleteTrigger(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// The trigger was rescheduled while the firing was in flight, so the row in the database has a fire
+    /// time ahead of it and is nobody's leftover. This is why the branch reads the status back rather
+    /// than trusting the copy it was handed.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteWithNoInstructionKeepsATriggerRescheduledDuringTheFiring()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        trigger.SetNextFireTimeUtc(null);
+        IJobDetail job = CreateConcurrentJob();
+
+        A.CallTo(() => driverDelegate.SelectTriggerStatus(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(new TriggerStatus(AdoConstants.StateWaiting, SystemTime.UtcNow().AddHours(1), trigger.Key, job.Key)));
+
+        await jobStoreSupport.CallTriggeredJobComplete(conn, trigger, job, SchedulerInstruction.NoInstruction);
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
     private static IOperableTrigger CreateTestTrigger(string name = "t1", string fireInstanceId = "test-fire-id")
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
@@ -1112,6 +1178,15 @@ public class JobStoreSupportTest
         internal Task<bool> CallIsTriggerGroupPaused(ConnectionAndTransactionHolder conn, string groupName)
         {
             return IsTriggerGroupPaused(conn, groupName, CancellationToken.None);
+        }
+
+        internal Task CallTriggeredJobComplete(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger trigger,
+            IJobDetail jobDetail,
+            SchedulerInstruction triggerInstCode)
+        {
+            return TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode, CancellationToken.None);
         }
     }
 
