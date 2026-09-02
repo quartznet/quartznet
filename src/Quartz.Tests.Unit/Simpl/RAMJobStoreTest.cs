@@ -1130,6 +1130,113 @@ public class RAMJobStoreTest
         (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
     }
 
+    /// <summary>
+    /// #3463. A trigger blocked behind a <see cref="DisallowConcurrentExecutionAttribute" /> job cannot
+    /// be acquired and is not swept, so however late it gets while it waits, the completion that
+    /// unblocks it is the first thing that can settle the debt. The ADO store settles it there, in
+    /// <c>RecoverUnblockedMisfires</c> and in the same transaction; this store put the trigger back in
+    /// the queue and did nothing else, so until the next acquisition a caller read it with the fire time
+    /// it had already missed.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteAppliesTheMisfirePolicyOfATriggerItUnblocks()
+    {
+        JobDetailImpl job = new JobDetailImpl("blockingJob", "jobGroup1", typeof(DisallowConcurrentNoOpJob));
+        job.Durable = true;
+        await fJobStore.StoreJob(job, false);
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        TriggerFiredBundle bundle = await FireTriggerOf(job, now);
+
+        // Stored while the job is blocked, so the store takes it in blocked and never offers it for
+        // acquisition - which is precisely why nothing but this completion can notice it going overdue.
+        IOperableTrigger overdue = new SimpleTriggerImpl("overdue", "triggerGroup1", job.Name, job.Group, now.AddHours(-1), null, 0, TimeSpan.Zero);
+        overdue.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(overdue, false);
+        (await fJobStore.GetTriggerState(overdue.Key)).Should().Be(TriggerState.Blocked);
+
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        fSignaler.fMisfireCount.Should().Be(1,
+            "the misfire is the trigger's, and the moment it stops being blocked is the moment it can be settled");
+        (await fJobStore.GetTriggerState(overdue.Key)).Should().Be(TriggerState.Normal);
+        (await fJobStore.RetrieveTrigger(overdue.Key)).GetNextFireTimeUtc().Should().BeOnOrAfter(now,
+            "a one-shot trigger's smart policy is to fire now, so what a caller reads must be a fire time still ahead of it and not the one it missed");
+    }
+
+    /// <summary>
+    /// The other half of the policy: a trigger the misfire leaves with nothing to fire is removed rather
+    /// than left as a Complete entry <c>RetrieveTrigger</c> would keep handing back, which is what the
+    /// ADO store does with such a row.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteRemovesAnUnblockedTriggerTheMisfirePolicyFinishes()
+    {
+        JobDetailImpl job = new JobDetailImpl("blockingJob", "jobGroup1", typeof(DisallowConcurrentNoOpJob));
+        job.Durable = true;
+        await fJobStore.StoreJob(job, false);
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        TriggerFiredBundle bundle = await FireTriggerOf(job, now);
+
+        IOperableTrigger overdue = new SimpleTriggerImpl("overdue", "triggerGroup1", job.Name, job.Group, now.AddHours(-1), null, 0, TimeSpan.Zero);
+        overdue.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
+        overdue.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(overdue, false);
+
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.RetrieveTrigger(overdue.Key)).Should().BeNull(
+            "the policy said to take the next firing and there is none, so the trigger is finished and nothing is left to hand back");
+        (await fJobStore.GetTriggerState(overdue.Key)).Should().Be(TriggerState.None);
+    }
+
+    /// <summary>
+    /// A paused trigger accrues no misfire - pausing is a decision not to fire, and resuming is what
+    /// settles the debt - so unblocking one is a state change and nothing more.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteAppliesNoMisfirePolicyToATriggerThatIsAlsoPaused()
+    {
+        JobDetailImpl job = new JobDetailImpl("blockingJob", "jobGroup1", typeof(DisallowConcurrentNoOpJob));
+        job.Durable = true;
+        await fJobStore.StoreJob(job, false);
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        TriggerFiredBundle bundle = await FireTriggerOf(job, now);
+
+        IOperableTrigger overdue = new SimpleTriggerImpl("overdue", "triggerGroup1", job.Name, job.Group, now.AddHours(-1), null, 0, TimeSpan.Zero);
+        overdue.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(overdue, false);
+        await fJobStore.PauseTrigger(overdue.Key);
+        (await fJobStore.GetTriggerState(overdue.Key)).Should().Be(TriggerState.Paused);
+
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        fSignaler.fMisfireCount.Should().Be(0, "a paused trigger has missed nothing it was going to fire");
+        (await fJobStore.GetTriggerState(overdue.Key)).Should().Be(TriggerState.Paused,
+            "unblocking leaves the pause where it was, for the resume to lift");
+    }
+
+    /// <summary>
+    /// Fires one trigger of the given job and hands back the bundle, which is what leaves a
+    /// <see cref="DisallowConcurrentExecutionAttribute" /> job blocked.
+    /// </summary>
+    private async Task<TriggerFiredBundle> FireTriggerOf(IJobDetail job, DateTimeOffset now)
+    {
+        IOperableTrigger running = new SimpleTriggerImpl("running", "triggerGroup1", job.Key.Name, job.Key.Group, now.AddSeconds(30), null, 0, TimeSpan.Zero);
+        running.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(running, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(now.AddSeconds(60), 1, TimeSpan.Zero);
+        acquired.Should().HaveCount(1);
+
+        var fired = await fJobStore.TriggersFired(acquired);
+        TriggerFiredBundle bundle = fired.First().TriggerFiredBundle;
+        bundle.Should().NotBeNull();
+        return bundle;
+    }
+
     private Task StoreTriggerInGroup(string name, string group)
     {
         IOperableTrigger trigger = new SimpleTriggerImpl(
