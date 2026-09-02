@@ -1065,7 +1065,7 @@ public interface IScheduler : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(matcher);
 
-        TriggerQuery query = new() { Group = matcher, State = TriggerState.Error, Take = int.MaxValue };
+        TriggerQuery query = new() { Group = matcher, State = TriggerState.Error, Take = PagedQuery.All };
         PagedResult<TriggerHeader> failed = await QueryTriggers(query, cancellationToken).ConfigureAwait(false);
         if (failed.Items.Count == 0)
         {

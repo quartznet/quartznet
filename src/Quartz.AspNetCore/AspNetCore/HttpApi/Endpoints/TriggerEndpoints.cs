@@ -89,7 +89,7 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int? take = null,
+        string? take = null,
         bool includeTotalCount = false,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -105,7 +105,7 @@ internal static class TriggerEndpoints
         TriggerState? state = null,
         CancellationToken cancellationToken = default)
     {
-        EndpointHelper.AssertPaging(skip, take);
+        int? takeItems = EndpointHelper.ParsePaging(skip, take);
 
         bool hasJobName = !string.IsNullOrWhiteSpace(jobName);
         bool hasJobGroup = !string.IsNullOrWhiteSpace(jobGroup);
@@ -129,9 +129,9 @@ internal static class TriggerEndpoints
             };
 
             // a request that names no take gets the query record's own default page size
-            if (take.HasValue)
+            if (takeItems.HasValue)
             {
-                query = query with { Take = take.Value };
+                query = query with { Take = takeItems.Value };
             }
 
             PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(query, cancellationToken).ConfigureAwait(false);
@@ -347,7 +347,7 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int? take = null,
+        string? take = null,
         bool includeTotalCount = false,
         bool? paused = null,
         string? nameContains = null,
@@ -356,7 +356,7 @@ internal static class TriggerEndpoints
         string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
-        EndpointHelper.AssertPaging(skip, take);
+        int? takeItems = EndpointHelper.ParsePaging(skip, take);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             TriggerGroupQuery query = new()
@@ -368,9 +368,9 @@ internal static class TriggerEndpoints
             };
 
             // a request that names no take gets the query record's own default page size
-            if (take.HasValue)
+            if (takeItems.HasValue)
             {
-                query = query with { Take = take.Value };
+                query = query with { Take = takeItems.Value };
             }
 
             PagedResult<TriggerGroup> page = await scheduler.QueryTriggerGroups(query, cancellationToken).ConfigureAwait(false);

@@ -25,12 +25,21 @@ namespace Quartz.Extensibility;
 /// Answers what a trigger would fire, without scheduling it.
 /// </summary>
 /// <remarks>
-/// These take an <see cref="IOperableTrigger" /> rather than an <see cref="ITrigger" /> because
-/// answering the question means advancing a copy of the trigger through its schedule, applying the
-/// calendar at each step — which is precisely what <see cref="IOperableTrigger" /> adds over
+/// <para>
+/// The primary overloads take an <see cref="IOperableTrigger" /> rather than an <see cref="ITrigger" />
+/// because answering the question means advancing a copy of the trigger through its schedule, applying
+/// the calendar at each step — which is precisely what <see cref="IOperableTrigger" /> adds over
 /// <see cref="ITrigger" />. That is why this lives here rather than in the <c>Quartz</c> namespace: it
-/// is a helper over the operable-trigger contract, not part of the scheduling API. Cast a trigger you
-/// hold, or use the one a schedule builder handed you.
+/// is a helper over the operable-trigger contract, not part of the scheduling API.
+/// </para>
+/// <para>
+/// Each has an <see cref="ITrigger" /> twin that casts, because testing a schedule is the most
+/// mainstream thing anybody does with these and requiring the cast at every call site taught a
+/// <c>Quartz.Extensibility</c> type to people who wanted neither. The cast is the same one you would
+/// write: every trigger this library builds is an <see cref="IOperableTrigger" />, and one that is not
+/// gets an <see cref="ArgumentException" /> naming the type rather than an
+/// <see cref="InvalidCastException" /> from inside.
+/// </para>
 /// </remarks>
 /// <seealso cref="ICronTrigger" />
 /// <seealso cref="ISimpleTrigger" />
@@ -196,5 +205,56 @@ public static class TriggerFireTimes
             }
         }
         return lst;
+    }
+
+    /// <inheritdoc cref="Compute(IOperableTrigger, ICalendar?, int)" />
+    /// <exception cref="ArgumentException">
+    /// <paramref name="trigger" /> is not an <see cref="IOperableTrigger" />, so its schedule cannot be
+    /// advanced.
+    /// </exception>
+    public static List<DateTimeOffset> Compute(ITrigger trigger, ICalendar? calendar, int numberOfTimes)
+    {
+        return Compute(Operable(trigger), calendar, numberOfTimes);
+    }
+
+    /// <inheritdoc cref="ComputeEndTimeForCount(IOperableTrigger, ICalendar?, int)" />
+    /// <exception cref="ArgumentException">
+    /// <paramref name="trigger" /> is not an <see cref="IOperableTrigger" />, so its schedule cannot be
+    /// advanced.
+    /// </exception>
+    public static DateTimeOffset? ComputeEndTimeForCount(ITrigger trigger, ICalendar? calendar, int numberOfTimes)
+    {
+        return ComputeEndTimeForCount(Operable(trigger), calendar, numberOfTimes);
+    }
+
+    /// <inheritdoc cref="ComputeBetween(IOperableTrigger, ICalendar?, DateTimeOffset, DateTimeOffset)" />
+    /// <exception cref="ArgumentException">
+    /// <paramref name="trigger" /> is not an <see cref="IOperableTrigger" />, so its schedule cannot be
+    /// advanced.
+    /// </exception>
+    public static List<DateTimeOffset> ComputeBetween(ITrigger trigger, ICalendar? calendar, DateTimeOffset from, DateTimeOffset to)
+    {
+        return ComputeBetween(Operable(trigger), calendar, from, to);
+    }
+
+    /// <summary>
+    /// The cast the <see cref="ITrigger" /> overloads exist to save a caller writing, with the failure
+    /// it would otherwise produce turned into one that says what is wrong.
+    /// </summary>
+    private static IOperableTrigger Operable(ITrigger trigger)
+    {
+        ArgumentNullException.ThrowIfNull(trigger);
+
+        if (trigger is IOperableTrigger operable)
+        {
+            return operable;
+        }
+
+        return Throw.ArgumentException<IOperableTrigger>(
+            $"{trigger.GetType()} does not implement IOperableTrigger, so its fire times cannot be computed: "
+            + "answering means advancing a copy of the trigger through its schedule, which is what that "
+            + "interface adds. Derive the trigger from Quartz.Impl.Triggers.TriggerBase, or compute a "
+            + "single step with ITrigger.GetFireTimeAfter.",
+            nameof(trigger));
     }
 }

@@ -51,44 +51,44 @@ internal sealed class Meters
         // and a counter is monotonic by definition, so an aggregating exporter is entitled to drop or
         // mis-render the decrement and show a running count that only ever climbs. The unit is UCUM's
         // annotation form for a dimensionless count of a thing, which is how OpenTelemetry spells one.
-        jobExecuteInProgress = meter.CreateUpDownCounter<long>("quartz.job.execution.active", "{job}", "Number of jobs currently running");
+        jobExecuteInProgress = meter.CreateUpDownCounter<long>(QuartzInstrumentation.Instruments.JobExecutionActive, "{job}", "Number of jobs currently running");
 
         // Seconds, per OpenTelemetry's duration convention. A histogram's default bucket boundaries assume
         // a duration is in seconds, so recording milliseconds piled every execution longer than ten
         // seconds into the last bucket, next to every other duration series in the application.
-        jobExecuteDuration = meter.CreateHistogram<double>("quartz.job.execution.duration", "s", "Elapsed time spent executing a job");
+        jobExecuteDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.JobExecutionDuration, "s", "Elapsed time spent executing a job");
 
         // A misfire is a fire that was owed and did not happen on time, which is the number an operator
         // wants an alert on. Counted once per trigger the scheduler is told misfired, wherever the store
         // noticed it: the notification is what every store has in common.
-        triggerMisfires = meter.CreateCounter<long>("quartz.trigger.misfire", "{trigger}", "Number of trigger misfires the scheduler was notified of");
+        triggerMisfires = meter.CreateCounter<long>(QuartzInstrumentation.Instruments.TriggerMisfire, "{trigger}", "Number of trigger misfires the scheduler was notified of");
 
         // A retry is a fire that happened, failed, and is being attempted again — the other half of the
         // picture a misfire count gives, and the number that says whether a job is limping along on its
         // retries rather than working. Counted once per retry the scheduler schedules, not per attempt
         // configured, so a policy that never has to be used contributes nothing.
-        triggerRetries = meter.CreateCounter<long>("quartz.trigger.retry", "{trigger}", "Number of trigger retries the scheduler scheduled after a job failed");
+        triggerRetries = meter.CreateCounter<long>(QuartzInstrumentation.Instruments.TriggerRetry, "{trigger}", "Number of trigger retries the scheduler scheduled after a job failed");
 
         // How long the scheduling loop waits on its store for the next batch. This is the round trip the
         // loop cannot overlap with anything, so it is what a slow or contended store shows up as.
-        triggerAcquisitionDuration = meter.CreateHistogram<double>("quartz.trigger.acquisition.duration", "s", "Elapsed time spent acquiring the next batch of triggers");
+        triggerAcquisitionDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.TriggerAcquisitionDuration, "s", "Elapsed time spent acquiring the next batch of triggers");
 
         // And how many the round actually returned, which is what tells an idle scheduler apart from a
         // saturated one at the same acquisition rate.
-        triggersAcquired = meter.CreateCounter<long>("quartz.trigger.acquired", "{trigger}", "Number of triggers acquired for firing");
+        triggersAcquired = meter.CreateCounter<long>(QuartzInstrumentation.Instruments.TriggerAcquired, "{trigger}", "Number of triggers acquired for firing");
 
         // A check-in that slows down is how a cluster starts failing: the other nodes decide this one
         // died once it stops arriving, and recover work it is still doing.
-        clusterCheckinDuration = meter.CreateHistogram<double>("quartz.cluster.checkin.duration", "s", "Elapsed time spent on a cluster check-in");
+        clusterCheckinDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.ClusterCheckinDuration, "s", "Elapsed time spent on a cluster check-in");
 
         // What recovering a failed node cost, counted against the node that failed rather than the one
         // doing the recovering.
-        clusterRecoveredTriggers = meter.CreateCounter<long>("quartz.cluster.recovery.trigger", "{trigger}", "Number of fired triggers recovered from a failed cluster node");
+        clusterRecoveredTriggers = meter.CreateCounter<long>(QuartzInstrumentation.Instruments.ClusterRecoveryTrigger, "{trigger}", "Number of fired triggers recovered from a failed cluster node");
 
         // Every round trip a scheduler makes to its store, named by the operation. The histogram's own
         // count is how many of each there were, and its error.type subset how many failed, so this one
         // instrument answers rate, latency and failure for the whole store surface.
-        jobStoreOperationDuration = meter.CreateHistogram<double>("quartz.jobstore.operation.duration", "s", "Elapsed time spent on a job store operation");
+        jobStoreOperationDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.JobStoreOperationDuration, "s", "Elapsed time spent on a job store operation");
     }
 
     public static Meters Shared => shared.Value;

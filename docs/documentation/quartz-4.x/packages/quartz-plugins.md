@@ -180,6 +180,15 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
+For the common case — one file, read once — name the files and nothing else:
+
+```csharp
+services.AddQuartz(q => q.UseJsonSchedulingConfiguration("quartz_jobs.json"));
+```
+
+The shorthand adds to `Files` rather than replacing it, so it composes with the callback form and with
+itself. `UseXmlSchedulingConfiguration` has the same pair.
+
 See [JSON Configuration](../configuration/json.md) for the full JSON file format and trigger type reference.
 
 ### XmlSchedulingDataProcessorPlugin

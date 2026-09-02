@@ -185,7 +185,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
             {
                 logger.DeletingAllJobsInAllGroups();
                 // deliberately unbounded: deleting only the first page would leave survivors behind
-                PagedResult<JobHeader> allJobs = await scheduler.QueryJobs(new JobQuery { Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+                PagedResult<JobHeader> allJobs = await scheduler.QueryJobs(new JobQuery { Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
                 foreach (JobHeader job in allJobs.Items)
                 {
                     if (protectedJobGroups.Contains(job.Key.Group)) continue;
@@ -208,7 +208,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
             {
                 logger.DeletingAllTriggersInAllGroups();
                 // deliberately unbounded: unscheduling only the first page would leave survivors behind
-                PagedResult<TriggerHeader> allTriggers = await scheduler.QueryTriggers(new TriggerQuery { Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+                PagedResult<TriggerHeader> allTriggers = await scheduler.QueryTriggers(new TriggerQuery { Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
                 foreach (TriggerHeader trigger in allTriggers.Items)
                 {
                     if (protectedTriggerGroups.Contains(trigger.Key.Group)) continue;

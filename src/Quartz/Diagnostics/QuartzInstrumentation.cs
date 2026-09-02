@@ -37,4 +37,53 @@ public static class QuartzInstrumentation
     /// The Quartz assembly version, reported as the version of both the source and the meter.
     /// </summary>
     internal static readonly string? Version = typeof(QuartzInstrumentation).Assembly.GetName().Version?.ToString();
+
+    /// <summary>
+    /// The names of the instruments a scheduler publishes on <see cref="MeterName" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The metric counterpart of <see cref="OperationName" />, and here for the same reason: a
+    /// dashboard, an alert rule or a metrics view matches on these strings, so they are a contract and
+    /// a rename of one is a breaking change for everybody watching. They were literals inside the
+    /// meter, which left an integrator copying them out of the documentation and unable to hold a
+    /// dashboard to them.
+    /// </para>
+    /// <para>
+    /// The meter builds its instruments from these constants, and a test asserts that every instrument
+    /// it creates is named by one and every one of these names an instrument, so the two cannot drift.
+    /// What each instrument measures, in what unit and under which tags, is in the
+    /// <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/opentelemetry-integration.html">OpenTelemetry
+    /// integration</a> page.
+    /// </para>
+    /// </remarks>
+    public static class Instruments
+    {
+        /// <summary>Jobs running right now — an up-down counter, <c>{job}</c>.</summary>
+        public const string JobExecutionActive = "quartz.job.execution.active";
+
+        /// <summary>How long a job took — a histogram, seconds. Its count is the number of executions and its <c>error.type</c> subset the number of failures.</summary>
+        public const string JobExecutionDuration = "quartz.job.execution.duration";
+
+        /// <summary>Trigger misfires the scheduler was notified of — a counter, <c>{trigger}</c>.</summary>
+        public const string TriggerMisfire = "quartz.trigger.misfire";
+
+        /// <summary>Retries the scheduler scheduled after a job failed — a counter, <c>{trigger}</c>.</summary>
+        public const string TriggerRetry = "quartz.trigger.retry";
+
+        /// <summary>How long one round of the scheduling loop's acquisition took — a histogram, seconds.</summary>
+        public const string TriggerAcquisitionDuration = "quartz.trigger.acquisition.duration";
+
+        /// <summary>Triggers acquired for firing — a counter, <c>{trigger}</c>.</summary>
+        public const string TriggerAcquired = "quartz.trigger.acquired";
+
+        /// <summary>How long a cluster check-in took — a histogram, seconds.</summary>
+        public const string ClusterCheckinDuration = "quartz.cluster.checkin.duration";
+
+        /// <summary>Fired triggers recovered from a failed cluster node — a counter, <c>{trigger}</c>.</summary>
+        public const string ClusterRecoveryTrigger = "quartz.cluster.recovery.trigger";
+
+        /// <summary>How long one round trip to the job store took — a histogram, seconds, tagged by operation.</summary>
+        public const string JobStoreOperationDuration = "quartz.jobstore.operation.duration";
+    }
 }

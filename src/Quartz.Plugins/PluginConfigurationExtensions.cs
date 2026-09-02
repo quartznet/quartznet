@@ -25,6 +25,24 @@ namespace Quartz;
 public static class PluginConfigurationExtensions
 {
     /// <summary>
+    /// Loads jobs and triggers from the named XML files, read once.
+    /// </summary>
+    /// <remarks>
+    /// The shorthand for the commonest case, which is one file and nothing else to say about it. It
+    /// adds to <see cref="FileSchedulingOptions.Files" /> rather than replacing it, exactly as the
+    /// callback form's <c>options.Files.Add(…)</c> does, so calling both — or calling this twice — is
+    /// additive. Rescanning, or any of the other settings, needs the callback overload.
+    /// </remarks>
+    /// <param name="builder">The scheduler's builder.</param>
+    /// <param name="files">The files to load, in the plugin's own path syntax — <c>~/</c> is the content root.</param>
+    public static IQuartzBuilder UseXmlSchedulingConfiguration(
+        this IQuartzBuilder builder,
+        params string[] files)
+    {
+        return UseXmlSchedulingConfiguration(builder, Adding(files));
+    }
+
+    /// <summary>
     /// Loads jobs and triggers from XML files, optionally rescanning them for changes.
     /// </summary>
     public static IQuartzBuilder UseXmlSchedulingConfiguration(
@@ -48,6 +66,19 @@ public static class PluginConfigurationExtensions
                 plugin.FailOnSchedulingError = options.FailOnSchedulingError;
                 plugin.ScanInterval = options.ScanInterval;
             });
+    }
+
+    /// <summary>
+    /// Loads jobs and triggers from the named JSON files, read once.
+    /// </summary>
+    /// <inheritdoc cref="UseXmlSchedulingConfiguration(IQuartzBuilder, string[])" path="/remarks" />
+    /// <param name="builder">The scheduler's builder.</param>
+    /// <param name="files">The files to load, in the plugin's own path syntax — <c>~/</c> is the content root.</param>
+    public static IQuartzBuilder UseJsonSchedulingConfiguration(
+        this IQuartzBuilder builder,
+        params string[] files)
+    {
+        return UseJsonSchedulingConfiguration(builder, Adding(files));
     }
 
     /// <summary>
@@ -174,6 +205,29 @@ public static class PluginConfigurationExtensions
         }
     }
 
+    /// <summary>
+    /// Turns a file list into the callback the two shorthand overloads share, so the shorthand and the
+    /// callback form produce the same options rather than two ways of filling them in.
+    /// </summary>
+    private static Action<FileSchedulingOptions> Adding(string[] files)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+
+        if (files.Length == 0)
+        {
+            Throw.ArgumentException(
+                "Name at least one file to load the schedule from, or use the overload taking a "
+                + "configure callback to set the other options and leave the file names to configuration.",
+                nameof(files));
+        }
+
+        foreach (string file in files)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(file, nameof(files));
+        }
+
+        return options => options.Files.AddRange(files);
+    }
 }
 
 /// <summary>

@@ -34,7 +34,7 @@ public void CronScheduleSkipsWeekends()
 {
     FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 6, 0, 0, 0, TimeSpan.Zero)); // a Friday
 
-    IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
+    ITrigger trigger = TriggerBuilder.Create(clock)
         .WithIdentity("weekdays")
         .StartAt(clock.GetUtcNow())
         .WithCronSchedule("0 0 9 ? * MON-FRI", x => x.InTimeZone(TimeZoneInfo.Utc))
@@ -56,9 +56,11 @@ public void CronScheduleSkipsWeekends()
 | `ComputeBetween(trigger, calendar, from, to)` | every fire time in a window |
 | `ComputeEndTimeForCount(trigger, calendar, numberOfTimes)` | the `EndAt` that would allow exactly *n* firings |
 
-All three take an `IOperableTrigger`, so cast the trigger the builder handed you. They clone it before
-computing and prime it themselves, so you do not have to call `ComputeFirstFireTimeUtc` first, and the
-trigger you passed in is untouched.
+Each has an `ITrigger` overload and an `IOperableTrigger` one. Pass what you are holding: the
+`ITrigger` form does the cast for you, and answers with an `ArgumentException` naming the type if the
+trigger is one of your own that cannot be advanced. They clone the trigger before computing and prime
+it themselves, so you do not have to call `ComputeFirstFireTimeUtc` first, and the trigger you passed
+in is untouched.
 
 For a single step, `ITrigger.GetFireTimeAfter(DateTimeOffset?)` answers "and then?" directly — it
 computes from the schedule rather than from stored state, so it works on a trigger that has never been
@@ -270,7 +272,7 @@ context.Result.Should().Be(42);
 ```
 
 Remember that a query pages: `Take` defaults to 250, so an assertion on a large result set needs
-`Take = int.MaxValue` or a loop. See
+`Take = PagedQuery.All` or a loop. See
 [Querying Jobs and Triggers](querying-jobs-and-triggers.md#paging).
 
 ::: warning Changed in 4.x

@@ -82,6 +82,10 @@ public static class HostedServicesSamples
             options.Name = "quartz-scheduler";   // the default, or quartz-scheduler-<name> for a named scheduler
             options.Tags.AddRange(["ready", "live"]);
             options.FailureStatus = HealthStatus.Unhealthy;
+
+            // What a scheduler in standby reports. Degraded by default; say Unhealthy where a standby
+            // node must leave the rotation and there is no HTTP probe to remap the status code at.
+            options.StandbyStatus = HealthStatus.Unhealthy;
         });
 
         #endregion

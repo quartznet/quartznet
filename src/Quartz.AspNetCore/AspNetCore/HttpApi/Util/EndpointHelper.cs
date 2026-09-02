@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
@@ -156,17 +157,51 @@ internal sealed class EndpointHelper
     /// </summary>
     public const int MaxKeysToFetch = 1000;
 
-    public static void AssertPaging(int skip, int? take)
+    /// <summary>
+    /// Reads the paging a listing request carried, answering the <c>take</c> to apply or
+    /// <see langword="null" /> when the request named none and the query record's own default should
+    /// stand.
+    /// </summary>
+    /// <remarks>
+    /// <c>take</c> is bound as a string rather than an <see cref="int" /> so that
+    /// <c>?take=all</c> can mean <see cref="PagedQuery.All" />. Asking for everything is a real thing
+    /// to want — an export, a group-name list, a migration — and the number behind it is
+    /// <c>2147483647</c>, which reads in a URL as a mistake rather than as an intention. The number
+    /// is still accepted, so a client that sends one keeps working; only the spelling is new.
+    /// </remarks>
+    /// <exception cref="BadHttpRequestException">
+    /// <paramref name="skip" /> is negative, or <paramref name="take" /> is negative or is neither a
+    /// number nor the "everything" sentinel.
+    /// </exception>
+    public static int? ParsePaging(int skip, string? take)
     {
         if (skip < 0)
         {
             throw new BadHttpRequestException("skip must not be negative");
         }
 
-        if (take < 0)
+        if (string.IsNullOrWhiteSpace(take))
+        {
+            return null;
+        }
+
+        if (string.Equals(take, HttpApiConstants.AllItems, StringComparison.OrdinalIgnoreCase))
+        {
+            return PagedQuery.All;
+        }
+
+        if (!int.TryParse(take, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+        {
+            throw new BadHttpRequestException(
+                $"take must be a number or '{HttpApiConstants.AllItems}', which asks for every match");
+        }
+
+        if (parsed < 0)
         {
             throw new BadHttpRequestException("take must not be negative");
         }
+
+        return parsed;
     }
 
     public static void AssertKeysToFetch(KeyDto[] keys)

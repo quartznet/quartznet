@@ -88,7 +88,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(matcher);
 
         // deliberately unbounded: this is the 3.x-compatible listing, and it returns everything
-        PagedResult<JobHeader> result = await scheduler.QueryJobs(new JobQuery { Group = matcher, Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+        PagedResult<JobHeader> result = await scheduler.QueryJobs(new JobQuery { Group = matcher, Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
         return Project(result.Items, static header => header.Key);
     }
 
@@ -111,7 +111,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(matcher);
 
         // deliberately unbounded: this is the 3.x-compatible listing, and it returns everything
-        PagedResult<TriggerHeader> result = await scheduler.QueryTriggers(new TriggerQuery { Group = matcher, Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+        PagedResult<TriggerHeader> result = await scheduler.QueryTriggers(new TriggerQuery { Group = matcher, Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
         return Project(result.Items, static header => header.Key);
     }
 
@@ -139,7 +139,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(jobKey);
 
         // deliberately unbounded: this is the 3.x-compatible listing, and it returns everything
-        PagedResult<TriggerHeader> result = await scheduler.QueryTriggers(new TriggerQuery { Job = jobKey, Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+        PagedResult<TriggerHeader> result = await scheduler.QueryTriggers(new TriggerQuery { Job = jobKey, Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
         if (result.Items.Count == 0)
         {
             return [];
@@ -164,7 +164,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
 
         // deliberately unbounded: this is the 3.x-compatible listing, and it returns everything
-        PagedResult<JobGroup> result = await scheduler.QueryJobGroups(new JobGroupQuery { Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+        PagedResult<JobGroup> result = await scheduler.QueryJobGroups(new JobGroupQuery { Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
         return Project(result.Items, static group => group.Name);
     }
 
@@ -184,7 +184,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
 
         // deliberately unbounded: this is the 3.x-compatible listing, and it returns everything
-        PagedResult<TriggerGroup> result = await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+        PagedResult<TriggerGroup> result = await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
         return Project(result.Items, static group => group.Name);
     }
 
@@ -205,7 +205,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
 
         // deliberately unbounded: this is the 3.x-compatible listing, and it returns everything
-        PagedResult<TriggerGroup> result = await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true, Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+        PagedResult<TriggerGroup> result = await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true, Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
         return Project(result.Items, static group => group.Name);
     }
 
@@ -225,7 +225,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
 
         // deliberately unbounded: this is the 3.x-compatible listing, and it returns everything
-        PagedResult<string> result = await scheduler.QueryCalendarNames(new CalendarQuery { Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
+        PagedResult<string> result = await scheduler.QueryCalendarNames(new CalendarQuery { Take = PagedQuery.All }, cancellationToken).ConfigureAwait(false);
         return Project(result.Items, static name => name);
     }
 

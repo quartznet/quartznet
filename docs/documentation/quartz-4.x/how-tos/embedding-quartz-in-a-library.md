@@ -371,10 +371,14 @@ This is Quartz's judgement rather than an industry convention, and it is worth k
 of the ecosystem leans: Microsoft's own readiness sample reports *unhealthy* while start-up work is still
 running, and MassTransit reports unhealthy for a bus that has not connected. The reasoning for the other
 choice is the HTTP mapping — *degraded* answers 200 by default and *unhealthy* answers 503 — so a probe
-that cannot tell "deliberately waiting" from "broken" removes the node either way. The verdict itself is
-not configurable: `QuartzHealthCheckOptions.FailureStatus` sets what the *registration* reports when the
-check fails, and does not turn a deliberate *degraded* into *unhealthy*. An application that wants the
-stricter reading maps it at the probe, with `HealthCheckOptions.ResultStatusCodes`.
+that cannot tell "deliberately waiting" from "broken" removes the node either way. An application that
+wants the stricter reading for a scheduler in **standby** says so with
+`QuartzHealthCheckOptions.StandbyStatus`, which is the standby verdict alone; the window above — a
+`Created` scheduler waiting for the application to press start — stays degraded, because it is a
+window rather than a state a node sits in. (`FailureStatus` is a different thing again: it sets what
+the *registration* reports when the check fails.) Over HTTP the verdict can also be remapped at the
+probe, with `HealthCheckOptions.ResultStatusCodes` — which is what a worker project, having no
+endpoint, cannot do.
 
 Where the moment is decided by an election outside the process rather than by your own readiness, see
 [Running under an External Leader Election](external-leader.md).

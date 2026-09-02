@@ -706,7 +706,11 @@ it maps `Healthy`, so a standby scheduler looks healthy to anything that reads t
 `Degraded` to 503 in `HealthCheckOptions.ResultStatusCodes` if a standby node should leave the
 rotation. Under Aspire this interacts with `WithHttpHealthCheck`, and
 [the Aspire how-to](how-tos/aspire.md) has the whole table, including the fact that a worker project
-has no health endpoint to poll at all.
+has no health endpoint to poll at all. That is what
+`AddQuartzHealthChecks(options => options.StandbyStatus = HealthStatus.Unhealthy)` is for: it changes
+the verdict itself rather than its status code, so a probe reading the `HealthCheckService` directly
+sees it. It covers standby and nothing else — a scheduler still in `Created` because
+`AutoStart = false` keeps reporting degraded.
 
 For what to watch besides the probe — the `Quartz` activity source, the `quartz` meter and what the
 instruments do and do not cover — see [Observability](packages/opentelemetry-integration.md), which

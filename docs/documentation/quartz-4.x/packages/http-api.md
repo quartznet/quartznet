@@ -357,9 +357,10 @@ client could not tell an absent member from one that is never sent.
 :::
 
 There is one case where a `400` has **no** body at all, and it is not the API's doing: a query
-parameter the framework could not bind — `?take=not-a-number`, `?state=not-a-state` — is rejected
-before the request reaches an endpoint. A request the endpoint itself rejected — `?skip=-1`, a job
-with no name, unparseable JSON — always answers with the problem details above.
+parameter the framework could not bind — `?skip=not-a-number`, `?includeTotalCount=maybe` — is
+rejected before the request reaches an endpoint. A request the endpoint itself rejected —
+`?skip=-1`, `?take=lots`, `?state=not-a-state`, a job with no name, unparseable JSON — always answers
+with the problem details above.
 
 ## Listing endpoints are paged
 
@@ -375,7 +376,8 @@ Every listing endpoint — jobs, triggers, calendars, and the two group listings
 ```
 
 `take` defaults to 250 (`PagedQuery.DefaultTake`) when the request names none — ask for everything
-explicitly with `?take=2147483647` — `hasMore` is exact, and `totalCount` is `null` unless
+explicitly with **`?take=all`** (`?take=2147483647`, the number behind it, is still accepted and means
+the same thing; `PagedQuery.All` is how it is spelled in code) — `hasMore` is exact, and `totalCount` is `null` unless
 `includeTotalCount=true` was asked for, because computing it costs a second database query. A count
 with no rows is `?take=0&includeTotalCount=true`, which the stores answer with the count query alone.
 

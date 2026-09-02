@@ -52,6 +52,48 @@ public class QuartzHealthCheckTests
         result.Description.Should().Contain("standby").And.Contain("core");
     }
 
+    /// <summary>
+    /// And a deployment that cannot live with the degraded verdict says so, rather than remapping it
+    /// on an endpoint it may not have.
+    /// </summary>
+    /// <remarks>
+    /// An ASP.NET Core application can turn degraded into whatever status code it likes on
+    /// <c>MapHealthChecks</c>. A worker has no endpoint at all — its probe asks the
+    /// <c>HealthCheckService</c> directly — so a standby node it must not route to had no way to say
+    /// so at all.
+    /// </remarks>
+    [Test]
+    public async Task StandbyReportsWhatTheOptionsAskForRatherThanAlwaysDegraded()
+    {
+        HealthReportEntry result = await Check(
+            SchedulerStatus.Standby,
+            check: options => options.StandbyStatus = HealthStatus.Unhealthy);
+
+        result.Status.Should().Be(
+            HealthStatus.Unhealthy,
+            "StandbyStatus is the deployment's answer to 'may this node be routed to while it is in standby'");
+        result.Description.Should().Contain("standby",
+            "changing the verdict must not change what the operator is told happened");
+    }
+
+    /// <summary>
+    /// <c>StandbyStatus</c> is the standby verdict alone. The created-but-started-by-the-application
+    /// arm is a window rather than a state a node sits in, and keeps reporting degraded.
+    /// </summary>
+    [Test]
+    public async Task StandbyStatusDoesNotChangeTheVerdictForASchedulerTheApplicationStarts()
+    {
+        HealthReportEntry result = await Check(
+            SchedulerStatus.Created,
+            hostedService: options => options.AutoStart = false,
+            check: options => options.StandbyStatus = HealthStatus.Unhealthy);
+
+        result.Status.Should().Be(
+            HealthStatus.Degraded,
+            "the setting is named for standby and covers standby; a scheduler waiting for the application "
+            + "to press start is a startup window, not a node that has taken itself out of rotation");
+    }
+
     [TestCase(SchedulerStatus.Created, "never started")]
     [TestCase(SchedulerStatus.ShuttingDown, "shutting down")]
     [TestCase(SchedulerStatus.Shutdown, "shut down")]
@@ -157,10 +199,12 @@ public class QuartzHealthCheckTests
     /// Registers the hosted service and configures it. Left <see langword="null" /> there is none in the
     /// container at all, which is the case that leaves <c>AutoStart</c> at its default.
     /// </param>
+    /// <param name="check">Configures the health check's own options.</param>
     private static async Task<HealthReportEntry> Check(
         SchedulerStatus status,
         SchedulerException? storeFailure = null,
-        Action<QuartzHostedServiceOptions>? hostedService = null)
+        Action<QuartzHostedServiceOptions>? hostedService = null,
+        Action<QuartzHealthCheckOptions>? check = null)
     {
         IScheduler scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.SchedulerName).Returns("core");
@@ -177,7 +221,7 @@ public class QuartzHealthCheckTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddSingleton(factory);
-        services.AddHealthChecks().AddQuartz();
+        services.AddHealthChecks().AddQuartz(check);
 
         if (hostedService is not null)
         {

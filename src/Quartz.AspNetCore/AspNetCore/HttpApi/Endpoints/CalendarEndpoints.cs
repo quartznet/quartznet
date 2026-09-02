@@ -37,7 +37,7 @@ internal static class CalendarEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int? take = null,
+        string? take = null,
         bool includeTotalCount = false,
         string? nameContains = null,
         string? nameEndsWith = null,
@@ -45,7 +45,7 @@ internal static class CalendarEndpoints
         string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
-        EndpointHelper.AssertPaging(skip, take);
+        int? takeItems = EndpointHelper.ParsePaging(skip, take);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             CalendarQuery query = new()
@@ -56,9 +56,9 @@ internal static class CalendarEndpoints
             };
 
             // a request that names no take gets the query record's own default page size
-            if (take.HasValue)
+            if (takeItems.HasValue)
             {
-                query = query with { Take = take.Value };
+                query = query with { Take = takeItems.Value };
             }
 
             PagedResult<string> page = await scheduler.QueryCalendarNames(query, cancellationToken).ConfigureAwait(false);
