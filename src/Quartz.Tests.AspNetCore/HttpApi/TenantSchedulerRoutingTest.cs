@@ -24,8 +24,7 @@ namespace Quartz.Tests.AspNetCore.HttpApi;
 /// missing from the routes is present there, which is how a caller tells "not built yet" from "no such
 /// tenant".
 /// </remarks>
-[NonParallelizable]
-public sealed class TenantSchedulerRoutingTest
+public abstract class TenantSchedulerRoutingTest
 {
     private readonly List<WebApplicationFactory<Program>> factories = [];
 
@@ -191,7 +190,7 @@ public sealed class TenantSchedulerRoutingTest
         factories.Add(root);
 
         WebApplicationFactory<Program> application = root.WithWebHostBuilder(builder =>
-            builder.ConfigureServices(services => services.AddQuartz(tenantName, q => q.UseInMemoryStore())));
+            builder.ConfigureServices(services => services.AddQuartz(tenantName, ConfigureStore)));
         factories.Add(application);
 
         return application;
@@ -210,4 +209,10 @@ public sealed class TenantSchedulerRoutingTest
         string body = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<SchedulerHeaderDto[]>(body, serializerOptions)!;
     }
+
+    /// <summary>
+    /// The store the tenant is given. The in-memory one here; a derived fixture runs the same contract
+    /// over a persistent one.
+    /// </summary>
+    protected virtual void ConfigureStore(IQuartzBuilder builder) => builder.UseInMemoryStore();
 }

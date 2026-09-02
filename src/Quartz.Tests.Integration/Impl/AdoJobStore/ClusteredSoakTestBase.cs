@@ -26,12 +26,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// </code>
 /// <para>
 /// <b>What it is for.</b> Every other clustered fixture here asserts one property over a run of
-/// minutes: exactly-once acquisition, a killed node's residue, node affinity, tenancy. None of them
-/// runs long enough for a leak to show, none of them runs a
-/// <see cref="DisallowConcurrentExecutionAttribute" /> job on two live nodes and watches for an
-/// overlap — <c>ClusteredExactlyOnceTestBase</c> says in as many words why its own job is concurrent
-/// by design — and none of them puts retries, timeouts, misfires and a failover through the same
-/// scheduler at the same time. That combination is what a night in production is, and it is what this
+/// minutes: exactly-once acquisition, a killed node's residue, node affinity, tenancy,
+/// and — since <see cref="ClusteredSerialJobTestBase" /> — a
+/// <see cref="DisallowConcurrentExecutionAttribute" /> job that never overlaps itself. None of them
+/// runs long enough for a leak to show, and none of them puts retries, timeouts, misfires and a
+/// failover through the same scheduler at the same time. That combination is what a night in production is, and it is what this
 /// runs.
 /// </para>
 /// <para>
