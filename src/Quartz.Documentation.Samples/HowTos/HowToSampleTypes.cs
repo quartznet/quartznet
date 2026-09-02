@@ -1,3 +1,5 @@
+using Quartz.Extensibility;
+
 namespace Quartz.Documentation.Samples.HowTos;
 
 /// <summary>
@@ -40,4 +42,14 @@ public sealed class AnExampleJob : IJob
 public sealed class ReportingJob : IJob
 {
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+
+public sealed class AcmeOutboxOptions
+{
+    public TimeSpan DrainInterval { get; set; } = TimeSpan.FromSeconds(30);
+}
+
+public sealed class AcmeOutboxPlugin : ISchedulerPlugin
+{
+    public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 }

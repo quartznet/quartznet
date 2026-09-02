@@ -31,7 +31,21 @@ next: false
 The cron expression syntax the CronTriggers lesson builds on has its own page:
 [Cron Expression Reference](../cron-expressions.md).
 
+Four things a scheduler in production usually wants are recipes rather than lessons, and live in the
+[How To's](../how-tos/):
+
+* [Retrying Failed Jobs](../how-tos/retrying-failed-jobs.md) — a trigger re-fires its job after a failure
+* [Rescheduling Jobs](../how-tos/rescheduling-jobs.md) — changing a schedule, and resetting a trigger stuck in `Error`
+* [Running a Job Once](../how-tos/one-off-job.md) — work that happens at a time and is then finished with
+* [Embedding Quartz in a Library](../how-tos/embedding-quartz-in-a-library.md) — for a package that schedules on its consumer's behalf
+
 Several of these lessons have a runnable counterpart in the repository's
 [console tour](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Examples/README.md) —
 `dotnet run --project src/Quartz.Examples` — where simple triggers, cron triggers, job data, misfires,
-listeners, calendars and clustering each happen in a console while you watch.
+listeners, calendars and clustering each happen in a console while you watch. Three fuller programs sit
+beside it: [`Quartz.Examples.Worker`](https://github.com/quartznet/quartznet/tree/main/src/Quartz.Examples.Worker),
+a worker service with a persistent store;
+[`Quartz.Examples.AspNetCore`](https://github.com/quartznet/quartznet/tree/main/src/Quartz.Examples.AspNetCore),
+which adds health checks, the HTTP API and the dashboard; and
+[`Quartz.Examples.HttpClient`](https://github.com/quartznet/quartznet/tree/main/src/Quartz.Examples.HttpClient),
+which drives that API from another process.

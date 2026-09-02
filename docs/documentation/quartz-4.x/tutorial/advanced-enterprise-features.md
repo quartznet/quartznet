@@ -194,3 +194,38 @@ foreach (ClusterNode node in nodes)
 The same listing is behind `GET /schedulers/{name}/nodes` in the
 [HTTP API](../packages/http-api.md#cluster-nodes) and the Cluster page of the
 [dashboard](../packages/dashboard.md).
+
+## Asking for recovery
+
+Failover recovers a dead node's *executions*, and only for jobs that asked. `RequestRecovery()` on the
+job is the whole of the asking:
+
+<!-- snippet: sample_best_practices_request_recovery -->
+```csharp
+q.AddJob<ChargeInvoicesJob>(j => j
+    .WithIdentity("charge-invoices")
+    .RequestRecovery());
+```
+<!-- endSnippet -->
+
+It is off by default, and it means nothing without a persistent store. When a clustered scheduler
+decides a peer has stopped checking in, every fired-trigger row that peer left behind is examined: one
+whose job requested recovery becomes a new trigger in the `RECOVERING_JOBS` group, carrying the original
+trigger's job data; one whose job did not is deleted, and that occurrence is lost. The read side is
+`IJobDetail.RequestsRecovery`, and a firing that is a recovery says so through
+`IJobExecutionContext.Recovering`.
+
+Which jobs should ask, exactly what recovery re-runs and what it deliberately does not, and how a
+recovered firing identifies itself, are in
+[What RequestsRecovery re-runs, and when](../../best-practices.md#what-requestsrecovery-re-runs-and-when).
+Recovery is about an execution that was *interrupted*; a job that threw is a completed firing, and
+re-running that one is a [retry policy](../how-tos/retrying-failed-jobs.md) on its trigger.
+
+## See also
+
+- [Best Practices](../../best-practices.md) — what to ask for recovery, and how to make a job safe to re-run
+- [Retrying Failed Jobs](../how-tos/retrying-failed-jobs.md) — a trigger's own answer to a job that throws
+- [Operating a Cluster](../operations.md) — rolling upgrades, instance ids in containers, sizing, backup
+- [Running under an External Leader Election](../how-tos/external-leader.md) — when the election already exists
+- [`Quartz.Examples.Worker`](https://github.com/quartznet/quartznet/tree/main/src/Quartz.Examples.Worker) —
+  a worker service with a persistent store, configured the way this lesson describes

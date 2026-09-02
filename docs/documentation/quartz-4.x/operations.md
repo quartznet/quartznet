@@ -703,7 +703,20 @@ Three limits are worth being deliberate about.
 
 **It does not assert that anything is firing.** A scheduler with an empty schedule, a paused group or a
 starved thread pool is healthy by this definition. Pair it with an alert on a job you expect to see
-regularly — the store is the source for that, since the shipped instruments do not cover it.
+regularly. `quartz.job.execution.duration` is the instrument to build it from — the alert is on its
+*count*, not its value, because a histogram that received no observations is the signal:
+
+```promql
+# no execution of the nightly close in the last 25 hours, on any node of the cluster
+sum(increase(quartz_job_execution_duration_count{quartz_job_name="nightly-close"}[25h])) == 0
+```
+
+Give the window room for the schedule's own jitter and for a retry, and alert per job that matters
+rather than in aggregate: a fleet that is busy hides one job that stopped. The instrument's attributes
+are in [Observability](packages/opentelemetry-integration.md#metrics) — including which of them are
+high-cardinality and should be dropped in a view before they reach the backend. Where the job is one
+whose *absence* is the incident rather than its lateness, the store is a second source: a trigger whose
+`NextFireTimeUtc` is far in the past, or one in `Error`, is a row you can query.
 
 **It says nothing about the cluster.** A node that has stopped checking in — because its cluster
 manager is wedged on the database while the rest of the process is fine — still answers healthy. The

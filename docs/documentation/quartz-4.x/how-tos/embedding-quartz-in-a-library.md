@@ -181,6 +181,71 @@ public static IServiceCollection AddAcmeOutboxToOneScheduler(this IServiceCollec
 Remote schedulers registered with `AddQuartzHttpClient` are not built by a builder and are skipped. Calling
 it when no scheduler is registered at all is not an error, so a library may call it unconditionally.
 
+## Settings your consumers can set
+
+A library that schedules anything has knobs — how often the outbox is drained, how many attempts, which
+connection. Do not invent a mechanism for them: Quartz's own components are configured through the options
+pipeline under the scheduler's name, and yours join it.
+
+`q.ConfigureOptions<TOptions>(…)` registers a callback under **this scheduler's** options name and declares
+the type as the scheduler's own, so a component the container builds for that scheduler — a job, a listener,
+a plugin, a job store — is handed what was configured for *its* scheduler rather than for the unnamed
+instance:
+
+<!-- snippet: sample_embedding_library_options -->
+```csharp
+public static IServiceCollection AddAcmeOutboxScheduler(
+    this IServiceCollection services,
+    Action<AcmeOutboxOptions>? configure = null)
+{
+    services.AddQuartz("acme.outbox", q =>
+    {
+        // The library's own settings, named for this scheduler. A component the container
+        // builds for "acme.outbox" and taking IOptions<AcmeOutboxOptions> is handed these.
+        q.ConfigureOptions<AcmeOutboxOptions>(options =>
+        {
+            options.DrainInterval = TimeSpan.FromSeconds(30);
+            configure?.Invoke(options);
+        });
+
+        // AddPlugin<T, TOptions> is the same thing said for a plugin
+        q.AddPlugin<AcmeOutboxPlugin, AcmeOutboxOptions>(name: "acmeOutbox");
+    });
+
+    return services;
+}
+```
+<!-- endSnippet -->
+
+`AddPlugin<TPlugin, TOptions>(configure, name)` is sugar over the same thing for a plugin. Because these are ordinary
+named options, a consumer configures them from `appsettings.json` with
+`services.Configure<AcmeOutboxOptions>("acme.outbox", section)` and from code with a second
+`ConfigureOptions` call, in either order — the pipeline applies them all. That is the shape to give a
+consumer, rather than a static, a singleton of your own or a second builder.
+
+## What your scheduler costs an operator
+
+A library that registers its own scheduler hands its consumer three things to run, and should say so in
+its readme:
+
+* **A schema, if the store is persistent.** Somebody has to create the tables. `SCHED_NAME` is the
+  scheduler's name and it is on every row, so a library's scheduler can share the consumer's Quartz tables
+  safely — a shared `TablePrefix` is not a collision — and that is usually what a consumer wants rather
+  than a second set. Say which you assume. If you provision your own,
+  [`ProvisionSchema()`](../tutorial/job-stores.md#creating-the-schema) needs a DDL permission a production
+  database is often right not to grant, so it cannot be your default. See
+  [Database Schema](../db/) for what the tables hold and
+  [Shared database](../multi-tenancy.md#shared-database) for what a shared one does and does not isolate.
+* **A row in every operator surface.** Your scheduler appears in `ISchedulerRegistry`, in the
+  [dashboard's](../packages/dashboard.md) scheduler picker and in `GET /schedulers` as a separate entry.
+  That is the reason to name it something an operator will recognise, and it is what makes a name like
+  `acme.outbox` better than `default2`.
+* **A health check, if it should be one.** A named scheduler does not get the check the default one has;
+  ask for it where the scheduler is configured, with
+  `AddQuartz("acme.outbox", q => q.AddQuartzHealthChecks())`, and it reports on *that* scheduler under
+  its own name. See [Health checks](../packages/hosted-services-integration.md#health-checks) — including
+  what a scheduler you deliberately do not auto-start reports while it waits.
+
 ## Deriving keys
 
 A library schedules on behalf of something that has its own identity — a saga, a message, a tenant, an

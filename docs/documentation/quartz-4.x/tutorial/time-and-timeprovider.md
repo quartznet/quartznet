@@ -248,6 +248,8 @@ Daylight saving is where the two axes meet, and each trigger family answers it d
   that happens twice on a fall-back day
 - [More About Triggers](more-about-triggers.md) — calendar-interval triggers,
   `PreserveHourOfDayAcrossDaylightSavings` and `SkipDayIfHourDoesNotExist`
+- [Testing](testing.md#crossing-a-daylight-saving-transition) — the recipe that answers all of the above
+  for *your* schedule, in microseconds and with no scheduler
 
 ## Testing with a fake clock
 
