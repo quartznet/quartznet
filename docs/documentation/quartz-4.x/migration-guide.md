@@ -3550,20 +3550,34 @@ reads it, the dashboard shows it, and a support-bundle export of that table carr
 takes the credential from the container instead:
 
 ```csharp
-services.AddSingleton<ICredentialsByHost>(new NetworkCredential("mailer", smtpPassword));
+CredentialCache credentials = new();
+credentials.Add("smtp.example.com", 587, "Basic", new NetworkCredential("mailer", smtpPassword));
+services.AddSingleton<ICredentialsByHost>(credentials);
 ```
 
-`ICredentialsByHost` is what `SmtpClient.Credentials` takes, so a `CredentialCache` covers several
-servers. `SendMailOptions` deliberately has no user name or password on it.
+**A `CredentialCache` bound to the server, rather than a bare `NetworkCredential`, and that is a rule
+rather than a suggestion.** `smtp_host` is job data, so the host to authenticate to is chosen by whoever
+scheduled the job; a `NetworkCredential` answers `ICredentialsByHost.GetCredential` with itself for
+*every* host, so the two together hand the registered login to whatever host that job data names. The job
+now asks the registered credential for the host it is about to connect to, and:
 
-The two keys are still read when nothing is registered, so a job scheduled by an earlier version keeps
-sending; the job logs a warning saying where the credential now lives. A credential from the container
-wins over one in job data.
+| What you register | A job pointed at a host it covers | A job pointed at any other host |
+|---|---|---|
+| `CredentialCache` with an entry for the host | authenticates with that entry | sends unauthenticated |
+| bare `NetworkCredential` | — | **refuses to send**, naming the host and `CredentialCache` |
+
+`SendMailOptions` deliberately has no user name or password on it. The two job data keys are still read
+when nothing is registered, so a job scheduled by an earlier version keeps sending — that path is
+unaffected, since whoever wrote the user name wrote the host beside it — and the job logs a warning
+saying where the credential now lives. A credential from the container wins over one in job data.
+
+`SendMailOptions.EnableSsl` (`smtp_enable_ssl`) is new, and `false` by default, which is `SmtpClient`'s
+own default. Turn it on for anything that authenticates: SMTP `AUTH LOGIN` is base64, not encryption.
 
 | 3.x | 4.x |
 |---|---|
 | `SendMailJob()` | `SendMailJob(ICredentialsByHost? credentials = null)`, which the job factory fills from the container |
-| `MailInfo.SmtpUserName` / `MailInfo.SmtpPassword` | `MailInfo.Credentials`, an `ICredentialsByHost?`. An override of `Send` routing mail through another transport gets whichever credential applied |
+| `MailInfo.SmtpUserName` / `MailInfo.SmtpPassword` | `MailInfo.Credentials`, a `NetworkCredential?` resolved for `MailInfo.SmtpHost`. An override of `Send` routing mail through another transport gets whichever credential applied |
 | `protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)` | `protected virtual MailMessage BuildMessage(SendMailOptions options)` — the same override point, reading a value instead of a bag |
 | `protected virtual string GetRequiredParameter(JobDataMap, string)`, `GetOptionalParameter(JobDataMap, string)` | removed; `SendMailOptions.FromJobData` is the one reader, and it reports the same missing key |
 

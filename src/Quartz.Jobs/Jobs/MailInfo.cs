@@ -50,13 +50,20 @@ public sealed class MailInfo
     public int? SmtpPort { get; init; }
 
     /// <summary>
+    /// Whether to negotiate TLS with the SMTP server. <see langword="false" /> by default, which is
+    /// <see cref="SmtpClient" />'s own default.
+    /// </summary>
+    public bool EnableSsl { get; init; }
+
+    /// <summary>
     /// What to authenticate to the SMTP server with, or <see langword="null" /> to send
     /// unauthenticated.
     /// </summary>
     /// <remarks>
-    /// The credential registered with the container, or — for a job scheduled before there was one —
-    /// the <c>smtp_username</c> and <c>smtp_password</c> job data entries as a
-    /// <see cref="System.Net.NetworkCredential" />.
+    /// The registered credential's answer for <see cref="SmtpHost" /> — a
+    /// <see cref="System.Net.CredentialCache" /> answers <see langword="null" /> for a host it was not
+    /// bound to — or, for a job scheduled before there was a registered one, the <c>smtp_username</c>
+    /// and <c>smtp_password</c> job data entries as a <see cref="System.Net.NetworkCredential" />.
     /// </remarks>
     public ICredentialsByHost? Credentials { get; init; }
 }

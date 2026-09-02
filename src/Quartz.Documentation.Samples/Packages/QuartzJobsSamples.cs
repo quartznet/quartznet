@@ -104,7 +104,12 @@ public static class QuartzJobsSamples
     {
         #region sample_jobs_smtp_credentials
 
-        services.AddSingleton<ICredentialsByHost>(new NetworkCredential("mailer", smtpPassword));
+        // Bound to the server it belongs to. The host to send through is job data, so a credential that
+        // answers for every host would go to whatever that data names.
+        CredentialCache credentials = new();
+        credentials.Add("smtp.example.com", 587, "Basic", new NetworkCredential("mailer", smtpPassword));
+
+        services.AddSingleton<ICredentialsByHost>(credentials);
 
         #endregion
     }

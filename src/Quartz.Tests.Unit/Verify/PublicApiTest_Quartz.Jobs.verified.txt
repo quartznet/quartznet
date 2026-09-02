@@ -78,6 +78,7 @@ namespace Quartz.Jobs
     {
         public MailInfo() { }
         public System.Net.ICredentialsByHost? Credentials { get; init; }
+        public bool EnableSsl { get; init; }
         public required System.Net.Mail.MailMessage MailMessage { get; init; }
         public required string SmtpHost { get; init; }
         public int? SmtpPort { get; init; }
@@ -111,6 +112,7 @@ namespace Quartz.Jobs
     public class SendMailJob : Quartz.IJob
     {
         public const string PropertyCcRecipient = "cc_recipient";
+        public const string PropertyEnableSsl = "smtp_enable_ssl";
         public const string PropertyEncoding = "encoding";
         public const string PropertyMessage = "message";
         public const string PropertyPassword = "smtp_password";
@@ -130,6 +132,7 @@ namespace Quartz.Jobs
     {
         public SendMailOptions() { }
         public string? CcRecipient { get; init; }
+        public bool EnableSsl { get; init; }
         public string? Encoding { get; init; }
         public required string Message { get; init; }
         public required string Recipient { get; init; }

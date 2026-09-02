@@ -63,6 +63,8 @@ job scheduled through it carries its type as a **string the request supplies**, 
 resolved later with `Type.GetType` against whatever is on the host's probing path. With
 [`Quartz.Jobs`](quartz-jobs.md) on that path the string reaches `NativeJob`, which starts a process named
 in job data: an unauthenticated endpoint here is remote code execution rather than an information leak.
+`Quartz.Plugins` depends on `Quartz.Jobs`, so an application that installed the plugins has `NativeJob`
+on its probing path without a line naming `Quartz.Jobs` in its own project file.
 
 `app.MapQuartzHttpApi()` with nothing else said therefore fails at startup — in
 `IHostedLifecycleService.StartingAsync`, which runs before the server binds its listener — with a message

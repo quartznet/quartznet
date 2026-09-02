@@ -25,12 +25,17 @@ Use GitHub's private vulnerability reporting:
 These four come up regularly. Each is a deliberate design decision, documented where it applies, and a
 report of one will be closed with a link back to this section — so please save your time and ours.
 
-- **An authorized caller of the HTTP API or the dashboard is trusted fully.** Quartz has no
-  per-operation permission model: whoever passes the authorization you configured can schedule, trigger,
-  pause, delete and shut down every scheduler they can see, and can read every job's data map. A job's
-  type is a string the request carries, so an authorized caller scheduling `NativeJob` is the API working
-  as designed. `QuartzDashboardOptions.ReadOnly` and the two `SchedulerAuthorizationPolicy` settings are
-  the only narrowings on offer. Authorize these surfaces the way you would authorize a shell —
+- **An authorized caller of the HTTP API or the dashboard is trusted fully — including with code
+  execution on the host.** Quartz has no per-operation permission model: whoever passes the authorization
+  you configured can schedule, trigger, pause, delete and shut down every scheduler they can see, and can
+  read every job's data map. A job's type is a string the request carries; Quartz will only construct a
+  type that implements `IJob`, but `NativeJob` implements `IJob` and starts the executable its job data
+  names, so an authorized caller scheduling it is the API working as designed. `Quartz.Plugins` depends
+  on `Quartz.Jobs`, so that type can be on the probing path of an application whose project file never
+  names it. A job stored by one node is likewise resolved and constructed on **every** node that reads
+  it, which is what a clustered scheduler is for. `QuartzDashboardOptions.ReadOnly` and the two
+  `SchedulerAuthorizationPolicy` settings are the only narrowings on offer. Authorize these surfaces the
+  way you would authorize a shell —
   [HTTP API](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/http-api.html#production-hardening),
   [dashboard](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html#production-hardening).
 - **There is no rate limiting on any Quartz surface**, by design. ASP.NET Core's own rate limiter
