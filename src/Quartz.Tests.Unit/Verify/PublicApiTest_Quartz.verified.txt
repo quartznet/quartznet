@@ -2057,7 +2057,7 @@ namespace Quartz.Extensibility
     }
     public interface IOperableTrigger : Quartz.Extensibility.IMutableTrigger, Quartz.ITrigger
     {
-        string FireInstanceId { get; set; }
+        string? FireInstanceId { get; set; }
         System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar);
         Quartz.SchedulerInstruction ExecutionComplete(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? result);
         void Triggered(Quartz.ICalendar? calendar);
@@ -2940,7 +2940,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         public string? DbBinaryTypeName { get; init; }
         public System.Type? ExceptionType { get; init; }
         public System.Type? ParameterDbType { get; init; }
-        public string ParameterDbTypePropertyName { get; init; }
+        public string? ParameterDbTypePropertyName { get; init; }
         public string? ParameterNamePrefix { get; init; }
         [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]
         public System.Type? ParameterType { get; init; }
@@ -3586,7 +3586,7 @@ namespace Quartz.Impl.Triggers
         public virtual System.DateTimeOffset? EndTimeUtc { get; set; }
         public string? ExecutionGroup { get; set; }
         public abstract System.DateTimeOffset? FinalFireTimeUtc { get; }
-        public virtual string FireInstanceId { get; set; }
+        public virtual string? FireInstanceId { get; set; }
         public virtual bool HasAdditionalProperties { get; }
         protected abstract bool HasMillisecondPrecision { get; }
         public virtual Quartz.JobDataMap JobDataMap { get; set; }

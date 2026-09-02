@@ -281,6 +281,25 @@ public class TriggerBuilderTest
     }
 
     /// <summary>
+    /// <see cref="IOperableTrigger.FireInstanceId" /> was a non-nullable <c>string</c> initialised to
+    /// <c>null!</c>, and only a store firing the trigger ever assigns it — so a trigger straight out of
+    /// the builder answered <see langword="null" /> from a type that said it could not. The annotation
+    /// is the corrected one, and this is the case that made it a lie.
+    /// </summary>
+    [TestCaseSource(nameof(EveryShippedSchedule))]
+    public void ABuiltTriggerHasNoFireInstanceIdUntilAStoreFiresIt(string _, IScheduleBuilder schedule)
+    {
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("never fired")
+            .WithSchedule(schedule)
+            .Build();
+
+        trigger.Should().BeAssignableTo<IOperableTrigger>()
+            .Which.FireInstanceId.Should().BeNull(
+                "a fire instance is one firing of this trigger, and there has not been one");
+    }
+
+    /// <summary>
     /// The clock survives a rebuild, so rescheduling a trigger read out of a store does not quietly
     /// put it back on the machine's clock.
     /// </summary>

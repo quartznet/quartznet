@@ -494,6 +494,16 @@ these as part of 4.0 and nothing more.
   raise `ArgumentNullException` rather than `ArgumentException`, which is what `CronExpression.Parse`
   next door has always raised; `ArgumentNullException` is an `ArgumentException`, so a `catch` still
   catches, but the message is the framework's rather than `"cronExpression cannot be null"`.
+* **Two annotations that were not true are corrected.** **Changed since alpha.5:**
+  `IOperableTrigger.FireInstanceId` and `TriggerBase.FireInstanceId` are `string?`, and
+  `DbMetadata.ParameterDbTypePropertyName` is `string?`. Both were non-nullable `string` initialised to
+  `null!`: a store writes the fire instance id as it hands a trigger over, so a trigger out of
+  `TriggerBuilder` — or one read back that has never fired — answered `null` from a type that said it
+  could not, and a `DbMetadata` naming a `DbBinaryTypeName` without the property to write it to failed
+  as `Type.GetProperty(null)` two lines from the deliberate message its neighbours raise, which it now
+  raises too. A store or a driver description of your own may need a `!` or a null check where the
+  compiler now says so; that is the point. `IJobExecutionContext.FireInstanceId` is unchanged and
+  non-nullable — a context exists only for a firing.
 
 ### What is on nobody's list because it did not change
 

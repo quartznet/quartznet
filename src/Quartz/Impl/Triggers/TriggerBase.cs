@@ -428,15 +428,8 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
         }
     }
 
-    /// <summary>
-    /// This method should not be used by the Quartz client.
-    /// </summary>
-    /// <remarks>
-    /// Usable by <see cref="IJobStore" />
-    /// implementations, in order to facilitate 'recognizing' instances of fired
-    /// <see cref="ITrigger" /> s as their jobs complete execution.
-    /// </remarks>
-    public virtual string FireInstanceId { get; set; } = null!;
+    /// <inheritdoc />
+    public virtual string? FireInstanceId { get; set; }
 
     /// <summary>
     /// The previous time at which the <see cref="ITrigger" /> fired.

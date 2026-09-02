@@ -96,14 +96,17 @@ public interface IOperableTrigger : IMutableTrigger
     void Validate();
 
     /// <summary>
-    /// This method should not be used by the Quartz client.
+    /// The identity of one firing of this trigger, or <see langword="null" /> if it has not been
+    /// fired.
     /// </summary>
     /// <remarks>
-    /// Usable by <see cref="IJobStore" />
-    /// implementations, in order to facilitate 'recognizing' instances of fired
-    /// <see cref="ITrigger" /> s as their jobs complete execution.
+    /// Written by a job store as it hands the trigger to the scheduler, and read back to recognise
+    /// the firing when the job completes; it is what
+    /// <see cref="IScheduler.InterruptFireInstance" /> names. A trigger a caller built, and a trigger
+    /// read back out of a store, have never been fired and answer <see langword="null" /> — so this is
+    /// not an identity to key anything on outside the fire path.
     /// </remarks>
-    string FireInstanceId { get; set; }
+    string? FireInstanceId { get; set; }
 
 
 }

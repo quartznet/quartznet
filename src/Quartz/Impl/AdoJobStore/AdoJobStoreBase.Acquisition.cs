@@ -70,7 +70,7 @@ internal abstract partial class AdoJobStoreBase
                     }
                     foreach (IOperableTrigger tr in result)
                     {
-                        if (fireInstanceIds.Contains(tr.FireInstanceId))
+                        if (fireInstanceIds.Contains(tr.FireInstanceId!))
                         {
                             return true;
                         }
@@ -436,7 +436,7 @@ internal abstract partial class AdoJobStoreBase
                     foreach (TriggerFiredResult tr in result)
                     {
                         if (tr.TriggerFiredBundle is not null &&
-                            executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId))
+                            executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId!))
                         {
                             return true;
                         }

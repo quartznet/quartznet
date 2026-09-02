@@ -20,7 +20,8 @@ public sealed class JobInstantiationException : SchedulerException
     {
         Trigger = bundle.Trigger;
         JobDetail = bundle.JobDetail;
-        FireInstanceId = bundle.Trigger.FireInstanceId;
+        // A bundle is a firing, so the store has written the id by now.
+        FireInstanceId = bundle.Trigger.FireInstanceId!;
     }
 
     /// <summary>
