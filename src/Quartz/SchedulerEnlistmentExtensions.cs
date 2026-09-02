@@ -108,7 +108,9 @@ public static class SchedulerEnlistmentExtensions
     /// Pass only a connection when the transaction is an ambient
     /// <see cref="System.Transactions.TransactionScope" /> the connection is already enlisted in.
     /// Sharing the one connection is what keeps such a scope from being promoted to a distributed
-    /// transaction, which providers like Npgsql do not support at all.
+    /// transaction, which providers like Npgsql do not support at all. That the connection is enlisted
+    /// is established here rather than assumed, so a driver that cannot join the scope is refused
+    /// instead of written through.
     /// </remarks>
     /// <param name="scheduler">The scheduler whose job store should use the connection.</param>
     /// <param name="connection">The connection to use. Opened if it is not open already.</param>
@@ -117,6 +119,12 @@ public static class SchedulerEnlistmentExtensions
     /// A scope that ends the enlistment when disposed. Dispose it after committing, so that any
     /// scheduling change the job store recorded is signalled to the scheduler once it is visible.
     /// </returns>
+    /// <exception cref="SchedulerException">
+    /// A <see cref="System.Transactions.TransactionScope" /> is current and the connection's driver
+    /// implements no <see cref="DbConnection.EnlistTransaction" />, so the connection cannot join it —
+    /// <c>Microsoft.Data.Sqlite</c> is the shipped case. Enlist a
+    /// <see cref="DbTransaction" /> of the connection's own instead.
+    /// </exception>
     public static IDisposable EnlistConnection(
         this IScheduler scheduler,
         DbConnection connection,
@@ -150,13 +158,71 @@ public static class SchedulerEnlistmentExtensions
 
         var schedulerName = ResolveSchedulerName(scheduler, connection);
 
-        // Remembered so a later operation can tell that the scope has since ended, instead of
-        // quietly running with no transaction at all.
-        return AmbientConnection.Enlist(
-            schedulerName,
-            connection,
-            transaction,
-            transaction is null ? System.Transactions.Transaction.Current : null);
+        System.Transactions.Transaction? ambient = transaction is null ? System.Transactions.Transaction.Current : null;
+        if (ambient is not null)
+        {
+            JoinAmbientTransaction(scheduler, connection, ambient);
+        }
+
+        // The ambient transaction is remembered so a later operation can tell that the scope has since
+        // ended, instead of quietly running with no transaction at all.
+        return AmbientConnection.Enlist(schedulerName, connection, transaction, ambient);
+    }
+
+    /// <summary>
+    /// Establishes that the connection really does take part in the ambient transaction, rather than
+    /// assuming it does because there is one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A connection opened inside a <see cref="System.Transactions.TransactionScope" /> joins it as it
+    /// opens — unless its driver implements no enlistment at all, in which case nothing happens and
+    /// nothing says so. <c>Microsoft.Data.Sqlite</c> is such a driver: its connection overrides no
+    /// <see cref="DbConnection.EnlistTransaction" />, so a call reaches the base implementation, which
+    /// throws <see cref="NotSupportedException" />. Accepting that connection would have the job store
+    /// write through it with every statement committing on the spot, and a scope that was never
+    /// completed would leave the schedule behind — which looks exactly like a working enlistment right
+    /// up to the first rollback.
+    /// </para>
+    /// <para>
+    /// Asking the connection to join the transaction it is supposed to be in already is what tells the
+    /// two apart, and every driver Quartz ships a delegate for treats that as a no-op: SqlClient and
+    /// Npgsql return early when their enlisted transaction equals this one, MySqlConnector and Firebird
+    /// on the same comparison, and Oracle re-records the transaction and traces "already enlisted" when
+    /// the local identifier matches. A connection that is <em>not</em> yet enlisted — opened before the
+    /// scope, or with enlistment switched off in its connection string — is enlisted by the call, which
+    /// is what the caller was asking for either way.
+    /// </para>
+    /// <para>
+    /// Only <see cref="NotSupportedException" /> is a refusal. Anything else a driver answers means it
+    /// has an enlistment implementation and an opinion about this particular connection — "the
+    /// connection is not open" is the ordinary one, since an enlisted connection is opened by the job
+    /// store rather than here — and having an implementation at all is the whole of what this asks.
+    /// </para>
+    /// </remarks>
+    private static void JoinAmbientTransaction(IScheduler scheduler, DbConnection connection, System.Transactions.Transaction ambient)
+    {
+        try
+        {
+            connection.EnlistTransaction(ambient);
+        }
+        catch (NotSupportedException e)
+        {
+            throw new SchedulerException(
+                $"Scheduler '{scheduler.SchedulerName}' cannot take part in the ambient transaction through a "
+                + $"{connection.GetType().FullName} ({connection.GetType().Assembly.GetName().Name}): the driver implements no "
+                + "DbConnection.EnlistTransaction, so the connection never joined the TransactionScope and every statement the "
+                + "job store issued on it would commit on the spot - a scope that rolled back would leave the schedule behind. "
+                + "Begin a transaction on the connection and enlist that instead: "
+                + "scheduler.EnlistTransaction(connection.BeginTransaction()).",
+                e);
+        }
+        catch (Exception)
+        {
+            // See the remarks: a driver that answers anything but "not supported" has an enlistment of
+            // its own, which is what was being established. Letting its answer out would refuse the
+            // ordinary case, where the connection is still closed because the job store opens it.
+        }
     }
 
     /// <summary>
