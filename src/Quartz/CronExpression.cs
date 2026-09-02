@@ -95,7 +95,7 @@ namespace Quartz;
 /// <tr>
 /// <td align="left">Year (Optional)</td>
 /// <td align="left"> </td>
-/// <td align="left">empty, <see cref="TriggerConstants.EarliestYear"/>- <see cref="TriggerConstants.YearToGiveUpSchedulingAt"/></td>
+/// <td align="left">empty, 1970-(the current year plus 100)</td>
 /// <td align="left"> </td>
 /// <td align="left">, - /// /</td>
 /// </tr>

@@ -76,7 +76,7 @@ public sealed record TriggerAcquisitionCriteria
     /// <para>
     /// <see cref="StdAdoDelegate" /> keeps the rows out in the acquisition SQL, where comparison
     /// follows the job-class column's collation. A delegate is free to ignore the property, as it is
-    /// with every other one here — <see cref="AdoJobStoreBase" /> drops the excluded candidates
+    /// with every other one here — the ADO store drops the excluded candidates
     /// ordinally as they come back, before it reads any of them, so an uncooperative delegate degrades
     /// to a wider result set rather than to running work the deployment excluded. A delegate that
     /// answers <see cref="IDriverDelegate.FiltersAcquisitionJobTypeExclusions" /> with
@@ -102,13 +102,12 @@ public sealed record TriggerAcquisitionCriteria
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <see cref="AdoJobStoreBase" /> fills this from
+    /// The ADO store fills this from
     /// <see cref="IDriverDelegate.SelectExecutionGroupsInFlight" /> once per acquisition attempt, and
     /// only when <see cref="Quartz.ExecutionLimits.HasClusterScopedLimits" /> says a cluster-scoped
-    /// limit exists — so a configuration that uses none pays nothing. A
-    /// <see cref="AdoJobStoreBase.CreateAcquisitionCriteria" /> override that sets this itself is left
-    /// alone, which is how a store keeping the count somewhere other than the fired-triggers table says
-    /// so.
+    /// limit exists — so a configuration that uses none pays nothing. A store that set the value
+    /// itself is left alone, which is how one keeping the count somewhere other than the fired-triggers
+    /// table says so.
     /// </para>
     /// <para>
     /// <see langword="null" /> means "not counted", not "nothing in flight": a delegate handed

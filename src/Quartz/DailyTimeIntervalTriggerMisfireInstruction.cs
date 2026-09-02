@@ -23,9 +23,9 @@ namespace Quartz;
 /// What an <see cref="IDailyTimeIntervalTrigger" /> should do when it misses a firing.
 /// </summary>
 /// <remarks>
-/// The values match the <see cref="MisfireInstruction" /> constants a trigger stores in
-/// <see cref="ITrigger.MisfireInstructionCode" />, which is family-agnostic and therefore still an
-/// <see cref="int" />.
+/// Each value is the number a trigger stores in <see cref="ITrigger.MisfireInstructionCode" />, which
+/// is family-agnostic and therefore still an <see cref="int" />. Casting between the two is
+/// deliberate and safe.
 /// </remarks>
 /// <seealso cref="DailyTimeIntervalScheduleBuilder.WithMisfireInstruction" />
 public enum DailyTimeIntervalTriggerMisfireInstruction

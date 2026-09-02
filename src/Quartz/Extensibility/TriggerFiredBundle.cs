@@ -34,7 +34,6 @@ namespace Quartz.Extensibility;
 /// to every listener. The sibling SPI request records (<see cref="TriggerAcquisitionRequest" />) made
 /// the same choice for the same reason.
 /// </remarks>
-/// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public sealed record TriggerFiredBundle

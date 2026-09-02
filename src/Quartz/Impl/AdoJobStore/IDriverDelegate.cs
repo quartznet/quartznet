@@ -1192,8 +1192,8 @@ public interface IDriverDelegate
     /// <para>
     /// Every other property of <see cref="TriggerAcquisitionCriteria" /> may be ignored by a delegate
     /// with no worse consequence than a wider result than asked for. This one is different: ignoring it
-    /// means the node <em>runs</em> job types the deployment excluded. So
-    /// <see cref="AdoJobStoreBase" /> keeps a backstop — it drops an excluded candidate ordinally on
+    /// means the node <em>runs</em> job types the deployment excluded. So the ADO store keeps a
+    /// backstop — it drops an excluded candidate ordinally on
     /// <see cref="TriggerAcquireResult.JobTypeName" /> before reading the trigger back — and this
     /// property is how a delegate says the backstop has nothing left to do.
     /// </para>

@@ -29,8 +29,8 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 namespace Quartz.Impl;
 
 /// <summary>
-/// The default JobFactory used by Quartz - simply calls
-/// <see cref="TypeActivator.Instantiate{T}" /> on the job class.
+/// The default JobFactory used by Quartz - simply activates the job class through its public
+/// parameterless constructor.
 /// </summary>
 /// <seealso cref="IJobFactory" />
 /// <seealso cref="PropertySettingJobFactory" />

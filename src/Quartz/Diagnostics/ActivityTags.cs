@@ -8,8 +8,8 @@ namespace Quartz.Diagnostics;
 /// Every one of them is spelled under <c>quartz.</c>, which is what OpenTelemetry asks of an attribute a
 /// library defines for itself: <c>job.name</c> is a name any other instrumented library in the same
 /// process could reasonably claim, and once two of them do, a dashboard has one attribute meaning two
-/// things and no way to tell which. The one exception is <see cref="ErrorType.TagName"/> — <c>error.type</c>
-/// is the semantic convention's shared attribute for what an operation failed with, and a Quartz-specific
+/// things and no way to tell which. The one exception is <c>error.type</c>, which Quartz writes on a
+/// failed operation: it is the semantic convention's shared attribute for that, and a Quartz-specific
 /// spelling would only keep these series from lining up with the rest of an application's failures.
 /// </para>
 /// <para>

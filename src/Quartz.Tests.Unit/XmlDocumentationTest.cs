@@ -1,3 +1,8 @@
+#nullable enable
+
+using System.Reflection;
+using System.Xml.Linq;
+
 namespace Quartz.Tests.Unit;
 
 /// <summary>
@@ -57,6 +62,158 @@ public class XmlDocumentationTest
             + "IDE. Write <exception cref=\"…\">…</exception> instead. These lines have one:"
             + Environment.NewLine
             + string.Join(Environment.NewLine, offenders.Select(x => "    " + x)));
+    }
+
+    /// <summary>
+    /// A <c>cref</c> on a member a consumer can see must name something a consumer can reach. The
+    /// compiler is no help: CS1574 is satisfied the moment the target resolves anywhere inside the
+    /// assembly, so all four public misfire enums could point a reader at the internal
+    /// <c>MisfireInstruction</c> they exist to replace, and the settings whose whole meaning is which
+    /// of the two ADO stores is built could name both of those internal types.
+    /// </summary>
+    [Test]
+    public void NoDocumentationOnAVisibleMemberPointsAtSomethingInvisible()
+    {
+        Assembly quartz = typeof(IScheduler).Assembly;
+        string documentation = Path.ChangeExtension(quartz.Location, ".xml");
+
+        File.Exists(documentation).Should().BeTrue(
+            "Quartz ships its XML documentation, so GenerateDocumentationFile is on and the file is beside the assembly");
+
+        Dictionary<string, Type> types = quartz.GetTypes()
+            .Where(x => x.FullName is not null)
+            .GroupBy(x => x.FullName!.Replace('+', '.'), StringComparer.Ordinal)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.Ordinal);
+
+        List<string> offenders = [];
+
+        foreach (XElement member in XDocument.Load(documentation).Descendants("member"))
+        {
+            string documented = member.Attribute("name")?.Value ?? "";
+
+            if (!IsVisibleApi(documented, types))
+            {
+                continue;
+            }
+
+            foreach (XElement node in member.Descendants())
+            {
+                // <inheritdoc cref="…" /> copies the target's text in rather than linking to it, so the
+                // reader never learns the name and inheriting from a private sibling is fine.
+                if (node.Name.LocalName == "inheritdoc")
+                {
+                    continue;
+                }
+
+                string? cref = node.Attribute("cref")?.Value;
+
+                if (cref is null || IsVisibleApi(cref, types, unknownIsVisible: true))
+                {
+                    continue;
+                }
+
+                offenders.Add($"{documented}  <{node.Name.LocalName} cref=\"{cref}\" />");
+            }
+        }
+
+        offenders.Order(StringComparer.Ordinal).Should().BeEmpty(
+            "documentation on a member a consumer can see is documentation a consumer reads, and it must "
+            + "not send them to a type they cannot name. The compiler accepts these because the target "
+            + "resolves inside the assembly:"
+            + Environment.NewLine
+            + string.Join(Environment.NewLine, offenders.Order(StringComparer.Ordinal).Select(x => "    " + x)));
+    }
+
+    /// <summary>
+    /// Whether a documentation comment id names something visible outside the assembly.
+    /// </summary>
+    /// <param name="unknownIsVisible">
+    /// What to answer for an id this assembly does not declare. A <c>cref</c> can point into the BCL or
+    /// into a package, and those resolved at compile time, so they are somebody's public API;
+    /// a documented member always belongs to the assembly the file documents.
+    /// </param>
+    private static bool IsVisibleApi(string id, Dictionary<string, Type> types, bool unknownIsVisible = false)
+    {
+        if (id.Length < 2 || id[1] != ':')
+        {
+            return unknownIsVisible;
+        }
+
+        char kind = id[0];
+        string path = id[2..];
+
+        int arguments = path.IndexOf('(', StringComparison.Ordinal);
+        if (arguments >= 0)
+        {
+            path = path[..arguments];
+        }
+
+        if (kind == 'T')
+        {
+            return types.TryGetValue(path, out Type? declared) ? IsVisible(declared) : unknownIsVisible;
+        }
+
+        // A generic method carries its arity as ``N, which is no part of the declaring type's name.
+        int arity = path.IndexOf("``", StringComparison.Ordinal);
+        if (arity >= 0)
+        {
+            path = path[..arity];
+        }
+
+        int lastDot = path.LastIndexOf('.');
+        if (lastDot < 0)
+        {
+            return unknownIsVisible;
+        }
+
+        string owner = path[..lastDot];
+        string name = path[(lastDot + 1)..];
+
+        if (!types.TryGetValue(owner, out Type? type))
+        {
+            return unknownIsVisible;
+        }
+
+        if (!IsVisible(type))
+        {
+            return false;
+        }
+
+        // Any visible member of that name is enough: the id says which overload, but visibility is a
+        // property of the name here — an internal overload beside a public one is still documentation a
+        // consumer can reach.
+        return type
+            .GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Where(x => string.Equals(x.Name, name == "#ctor" ? ".ctor" : name, StringComparison.Ordinal))
+            .Any(IsVisible);
+    }
+
+    private static bool IsVisible(Type type)
+    {
+        while (type.IsNested)
+        {
+            if (!type.IsNestedPublic && !type.IsNestedFamily && !type.IsNestedFamORAssem)
+            {
+                return false;
+            }
+
+            type = type.DeclaringType!;
+        }
+
+        return type.IsPublic;
+    }
+
+    private static bool IsVisible(MemberInfo member)
+    {
+        return member switch
+        {
+            Type nested => IsVisible(nested),
+            MethodBase method => method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly,
+            FieldInfo field => field.IsPublic || field.IsFamily || field.IsFamilyOrAssembly,
+            PropertyInfo property => property.GetAccessors(nonPublic: true).Any(IsVisible),
+            EventInfo declared => new MethodInfo?[] { declared.AddMethod, declared.RemoveMethod }.Any(x => x is not null && IsVisible(x)),
+            _ => false,
+        };
     }
 
     private static IEnumerable<FileInfo> Discover(DirectoryInfo directory)

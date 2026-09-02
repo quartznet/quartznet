@@ -23,7 +23,7 @@ namespace Quartz.Extensibility;
 
 /// <summary>
 /// An interface to be used by <see cref="IJobStore" /> instances in order to
-/// communicate signals back to the <see cref="QuartzScheduler" />.
+/// communicate signals back to the scheduler that owns them.
 /// </summary>
 /// <remarks>
 /// Every member here runs scheduler and listener code on the calling thread, and a listener is

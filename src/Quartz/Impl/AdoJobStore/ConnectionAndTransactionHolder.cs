@@ -62,11 +62,11 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     /// means committing nothing: whoever owns the transaction decides its outcome, and a rollback here
     /// would discard their work along with the scheduling.
     /// <para>
-    /// A <see cref="AdoJobStoreBase" /> subclass that wants to honour
-    /// <see cref="SchedulerEnlistmentExtensions">enlisted transactions</see> should call
-    /// <see cref="AdoJobStoreBase.GetEnlistedConnection" /> instead of building the holder itself: it
-    /// performs the checks that make an enlistment safe to use and books the connection out for the
-    /// duration of the operation.
+    /// A store that wants to honour <see cref="SchedulerEnlistmentExtensions">enlisted transactions</see>
+    /// has more to do than build a holder over the enlisted connection: the enlistment has to be
+    /// checked for the connection still being usable, and booked out for the duration of the
+    /// operation so that two overlapping operations do not share it. The shipped ADO stores do both
+    /// before they get here.
     /// </para>
     /// </remarks>
     /// <param name="connection">The connection.</param>
