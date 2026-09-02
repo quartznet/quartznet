@@ -153,10 +153,17 @@ public sealed record DbMetadata
     internal Enum? DbBinaryType => Derived.DbBinaryType;
 
     /// <summary>
-    /// Gets the name of the parameter db type property.
+    /// The name of the property on <see cref="ParameterType" /> that carries a parameter's database
+    /// type, which <see cref="DbBinaryTypeName" /> is set through.
     /// </summary>
-    /// <value>The name of the parameter db type property.</value>
-    public string ParameterDbTypePropertyName { get; init; } = null!;
+    /// <remarks>
+    /// Required exactly when <see cref="DbBinaryTypeName" /> is set, and unread otherwise — which is
+    /// why it is nullable rather than <c>required</c>: a provider whose parameters need no explicit
+    /// database type sets neither. Leaving it out while naming a binary type is reported at startup,
+    /// naming the database, as every other half-configured provider is.
+    /// </remarks>
+    /// <value>Typically <c>"DbType"</c>, or the provider's own, such as <c>"SqlDbType"</c>.</value>
+    public string? ParameterDbTypePropertyName { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether [use parameter name prefix in parameter collection].
@@ -376,6 +383,14 @@ public sealed record DbMetadata
             if (metadata.ParameterDbType is null || metadata.ParameterType is null)
             {
                 Throw.ArgumentException($"Couldn't parse parameter db type for database type '{metadata.ProductName}'");
+            }
+
+            // Named rather than left to Type.GetProperty(null), which answers the same mistake with
+            // "Value cannot be null. (Parameter 'name')" two lines from the message that says which
+            // provider and what to set.
+            if (metadata.ParameterDbTypePropertyName is null)
+            {
+                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{metadata.ProductName}': DbBinaryTypeName is set, so ParameterDbTypePropertyName has to name the property on {metadata.ParameterType} that carries it");
             }
 
             DbBinaryType = (Enum) Enum.Parse(metadata.ParameterDbType, metadata.DbBinaryTypeName);

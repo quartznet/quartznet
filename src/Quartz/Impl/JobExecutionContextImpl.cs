@@ -360,10 +360,12 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
         CancellationTokenSource.Cancel();
     }
 
-    /// <summary>
-    /// Returns the fire instance id.
-    /// </summary>
-    public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId;
+    /// <inheritdoc />
+    /// <remarks>
+    /// Never null here, although <see cref="IOperableTrigger.FireInstanceId" /> is: a context exists
+    /// only for a firing, and a store writes the id as it hands the trigger over.
+    /// </remarks>
+    public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId!;
 
     public CancellationToken CancellationToken => CancellationTokenSource.Token;
 

@@ -71,7 +71,7 @@ internal sealed class ExecutingJobsManager
     public void FiringStarted(IJobExecutionContext context)
     {
         Interlocked.Increment(ref numJobsFired);
-        executingJobs[((IOperableTrigger) context.Trigger).FireInstanceId] = context;
+        executingJobs[((IOperableTrigger) context.Trigger).FireInstanceId!] = context;
     }
 
     /// <summary>
@@ -83,6 +83,6 @@ internal sealed class ExecutingJobsManager
     /// </remarks>
     public void FiringEnded(IJobExecutionContext context)
     {
-        executingJobs.TryRemove(((IOperableTrigger) context.Trigger).FireInstanceId, out _);
+        executingJobs.TryRemove(((IOperableTrigger) context.Trigger).FireInstanceId!, out _);
     }
 }

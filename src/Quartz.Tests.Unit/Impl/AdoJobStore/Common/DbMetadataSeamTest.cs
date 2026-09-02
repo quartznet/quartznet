@@ -156,6 +156,27 @@ public sealed class DbMetadataSeamTest
     }
 
     /// <summary>
+    /// The half-configured description an application writing its own <see cref="DbMetadata" /> lands
+    /// on: it named a binary type and forgot to say which property carries it. The property used to be
+    /// a non-nullable <c>string</c> initialised to <c>null!</c>, so the failure was
+    /// <c>Type.GetProperty(null)</c> — "Value cannot be null. (Parameter 'name')" — two lines from the
+    /// deliberate message its neighbours raise.
+    /// </summary>
+    [Test]
+    public void ABinaryTypeWithNoPropertyToWriteItToIsReportedLikeItsNeighbours()
+    {
+        DbMetadata forgotten = NamedDriver with { ParameterDbTypePropertyName = null };
+
+        FakeParameter parameter = new();
+        Action bind = () => forgotten.ApplyParameterType(parameter, forgotten.BinaryParameterType);
+
+        bind.Should().Throw<ArgumentException>()
+            .WithMessage("*Fake*", "which provider is half-configured is the first thing to say")
+            .WithMessage("*DbBinaryTypeName*", "and which setting made the other one required")
+            .WithMessage("*ParameterDbTypePropertyName*", "and which one is missing");
+    }
+
+    /// <summary>
     /// Stands in for a driver's own parameter type enum — <c>SqlDbType</c>, <c>NpgsqlDbType</c> — which
     /// only means anything on the property that driver's parameter declares for it.
     /// </summary>

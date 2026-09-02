@@ -1705,7 +1705,7 @@ public sealed class RAMJobStore : IJobStore
             }
 
             matches.Add(new FireInstance(
-                tw.Trigger.FireInstanceId,
+                tw.Trigger.FireInstanceId!,
                 tw.TriggerKey,
                 JobKey: null,
                 schedulerInstanceId,
@@ -2870,7 +2870,7 @@ public sealed class RAMJobStore : IJobStore
             // undo the blocking fan-out TriggersFired applies for a non-concurrent job — only
             // TriggeredJobComplete does that, which is why the scheduler uses it on every path where a job
             // actually started.
-            ReleaseExecutionNoLock(trigger.Key, trigger.FireInstanceId);
+            ReleaseExecutionNoLock(trigger.Key, trigger.FireInstanceId!);
 
             if (triggersByKey.TryGetValue(trigger.Key, out var tw) && tw.state == StoredTriggerState.Acquired)
             {
@@ -3031,7 +3031,7 @@ public sealed class RAMJobStore : IJobStore
                 // Triggered() advanced the trigger — which is what the ADO store writes into SCHED_TIME
                 // at the same point, misfires included, and so is deliberately not the misfire's original
                 // fire time that the bundle carries.
-                fireInstances[trigger.FireInstanceId] = new FireInstanceEntry(
+                fireInstances[trigger.FireInstanceId!] = new FireInstanceEntry(
                     job.Key,
                     bndle.FireTimeUtc,
                     firingScheduledTime,
@@ -3149,7 +3149,7 @@ public sealed class RAMJobStore : IJobStore
 
             // Releases what TriggersFired recorded. Done before the trigger-deleted check below, and
             // unconditionally, so that an execution outliving its trigger still clears its entry.
-            ReleaseExecutionNoLock(trigger.Key, trigger.FireInstanceId);
+            ReleaseExecutionNoLock(trigger.Key, trigger.FireInstanceId!);
 
             // check for trigger deleted during execution...
             if (triggersByKey.TryGetValue(trigger.Key, out var tw))

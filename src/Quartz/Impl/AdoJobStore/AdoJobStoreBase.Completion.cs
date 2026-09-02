@@ -49,7 +49,7 @@ internal abstract partial class AdoJobStoreBase
             {
                 await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
                 await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
-                await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId!, cancellationToken).ConfigureAwait(false);
             },
             "release acquired trigger");
     }
@@ -213,7 +213,7 @@ internal abstract partial class AdoJobStoreBase
             "update trigger state(s)").ConfigureAwait(false);
 
         await Guarded(
-            () => Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken),
+            () => Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId!, cancellationToken),
             "delete fired trigger").ConfigureAwait(false);
     }
 
