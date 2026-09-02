@@ -21,14 +21,14 @@ database on it, and the `worker`, whose `/health` endpoint the AppHost polls. Th
 heartbeat job firing every ten seconds; the database ends up with the twelve `qrtz_*` tables, created by
 the worker on its first start because it is running in Development.
 
-## The one thing that bites on a second run
+## Why the password is pinned
 
 `.WithDataVolume()` and `.WithLifetime(ContainerLifetime.Persistent)` keep the container and its data
 between runs, which is the point — a persistent job store whose rows disappear is an in-memory store
-with more moving parts. But the AppHost generates the Postgres password, and without user secrets it
-generates a **new** one each time, while the surviving volume still holds the old one. The worker then
-never starts, because `WaitFor(quartzDb)` never completes, and nothing says why. The AppHost does warn
-about it at startup:
+with more moving parts. But an AppHost that lets Aspire *generate* the Postgres password generates a
+**new** one on each start unless user secrets are initialized, while the surviving volume still holds
+the old one. The worker then never starts, because `WaitFor(quartzDb)` never completes, and nothing
+says why — the AppHost warns about it, but the warning and the symptom look unrelated:
 
 ```text
 Resource 'postgres' has a persistent lifetime but the AppHost project does not have user secrets
@@ -36,12 +36,15 @@ configured. Generated parameter values (such as passwords) may change on each re
 persistent containers to be recreated.
 ```
 
-Either initialize user secrets, or delete the container **and** its volume and start again:
+So `Program.cs` pins one with `builder.AddParameter("postgres-password", "…", secret: true)`, and a
+second run connects. **That value is in the source, which is fine for a container on your own machine
+and is not how a deployment does it**: leave the value off — `builder.AddParameter("postgres-password",
+secret: true)` — and supply it from user secrets, the environment or a key vault.
+
+Running this example leaves the container and its volume behind on purpose. `docker ps -a` and
+`docker volume ls` will show them; remove them with:
 
 ```shell
 docker rm -f postgres-<suffix>
 docker volume rm quartz.examples.aspire.apphost-<hash>-postgres-data
 ```
-
-Running this example leaves that container and volume behind on purpose. `docker ps -a` and
-`docker volume ls` will show them.

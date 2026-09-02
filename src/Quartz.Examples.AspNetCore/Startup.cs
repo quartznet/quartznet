@@ -75,6 +75,11 @@ public class Startup
 
         services.AddRazorPages();
 
+        // ExampleJob takes an IHttpClientFactory, and nothing else in this application registers one.
+        // In Development the host validates every registration when it is built, so without this the
+        // application does not start at all.
+        services.AddHttpClient();
+
         // if you are using persistent job store, you might want to alter some options
         services.Configure<QuartzOptions>(options =>
         {
@@ -233,10 +238,11 @@ public class Startup
             q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
             q.AddTriggerListener<SampleTriggerListener>();
 
-            q.UsePersistentStore<CustomJobStore>(options =>
-            {
-                options.UseSystemTextJsonSerializer();
-            });
+            // A store of the application's own, built by the container with this scheduler's own
+            // collaborators. UseJobStore<T> rather than UsePersistentStore<T>, because this one keeps its
+            // data in memory and has no data source to configure — UsePersistentStore<T> is for a store
+            // that speaks ADO.NET, and its options validation refuses one with no DataSource.
+            q.UseJobStore<CustomJobStore>();
 
             // example of persistent job store using JSON serializer as an example
             /*

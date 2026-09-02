@@ -91,6 +91,12 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3039, Level = LogLevel.Information, Message = "Created the schema objects missing under table prefix '{TablePrefix}'")]
     public static partial void SchemaCreated(this ILogger logger, string tablePrefix);
 
+    // Debug, and a different line: the common case is a restart, or a node joining a cluster whose
+    // schema is already there. Announcing a creation that did not happen is what made "Created the
+    // schema objects missing" appear at every start of every node.
+    [LoggerMessage(EventId = 3156, Level = LogLevel.Debug, Message = "Schema under table prefix '{TablePrefix}' is complete with {SchemaObjectCount} objects, so nothing was created")]
+    public static partial void SchemaAlreadyComplete(this ILogger logger, string tablePrefix, int schemaObjectCount);
+
     // Debug: on a cluster starting together this is every node but one, every time, and it is not a
     // problem -- the schema is there and the store is about to validate it.
     [LoggerMessage(EventId = 3040, Level = LogLevel.Debug, Message = "Schema creation under table prefix '{TablePrefix}' failed, but the schema validates, so another node created it first")]

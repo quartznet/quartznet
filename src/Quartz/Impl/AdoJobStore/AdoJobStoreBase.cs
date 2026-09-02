@@ -669,9 +669,18 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             }
             catch (Exception ex)
             {
-                const string error = "Database schema validation failed."
-                                     + " Make sure you have created the database tables that Quartz requires using the database schema scripts."
-                                     + " You can disable this check by setting quartz.jobStore.schemaProvisioning to None";
+                // Every answer named, in the order a reader wants them: have Quartz create the schema,
+                // create it yourself, or say you have taken responsibility for it. The typed option is
+                // spelled first because that is what a 4.x application configures; the flat key still
+                // works and is what an application migrating from 3.x already has.
+                string error = "Database schema validation failed"
+                               + (string.IsNullOrEmpty(TablePrefix) ? "." : $" under table prefix '{TablePrefix}'.")
+                               + " Either let Quartz create the objects it needs — UsePersistentStore(store => store.ProvisionSchema()),"
+                               + " which sets AdoJobStoreOptions.SchemaProvisioning to CreateIfMissing —"
+                               + " or create them yourself from the scripts in database/tables/ for your database."
+                               + " Setting SchemaProvisioning to None turns this check off, which says the schema is"
+                               + " your responsibility rather than that it is present."
+                               + " The legacy flat key for the same setting is quartz.jobStore.schemaProvisioning.";
 
                 throw new SchedulerException(error, ex);
             }
@@ -719,6 +728,24 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     {
         Exception? creationFailure = null;
         Exception? validationFailure = null;
+
+        // Asked before anything is made, because the common case by far is that there is nothing to
+        // make: a restart, or a node joining a cluster whose schema is already there. The script is
+        // guarded throughout, so running it would be a no-op — but it would still be announced, and
+        // "Created the schema objects missing" at every start of every node is not what happened.
+        try
+        {
+            int existingObjectCount = await ExecuteWithoutLock<int>(
+                conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+            Logger.SchemaAlreadyComplete(TablePrefix, existingObjectCount);
+            return;
+        }
+        catch (Exception failure)
+        {
+            // Something is missing, or the schema cannot be read at all. Either way, make it — and if
+            // making it fails, this is the failure that says why the schema was not usable to begin with.
+            validationFailure = failure;
+        }
 
         for (int attempt = 1; attempt <= SchemaCreationAttempts; attempt++)
         {
