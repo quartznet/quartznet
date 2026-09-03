@@ -24,12 +24,17 @@ Integration tests provision their database dependencies through Testcontainers f
 
 * Ensure your Docker daemon is running
 * Name the database to run against: `.\build.cmd Compile UnitTest IntegrationTest --database postgres`.
-  The values are `postgres`, `sqlserver`, `mysql`, `oracle`, `firebird`, `sqlite`, `basic` (everything
-  that needs no database) and `all`, and they set both the test-category filter and the
+  The values are `postgres`, `sqlserver`, `mysql`, `oracle`, `firebird`, `sqlite`, `redis`, `basic`
+  (everything that needs no database) and `all`, and they set both the test-category filter and the
   `QUARTZ_TEST_DATABASE` variable the Testcontainers fixture reads. Naming none means `all`, which
-  starts six containers — including Oracle — before a single test runs.
+  starts seven containers — two for SQL Server, and one of them Oracle — before a single test runs.
 
-This builds and runs tests the way the CI server does.
+This builds and runs tests the way the CI server does. `IntegrationTest` is skipped on one machine
+only: a Windows or macOS CI leg, neither of which has a Docker daemon. It runs on yours.
+
+The half-hour clustered soak is excluded from every one of those runs, `all` included, because a leg
+that ran it would read as a hung job rather than as thoroughness. It is a release gate, run by hand
+through `dotnet test` rather than through the build; `ClusteredSoakTestBase` gives the command.
 
 ## Documentation
 
