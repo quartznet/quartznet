@@ -262,6 +262,18 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// <returns></returns>
     public virtual object? GetDbTimeSpanValue(TimeSpan? timeSpanValue)
     {
+        // Whole milliseconds is the whole of the format, so a value carrying anything finer is a value
+        // this cannot store. Refused rather than truncated: the callers that know which trigger and
+        // which column it belongs to check first and say so (AdoJobStoreUtil.RequireStorableDuration),
+        // and this catches whatever they do not cover (#3673).
+        if (timeSpanValue is { } value && value.Ticks % TimeSpan.TicksPerMillisecond != 0)
+        {
+            string message = FormattableString.Invariant(
+                $"{value:c} cannot be stored: this store keeps durations as whole milliseconds, so it would be written as {(long) value.TotalMilliseconds} ms and read back as a different value.");
+
+            throw new ArgumentException(message, nameof(timeSpanValue));
+        }
+
         return timeSpanValue != null ? (long?) timeSpanValue.Value.TotalMilliseconds : null;
     }
 

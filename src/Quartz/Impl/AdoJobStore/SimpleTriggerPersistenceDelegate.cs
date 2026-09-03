@@ -82,6 +82,7 @@ public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         CancellationToken cancellationToken = default)
     {
         ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
+        AdoJobStoreUtil.RequireStorableDuration(simpleTrigger.RepeatInterval, AdoConstants.ColumnRepeatInterval, trigger.Key);
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimpleTrigger, TablePrefix));
         DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
@@ -137,6 +138,7 @@ public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         CancellationToken cancellationToken = default)
     {
         ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
+        AdoJobStoreUtil.RequireStorableDuration(simpleTrigger.RepeatInterval, AdoConstants.ColumnRepeatInterval, trigger.Key);
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix));
         DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
