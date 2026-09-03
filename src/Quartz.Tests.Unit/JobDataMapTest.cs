@@ -77,6 +77,50 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         g.Should().NotBe(Guid.Empty);
     }
 
+    /// <summary>
+    /// A number a comma-decimal culture wrote is rejected by every numeric accessor, never read as a
+    /// different number.
+    /// </summary>
+    /// <remarks>
+    /// The invariant parser's default styles allow a group separator, which would read the comma in
+    /// "3,14" as one and answer 314 — a hundredfold of the value, silently. The floating-point
+    /// accessors therefore parse with styles that allow no group separator at all, so a string a
+    /// comma-decimal culture wrote is unreadable as every numeric type alike, as it always was for
+    /// <see cref="JobDataMap.GetIntValueFromString" />.
+    /// </remarks>
+    [Test]
+    public void ACommaDecimalNumberIsRejectedByEveryNumericAccessor()
+    {
+        JobDataMap map = new JobDataMap();
+        map.Put("pi", "3,14");
+
+        Action readDouble = () => map.GetDoubleValueFromString("pi");
+        readDouble.Should().Throw<FormatException>(
+            "no numeric accessor allows a group separator, so the comma a de-DE machine wrote as a "
+            + "decimal point makes the string unreadable rather than a hundredfold of itself");
+
+        Action readFloat = () => map.GetFloatValueFromString("pi");
+        readFloat.Should().Throw<FormatException>();
+
+        Action readViaCoercingDouble = () => map.GetDoubleValue("pi");
+        readViaCoercingDouble.Should().Throw<FormatException>("the coercing accessor reads a string through the same parser");
+
+        Action readInt = () => map.GetIntValueFromString("pi");
+        readInt.Should().Throw<FormatException>("the integer styles never allowed a group separator");
+    }
+
+    [Test]
+    public void ADecimalPointNumberStillReadsWithTheInvariantCulture()
+    {
+        JobDataMap map = new JobDataMap();
+        map.Put("pi", "3.14");
+        map.Put("big", "-1.5e3");
+
+        map.GetDoubleValueFromString("pi").Should().Be(3.14);
+        map.GetFloatValueFromString("pi").Should().Be(3.14f);
+        map.GetDoubleValueFromString("big").Should().Be(-1500d, "sign, decimal point and exponent are the whole of what a number written for a job may carry");
+    }
+
     [Test]
     public void PutAsString_StoresIntValueAsString()
     {
