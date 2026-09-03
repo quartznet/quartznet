@@ -55,9 +55,11 @@ public enum SchemaProvisioning
     /// start when one cannot. The default.
     /// </summary>
     /// <remarks>
-    /// The check is table-level rather than column-level, so a schema that has every table but is
-    /// missing a column added by a later release starts and then fails on the first statement naming
-    /// that column. <c>database/migrations/4.0/</c> is what closes that gap.
+    /// The columns 4.x added to the tables 3.x already had are checked too, so a database that never
+    /// took the 4.0 migration is refused rather than started: it has every table but two, and a
+    /// table-level check let it run and then fail every acquisition for ever. What is not checked is
+    /// the shape of a column — a type or a width a hand-built table got wrong is still found by the
+    /// statement that binds it. <c>database/migrations/4.0/</c> is what an upgrade runs.
     /// </remarks>
     Validate = 1,
 
@@ -69,8 +71,13 @@ public enum SchemaProvisioning
     /// Only ever creates: no object is altered and none is dropped, so this is safe to leave on
     /// against a schema that already exists and cannot turn a mis-typed table prefix into data loss.
     /// It is equally not an upgrade — a schema that has every table but is missing a column added by
-    /// a later release is left exactly as it is, and then fails validation's successor, the first
-    /// statement that names the column.
+    /// a later release is left exactly as it is.
+    /// </para>
+    /// <para>
+    /// Which is why it creates only into a prefix that holds <em>no</em> Quartz table. A schema that
+    /// is partly there is a 3.x schema or a broken one, and building the rest on top of either makes
+    /// a scheduler that starts, reports itself provisioned and fires nothing; so that database is
+    /// refused, nothing is created, and the failure names the migration to run.
     /// </para>
     /// <para>
     /// Not the default, because creating tables needs DDL permission and a production database is
@@ -78,8 +85,9 @@ public enum SchemaProvisioning
     /// starts with an empty volume, or a desktop application with a SQLite file wants.
     /// </para>
     /// <para>
-    /// Safe on several nodes starting at once: whichever loses the race sees its create fail, finds
-    /// the schema another node created, and carries on.
+    /// Safe on several nodes starting at once: whichever loses the race sees its create fail — or
+    /// finds the winner's half-made schema and waits — and then finds the schema another node
+    /// created, and carries on.
     /// </para>
     /// </remarks>
     CreateIfMissing = 2,

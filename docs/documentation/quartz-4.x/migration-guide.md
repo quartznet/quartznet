@@ -365,11 +365,18 @@ trigger side made the same call for the same reason. At startup 4.x validates th
 read exists, and `QRTZ_PAUSED_JOB_GRPS` is one of them, so **this migration is mandatory even for a 3.x
 database that took every optional migration going**.
 
-That check is a `SELECT 1` per table and nothing more: it does not look at columns. A database with all
-twelve tables but a column missing — a half-applied script, a hand-built table, a table whose prefix was
-mistyped — starts cleanly and fails later, on the first statement that names the column, with whatever
-your provider says. Run the script in full rather than section by section, and if a startup succeeded
-but a firing failed with a raw provider error, that is the first thing to check.
+That check is a `SELECT 1` per table **and** a `SELECT <column> … WHERE 1 = 0` for each column this
+migration adds to a table 3.x already had, so a database that skipped it is refused before the scheduler
+starts, with the column and this script named in the message. What the check cannot see is a column's
+*shape*: a hand-built table whose column is the wrong type or width still starts cleanly and fails
+later, on the first statement that binds it, with whatever your provider says. Run the script in full
+rather than section by section, and if a startup succeeded but a firing failed with a raw provider
+error, the column definitions are the first thing to check.
+
+`ProvisionSchema()` is not a way around this. It creates only into a table prefix that holds no Quartz
+table at all, so a 3.x schema is refused rather than half-completed — creating the one table 4.x added
+and leaving the columns it added missing would produce a scheduler that starts, reports itself
+provisioned, and then fails every acquisition for ever.
 
 A **paused job group does not survive the upgrade**, and cannot: 3.x's ADO store records nothing when
 it pauses one — its `IsJobGroupPaused` returns a hard-coded `false` and `PauseJobs` only pauses the
@@ -11544,7 +11551,8 @@ shape changed and only what a mis-stated configuration does is different.
 | rc.1 | `NativeJob` redirects the child's streams only when `ConsumeStreams` is on, and waits with `WaitForExitAsync`. A process writing more than a pipe buffer holds used to block for ever with the defaults | [`NativeJob` no longer redirects a stream nobody reads](#nativejob-no-longer-redirects-a-stream-nobody-reads) |
 | rc.1 | The health check reports `Degraded` for a **clustered** node whose last check-in is older than `QuartzHealthCheckOptions.ClusterCheckinTolerance` (`3`) times its own interval. `null` or `0` makes no such query, and an unclustered scheduler is not asked | [The health check reports the state it found](#the-health-check-reports-the-state-it-found) |
 | rc.1 | Each scheduling path logs under its own category — a scheduling file, `AddQuartz`, and the JSON plugin — where all three logged as `Quartz.Xml.XmlSchedulingDataProcessor`. The event ids are unchanged | [Each scheduling path logs under its own category](#each-scheduling-path-logs-under-its-own-category) |
-| rc.1 | The log catalogue moved: `7010` and `7011` are gone with the assembly sweep that raised them, and `1020` (a shutdown abandoning running work), `1021` (something subscribed where 3.x published telemetry), `3156` (a schema that was already complete) and `9100`–`9103` (the dashboard's own events) are new | [Every message carries an event id](#every-message-carries-an-event-id) |
+| rc.1 | The log catalogue moved: `7010` and `7011` are gone with the assembly sweep that raised them, and `1020` (a shutdown abandoning running work), `1021` (something subscribed where 3.x published telemetry), `3156` (a schema that was already complete), `3157` (a schema that is partly there, so nothing was created) and `9100`–`9103` (the dashboard's own events) are new | [Every message carries an event id](#every-message-carries-an-event-id) |
+| rc.1 | Schema validation probes the columns the 4.0 migration adds as well as the tables, and `CreateIfMissing` creates only into a prefix that holds no Quartz table. **A 4.x node against an unmigrated 3.x schema is now refused at startup** where `ProvisionSchema()` used to start it and fire nothing; both messages name `database/migrations/4.0/`. Log event `3157` is new | [Database Schema Migration](#database-schema-migration) |
 | rc.1 | A paused **job** group binds what is added to it on the ADO store, as it always did in memory: a trigger stored for a job in a recorded-paused group is born `PAUSED`. A pre-release that paused a job group and then deployed a job into it ran that job | [The two job stores answer the same way](#the-two-job-stores-answer-the-same-way) |
 | rc.1 | The schema no longer creates `IDX_QRTZ_T_NFT_ST_MISFIRE`, and the 3.x-to-4.0 script drops it. **Re-run section 6 of `schema_30_to_40_upgrade_<database>.sql`** on a schema built from an earlier pre-release; nothing fails if you do not, the index is only maintained for nothing | [The misfire index is dropped](#the-misfire-index-is-dropped-optional) |
 

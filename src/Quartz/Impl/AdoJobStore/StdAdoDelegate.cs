@@ -790,7 +790,29 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
             }
         }
 
-        return AdoConstants.AllTableNames.Length;
+        // And the columns 4.x added to tables 3.x already had, one statement each so the failure names
+        // the column rather than leaving the reader to find it in the provider's own words. WHERE 1 = 0
+        // is a syntax every dialect takes and a plan every one of them answers without reading a row:
+        // what is being asked is whether the column resolves, not what is in it.
+        foreach ((string tableName, string columnName) in AdoConstants.MigratedColumnNames)
+        {
+            var targetTable = $"{tablePrefix}{tableName}";
+            var sql = $"SELECT {columnName} FROM {targetTable} WHERE 1 = 0";
+
+            try
+            {
+                using var cmd = PrepareCommand(conn, sql);
+                await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw new JobPersistenceException(
+                    $"Unable to query column {columnName} of table {targetTable}, which the 4.0 schema"
+                    + $" migration adds: {ex.Message}", ex);
+            }
+        }
+
+        return AdoConstants.AllTableNames.Length + AdoConstants.MigratedColumnNames.Length;
     }
 
     /// <summary>
