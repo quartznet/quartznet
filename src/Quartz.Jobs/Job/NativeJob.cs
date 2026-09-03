@@ -117,7 +117,7 @@ public class NativeJob : IJob
     /// </para>
     /// </summary>
     /// <param name="context"></param>
-    public virtual Task Execute(IJobExecutionContext context)
+    public virtual async Task Execute(IJobExecutionContext context)
     {
         JobDataMap data = context.MergedJobDataMap;
 
@@ -137,12 +137,24 @@ public class NativeJob : IJob
         }
 
         data.TryGetString(PropertyWorkingDirectory, out var workingDirectory);
-        int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
+        int exitCode = await RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams, context.CancellationToken).ConfigureAwait(false);
         context.Result = exitCode;
-        return Task.FromResult(true);
     }
 
-    private int RunNativeCommand(string command, string parameters, string? workingDirectory, bool wait, bool consumeStreams)
+    /// <remarks>
+    /// Both streams used to be redirected whatever <paramref name="consumeStreams" /> said, while the
+    /// consumer threads were started only when it was true — so a process that wrote more than a pipe
+    /// buffer holds (about 4 KB) blocked on its own write, and the synchronous <c>WaitForExit</c> below
+    /// held a worker thread for as long as that lasted, which was for ever. Nothing is redirected unless
+    /// somebody is reading it, and the wait is asynchronous.
+    /// </remarks>
+    private async Task<int> RunNativeCommand(
+        string command,
+        string parameters,
+        string? workingDirectory,
+        bool wait,
+        bool consumeStreams,
+        CancellationToken cancellationToken)
     {
         string[] cmd;
         string[] args = new string[2];
@@ -186,39 +198,51 @@ public class NativeJob : IJob
 
             Log.Info($"About to run {cmd[0]} {temp}...");
 
-            Process proc = new Process();
+            using Process proc = new Process();
 
             proc.StartInfo.FileName = cmd[0];
             proc.StartInfo.Arguments = temp;
             proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             proc.StartInfo.CreateNoWindow = true;
             proc.StartInfo.UseShellExecute = false;
-            proc.StartInfo.RedirectStandardError = true;
-            proc.StartInfo.RedirectStandardOutput = true;
+
+            // Redirected only when somebody reads them. A redirected pipe nobody drains fills up and the
+            // process blocks writing to it.
+            proc.StartInfo.RedirectStandardError = consumeStreams;
+            proc.StartInfo.RedirectStandardOutput = consumeStreams;
 
             if (!string.IsNullOrEmpty(workingDirectory))
             {
                 proc.StartInfo.WorkingDirectory = workingDirectory;
             }
 
+            // Subscribed before the start, so that a process that is gone before the wait begins
+            // still completes it.
+            TaskCompletionSource<bool> exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (wait)
+            {
+                proc.EnableRaisingEvents = true;
+                proc.Exited += (_, _) => exited.TrySetResult(true);
+            }
+
             proc.Start();
 
-            // Consumes the stdout from the process
-            StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardOutput.BaseStream, StreamTypeStandardOutput);
-            Thread stdoutConsumerThread = new Thread(stdoutConsumer.Run);
-
-            // Consumes the stderr from the process
             if (consumeStreams)
             {
+                // Consumes the stdout and the stderr from the process
+                StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardOutput.BaseStream, StreamTypeStandardOutput);
                 StreamConsumer stderrConsumer = new StreamConsumer(this, proc.StandardError.BaseStream, StreamTypeError);
-                Thread stderrConsumerThread = new Thread(stderrConsumer.Run);
-                stdoutConsumerThread.Start();
-                stderrConsumerThread.Start();
+                new Thread(stdoutConsumer.Run).Start();
+                new Thread(stderrConsumer.Run).Start();
             }
 
             if (wait)
             {
-                proc.WaitForExit();
+                using (cancellationToken.Register(() => exited.TrySetCanceled(cancellationToken)))
+                {
+                    await exited.Task.ConfigureAwait(false);
+                }
+
                 result = proc.ExitCode;
             }
             // any error message?
