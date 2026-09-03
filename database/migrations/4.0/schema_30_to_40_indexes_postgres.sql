@@ -1,25 +1,32 @@
 --
--- Quartz.NET schema migration -- align indexes with the 3.x schema
---
--- Introduced in Quartz.NET 3.20.0 (#3203)
+-- Quartz.NET schema migration -- 3.x to 4.0, index set
 --
 -- PostgreSQL only. Run the file matching your database; the other dialects live
 -- alongside this one in the same folder.
 --
 -- STATUS
---   3.x  OPTIONAL, performance only. Nothing stops working if it is not applied, but
---        several of these indexes could not serve a single-scheduler lookup at all.
+--   OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a
+--   non-trivial number of triggers; the drops only reclaim write cost and storage.
 --
---   4.x  Superseded. ../4.0/schema_30_to_40_indexes_postgres.sql converges the same index
---        set onto the 4.x shape -- run that instead when upgrading to 4.x.
+--   NOT to be run while any 3.x node is still up -- see below.
 --
--- Brings an existing database's index set in line with what the current
--- database/tables/tables_postgres.sql creates. A database created from the current
--- script already matches and needs nothing from this file.
+-- Run schema_30_to_40_upgrade_postgres.sql first. That one is mandatory and this one is
+-- not, and it is the one that is safe to run while 3.x nodes are still up.
 --
--- Every Quartz statement filters SCHED_NAME first, so every index here leads with it.
--- Indexes that are a leftmost prefix of a wider one, or that no statement can drive a
--- scan from, are dropped.
+-- WHEN TO RUN THIS: once the last 3.x node has shut down, or straight after the upgrade file
+-- on an offline upgrade. Among the drops is IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its
+-- misfire sweep from and 4.x does not read at all (#3656). A 3.x node keeps working without
+-- it -- it scans where it used to seek, which on a large schedule is the difference between a
+-- misfire sweep that finishes and one that times out.
+--
+-- What it does: creates the indexes 4.x's statements are written for, reshapes
+-- IDX_QRTZ_T_NFT_ST to carry the order acquisition reads in, and drops the ones no 4.x
+-- statement can drive a scan from. The end state is the index set database/tables/ creates
+-- for a fresh 4.x install.
+--
+-- Run it top to bottom. The creates come before the drops on purpose: IDX_QRTZ_T_NFT_ST is
+-- brought to its 4.x shape before IDX_QRTZ_T_NFT_ST_MISFIRE is dropped, so no schema is ever
+-- left with neither index.
 --
 -- On a busy database use CREATE INDEX CONCURRENTLY / DROP INDEX CONCURRENTLY instead;
 -- neither can run inside a transaction block, so run those statements one at a time.
@@ -34,27 +41,19 @@
 -- These have to go first: CREATE INDEX IF NOT EXISTS below would find the name
 -- already taken and silently keep the old, wrong column order.
 
-DROP INDEX IF EXISTS idx_qrtz_j_req_recovery;
-
-DROP INDEX IF EXISTS idx_qrtz_t_next_fire_time;
-
 DROP INDEX IF EXISTS idx_qrtz_t_nft_st;
 
 -- === Create the indexes this version expects ===================================
-
-CREATE INDEX IF NOT EXISTS idx_qrtz_j_req_recovery ON qrtz_job_details (sched_name, requests_recovery);
 
 CREATE INDEX IF NOT EXISTS idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
 
 CREATE INDEX IF NOT EXISTS idx_qrtz_t_j ON qrtz_triggers (sched_name, job_name, job_group);
 
-CREATE INDEX IF NOT EXISTS idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
-
 CREATE INDEX IF NOT EXISTS idx_qrtz_t_g_n ON qrtz_triggers (sched_name, trigger_group, trigger_name);
 
-CREATE INDEX IF NOT EXISTS idx_qrtz_t_next_fire_time ON qrtz_triggers (sched_name, next_fire_time);
+CREATE INDEX IF NOT EXISTS idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
 
-CREATE INDEX IF NOT EXISTS idx_qrtz_t_nft_st ON qrtz_triggers (sched_name, trigger_state, next_fire_time);
+CREATE INDEX IF NOT EXISTS idx_qrtz_t_nft_st ON qrtz_triggers (sched_name, trigger_state, next_fire_time asc, priority desc, misfire_instr);
 
 CREATE INDEX IF NOT EXISTS idx_qrtz_ft_inst_job_req_rcvry ON qrtz_fired_triggers (sched_name, instance_name, requests_recovery);
 
@@ -67,6 +66,8 @@ CREATE INDEX IF NOT EXISTS idx_qrtz_ft_t_g ON qrtz_fired_triggers (sched_name, t
 
 DROP INDEX IF EXISTS idx_qrtz_j_grp;
 
+DROP INDEX IF EXISTS idx_qrtz_j_req_recovery;
+
 DROP INDEX IF EXISTS idx_qrtz_t_g_j;
 
 DROP INDEX IF EXISTS idx_qrtz_t_jg;
@@ -78,6 +79,8 @@ DROP INDEX IF EXISTS idx_qrtz_t_state;
 DROP INDEX IF EXISTS idx_qrtz_t_n_state;
 
 DROP INDEX IF EXISTS idx_qrtz_t_n_g_state;
+
+DROP INDEX IF EXISTS idx_qrtz_t_next_fire_time;
 
 DROP INDEX IF EXISTS idx_qrtz_t_nft_misfire;
 

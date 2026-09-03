@@ -108,7 +108,7 @@ in each SQLite file.
 | [`3.18`](migrations/3.18) | `EXECUTION_GROUP` on `QRTZ_TRIGGERS` and `QRTZ_FIRED_TRIGGERS` (#3004) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.19`](migrations/3.19) | `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` on `QRTZ_TRIGGERS` (#3013, #3144) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.20`](migrations/3.20) | Index set realigned so every index leads with `SCHED_NAME`; prefix-redundant indexes dropped (#3203) | Optional, performance only | all | both |
-| [`4.0`](migrations/4.0) | Everything above, plus `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520), the `QRTZ_PAUSED_JOB_GRPS` table (#3336) and the 4.x index shape, in which `IDX_QRTZ_T_NFT_ST` is dropped and recreated as `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` — Firebird excepted (#3510) — and `IDX_QRTZ_T_NFT_ST_MISFIRE` is dropped, since that reshape left it with no reader on any dialect (#3656) | **Mandatory for 4.x**; section 6 waits for the last 3.x node | all | `main` only |
+| [`4.0`](migrations/4.0) | **Two files.** `schema_30_to_40_upgrade_<db>.sql` folds in 3.17–3.19 and adds `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520) and the `QRTZ_PAUSED_JOB_GRPS` table (#3336). `schema_30_to_40_indexes_<db>.sql` supersedes 3.20 and lands the 4.x index shape, in which `IDX_QRTZ_T_NFT_ST` is dropped and recreated as `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` — Firebird excepted (#3510) — and `IDX_QRTZ_T_NFT_ST_MISFIRE` is dropped, since that reshape left it with no reader on any dialect (#3656) | Upgrade **mandatory for 4.x** and safe during a mixed window; indexes optional, and wait for the last 3.x node | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -122,14 +122,20 @@ validates its schema at startup, so even a 3.x database that took every optional
 still needs this one.
 
 So a 3.x database will not work against 4.x until [`migrations/4.0`](migrations/4.0) has been
-applied. That script folds in everything from 3.17, 3.18, 3.19 and 3.20, and every statement is
-guarded — run it whether or not you applied the optional ones.
+applied. It is **two files**, because they are run at different moments:
 
-Sections 1–5 of that script are safe to run while 3.x nodes are still up. **Section 6 is not**: it
-is the index set, and among its drops is `IDX_QRTZ_T_NFT_ST_MISFIRE`, which 3.x drives its misfire
-sweep from. Run section 6 once the last 3.x node has shut down, top to bottom — the reshape of
-`IDX_QRTZ_T_NFT_ST` sits above that drop in the same section, so a schema that never took the
-reshape takes it there first.
+| File | Status | When |
+|---|---|---|
+| `schema_30_to_40_upgrade_<db>.sql` | Mandatory | Now. It folds in 3.17, 3.18 and 3.19, every statement is guarded, and everything in it is safe to run while 3.x nodes are still up. |
+| `schema_30_to_40_indexes_<db>.sql` | Optional, performance only | Once the last 3.x node has shut down — or straight afterwards, on an upgrade with nothing running. It supersedes 3.20. |
+
+The index file waits because among its drops is `IDX_QRTZ_T_NFT_ST_MISFIRE`, which 3.x drives its
+misfire sweep from and 4.x does not read at all. Run it top to bottom: the reshape of
+`IDX_QRTZ_T_NFT_ST` sits above that drop, so a schema that never took the reshape takes it first and
+none is ever left with neither index. It is guarded throughout, so re-running it changes nothing.
+
+A 4.x node starts against a database that has taken the first file and not the second. It scans where
+it would otherwise seek, on a schema large enough for that to matter.
 
 **This is the only copy.** The `3.x` branch used to carry one and no longer does: what the
 3.x → 4.0 script has to do is decided by 4.x's schema, which moves here, so a second copy there
@@ -152,7 +158,7 @@ out inside each file. Old links keep working against release tags, for example
 | `database/schema_30_add_execution_group.sql` | `migrations/3.18/add_execution_group_<db>.sql` |
 | `database/schema_30_add_preferred_node.sql` | `migrations/3.19/add_preferred_node_<db>.sql` |
 | `database/schema_30_drop_redundant_indexes.sql`<br>`database/schema_30_postgres_index_realignment.sql`<br>`database/schema_30_sqlite_indexes.sql` | `migrations/3.20/index_alignment_<db>.sql` |
-| `database/schema_30_to_40_upgrade.sql` | `migrations/4.0/schema_30_to_40_upgrade_<db>.sql` |
+| `database/schema_30_to_40_upgrade.sql` | `migrations/4.0/schema_30_to_40_upgrade_<db>.sql`, and its index half `migrations/4.0/schema_30_to_40_indexes_<db>.sql` |
 
 ## Adding a migration
 

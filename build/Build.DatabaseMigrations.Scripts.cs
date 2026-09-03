@@ -392,14 +392,15 @@ partial class Build
                         "3.x  OPTIONAL, performance only. Nothing stops working if it is not applied, but",
                         "     several of these indexes could not serve a single-scheduler lookup at all.",
                         "",
-                        $"4.x  Superseded. ../4.0/schema_30_to_40_upgrade_{d}.sql converges the same index",
+                        $"4.x  Superseded. ../4.0/schema_30_to_40_indexes_{d}.sql converges the same index",
                         "     set onto the 4.x shape -- run that instead when upgrading to 4.x.",
                     ],
                     indexExtra)
                 + "\n\n" + Converge(d, Indexes3X[d])));
 
-            // --- 4.0: everything above, plus the 4.x index shape ---
+            // --- 4.0: the columns and the table, and then the index set as a file of its own ---
             files.Add(($"4.0/schema_30_to_40_upgrade_{d}.sql", Build40Script(d)));
+            files.Add(($"4.0/schema_30_to_40_indexes_{d}.sql", Build40IndexScript(d)));
         }
 
         return files;
@@ -414,10 +415,11 @@ partial class Build
         string[] supersedes = dialect == "sqlite"
             ?
             [
-                "This script supersedes the optional per-feature migrations in ../3.17, ../3.18,",
-                "../3.19 and ../3.20 -- it applies everything they do, and it assumes none of them",
-                "were applied. Run it exactly once, against a database that took none of the optional",
-                "3.x column migrations.",
+                "This script supersedes the optional per-feature migrations in ../3.17, ../3.18 and",
+                "../3.19 -- it applies everything they do, and it assumes none of them were applied.",
+                "Run it exactly once, against a database that took none of the optional 3.x column",
+                $"migrations. (../3.20's index alignment is superseded by schema_30_to_40_indexes_{dialect}.sql,",
+                "beside this file.)",
                 "",
                 "On a partially-migrated database take the stepped route instead -- run the",
                 "per-feature files you are still missing -- or check PRAGMA table_info(<table>) and",
@@ -425,10 +427,11 @@ partial class Build
             ]
             :
             [
-                "This script supersedes the optional per-feature migrations in ../3.17, ../3.18,",
-                "../3.19 and ../3.20 -- it applies everything they do. If you already ran some of",
-                "them, run this anyway: every statement checks first, so it is safe on a",
-                "partially-migrated database.",
+                "This script supersedes the optional per-feature migrations in ../3.17, ../3.18 and",
+                "../3.19 -- it applies everything they do. If you already ran some of them, run this",
+                "anyway: every statement checks first, so it is safe on a partially-migrated database.",
+                $"(../3.20's index alignment is superseded by schema_30_to_40_indexes_{dialect}.sql,",
+                "beside this file.)",
             ];
 
         List<string> extra =
@@ -441,14 +444,13 @@ partial class Build
             "  3. PREFERRED_NODE / PREFERRED_NODE_AUTO         REQUIRED",
             "  4. RETRY_POLICY / RETRY_ATTEMPT                 REQUIRED",
             "  5. QRTZ_PAUSED_JOB_GRPS table                   REQUIRED",
-            "  6. Index set aligned with the 4.x schema        optional",
             "",
-            "Run the sections in order: the drops in section 6 assume the creates above them have",
-            "already succeeded.",
-            "",
-            "Sections 1-5 are safe to run while 3.x nodes are still up. SECTION 6 IS NOT: it drops",
-            "IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its misfire sweep from and 4.x does not read",
-            "at all (#3656). Run section 6 once the last 3.x node has shut down.",
+            "Every section in this file is safe to run while 3.x nodes are still up, which is why the",
+            "index set is not in it. That is a second file in this folder --",
+            $"schema_30_to_40_indexes_{dialect}.sql -- and it is NOT safe to run during a mixed window:",
+            "it drops IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its misfire sweep from and 4.x does",
+            "not read at all (#3656). Run this file now; run that one once the last 3.x node has shut",
+            "down, or straight afterwards on an upgrade with nothing running.",
             "",
             "Sections 4 and 5 have no 3.x counterpart at all, so nothing you ran on 3.x can have",
             "applied them.",
@@ -513,22 +515,69 @@ partial class Build
                 + "-- group, mirroring QRTZ_PAUSED_TRIGGER_GRPS. Guarded on every dialect, SQLite\n"
                 + "-- included: CREATE TABLE IF NOT EXISTS is conditional DDL SQLite does have.\n\n"
                 + CreateTable(dialect, TablePausedJobGroups, PausedJobGroupsTable[dialect]),
-
-            "-- === 6. Index set ===\n"
-                + "-- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a\n"
-                + "-- non-trivial number of triggers; the drops only reclaim write cost and storage.\n"
-                + "--\n"
-                + "-- RUN THIS SECTION ONLY ONCE THE LAST 3.x NODE HAS SHUT DOWN. Among the drops is\n"
-                + "-- IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its misfire sweep from. 4.x drives both\n"
-                + "-- misfire statements from IDX_QRTZ_T_NFT_ST instead, which this section's creates put\n"
-                + "-- at its 4.x shape before that drop runs -- so a schema still on the pre-4.x shape is\n"
-                + "-- reshaped here first, and none is ever left with neither index. That ordering is the\n"
-                + "-- whole precondition, so run the section top to bottom.\n"
-                + "--\n"
-                + "-- Every statement is guarded, so re-running the section changes nothing.\n\n"
-                + Converge(dialect, Target4X(dialect)),
         ];
 
         return header + "\n\n" + string.Join("\n\n", sections);
+    }
+
+    /// <summary>
+    /// The second half of the 3.x-to-4.0 upgrade: the index set, in a file of its own.
+    /// </summary>
+    /// <remarks>
+    /// It is a separate file because it is run at a different moment. Four pages told a reader to run
+    /// "sections 1 to 5" of one file and defer the sixth until the last 3.x node had gone, and nothing
+    /// -- not the pages, not the script -- said how: there was no second half to run, only a comment
+    /// line to hand-edit around, and one sentence on the same page said to run the file whole. Two
+    /// files make the advice something a reader can carry out: run the upgrade now, run this when the
+    /// window closes. Both are directly runnable, both are guarded, and this one has nothing but
+    /// index DDL in it, so it is re-runnable on every dialect including SQLite.
+    /// </remarks>
+    static string Build40IndexScript(string dialect)
+    {
+        List<string> extra =
+        [
+            $"Run schema_30_to_40_upgrade_{dialect}.sql first. That one is mandatory and this one is",
+            "not, and it is the one that is safe to run while 3.x nodes are still up.",
+            "",
+            "WHEN TO RUN THIS: once the last 3.x node has shut down, or straight after the upgrade file",
+            "on an offline upgrade. Among the drops is IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its",
+            "misfire sweep from and 4.x does not read at all (#3656). A 3.x node keeps working without",
+            "it -- it scans where it used to seek, which on a large schedule is the difference between a",
+            "misfire sweep that finishes and one that times out.",
+            "",
+            "What it does: creates the indexes 4.x's statements are written for, reshapes",
+            "IDX_QRTZ_T_NFT_ST to carry the order acquisition reads in, and drops the ones no 4.x",
+            "statement can drive a scan from. The end state is the index set database/tables/ creates",
+            "for a fresh 4.x install.",
+            "",
+            "Run it top to bottom. The creates come before the drops on purpose: IDX_QRTZ_T_NFT_ST is",
+            "brought to its 4.x shape before IDX_QRTZ_T_NFT_ST_MISFIRE is dropped, so no schema is ever",
+            "left with neither index.",
+        ];
+
+        if (dialect == "postgres")
+        {
+            extra.AddRange([
+                "",
+                "On a busy database use CREATE INDEX CONCURRENTLY / DROP INDEX CONCURRENTLY instead;",
+                "neither can run inside a transaction block, so run those statements one at a time.",
+            ]);
+        }
+
+        if (dialect == "mysql_innodb")
+        {
+            extra.AddRange(MySqlBlobNote);
+        }
+
+        string header = Header(dialect, "3.x to 4.0, index set", null, null,
+            [
+                "OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a",
+                "non-trivial number of triggers; the drops only reclaim write cost and storage.",
+                "",
+                "NOT to be run while any 3.x node is still up -- see below.",
+            ],
+            extra);
+
+        return header + "\n\n" + Converge(dialect, Target4X(dialect));
     }
 }
