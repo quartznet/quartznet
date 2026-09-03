@@ -2633,6 +2633,23 @@ that a client's runtime goes looking for. If you were relying on `Build()` to sn
 build time — for instance by building a detail, unloading the assembly and reading the flags — read them
 before the assembly goes.
 
+The persistent store does not resolve one outside firing either. A process that cannot load its job
+classes — the `UseThreadPool<ZeroSizeThreadPool>()` administration node, a web application that edits
+schedules without referencing the worker that runs them — reads, pauses, resumes, reschedules, updates,
+triggers, adds triggers to and deletes jobs on the stored name alone, and both attribute flags come from
+`QRTZ_JOB_DETAILS.IS_NONCONCURRENT` and `IS_UPDATE_DATA` rather than from the type. `RescheduleJob` is
+the call that used to fail — `JobPersistenceException: Couldn't replace trigger: Could not load type
+'Acme.Jobs.MessageCleanupJob, Acme.Jobs'` — because it resolved the class in order to answer "may this
+job run concurrently?", and the row now answers that. Such a process therefore needs no `ITypeLoader` of
+its own, and the placeholder type 3.x required is no longer the way to get there; a placeholder was
+always a hazard, because whether it carried `[DisallowConcurrentExecution]` decided whether a
+replacement trigger was stored `WAITING` or `BLOCKED` for a job it was standing in for. Only the firing
+path resolves a job's class, and that runs where the job runs.
+
+`IScheduler.Interrupt` is the one administration operation this does not reach: it is documented as not
+cluster aware, cancels the tokens of the firings running in the scheduler it is called on, and an
+administration node runs none. That is a property of the operation rather than of the missing assembly.
+
 ## One shape per registration method
 
 The `AddJob` / `AddTrigger` / `AddCalendar` grid had overloads that said the same thing twice, and

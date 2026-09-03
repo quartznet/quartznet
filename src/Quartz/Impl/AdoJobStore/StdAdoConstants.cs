@@ -262,8 +262,19 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectJobExistence =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup}");
 
+    /// <summary>
+    /// The job a trigger belongs to, as far as the trigger paths need it.
+    /// </summary>
+    /// <remarks>
+    /// <c>IS_NONCONCURRENT</c> and <c>IS_UPDATE_DATA</c> are selected because the two attribute flags
+    /// have to be answerable without the job's CLR type: <c>AdoJobStoreBase.AddTrigger</c> decides
+    /// between <c>WAITING</c> and <c>BLOCKED</c> from
+    /// <see cref="IJobDetail.ConcurrentExecutionDisallowed" />, and a detail built without them falls
+    /// back to reading the attribute off the type — which answers <see langword="false" /> in a process
+    /// that cannot load it (#3705).
+    /// </remarks>
     public static readonly string SqlSelectJobForTrigger =
-        Invariant($"SELECT J.{AdoConstants.ColumnJobName}, J.{AdoConstants.ColumnJobGroup}, J.{AdoConstants.ColumnIsDurable}, J.{AdoConstants.ColumnJobClass}, J.{AdoConstants.ColumnRequestsRecovery} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} T, {TablePrefixSubst}{AdoConstants.TableJobDetails} J WHERE T.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND T.{AdoConstants.ColumnSchedulerName} = J.{AdoConstants.ColumnSchedulerName} AND T.{AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND T.{AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND T.{AdoConstants.ColumnJobName} = J.{AdoConstants.ColumnJobName} AND T.{AdoConstants.ColumnJobGroup} = J.{AdoConstants.ColumnJobGroup}");
+        Invariant($"SELECT J.{AdoConstants.ColumnJobName}, J.{AdoConstants.ColumnJobGroup}, J.{AdoConstants.ColumnIsDurable}, J.{AdoConstants.ColumnJobClass}, J.{AdoConstants.ColumnRequestsRecovery}, J.{AdoConstants.ColumnIsNonConcurrent}, J.{AdoConstants.ColumnIsUpdateData} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} T, {TablePrefixSubst}{AdoConstants.TableJobDetails} J WHERE T.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND T.{AdoConstants.ColumnSchedulerName} = J.{AdoConstants.ColumnSchedulerName} AND T.{AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND T.{AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND T.{AdoConstants.ColumnJobName} = J.{AdoConstants.ColumnJobName} AND T.{AdoConstants.ColumnJobGroup} = J.{AdoConstants.ColumnJobGroup}");
 
     public static readonly string SqlSelectJobsInGroupLike =
         Invariant($"SELECT {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobGroup} LIKE @{SqlParameters.JobGroup}{SqlLikeEscapeClause}");

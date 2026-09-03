@@ -112,7 +112,7 @@ Two shipped pools are worth knowing by name, because `UseThreadPool<T>()` is how
 
 | Type | For |
 |---|---|
-| `Quartz.Impl.ZeroSizeThreadPool` | a scheduler that exists only to *write* the schedule and is never started. `UseThreadPool<ZeroSizeThreadPool>()` creates no worker threads at all, and both of the members a running scheduler would call throw `NotSupportedException` — so calling `Start()` on such a scheduler fails loudly rather than sitting there firing nothing |
+| `Quartz.Impl.ZeroSizeThreadPool` | a scheduler that exists only to *write* the schedule and is never started. `UseThreadPool<ZeroSizeThreadPool>()` creates no worker threads at all, and both of the members a running scheduler would call throw `NotSupportedException` — so calling `Start()` on such a scheduler fails loudly rather than sitting there firing nothing. Such a process needs no reference to the assemblies its job classes live in, and no `ITypeLoader` of its own: the persistent store edits the schedule on the stored type name alone |
 | `Quartz.Impl.TaskSchedulingThreadPool` | the open base of `DefaultThreadPool`. A pool of your own derives from it and overrides one member, `GetDefaultScheduler()`, rather than implementing `IThreadPool`'s six from scratch |
 
 `ThreadPoolOptions` belongs to the built-in pools — they are what read `MaxConcurrency` — so

@@ -511,7 +511,12 @@ internal abstract partial class AdoJobStoreBase
             async () =>
             {
                 // this must be called before we delete the trigger, obviously
-                var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: true, cancellationToken).ConfigureAwait(false);
+                //
+                // The class is not resolved: rescheduling is an editing operation, and an administration
+                // node that cannot load the job's assembly must be able to do it (#3705). What the
+                // replacement needs from the job is its key, its durability and its two attribute flags,
+                // and all four come from the row.
+                var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: false, cancellationToken).ConfigureAwait(false);
 
                 if (job is null)
                 {
@@ -633,7 +638,10 @@ internal abstract partial class AdoJobStoreBase
                 }
 
                 StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-                IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: true, cancellationToken).ConfigureAwait(false);
+                // Not resolved, for the reason ReplaceTrigger does not resolve it: editing a trigger is
+                // something a process without the job's assembly is entitled to do, and the flags the
+                // write needs are columns rather than attributes.
+                IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: false, cancellationToken).ConfigureAwait(false);
 
                 if (job is null)
                 {

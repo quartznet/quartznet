@@ -381,7 +381,13 @@ public partial class StdAdoDelegate
                 .WithIdentity(new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!))
                 .RequestRecovery(GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]))
                 .OfType(CreateJobType(jobClassName, typeLoader))
-                .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]));
+                .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]))
+                // Stated from the row rather than deduced from the type, whatever loadJobType says, for
+                // the reason ReadJobDetail states them: the columns are the record of what the
+                // attributes said when the job was stored, and a process that cannot load the class
+                // would otherwise be told a non-concurrent job allows concurrency (#3705).
+                .DisallowConcurrentExecution(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]))
+                .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsUpdateData]));
 
             if (loadJobType)
             {

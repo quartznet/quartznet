@@ -76,7 +76,8 @@ public class UpdateTriggerDetailsFamilyTest
             .Returns(new ValueTask<IOperableTrigger>(stored));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, TestTrigger, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Waiting));
-        A.CallTo(() => driverDelegate.SelectJobForTrigger(conn, TestTrigger, A<ITypeLoader>.Ignored, true, A<CancellationToken>.Ignored))
+        // loadJobType: false — updating a trigger never resolves the job's class (#3705).
+        A.CallTo(() => driverDelegate.SelectJobForTrigger(conn, TestTrigger, A<ITypeLoader>.Ignored, false, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         stored.MisfireInstructionCode.Should().Be(MisfireInstruction.SmartPolicy,

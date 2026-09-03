@@ -157,6 +157,8 @@ is elected. A process that will *never* be elected — an admin API, a migration
 schedules work for other processes to run — wants `q.UseThreadPool<ZeroSizeThreadPool>()` instead, which
 is why that type is public. It creates no worker threads, and the two members a running scheduler calls
 throw `NotSupportedException`, so such a scheduler is never started and says so if something starts it.
+Such a process need not reference the assemblies its job classes live in: the store reads, edits, pauses,
+reschedules, triggers and deletes on the stored type name alone.
 :::
 
 The health check follows the same distinction. It reports *degraded* — not *unhealthy* — both while a
