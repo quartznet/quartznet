@@ -5669,15 +5669,35 @@ ways:
 // What this lists is the expressions worth reading again if they were carried over from a
 // crontab-derived library such as Cronos or NCrontab.
 await using DbCommand command = connection.CreateCommand();
-command.CommandText = "SELECT TRIGGER_NAME, TRIGGER_GROUP, CRON_EXPRESSION FROM QRTZ_CRON_TRIGGERS";
+
+// A schema shared by several schedulers holds all of their rows in these tables, told apart
+// by SCHED_NAME — the scheduler's InstanceName — alone. The audit therefore filters on it and
+// lists it, because a line naming only the trigger's group and name would not say whose
+// trigger it is. Run it for every scheduler before upgrading, and substitute your own table
+// prefix for QRTZ_.
+command.CommandText =
+    """
+    SELECT SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP, CRON_EXPRESSION
+    FROM   QRTZ_CRON_TRIGGERS
+    WHERE  SCHED_NAME = @schedulerName
+    """;
+
+// The name is bound, never written into the text. '@' is the marker this sample spells; a
+// provider that spells it otherwise — ':' on Oracle — needs that one character changed, which
+// is what DbMetadata.ParameterNamePrefix carries for Quartz's own statements.
+DbParameter schedulerNameParameter = command.CreateParameter();
+schedulerNameParameter.ParameterName = "@schedulerName";
+schedulerNameParameter.Value = schedulerName;
+command.Parameters.Add(schedulerNameParameter);
 
 await using DbDataReader reader = await command.ExecuteReaderAsync();
 
 while (await reader.ReadAsync())
 {
-    string name = reader.GetString(0);
-    string group = reader.GetString(1);
-    string expression = reader.GetString(2);
+    string scheduler = reader.GetString(0);
+    string name = reader.GetString(1);
+    string group = reader.GetString(2);
+    string expression = reader.GetString(3);
 
     // A stored expression is always the canonical six-field Quartz form: seconds, minutes,
     // hours, day-of-month, month, day-of-week, and optionally a year.
@@ -5695,13 +5715,13 @@ while (await reader.ReadAsync())
     // form that carries one: '1', '1-5', '*/2', and the '6#3' and '6L' forms with it.
     if (IsNumericDay(dayOfWeek))
     {
-        Console.WriteLine($"{group}.{name}: numeric day-of-week '{dayOfWeek}' — write it as a name");
+        Console.WriteLine($"{scheduler}: {group}.{name}: numeric day-of-week '{dayOfWeek}' — write it as a name");
     }
 
     // Quartz fires on the union of the two day fields, as crontab does; Cronos intersects them.
     if (!IsUnrestricted(dayOfMonth) && !IsUnrestricted(dayOfWeek))
     {
-        Console.WriteLine($"{group}.{name}: both day fields restricted — this fires on their union");
+        Console.WriteLine($"{scheduler}: {group}.{name}: both day fields restricted — this fires on their union");
     }
 }
 
