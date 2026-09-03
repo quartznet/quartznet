@@ -28,7 +28,7 @@ partial class Build : FalloutBuild, ICompile, IPack
 {
     public static int Main() => Execute<Build>(x => ((ICompile) x).Compile);
 
-    [Parameter("Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, basic, all)")]
+    [Parameter("Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, redis, basic, all)")]
     readonly string Database;
 
     [Parameter("Collect line and branch coverage while running the unit tests, in OpenCover format")]
@@ -534,10 +534,29 @@ partial class Build : FalloutBuild, ICompile, IPack
         return string.IsNullOrEmpty(databaseFilter) ? excludeLongRunning : $"{databaseFilter}&{excludeLongRunning}";
     }
 
+    /// <summary>
+    /// The integration suite, against the database <see cref="Database" /> names or against every one of
+    /// them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The gate is about CI legs, and only about CI legs. Docker is what every fixture here needs, and
+    /// of the three images the workflows run on only Ubuntu has a daemon — so the Windows and macOS legs
+    /// skip the target rather than failing it, and it is the negation that says so.
+    /// </para>
+    /// <para>
+    /// It used to say <c>Host is GitHubActions &amp;&amp; Linux</c>, which also skipped every developer
+    /// machine: <c>build.cmd Compile UnitTest IntegrationTest</c> — the command CONTRIBUTING.md, the pull
+    /// request template and AGENTS.md all give — reported the target as skipped and exited zero, so a
+    /// contributor asked to run the integration tests before opening a pull request ran none of them and
+    /// was told nothing. A local run has a daemon or it does not, and Testcontainers says which in a
+    /// message worth reading; a silent skip says nothing at all.
+    /// </para>
+    /// </remarks>
     Target IntegrationTest => _ => _
         .DependsOn<ICompile>()
         .Before<IPack>()
-        .OnlyWhenDynamic(() => Host is GitHubActions && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        .OnlyWhenDynamic(() => Host is not GitHubActions || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         .Executes(() =>
         {
             var database = Database?.ToLowerInvariant();

@@ -139,7 +139,7 @@
         },
         "Database": {
           "type": "string",
-          "description": "Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, basic, all)"
+          "description": "Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, redis, basic, all)"
         },
         "FeedzApiKey": {
           "type": "string",
