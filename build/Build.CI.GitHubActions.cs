@@ -21,10 +21,12 @@ using Quartz.Build;
     // line tools ILCompiler links with, so there is nothing to install, and if that stops being true the
     // leg says so out loud rather than the claim going unchecked on a third platform.
     //
-    // BenchmarkSmoke and WolverineSmoke are on this workflow alone. Every change reaches main through a
-    // pull request, so this is where a broken benchmark or a broken example is caught while somebody is
-    // still looking; the push and release legs have ten-minute budgets and nothing to do with either.
-    InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(WolverineSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
+    // BenchmarkSmoke, WolverineSmoke and ExamplesSmoke are on this workflow alone. Every change reaches
+    // main through a pull request, so this is where a broken benchmark or a broken example is caught
+    // while somebody is still looking; the push and release legs have ten-minute budgets and nothing to
+    // do with any of them. ExamplesSmoke runs the two applications PublishTrimmed only ever published,
+    // on all three images, because a host that refuses to start does so per platform.
+    InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(WolverineSmoke), nameof(ExamplesSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
     CacheKeyFiles = [],
     // Generating native code is minutes rather than seconds, and it happens after everything else here.
     TimeoutMinutes = 20,
