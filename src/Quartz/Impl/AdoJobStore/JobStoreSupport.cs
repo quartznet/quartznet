@@ -21,12 +21,14 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -5333,6 +5335,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
         try
         {
+            if (IsTransactionRollback(ex))
+            {
+                return true;
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+
+        try
+        {
             if (InspectSqlException(ex))
             {
                 return true;
@@ -5357,6 +5371,87 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
         return ex is TimeoutException;
     }
+
+    /// <summary>
+    /// Whether the exception, or one it wraps, reports a SQLSTATE in class <c>40</c> — the standard's
+    /// own "transaction rollback" class, which is its way of saying the database abandoned the
+    /// transaction for a reason that has nothing to do with the statements in it, so running it again
+    /// is the prescribed answer.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// SQLSTATE is provider-neutral, which is why it is worth reading. <c>40001</c>, the serialization
+    /// failure, is what Firebird reports for a write conflict between two transactions, what MySQL
+    /// reports for its <c>1213</c> deadlock, and what PostgreSQL reports beside its own extension
+    /// <c>40P01</c>, deadlock detected. Npgsql and MySqlConnector already say as much through their
+    /// <c>IsTransient</c>, so for those two this is belt and braces. Firebird and MySql.Data do not:
+    /// <c>FbException</c> reports <c>IsTransient: false</c> for a serialization failure, so the store
+    /// treated the one condition retrying exists for as fatal, wrapped it in a
+    /// <see cref="JobPersistenceException" /> and gave up (#3454).
+    /// </para>
+    /// <para>
+    /// <c>40002</c> is the single member of the class that is excluded. It is an integrity-constraint
+    /// violation the database deferred to commit time — a real error, which will fail in exactly the
+    /// same way on the next attempt. The rest of the class is transient: <c>40000</c> (rollback with no
+    /// subclass), <c>40001</c>, <c>40003</c> (statement completion unknown) and <c>40P01</c>.
+    /// </para>
+    /// <para>
+    /// This leaves the SQL Server path alone. Both SqlClients report no SQLSTATE, so 1205 and its
+    /// neighbours still arrive the way they always did, through <see cref="InspectSqlException" />.
+    /// </para>
+    /// </remarks>
+    private static bool IsTransactionRollback(Exception ex)
+    {
+        for (Exception? candidate = ex; candidate != null; candidate = candidate.InnerException)
+        {
+            string? sqlState = GetSqlState(candidate);
+
+            // The class is the first two characters and the subclass is the rest, so the whole class is
+            // a prefix match with the one exception carved out by name.
+            if (sqlState != null
+                && sqlState.StartsWith("40", StringComparison.Ordinal)
+                && sqlState != "40002")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The exception's SQLSTATE, read from whichever property the driver chose to spell it with, or
+    /// <see langword="null" /> if it reports none.
+    /// </summary>
+    /// <remarks>
+    /// <c>DbException.SqlState</c> is the property to ask, and Npgsql, MySqlConnector and MySql.Data
+    /// all declare it on every framework; the base class only has it from .NET 5 on, which is why it is
+    /// read by name here rather than through the type. Firebird does not use it: <c>FbException</c>
+    /// declares a <c>SQLSTATE</c> of its own, so the state that prompted all this is reachable only by
+    /// that name. Read by reflection for the reason the SQL Server error numbers are — Quartz references
+    /// no driver — and matched on shape rather than on a base class, so the <c>IscException</c> Firebird
+    /// nests inside, which carries the same property, answers too.
+    /// </remarks>
+    private static string? GetSqlState(Exception ex)
+    {
+        PropertyInfo?[] properties = sqlStateProperties.GetOrAdd(ex.GetType(), static type => new[]
+        {
+            type.GetProperty("SqlState", BindingFlags.Instance | BindingFlags.Public),
+            type.GetProperty("SQLSTATE", BindingFlags.Instance | BindingFlags.Public)
+        });
+
+        foreach (PropertyInfo? property in properties)
+        {
+            if (property != null && property.PropertyType == typeof(string) && property.GetValue(ex) is string { Length: > 0 } sqlState)
+            {
+                return sqlState;
+            }
+        }
+
+        return null;
+    }
+
+    private static readonly ConcurrentDictionary<Type, PropertyInfo?[]> sqlStateProperties = new ConcurrentDictionary<Type, PropertyInfo?[]>();
 
     private static bool InspectSqlException(Exception ex)
     {
