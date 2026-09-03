@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -70,9 +71,7 @@ internal sealed class DirectoryScanJobModel
             JobDetailJobDataMap = context.JobDetail.JobDataMap,
             DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
                 .Distinct().ToList(),
-            CurrentFileList = mergedJobDataMap.ContainsKey(DirectoryScanJob.CurrentFileList) ?
-                (List<FileInfo>)mergedJobDataMap.Get(DirectoryScanJob.CurrentFileList)
-                : new List<FileInfo>(),
+            CurrentFileList = ReadFileList(mergedJobDataMap),
             SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ?
                 mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern)! : "*",
             IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories) 
@@ -100,17 +99,63 @@ internal sealed class DirectoryScanJobModel
     /// <summary>
     /// Updates the file list for comparison in next iteration
     /// </summary>
-    /// <param name="fileList"></param>
+    /// <remarks>
+    /// Stored as a <see cref="Dictionary{TKey,TValue}" /> of full path to last-write ticks, because this
+    /// job is <c>[PersistJobDataAfterExecution]</c> and a job data map is written to
+    /// <c>QRTZ_JOB_DETAILS</c> by whichever serializer is configured. A <c>List&lt;FileInfo&gt;</c> is
+    /// not a value the JSON serializers can read back — System.Text.Json refuses it outright — so the
+    /// job's first firing against a persistent store failed to persist. A string-to-string dictionary is
+    /// a shape both admit, and a path is what the comparison actually uses.
+    /// </remarks>
+    /// <param name="fileList">What this scan saw.</param>
     internal void UpdateFileList(List<FileInfo> fileList)
     {
-        JobDetailJobDataMap.Put(DirectoryScanJob.CurrentFileList, fileList);
+        Dictionary<string, string> stored = new Dictionary<string, string>(fileList.Count, StringComparer.Ordinal);
+        foreach (FileInfo file in fileList)
+        {
+            stored[file.FullName] = file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
+        }
+
+        JobDetailJobDataMap.Put(DirectoryScanJob.CurrentFileList, stored);
+    }
+
+    /// <summary>
+    /// What the previous scan saw, as the paths it recorded.
+    /// </summary>
+    /// <remarks>
+    /// A <c>List&lt;FileInfo&gt;</c> is still read, because a scheduler that has been running since
+    /// before this changed holds one in its in-memory map, and a binary-serialized job store may hold
+    /// one too.
+    /// </remarks>
+    private static List<FileInfo> ReadFileList(JobDataMap mergedJobDataMap)
+    {
+        if (!mergedJobDataMap.TryGetValue(DirectoryScanJob.CurrentFileList, out object? value) || value is null)
+        {
+            return new List<FileInfo>();
+        }
+
+        if (value is Dictionary<string, string> stored)
+        {
+            List<FileInfo> files = new List<FileInfo>(stored.Count);
+            foreach (string path in stored.Keys)
+            {
+                files.Add(new FileInfo(path));
+            }
+
+            return files;
+        }
+
+        return value as List<FileInfo> ?? new List<FileInfo>();
     }
 
 
     private static List<string> GetDirectoriesToScan(SchedulerContext schedCtxt, JobDataMap mergedJobDataMap)
     {
         IDirectoryProvider directoryProvider = new DefaultDirectoryProvider();
-        var explicitDirProviderName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryProviderName);
+
+        // Optional: GetString throws for a key that is not there, and a job data map that names no
+        // provider is the ordinary case, so it is asked for rather than read.
+        mergedJobDataMap.TryGetString(DirectoryScanJob.DirectoryProviderName, out string? explicitDirProviderName);
 
         if (explicitDirProviderName != null)
         {
@@ -126,7 +171,7 @@ internal sealed class DirectoryScanJobModel
 
     private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt, IServiceProvider? serviceProvider)
     {
-        var listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
+        mergedJobDataMap.TryGetString(DirectoryScanJob.DirectoryScanListenerName, out string? listenerName);
 
         if (listenerName == null)
         {

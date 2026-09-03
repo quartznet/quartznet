@@ -16,8 +16,10 @@ internal sealed class DefaultDirectoryProvider : IDirectoryProvider
     public IReadOnlyList<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
     {
         List<string> directoriesToScan = new List<string>();
-        var dirName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryName);
-        var dirNames = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryNames);
+
+        // Either key may be absent, and GetString throws for a key that is not there.
+        mergedJobDataMap.TryGetString(DirectoryScanJob.DirectoryName, out string? dirName);
+        mergedJobDataMap.TryGetString(DirectoryScanJob.DirectoryNames, out string? dirNames);
 
         if (dirName == null && dirNames == null)
         {
