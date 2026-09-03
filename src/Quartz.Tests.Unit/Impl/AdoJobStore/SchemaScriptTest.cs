@@ -58,11 +58,21 @@ public class SchemaScriptTest
     private static readonly string[] DialectsThatIndexPerColumnDirection =
         [.. Dialects.Where(d => d != "firebird")];
 
+    /// <summary>
+    /// Every fresh-install script, including the two SQL Server variants that have no generated
+    /// counterpart to be compared against and so appear in no other case here.
+    /// </summary>
+    private static readonly string[] EveryFreshInstallScript =
+        [.. Dialects, "sqlServerMOT", "sqlServer_Below2016"];
+
     /// <summary>The line the job store splits the script on.</summary>
     private const string StatementSeparator = "--;;";
 
     /// <summary>The acquisition index, as the parser names it once the table prefix is off.</summary>
     private const string AcquisitionIndexName = "IDX_T_NFT_ST";
+
+    /// <summary>The index 4.0 stopped creating, named the same way.</summary>
+    private const string MisfireIndexName = "IDX_T_NFT_ST_MISFIRE";
 
     /// <summary>
     /// The columns the acquisition index is declared over, built from the order acquisition reads in
@@ -258,6 +268,39 @@ public class SchemaScriptTest
             .WhoseValue.Should().Be(FirebirdAcquisitionIndexColumns,
                 "a provisioned Firebird schema has to be the one the fresh-install script installs, "
                 + "including where that differs from every other dialect");
+    }
+
+    /// <summary>
+    /// Nothing creates <c>IDX_QRTZ_T_NFT_ST_MISFIRE</c>, and that is a decision rather than an omission
+    /// (<see href="https://github.com/quartznet/quartznet/issues/3656">#3656</see>).
+    /// </summary>
+    /// <remarks>
+    /// It led with <c>MISFIRE_INSTR</c>, the column both misfire statements compare with <c>&lt;&gt; -1</c>
+    /// and no B-tree can seek past, while those statements filter <c>SCHED_NAME</c> and
+    /// <c>TRIGGER_STATE</c> by equality and <c>NEXT_FIRE_TIME</c> by range — the acquisition index's own
+    /// leading columns since #3510 reshaped it. Measured plan by plan on all four dialects that created
+    /// it, no optimizer picks it for either statement, so it was maintained on every trigger write and
+    /// read by nothing. This is asserted rather than left to the comparison above, which would pass a
+    /// script that put it back on both sides at once — which is how it would come back.
+    /// </remarks>
+    [TestCaseSource(nameof(EveryFreshInstallScript))]
+    public void NoFreshInstallScriptCreatesTheMisfireIndex(string dialect)
+    {
+        SqlObjects.Parse(FreshInstallScript(dialect)).Indexes
+            .Should().ContainKey(AcquisitionIndexName,
+                "the guard is only meaningful while this parse finds the index set at all")
+            .And.NotContainKey(MisfireIndexName,
+                $"database/tables/tables_{dialect}.sql is what a person installs a schema from, and this "
+                + "index answers neither misfire statement on any engine — it is write cost with no reader");
+    }
+
+    [TestCaseSource(nameof(Dialects))]
+    public void NoGeneratedScriptCreatesTheMisfireIndex(string dialect)
+    {
+        SqlObjects.Parse(GeneratedScript(dialect)).Indexes
+            .Should().NotContainKey(MisfireIndexName,
+                "SchemaProvisioning.CreateIfMissing reaches the schema the fresh-install script reaches, "
+                + "and a provisioned database that grew this index back would pay for it on every write");
     }
 
     [Test]
