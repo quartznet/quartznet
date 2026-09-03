@@ -39,8 +39,8 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: Compile, UnitTest, Pack, Publish'
-        run: dotnet fallout Compile UnitTest Pack Publish
+      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, Pack, Publish'
+        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest Pack Publish
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v7
         with:
