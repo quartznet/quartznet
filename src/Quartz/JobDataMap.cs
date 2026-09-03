@@ -301,7 +301,11 @@ public class JobDataMap : StringKeyDirtyFlagMap
     public virtual double GetDoubleValueFromString(string key)
     {
         object obj = Get(key);
-        return double.Parse((string) obj, CultureInfo.InvariantCulture);
+
+        // NumberStyles.Float rather than the default: the default admits a thousands separator, and the
+        // invariant culture's is the comma, so "3,14" read as three hundred and fourteen. A decimal comma
+        // is now a FormatException, which is what GetIntValueFromString always said of it.
+        return double.Parse((string) obj, NumberStyles.Float, CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -325,7 +329,10 @@ public class JobDataMap : StringKeyDirtyFlagMap
     public virtual float GetFloatValueFromString(string key)
     {
         object obj = Get(key);
-        return float.Parse((string) obj, CultureInfo.InvariantCulture);
+
+        // See GetDoubleValueFromString: no thousands separator, so a decimal comma is refused rather
+        // than read as a hundredfold.
+        return float.Parse((string) obj, NumberStyles.Float, CultureInfo.InvariantCulture);
     }
 
     /// <summary>
