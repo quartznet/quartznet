@@ -242,6 +242,11 @@ Sections, in order:
 
 Run them in order — the drops in section 6 assume the creates above them have already succeeded.
 
+Sections 1–5 are safe to run while 3.x nodes are still up. **Section 6 is not**: it drops
+`IDX_QRTZ_T_NFT_ST_MISFIRE`, which 3.x drives its misfire sweep from and 4.x does not read at all
+([#3656](https://github.com/quartznet/quartznet/issues/3656)). Run section 6 once the last 3.x node
+has shut down.
+
 Sections 1–3 have 3.x counterparts and only fold them in. **Sections 4 and 5 do not**: they are new
 in 4.x, and they are why this migration is required even for a database that is fully migrated on
 3.x.
@@ -286,6 +291,19 @@ not, the script drops the index before recreating it — a guarded `CREATE INDEX
 taken and keep the old shape. **Firebird keeps the three-column index**: its indexes take a single
 direction for the whole index, so it cannot express this one, and the trailing columns would be
 write cost with nothing to buy.
+
+Section 6 then drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, which SQL Server, MySQL, Oracle and Firebird
+created over `(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)` and PostgreSQL and SQLite
+never did ([#3656](https://github.com/quartznet/quartznet/issues/3656)). It leads with
+`MISFIRE_INSTR`, which both misfire statements compare with `<> -1` and no B-tree can seek past,
+while those statements filter `SCHED_NAME` and `TRIGGER_STATE` by equality and `NEXT_FIRE_TIME` by
+range — the reshaped acquisition index's own leading columns. Measured plan by plan on all four
+engines that had it, no optimizer picks it for either statement
+([#3608](https://github.com/quartznet/quartznet/issues/3608),
+[#3656](https://github.com/quartznet/quartznet/issues/3656)); MySQL only appeared to, because
+`MySQLDelegate` named it in a `FORCE INDEX` hint that now names the acquisition index. **The drop
+sits after the reshape in the same section on purpose**, so a schema that never took the reshape
+takes it here first and none is left with neither index.
 
 Node affinity needs no data migration: 3.x and 4.x store pins identically.
 

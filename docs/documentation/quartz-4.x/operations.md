@@ -133,14 +133,17 @@ store the map as a string it serializes itself. Nothing else in job data is affe
 System.Text.Json is not affected at all.
 
 **Defer section 6 of the migration until the last 3.x node is gone.** Sections 1 to 5 are the required
-ones; section 6 realigns the index set, and it *drops seven indexes that the 3.20 migration created for
+ones; section 6 realigns the index set, and it *drops eight indexes that the 3.20 migration created for
 3.x* — `IDX_QRTZ_T_G_J`, `IDX_QRTZ_T_N_STATE`, `IDX_QRTZ_T_N_G_STATE`, `IDX_QRTZ_T_NEXT_FIRE_TIME`,
-`IDX_QRTZ_T_NFT_ST_MISFIRE_GRP`, `IDX_QRTZ_FT_G_J` and `IDX_QRTZ_FT_G_T`. Its replacements have the
-leading columns 4.x's queries want, not 3.x's; one of them, `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP`, serves a
-3.x statement that has no 4.x counterpart at all. Nothing breaks, but a 3.x node scans where it used to
-seek, which on a large schedule is the difference between a misfire sweep that finishes and one that
-times out. The script is guarded and re-runnable, so running sections 1 to 5 now and the whole file
-again afterwards costs nothing.
+`IDX_QRTZ_T_NFT_ST_MISFIRE`, `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP`, `IDX_QRTZ_FT_G_J` and `IDX_QRTZ_FT_G_T`.
+Its replacements have the leading columns 4.x's queries want, not 3.x's, and two of the eight are read
+by 3.x alone: `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP` serves a 3.x statement with no 4.x counterpart, and
+`IDX_QRTZ_T_NFT_ST_MISFIRE` is the index 3.x drives its misfire sweep from — 4.x reads neither, which
+is why 4.0 stopped creating the second one at all
+([#3656](https://github.com/quartznet/quartznet/issues/3656)). Nothing breaks, but a 3.x node scans
+where it used to seek, which on a large schedule is the difference between a misfire sweep that
+finishes and one that times out. The script is guarded and re-runnable, so running sections 1 to 5 now
+and the whole file again afterwards costs nothing.
 
 **A retry policy is invisible to a 3.x node, and a 3.x reschedule destroys one.** `RETRY_POLICY` and
 `RETRY_ATTEMPT` are new in 4.x, so a job that fails on a 3.x node is not retried and its attempt count
