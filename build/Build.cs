@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -492,6 +495,232 @@ partial class Build : FalloutBuild, ICompile, IPack
                 .SetApplicationArguments("--smoke")
             );
         });
+
+    /// <summary>
+    /// Starts each example application and waits for it to say it is doing what it exists to show.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="PublishTrimmed" /> publishes <c>Quartz.Examples.Worker</c> and
+    /// <c>Quartz.Examples.AspNetCore</c> and has never started either, so an example that compiles and
+    /// publishes but cannot get through <c>Build().Run()</c> passed every leg there is. Both were broken
+    /// at beta.1 — one by a pair of scheduling options that refuse each other at startup, the other by a
+    /// job asking for an <c>IHttpClientFactory</c> nothing registered, which Development's registration
+    /// validation turns into a refusal to start — and nothing in CI could have noticed either. This is
+    /// what would have.
+    /// </para>
+    /// <para>
+    /// Development is the environment on purpose: it is the one the examples are read and run in, and the
+    /// one that validates the whole container at build time rather than discovering a missing
+    /// registration on first use. Each application is started from its build output rather than through
+    /// <c>dotnet run</c>, so the process this target holds is the application itself — killing
+    /// <c>dotnet run</c> would leave a web server listening on the runner.
+    /// </para>
+    /// <para>
+    /// The third example is the interactive tour, whose <c>--list</c> is the part of it a machine can
+    /// run; it walks the catalogue every entry is registered in and exits.
+    /// </para>
+    /// <para>
+    /// Beside <see cref="BenchmarkSmoke" /> and <see cref="WolverineSmoke" />, after the unit tests, for
+    /// the reason those give: all of them want the machine, and a failing test is the one worth reading
+    /// first.
+    /// </para>
+    /// </remarks>
+    Target ExamplesSmoke => _ => _
+        .DependsOn<ICompile>()
+        .After(UnitTest)
+        .Before<IPack>()
+        .Executes(() =>
+        {
+            var solution = ((IHasSolution) this).Solution;
+            var configuration = ((ICompile) this).Configuration;
+
+            DotNetRun(s => s
+                .SetProjectFile(solution.AllProjects.First(x => x.Name == "Quartz.Examples"))
+                .SetConfiguration(configuration)
+                .SetApplicationArguments("--list")
+            );
+
+            RunExampleUntilItSays(
+                "Quartz.Examples.Worker",
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["DOTNET_ENVIRONMENT"] = "Development" },
+                // The host is up, and the job the example schedules ran: the hosted service holds the
+                // scheduler back for ten seconds before the first trigger can fire, so the second line
+                // is the one that says the whole of it worked.
+                ["Application started", "job executing, triggered by"]);
+
+            RunExampleUntilItSays(
+                "Quartz.Examples.AspNetCore",
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["ASPNETCORE_ENVIRONMENT"] = "Development",
+                    // Kestrel's default endpoints are 5000 and an HTTPS 5001 that wants a development
+                    // certificate no runner has. Naming one loopback port answers both, and lets two of
+                    // these run at once without colliding. The example's launch profile also says 5000,
+                    // and is not read here: launchSettings.json belongs to 'dotnet run'.
+                    ["ASPNETCORE_URLS"] = $"http://127.0.0.1:{FreeLoopbackPort()}",
+                },
+                ["Application started"]);
+        });
+
+    /// <summary>
+    /// How long an example is given to say everything it was started to say.
+    /// </summary>
+    /// <remarks>
+    /// Generous rather than tight, because what the bound is for is a hang and a hang does not end: the
+    /// worker's hosted service waits ten seconds before starting its scheduler, and a cold runner spends
+    /// a while on the first JIT of an ASP.NET Core pipeline. Nothing here is a measurement.
+    /// </remarks>
+    static readonly TimeSpan ExampleStartTimeout = TimeSpan.FromMinutes(3);
+
+    /// <summary>
+    /// Starts one example, waits for every line it was started to produce, and stops it. A non-zero exit,
+    /// an exit at all, or a line that never arrives fails the target.
+    /// </summary>
+    void RunExampleUntilItSays(string projectName, IReadOnlyDictionary<string, string> environment, IReadOnlyList<string> markers)
+    {
+        var configuration = ((ICompile) this).Configuration;
+
+        // Where UseArtifactsOutput in Directory.Build.props puts a build. Asserted rather than assumed,
+        // so a layout that moves says so by name instead of failing as a process that would not start.
+        AbsolutePath assembly = ArtifactsDirectory / "bin" / projectName / configuration.ToString().ToLowerInvariant() / $"{projectName}.dll";
+        Assert.FileExists(assembly);
+
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = DotNetPath,
+            // The content root a host takes when it is not told one, which is where the example's
+            // appsettings.json and its XML schedule were copied to.
+            WorkingDirectory = assembly.Parent,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+
+        startInfo.ArgumentList.Add(assembly);
+
+        foreach (KeyValuePair<string, string> variable in environment)
+        {
+            startInfo.Environment[variable.Key] = variable.Value;
+        }
+
+        List<string> output = [];
+        HashSet<string> waiting = new(markers, StringComparer.Ordinal);
+
+        using Process process = new() { StartInfo = startInfo };
+
+        // One lock over both, because the reader threads write them and this thread reads them.
+        void Received(object sender, DataReceivedEventArgs line)
+        {
+            if (line.Data is null)
+            {
+                return;
+            }
+
+            lock (output)
+            {
+                output.Add(line.Data);
+                waiting.RemoveWhere(marker => line.Data.Contains(marker, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        process.OutputDataReceived += Received;
+        process.ErrorDataReceived += Received;
+
+        Log.Information("Starting {Project} and waiting for {Markers}", projectName, Quoted(markers));
+
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        Stopwatch running = Stopwatch.StartNew();
+        bool exitedOnItsOwn = false;
+
+        while (running.Elapsed < ExampleStartTimeout)
+        {
+            lock (output)
+            {
+                if (waiting.Count == 0)
+                {
+                    break;
+                }
+            }
+
+            if (process.WaitForExit(250))
+            {
+                exitedOnItsOwn = true;
+                break;
+            }
+        }
+
+        string[] missing;
+        lock (output)
+        {
+            missing = [.. waiting];
+        }
+
+        if (exitedOnItsOwn)
+        {
+            // The overload with no timeout is the one that waits for the asynchronous readers as well,
+            // so the tail below is the whole of what the application said before it stopped.
+            process.WaitForExit();
+
+            Assert.Fail($"{projectName} exited with code {process.ExitCode} after {running.Elapsed.TotalSeconds:F0}s "
+                + $"instead of running, and never said {Quoted(missing)}.{Tail(output)}");
+        }
+
+        // A kill rather than Ctrl+C: on Windows a console control event goes to a process group rather
+        // than to one process, so sending one would stop this build too. What a graceful shutdown does is
+        // the hosted service's business and the unit suite's; what this target asks is whether the
+        // application starts and works at all.
+        if (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+        }
+
+        process.WaitForExit();
+
+        if (missing.Length > 0)
+        {
+            Assert.Fail($"{projectName} was still running after {ExampleStartTimeout.TotalSeconds:F0}s "
+                + $"but never said {Quoted(missing)}.{Tail(output)}");
+        }
+
+        Log.Information("{Project} said all of it, {Elapsed:F0}s in", projectName, running.Elapsed.TotalSeconds);
+    }
+
+    static string Quoted(IReadOnlyCollection<string> markers) =>
+        string.Join(" and ", markers.Select(x => $"'{x}'"));
+
+    /// <summary>
+    /// The end of what an example printed, which is where the reason it stopped or stalled is.
+    /// </summary>
+    static string Tail(List<string> output)
+    {
+        lock (output)
+        {
+            return Environment.NewLine + "The last of its output:" + Environment.NewLine
+                + string.Join(Environment.NewLine, output.TakeLast(60));
+        }
+    }
+
+    /// <summary>
+    /// A loopback port nothing is listening on, found by binding one and letting it go.
+    /// </summary>
+    static int FreeLoopbackPort()
+    {
+        TcpListener listener = new(IPAddress.Loopback, 0);
+        listener.Start();
+
+        try
+        {
+            return ((IPEndPoint) listener.LocalEndpoint).Port;
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
 
     static readonly string[] DatabaseCategories =
         ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite", "db-redis"];
