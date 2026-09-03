@@ -623,9 +623,34 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
     /// fire, after the given time. If the trigger will not fire after the given
     /// time, <see langword="null" /> will be returned.
     /// </summary>
+    /// <remarks>
+    /// Never past <see cref="EndTimeUtc" />: the end time is where the trigger's firing stops, wherever
+    /// in the daily window it falls.
+    /// </remarks>
     /// <param name="afterTime"></param>
     /// <returns></returns>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
+    {
+        DateTimeOffset? fireTime = ComputeFireTimeAfter(afterTime);
+        DateTimeOffset? endTime = EndTimeUtc;
+
+        // The walk below consults the end time only where it has to advance to another day, so a
+        // fire time reached by stepping the interval within one day is bounded here instead.
+        // Without this the trigger goes on firing past its end time until the daily window closes
+        // (#3458).
+        if (fireTime != null && endTime != null && fireTime.Value > endTime.Value)
+        {
+            return null;
+        }
+
+        return fireTime;
+    }
+
+    /// <summary>
+    /// The schedule walk behind <see cref="GetFireTimeAfter" />, which bounds what this returns by
+    /// <see cref="EndTimeUtc" />.
+    /// </summary>
+    private DateTimeOffset? ComputeFireTimeAfter(DateTimeOffset? afterTime)
     {
         // Check if trigger has completed or not.
         if (complete)
@@ -887,25 +912,39 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
     /// Returns the final time at which the <see cref="IDailyTimeIntervalTrigger" /> will
     /// fire, if there is no end time set, null will be returned.
     /// </summary>
-    /// <remarks>Note that the return time may be in the past.</remarks>
+    /// <remarks>
+    /// <para>Note that the return time may be in the past.</para>
+    /// <para>
+    /// Unlike the other shipped trigger types this is the last instant at which the trigger may
+    /// fire rather than a fire time its schedule produces: neither <see cref="EndTimeUtc" /> nor
+    /// <see cref="EndTimeOfDay" /> has to land on a repeat of the interval. It is never past
+    /// <see cref="EndTimeUtc" />, which is where every trigger's firing stops (#3458).
+    /// </para>
+    /// </remarks>
     /// <returns></returns>
     public override DateTimeOffset? FinalFireTimeUtc
     {
         get
         {
-            if (complete || EndTimeUtc == null)
+            DateTimeOffset? endTime = EndTimeUtc;
+
+            if (complete || endTime == null)
             {
                 return null;
             }
 
-            // We have an endTime, we still need to check to see if there is a endTimeOfDay if that's applicable.
-            DateTimeOffset? endTime = EndTimeUtc;
-            DateTimeOffset? endTimeOfDayDate = endTimeOfDay?.GetTimeOfDayForDate(endTime);
-            if (endTime < endTimeOfDayDate)
+            if (endTimeOfDay == null)
             {
-                endTime = endTimeOfDayDate;
+                return endTime;
             }
-            return endTime;
+
+            // The daily window closes on the end time's own local day, which comes first whenever
+            // the end time falls after it. Resolved through the trigger's time zone rather than the
+            // end time's offset, which is the offset the window would be read in otherwise.
+            DateTimeOffset endTimeLocal = TimeZoneUtil.ConvertTime(endTime.Value, TimeZone);
+            DateTimeOffset endOfWindow = TimeZoneUtil.ResolveLocal(endTimeOfDay.GetTimeOfDayForDate(endTimeLocal).DateTime, TimeZone);
+
+            return endTime.Value < endOfWindow ? endTime.Value : endOfWindow;
         }
     }
 
