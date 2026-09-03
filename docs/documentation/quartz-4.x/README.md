@@ -4,12 +4,6 @@ prev: false
 next: false
 ---
 
-:::tip
-Quartz.NET 4.0 is in prerelease. The public API is frozen and every change from here is additive, while
-the packages on nuget.org still carry a prerelease suffix — so `dotnet add package Quartz --prerelease`
-is how they install until 4.0.0 is released.
-:::
-
 * [Quick Start](quick-start.md) — install the package and run a first job
 * [Tutorial](tutorial/) — the guided tour, from a first scheduler to clustering
 * [How To's](how-tos/) — short recipes for one task each
