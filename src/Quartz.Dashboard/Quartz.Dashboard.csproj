@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <Description>Quartz.NET Blazor Server Dashboard; $(Description)</Description>
+    <Title>Quartz.NET Dashboard</Title>
+    <Description>Quartz.NET Blazor Server Dashboard - a live view of every scheduler in the application, its jobs, triggers and calendars; $(Description)</Description>
+    <PackageTags>$(PackageTags);dashboard;blazor;ui;monitoring;aspnetcore</PackageTags>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Quartz.Dashboard</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>

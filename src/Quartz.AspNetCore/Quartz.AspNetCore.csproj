@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Quartz.NET ASP.NET Core integration; $(Description)</Description>
+    <Title>Quartz.NET ASP.NET Core Integration</Title>
+    <Description>Quartz.NET ASP.NET Core integration - the HTTP API a remote scheduler is driven through, and the health check endpoint; $(Description)</Description>
+    <PackageTags>$(PackageTags);aspnetcore;http-api;minimal-api;openapi;health-checks</PackageTags>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>

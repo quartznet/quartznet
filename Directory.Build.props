@@ -2,8 +2,19 @@
 
   <PropertyGroup>
 
-    <Title>Quartz.NET</Title>
+    <!--
+      There is deliberately no <Title> here. nuget.org shows the title in a search result and Visual
+      Studio's package manager shows it in the list, so a shared one makes every package look like the
+      same package: six of the ten shipped as "Quartz.NET" through beta.1. Each packable project writes
+      its own, and PackageMetadataTest fails a new one that forgets - with no default to inherit, NuGet
+      falls back to the package id, which is at least distinct.
+    -->
     <Product>Quartz.NET</Product>
+    <!--
+      The fallback description, and the tail every package appends its own sentence to. Quartz and
+      Quartz.HttpClient used to take it whole, which is how two package pages described the framework
+      rather than the package.
+    -->
     <Description>Quartz Scheduling Framework for .NET</Description>
     <Copyright>Copyright Marko Lahma</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -11,12 +22,27 @@
     <Authors>Marko Lahma, Quartz.NET</Authors>
     <WarningsAsErrors>True</WarningsAsErrors>
 
+    <!--
+      The icon ships inside the package, and there is no PackageIconUrl beside it: NuGet deprecated that
+      property, it is a second answer to the same question, and the URL that used to be here named a
+      'master' branch this repository does not have. NU5048 reports it only when PackageIcon is missing,
+      so nothing was going to notice; PackageMetadataTest does.
+    -->
     <PackageIcon>quartz-logo-small.png</PackageIcon>
-    <PackageIconUrl>https://raw.githubusercontent.com/quartznet/quartznet/master/src/quartz-logo-small.png</PackageIconUrl>
+    <!-- The shared half of every package's tags. Each one adds what makes it itself. -->
     <PackageTags>scheduling;tasks;jobs;triggers;scheduler;threading</PackageTags>
     <PackageProjectUrl>https://www.quartz-scheduler.net/</PackageProjectUrl>
     <PackageReleaseNotes>https://github.com/quartznet/quartznet/releases</PackageReleaseNotes>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <!--
+      Where the source is, said outright rather than only inferred. SourceLink fills these in from the
+      git remote when they are empty and PublishRepositoryUrl is set, and leaves a value that is already
+      there alone — so naming them is what makes a pack from a tree with no .git still carry a
+      repository element, and the source zip PackZip produces is exactly such a tree. The commit
+      attribute beside them stays SourceLink's, because only git knows it.
+    -->
+    <RepositoryUrl>https://github.com/quartznet/quartznet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>
