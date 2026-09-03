@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Quartz.NET Jobs; $(Description)</Description>
+    <Title>Quartz.NET Jobs</Title>
+    <Description>Quartz.NET Jobs - the jobs that ship ready to schedule: directory and file scanning, sending mail, and running a native process; $(Description)</Description>
+    <PackageTags>$(PackageTags);directory-scan;file-watcher;send-mail;native-job</PackageTags>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>

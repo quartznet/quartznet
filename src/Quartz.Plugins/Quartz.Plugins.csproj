@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Quartz.NET Plugins; $(Description)</Description>
+    <Title>Quartz.NET Plugins</Title>
+    <Description>Quartz.NET Plugins - a schedule declared in XML or JSON and reloaded as the file changes, and job and trigger history logging; $(Description)</Description>
+    <PackageTags>$(PackageTags);plugins;xml-configuration;json-configuration;job-history</PackageTags>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>

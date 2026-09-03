@@ -5,6 +5,7 @@
     <RootNamespace>Quartz</RootNamespace>
     <Title>Quartz.NET Redis Integration</Title>
     <Description>Quartz.NET Redis integration - distributed lock handler for clustered scheduling; $(Description)</Description>
+    <PackageTags>$(PackageTags);redis;clustering;distributed-lock;stackexchange-redis</PackageTags>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--

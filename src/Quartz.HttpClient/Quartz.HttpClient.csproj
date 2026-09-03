@@ -1,8 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyTitle>Quartz.NET HTTP client</AssemblyTitle>
+    <AssemblyTitle>Quartz.NET HTTP Client</AssemblyTitle>
     <TargetFramework>net10.0</TargetFramework>
+    <Title>Quartz.NET HTTP Client</Title>
+    <Description>Quartz.NET HTTP client - an IScheduler that drives a scheduler in another process over the HTTP API Quartz.AspNetCore serves; $(Description)</Description>
+    <PackageTags>$(PackageTags);http;httpclient;rest;remote;client</PackageTags>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>

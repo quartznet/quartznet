@@ -3,10 +3,11 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Quartz</RootNamespace>
-    <Title>Quartz.NET TimeZoneConverter integration</Title>
-    <Description>Quartz.NET TimeZoneConverter integration https://github.com/mj1856/TimeZoneConverter; $(Description)</Description>
+    <Title>Quartz.NET TimeZoneConverter Integration</Title>
+    <Description>Quartz.NET TimeZoneConverter integration - resolves a trigger's time zone by either its IANA or its Windows id, on either operating system, through https://github.com/mj1856/TimeZoneConverter; $(Description)</Description>
+    <PackageTags>$(PackageTags);timezone;timezoneconverter;iana;tzdb</PackageTags>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <Authors>Sean Farrow, Quartz.NET</Authors>
+    <Authors>Sean Farrow, Marko Lahma, Quartz.NET</Authors>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
       Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
