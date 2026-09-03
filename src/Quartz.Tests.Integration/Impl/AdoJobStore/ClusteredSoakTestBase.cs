@@ -22,8 +22,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// $env:QUARTZ_TEST_DATABASE = 'postgres'
 /// $env:QUARTZ_SOAK_MINUTES  = '30'
 /// dotnet test src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj `
-///   --filter 'FullyQualifiedName~ClusteredSoakPostgresTest'
+///   --filter 'FullyQualifiedName~ClusteredSoakPostgresTest' `
+///   --logger 'console;verbosity=detailed'
 /// </code>
+/// <para>
+/// The logger argument is what makes the run worth doing by hand: the report below is written to
+/// <c>TestContext.Out</c>, and the default console verbosity prints a passing test's output nowhere.
+/// </para>
 /// <para>
 /// <b>What it is for.</b> Every other clustered fixture here asserts one property over a run of
 /// minutes: exactly-once acquisition, a killed node's residue, node affinity, tenancy,
