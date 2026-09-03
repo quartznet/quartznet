@@ -808,7 +808,22 @@ the failing job of which 356 were the retry policy's, 178 overruns interrupted, 
 replaying the killed node's one interrupted firing a second after the kill. It ended as the others
 did: nothing `ACQUIRED` or `BLOCKED`, `QRTZ_FIRED_TRIGGERS` empty, no unexpected scheduler error, no
 unobserved task exception, and a live heap of 4–5 MB behind 619–640 handles from the first minute to
-the thirtieth. The SQL Server figures above stand from the beta.1 run; it was not repeated.
+the thirtieth.
+
+**SQL Server was then run on the tagged commit itself** — 30 minutes on `97505ecce`, on 2026-09-03 —
+because this is the dialect whose schema moved: rc.1 drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, so the run
+provisioned a `tables_sqlServer.sql` the beta.1 run never saw, and the build under it also carries
+the rc.1 store changes — the paused-job-group probe every trigger store now makes, and the
+column-level schema validation each of the three nodes passed through at startup. It passed, and
+firing for firing it is ahead of the beta.1 run rather than behind it: peak observed concurrency
+**1** over 2,578 firings of the serial job, every family within about 1% of what its schedule implies
+(890 simple, 594 daily-time-interval, 446 calendar-interval, 357 cron, 297 recurrence), 532 attempts
+at the failing job of which 355 were the retry policy's, 178 overruns interrupted, and `soak-node-a`
+replaying the killed node's one interrupted firing in the same second as the kill. It ended as the
+others did: nothing `ACQUIRED` or `BLOCKED`, `QRTZ_FIRED_TRIGGERS` empty and the killed node's
+`EXECUTING` row gone with it, no unexpected scheduler error, no unobserved task exception, and a live
+heap of 4–5 MB behind 706–756 handles across all thirty samples. No tolerance was widened for either
+run; the fixture is the one in the tag.
 
 The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`; it is opt-in
 (`[Category("LongRunning")]`, `QUARTZ_SOAK_MINUTES`) and is run before a tag rather than in CI.
