@@ -173,6 +173,13 @@ internal static class Utf8JsonWriterExtensions
 
     public static void WriteJobDataMapValue<T>(this Utf8JsonWriter writer, T jobDataMap, JsonSerializerOptions options) where T : IDictionary
     {
+        // Refused before the first byte is written: a value GetJobDataMap below cannot hand back is a
+        // blob in the database that every later read fails on (#3495).
+        foreach (object? key in jobDataMap.Keys)
+        {
+            JobDataValues.Refuse(key.ToString()!, jobDataMap[key], options);
+        }
+
         writer.WriteStartObject();
 
         foreach (object? key in jobDataMap.Keys)

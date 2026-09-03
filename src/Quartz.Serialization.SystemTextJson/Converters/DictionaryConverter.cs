@@ -29,6 +29,12 @@ internal sealed class DictionaryConverter : JsonConverter<IDictionary>
         {
             writer.WriteJobDataMapValue(value, options);
         }
+        // A refusal already says which entry it is about and what to do; wrapping it in a second
+        // exception of the same type would only bury that behind "Failed to serialize JobDataMap".
+        catch (JsonSerializationException)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             throw new JsonSerializationException("Failed to serialize JobDataMap to json", e);
