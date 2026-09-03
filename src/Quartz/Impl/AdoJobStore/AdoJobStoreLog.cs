@@ -97,6 +97,12 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3156, Level = LogLevel.Debug, Message = "Schema under table prefix '{TablePrefix}' is complete with {SchemaObjectCount} objects, so nothing was created")]
     public static partial void SchemaAlreadyComplete(this ILogger logger, string tablePrefix, int schemaObjectCount);
 
+    // Debug, and not a creation: the tables that are there belong to a schema this cannot finish -- a
+    // 3.x one, most likely -- or to a peer that is still creating one, and only waiting tells the two
+    // apart. Nothing is created either way, which is what this says while the waiting happens.
+    [LoggerMessage(EventId = 3157, Level = LogLevel.Debug, Message = "Schema under table prefix '{TablePrefix}' is partly there - {PresentTableCount} tables exist and {MissingTables} do not - so nothing was created")]
+    public static partial void SchemaPartiallyPresent(this ILogger logger, string tablePrefix, int presentTableCount, string missingTables);
+
     // Debug: on a cluster starting together this is every node but one, every time, and it is not a
     // problem -- the schema is there and the store is about to validate it.
     [LoggerMessage(EventId = 3040, Level = LogLevel.Debug, Message = "Schema creation under table prefix '{TablePrefix}' failed, but the schema validates, so another node created it first")]

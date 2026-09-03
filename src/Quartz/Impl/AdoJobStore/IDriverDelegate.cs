@@ -1538,10 +1538,19 @@ public interface IDriverDelegate
     /// were checked.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Called at startup for every <see cref="SchemaProvisioning"/> but
     /// <see cref="SchemaProvisioning.None"/>, so that a missing or mis-prefixed table is reported once,
     /// by name, instead of as the first failing operation. A delegate that owns tables of its own
     /// checks those too.
+    /// </para>
+    /// <para>
+    /// Tables, and the columns 4.x added to the tables 3.x already had: a schema that took none of the
+    /// 4.0 migration is missing one table and six columns, and a table-level check alone would pass a
+    /// database that then fails every acquisition for ever. What it does not check is the shape of a
+    /// column — a type or a width that a hand-built table got wrong is still found by the statement
+    /// that binds it.
+    /// </para>
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
@@ -1565,8 +1574,11 @@ public interface IDriverDelegate
     /// </para>
     /// <para>
     /// It is not a migration. A schema that has every table but is missing a column a later release
-    /// added is left alone, and <see cref="ValidateSchema"/> passes over it, because that check is
-    /// table-level. Upgrading a schema is what <c>database/migrations/</c> is for.
+    /// added is left exactly as it is; upgrading a schema is what <c>database/migrations/</c> is for.
+    /// The store will not call this against a schema that is partly there for that reason — creating
+    /// the tables a 3.x schema is missing would leave one that starts and fires nothing — so a
+    /// delegate's script only ever meets a database with no Quartz tables under the prefix, or one it
+    /// has nothing to do to.
     /// </para>
     /// <para>
     /// A delegate that has no script for its database throws rather than pretending to have created

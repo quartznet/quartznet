@@ -21,8 +21,10 @@ and where that code disagrees with received wisdom the sentence says so.
 Quartz.NET never *migrates* its own schema, and creates one only when asked — `ProvisionSchema()`, which
 is [`JobStore:SchemaProvisioning = CreateIfMissing`](tutorial/job-stores.md#creating-the-schema), runs
 the fresh-install DDL for a database that has none and is a no-op for one that already has the tables.
-It never alters a table it finds, so a schema that is merely *behind* is untouched by it. A deployment
-therefore has two steps in a fixed order, and the order is not negotiable in either direction:
+It never alters a table it finds, so a schema that is merely *behind* is untouched by it — and, since
+half-creating into one is worse than not starting at all, a prefix that holds some of Quartz's tables
+and not the rest is refused rather than filled in. A deployment therefore has two steps in a fixed
+order, and the order is not negotiable in either direction:
 
 1. **Apply the migration**, from [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations),
    every folder between the version the database is at and the version you are going to, in ascending
@@ -39,11 +41,18 @@ applied to a scheduler, and it is why the schema goes first: an old node tolerat
 a new node does not tolerate an old one.
 
 A node that meets a schema it cannot use refuses to start rather than misbehaving, which is what you
-want: the store issues a `SELECT 1` against every table it needs and fails with
-`SchedulerException: Database schema validation failed` if one is missing. Know its limit, though — it
-checks *tables*, not columns, so a database that is missing only a column gets past startup and fails on
-the first statement that names it. `JobStore:SchemaProvisioning` set to `None` turns the check off; there
-is no good reason to.
+want: the store issues a `SELECT 1` against every table it needs, and a `SELECT <column> … WHERE 1 = 0`
+for each column 4.x added to a table 3.x already had, and fails with
+`SchedulerException: Database schema validation failed` if one of them is missing — naming it, and
+naming the migration script to run. Know its limit: it checks that a column resolves, not that it has
+the right type or width, so a hand-built table whose column is declared wrong still fails on the first
+statement that binds it. `JobStore:SchemaProvisioning` set to `None` turns the check off; there is no
+good reason to.
+
+`CreateIfMissing` will not paper over that failure either: it creates only into a table prefix that
+holds **no** Quartz table, so a 3.x schema is refused rather than half-completed. Provisioning is not
+migrating, and a schema with the missing *table* created and the missing *columns* still missing is a
+scheduler that starts, logs itself validated and fires nothing.
 
 ::: warning
 The fresh-install scripts in [`database/tables/`](https://github.com/quartznet/quartznet/tree/main/database/tables)

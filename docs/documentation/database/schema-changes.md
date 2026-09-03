@@ -61,8 +61,10 @@ had, `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS`, and a table 3.x neve
 database missing that table is refused there and then. So even a 3.x database that took every
 optional migration going will not work against 4.x until [4.0](#version-4-0) has been applied.
 
-The startup check is table-level, not column-level: a database that gained the table but none of
-the columns starts and then fails on the first statement that names one. Run the whole script.
+The startup check covers the columns too — one `SELECT <column> … WHERE 1 = 0` per column this
+migration adds to a table 3.x already had — so a database that gained the table but none of the
+columns is refused rather than started, and the message names the column and the script. What it
+cannot see is a column's type or width. Run the whole script.
 
 ---
 

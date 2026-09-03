@@ -62,6 +62,39 @@ public static class AdoConstants
         TableSchedulerState
     ];
 
+    /// <summary>
+    /// Every column 4.x requires on a table 3.x already had — the columns
+    /// <c>database/migrations/4.0/schema_30_to_40_upgrade_&lt;dialect&gt;.sql</c> adds.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="AllTableNames" /> is not enough on its own, and the gap is the one path where it
+    /// matters most. A 3.x database is missing one <em>table</em> and six <em>columns</em>, so a
+    /// table-level check passes everything but <c>PAUSED_JOB_GRPS</c> — and
+    /// <see cref="SchemaProvisioning.CreateIfMissing" /> creates that one table, reports the schema
+    /// validated, starts, and then fails every acquisition and every misfire pass for ever on a
+    /// column that is not there. These are probed at startup too, so that database is refused before
+    /// it can fire nothing.
+    /// </para>
+    /// <para>
+    /// The list is the 4.0 migration's column additions and nothing else: a column 3.x also had is
+    /// present on any database that can be upgraded at all, and a whole table that is missing is
+    /// <see cref="AllTableNames" />' business. <c>MigratedColumnTest</c> derives the same list from
+    /// the generated scripts and fails when the two disagree, so a column added to the migration
+    /// without being added here is a failing test rather than a silent hole in the check.
+    /// </para>
+    /// </remarks>
+    internal static readonly (string Table, string Column)[] MigratedColumnNames =
+    [
+        (TableTriggers, ColumnMisfireOriginalFireTime),
+        (TableTriggers, ColumnExecutionGroup),
+        (TableFiredTriggers, ColumnExecutionGroup),
+        (TableTriggers, ColumnPreferredNode),
+        (TableTriggers, ColumnPreferredNodeAuto),
+        (TableTriggers, ColumnRetryPolicy),
+        (TableTriggers, ColumnRetryAttempt)
+    ];
+
     // Table names
     /// <summary>
     /// The <c>JOB_DETAILS</c> table, without the table prefix.

@@ -164,6 +164,7 @@ matching on its text is not.
 | 3154 | Warning | `Quartz` | `"Misfired trigger '{TriggerKey}' has no {TriggerType} row and is skipped"` |
 | 3155 | Warning | `Quartz` | `"Batched statement execution failed, retrying {StatementCount} statement(s) individually"` |
 | 3156 | Debug | `Quartz` | `"Schema under table prefix '{TablePrefix}' is complete with {SchemaObjectCount} objects, so nothing was created"` |
+| 3157 | Debug | `Quartz` | `"Schema under table prefix '{TablePrefix}' is partly there - {PresentTableCount} tables exist and {MissingTables} do not - so nothing was created"` |
 | 3500 | Warning | `Quartz` | `"Transient exception on attempt {Attempt} of {TotalAttempts} of the cluster check-in, will retry after {RetryInterval}"` |
 | 3501 | Warning | `Quartz` | `"This scheduler instance ({InstanceId}) is still active but was recovered by another instance in the cluster.  This may cause inconsistent behavior."` |
 | 3502 | Warning | `Quartz` | `"Found orphaned fired triggers for instance: {SchedulerInstanceId}"` |

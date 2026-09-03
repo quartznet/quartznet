@@ -20,6 +20,7 @@
 #endregion
 
 using System.Data;
+using System.Data.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz.Diagnostics;
@@ -669,15 +670,20 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             }
             catch (Exception ex)
             {
-                // Every answer named, in the order a reader wants them: have Quartz create the schema,
-                // create it yourself, or say you have taken responsibility for it. The typed option is
-                // spelled first because that is what a 4.x application configures; the flat key still
-                // works and is what an application migrating from 3.x already has.
+                // Every answer named, in the order a reader wants them: upgrade a 3.x schema, have
+                // Quartz create one, create it yourself, or say you have taken responsibility for it.
+                // The migration comes first because upgrading from 3.x is what most readers of this
+                // message are doing, and because the other two answers make their schema worse: one
+                // creates the missing table and leaves the missing columns, the other drops what is
+                // there. The typed option is spelled before the flat key because that is what a 4.x
+                // application configures; the flat key still works and is what one migrating has.
                 string error = "Database schema validation failed"
                                + (string.IsNullOrEmpty(TablePrefix) ? "." : $" under table prefix '{TablePrefix}'.")
-                               + " Either let Quartz create the objects it needs — UsePersistentStore(store => store.ProvisionSchema()),"
-                               + " which sets AdoJobStoreOptions.SchemaProvisioning to CreateIfMissing —"
-                               + " or create them yourself from the scripts in database/tables/ for your database."
+                               + " " + UpgradeAdvice()
+                               + " If this is a database with no Quartz schema at all, let Quartz create the objects"
+                               + " it needs — UsePersistentStore(store => store.ProvisionSchema()), which sets"
+                               + " AdoJobStoreOptions.SchemaProvisioning to CreateIfMissing — or create them yourself"
+                               + " from " + FreshInstallAdvice()
                                + " Setting SchemaProvisioning to None turns this check off, which says the schema is"
                                + " your responsibility rather than that it is present."
                                + " The legacy flat key for the same setting is quartz.jobStore.schemaProvisioning.";
@@ -720,6 +726,15 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// in each other's gaps, and they converge in a round or two.
     /// </para>
     /// <para>
+    /// What it will not do is build on top of a schema somebody else's Quartz already owns. Creating
+    /// is not migrating: against a 3.x database the script would make the one table 3.x never had,
+    /// leave the six columns 3.x never had missing, and hand back a scheduler that starts, reports
+    /// itself provisioned and then fails every acquisition for ever. So a database under this prefix
+    /// that holds some of Quartz's tables and not the rest has nothing created into it, and the
+    /// failure says which migration to run. A cluster cold-starting together reaches that state
+    /// transiently, which is why it is a wait and a re-ask rather than an immediate refusal.
+    /// </para>
+    /// <para>
     /// Under the same <c>ExecuteWithoutLock</c> as validation, which takes no lock on any dialect but
     /// SQLite. It cannot take one: <c>QRTZ_LOCKS</c> is one of the tables this is here to create.
     /// </para>
@@ -728,6 +743,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     {
         Exception? creationFailure = null;
         Exception? validationFailure = null;
+        List<string> missingTables = [];
 
         // Asked before anything is made, because the common case by far is that there is nothing to
         // make: a restart, or a node joining a cluster whose schema is already there. The script is
@@ -749,26 +765,39 @@ internal abstract partial class AdoJobStoreBase : IJobStore
 
         for (int attempt = 1; attempt <= SchemaCreationAttempts; attempt++)
         {
-            try
-            {
-                await ExecuteWithoutLock<object?>(async conn =>
-                {
-                    await Delegate.CreateSchema(conn, cancellationToken).ConfigureAwait(false);
-                    return null;
-                }, cancellationToken).ConfigureAwait(false);
+            // Which of Quartz's tables answer decides what this database is. None of them is one with
+            // no Quartz schema, which is the whole of what CreateIfMissing is for. Some of them is a
+            // schema this cannot finish — or a peer that is still creating one, which is the same
+            // sight, and is what the attempts below are for.
+            missingTables = await MissingSchemaTables(cancellationToken).ConfigureAwait(false);
 
-                Logger.SchemaCreated(TablePrefix);
-                return;
-            }
-            catch (Exception failure)
+            if (missingTables.Count == AdoConstants.AllTableNames.Length)
             {
-                creationFailure = failure;
+                try
+                {
+                    await ExecuteWithoutLock<object?>(async conn =>
+                    {
+                        await Delegate.CreateSchema(conn, cancellationToken).ConfigureAwait(false);
+                        return null;
+                    }, cancellationToken).ConfigureAwait(false);
+
+                    Logger.SchemaCreated(TablePrefix);
+                    return;
+                }
+                catch (Exception failure)
+                {
+                    creationFailure = failure;
+                }
+            }
+            else
+            {
+                Logger.SchemaPartiallyPresent(TablePrefix, AdoConstants.AllTableNames.Length - missingTables.Count, string.Join(", ", missingTables));
             }
 
             try
             {
                 await ExecuteWithoutLock<int>(conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
-                Logger.SchemaCreatedByAnotherNode(TablePrefix, creationFailure);
+                Logger.SchemaCreatedByAnotherNode(TablePrefix, creationFailure ?? validationFailure!);
                 return;
             }
             catch (Exception failure)
@@ -778,19 +807,111 @@ internal abstract partial class AdoJobStoreBase : IJobStore
 
             if (attempt < SchemaCreationAttempts)
             {
-                Logger.SchemaCreationRetrying(TablePrefix, attempt, SchemaCreationAttempts, creationFailure);
+                Logger.SchemaCreationRetrying(TablePrefix, attempt, SchemaCreationAttempts, creationFailure ?? validationFailure!);
                 await Task.Delay(SchemaCreationRetryDelay, timeProvider, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        if (missingTables.Count < AdoConstants.AllTableNames.Length)
+        {
+            throw new SchedulerException(
+                "The schema"
+                + (string.IsNullOrEmpty(TablePrefix) ? " is" : $" under table prefix '{TablePrefix}' is")
+                + $" partly there — {AdoConstants.AllTableNames.Length - missingTables.Count} of the"
+                + $" {AdoConstants.AllTableNames.Length} tables Quartz needs exist and these do not:"
+                + $" {string.Join(", ", missingTables)}."
+                + " Nothing was created: SchemaProvisioning.CreateIfMissing creates a schema and never"
+                + " upgrades one, so making the missing tables here would leave a scheduler that starts,"
+                + " reports itself provisioned and fires nothing."
+                + " " + UpgradeAdvice()
+                + " If this schema is not Quartz's, point the store at one that is — the table prefix is"
+                + " AdoJobStoreOptions.TablePrefix. Why the schema is still unusable is:"
+                + $" {validationFailure?.Message}",
+                validationFailure);
         }
 
         throw new SchedulerException(
             $"Could not create the database schema in {SchemaCreationAttempts} attempts, and the schema is"
             + " not there to be used either."
             + " Either grant the account Quartz connects with permission to create tables and indexes,"
-            + $" or run {SchemaScriptName()} by hand and drop back to SchemaProvisioning.Validate."
+            + $" or run {FreshInstallAdvice()} by hand and drop back to SchemaProvisioning.Validate."
             + " Why the creation failed is this exception's inner exception; why the schema is still"
             + $" unusable is: {validationFailure?.Message}",
             creationFailure);
+    }
+
+    /// <summary>
+    /// Which of Quartz's tables are not there, asked one <c>SELECT 1</c> at a time.
+    /// </summary>
+    /// <remarks>
+    /// The same probe <see cref="IDriverDelegate.ValidateSchema" /> makes, asked for a different
+    /// answer: validation stops at the first table that is missing, because a reader who has to run a
+    /// script does not need the whole list, while the decision above is about how many of them are
+    /// there. Deliberately not on the delegate — a delegate that owns tables of its own validates
+    /// them, and nothing about this decision improves for knowing about those: what it is asking is
+    /// whether a Quartz schema is already here. The statement takes no parameters, so it needs
+    /// nothing the delegate does to a command beyond the connection this unit of work is on.
+    /// </remarks>
+    private async ValueTask<List<string>> MissingSchemaTables(CancellationToken cancellationToken)
+    {
+        return await ExecuteWithoutLock(async conn =>
+        {
+            List<string> missing = [];
+
+            foreach (string tableName in AdoConstants.AllTableNames)
+            {
+                string targetTable = TablePrefix + tableName;
+
+                try
+                {
+                    using DbCommand command = conn.Connection.CreateCommand();
+                    conn.Attach(command);
+                    command.CommandText = $"SELECT 1 FROM {targetTable}";
+
+                    if (CommandTimeout.HasValue)
+                    {
+                        command.CommandTimeout = (int) CommandTimeout.Value.TotalSeconds;
+                    }
+
+                    await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Missing, or unreadable for a reason the caller is about to report either way.
+                    missing.Add(targetTable);
+                }
+            }
+
+            return missing;
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The sentence a database that came from 3.x needs, which is most of the databases that reach
+    /// either failure above.
+    /// </summary>
+    private string UpgradeAdvice()
+    {
+        return $"If this schema was created by Quartz 3.x, run {MigrationScriptName()} first —"
+               + " ProvisionSchema() creates missing tables and never adds a column to a table that"
+               + " exists.";
+    }
+
+    /// <summary>
+    /// Where a fresh install comes from, and the two things about those scripts that cost a reader a
+    /// database if nobody says them.
+    /// </summary>
+    private string FreshInstallAdvice()
+    {
+        string advice = $"{SchemaScriptName()}, which is for fresh installs only: those scripts drop an"
+                        + " existing schema.";
+
+        if (Delegate is SqlServerDelegate)
+        {
+            advice += " It begins USE [enter_db_name_here];, so put your database name there first.";
+        }
+
+        return advice;
     }
 
     /// <summary>
@@ -813,6 +934,29 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             SQLiteDelegate => "database/tables/tables_sqlite.sql",
             FirebirdDelegate => "database/tables/tables_firebird.sql",
             _ => "the script for your database under database/tables/",
+        };
+    }
+
+    /// <summary>
+    /// The 3.x-to-4.0 migration for the database this store is talking to, chosen the same way and
+    /// for the same reason as <see cref="SchemaScriptName" />.
+    /// </summary>
+    /// <remarks>
+    /// Named in the two failures a 3.x schema reaches, because nothing else Quartz says at run time
+    /// points at <c>database/migrations/</c> at all — which is how a reader who met the validation
+    /// failure without the migration guide ended up running the two things that make it worse.
+    /// </remarks>
+    private string MigrationScriptName()
+    {
+        return Delegate switch
+        {
+            SqlServerDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_sqlServer.sql",
+            PostgreSQLDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_postgres.sql",
+            MySQLDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_mysql_innodb.sql",
+            OracleDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_oracle.sql",
+            SQLiteDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_sqlite.sql",
+            FirebirdDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_firebird.sql",
+            _ => "the 3.x-to-4.0 script for your database under database/migrations/4.0/",
         };
     }
 

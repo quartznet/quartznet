@@ -82,6 +82,9 @@ public class SchemaProvisioningTest
     /// <summary>The empty prefix two schedulers start against at the same time.</summary>
     private const string RacePrefix = "QRTZC_";
 
+    /// <summary>The 3.20 schema provisioning has to refuse to build on top of.</summary>
+    private const string UnmigratedPrefix = "QRTZ3_";
+
     [Test]
     [Category("db-sqlite")]
     public Task SqliteProvisionsASchemaMatchingAFreshInstall()
@@ -219,6 +222,70 @@ public class SchemaProvisioningTest
     }
 
     /// <summary>
+    /// The unit project has the SQLite half of this in <c>UnmigratedSchemaRefusalSqliteTest</c>; one
+    /// container leg is here because the refusal reads the catalog of a real database, and because a
+    /// 3.20 schema built by that release's own script is the thing being refused.
+    /// </summary>
+    [Test]
+    [Category("db-postgres")]
+    public async Task PostgreSqlWillNotProvisionOnTopOfAnUnmigrated3xSchema()
+    {
+        string connectionString = RequireConnectionString("PG_CONNECTION_STRING");
+
+        await using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await AssertUnmigratedSchemaRefusedAsync(connection, "postgres", connectionString);
+    }
+
+    /// <summary>
+    /// Provisioning against a schema Quartz 3.x created: nothing is made, the failure names the
+    /// migration, and running that migration is what makes the same store start.
+    /// </summary>
+    /// <remarks>
+    /// This is the rc.1 rehearsal's worst finding, as a test. <c>ProvisionSchema()</c> is what the
+    /// validation failure used to recommend to a 3.x upgrader, and on that schema it created the one
+    /// table 4.x added, logged the schema validated, started — and then failed every acquisition and
+    /// every misfire pass for ever on a column it had not added, while the process stayed up and fired
+    /// nothing.
+    /// </remarks>
+    private static async Task AssertUnmigratedSchemaRefusedAsync(DbConnection connection, string dialect, string connectionString)
+    {
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.BaselineScript("3.20", dialect, UnmigratedPrefix), dialect);
+
+        Func<Task> act = () => StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}");
+
+        SchedulerException failure = (await act.Should().ThrowAsync<SchedulerException>(
+                "a schema that is partly there is a 3.x schema or a broken one, and creating the rest "
+                + "of it produces a scheduler that starts and fires nothing")).Which;
+
+        failure.Message.Should().Contain("partly there")
+            .And.Contain($"schema_30_to_40_upgrade_{dialect}.sql",
+                "nothing else Quartz says at run time points at database/migrations/, and that is where "
+                + "a reader of this message has to go");
+
+        SchemaSnapshot afterRefusal = await SchemaSnapshot.ReadAsync(connection, dialect, UnmigratedPrefix);
+
+        afterRefusal.Tables.Should().NotContain("PAUSED_JOB_GRPS",
+            "the table 4.x added is the one thing CreateIfMissing could have made here, and making it "
+            + "is what turned a startup failure into a silent outage");
+
+        // The remedy the message names, followed: the same store starts against the same database.
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_upgrade", dialect, UnmigratedPrefix), dialect);
+
+        await StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}_migrated");
+
+        SchemaSnapshot afterMigration = await SchemaSnapshot.ReadAsync(connection, dialect, UnmigratedPrefix);
+
+        afterMigration.Tables.Should().Contain("PAUSED_JOB_GRPS");
+        afterMigration.Columns.Should().Contain(column => column.Contains("RETRY_POLICY", StringComparison.Ordinal),
+            "the columns the migration adds are the ones startup now probes for, so the migrated schema "
+            + "has to carry them for the start above to have meant anything");
+    }
+
+    /// <summary>
     /// Starts a scheduler that provisions, compares what it created with the fresh schema, starts a
     /// second one over the same prefix to show the second pass changes nothing, and then runs a
     /// workload against the result.
@@ -237,8 +304,9 @@ public class SchemaProvisioningTest
             "a provisioned schema has to have the same tables as a fresh install — the store validates "
             + "for them a moment later, and runs against them for the rest of its life");
         provisioned.Columns.Should().BeEquivalentTo(fresh.Columns,
-            "validation is table-level, so a column that provisioning got wrong gets past startup and "
-            + "fails on the first statement that names it");
+            "validation probes for a column's presence and never for its type or its width, so a column "
+            + "that provisioning declared wrong gets past startup and fails on the first statement that "
+            + "binds it");
         provisioned.Indexes.Should().BeEquivalentTo(fresh.Indexes,
             "an index missing from a provisioned schema is a scheduler that works and then does not, at "
             + "whatever number of triggers the scans stop being free");

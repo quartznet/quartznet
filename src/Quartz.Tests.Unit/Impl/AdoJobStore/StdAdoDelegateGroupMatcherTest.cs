@@ -1019,17 +1019,26 @@ public class StdAdoDelegateGroupMatcherTest
     }
 
     [Test]
-    public async Task ValidateSchema_ShouldRequireThePausedJobGroupsTable()
+    public async Task ValidateSchema_ShouldRequireThePausedJobGroupsTableAndTheColumnsTheMigrationAdds()
     {
         List<StubCommand> issued = [];
         StdAdoDelegate recording = CreateDelegateRecordingEveryCommand(issued);
 
-        int tableCount = await recording.ValidateSchema(conn);
+        int objectCount = await recording.ValidateSchema(conn);
 
-        tableCount.Should().Be(AdoConstants.AllTableNames.Length);
-        issued.ConvertAll(x => x.CommandText).Should().Contain(x => x.Contains("FROM QRTZ_PAUSED_JOB_GRPS"),
+        objectCount.Should().Be(AdoConstants.AllTableNames.Length + AdoConstants.MigratedColumnNames.Length,
+            "the count in the log line is what was checked, and the columns are checked too");
+
+        List<string> statements = issued.ConvertAll(x => x.CommandText);
+
+        statements.Should().Contain(x => x.Contains("FROM QRTZ_PAUSED_JOB_GRPS"),
             "4.x has no schema probes, so a database missing the table has to fail at startup rather "
             + "than silently forget every job group pause");
+
+        statements.Should().Contain($"SELECT {AdoConstants.ColumnRetryPolicy} FROM QRTZ_TRIGGERS WHERE 1 = 0",
+            "a 3.x database has every table but this column, and a check that stopped at tables let it "
+            + "start and then fail every acquisition for ever — and the probe reads no row, because "
+            + "what it asks is whether the column resolves");
     }
 
     /// <summary>

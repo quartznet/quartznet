@@ -170,8 +170,8 @@ It is one setting with three positions — `AdoJobStoreOptions.SchemaProvisionin
 | Value | What the store does as it initializes |
 |---|---|
 | `None` | Nothing. A missing table surfaces as the first statement that names it, whenever that happens to run. |
-| `Validate` | **The default.** Issues a `SELECT 1` against the store's tables and refuses to start if one is missing, naming it. |
-| `CreateIfMissing` | Runs the DDL for the configured database first, then validates. `ProvisionSchema()` sets this. |
+| `Validate` | **The default.** Issues a `SELECT 1` against the store's tables, and a `SELECT <column> … WHERE 1 = 0` for each column 4.x added to a table 3.x already had, and refuses to start if one is missing, naming it. |
+| `CreateIfMissing` | Runs the DDL for the configured database first — but only into a prefix that holds no Quartz table at all — then validates. `ProvisionSchema()` sets this. |
 
 What it runs is not the script you would run by hand. Quartz embeds a second set, one per dialect,
 written for an ADO.NET provider rather than for a command-line client — the table prefix is a
@@ -189,16 +189,20 @@ Four things are worth knowing before you turn it on.
 anything, so it is safe against a database that already has the schema, and safe to run twice. It is
 also safe under a cluster whose nodes all start at once: only one of them can create any given object,
 and a node whose create fails asks the schema rather than the error whether it lost the race — a
-validation that passes means another node got there first. Because the script is guarded throughout, a
-node that arrives while another is half-way through fills in the gaps rather than waiting, and a brief
-retry converges the two. It cannot turn a mis-typed `TablePrefix` into data loss either — but it will
+validation that passes means another node got there first. A node that arrives while another is half-way
+through sees a schema that is partly there, waits rather than building into it, and a brief retry
+converges the two. It cannot turn a mis-typed `TablePrefix` into data loss either — but it will
 cheerfully build a second, empty table set under the mis-typed prefix, where refusing to start would
 have told you sooner. Read the prefix twice, and see
 [Shared database](../multi-tenancy.md#shared-database) for what is and is not reported.
 
-**It is not an upgrade.** A schema that has every table but is missing a column a later release added is
-left exactly as it is, because a guarded `CREATE TABLE` skips a table that exists without looking inside
-it. Moving a schema forward is
+**It is not an upgrade, and it will not start one.** A guarded `CREATE TABLE` skips a table that exists
+without looking inside it, so a schema that has every table but is missing a column a later release
+added would be left exactly as it is. That is why provisioning creates only into a prefix that holds
+**no** Quartz table: against a 3.x schema it would make the one table 4.x added, leave the columns 4.x
+added missing, log the schema validated, start — and fail every acquisition for ever. A schema that is
+partly there is refused instead, nothing is created, and the message names the migration. Moving a
+schema forward is
 [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations) and
 nothing else, and the 3.x → 4.0 upgrade is still mandatory — see
 [Database Schema Changes](../../database/schema-changes.md).
