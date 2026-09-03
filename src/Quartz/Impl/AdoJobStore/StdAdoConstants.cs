@@ -322,12 +322,18 @@ internal static class StdAdoConstants
     /// <remarks>
     /// <para>
     /// One definition because it is one decision in two places. Acquisition and misfire recovery both
-    /// order by it, and the indexes that serve them — <c>IDX_QRTZ_T_NFT_ST</c> and
-    /// <c>IDX_QRTZ_T_NFT_ST_MISFIRE</c> — are declared over these columns in this order and these
-    /// directions. An index whose directions do not match the <c>ORDER BY</c> cannot answer it with an
-    /// ordered seek, so the engine reads every candidate row and sorts
+    /// order by it, and one index serves both — <c>IDX_QRTZ_T_NFT_ST</c>, declared over these columns
+    /// in this order and these directions. An index whose directions do not match the <c>ORDER BY</c>
+    /// cannot answer it with an ordered seek, so the engine reads every candidate row and sorts
     /// (<see href="https://github.com/quartznet/quartznet/issues/3510">#3510</see> measured what that
-    /// costs), and nothing about either statement or either index says so on its face.
+    /// costs), and nothing about either statement or the index says so on its face.
+    /// </para>
+    /// <para>
+    /// There was a second index, <c>IDX_QRTZ_T_NFT_ST_MISFIRE</c>, and 4.0 drops it
+    /// (<see href="https://github.com/quartznet/quartznet/issues/3656">#3656</see>). It led with
+    /// <c>MISFIRE_INSTR</c>, which both misfire statements compare with <c>&lt;&gt; -1</c> and no btree
+    /// can seek past; once #3510 gave the acquisition index the sweep's own two equalities and its
+    /// range column, no optimizer chose it on any dialect that had it.
     /// </para>
     /// <para>
     /// <c>SchemaScriptTest</c> builds the index column lists it expects from this, so changing the order

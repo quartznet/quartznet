@@ -33,6 +33,10 @@
 -- Run the sections in order: the drops in section 6 assume the creates above them have
 -- already succeeded.
 --
+-- Sections 1-5 are safe to run while 3.x nodes are still up. SECTION 6 IS NOT: it drops
+-- IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its misfire sweep from and 4.x does not read
+-- at all (#3656). Run section 6 once the last 3.x node has shut down.
+--
 -- Sections 4 and 5 have no 3.x counterpart at all, so nothing you ran on 3.x can have
 -- applied them.
 --
@@ -135,6 +139,15 @@ CREATE TABLE IF NOT EXISTS qrtz_paused_job_grps (
 -- === 6. Index set ===
 -- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a
 -- non-trivial number of triggers; the drops only reclaim write cost and storage.
+--
+-- RUN THIS SECTION ONLY ONCE THE LAST 3.x NODE HAS SHUT DOWN. Among the drops is
+-- IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its misfire sweep from. 4.x drives both
+-- misfire statements from IDX_QRTZ_T_NFT_ST instead, which this section's creates put
+-- at its 4.x shape before that drop runs -- so a schema still on the pre-4.x shape is
+-- reshaped here first, and none is ever left with neither index. That ordering is the
+-- whole precondition, so run the section top to bottom.
+--
+-- Every statement is guarded, so re-running the section changes nothing.
 
 -- === Drop the indexes whose columns changed but whose name did not ============
 -- These have to go first: CREATE INDEX IF NOT EXISTS below would find the name
