@@ -2176,6 +2176,8 @@ public partial class StdAdoDelegate
         // do not change extended properties during misfire.
         if (trigger is ISimpleTrigger simpleTrigger && FindTriggerPersistenceDelegate(trigger) is not null)
         {
+            AdoJobStoreUtil.RequireStorableDuration(simpleTrigger.RepeatInterval, ColumnRepeatInterval, trigger.Key);
+
             using var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSimpleTrigger));
             AddCommandParameter(cmd2, "schedulerName", schedName);
             AddCommandParameter(cmd2, "triggerRepeatCount", simpleTrigger.RepeatCount);
