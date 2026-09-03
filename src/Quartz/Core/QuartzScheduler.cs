@@ -287,8 +287,9 @@ public class QuartzScheduler :
             schedThread.IdleWaitTime = idleWaitTime;
         }
 
+        // Not registered as an internal listener: the scheduler tells it about both ends of a firing
+        // directly, outside the loop a failing user listener abandons (#3502).
         jobMgr = new ExecutingJobsManager();
-        AddInternalJobListener(jobMgr);
         var errLogger = new ErrorLogger();
         AddInternalSchedulerListener(errLogger);
 
@@ -1710,12 +1711,22 @@ public class QuartzScheduler :
         var listeners = ListenerManager.GetJobListeners();
         var internalListeners = internalJobListeners.Values;
 
-        if (listeners.Count == 0 && internalListeners.Count == 1)
+        if (listeners.Count == 0)
         {
-            // default case is that we only have our internal one
-            using var enumerator = internalListeners.GetEnumerator();
-            enumerator.MoveNext();
-            return (enumerator.Current, null);
+            if (internalListeners.Count == 0)
+            {
+                // default case is that there is nobody to tell; the scheduler's own record of the
+                // firing is kept by ExecutingJobsManager, which is not in this list
+                return (null, null);
+            }
+
+            if (internalListeners.Count == 1)
+            {
+                // a job store that listens to its own firings
+                using var enumerator = internalListeners.GetEnumerator();
+                enumerator.MoveNext();
+                return (enumerator.Current, null);
+            }
         }
 
         return (null, listeners.Concat(internalListeners));
@@ -1878,7 +1889,46 @@ public class QuartzScheduler :
         IJobExecutionContext jec,
         CancellationToken cancellationToken = default)
     {
-        return NotifyJobListeners(jl => jl.JobToBeExecuted(jec, cancellationToken), jec, null);
+        // The scheduler's own record of the firing is kept outside the listener loop below, because a
+        // listener that throws abandons that loop. JobRunShell then completes the firing without the
+        // job having run and without anyone being told it was executed, so a record kept inside the
+        // loop would list the firing as executing for as long as the process lived (#3502).
+        jobMgr.FiringStarted(jec);
+
+        Task notification;
+        try
+        {
+            notification = NotifyJobListeners(jl => jl.JobToBeExecuted(jec, cancellationToken), jec, null);
+        }
+        catch
+        {
+            // The single-listener path wraps a listener that threw before handing back a task and
+            // throws the wrapper itself, before there is a task to await.
+            jobMgr.FiringEnded(jec);
+            throw;
+        }
+
+        return notification.IsCompletedSuccessfully()
+            ? Task.CompletedTask
+            : EndFiringIfNotificationFails(notification, jobMgr, jec);
+
+        static async Task EndFiringIfNotificationFails(
+            Task notification,
+            ExecutingJobsManager jobMgr,
+            IJobExecutionContext jec)
+        {
+            try
+            {
+                await notification.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Nothing further will be notified for this firing, so this is the only place the
+                // record of it can be taken back out.
+                jobMgr.FiringEnded(jec);
+                throw;
+            }
+        }
     }
 
     /// <summary>
@@ -1904,6 +1954,10 @@ public class QuartzScheduler :
         JobExecutionException? je,
         CancellationToken cancellationToken = default)
     {
+        // Taken out of the record before the listeners are told, and not by one of them: a listener
+        // that throws here must not leave the firing showing as executing (#3502).
+        jobMgr.FiringEnded(jec);
+
         return NotifyJobListeners(jl => jl.JobWasExecuted(jec, je, cancellationToken), jec, je);
     }
 
@@ -1943,7 +1997,19 @@ public class QuartzScheduler :
                     continue;
                 }
 
-                await NotifySingle(notifyAction(jl), jl, jec).ConfigureAwait(false);
+                // The call to the listener is inside the guard, not an argument to it, so a listener
+                // that throws before it hands anything back — a guard clause in a method that is not
+                // async — is wrapped in the same exception as one that hands back a faulted task.
+                // JobRunShell catches SchedulerException, and a raw exception escaping it left the
+                // firing stranded and the job's other triggers blocked behind it (#3502).
+                try
+                {
+                    await notifyAction(jl).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    throw new JobExecutionProcessException(jl, jec, e);
+                }
             }
         }
 

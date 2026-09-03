@@ -1,0 +1,446 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Quartz.Core;
+using Quartz.Impl;
+using Quartz.Impl.Matchers;
+using Quartz.Listener;
+
+namespace Quartz.Tests.Unit.Core;
+
+/// <summary>
+/// What a job listener's failure costs the firing it failed on, and what it must not cost anybody else.
+/// </summary>
+/// <remarks>
+/// <para>
+/// A listener can fail in either of two shapes, and until #3502 they were not handled alike. An
+/// <c>async</c> listener hands back a faulted task; a listener whose guard clause throws before it
+/// returns anything fails while the scheduler is still evaluating the call. Only the first was wrapped
+/// in the exception <see cref="JobRunShell" /> catches, so the second escaped the run shell entirely and
+/// the firing was never handed back to the store — leaving a job that forbids concurrent execution
+/// blocked behind a firing that had already been abandoned. Every case here therefore runs twice, once
+/// per shape, and the two shapes must be indistinguishable.
+/// </para>
+/// <para>
+/// The scheduler's own record of what is executing rides along with the same fault: it used to be kept
+/// by the listener loop, so a listener that stopped the loop stopped the bookkeeping too and left the
+/// firing listed as executing for as long as the process lived.
+/// </para>
+/// <para>
+/// Nothing here waits for a length of time or measures one. The store records a firing after it has
+/// acted on it, so a test that waits for a record and then asks a question is asking a store that has
+/// already settled.
+/// </para>
+/// </remarks>
+[NonParallelizable]
+public sealed class JobListenerFailureTest
+{
+    private const string Group = "job-listener-failure";
+
+    /// <summary>
+    /// How long a test is willing to wait for a firing to reach the store before declaring the
+    /// scheduler stuck. Long enough that a loaded build agent never trips it, and never used as a
+    /// measurement.
+    /// </summary>
+    private static readonly TimeSpan observationDeadline = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// The two ways a listener can fail, which the scheduler has to treat as one.
+    /// </summary>
+    public enum FailureShape
+    {
+        /// <summary>Throws before handing anything back, as a guard clause in a method that is not <c>async</c> does.</summary>
+        Synchronous,
+
+        /// <summary>Hands back a faulted task, as an <c>async</c> method does.</summary>
+        Asynchronous,
+    }
+
+    /// <summary>
+    /// Which side of the job the listener fails on.
+    /// </summary>
+    public enum FailureSide
+    {
+        /// <summary><see cref="IJobListener.JobToBeExecuted" />, which stops the job running.</summary>
+        BeforeTheJob,
+
+        /// <summary><see cref="IJobListener.JobWasExecuted" />, which is too late to stop anything.</summary>
+        AfterTheJob,
+    }
+
+    /// <summary>
+    /// The wedge #3502 reported: the firing is abandoned, and the job's other trigger has to be let go
+    /// of anyway — which only happens if the abandoned firing is completed at the store.
+    /// </summary>
+    [TestCase(FailureShape.Synchronous)]
+    [TestCase(FailureShape.Asynchronous)]
+    public async Task AListenerFailingBeforeTheJobStillCompletesTheFiringAndLetsTheSiblingTriggerFire(FailureShape shape)
+    {
+        TriggerKey wedgedKey = new TriggerKey("wedged", Group);
+        CallLog<TriggerKey> runs = new CallLog<TriggerKey>();
+
+        // Fails only for the first trigger's firing, so that the second one running the job is the
+        // scheduler carrying on rather than this listener having lost interest.
+        FailingJobListener listener = new FailingJobListener(shape, FailureSide.BeforeTheJob, context => context.Trigger.Key.Equals(wedgedKey));
+
+        (IScheduler scheduler, CompletionWatchingJobStore store) = await BuildScheduler($"listener-wedge-{shape}");
+
+        try
+        {
+            scheduler.ListenerManager.AddJobListener(listener);
+
+            IJobDetail job = JobBuilder.Create<NonConcurrentRecordingJob>()
+                .WithIdentity("job", Group)
+                .UsingJobData(new JobDataMap { [NonConcurrentRecordingJob.RunLogKey] = runs })
+                .Build();
+
+            // Two triggers of one job that forbids concurrent execution, both already due and the
+            // wedged one due first. Committing its firing blocks the sibling, and completing that
+            // firing is the only thing that lets the sibling go again. The scheduler moves a
+            // repeating simple trigger's past start time to "now" as it schedules it, and on a clock
+            // as coarse as .NET Framework's the two can land on the same instant, so the wedged one
+            // also carries the higher priority: what breaks a tie between equal fire times.
+            DateTimeOffset due = DateTimeOffset.UtcNow;
+
+            ITrigger wedged = Repeating(wedgedKey, job, due, priority: 10);
+            ITrigger sibling = Repeating(new TriggerKey("sibling", Group), job, due.AddMilliseconds(1), priority: 5);
+
+            await scheduler.ScheduleJob(job, new[] { wedged, sibling }, replace: false);
+            await scheduler.Start();
+
+            await ShouldObserve(store.Completions.Reaches(1),
+                "a firing a listener abandoned still has to be reported to the store, or the trigger is never "
+                + "handed back and every trigger of a job that forbids concurrent execution stays blocked behind it");
+
+            store.Completions.Entries[0].Should().Be(
+                new CompletedFiring(wedgedKey, job.Key, SchedulerInstruction.NoInstruction),
+                "a firing that never happened settles nothing about the schedule");
+
+            store.Releases.Entries.Should().BeEmpty(
+                "the firing was already committed, so it is completed rather than released - releasing does "
+                + "not unblock the job's other triggers");
+
+            await ShouldObserve(store.Completions.Reaches(2),
+                "the sibling was blocked by a firing that has now been completed, so it is free to fire");
+
+            store.Completions.Entries[1].Should().Be(
+                new CompletedFiring(sibling.Key, job.Key, SchedulerInstruction.NoInstruction),
+                "the sibling's own firing is an ordinary one");
+
+            runs.Entries.Should().Equal(new[] { sibling.Key },
+                "the job ran exactly once, for the trigger whose firing no listener stopped - which is what "
+                + "says the wedged firing neither ran the job nor kept the job to itself");
+
+            (await scheduler.GetTriggerState(wedgedKey)).Should().Be(TriggerState.Normal,
+                "the wedged trigger has firings ahead of it, and a failed listener does not take them away");
+            (await scheduler.GetTriggerState(sibling.Key)).Should().Be(TriggerState.Normal,
+                "a trigger that has fired and finished is waiting for its next turn, not blocked");
+
+            (await scheduler.GetCurrentlyExecutingJobs()).Should().BeEmpty(
+                "both firings are over, so nothing is executing");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// The phantom entry #3502 reported: the scheduler's record of what it is running is its own, and a
+    /// user listener cannot be what keeps it honest.
+    /// </summary>
+    [TestCase(FailureShape.Synchronous, FailureSide.BeforeTheJob)]
+    [TestCase(FailureShape.Asynchronous, FailureSide.BeforeTheJob)]
+    [TestCase(FailureShape.Synchronous, FailureSide.AfterTheJob)]
+    [TestCase(FailureShape.Asynchronous, FailureSide.AfterTheJob)]
+    public async Task AFailedListenerLeavesNothingListedAsExecuting(FailureShape shape, FailureSide side)
+    {
+        CallLog<TriggerKey> runs = new CallLog<TriggerKey>();
+        FailingJobListener listener = new FailingJobListener(shape, side, _ => true);
+
+        (IScheduler scheduler, CompletionWatchingJobStore store) = await BuildScheduler($"listener-phantom-{shape}-{side}");
+
+        try
+        {
+            scheduler.ListenerManager.AddJobListener(listener);
+
+            IJobDetail job = JobBuilder.Create<NonConcurrentRecordingJob>()
+                .WithIdentity("job", Group)
+                .UsingJobData(new JobDataMap { [NonConcurrentRecordingJob.RunLogKey] = runs })
+                .Build();
+
+            TriggerKey triggerKey = new TriggerKey("once", Group);
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(job)
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
+
+            await ShouldObserve(store.Completions.Reaches(1),
+                "the firing has to be over before what is executing means anything");
+
+            runs.Entries.Should().HaveCount(side == FailureSide.BeforeTheJob ? 0 : 1,
+                "a listener that fails on the way in stops the job running, and one that fails afterwards is too late to");
+
+            (await scheduler.GetCurrentlyExecutingJobs()).Should().BeEmpty(
+                "the firing is over, and an operator reading the list of executing jobs must not be shown one "
+                + "that a listener's failure stranded there");
+
+            (await scheduler.GetMetaData()).NumberOfJobsExecuted.Should().Be(1,
+                "the firing was dispatched, which is what this counts - a listener stopping it does not unfire it");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// A trigger with nothing left to fire is finished whether its last firing ran or a listener
+    /// abandoned it, and the scheduler listeners hear so either way.
+    /// </summary>
+    [TestCase(FailureShape.Synchronous, FailureSide.BeforeTheJob)]
+    [TestCase(FailureShape.Asynchronous, FailureSide.BeforeTheJob)]
+    [TestCase(FailureShape.Synchronous, FailureSide.AfterTheJob)]
+    [TestCase(FailureShape.Asynchronous, FailureSide.AfterTheJob)]
+    public async Task AFailedListenerDoesNotSwallowTheTriggersFinalizedNotification(FailureShape shape, FailureSide side)
+    {
+        CallLog<TriggerKey> runs = new CallLog<TriggerKey>();
+        FailingJobListener listener = new FailingJobListener(shape, side, _ => true);
+        FinalizedRecordingSchedulerListener finalized = new FinalizedRecordingSchedulerListener();
+
+        (IScheduler scheduler, _) = await BuildScheduler($"listener-finalized-{shape}-{side}");
+
+        try
+        {
+            scheduler.ListenerManager.AddJobListener(listener);
+            scheduler.ListenerManager.AddSchedulerListener(finalized);
+
+            IJobDetail job = JobBuilder.Create<NonConcurrentRecordingJob>()
+                .WithIdentity("job", Group)
+                .UsingJobData(new JobDataMap { [NonConcurrentRecordingJob.RunLogKey] = runs })
+                .Build();
+
+            TriggerKey triggerKey = new TriggerKey("once", Group);
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(job)
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
+
+            await ShouldObserve(finalized.Finalized.Reaches(1),
+                "the trigger had one firing in it and it is spent, so the scheduler listeners have to be told "
+                + "it will never fire again - the listener's failure is not theirs to inherit");
+
+            finalized.Finalized.Entries.Should().Equal(new[] { triggerKey });
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// The leak #3507 reported. The firing is abandoned with no instruction, which settles nothing about
+    /// the schedule — but the trigger was advanced when the firing was committed and had nothing after
+    /// this one, so it is spent, and a store that kept it goes on offering an operator a trigger that
+    /// can never fire.
+    /// </summary>
+    [TestCase(FailureShape.Synchronous)]
+    [TestCase(FailureShape.Asynchronous)]
+    public async Task AListenerFailingOnATriggersLastFiringLeavesNoTriggerBehind(FailureShape shape)
+    {
+        CallLog<TriggerKey> runs = new CallLog<TriggerKey>();
+        FailingJobListener listener = new FailingJobListener(shape, FailureSide.BeforeTheJob, _ => true);
+
+        (IScheduler scheduler, CompletionWatchingJobStore store) = await BuildScheduler($"listener-spent-{shape}");
+
+        try
+        {
+            scheduler.ListenerManager.AddJobListener(listener);
+
+            IJobDetail job = JobBuilder.Create<NonConcurrentRecordingJob>()
+                .WithIdentity("job", Group)
+                .UsingJobData(new JobDataMap { [NonConcurrentRecordingJob.RunLogKey] = runs })
+                .Build();
+
+            TriggerKey triggerKey = new TriggerKey("once", Group);
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(job)
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
+
+            await ShouldObserve(store.Completions.Reaches(1),
+                "the store has settled the firing by the time it records it, so everything below is asked "
+                + "of a store that has finished with this trigger");
+
+            store.Completions.Entries[0].Should().Be(
+                new CompletedFiring(triggerKey, job.Key, SchedulerInstruction.NoInstruction),
+                "a firing that never happened settles nothing about the schedule - the trigger is removed "
+                + "because it is spent, not because the completion said to remove it");
+
+            (await scheduler.GetTrigger(triggerKey)).Should().BeNull(
+                "the trigger's only firing is over, however badly it went");
+            (await scheduler.GetTriggerState(triggerKey)).Should().Be(TriggerState.None,
+                "a trigger that is gone has no state");
+            (await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup())).Should().BeEmpty(
+                "the listing an operator reads must not show a trigger that will never fire again");
+            (await scheduler.GetJobDetail(job.Key)).Should().BeNull(
+                "the job is not durable and its only trigger is gone");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// A scheduler whose in-memory store records every firing it is handed back.
+    /// </summary>
+    private static async Task<(IScheduler Scheduler, CompletionWatchingJobStore Store)> BuildScheduler(string instanceName)
+    {
+        NameValueCollection properties = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = instanceName,
+            ["quartz.jobStore.type"] = typeof(CompletionWatchingJobStore).AssemblyQualifiedName,
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+        };
+
+        ISchedulerFactory factory = new StdSchedulerFactory(properties);
+        IScheduler scheduler = await factory.GetScheduler();
+        return (scheduler, CompletionWatchingJobStore.LastInstance);
+    }
+
+    private static ITrigger Repeating(TriggerKey key, IJobDetail job, DateTimeOffset startAt, int priority)
+    {
+        return TriggerBuilder.Create()
+            .WithIdentity(key)
+            .ForJob(job)
+            .StartAt(startAt)
+            .WithPriority(priority)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build();
+    }
+
+    private static async Task ShouldObserve(Task observation, string because)
+    {
+        Func<Task> act = () => observation;
+        await act.Should().CompleteWithinAsync(observationDeadline, because);
+    }
+
+    /// <summary>
+    /// A job that records which trigger fired it, through a log handed to it in its data map so that
+    /// nothing here is static.
+    /// </summary>
+    [DisallowConcurrentExecution]
+    public sealed class NonConcurrentRecordingJob : IJob
+    {
+        public const string RunLogKey = "run log";
+
+        public Task Execute(IJobExecutionContext context)
+        {
+            ((CallLog<TriggerKey>) context.MergedJobDataMap[RunLogKey]).Record(context.Trigger.Key);
+            return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// Fails on one side of the job, in whichever of the two shapes it was built for, for the firings it
+    /// was told to fail for and no others.
+    /// </summary>
+    private sealed class FailingJobListener : IJobListener
+    {
+        private readonly FailureShape shape;
+        private readonly FailureSide side;
+        private readonly Func<IJobExecutionContext, bool> failFor;
+
+        public FailingJobListener(FailureShape shape, FailureSide side, Func<IJobExecutionContext, bool> failFor)
+        {
+            this.shape = shape;
+            this.side = side;
+            this.failFor = failFor;
+        }
+
+        public string Name => nameof(FailingJobListener);
+
+        public Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            return side == FailureSide.BeforeTheJob && failFor(context)
+                ? Fail("the listener could not prepare for this job")
+                : Task.CompletedTask;
+        }
+
+        public Task JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task JobWasExecuted(
+            IJobExecutionContext context,
+            JobExecutionException jobException,
+            CancellationToken cancellationToken = default)
+        {
+            return side == FailureSide.AfterTheJob && failFor(context)
+                ? Fail("the listener could not record this job")
+                : Task.CompletedTask;
+        }
+
+        private Task Fail(string message)
+        {
+            if (shape == FailureShape.Synchronous)
+            {
+                // What a guard clause in a method that is not async does: the caller is handed an
+                // exception where it expected a Task, before there is anything to await.
+                throw new InvalidOperationException(message);
+            }
+
+            // What an async method does: the exception arrives in the task the caller was handed.
+            return Task.FromException(new InvalidOperationException(message));
+        }
+    }
+
+    private sealed class FinalizedRecordingSchedulerListener : SchedulerListenerSupport
+    {
+        public CallLog<TriggerKey> Finalized { get; } = new CallLog<TriggerKey>();
+
+        public override Task TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
+        {
+            Finalized.Record(trigger.Key);
+            return Task.CompletedTask;
+        }
+    }
+}
