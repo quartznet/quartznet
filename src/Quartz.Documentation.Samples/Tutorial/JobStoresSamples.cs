@@ -92,6 +92,11 @@ public static class JobStoresSamples
                 .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()));
         });
 
+        // ScheduleJob declares HelloJob and its trigger on every start, and by default a declaration
+        // replaces what the store holds, StartNow() included. This keeps the stored trigger instead, so a
+        // restart carries on from the file rather than scheduling afresh.
+        builder.Services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
+
         builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
         #endregion

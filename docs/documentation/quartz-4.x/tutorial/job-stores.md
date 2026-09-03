@@ -266,15 +266,26 @@ builder.AddQuartz(q =>
         .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()));
 });
 
+// ScheduleJob declares HelloJob and its trigger on every start, and by default a declaration
+// replaces what the store holds, StartNow() included. This keeps the stored trigger instead, so a
+// restart carries on from the file rather than scheduling afresh.
+builder.Services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
+
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
 Start it, watch the job fire, stop it, start it again: the trigger's next fire time comes back out of
 `quartz.db` rather than being scheduled afresh, which is the difference from `UseInMemoryStore()` and
-the only thing worth checking here. The file appears beside the executable — `Data Source=quartz.db` is
-relative to the working directory, so give it an absolute path if the process might be started from
-somewhere else.
+the only thing worth checking here. The `IgnoreDuplicates` line is what makes it so: `ScheduleJob`
+declares the job and its trigger on every start, and by default a declaration replaces what the store
+holds — `StartNow()` included — so without that line every restart schedules the trigger afresh and
+the file might as well not be there.
+[Persistent job stores](../packages/microsoft-di-integration.md#persistent-job-stores) on the DI page
+has the two settings and how they relate.
+
+The file appears beside the executable — `Data Source=quartz.db` is relative to the working directory,
+so give it an absolute path if the process might be started from somewhere else.
 
 Two things it will not do. It cannot [cluster](advanced-enterprise-features.md), for the reason in the
 warning above. And it is not a production store for a busy scheduler: SQLite serializes writers, so
