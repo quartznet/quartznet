@@ -615,9 +615,13 @@ public interface IDriverDelegate
     /// <param name="triggerKey">The key identifying the trigger.</param>
     /// <param name="typeLoader">The type loader.</param>
     /// <param name="loadJobType">
-    /// Whether to load the job's actual type. Removal does not need it, and in many cases the type no
-    /// longer exists by then, so removal passes <c>false</c> and gets a job detail carrying only the
-    /// recorded type name.
+    /// Whether to resolve the job's type now, which throws when the class is not in this process.
+    /// <c>false</c> gets a job detail whose <see cref="IJobDetail.JobType" /> is the recorded name,
+    /// resolved lazily by whoever comes to run it. It says nothing about the job's two attribute flags:
+    /// <see cref="IJobDetail.ConcurrentExecutionDisallowed" /> and
+    /// <see cref="IJobDetail.PersistJobDataAfterExecution" /> come from <c>IS_NONCONCURRENT</c> and
+    /// <c>IS_UPDATE_DATA</c> either way, so a caller deciding whether a trigger is blocked does not need
+    /// the class to decide it correctly.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
