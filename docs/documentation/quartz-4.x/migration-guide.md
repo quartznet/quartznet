@@ -5629,6 +5629,93 @@ Two sources are **not** reachable from this query. `CronCalendar` expressions li
 in `QRTZ_CALENDARS` and surface only at deserialization, and expressions built in code or held in
 configuration files never reach the database at all.
 
+### If your expressions came from another cron library
+
+That audit is about Quartz expressions 3.x stored happily, and it will not catch this one. 4.0 also
+*loosened* the day fields: 3.x required `?` in exactly one of day-of-month and day-of-week, and 4.0
+reads `*` and `?` there as synonyms that restrict nothing, taking the union when both name days —
+crontab's rule, and what `cron-expressions.md` has always described.
+
+The consequence is for expressions that came from a six-field .NET dialect derived from crontab, Cronos
+being the common one. On 3.x such an expression **failed to store**: the operator got a job with no
+trigger, which is bad but visible. On 4.0 it stores and fires, and two shapes fire on a different day
+than the library they were written for.
+
+| Expression | Quartz 4.0 | Cronos | |
+|---|---|---|---|
+| `0 0 2 * * MON` | 2026-08-24 02:00 | 2026-08-24 02:00 | same |
+| `0 0 7 * * *` | 2026-08-21 07:00 | 2026-08-21 07:00 | same |
+| `0 30 6 * * MON,TUE,WED,THU,FRI` | 2026-08-21 06:30 | 2026-08-21 06:30 | same |
+| `0 0 2 * * 1` | 2026-08-23 (**Sunday**) | 2026-08-24 (**Monday**) | **differ** |
+| `0 0 2 5 * MON` | 2026-08-24 (the union) | 2026-10-05 (the intersection) | **differ** |
+
+Searching from `2026-08-21T00:00:00Z`. The last two rows are the only ones that matter: Quartz numbers
+the days of the week 1-7 from Sunday and those dialects number them 0-6, so the same digit is a
+different day — in every numeric form, `1` and `1-5` and `*/2` and the `#n` and `L` forms with them, so
+`6#3` is the third Saturday here and the third Friday there; and Quartz fires on the union of the two
+day fields where Cronos fires on their intersection. Writing the day as a **name** — `MON` — settles
+the first, and `?` in one day field settles the second. Five-field expressions are not affected:
+`CronFormat.Unix` renumbers them, and
+[The Unix five-field form](cron-expressions.md#the-unix-five-field-form) is where that is described,
+along with [the same trap for a Spring expression](cron-expressions.md#an-expression-copied-from-spring).
+
+Nothing can warn on a valid expression, so the audit is a second query. It is C# rather than SQL because
+what it does is split a field and look at the characters in it, and six database dialects spell that six
+ways:
+
+<!-- snippet: sample_cron_dialect_audit -->
+```csharp
+// Both shapes below are valid Quartz expressions, so nothing rejects them and nothing logs.
+// What this lists is the expressions worth reading again if they were carried over from a
+// crontab-derived library such as Cronos or NCrontab.
+await using DbCommand command = connection.CreateCommand();
+command.CommandText = "SELECT TRIGGER_NAME, TRIGGER_GROUP, CRON_EXPRESSION FROM QRTZ_CRON_TRIGGERS";
+
+await using DbDataReader reader = await command.ExecuteReaderAsync();
+
+while (await reader.ReadAsync())
+{
+    string name = reader.GetString(0);
+    string group = reader.GetString(1);
+    string expression = reader.GetString(2);
+
+    // A stored expression is always the canonical six-field Quartz form: seconds, minutes,
+    // hours, day-of-month, month, day-of-week, and optionally a year.
+    string[] fields = expression.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries);
+    if (fields.Length < 6)
+    {
+        continue;
+    }
+
+    string dayOfMonth = fields[3];
+    string dayOfWeek = fields[5];
+
+    // Quartz numbers the days 1-7 from Sunday; the other dialects number them 0-6 (Unix: 0-7),
+    // also from Sunday. So a day written as a number names a different day in each, in every
+    // form that carries one: '1', '1-5', '*/2', and the '6#3' and '6L' forms with it.
+    if (IsNumericDay(dayOfWeek))
+    {
+        Console.WriteLine($"{group}.{name}: numeric day-of-week '{dayOfWeek}' — write it as a name");
+    }
+
+    // Quartz fires on the union of the two day fields, as crontab does; Cronos intersects them.
+    if (!IsUnrestricted(dayOfMonth) && !IsUnrestricted(dayOfWeek))
+    {
+        Console.WriteLine($"{group}.{name}: both day fields restricted — this fires on their union");
+    }
+}
+
+// A day named by number rather than by name, whatever decorates it. A letter anywhere says the
+// days were written as names and there is nothing to renumber — except 'L', which is a
+// position rather than a name and shifts with the digit in front of it.
+static bool IsNumericDay(string field)
+    => field.Any(char.IsDigit) && !field.Any(c => char.IsLetter(c) && c != 'L');
+
+// '*' and '?' both mean "this field restricts nothing"; either one leaves the other in charge.
+static bool IsUnrestricted(string field) => field is "*" or "?";
+```
+<!-- endSnippet -->
+
 ## Daylight saving time
 
 Three schedules fire at different times than they did on 3.x. None needs a code change, but all three change
@@ -11583,6 +11670,8 @@ shape changed and only what a mis-stated configuration does is different.
 | rc.1 | A paused **job** group binds what is added to it on the ADO store, as it always did in memory: a trigger stored for a job in a recorded-paused group is born `PAUSED`. A pre-release that paused a job group and then deployed a job into it ran that job | [The two job stores answer the same way](#the-two-job-stores-answer-the-same-way) |
 | rc.1 | The 3.x-to-4.0 migration is **two files**: `schema_30_to_40_upgrade_<database>.sql` is the mandatory half and is safe during a mixed window, and the index set moved out of it into `schema_30_to_40_indexes_<database>.sql`, which is the half that waits for the last 3.x node. Section 6 of the old single file *is* that new file | [Database Schema Migration](#database-schema-migration) |
 | rc.1 | The schema no longer creates `IDX_QRTZ_T_NFT_ST_MISFIRE`, and the 3.x-to-4.0 migration drops it. **Run `schema_30_to_40_indexes_<database>.sql`** — section 6 of the old single file — on a schema built from an earlier pre-release; nothing fails if you do not, the index is only maintained for nothing | [The misfire index is dropped](#the-misfire-index-is-dropped-optional) |
+| rc.2 | The persistent store no longer resolves a job's class on `RescheduleJob` or `UpdateTriggerDetails`, and answers both attribute flags from `IS_NONCONCURRENT` / `IS_UPDATE_DATA` rather than from the type. A process that cannot load its job classes needs no `ITypeLoader` of its own, and no placeholder type | [A job type name is never resolved by the contract types](#a-job-type-name-is-never-resolved-by-the-contract-types) |
+| rc.2 | Documented; nothing changed in the parser. An expression carried over from a crontab-derived .NET library parses on 4.0 where 3.x refused it, and two shapes — a numeric day-of-week, and both day fields restricted — fire on a different day | [If your expressions came from another cron library](#if-your-expressions-came-from-another-cron-library) |
 
 :::
 
