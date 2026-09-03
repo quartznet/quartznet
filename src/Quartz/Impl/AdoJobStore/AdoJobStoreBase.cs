@@ -726,13 +726,15 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// in each other's gaps, and they converge in a round or two.
     /// </para>
     /// <para>
-    /// What it will not do is build on top of a schema somebody else's Quartz already owns. Creating
-    /// is not migrating: against a 3.x database the script would make the one table 3.x never had,
-    /// leave the six columns 3.x never had missing, and hand back a scheduler that starts, reports
-    /// itself provisioned and then fails every acquisition for ever. So a database under this prefix
-    /// that holds some of Quartz's tables and not the rest has nothing created into it, and the
-    /// failure says which migration to run. A cluster cold-starting together reaches that state
-    /// transiently, which is why it is a wait and a re-ask rather than an immediate refusal.
+    /// What it will not do is build on top of a schema 4.x did not create. Creating is not migrating:
+    /// against a 3.x database the script would make the one table 3.x never had, leave the columns 3.x
+    /// never had missing, and hand back a scheduler that starts, reports itself provisioned and then
+    /// fails every acquisition for ever. The question "is this schema mine?" is answered by the
+    /// columns rather than by the tables — a table 4.x created has every column 4.x needs, because a
+    /// table arrives whole, so a table that is present and short of one was made by something else.
+    /// The count of tables cannot answer it: a cluster whose winner died half-way through the script
+    /// leaves exactly the same count as a 3.x database does, and that one is a schema this may and
+    /// must finish.
     /// </para>
     /// <para>
     /// Under the same <c>ExecuteWithoutLock</c> as validation, which takes no lock on any dialect but
@@ -743,7 +745,6 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     {
         Exception? creationFailure = null;
         Exception? validationFailure = null;
-        List<string> missingTables = [];
 
         // Asked before anything is made, because the common case by far is that there is nothing to
         // make: a restart, or a node joining a cluster whose schema is already there. The script is
@@ -763,41 +764,51 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             validationFailure = failure;
         }
 
+        // Whose schema is this? A table that is here and short of a column 4.x needs was made by
+        // something that is not 4.x — a 3.x deployment, in every case that matters — and creating the
+        // tables it has not got would leave a scheduler that starts, says it is provisioned and fires
+        // nothing. Asked once and not retried: a table arrives with its columns, so this answer does
+        // not change while a peer finishes the script.
+        List<string> foreignColumns = await MissingMigratedColumns(cancellationToken).ConfigureAwait(false);
+
+        if (foreignColumns.Count > 0)
+        {
+            throw new SchedulerException(
+                "The schema"
+                + (string.IsNullOrEmpty(TablePrefix) ? "" : $" under table prefix '{TablePrefix}'")
+                + " was not created by Quartz 4.x: it already holds tables Quartz uses, and"
+                + $" {string.Join(", ", foreignColumns)} {(foreignColumns.Count == 1 ? "is" : "are")} not"
+                + " there. Nothing was created — SchemaProvisioning.CreateIfMissing creates a schema and"
+                + " never upgrades one, so making the tables this one is missing would leave a scheduler"
+                + " that starts, reports itself provisioned and then fails every acquisition for ever."
+                + " " + UpgradeAdvice()
+                + " If this is not a Quartz schema at all, point the store at one that is — the table"
+                + " prefix is AdoJobStoreOptions.TablePrefix.",
+                validationFailure);
+        }
+
         for (int attempt = 1; attempt <= SchemaCreationAttempts; attempt++)
         {
-            // Which of Quartz's tables answer decides what this database is. None of them is one with
-            // no Quartz schema, which is the whole of what CreateIfMissing is for. Some of them is a
-            // schema this cannot finish — or a peer that is still creating one, which is the same
-            // sight, and is what the attempts below are for.
-            missingTables = await MissingSchemaTables(cancellationToken).ConfigureAwait(false);
-
-            if (missingTables.Count == AdoConstants.AllTableNames.Length)
+            try
             {
-                try
+                await ExecuteWithoutLock<object?>(async conn =>
                 {
-                    await ExecuteWithoutLock<object?>(async conn =>
-                    {
-                        await Delegate.CreateSchema(conn, cancellationToken).ConfigureAwait(false);
-                        return null;
-                    }, cancellationToken).ConfigureAwait(false);
+                    await Delegate.CreateSchema(conn, cancellationToken).ConfigureAwait(false);
+                    return null;
+                }, cancellationToken).ConfigureAwait(false);
 
-                    Logger.SchemaCreated(TablePrefix);
-                    return;
-                }
-                catch (Exception failure)
-                {
-                    creationFailure = failure;
-                }
+                Logger.SchemaCreated(TablePrefix);
+                return;
             }
-            else
+            catch (Exception failure)
             {
-                Logger.SchemaPartiallyPresent(TablePrefix, AdoConstants.AllTableNames.Length - missingTables.Count, string.Join(", ", missingTables));
+                creationFailure = failure;
             }
 
             try
             {
                 await ExecuteWithoutLock<int>(conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
-                Logger.SchemaCreatedByAnotherNode(TablePrefix, creationFailure ?? validationFailure!);
+                Logger.SchemaCreatedByAnotherNode(TablePrefix, creationFailure);
                 return;
             }
             catch (Exception failure)
@@ -807,27 +818,9 @@ internal abstract partial class AdoJobStoreBase : IJobStore
 
             if (attempt < SchemaCreationAttempts)
             {
-                Logger.SchemaCreationRetrying(TablePrefix, attempt, SchemaCreationAttempts, creationFailure ?? validationFailure!);
+                Logger.SchemaCreationRetrying(TablePrefix, attempt, SchemaCreationAttempts, creationFailure);
                 await Task.Delay(SchemaCreationRetryDelay, timeProvider, cancellationToken).ConfigureAwait(false);
             }
-        }
-
-        if (missingTables.Count < AdoConstants.AllTableNames.Length)
-        {
-            throw new SchedulerException(
-                "The schema"
-                + (string.IsNullOrEmpty(TablePrefix) ? " is" : $" under table prefix '{TablePrefix}' is")
-                + $" partly there — {AdoConstants.AllTableNames.Length - missingTables.Count} of the"
-                + $" {AdoConstants.AllTableNames.Length} tables Quartz needs exist and these do not:"
-                + $" {string.Join(", ", missingTables)}."
-                + " Nothing was created: SchemaProvisioning.CreateIfMissing creates a schema and never"
-                + " upgrades one, so making the missing tables here would leave a scheduler that starts,"
-                + " reports itself provisioned and fires nothing."
-                + " " + UpgradeAdvice()
-                + " If this schema is not Quartz's, point the store at one that is — the table prefix is"
-                + " AdoJobStoreOptions.TablePrefix. Why the schema is still unusable is:"
-                + $" {validationFailure?.Message}",
-                validationFailure);
         }
 
         throw new SchedulerException(
@@ -841,32 +834,66 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     }
 
     /// <summary>
-    /// Which of Quartz's tables are not there, asked one <c>SELECT 1</c> at a time.
+    /// For each column 4.x added to a table 3.x already had: a probe for the table, and a probe for
+    /// the column. Written the way every statement in this store is written — a constant carrying the
+    /// table-prefix placeholder, substituted once and remembered.
     /// </summary>
     /// <remarks>
-    /// The same probe <see cref="IDriverDelegate.ValidateSchema" /> makes, asked for a different
-    /// answer: validation stops at the first table that is missing, because a reader who has to run a
-    /// script does not need the whole list, while the decision above is about how many of them are
-    /// there. Deliberately not on the delegate — a delegate that owns tables of its own validates
-    /// them, and nothing about this decision improves for knowing about those: what it is asking is
-    /// whether a Quartz schema is already here. The statement takes no parameters, so it needs
-    /// nothing the delegate does to a command beyond the connection this unit of work is on.
+    /// <c>WHERE 1 = 0</c> because what is being asked is whether the name resolves, not what is under
+    /// it, and no engine plans a scan to answer that.
     /// </remarks>
-    private async ValueTask<List<string>> MissingSchemaTables(CancellationToken cancellationToken)
+    private static readonly (string Table, string Column, string TableProbe, string ColumnProbe)[] MigratedColumnProbes =
+    [
+        .. AdoConstants.MigratedColumnNames.Select(c =>
+        (
+            c.Table,
+            c.Column,
+            $"SELECT 1 FROM {StdAdoConstants.TablePrefixSubst}{c.Table} WHERE 1 = 0",
+            $"SELECT {c.Column} FROM {StdAdoConstants.TablePrefixSubst}{c.Table} WHERE 1 = 0"
+        ))
+    ];
+
+    /// <summary>
+    /// Which columns 4.x needs are missing from a table that is already there, as
+    /// <c>TABLE.COLUMN</c> pairs. Empty for a database with no Quartz tables at all, and for one whose
+    /// tables 4.x created.
+    /// </summary>
+    /// <remarks>
+    /// A table that is not there is not an answer to this question — that is the ordinary state of a
+    /// database waiting to be provisioned — so a table whose own probe fails is skipped rather than
+    /// counted. Deliberately not on the delegate: a delegate that owns tables of its own validates
+    /// them, and nothing about this decision improves for knowing about those. The statements take no
+    /// parameters, so they need nothing the delegate does to a command beyond the connection this
+    /// unit of work is on.
+    /// </remarks>
+    private async ValueTask<List<string>> MissingMigratedColumns(CancellationToken cancellationToken)
     {
         return await ExecuteWithoutLock(async conn =>
         {
             List<string> missing = [];
 
-            foreach (string tableName in AdoConstants.AllTableNames)
+            foreach ((string table, string column, string tableProbe, string columnProbe) in MigratedColumnProbes)
             {
-                string targetTable = TablePrefix + tableName;
+                if (!await Resolves(conn, tableProbe).ConfigureAwait(false))
+                {
+                    continue;
+                }
 
+                if (!await Resolves(conn, columnProbe).ConfigureAwait(false))
+                {
+                    missing.Add($"{TablePrefix}{table}.{column}");
+                }
+            }
+
+            return missing;
+
+            async Task<bool> Resolves(ConnectionAndTransactionHolder holder, string probe)
+            {
                 try
                 {
-                    using DbCommand command = conn.Connection.CreateCommand();
-                    conn.Attach(command);
-                    command.CommandText = $"SELECT 1 FROM {targetTable}";
+                    using DbCommand command = holder.Connection.CreateCommand();
+                    holder.Attach(command);
+                    command.CommandText = AdoJobStoreUtil.ReplaceTablePrefixCached(probe, TablePrefix);
 
                     if (CommandTimeout.HasValue)
                     {
@@ -874,15 +901,13 @@ internal abstract partial class AdoJobStoreBase : IJobStore
                     }
 
                     await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                    return true;
                 }
                 catch (Exception)
                 {
-                    // Missing, or unreadable for a reason the caller is about to report either way.
-                    missing.Add(targetTable);
+                    return false;
                 }
             }
-
-            return missing;
         }, cancellationToken).ConfigureAwait(false);
     }
 

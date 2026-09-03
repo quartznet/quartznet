@@ -216,8 +216,6 @@
     "Batched statement execution failed, retrying {StatementCount} statement(s) individually"
 3156  Debug  AdoJobStoreLog.SchemaAlreadyComplete
     "Schema under table prefix '{TablePrefix}' is complete with {SchemaObjectCount} objects, so nothing was created"
-3157  Debug  AdoJobStoreLog.SchemaPartiallyPresent
-    "Schema under table prefix '{TablePrefix}' is partly there - {PresentTableCount} tables exist and {MissingTables} do not - so nothing was created"
 3500  Warning  ClusterLog.TransientFailureInCheckIn
     "Transient exception on attempt {Attempt} of {TotalAttempts} of the cluster check-in, will retry after {RetryInterval}"
 3501  Warning  ClusterLog.RecoveredByAnotherInstance

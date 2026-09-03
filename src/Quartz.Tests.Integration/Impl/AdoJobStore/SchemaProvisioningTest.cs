@@ -257,10 +257,11 @@ public class SchemaProvisioningTest
         Func<Task> act = () => StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}");
 
         SchedulerException failure = (await act.Should().ThrowAsync<SchedulerException>(
-                "a schema that is partly there is a 3.x schema or a broken one, and creating the rest "
-                + "of it produces a scheduler that starts and fires nothing")).Which;
+                "a table that is here and short of a column 4.x needs was made by something that is "
+                + "not 4.x, and creating the rest around it produces a scheduler that starts and fires "
+                + "nothing")).Which;
 
-        failure.Message.Should().Contain("partly there")
+        failure.Message.Should().Contain("was not created by Quartz 4.x")
             .And.Contain($"schema_30_to_40_upgrade_{dialect}.sql",
                 "nothing else Quartz says at run time points at database/migrations/, and that is where "
                 + "a reader of this message has to go");
