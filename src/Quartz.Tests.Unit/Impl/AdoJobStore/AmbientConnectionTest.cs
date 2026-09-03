@@ -391,6 +391,123 @@ public sealed class AmbientConnectionTest
         return scheduler.EnlistTransaction(connection.BeginTransaction());
     }
 
+    /// <summary>
+    /// Being inside a <see cref="TransactionScope" /> is not the same as the connection being in it,
+    /// so the connection is asked to join rather than assumed to have joined. On a driver that
+    /// implements enlistment the ask is a no-op when the connection is already enlisted, and the
+    /// enlistment it wanted when it is not.
+    /// </summary>
+    [Test]
+    public void EnlistConnection_AsksTheConnectionToJoinTheAmbientTransaction()
+    {
+        RecordingDbConnection applicationConnection = new RecordingDbConnection();
+
+        using (new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
+        {
+            Transaction ambient = Transaction.Current;
+
+            using (CreateScheduler().EnlistConnection(applicationConnection))
+            {
+                applicationConnection.EnlistedIn.Should().BeSameAs(ambient,
+                    "the enlistment is established before the job store writes anything, which is the only moment "
+                    + "a connection that cannot join can still be refused");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The refusal this exists for. <c>Microsoft.Data.Sqlite</c> overrides no
+    /// <see cref="DbConnection.EnlistTransaction" />, so a connection opened inside a scope never joins
+    /// it: the job store would write through the connection, every statement would commit on the spot,
+    /// and a scope that was never completed would leave the schedule behind. Reported as
+    /// https://github.com/quartznet/quartznet/issues/3666.
+    /// </summary>
+    [Test]
+    public void EnlistConnection_OnADriverThatCannotJoinAnAmbientTransaction_IsRefused()
+    {
+        RecordingDbConnection applicationConnection = new RecordingDbConnection(new NotSupportedException());
+
+        using (new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
+        {
+            Action enlist = () => CreateScheduler().EnlistConnection(applicationConnection);
+
+            enlist.Should().Throw<SchedulerException>(
+                    "writing through a connection the scope does not govern is the silent failure this refusal replaces")
+                .Which.Message.Should().Contain(nameof(RecordingDbConnection), "the failure has to say which driver it is about")
+                .And.Contain("EnlistTransaction(connection.BeginTransaction())", "and what to do instead");
+        }
+    }
+
+    /// <summary>
+    /// Only "there is no such thing here" is a refusal. A driver that answers anything else has an
+    /// enlistment of its own, which is what was being established — and the ordinary answer is "the
+    /// connection is not open", because an enlisted connection is opened by the job store rather than
+    /// at the moment it is enlisted.
+    /// </summary>
+    [Test]
+    public void EnlistConnection_WhenTheDriverHasAnOpinionOtherThanUnsupported_IsAccepted()
+    {
+        RecordingDbConnection applicationConnection = new RecordingDbConnection(new InvalidOperationException("Connection is not open."));
+        TestJobStore jobStore = CreateJobStore(acceptEnlistedTransactions: true, out _);
+
+        using (new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
+        using (CreateScheduler().EnlistConnection(applicationConnection))
+        {
+            ConnectionAndTransactionHolder holder = jobStore.CallGetConnection();
+
+            holder.Connection.Should().BeSameAs(applicationConnection,
+                "refusing here would refuse the ordinary case, where the connection is still closed and joins the "
+                + "scope as the job store opens it");
+        }
+    }
+
+    /// <summary>
+    /// And the probe belongs to the ambient form alone. A caller who hands over a transaction is
+    /// governed by that transaction, and asking a connection with an open local transaction to enlist
+    /// is what MySqlConnector and Oracle refuse outright.
+    /// </summary>
+    [Test]
+    public void EnlistConnection_WithATransactionOfItsOwn_DoesNotAskTheConnectionToJoinTheScope()
+    {
+        RecordingDbConnection applicationConnection = new RecordingDbConnection(new NotSupportedException());
+        applicationConnection.Open();
+        DbTransaction applicationTransaction = applicationConnection.BeginTransaction();
+
+        TestJobStore jobStore = CreateJobStore(acceptEnlistedTransactions: true, out _);
+
+        using (new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
+        using (CreateScheduler().EnlistConnection(applicationConnection, applicationTransaction))
+        {
+            ConnectionAndTransactionHolder holder = jobStore.CallGetConnection();
+
+            holder.Transaction.Should().BeSameAs(applicationTransaction,
+                "the caller's own transaction governs the writes, so the scope has nothing to be joined for");
+        }
+    }
+
+    /// <summary>
+    /// The way out the refusal points at has to keep working on the very driver that is refused: a
+    /// transaction of the connection's own is used directly and needs no enlistment at all, ambient
+    /// scope or no ambient scope.
+    /// </summary>
+    [Test]
+    public void EnlistTransaction_OnADriverThatCannotJoinAnAmbientTransaction_IsStillAccepted()
+    {
+        RecordingDbConnection applicationConnection = new RecordingDbConnection(new NotSupportedException());
+        applicationConnection.Open();
+
+        TestJobStore jobStore = CreateJobStore(acceptEnlistedTransactions: true, out _);
+
+        using (new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
+        using (CreateScheduler().EnlistTransaction(applicationConnection.BeginTransaction()))
+        {
+            ConnectionAndTransactionHolder holder = jobStore.CallGetConnection();
+
+            holder.Connection.Should().BeSameAs(applicationConnection);
+            holder.Transaction.Should().NotBeNull("the caller's own transaction governs the writes, and the scope has no say");
+        }
+    }
+
     private static IScheduler CreateScheduler(string name = SchedulerName)
     {
         IScheduler scheduler = A.Fake<IScheduler>();
@@ -425,6 +542,19 @@ public sealed class AmbientConnectionTest
     private sealed class RecordingDbConnection : DbConnection
     {
         private ConnectionState state = ConnectionState.Closed;
+        private readonly Exception enlistmentFailure;
+
+        /// <param name="enlistmentFailure">
+        /// What this connection's driver answers when asked to join an ambient transaction. The default
+        /// is the answer five of the six drivers Quartz ships a delegate for give when the connection is
+        /// already enlisted in it: nothing at all. <see cref="NotSupportedException" /> is what a driver
+        /// that overrides nothing reaches — <c>Microsoft.Data.Sqlite</c> — and anything else is a driver
+        /// with an implementation and an opinion about this particular connection.
+        /// </param>
+        internal RecordingDbConnection(Exception enlistmentFailure = null)
+        {
+            this.enlistmentFailure = enlistmentFailure;
+        }
 
         internal int OpenCount { get; private set; }
 
@@ -435,6 +565,21 @@ public sealed class AmbientConnectionTest
         /// which is how ADO.NET providers behave unless enlistment is suppressed or switched off.
         /// </summary>
         internal System.Transactions.Transaction EnlistedIn { get; private set; }
+
+        /// <summary>
+        /// Recording the transaction is what a provider does when the connection is not enlisted yet;
+        /// when it is already enlisted in this very transaction they all return without doing anything,
+        /// and so does this.
+        /// </summary>
+        public override void EnlistTransaction(System.Transactions.Transaction transaction)
+        {
+            if (enlistmentFailure != null)
+            {
+                throw enlistmentFailure;
+            }
+
+            EnlistedIn ??= transaction;
+        }
 
         public override string ConnectionString { get; set; } = "";
 
