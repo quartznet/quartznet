@@ -383,7 +383,14 @@ public class JobDetailImpl : IJobDetail
         {
             if (!persistJobDataAfterExecution.HasValue)
             {
-                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(JobType).PersistJobDataAfterExecution;
+                if (jobType == null)
+                {
+                    // Nothing stated and nothing to deduce it from: a detail a driver delegate built
+                    // without resolving the class and without stating the flags.
+                    return false;
+                }
+
+                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(jobType).PersistJobDataAfterExecution;
             }
 
             return persistJobDataAfterExecution.GetValueOrDefault();
@@ -403,11 +410,36 @@ public class JobDetailImpl : IJobDetail
         {
             if (!disallowConcurrentExecution.HasValue)
             {
-                disallowConcurrentExecution = JobTypeInformation.GetOrCreate(JobType).ConcurrentExecutionDisallowed;
+                if (jobType == null)
+                {
+                    // Nothing stated and nothing to deduce it from: a detail a driver delegate built
+                    // without resolving the class and without stating the flags.
+                    return false;
+                }
+
+                disallowConcurrentExecution = JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed;
             }
 
             return disallowConcurrentExecution.GetValueOrDefault();
         }
+    }
+
+    /// <summary>
+    /// States the two attribute flags from what a job store recorded, so that they answer without
+    /// the job's CLR type being loaded.
+    /// </summary>
+    /// <remarks>
+    /// <c>IS_NONCONCURRENT</c> and <c>IS_UPDATE_DATA</c> are the record of what the attributes said
+    /// when the job was stored. A process that cannot load the class — or that substitutes a
+    /// placeholder for it through its <see cref="Spi.ITypeLoadHelper" /> — would otherwise deduce
+    /// them from a type that is not the job's, and store a non-concurrent job's trigger as ready to
+    /// run while the job is running (#3705). Writes the existing fields, so a serialized detail is
+    /// unchanged in shape.
+    /// </remarks>
+    internal void StateAttributeFlags(bool concurrentExecutionDisallowed, bool persistJobDataAfterExecution)
+    {
+        disallowConcurrentExecution = concurrentExecutionDisallowed;
+        this.persistJobDataAfterExecution = persistJobDataAfterExecution;
     }
 
     /// <summary>

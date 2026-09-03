@@ -204,8 +204,19 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectJobExistence =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
+    /// <summary>
+    /// The job a trigger belongs to, as far as the trigger paths need it.
+    /// </summary>
+    /// <remarks>
+    /// <c>IS_NONCONCURRENT</c> and <c>IS_UPDATE_DATA</c> are selected because the two attribute flags
+    /// have to be answerable without the job's CLR type: <c>JobStoreSupport.StoreTrigger</c> decides
+    /// between <c>WAITING</c> and <c>BLOCKED</c> from
+    /// <see cref="IJobDetail.ConcurrentExecutionDisallowed" />, and a detail built without them falls
+    /// back to reading the attribute off the type — which answers <see langword="false" /> in a process
+    /// that cannot load it, or off whatever placeholder its type loader substituted (#3705).
+    /// </remarks>
     public static readonly string SqlSelectJobForTrigger =
-        Invariant($"SELECT J.{ColumnJobName}, J.{ColumnJobGroup}, J.{ColumnIsDurable}, J.{ColumnJobClass}, J.{ColumnRequestsRecovery} FROM {TablePrefixSubst}{TableTriggers} T, {TablePrefixSubst}{TableJobDetails} J WHERE T.{ColumnSchedulerName} = @schedulerName AND T.{ColumnSchedulerName} = J.{ColumnSchedulerName} AND T.{ColumnTriggerName} = @triggerName AND T.{ColumnTriggerGroup} = @triggerGroup AND T.{ColumnJobName} = J.{ColumnJobName} AND T.{ColumnJobGroup} = J.{ColumnJobGroup}");
+        Invariant($"SELECT J.{ColumnJobName}, J.{ColumnJobGroup}, J.{ColumnIsDurable}, J.{ColumnJobClass}, J.{ColumnRequestsRecovery}, J.{ColumnIsNonConcurrent}, J.{ColumnIsUpdateData} FROM {TablePrefixSubst}{TableTriggers} T, {TablePrefixSubst}{TableJobDetails} J WHERE T.{ColumnSchedulerName} = @schedulerName AND T.{ColumnSchedulerName} = J.{ColumnSchedulerName} AND T.{ColumnTriggerName} = @triggerName AND T.{ColumnTriggerGroup} = @triggerGroup AND T.{ColumnJobName} = J.{ColumnJobName} AND T.{ColumnJobGroup} = J.{ColumnJobGroup}");
 
     public static readonly string SqlSelectJobGroups =
         Invariant($"SELECT DISTINCT({ColumnJobGroup}) FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName");
