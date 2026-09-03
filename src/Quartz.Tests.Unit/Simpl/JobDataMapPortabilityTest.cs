@@ -204,8 +204,164 @@ public class JobDataMapPortabilityTest
             .WithMessage("*inner*", "the failure has to say which entry it is about");
     }
 
+    /// <summary>
+    /// The values System.Text.Json refuses to write, because it could never read them back: a JSON
+    /// array, and an object of any shape but the string map the reader produces. Each of these used to
+    /// serialize without complaint and throw on the way out, by which time the blob was in the database
+    /// and the failure belonged to whoever next ran the job (#3495).
+    /// </summary>
+    private static IEnumerable<TestCaseData> UnreadableValues()
+    {
+        yield return Refused("list", new List<string> { "a", "b" }, "System.Collections.Generic.List");
+        yield return Refused("dictionaryOfObject", new Dictionary<string, object> { ["inner"] = 1 }, "System.Collections.Generic.Dictionary");
+        yield return Refused("nested", new JobDataMap { { "inner", "value" } }, "Quartz.JobDataMap");
+
+        // Written as {"Name":"monthly"}, which is byte for byte a string map - and comes back as one,
+        // never as the object that went in. The shape is not what decides; the value's own type is.
+        yield return Refused("object", new ApplicationJobDataValue { Name = "monthly" }, "ApplicationJobDataValue");
+    }
+
+    private static TestCaseData Refused(string key, object value, string expectedTypeName)
+    {
+        return new TestCaseData(key, value, expectedTypeName).SetName("{m}(" + key + ")");
+    }
+
+    [TestCaseSource(nameof(UnreadableValues))]
+    public void AValueTheReaderCannotAcceptIsRefusedOnWrite(string key, object value, string expectedTypeName)
+    {
+        JobDataMap original = new JobDataMap { { key, value } };
+
+        Action write = () => systemTextJsonSerializer.Serialize(original);
+
+        write.Should().Throw<Quartz.JsonSerializationException>(
+                "a value written now and unreadable later is a blob in the database nobody can load, and the write is the last moment anyone can be told")
+            .Which.Message.Should().Contain(key, "the failure has to say which entry it is about")
+            .And.Contain(expectedTypeName, "and what was in it")
+            .And.Contain("CreateSerializerOptions", "and how an application declares a type of its own");
+    }
+
+    /// <summary>
+    /// The values a store has always taken and still takes, none of which is a type the reader names.
+    /// Each is a number or a string in the column, so each comes back - as an <c>int</c>, or as the
+    /// string the accessors coerce - and refusing them over an upgrade would have made a failing
+    /// application out of a working one.
+    /// </summary>
+    private static IEnumerable<TestCaseData> CoercedValues()
+    {
+        yield return Coerced("short", (short) 7, 7);
+        yield return Coerced("byteArray", new byte[] { 1, 2, 3 }, Convert.ToBase64String(new byte[] { 1, 2, 3 }));
+        yield return Coerced("uri", new Uri("https://www.quartz-scheduler.net/"), "https://www.quartz-scheduler.net/");
+        yield return Coerced("enum", DayOfWeek.Friday, (int) DayOfWeek.Friday);
+    }
+
+    private static TestCaseData Coerced(string key, object value, object expected)
+    {
+        return new TestCaseData(key, value, expected).SetName("{m}(" + key + ")");
+    }
+
+    [TestCaseSource(nameof(CoercedValues))]
+    public void AValueTheReaderCoercesSurvivesTheRoundTrip(string key, object value, object expected)
+    {
+        JobDataMap original = new JobDataMap { { key, value } };
+
+        JobDataMap restored = systemTextJsonSerializer.DeSerialize<JobDataMap>(systemTextJsonSerializer.Serialize(original));
+
+        restored[key].Should().Be(expected,
+            "the refusal is of what the reader cannot hand back at all, not of what it hands back as a number or a string");
+    }
+
+    /// <summary>
+    /// Every value the reader hands back as itself, or as something the accessors coerce, is still
+    /// written: the refusal is of what cannot come back, not of what comes back changed.
+    /// </summary>
+    [Test]
+    public void EveryValueTheAccessorsReadIsStillWritten()
+    {
+        JobDataMap original = new JobDataMap
+        {
+            { "string", "text" },
+            { "bool", true },
+            { "char", 'c' },
+            { "int", 1 },
+            { "long", 2L },
+            { "float", 3.5f },
+            { "double", 4.5d },
+            { "decimal", 5.5m },
+            { "dateTime", new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc) },
+            { "dateTimeOffset", new DateTimeOffset(2024, 1, 2, 3, 4, 5, TimeSpan.FromHours(2)) },
+            { "timeSpan", TimeSpan.FromMinutes(90) },
+            { "guid", Guid.NewGuid() },
+            { "enum", DayOfWeek.Friday },
+            { "stringMap", stringMap },
+            { "null", null }
+        };
+
+        Action write = () => systemTextJsonSerializer.Serialize(original);
+
+        write.Should().NotThrow("each of these is a type JobDataMap has an accessor for, or the one object shape the reader produces");
+    }
+
+    /// <summary>
+    /// Refusing on write must not close the door an application is told to use. A type the
+    /// application declares a converter for - by overriding
+    /// <see cref="SystemTextJsonObjectSerializer.CreateSerializerOptions" /> - is written, and reading it
+    /// back gives what the store format gives for any object: a <c>Dictionary&lt;string, string&gt;</c>.
+    /// </summary>
+    [Test]
+    public void ATypeTheApplicationDeclaredIsWrittenAndRead()
+    {
+        JobDataMap original = new JobDataMap { { "report", new ApplicationJobDataValue { Name = "monthly" } } };
+
+        Action withoutDeclaration = () => systemTextJsonSerializer.Serialize(original);
+        withoutDeclaration.Should().Throw<Quartz.JsonSerializationException>(
+            "an application type Quartz has not been told about is exactly the case the refusal exists for");
+
+        DeclaringSerializer declared = new DeclaringSerializer();
+        declared.Initialize();
+
+        JobDataMap restored = declared.DeSerialize<JobDataMap>(declared.Serialize(original));
+
+        restored["report"].Should().BeEquivalentTo(new Dictionary<string, string> { ["Name"] = "monthly" },
+            "declaring a type is what lets it be written; the store format still hands an object back as a string map");
+    }
+
     private IObjectSerializer SerializerNamed(string name)
     {
         return name == "newtonsoft" ? newtonsoftSerializer : systemTextJsonSerializer;
+    }
+
+    /// <summary>A job data value type of the application's own, which no contract of Quartz's can name.</summary>
+    public sealed class ApplicationJobDataValue
+    {
+        public string Name { get; set; }
+    }
+
+    /// <summary>
+    /// The serializer an application configures when it has a job data value type of its own: the
+    /// converter it adds is its declaration that the type can be written.
+    /// </summary>
+    private sealed class DeclaringSerializer : SystemTextJsonObjectSerializer
+    {
+        protected override System.Text.Json.JsonSerializerOptions CreateSerializerOptions()
+        {
+            System.Text.Json.JsonSerializerOptions options = base.CreateSerializerOptions();
+            options.Converters.Add(new ApplicationJobDataValueConverter());
+            return options;
+        }
+    }
+
+    private sealed class ApplicationJobDataValueConverter : System.Text.Json.Serialization.JsonConverter<ApplicationJobDataValue>
+    {
+        public override ApplicationJobDataValue Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+        {
+            throw new NotSupportedException("the store format reads an object back as a string map, never as the type that went in");
+        }
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, ApplicationJobDataValue value, System.Text.Json.JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("Name", value.Name);
+            writer.WriteEndObject();
+        }
     }
 }
