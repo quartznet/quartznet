@@ -74,10 +74,11 @@ public enum SchemaProvisioning
     /// a later release is left exactly as it is.
     /// </para>
     /// <para>
-    /// Which is why it creates only into a prefix that holds <em>no</em> Quartz table. A schema that
-    /// is partly there is a 3.x schema or a broken one, and building the rest on top of either makes
-    /// a scheduler that starts, reports itself provisioned and fires nothing; so that database is
-    /// refused, nothing is created, and the failure names the migration to run.
+    /// Which is why it refuses a schema 4.x did not create rather than building around it: if a table
+    /// it needs is already there and short of a column it needs, that table was made by something
+    /// else — a 3.x deployment, in every case that matters — and creating the rest would make a
+    /// scheduler that starts, reports itself provisioned and then fires nothing. Nothing is created,
+    /// and the failure names the migration to run.
     /// </para>
     /// <para>
     /// Not the default, because creating tables needs DDL permission and a production database is
@@ -85,9 +86,9 @@ public enum SchemaProvisioning
     /// starts with an empty volume, or a desktop application with a SQLite file wants.
     /// </para>
     /// <para>
-    /// Safe on several nodes starting at once: whichever loses the race sees its create fail — or
-    /// finds the winner's half-made schema and waits — and then finds the schema another node
-    /// created, and carries on.
+    /// Safe on several nodes starting at once: whichever loses the race sees its create fail, finds
+    /// the schema another node created, and carries on — and a schema a node left half-made is one
+    /// the next node finishes, since every table in it is 4.x's own.
     /// </para>
     /// </remarks>
     CreateIfMissing = 2,

@@ -1575,10 +1575,10 @@ public interface IDriverDelegate
     /// <para>
     /// It is not a migration. A schema that has every table but is missing a column a later release
     /// added is left exactly as it is; upgrading a schema is what <c>database/migrations/</c> is for.
-    /// The store will not call this against a schema that is partly there for that reason — creating
-    /// the tables a 3.x schema is missing would leave one that starts and fires nothing — so a
-    /// delegate's script only ever meets a database with no Quartz tables under the prefix, or one it
-    /// has nothing to do to.
+    /// For that reason the store will not call this at all against a schema 4.x did not create —
+    /// creating the tables a 3.x schema is missing would leave one that starts and fires nothing — so
+    /// a delegate's script only ever meets a database whose Quartz tables, if it has any, this
+    /// version made.
     /// </para>
     /// <para>
     /// A delegate that has no script for its database throws rather than pretending to have created

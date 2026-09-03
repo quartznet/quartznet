@@ -44,8 +44,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// the remedy it recommended, <c>ProvisionSchema()</c>, made the table, reported the schema validated,
 /// started the scheduler, and then failed every acquisition and every misfire pass for ever on
 /// <c>RETRY_POLICY</c>. Nothing fired, the log said "Successfully validated", and the process exited
-/// zero. So: the columns are probed too, provisioning refuses a schema that is partly there instead of
-/// building on top of it, and both messages name the migration script rather than the two things that
+/// zero. So: the columns are probed too, provisioning refuses a schema 4.x did not create instead of
+/// building around it, and both messages name the migration script rather than the two things that
 /// make the database worse.
 /// </para>
 /// </remarks>
@@ -138,8 +138,15 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     }
 
     /// <summary>
-    /// Provisioning does not build on top of a schema that is partly there.
+    /// Provisioning does not build on top of a schema 4.x did not create.
     /// </summary>
+    /// <remarks>
+    /// The tell is a column, not a table count: a table 4.x created has every column 4.x needs,
+    /// because a table arrives whole, so <c>QRTZ_TRIGGERS</c> without <c>RETRY_POLICY</c> is a table
+    /// something else made. Counting tables cannot say it — a cluster whose winner died half-way
+    /// through the create script leaves the same count, and that schema is one provisioning may and
+    /// must finish.
+    /// </remarks>
     [Test]
     public async Task ProvisioningA3xSchemaCreatesNothingAndSaysWhy()
     {
@@ -147,15 +154,47 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
 
         SchedulerException failure = await StartAndCatch(nameof(ProvisioningA3xSchemaCreatesNothingAndSaysWhy), provision: true);
 
-        failure.Message.Should().Contain("partly there")
-            .And.Contain("QRTZ_PAUSED_JOB_GRPS", "the missing tables are named, since they are what makes it partly there")
+        failure.Message.Should().Contain("was not created by Quartz 4.x")
+            .And.Contain($"QRTZ_TRIGGERS.{AdoConstants.ColumnRetryPolicy}",
+                "the column that says whose schema this is gets named, since it is the evidence")
             .And.Contain("Nothing was created")
             .And.Contain("database/migrations/4.0/schema_30_to_40_upgrade_sqlite.sql");
 
         TableExists("QRTZ_PAUSED_JOB_GRPS").Should().BeFalse(
             "creating the one table a 3.x schema is missing is what produced a scheduler that started, "
-            + "logged itself validated and then fired nothing — so a schema that is partly there is one "
-            + "CreateIfMissing leaves exactly as it found it");
+            + "logged itself validated and then fired nothing — so a 3.x schema is one CreateIfMissing "
+            + "leaves exactly as it found it");
+    }
+
+    /// <summary>
+    /// The other half of that rule: a schema whose tables 4.x did create is one provisioning finishes.
+    /// </summary>
+    /// <remarks>
+    /// This is a cluster cold-start, in miniature: a node whose create died part-way leaves tables
+    /// that are 4.x-shaped and tables that are not there at all, and the next node has to fill the
+    /// gaps rather than refuse — which is what <c>SchemaProvisioningTest</c>'s race case asserts
+    /// against a real database of each dialect, Firebird included, where it is the ordinary outcome.
+    /// </remarks>
+    [Test]
+    public async Task ProvisioningFinishesASchemaItsOwnCreateLeftHalfMade()
+    {
+        await using (ServiceProvider first = BuildProvisioningContainer(nameof(ProvisioningFinishesASchemaItsOwnCreateLeftHalfMade)))
+        {
+            IScheduler scheduler = await first.GetRequiredService<ISchedulerFactory>().GetScheduler();
+            await scheduler.Shutdown();
+        }
+
+        // What a create that died at the last statement leaves behind.
+        Execute("DROP TABLE QRTZ_LOCKS");
+
+        Func<Task> act = async () => await (await GetScheduler(
+            nameof(ProvisioningFinishesASchemaItsOwnCreateLeftHalfMade) + "_second", provision: true)).Shutdown();
+
+        await act.Should().NotThrowAsync(
+            "the tables that are there are 4.x's own, so this schema is one provisioning may finish — "
+            + "refusing it would strand every cluster whose first node died mid-script");
+
+        TableExists("QRTZ_LOCKS").Should().BeTrue();
     }
 
     /// <summary>
@@ -318,5 +357,30 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
 
         container = services.BuildServiceProvider();
         return await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+    }
+
+    /// <summary>
+    /// A container of its own, so a case can build one scheduler, dispose everything it owns, and then
+    /// build a second against the same file — which is what two nodes of a cluster are here.
+    /// </summary>
+    private ServiceProvider BuildProvisioningContainer(string schedulerName)
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(q =>
+        {
+            q.ConfigureScheduler(options =>
+            {
+                options.InstanceName = schedulerName;
+                options.InstanceId = "one";
+            });
+
+            q.UsePersistentStore(store =>
+            {
+                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.ProvisionSchema();
+            });
+        });
+
+        return services.BuildServiceProvider();
     }
 }
