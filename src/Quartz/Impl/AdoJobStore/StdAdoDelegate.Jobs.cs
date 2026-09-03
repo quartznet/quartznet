@@ -236,6 +236,14 @@ public partial class StdAdoDelegate
 
             job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
 
+            // Stated from the row rather than deduced from the type, whatever loadJobType says, for
+            // the reason SelectJobDetail states them: the columns are the record of what the
+            // attributes said when the job was stored, and a process that cannot load the class
+            // would otherwise be told a non-concurrent job allows concurrency (#3705).
+            job.StateAttributeFlags(
+                concurrentExecutionDisallowed: GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]),
+                persistJobDataAfterExecution: GetBooleanFromDbValue(rs[ColumnIsUpdateData]));
+
             return job;
         }
 

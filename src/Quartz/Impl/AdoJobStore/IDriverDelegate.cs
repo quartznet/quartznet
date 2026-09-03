@@ -535,9 +535,22 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select the job to which the trigger is associated. Allow option to load actual job class or not. When case of
-    /// remove, we do not need to load the type, which in many cases, it's no longer exists.
+    /// Select the job to which the trigger is associated. Allow option to load actual job class or not.
     /// </summary>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="triggerKey">The key identifying the trigger.</param>
+    /// <param name="loadHelper">The type load helper.</param>
+    /// <param name="loadJobType">
+    /// Whether to resolve the job's type now, which throws when the class is not in this process.
+    /// <c>false</c> gets a job detail with no <see cref="IJobDetail.JobType" /> at all, which removal
+    /// passes because the type often no longer exists by then, and which the trigger edits pass because
+    /// an administration node without the job's assembly must be able to make them. It says nothing
+    /// about the job's two attribute flags: <see cref="IJobDetail.ConcurrentExecutionDisallowed" />
+    /// and <see cref="IJobDetail.PersistJobDataAfterExecution" /> come from <c>IS_NONCONCURRENT</c> and
+    /// <c>IS_UPDATE_DATA</c> either way, so a caller deciding whether a trigger is blocked does not need
+    /// the class to decide it correctly (#3705).
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     Task<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         ITypeLoadHelper loadHelper,
