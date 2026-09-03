@@ -26,24 +26,39 @@ namespace Quartz.Impl.AdoJobStore;
 internal abstract partial class AdoJobStoreBase
 {
     /// <summary>
-    /// Folds the paused state of a trigger's group into the state about to be stored for it.
+    /// Folds the paused state of the groups a trigger belongs to — its own, and its job's — into the
+    /// state about to be stored for it.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Three things can pause a trigger that is being stored, and all three are asked about here: the
+    /// trigger's own group, the all-groups marker <c>PauseAll</c> writes, and the group the
+    /// trigger's job is in. The last of those is what makes
+    /// <see cref="IScheduler.PauseJobGroups" />' promise true — a pause recorded against a job group
+    /// is imposed on the jobs added to it afterwards, which is the whole reason an equality matcher
+    /// pauses a group that holds nothing yet.
+    /// </para>
+    /// <para>
     /// A group that is paused only because everything is paused has no row of its own until something
     /// stores a trigger into it, so the wildcard is materialized into an explicit row here — otherwise
-    /// resuming that one group later would have nothing to remove.
+    /// resuming that one group later would have nothing to remove. A job-group pause materializes
+    /// nothing: it is recorded where it was made, and writing a trigger-group row for it would leave
+    /// the trigger group paused after the job group was resumed.
+    /// </para>
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="triggerGroup">The group the trigger belongs to.</param>
+    /// <param name="jobGroup">The group the trigger's job belongs to.</param>
     /// <param name="state">The state the caller intends to store.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
-    /// <see cref="StoredTriggerState.Paused" /> when the group is paused and the intended state is one
-    /// a pause supersedes, and the intended state otherwise.
+    /// <see cref="StoredTriggerState.Paused" /> when one of those groups is paused and the intended
+    /// state is one a pause supersedes, and the intended state otherwise.
     /// </returns>
-    private async ValueTask<StoredTriggerState> ApplyPausedTriggerGroupState(
+    private async ValueTask<StoredTriggerState> ApplyPausedGroupState(
         ConnectionAndTransactionHolder conn,
         string triggerGroup,
+        string jobGroup,
         StoredTriggerState state,
         CancellationToken cancellationToken)
     {
@@ -56,6 +71,10 @@ internal abstract partial class AdoJobStoreBase
             if (shouldBePaused)
             {
                 await Delegate.InsertPausedTriggerGroup(conn, triggerGroup, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                shouldBePaused = await Delegate.IsJobGroupPaused(conn, jobGroup, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -383,11 +402,18 @@ internal abstract partial class AdoJobStoreBase
     /// group - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Each matched group is recorded in PAUSED_JOB_GRPS, so the pause outlives the process, reaches
-    /// the other nodes of a cluster and can be listed. Recording it does not make it retroactive: the
-    /// triggers paused are the ones the jobs in the group have now, and a job added to the group
-    /// afterwards is not paused by this call. Pause by trigger group where the pause has to reach what
-    /// is scheduled next.
+    /// the other nodes of a cluster, can be listed — and binds what is added to the group next: a
+    /// trigger stored for a job in a recorded group is born PAUSED, which
+    /// <see cref="ApplyPausedGroupState" /> is what does. That is why an equality matcher records a
+    /// group holding no job at all; a pattern is not a group, so only the groups it matched are.
+    /// </para>
+    /// <para>
+    /// <c>RAMJobStore</c> keeps one refinement this store does not: a job resumed individually inside
+    /// a still-paused group stays resumed there, where here resuming one job's triggers leaves the
+    /// group's pause to be imposed on them again the next time they are stored.
+    /// </para>
     /// </remarks>
     /// <seealso cref="ResumeJobGroups" />
     public ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)

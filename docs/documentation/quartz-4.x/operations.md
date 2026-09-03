@@ -175,6 +175,12 @@ cleared — by a 3.x node leaves its row behind, so the 4.0 node goes on calling
 triggers are running, and goes on doing so indefinitely. Pause and resume from the same version, and
 reconcile the table when the rollout is done.
 
+The row is not only a record on a 4.0 node: it binds what is added to the group. A trigger a **4.0**
+node stores for a job in a recorded-paused group is born `PAUSED`, and one a **3.x** node stores for
+the same job is born `WAITING`, because 3.x does not read that table. So during the window a job group's
+pause reaches what is scheduled into it only when the node scheduling it is a 4.0 one — one more reason
+to keep the pause, the resume and the scheduling on the same version until the rollout is done.
+
 **What has not been established.** Nothing in this repository tests two versions against one schema, and
 no release is validated for it; the findings above come from reading both branches, not from running
 them together. Java Quartz's documentation says nothing about version mixing either, so there is no
