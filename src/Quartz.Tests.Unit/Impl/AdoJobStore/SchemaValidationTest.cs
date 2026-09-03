@@ -155,6 +155,59 @@ public sealed class SchemaValidationTest
         MessagesOf(failure).Should().ContainMatch($"*QRTZ_{table}*",
             "the message names the table that is missing, since the reader's next move is to run the "
             + "migration or the fresh-install script that creates it");
+
+        failure.Message.Should().Contain("database/migrations/4.0/schema_30_to_40_upgrade_sqlite.sql",
+            "far more readers of this message are upgrading from 3.x than are installing fresh, and "
+            + "nothing else Quartz says at run time points at database/migrations/ at all");
+    }
+
+    /// <summary>
+    /// The scripts the message sends a reader to are named for the database in front of them, and the
+    /// SQL Server one carries a warning of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>database/tables/tables_sqlServer.sql</c> begins <c>USE [enter_db_name_here];</c> and answers
+    /// <c>Msg 911</c> as it ships. The reader who most needs to know that is the one this message sent
+    /// there, and the placeholder appeared in no page and in no message until the rc.1 rehearsal ran
+    /// the script it was told to run.
+    /// </para>
+    /// <para>
+    /// The connection goes nowhere on purpose: what is under test is which file the message names,
+    /// which the store decides from the driver delegate rather than from anything it reads. Port 1 is
+    /// closed, and a one-second connect timeout keeps the case as quick as the rest of them.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task TheMessageNamesTheScriptForTheDatabaseInFrontOfIt()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(q =>
+        {
+            q.ConfigureScheduler(options =>
+            {
+                options.InstanceName = nameof(TheMessageNamesTheScriptForTheDatabaseInFrontOfIt);
+                options.InstanceId = "one";
+            });
+
+            q.UsePersistentStore(store =>
+                store.UseSqlServer("Server=127.0.0.1,1;Database=quartz;Connect Timeout=1;Encrypt=False"));
+        });
+
+        container = services.BuildServiceProvider();
+
+        Func<Task> act = async () => await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        SchedulerException failure = (await act.Should().ThrowAsync<SchedulerException>(
+                "a store that cannot read its schema has to refuse to start whatever the reason"))
+            .WithMessage("*schema validation failed*")
+            .Which;
+
+        failure.Message.Should().Contain("database/tables/tables_sqlServer.sql")
+            .And.Contain("database/migrations/4.0/schema_30_to_40_upgrade_sqlServer.sql")
+            .And.Contain("USE [enter_db_name_here];",
+                "the first statement of that script fails as it ships, and this message is what sent "
+                + "the reader to it");
     }
 
     /// <summary>
