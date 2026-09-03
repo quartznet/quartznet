@@ -810,7 +810,7 @@ did: nothing `ACQUIRED` or `BLOCKED`, `QRTZ_FIRED_TRIGGERS` empty, no unexpected
 unobserved task exception, and a live heap of 4–5 MB behind 619–640 handles from the first minute to
 the thirtieth.
 
-**SQL Server was then run on the tagged commit itself** — 30 minutes on `97505ecce`, on 2026-09-03 —
+**SQL Server was then run on the rc.1 commit** — 30 minutes on `97505ecce`, on 2026-09-03 —
 because this is the dialect whose schema moved: rc.1 drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, so the run
 provisioned a `tables_sqlServer.sql` the beta.1 run never saw, and the build under it also carries
 the rc.1 store changes — the paused-job-group probe every trigger store now makes, and the
@@ -823,7 +823,15 @@ replaying the killed node's one interrupted firing in the same second as the kil
 others did: nothing `ACQUIRED` or `BLOCKED`, `QRTZ_FIRED_TRIGGERS` empty and the killed node's
 `EXECUTING` row gone with it, no unexpected scheduler error, no unobserved task exception, and a live
 heap of 4–5 MB behind 706–756 handles across all thirty samples. No tolerance was widened for either
-run; the fixture is the one in the tag.
+run; the fixture's assertions are the ones the release carries.
+
+4.0.0 is a later commit than `97505ecce`, and two commits have touched `Quartz` in between. The store's
+share of them is one statement: `SelectJobForTrigger` now selects `IS_NONCONCURRENT` and
+`IS_UPDATE_DATA`, so that a process without the job's class still reads the job's attribute flags
+(#3705). Rescheduling, editing and deleting a trigger are what reach it, and the soak's workload does
+none of the three — it schedules its triggers once and then runs. The other commit is
+`QuartzHostedService`'s stop path, which the fixture never enters, because it builds each node from
+`QuartzSchedulerBuilder` rather than from a host. The figures above therefore stand for the release.
 
 The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`; it is opt-in
 (`[Category("LongRunning")]`, `QUARTZ_SOAK_MINUTES`) and is run before a tag rather than in CI.
