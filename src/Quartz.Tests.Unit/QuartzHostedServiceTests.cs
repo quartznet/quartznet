@@ -741,6 +741,139 @@ public class QuartzHostedServiceTests
     }
 
     /// <summary>
+    /// Two stops that overlap are one stop: the second joins the first rather than shutting the same
+    /// schedulers down a second time.
+    /// </summary>
+    /// <remarks>
+    /// The second call arrives while the first is still inside a scheduler's shutdown, which is exactly
+    /// where the generic host puts it — see
+    /// <see cref="StopAsyncWhileRunAsyncIsPending_LeavesTheHostStoppingCleanly" />. Before this was
+    /// serialized, the second call read the list the first had not finished with.
+    /// </remarks>
+    [Test]
+    public async Task StopAsync_CalledConcurrently_ShutsEachSchedulerDownExactlyOnce()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        IScheduler scheduler = SchedulerBlockedInShutdown(entered, release.Task);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(FactoryFor(scheduler));
+
+        await using var provider = services.BuildServiceProvider();
+
+        var hostedService = new SchedulerReadingHostedService(
+            new MockApplicationLifetime(),
+            provider,
+            new StaticOptionsMonitor(new QuartzHostedServiceOptions { AwaitApplicationStarted = false }));
+
+        await hostedService.StartAsync(CancellationToken.None);
+
+        Task first = hostedService.StopAsync(CancellationToken.None);
+
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Task second = hostedService.StopAsync(CancellationToken.None);
+
+        release.TrySetResult();
+
+        Func<Task> act = async () => await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10));
+
+        await act.Should().NotThrowAsync(
+            "a second stop that overlaps the first observes the same outcome rather than walking a list "
+            + "the first is still holding");
+
+        // Shutting the same scheduler down twice is what the second stop must not do.
+        A.CallTo(() => scheduler.Shutdown(A<bool>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+
+        hostedService.RunningSchedulers.Should().BeEmpty(
+            "the schedulers were let go of, so nothing is left bound to the repository");
+
+        await hostedService.StopAsync(CancellationToken.None);
+
+        // A stop after the stop has finished is still the same stop, and it calls nothing.
+        A.CallTo(() => scheduler.Shutdown(A<bool>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// The generic host's own double stop, which is what #3701 reported.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>host.StopAsync()</c> while <c>host.RunAsync()</c> is pending raises <c>ApplicationStopping</c>,
+    /// <c>WaitForShutdownAsync</c> wakes on it and calls <c>StopAsync</c> again, and both reach every
+    /// hosted service at once. Twenty hosts, because the race is a race: it reproduced six runs in eight
+    /// on rc.1.
+    /// </para>
+    /// <para>
+    /// <see cref="Host.CreateEmptyApplicationBuilder" /> rather than <c>CreateApplicationBuilder</c>, so
+    /// that the machine's environment variables and the test directory's <c>appsettings.json</c> cannot
+    /// reach this, and a lifetime of its own rather than the console one it would otherwise register,
+    /// which hooks Ctrl+C on the whole test process.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task StopAsyncWhileRunAsyncIsPending_LeavesTheHostStoppingCleanly()
+    {
+        for (int iteration = 0; iteration < 20; iteration++)
+        {
+            HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
+            builder.Services.AddSingleton<IHostLifetime, SilentHostLifetime>();
+            builder.Services.AddQuartz(q => q.ConfigureScheduler(
+                options => options.InstanceName = $"stop-race-{iteration}"));
+            builder.Services.AddQuartzHostedService();
+
+            using IHost host = builder.Build();
+
+            IScheduler scheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+            Task run = host.RunAsync();
+
+            Func<Task> act = async () =>
+            {
+                await host.StopAsync();
+                await run;
+            };
+
+            await act.Should().NotThrowAsync(
+                $"iteration {iteration}: stopping the host while its run is pending stops it twice at once, and "
+                + "the schedulers are shut down by whichever stop gets there first");
+
+            scheduler.Status.Should().Be(
+                SchedulerStatus.Shutdown,
+                $"iteration {iteration}: an orderly stop shuts the scheduler down however many stops raced");
+        }
+    }
+
+    /// <summary>
+    /// A host lifetime that neither waits for anything nor installs a console handler.
+    /// </summary>
+    private sealed class SilentHostLifetime : IHostLifetime
+    {
+        public Task WaitForStartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The hosted service with its snapshot of running schedulers made readable, which is what says
+    /// whether a stop actually let go of them.
+    /// </summary>
+    private sealed class SchedulerReadingHostedService : QuartzHostedService
+    {
+        public SchedulerReadingHostedService(
+            Lifetime applicationLifetime,
+            IServiceProvider serviceProvider,
+            IOptionsMonitor<QuartzHostedServiceOptions> options)
+            : base(applicationLifetime, serviceProvider, options)
+        {
+        }
+
+        public IReadOnlyList<IScheduler> RunningSchedulers => Schedulers;
+    }
+
+    /// <summary>
     /// A scheduler whose shutdown does not return until the test lets it, so that two of them overlapping
     /// is observable.
     /// </summary>

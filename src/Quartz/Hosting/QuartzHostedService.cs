@@ -41,7 +41,9 @@ public class QuartzHostedService : IHostedLifecycleService
     private readonly Lifetime applicationLifetime;
     private readonly IServiceProvider serviceProvider;
     private readonly IOptionsMonitor<QuartzHostedServiceOptions> options;
-    private readonly List<HostedScheduler> schedulers = [];
+    private List<HostedScheduler> schedulers = [];
+    private readonly Lock stopGate = new();
+    private Task? stopTask;
     internal Task? startupTask;
 
     /// <summary>
@@ -71,7 +73,7 @@ public class QuartzHostedService : IHostedLifecycleService
     /// them down, which makes <see cref="StartedAsync"/> and <see cref="StoppingAsync"/> the two hooks it
     /// is worth reading from.
     /// </remarks>
-    protected IReadOnlyList<IScheduler> Schedulers => schedulers.ConvertAll(static hosted => hosted.Scheduler);
+    protected IReadOnlyList<IScheduler> Schedulers => Volatile.Read(ref schedulers).ConvertAll(static hosted => hosted.Scheduler);
 
     /// <summary>
     /// Runs before any scheduler has been resolved. Does nothing; override it to do something.
@@ -247,13 +249,39 @@ public class QuartzHostedService : IHostedLifecycleService
     /// the repository.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Not overridable, for the reason <see cref="StartAsync" /> is not.
+    /// </para>
+    /// <para>
+    /// Safe to call more than once, and safe to call concurrently, because the generic host does both:
+    /// <c>StopAsync</c> while <c>RunAsync</c> is pending raises <c>ApplicationStopping</c>,
+    /// <c>WaitForShutdownAsync</c> wakes on it and stops the host again, and the two stops reach every
+    /// hosted service at once. Every call after the first joins the stop already under way and observes
+    /// its outcome — the same completion, and the same failure if a shutdown threw.
+    /// </para>
     /// </remarks>
     /// <param name="cancellationToken">The host's shutdown token.</param>
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        Task stop;
+        lock (stopGate)
+        {
+            // The second caller's token is deliberately ignored: there is one stop, it runs under the
+            // token of whichever call started it, and a later call waits for that rather than starting
+            // a second shutdown of schedulers the first one is already tearing down.
+            stop = stopTask ??= StopCore(cancellationToken);
+        }
+
+        return stop;
+    }
+
+    /// <summary>
+    /// The stop itself, run exactly once however many callers ask for it.
+    /// </summary>
+    private async Task StopCore(CancellationToken cancellationToken)
     {
         // Stopped without having been started
-        if (schedulers.Count == 0)
+        if (Volatile.Read(ref schedulers).Count == 0)
         {
             return;
         }
@@ -286,19 +314,28 @@ public class QuartzHostedService : IHostedLifecycleService
     /// Shuts every scheduler down, reporting all the failures rather than the first one.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The shutdowns run concurrently, because the host's shutdown budget is one deadline for all of
     /// them rather than one each: shutting down in turn made the host's stop time the sum of the waits
     /// for running jobs, which is what overran <c>HostOptions.ShutdownTimeout</c> with more than
     /// one scheduler registered. Each scheduler owns its own thread pool, job store and scheduler
     /// thread, so there is nothing for them to serialize behind.
+    /// </para>
+    /// <para>
+    /// The list is taken rather than walked in place: emptying it afterwards meant a caller was
+    /// enumerating a list somebody else was clearing, which is the
+    /// <see cref="InvalidOperationException" /> #3701 reported out of <c>RunAsync</c>.
+    /// </para>
     /// </remarks>
     private async ValueTask ShutdownSchedulers(CancellationToken cancellationToken)
     {
+        List<HostedScheduler> toShutDown = Interlocked.Exchange(ref schedulers, []);
+
         // Every shutdown is started before any of them is awaited, so that the waits for running jobs
         // overlap. A scheduler that throws before it yields is captured rather than left to abandon the
         // schedulers after it in the list.
-        List<Task> shutdowns = new List<Task>(schedulers.Count);
-        foreach (HostedScheduler hosted in schedulers)
+        List<Task> shutdowns = new List<Task>(toShutDown.Count);
+        foreach (HostedScheduler hosted in toShutDown)
         {
             try
             {
@@ -323,8 +360,6 @@ public class QuartzHostedService : IHostedLifecycleService
                 exceptions.Add(e);
             }
         }
-
-        schedulers.Clear();
 
         if (exceptions is { Count: > 0 })
         {
