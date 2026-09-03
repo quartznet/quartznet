@@ -119,13 +119,25 @@ trigger that does not exist. The stored states map onto it: `WAITING` and `ACQUI
 
 ### Indexes, and the acquisition index in particular
 
-Four indexes ship on `QRTZ_TRIGGERS`, five on SQL Server, MySQL, Oracle and Firebird. Three are lookups
-by key — `(SCHED_NAME, JOB_NAME, JOB_GROUP)`, `(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` and
-`(SCHED_NAME, CALENDAR_NAME)`. The fifth is `IDX_QRTZ_T_NFT_ST_MISFIRE`, which PostgreSQL and SQLite
-omit; it was the misfire sweep's index, and since the fourth was reshaped it is the fourth the sweep
-reads on every engine (measured — [#3608](https://github.com/quartznet/quartznet/issues/3608)).
+Four indexes ship on `QRTZ_TRIGGERS`, the same four on every dialect. Three are lookups by key —
+`(SCHED_NAME, JOB_NAME, JOB_GROUP)`, `(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` and
+`(SCHED_NAME, CALENDAR_NAME)`. The fourth is the one **both** trigger sweeps read: acquisition, and
+misfire recovery with the counting peek that precedes it.
 
-That fourth one is `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on, and it is the only index in the
+There used to be a fifth on SQL Server, MySQL, Oracle and Firebird — `IDX_QRTZ_T_NFT_ST_MISFIRE`, over
+`(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)`, which PostgreSQL and SQLite never had.
+4.0 drops it ([#3656](https://github.com/quartznet/quartznet/issues/3656)). It led with
+`MISFIRE_INSTR`, the column both misfire statements compare with `<> -1` and no B-tree can seek past,
+while those statements filter `SCHED_NAME` and `TRIGGER_STATE` by equality and `NEXT_FIRE_TIME` by
+range — exactly what the fourth index leads with since it was reshaped. Measured plan by plan on all
+four engines ([#3608](https://github.com/quartznet/quartznet/issues/3608),
+[#3656](https://github.com/quartznet/quartznet/issues/3656)), no optimizer picks it for either misfire
+statement; MySQL only appeared to, because `MySQLDelegate` forced it by name, and that hint now points
+at the acquisition index. It was write cost with no reader. Upgrading from 3.x drops it in section 6 of
+`schema_30_to_40_upgrade_<dialect>.sql`, which waits for the last 3.x node to shut down — 3.x *does*
+sweep from it.
+
+That fourth one is `IDX_QRTZ_T_NFT_ST`, the index both sweeps run on, and it is the only index in the
 schema whose shape differs by dialect:
 
 ```sql

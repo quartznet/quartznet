@@ -126,10 +126,12 @@ double-check that avoids paying for the lock when there is nothing to do. That c
 `WHERE SCHED_NAME = ? AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= ? AND TRIGGER_STATE = ?`, which the
 4.x acquisition index `IDX_QRTZ_T_NFT_ST` on
 `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` serves: two equalities,
-a range, and `MISFIRE_INSTR` in the index so the `<> -1` never leaves it. `IDX_QRTZ_T_NFT_ST_MISFIRE`
-leads with `MISFIRE_INSTR`, which is the column compared with `<>`, so it cannot seek past it — measured,
-it is not the index any engine's optimizer picks here
-([#3608](https://github.com/quartznet/quartznet/issues/3608)). A schema that predates the
+a range, and `MISFIRE_INSTR` in the index so the `<> -1` never leaves it. There was a second index for
+this on four dialects, `IDX_QRTZ_T_NFT_ST_MISFIRE`, and 4.0 drops it
+([#3656](https://github.com/quartznet/quartznet/issues/3656)): it led with `MISFIRE_INSTR`, the column
+compared with `<>`, so it could not seek past it — measured on every engine that had it, it is not the
+index any optimizer picks here ([#3608](https://github.com/quartznet/quartznet/issues/3608)). 3.x still
+ships it and still sweeps from it. A schema that predates the
 [3.20 index migration](database/schema-changes.md#version-3-20) has a different index shape, and on a
 large `QRTZ_TRIGGERS` this query is where a slow database first shows.
 

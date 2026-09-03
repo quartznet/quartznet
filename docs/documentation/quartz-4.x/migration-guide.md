@@ -314,9 +314,11 @@ that moved is an alias you declare, in
 [Replacing the nodes](operations.md#replacing-the-nodes).
 
 **7. Run the index sections, once the last 3.x node is gone.** They are the optional half of the same
-script: [Listing indexes](#listing-indexes-optional) and
-[the reshaped acquisition index](#the-acquisition-index-is-reshaped-optional). They are deferred because
-they drop indexes a 3.x node's statements may still be driving scans from.
+script — section 6, top to bottom: [Listing indexes](#listing-indexes-optional),
+[the reshaped acquisition index](#the-acquisition-index-is-reshaped-optional) and
+[the dropped misfire index](#the-misfire-index-is-dropped-optional). They are deferred because they
+drop indexes a 3.x node's statements may still be driving scans from — the misfire index is the one
+3.x sweeps misfires with.
 
 [Before you go live](production-checklist.md) is the checklist for the state you should be in when this
 is done.
@@ -453,6 +455,35 @@ the MySQL and Oracle footnotes.
 `schema_30_to_40_upgrade_<database>.sql` — or at least its section 6. The index name did not change,
 so the script drops it before recreating it; a guarded `CREATE INDEX` on its own would find the name
 taken and keep the old three columns.
+
+### The misfire index is dropped (optional)
+
+The same section drops `IDX_QRTZ_T_NFT_ST_MISFIRE`
+([#3656](https://github.com/quartznet/quartznet/issues/3656)):
+
+| | Table and columns |
+|---|---|
+| 3.x, on SQL Server, MySQL, Oracle and Firebird | `QRTZ_TRIGGERS(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)` |
+| 3.x, on PostgreSQL and SQLite | never created |
+| 4.x | dropped on every dialect |
+
+It led with `MISFIRE_INSTR`, which the misfire sweep and the counting peek that precedes each pass both
+compare with `<> -1` — a predicate no B-tree can seek past, so the index could only ever be entered on
+`SCHED_NAME`. Reshaping the acquisition index above gave it the two equalities, the range and the
+residual those two statements actually want, and measured plan by plan on all four engines that had the
+misfire index, no optimizer picks it for either statement
+([#3608](https://github.com/quartznet/quartznet/issues/3608),
+[#3656](https://github.com/quartznet/quartznet/issues/3656)). MySQL alone appeared to, because
+`MySQLDelegate` named it in a `FORCE INDEX` hint; that hint now names the acquisition index. What was
+left is an index maintained on every trigger write and read by nothing.
+
+**The order inside section 6 is the precondition.** The reshape above is in the same section and comes
+first, so a schema still carrying the three-column acquisition index is brought to the 4.x shape before
+this drop runs, and no schema is ever left with neither index. Run the section top to bottom, and
+re-run it as often as you like — every statement in it is guarded.
+
+**3.x reads this index**, which is the other half of why section 6 waits for the last 3.x node to shut
+down.
 
 Full table creation scripts for fresh installations are available in [database/tables/](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
@@ -7683,10 +7714,12 @@ than `IDX_…_T_NFT_ST_MISFIRE`.** The sweep and its counting peek filter `SCHED
 and keep `MISFIRE_INSTR` as a residual — the acquisition index's shape exactly, and nothing like
 `(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)`, whose second column is compared with
 `<>` and so stops the seek dead. Every other dialect's optimizer picks the acquisition index on its
-own; MySQL could not, because the hint told it not to. No schema changed: both indexes ship as they
-did. On a 100,000-trigger table with a 5,000-row backlog the sweep went from 15,561 buffer pool reads
-to 129, and the counting peek — which runs on every misfire-handler pass, backlog or not — from 4,594
-to 8 ([#3608](https://github.com/quartznet/quartznet/issues/3608)).
+own; MySQL could not, because the hint told it not to. On a 100,000-trigger table with a 5,000-row
+backlog the sweep went from 15,561 buffer pool reads to 129, and the counting peek — which runs on
+every misfire-handler pass, backlog or not — from 4,594 to 8
+([#3608](https://github.com/quartznet/quartznet/issues/3608)). The retargeted hint left
+`IDX_…_T_NFT_ST_MISFIRE` with no reader on any dialect, which is why the schema no longer creates it —
+[The misfire index is dropped](#the-misfire-index-is-dropped-optional).
 
 ## The connection manager is gone
 
@@ -11488,6 +11521,7 @@ shape changed and only what a mis-stated configuration does is different.
 | rc.1 | The health check reports `Degraded` for a **clustered** node whose last check-in is older than `QuartzHealthCheckOptions.ClusterCheckinTolerance` (`3`) times its own interval. `null` or `0` makes no such query, and an unclustered scheduler is not asked | [The health check reports the state it found](#the-health-check-reports-the-state-it-found) |
 | rc.1 | Each scheduling path logs under its own category — a scheduling file, `AddQuartz`, and the JSON plugin — where all three logged as `Quartz.Xml.XmlSchedulingDataProcessor`. The event ids are unchanged | [Each scheduling path logs under its own category](#each-scheduling-path-logs-under-its-own-category) |
 | rc.1 | The log catalogue moved: `7010` and `7011` are gone with the assembly sweep that raised them, and `1020` (a shutdown abandoning running work), `1021` (something subscribed where 3.x published telemetry), `3156` (a schema that was already complete) and `9100`–`9103` (the dashboard's own events) are new | [Every message carries an event id](#every-message-carries-an-event-id) |
+| rc.1 | The schema no longer creates `IDX_QRTZ_T_NFT_ST_MISFIRE`, and the 3.x-to-4.0 script drops it. **Re-run section 6 of `schema_30_to_40_upgrade_<database>.sql`** on a schema built from an earlier pre-release; nothing fails if you do not, the index is only maintained for nothing | [The misfire index is dropped](#the-misfire-index-is-dropped-optional) |
 
 :::
 

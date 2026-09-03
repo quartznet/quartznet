@@ -108,7 +108,7 @@ in each SQLite file.
 | [`3.18`](migrations/3.18) | `EXECUTION_GROUP` on `QRTZ_TRIGGERS` and `QRTZ_FIRED_TRIGGERS` (#3004) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.19`](migrations/3.19) | `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` on `QRTZ_TRIGGERS` (#3013, #3144) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.20`](migrations/3.20) | Index set realigned so every index leads with `SCHED_NAME`; prefix-redundant indexes dropped (#3203) | Optional, performance only | all | both |
-| [`4.0`](migrations/4.0) | Everything above, plus `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520), the `QRTZ_PAUSED_JOB_GRPS` table (#3336) and the 4.x index shape, in which `IDX_QRTZ_T_NFT_ST` is dropped and recreated as `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` — Firebird excepted (#3510) | **Mandatory for 4.x** | all | `main` only |
+| [`4.0`](migrations/4.0) | Everything above, plus `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520), the `QRTZ_PAUSED_JOB_GRPS` table (#3336) and the 4.x index shape, in which `IDX_QRTZ_T_NFT_ST` is dropped and recreated as `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` — Firebird excepted (#3510) — and `IDX_QRTZ_T_NFT_ST_MISFIRE` is dropped, since that reshape left it with no reader on any dialect (#3656) | **Mandatory for 4.x**; section 6 waits for the last 3.x node | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -124,6 +124,12 @@ still needs this one.
 So a 3.x database will not work against 4.x until [`migrations/4.0`](migrations/4.0) has been
 applied. That script folds in everything from 3.17, 3.18, 3.19 and 3.20, and every statement is
 guarded — run it whether or not you applied the optional ones.
+
+Sections 1–5 of that script are safe to run while 3.x nodes are still up. **Section 6 is not**: it
+is the index set, and among its drops is `IDX_QRTZ_T_NFT_ST_MISFIRE`, which 3.x drives its misfire
+sweep from. Run section 6 once the last 3.x node has shut down, top to bottom — the reshape of
+`IDX_QRTZ_T_NFT_ST` sits above that drop in the same section, so a schema that never took the
+reshape takes it there first.
 
 **This is the only copy.** The `3.x` branch used to carry one and no longer does: what the
 3.x → 4.0 script has to do is decided by 4.x's schema, which moves here, so a second copy there
