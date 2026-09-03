@@ -377,7 +377,20 @@ individual triggers — so there is nothing for the migration to put in `QRTZ_PA
 triggers that were paused stay paused, so no job starts running that was not running before; what is
 lost is the *group's* pause, so a trigger added to that job group after the upgrade is born running.
 Paused **trigger** groups are unaffected: they were already a `QRTZ_PAUSED_TRIGGER_GRPS` row on 3.x and
-migrate with the rest of the schema. If you rely on a paused job group, pause it again after upgrading.
+migrate with the rest of the schema.
+
+If you rely on a paused job group, **pause it again once you are on 4.x**:
+
+```csharp
+await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("nightly"));
+```
+
+That writes the group's row to `QRTZ_PAUSED_JOB_GRPS`, which is what makes `JobGroup.Paused` and
+`IsJobGroupPaused` answer truthfully — and from then on the pause is imposed on the jobs added to that
+group afterwards, so a trigger stored for one of them is born `PAUSED`. An equality matcher records a
+group that holds no job at all, so the call is also how you pause a group before anything is deployed
+into it. Both stores behave that way on 4.x; see
+[The two job stores answer the same way](#the-two-job-stores-answer-the-same-way).
 
 ::: warning
 Always run migration scripts in a test environment against a copy of your production database first.
@@ -4550,6 +4563,16 @@ of these is a 3.x behaviour, not a 4.x regression:
   that *would* have matched but did not exist at pause time is not. To pause a group before it
   exists, pause it by exact name — `GroupEquals` deliberately records a group that holds nothing yet.
 
+* **A paused job group binds what is added to it on the ADO store too.** `PauseJobGroups` promises a
+  pause that is "imposed on jobs added to the group afterwards", and `RAMJobStore` has always kept it;
+  the ADO store recorded the pause and then consulted only the *trigger's* group when it stored one, so
+  a job added to a paused group ran while `IsJobGroupPaused` and every listing said the group was
+  paused. Storing a trigger now consults the job's group as well, and one for a job in a paused group
+  is born `PAUSED` — or `PAUSED_BLOCKED`, where a trigger-group pause would have said so. One
+  refinement is deliberately not ported: `RAMJobStore` remembers a job resumed *individually* inside a
+  still-paused group and leaves it running, where the ADO store imposes the group's pause on that job's
+  triggers again the next time they are stored.
+
 * **Pausing no longer discards an error.** `RAMJobStore` moved a trigger to `Paused` from every state
   but `Complete`, so pausing a trigger — or the group or job it belongs to — silently overwrote
   `TriggerState.Error`: the failure disappeared from listings and `ResetTriggerFromErrorState` found
@@ -6651,11 +6674,12 @@ Console.WriteLine($"{failed.TotalCount} triggers need attention");
   does not: it enumerates the groups jobs are in, and an empty group is not one of them. Trigger groups have
   always behaved this way; job groups now match. `PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(g))` therefore
   answers `[g]` on the ADO store where 3.x answered `[]` for a group with no jobs.
-* **What the recorded pause does *not* do on the ADO store** is impose itself on jobs added to the group
-  afterwards. Pausing a job group pauses the triggers of the jobs in it at that moment, and the row records
-  which groups are paused; `RAMJobStore` additionally starts a later trigger paused if its job's group is
-  paused, and the ADO store does not. Pause by *trigger* group where you need the pause to reach what is
-  added next — that behaves identically on both stores.
+* **The recorded pause imposes itself on jobs added to the group afterwards**, on both stores. Pausing a
+  job group pauses the triggers of the jobs in it at that moment *and* records the group, and a trigger
+  stored later for a job in a recorded group is born `PAUSED` — which is what `PauseJobGroups` has always
+  promised and what only `RAMJobStore` used to do. See
+  [The two job stores answer the same way](#the-two-job-stores-answer-the-same-way) for the one refinement
+  that is still in-memory only.
 * **Two indexes were added** to support the ordered scans — see [Database Schema Migration](#database-schema-migration).
 
 ### If you implement `IDriverDelegate`: the listing members
@@ -11521,6 +11545,7 @@ shape changed and only what a mis-stated configuration does is different.
 | rc.1 | The health check reports `Degraded` for a **clustered** node whose last check-in is older than `QuartzHealthCheckOptions.ClusterCheckinTolerance` (`3`) times its own interval. `null` or `0` makes no such query, and an unclustered scheduler is not asked | [The health check reports the state it found](#the-health-check-reports-the-state-it-found) |
 | rc.1 | Each scheduling path logs under its own category — a scheduling file, `AddQuartz`, and the JSON plugin — where all three logged as `Quartz.Xml.XmlSchedulingDataProcessor`. The event ids are unchanged | [Each scheduling path logs under its own category](#each-scheduling-path-logs-under-its-own-category) |
 | rc.1 | The log catalogue moved: `7010` and `7011` are gone with the assembly sweep that raised them, and `1020` (a shutdown abandoning running work), `1021` (something subscribed where 3.x published telemetry), `3156` (a schema that was already complete) and `9100`–`9103` (the dashboard's own events) are new | [Every message carries an event id](#every-message-carries-an-event-id) |
+| rc.1 | A paused **job** group binds what is added to it on the ADO store, as it always did in memory: a trigger stored for a job in a recorded-paused group is born `PAUSED`. A pre-release that paused a job group and then deployed a job into it ran that job | [The two job stores answer the same way](#the-two-job-stores-answer-the-same-way) |
 | rc.1 | The schema no longer creates `IDX_QRTZ_T_NFT_ST_MISFIRE`, and the 3.x-to-4.0 script drops it. **Re-run section 6 of `schema_30_to_40_upgrade_<database>.sql`** on a schema built from an earlier pre-release; nothing fails if you do not, the index is only maintained for nothing | [The misfire index is dropped](#the-misfire-index-is-dropped-optional) |
 
 :::

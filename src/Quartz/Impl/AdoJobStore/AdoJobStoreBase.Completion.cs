@@ -145,9 +145,10 @@ internal abstract partial class AdoJobStoreBase
                     // Written before the DisallowConcurrentExecution unblock below, which transitions
                     // from BLOCKED and PAUSED_BLOCKED and so leaves this row alone now that it holds
                     // the state it is going to wait in.
-                    StoredTriggerState retryState = await ApplyPausedTriggerGroupState(
+                    StoredTriggerState retryState = await ApplyPausedGroupState(
                         conn,
                         trigger.Key.Group,
+                        trigger.JobKey.Group,
                         StoredTriggerState.Waiting,
                         cancellationToken).ConfigureAwait(false);
 

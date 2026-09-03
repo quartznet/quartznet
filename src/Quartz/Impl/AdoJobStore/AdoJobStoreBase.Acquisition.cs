@@ -609,7 +609,7 @@ internal abstract partial class AdoJobStoreBase
         // COMPLETE by now.
         if (!force)
         {
-            state2 = await ApplyPausedTriggerGroupState(conn, trigger.Key.Group, state2, cancellationToken).ConfigureAwait(false);
+            state2 = await ApplyPausedGroupState(conn, trigger.Key.Group, trigger.JobKey.Group, state2, cancellationToken).ConfigureAwait(false);
         }
 
         await Guarded(

@@ -305,6 +305,29 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task PausingAJobGroupBindsAJobAddedToItAfterwards()
+    {
+        // The group holds nothing at all, which is what an equality matcher is for: a caller pauses
+        // the group so that what is about to be deployed into it arrives paused.
+        List<string> paused = await Store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+
+        paused.Should().Equal([JobGroupA]);
+
+        IJobDetail late = CreateJob("late", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("late", OtherGroup, late.Key);
+        await Store.ScheduleJob(late, trigger);
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+            "a paused job group binds the jobs added to it afterwards, so the trigger of one of them "
+            + "is born paused although its own trigger group was never paused");
+
+        await Store.ResumeJobGroups(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal,
+            "resuming the group releases what the pause was imposing itself on");
+    }
+
+    [Test]
     public async Task PausingJobGroupsByPrefixReachesEveryGroupThatMatches()
     {
         IOperableTrigger first = await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
@@ -320,10 +343,29 @@ public abstract class JobStoreContractTest
         (await Store.GetTriggerState(untouched.Key)).Should().Be(TriggerState.Normal,
             "a group the prefix does not match is never touched");
 
+        // A job group that would have matched the pattern but held no jobs when the pause ran was
+        // never one of the matched groups, so nothing imposes the pause on it afterwards. Pausing a
+        // group that does not exist yet is what the equality matcher is for.
+        IJobDetail lateJob = CreateJob("late", "jg-late");
+        IOperableTrigger late = CreateTrigger("late", OtherGroup, lateJob.Key);
+        await Store.ScheduleJob(lateJob, late);
+
+        (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Normal,
+            "the prefix pause matched groups, not a pattern the store keeps applying");
+
+        // A job joining a group that *was* matched is born paused, because that group is recorded.
+        IJobDetail joiningJob = CreateJob("joining", JobGroupA);
+        IOperableTrigger joining = CreateTrigger("joining", OtherGroup, joiningJob.Key);
+        await Store.ScheduleJob(joiningJob, joining);
+
+        (await Store.GetTriggerState(joining.Key)).Should().Be(TriggerState.Paused,
+            "a job group the prefix pause matched is a paused group like any other");
+
         await Store.ResumeJobGroups(GroupMatcher<JobKey>.GroupStartsWith("jg"));
 
         (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
         (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(joining.Key)).Should().Be(TriggerState.Normal);
     }
 
     [Test]
