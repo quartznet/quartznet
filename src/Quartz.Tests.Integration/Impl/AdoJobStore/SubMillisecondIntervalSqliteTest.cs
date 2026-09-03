@@ -48,6 +48,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// dialect's; nothing here is SQLite's.
 /// </para>
 /// </remarks>
+[NonParallelizable]
 [Category("db-sqlite")]
 public sealed class SubMillisecondIntervalSqliteTest
 {
