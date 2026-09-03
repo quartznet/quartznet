@@ -444,7 +444,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
             return "%";
         }
 
-        string value = EscapeSqlLikeWildcards(matcher.CompareToValue);
+        string value = EscapeSqlLikeWildcards(matcher.CompareToValue, AdditionalLikeWildcards);
 
         if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
         {
@@ -470,13 +470,40 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     }
 
     /// <summary>
+    /// The characters this dialect treats as <c>LIKE</c> wildcards beyond <c>%</c> and <c>_</c>, which
+    /// every dialect has. Empty for all but the T-SQL family.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server and Sybase read <c>[</c> as the start of a character class, so a group matcher value
+    /// containing one matches by class there and literally everywhere else. It cannot be escaped
+    /// unconditionally: the standard says an escape character must be followed by a wildcard or
+    /// itself, and PostgreSQL enforces that, so <c>![</c> is an error on a dialect where <c>[</c> is not
+    /// a wildcard. Internal on 3.x so that the public surface stays where it is.
+    /// </remarks>
+    internal virtual string AdditionalLikeWildcards => "";
+
+    /// <summary>
     /// Escapes the LIKE wildcards '%' and '_', and
     /// <see cref="StdAdoConstants.SqlLikeEscapeCharacter" /> itself, so that the value matches
     /// literally.
     /// </summary>
     protected static string EscapeSqlLikeWildcards(string value)
     {
-        if (value.IndexOfAny(SqlLikeWildcardCharacters) < 0)
+        return EscapeSqlLikeWildcards(value, additionalWildcards: "");
+    }
+
+    /// <summary>
+    /// Escapes the LIKE wildcards '%' and '_', the escape character '!' itself, and any character of
+    /// <paramref name="additionalWildcards" />, so that the value matches literally.
+    /// </summary>
+    /// <param name="value">The text to match literally.</param>
+    /// <param name="additionalWildcards">
+    /// What else the dialect reads as a wildcard — see <see cref="AdditionalLikeWildcards" />.
+    /// </param>
+    internal static string EscapeSqlLikeWildcards(string value, string additionalWildcards)
+    {
+        if (value.IndexOfAny(SqlLikeWildcardCharacters) < 0
+            && (additionalWildcards.Length == 0 || value.IndexOfAny(additionalWildcards.ToCharArray()) < 0))
         {
             return value;
         }
@@ -484,7 +511,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         var builder = new StringBuilder(value.Length + 8);
         foreach (char c in value)
         {
-            if (c == SqlLikeEscapeCharacter || c == '%' || c == '_')
+            if (c == SqlLikeEscapeCharacter || c == '%' || c == '_' || additionalWildcards.IndexOf(c) >= 0)
             {
                 builder.Append(SqlLikeEscapeCharacter);
             }

@@ -31,6 +31,13 @@ namespace Quartz.Impl.AdoJobStore;
 public class SqlServerDelegate : StdAdoDelegate
 {
     /// <summary>
+    /// T-SQL reads <c>[</c> as the start of a character class in a <c>LIKE</c> pattern, so a group
+    /// matcher asking for a name containing <c>[a-z]</c> would match by class here and literally
+    /// everywhere else.
+    /// </summary>
+    internal override string AdditionalLikeWildcards => "[";
+
+    /// <summary>
     /// Gets the select next trigger to acquire SQL clause.
     /// SQL Server specific version with TOP functionality
     /// </summary>
