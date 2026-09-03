@@ -45,6 +45,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// A file database rather than a fake: the driver's own answer is the whole of what is being pinned,
 /// and it is exactly the part a stand-in cannot supply.
 /// </remarks>
+[NonParallelizable]
 [Category("db-sqlite")]
 public sealed class EnlistmentRefusalSqliteTest
 {

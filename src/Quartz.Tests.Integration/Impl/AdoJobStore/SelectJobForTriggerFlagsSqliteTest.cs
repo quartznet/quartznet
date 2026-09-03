@@ -50,6 +50,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// real SQLite file, so what is asserted is what the store actually stores.
 /// </para>
 /// </remarks>
+[NonParallelizable]
 [Category("db-sqlite")]
 public sealed class SelectJobForTriggerFlagsSqliteTest
 {
