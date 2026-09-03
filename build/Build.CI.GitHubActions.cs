@@ -62,12 +62,18 @@ using Quartz.Build;
 // Releases live in their own workflow file because a nuget.org trusted publishing policy is scoped by
 // workflow file name and offers no branch or tag filter — keeping this separate from 'build' is what
 // stops every ordinary CI run from being able to mint a nuget.org API key.
+//
+// VerifyMigrations and VerifySchema lead, as they do on the pull request leg. Both are generated
+// artefacts a release ships — database/migrations/ is what an upgrading deployment runs, and the
+// embedded create-if-missing schema is what ProvisionSchema executes — and a tag is the last moment
+// either can still be wrong. They cost seconds and they run before anything is built, so a stale
+// script fails the release in the first minute rather than after the packages have been made.
 [GitHubActions(
     "publish",
     GitHubActionsImage.WindowsLatest,
     OnPushTags = ["v*.*.*"],
     PublishArtifacts = true,
-    InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(IPack.Pack), nameof(Publish)],
+    InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(IPack.Pack), nameof(Publish)],
     CacheKeyFiles = [],
     TimeoutMinutes = 20,
     EnvironmentName = "nuget",
