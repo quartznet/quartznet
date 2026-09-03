@@ -7,7 +7,7 @@ tagline: Open-source job scheduling system for .NET
 actions:
 
   - text: Get Started
-    link: /documentation/quartz-3.x/quick-start
+    link: /documentation/quartz-4.x/quick-start
     type: primary
 
 features:
@@ -29,6 +29,8 @@ footer: Apache 2.0 Licensed | Copyright © 2007-present Marko Lahma
 ---
 
 Quartz.NET is a full-featured, open source job scheduling system that can be used from smallest apps to large scale enterprise systems.
+
+The current release is **Quartz.NET 4.0**, which targets .NET 10 — see the [quick start](/documentation/quartz-4.x/quick-start.html) and the [migration guide](/documentation/quartz-4.x/migration-guide.html). The 3.x line, for .NET Standard 2.0 and .NET Framework, is [still maintained](/documentation/quartz-3.x/quick-start.html).
 
 ## Latest News
 
