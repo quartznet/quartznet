@@ -319,7 +319,7 @@ partial class Build
                         "3.x  OPTIONAL, performance only. Nothing stops working if it is not applied, but",
                         "     several of these indexes could not serve a single-scheduler lookup at all.",
                         "",
-                        $"4.x  Superseded. ../4.0/schema_30_to_40_upgrade_{d}.sql converges the same index",
+                        $"4.x  Superseded. ../4.0/schema_30_to_40_indexes_{d}.sql converges the same index",
                         "     set onto the 4.x shape -- run that instead when upgrading to 4.x.",
                     ],
                     indexExtra)
