@@ -80,13 +80,11 @@ partial class Build
     };
 
     /// <summary>
-    /// The 4.x index set, before the two per-dialect differences <see cref="Target4X" /> applies: the
-    /// misfire index, which PostgreSQL and SQLite omit because its second column only ever appears as
-    /// <c>MISFIRE_INSTR &lt;&gt; -1</c> and a btree cannot use that as a scan boundary — the other
-    /// dialects keep it because the MySQL delegate FORCE INDEXes it — and the acquisition index, which
-    /// Firebird keeps at three columns because it can express nothing wider.
+    /// The 4.x index set, before the one per-dialect difference <see cref="Target4X" /> applies: the
+    /// acquisition index, which Firebird keeps at three columns because it can express nothing wider.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>IDX_QRTZ_T_NFT_ST</c> is the one acquisition runs on, and its last two columns are there
     /// for a plan rather than for a predicate (#3510). Acquisition orders by
     /// <c>NEXT_FIRE_TIME ASC, PRIORITY DESC</c>, so an index whose two directions match is one the
@@ -96,6 +94,21 @@ partial class Build
     /// is only going to reject: it makes the statement's <c>MISFIRE_INSTR</c>/<c>NEXT_FIRE_TIME</c>
     /// disjunction index-resident, which is 20,401 reads down to 84 against a 5,000-row backlog.
     /// The <c>ORDER BY</c> is unchanged; this is DDL alone.
+    /// </para>
+    /// <para>
+    /// There is no misfire index here, and the absence is the decision.
+    /// <c>IDX_QRTZ_T_NFT_ST_MISFIRE</c> led with <c>MISFIRE_INSTR</c> — the column both misfire
+    /// statements compare with <c>&lt;&gt; -1</c>, which no btree can seek past — while the two
+    /// statements filter on <c>SCHED_NAME</c> and <c>TRIGGER_STATE</c> by equality and
+    /// <c>NEXT_FIRE_TIME</c> by range, which is exactly what the acquisition index leads with since
+    /// #3510 reshaped it. PostgreSQL and SQLite never created it; on the four dialects that did, no
+    /// optimizer picked it once the acquisition index had that shape — measured plan by plan on SQL
+    /// Server, MySQL, Oracle and Firebird in #3608 and #3656. MySQL's apparent use of it was
+    /// <c>MySQLDelegate</c>'s own <c>FORCE INDEX</c> hint, which #3655 pointed at the acquisition
+    /// index. It is therefore write cost with no reader, and the 4.0 script's optional index section
+    /// drops it — <see cref="AllLegacyIndexes" /> is what puts it in that section's drop list, after
+    /// the creates that bring the acquisition index to its 4.x shape.
+    /// </para>
     /// </remarks>
     static readonly IndexDef[] Target4XAll =
     [
@@ -104,7 +117,6 @@ partial class Build
         new("IDX_QRTZ_T_G_N", TableTriggers, "SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME"),
         new("IDX_QRTZ_T_C", TableTriggers, "SCHED_NAME, CALENDAR_NAME"),
         new("IDX_QRTZ_T_NFT_ST", TableTriggers, "SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR"),
-        new("IDX_QRTZ_T_NFT_ST_MISFIRE", TableTriggers, "SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE"),
         new("IDX_QRTZ_FT_INST_JOB_REQ_RCVRY", TableFired, "SCHED_NAME, INSTANCE_NAME, REQUESTS_RECOVERY"),
         new("IDX_QRTZ_FT_J_G", TableFired, "SCHED_NAME, JOB_NAME, JOB_GROUP"),
         new("IDX_QRTZ_FT_T_G", TableFired, "SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP"),
@@ -114,7 +126,6 @@ partial class Build
     const string AcquisitionIndexColumns3X = "SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME";
 
     static IndexDef[] Target4X(string dialect) => Target4XAll
-        .Where(i => !(i.Name == "IDX_QRTZ_T_NFT_ST_MISFIRE" && dialect is "postgres" or "sqlite"))
         // Firebird's indexes are ascending or descending as a whole, with no per-column direction, so
         // it cannot express NEXT_FIRE_TIME ASC, PRIORITY DESC -- CREATE INDEX rejects the ASC token
         // outright, and a COMPUTED BY column standing in for the negated priority cannot be indexed
@@ -435,6 +446,10 @@ partial class Build
             "Run the sections in order: the drops in section 6 assume the creates above them have",
             "already succeeded.",
             "",
+            "Sections 1-5 are safe to run while 3.x nodes are still up. SECTION 6 IS NOT: it drops",
+            "IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its misfire sweep from and 4.x does not read",
+            "at all (#3656). Run section 6 once the last 3.x node has shut down.",
+            "",
             "Sections 4 and 5 have no 3.x counterpart at all, so nothing you ran on 3.x can have",
             "applied them.",
             "",
@@ -501,7 +516,16 @@ partial class Build
 
             "-- === 6. Index set ===\n"
                 + "-- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a\n"
-                + "-- non-trivial number of triggers; the drops only reclaim write cost and storage.\n\n"
+                + "-- non-trivial number of triggers; the drops only reclaim write cost and storage.\n"
+                + "--\n"
+                + "-- RUN THIS SECTION ONLY ONCE THE LAST 3.x NODE HAS SHUT DOWN. Among the drops is\n"
+                + "-- IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its misfire sweep from. 4.x drives both\n"
+                + "-- misfire statements from IDX_QRTZ_T_NFT_ST instead, which this section's creates put\n"
+                + "-- at its 4.x shape before that drop runs -- so a schema still on the pre-4.x shape is\n"
+                + "-- reshaped here first, and none is ever left with neither index. That ordering is the\n"
+                + "-- whole precondition, so run the section top to bottom.\n"
+                + "--\n"
+                + "-- Every statement is guarded, so re-running the section changes nothing.\n\n"
                 + Converge(dialect, Target4X(dialect)),
         ];
 
