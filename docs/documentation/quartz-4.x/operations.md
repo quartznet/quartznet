@@ -125,8 +125,17 @@ firings rather than accuracy. 4.0 changed how three calendars are serialized: `W
 The compatibility is deliberately **one-way**: 4.0's readers accept either shape, and 3.x's readers accept
 only their own, so a calendar a 4.0 node stores is one a 3.x node throws on every time it reads it. And
 it does read it every time — a clustered store bypasses its calendar cache by design, so the failure is
-per firing rather than once. Existing rows are untouched and safe; it is `AddCalendar` from a 4.0 node
-that does the damage. Route calendar changes through the 3.x nodes until the last one is retired.
+per *acquisition pass*, which is a tight loop rather than a schedule. Measured on a two-node 3.20
+cluster, one `AddCalendar` from a 4.0 node put both surviving nodes into
+`Couldn't retrieve calendar: Could not deserialize JSON` at about **sixty error lines a second each** —
+roughly 1,630 lines across the two in under a minute — before an internal backoff dropped it to one
+every twenty seconds, and the trigger naming that calendar fired 18 seconds late. Plan for it to look
+like an incident, not like a handful of failures an hour.
+
+Existing rows are untouched and safe; it is `AddCalendar` from a 4.0 node that does the damage. Route
+calendar changes through the 3.x nodes until the last one is retired. If one does get written, the
+repair is immediate: rewrite that calendar from a 3.x process and the errors stop at the write, with
+misfire handling catching the displaced firings up.
 
 **Both versions have to be on JSON, and on the same serializer.** 4.0 refuses `quartz.serializer.type
 = binary` at startup, so a cluster whose 3.x nodes wrote binary job data has no window at all — that is

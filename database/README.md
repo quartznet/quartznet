@@ -32,6 +32,11 @@ SQLite, which has no variables, delete the block between the `BEGIN DROP TABLES`
 `END DROP TABLES` markers. What is left then only creates tables, so run it on a database that has
 none: the `CREATE TABLE` statements are not guarded and fail against a schema that already exists.
 
+**The SQL Server scripts begin `USE [enter_db_name_here];`** — put your database name there before you
+run one, or SQL Server answers `Msg 911, Database 'enter_db_name_here' does not exist`. It is the only
+dialect that names a database at all; the rest take whichever one you connected to. The
+memory-optimized variant has a second placeholder, `[enter_path_here]`, for the filegroup's directory.
+
 | Database | Script |
 |---|---|
 | SQL Server 2016+ | [`tables/tables_sqlServer.sql`](tables/tables_sqlServer.sql) |
