@@ -1288,6 +1288,104 @@ public class JobStoreSupportTest
         jobStoreSupport.CallIsTransient(new InvalidOperationException("no")).Should().BeFalse();
     }
 
+    /// <summary>
+    /// SQLSTATE class 40 is the standard's own "transaction rollback": the database abandoned the
+    /// transaction for a reason the statements in it did not cause, and the prescribed answer is to run
+    /// it again. It is provider-neutral, which is why it is read at all (#3454).
+    /// </summary>
+    [TestCase("40000", TestName = "IsTransient_RollbackWithNoSubclassIsTransient")]
+    [TestCase("40001", TestName = "IsTransient_SerializationFailureIsTransient")]
+    [TestCase("40003", TestName = "IsTransient_StatementCompletionUnknownIsTransient")]
+    [TestCase("40P01", TestName = "IsTransient_PostgresDeadlockDetectedIsTransient")]
+    public void IsTransient_TransactionRollbackSqlStateIsTransient(string sqlState)
+    {
+        jobStoreSupport.CallIsTransient(new SqlStateException(sqlState)).Should().BeTrue(
+            "SQLSTATE {0} is in class 40, transaction rollback, which is the standard saying to run the transaction again",
+            sqlState);
+    }
+
+    [Test]
+    public void IsTransient_DeferredConstraintViolationIsNotTransient()
+    {
+        jobStoreSupport.CallIsTransient(new SqlStateException("40002")).Should().BeFalse(
+            "40002 is the one member of class 40 that is a real error - an integrity constraint the commit found broken, which every retry will find broken too");
+    }
+
+    [Test]
+    public void IsTransient_UniqueViolationIsNotTransient()
+    {
+        jobStoreSupport.CallIsTransient(new SqlStateException("23505")).Should().BeFalse(
+            "class 23 is an integrity-constraint violation, and only class 40 says anything about retrying");
+    }
+
+    [Test]
+    public void IsTransient_DriverReportingNoSqlStateIsNotTransient()
+    {
+        jobStoreSupport.CallIsTransient(new SqlStateException(null)).Should().BeFalse(
+            "both SqlClients and every SQLite driver leave the state null, and they have to fall through to the checks written for them rather than being caught here");
+    }
+
+    /// <summary>
+    /// Firebird is the reason this check exists, and it is also the driver that puts the state
+    /// somewhere a <c>SqlState</c> property does not reach.
+    /// </summary>
+    [Test]
+    public void IsTransient_FirebirdWriteConflictIsTransient()
+    {
+        FbException writeConflict = new FbException("40001");
+
+        PropertyInfo probe = writeConflict.GetType().GetProperty("IsTransient");
+        (probe?.GetValue(writeConflict) as bool? ?? false).Should().BeFalse(
+            "FbException does not override IsTransient, which is why the driver's own verdict was not enough");
+
+        jobStoreSupport.CallIsTransient(writeConflict).Should().BeTrue(
+            "a write conflict between two Firebird transactions is a serialization failure, the textbook case for retrying");
+    }
+
+    [Test]
+    public void IsTransient_FirebirdConstraintViolationIsNotTransient()
+    {
+        jobStoreSupport.CallIsTransient(new FbException("23000")).Should().BeFalse(
+            "reading Firebird's own spelling of the state must not turn every Firebird failure into a retry");
+    }
+
+    /// <summary>
+    /// Firebird nests the <c>IscException</c> that carries the same property, and it derives from
+    /// <see cref="Exception" /> rather than <see cref="DbException" />. The state is matched on shape,
+    /// the way the SQL Server error numbers are, so it is found at either level.
+    /// </summary>
+    [Test]
+    public void IsTransient_SqlStateIsFoundOnAnyExceptionThatCarriesIt()
+    {
+        jobStoreSupport.CallIsTransient(new IscException("40001")).Should().BeTrue(
+            "the property is what is recognised, not the base class");
+    }
+
+    [Test]
+    public void IsTransient_TransactionRollbackIsFoundThroughAWrapper()
+    {
+        JobPersistenceException wrapped = new JobPersistenceException("couldn't acquire next trigger", new SqlStateException("40001"));
+
+        jobStoreSupport.CallIsTransient(wrapped).Should().BeTrue(
+            "the store wraps what it catches and the retry decision is taken on the wrapper, so a serialization failure has to be visible through it");
+    }
+
+    [Test]
+    public void IsTransient_DeferredConstraintViolationStaysPermanentThroughAWrapper()
+    {
+        JobPersistenceException wrapped = new JobPersistenceException("couldn't store trigger", new SqlStateException("40002"));
+
+        jobStoreSupport.CallIsTransient(wrapped).Should().BeFalse(
+            "walking the chain must not widen class 40 to include the member that is excluded from it");
+    }
+
+    [Test]
+    public void IsTransient_DriverSayingTransientWinsOverAnExcludedSqlState()
+    {
+        jobStoreSupport.CallIsTransient(new SqlStateException("40002") { Transient = true }).Should().BeTrue(
+            "the signals are inclusive - the first one saying transient wins - and a driver that has made up its own mind is believed whatever it reports beside it");
+    }
+
     /// <summary>A driver exception that reports its own verdict and nothing else.</summary>
     public sealed class TransientProviderException : Exception
     {
@@ -1300,6 +1398,51 @@ public class JobStoreSupportTest
     /// <see cref="DbException"/> deliberately, so that on .NET it inherits the <c>IsTransient</c>
     /// that returns false - the property whose answer used to be taken as final.
     /// </summary>
+    /// <summary>
+    /// Stands in for a driver that reports its SQLSTATE through a <c>SqlState</c> property, which is
+    /// what Npgsql's <c>PostgresException</c>, MySqlConnector's and MySql.Data's <c>MySqlException</c>
+    /// all declare, and what <see cref="DbException" /> itself carries from .NET 5 on - so the property
+    /// is an override there and a declaration of the stand-in's own on .NET Framework.
+    /// </summary>
+    public sealed class SqlStateException : DbException
+    {
+        public SqlStateException(string sqlState) => SqlState = sqlState;
+
+        public bool Transient { get; set; }
+
+#if NETCORE
+        public override string SqlState { get; }
+
+        public override bool IsTransient => Transient;
+#else
+        public string SqlState { get; }
+
+        public bool IsTransient => Transient;
+#endif
+    }
+
+    /// <summary>
+    /// Stands in for <c>FirebirdSql.Data.FirebirdClient.FbException</c>, which declares a property
+    /// named <c>SQLSTATE</c> and leaves any inherited <c>SqlState</c> alone.
+    /// </summary>
+    public sealed class FbException : DbException
+    {
+        public FbException(string sqlState) => SQLSTATE = sqlState;
+
+        public string SQLSTATE { get; }
+    }
+
+    /// <summary>
+    /// Stands in for <c>FirebirdSql.Data.Common.IscException</c>, the exception Firebird nests inside
+    /// an <c>FbException</c> and reads the state off. It is not a <see cref="DbException" />.
+    /// </summary>
+    public sealed class IscException : Exception
+    {
+        public IscException(string sqlState) => SQLSTATE = sqlState;
+
+        public string SQLSTATE { get; }
+    }
+
     public sealed class SqlServerLikeException : DbException
     {
         public SqlServerLikeException(params int[] numbers)
