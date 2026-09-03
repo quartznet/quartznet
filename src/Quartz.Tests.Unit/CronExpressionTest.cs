@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -877,51 +878,140 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         act.Should().Throw<FormatException>().Which.Message.Should().Contain("too many");
     }
 
-    [Test]
-    public void TestGetTimeBefore()
-    {
-        int year = DateTime.UtcNow.Year;
+    private const long OneDayInMilliseconds = 24 * 60 * 60 * 1000L;
 
-        var tests = new[]
+    /// <summary>
+    /// One expression and the gaps its firings sit at, measured from the first firing after a search
+    /// instant: back to the firing before that one, and on to the firing after it.
+    /// </summary>
+    /// <remarks>
+    /// Both gaps are <see langword="null" /> for an expression pinned to a single year to one side of
+    /// the search instant. Such an expression has firings on one side only, so there is no pair of
+    /// neighbouring firings to measure — what is asserted about it is which side is empty.
+    /// </remarks>
+    private sealed class FiringGaps
+    {
+        public FiringGaps(string expression, long? millisecondsBack, long? millisecondsForward)
         {
-            new object[] { "* * * * * ? *", 1000L },
-            new object[] { "0 * * * * ? *", 60_000L },
-            new object[] { "0/15 * * * * ? *", 15_000L },
-            new object[] { "0 0 5 * * ? *", 24 * 60 * 60 * 1000L },
-            new object[] { "0 0 0 * * ? *", 24 * 60 * 60 * 1000L },
-            new object[] { "0/30 1 2 * * ? *", 24 * 60 * 60 * 1000L - 30_000L, 30_000L },
-            new object[] { $"* * * * * ? {year + 2}" },
-            new object[] { $"* * * * * ? {year - 2}", 24 * 60 * 60 * 1000L - 30_000L, 30_000L }
+            Expression = expression;
+            MillisecondsBack = millisecondsBack;
+            MillisecondsForward = millisecondsForward;
+        }
+
+        public string Expression { get; }
+
+        public long? MillisecondsBack { get; }
+
+        public long? MillisecondsForward { get; }
+    }
+
+    /// <summary>
+    /// The expressions <see cref="TestGetTimeBefore" /> walks, and the gaps they describe. The last two
+    /// are pinned to a year either side of the year the search starts in: the first of them has its
+    /// whole schedule ahead, so the firing found is its very first and nothing precedes it, and the
+    /// second has its whole schedule behind, so there is no firing after the instant at all.
+    /// </summary>
+    private static FiringGaps[] FiringGapsAround(int year) => new[]
+    {
+        new FiringGaps("* * * * * ? *", 1000L, 1000L),
+        new FiringGaps("0 * * * * ? *", 60_000L, 60_000L),
+        new FiringGaps("0/15 * * * * ? *", 15_000L, 15_000L),
+        new FiringGaps("0 0 5 * * ? *", OneDayInMilliseconds, OneDayInMilliseconds),
+        new FiringGaps("0 0 0 * * ? *", OneDayInMilliseconds, OneDayInMilliseconds),
+        new FiringGaps("0/30 1 2 * * ? *", OneDayInMilliseconds - 30_000L, 30_000L),
+        new FiringGaps($"* * * * * ? {year + 2}", null, null),
+        new FiringGaps($"* * * * * ? {year - 2}", null, null)
+    };
+
+    /// <summary>
+    /// The instants <see cref="TestGetTimeBefore" /> searches from: an ordinary one, and one on each
+    /// boundary the search could round differently at.
+    /// </summary>
+    public static IEnumerable TimeBeforeSearchInstants =>
+        new[]
+        {
+            new TestCaseData("mid-minute", new DateTimeOffset(2024, 3, 14, 8, 37, 23, 456, TimeSpan.Zero)),
+            new TestCaseData("second boundary", new DateTimeOffset(2024, 3, 14, 8, 37, 23, 0, TimeSpan.Zero)),
+            new TestCaseData("minute boundary", new DateTimeOffset(2024, 3, 14, 8, 37, 0, 0, TimeSpan.Zero)),
+            new TestCaseData("hour boundary", new DateTimeOffset(2024, 3, 14, 8, 0, 0, 0, TimeSpan.Zero)),
+            new TestCaseData("day boundary", new DateTimeOffset(2024, 3, 14, 0, 0, 0, 0, TimeSpan.Zero)),
+            new TestCaseData("year boundary", new DateTimeOffset(2024, 1, 1, 0, 0, 0, 0, TimeSpan.Zero))
         };
 
-        foreach (var test in tests)
+    /// <summary>
+    /// <see cref="CronExpression.GetTimeBefore" /> walks the schedule backwards to the gap the
+    /// expression describes: from the first firing after a given instant, back to the one before it.
+    /// </summary>
+    /// <remarks>
+    /// The instants are literals because the answer depends on where the search starts, which is what
+    /// made this test flake while it read <c>DateTimeOffset.UtcNow</c>. <c>0/30 1 2 * * ? *</c> fires
+    /// twice a day, at 02:01:00 and at 02:01:30, so the gap back from a firing is 30 s for the second
+    /// of the pair and 23:59:30 for the first. Search from inside the pair and the forward search lands
+    /// on the second of the two, which swaps the row's two figures — for the thirty seconds from
+    /// 02:01:00 to 02:01:29 UTC, and only those, this table was wrong: one run in 2,880.
+    /// </remarks>
+    [TestCaseSource(nameof(TimeBeforeSearchInstants))]
+    public void TestGetTimeBefore(string origin, DateTimeOffset now)
+    {
+        foreach (FiringGaps gaps in FiringGapsAround(now.Year))
         {
-            string expression = (string)test[0];
-            long interval1 = test.Length > 1 ? (long)test[1] : -1;
-            long interval2 = test.Length > 2 ? (long)test[2] : interval1;
-
-            var cron = new CronExpression(expression) { TimeZone = TimeZoneInfo.Utc };
-            var now = DateTimeOffset.UtcNow;
+            CronExpression cron = new CronExpression(gaps.Expression) { TimeZone = TimeZoneInfo.Utc };
+            string searchedFrom = $"the {origin} instant {now.ToString("O", CultureInfo.InvariantCulture)}";
 
             DateTimeOffset? after = cron.GetTimeAfter(now);
-            if (after == null)
+            if (after is null)
             {
-                DateTimeOffset? before = cron.GetTimeBefore(now);
-                Assert.IsNotNull(before, $"expression {expression}");
+                cron.GetTimeBefore(now).Should().NotBeNull(
+                    $"'{gaps.Expression}' fires only in a year already past, so every firing it has is before {searchedFrom}");
+                continue;
             }
-            else if (interval1 < 0)
+
+            DateTimeOffset? before = cron.GetTimeBefore(after.Value);
+            if (gaps.MillisecondsBack is null)
             {
-                DateTimeOffset? before = cron.GetTimeBefore(after.Value);
-                Assert.IsNull(before, $"expression {expression}");
+                before.Should().BeNull(
+                    $"'{gaps.Expression}' fires only in a year still ahead, so the firing after {searchedFrom} is its very first");
+                continue;
             }
-            else
-            {
-                DateTimeOffset? before = cron.GetTimeBefore(after.Value);
-                DateTimeOffset? after2 = cron.GetTimeAfter(after.Value);
-                Assert.AreEqual(interval1, (after.Value - before.Value).TotalMilliseconds, $"expression {expression}");
-                Assert.AreEqual(interval2, (after2.Value - after.Value).TotalMilliseconds, $"expression {expression}");
-            }
+
+            before.Should().NotBeNull(
+                $"'{gaps.Expression}' has firings behind the one that follows {searchedFrom}");
+            (after.Value - before.Value).Should().Be(
+                TimeSpan.FromMilliseconds(gaps.MillisecondsBack.Value),
+                $"'{gaps.Expression}' puts that gap behind the firing that follows {searchedFrom}");
+
+            DateTimeOffset? next = cron.GetTimeAfter(after.Value);
+            next.Should().NotBeNull(
+                $"'{gaps.Expression}' repeats forever, so there is a firing beyond the one that follows {searchedFrom}");
+            (next.Value - after.Value).Should().Be(
+                TimeSpan.FromMilliseconds(gaps.MillisecondsForward.Value),
+                $"'{gaps.Expression}' puts that gap ahead of the firing that follows {searchedFrom}");
         }
+    }
+
+    /// <summary>
+    /// The half-minute that used to break <see cref="TestGetTimeBefore" />, pinned rather than avoided:
+    /// an expression with two firings a day, searched from between them.
+    /// </summary>
+    /// <remarks>
+    /// Nothing was ever wrong with the answer. <c>0/30 1 2 * * ? *</c> genuinely has 30 seconds behind
+    /// the second firing of its pair and 23:59:30 ahead of it; it was the table that assumed the
+    /// forward search always landed on the first of the pair, which it does from everywhere but here.
+    /// </remarks>
+    [Test]
+    public void TestGetTimeBeforeSearchedFromInsideAPairOfFirings()
+    {
+        CronExpression cron = new CronExpression("0/30 1 2 * * ? *") { TimeZone = TimeZoneInfo.Utc };
+        DateTimeOffset insideThePair = new DateTimeOffset(2024, 3, 14, 2, 1, 10, TimeSpan.Zero);
+
+        DateTimeOffset after = cron.GetTimeAfter(insideThePair).Value;
+
+        after.Should().Be(new DateTimeOffset(2024, 3, 14, 2, 1, 30, TimeSpan.Zero),
+            "the day's second firing is still ahead when the search starts ten seconds into the pair");
+        (after - cron.GetTimeBefore(after).Value).Should().Be(TimeSpan.FromSeconds(30),
+            "the firing behind it is the first of that same pair, half a minute earlier");
+        (cron.GetTimeAfter(after).Value - after).Should().Be(TimeSpan.FromHours(24) - TimeSpan.FromSeconds(30),
+            "the firing ahead of it is the first of tomorrow's pair, not another 24 hours away");
     }
 
     [Test]
