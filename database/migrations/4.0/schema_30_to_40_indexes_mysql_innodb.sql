@@ -1,25 +1,32 @@
 --
--- Quartz.NET schema migration -- align indexes with the 3.x schema
---
--- Introduced in Quartz.NET 3.20.0 (#3203)
+-- Quartz.NET schema migration -- 3.x to 4.0, index set
 --
 -- MySQL only. Run the file matching your database; the other dialects live
 -- alongside this one in the same folder.
 --
 -- STATUS
---   3.x  OPTIONAL, performance only. Nothing stops working if it is not applied, but
---        several of these indexes could not serve a single-scheduler lookup at all.
+--   OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a
+--   non-trivial number of triggers; the drops only reclaim write cost and storage.
 --
---   4.x  Superseded. ../4.0/schema_30_to_40_indexes_mysql_innodb.sql converges the same index
---        set onto the 4.x shape -- run that instead when upgrading to 4.x.
+--   NOT to be run while any 3.x node is still up -- see below.
 --
--- Brings an existing database's index set in line with what the current
--- database/tables/tables_mysql_innodb.sql creates. A database created from the current
--- script already matches and needs nothing from this file.
+-- Run schema_30_to_40_upgrade_mysql_innodb.sql first. That one is mandatory and this one is
+-- not, and it is the one that is safe to run while 3.x nodes are still up.
 --
--- Every Quartz statement filters SCHED_NAME first, so every index here leads with it.
--- Indexes that are a leftmost prefix of a wider one, or that no statement can drive a
--- scan from, are dropped.
+-- WHEN TO RUN THIS: once the last 3.x node has shut down, or straight after the upgrade file
+-- on an offline upgrade. Among the drops is IDX_QRTZ_T_NFT_ST_MISFIRE, which 3.x drives its
+-- misfire sweep from and 4.x does not read at all (#3656). A 3.x node keeps working without
+-- it -- it scans where it used to seek, which on a large schedule is the difference between a
+-- misfire sweep that finishes and one that times out.
+--
+-- What it does: creates the indexes 4.x's statements are written for, reshapes
+-- IDX_QRTZ_T_NFT_ST to carry the order acquisition reads in, and drops the ones no 4.x
+-- statement can drive a scan from. The end state is the index set database/tables/ creates
+-- for a fresh 4.x install.
+--
+-- Run it top to bottom. The creates come before the drops on purpose: IDX_QRTZ_T_NFT_ST is
+-- brought to its 4.x shape before IDX_QRTZ_T_NFT_ST_MISFIRE is dropped, so no schema is ever
+-- left with neither index.
 --
 -- MySQL only: QRTZ_BLOB_TRIGGERS was created with an inline INDEX on
 -- (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP), an exact duplicate of that table's primary key.
@@ -33,23 +40,27 @@
 -- !! FIRST RUN IN TEST ENVIRONMENT AGAINST A COPY OF YOUR PRODUCTION DATABASE !!
 --
 
--- === Create the indexes this version expects ===================================
+-- === Drop the indexes whose columns changed but whose name did not ============
+-- These have to go first: CREATE INDEX IF NOT EXISTS below would find the name
+-- already taken and silently keep the old, wrong column order.
 
 SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_JOB_DETAILS' AND INDEX_NAME = 'IDX_QRTZ_J_REQ_RECOVERY') > 0,
-  'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_J_REQ_RECOVERY ON QRTZ_JOB_DETAILS(SCHED_NAME,REQUESTS_RECOVERY)'
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_ST') > 0,
+  'DROP INDEX IDX_QRTZ_T_NFT_ST ON QRTZ_TRIGGERS',
+  'SELECT 1'
 ));
 PREPARE stmt FROM @preparedStatement;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- === Create the indexes this version expects ===================================
+
 SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_JOB_DETAILS' AND INDEX_NAME = 'IDX_QRTZ_J_GRP') > 0,
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_JOB_DETAILS' AND INDEX_NAME = 'IDX_QRTZ_J_G_N') > 0,
   'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_J_GRP ON QRTZ_JOB_DETAILS(SCHED_NAME,JOB_GROUP)'
+  'CREATE INDEX IDX_QRTZ_J_G_N ON QRTZ_JOB_DETAILS(SCHED_NAME,JOB_GROUP,JOB_NAME)'
 ));
 PREPARE stmt FROM @preparedStatement;
 EXECUTE stmt;
@@ -67,9 +78,9 @@ DEALLOCATE PREPARE stmt;
 
 SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_JG') > 0,
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_G_N') > 0,
   'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_T_JG ON QRTZ_TRIGGERS(SCHED_NAME,JOB_GROUP)'
+  'CREATE INDEX IDX_QRTZ_T_G_N ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME)'
 ));
 PREPARE stmt FROM @preparedStatement;
 EXECUTE stmt;
@@ -87,59 +98,9 @@ DEALLOCATE PREPARE stmt;
 
 SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_N_STATE') > 0,
-  'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_T_N_STATE ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP,TRIGGER_STATE)'
-));
-PREPARE stmt FROM @preparedStatement;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @preparedStatement = (SELECT IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_N_G_STATE') > 0,
-  'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_T_N_G_STATE ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_GROUP,TRIGGER_STATE)'
-));
-PREPARE stmt FROM @preparedStatement;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @preparedStatement = (SELECT IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NEXT_FIRE_TIME') > 0,
-  'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_T_NEXT_FIRE_TIME ON QRTZ_TRIGGERS(SCHED_NAME,NEXT_FIRE_TIME)'
-));
-PREPARE stmt FROM @preparedStatement;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @preparedStatement = (SELECT IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_ST') > 0,
   'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_T_NFT_ST ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_STATE,NEXT_FIRE_TIME)'
-));
-PREPARE stmt FROM @preparedStatement;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @preparedStatement = (SELECT IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_ST_MISFIRE') > 0,
-  'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_T_NFT_ST_MISFIRE ON QRTZ_TRIGGERS(SCHED_NAME,MISFIRE_INSTR,NEXT_FIRE_TIME,TRIGGER_STATE)'
-));
-PREPARE stmt FROM @preparedStatement;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @preparedStatement = (SELECT IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_ST_MISFIRE_GRP') > 0,
-  'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_T_NFT_ST_MISFIRE_GRP ON QRTZ_TRIGGERS(SCHED_NAME,MISFIRE_INSTR,NEXT_FIRE_TIME,TRIGGER_GROUP,TRIGGER_STATE)'
+  'CREATE INDEX IDX_QRTZ_T_NFT_ST ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_STATE,NEXT_FIRE_TIME ASC,PRIORITY DESC,MISFIRE_INSTR)'
 ));
 PREPARE stmt FROM @preparedStatement;
 EXECUTE stmt;
@@ -167,29 +128,9 @@ DEALLOCATE PREPARE stmt;
 
 SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_FIRED_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_FT_JG') > 0,
-  'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_FT_JG ON QRTZ_FIRED_TRIGGERS(SCHED_NAME,JOB_GROUP)'
-));
-PREPARE stmt FROM @preparedStatement;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @preparedStatement = (SELECT IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_FIRED_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_FT_T_G') > 0,
   'SELECT 1',
   'CREATE INDEX IDX_QRTZ_FT_T_G ON QRTZ_FIRED_TRIGGERS(SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP)'
-));
-PREPARE stmt FROM @preparedStatement;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @preparedStatement = (SELECT IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_FIRED_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_FT_TG') > 0,
-  'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_FT_TG ON QRTZ_FIRED_TRIGGERS(SCHED_NAME,TRIGGER_GROUP)'
 ));
 PREPARE stmt FROM @preparedStatement;
 EXECUTE stmt;
@@ -200,8 +141,38 @@ DEALLOCATE PREPARE stmt;
 
 SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_JOB_DETAILS' AND INDEX_NAME = 'IDX_QRTZ_J_GRP') > 0,
+  'DROP INDEX IDX_QRTZ_J_GRP ON QRTZ_JOB_DETAILS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_JOB_DETAILS' AND INDEX_NAME = 'IDX_QRTZ_J_REQ_RECOVERY') > 0,
+  'DROP INDEX IDX_QRTZ_J_REQ_RECOVERY ON QRTZ_JOB_DETAILS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_G_J') > 0,
   'DROP INDEX IDX_QRTZ_T_G_J ON QRTZ_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_JG') > 0,
+  'DROP INDEX IDX_QRTZ_T_JG ON QRTZ_TRIGGERS',
   'SELECT 1'
 ));
 PREPARE stmt FROM @preparedStatement;
@@ -230,8 +201,58 @@ DEALLOCATE PREPARE stmt;
 
 SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_N_STATE') > 0,
+  'DROP INDEX IDX_QRTZ_T_N_STATE ON QRTZ_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_N_G_STATE') > 0,
+  'DROP INDEX IDX_QRTZ_T_N_G_STATE ON QRTZ_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NEXT_FIRE_TIME') > 0,
+  'DROP INDEX IDX_QRTZ_T_NEXT_FIRE_TIME ON QRTZ_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_MISFIRE') > 0,
   'DROP INDEX IDX_QRTZ_T_NFT_MISFIRE ON QRTZ_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_ST_MISFIRE_GRP') > 0,
+  'DROP INDEX IDX_QRTZ_T_NFT_ST_MISFIRE_GRP ON QRTZ_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_ST_MISFIRE') > 0,
+  'DROP INDEX IDX_QRTZ_T_NFT_ST_MISFIRE ON QRTZ_TRIGGERS',
   'SELECT 1'
 ));
 PREPARE stmt FROM @preparedStatement;
@@ -252,6 +273,26 @@ SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_FIRED_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_FT_G_T') > 0,
   'DROP INDEX IDX_QRTZ_FT_G_T ON QRTZ_FIRED_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_FIRED_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_FT_JG') > 0,
+  'DROP INDEX IDX_QRTZ_FT_JG ON QRTZ_FIRED_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_FIRED_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_FT_TG') > 0,
+  'DROP INDEX IDX_QRTZ_FT_TG ON QRTZ_FIRED_TRIGGERS',
   'SELECT 1'
 ));
 PREPARE stmt FROM @preparedStatement;

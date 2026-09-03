@@ -22,9 +22,9 @@ Quartz.NET never *migrates* its own schema, and creates one only when asked — 
 is [`JobStore:SchemaProvisioning = CreateIfMissing`](tutorial/job-stores.md#creating-the-schema), runs
 the fresh-install DDL for a database that has none and is a no-op for one that already has the tables.
 It never alters a table it finds, so a schema that is merely *behind* is untouched by it — and, since
-half-creating into one is worse than not starting at all, a prefix that holds some of Quartz's tables
-and not the rest is refused rather than filled in. A deployment therefore has two steps in a fixed
-order, and the order is not negotiable in either direction:
+creating around such a schema is worse than not starting at all, a database whose Quartz tables 4.x did
+not create is refused rather than filled in. A deployment therefore has two steps in a fixed order, and
+the order is not negotiable in either direction:
 
 1. **Apply the migration**, from [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations),
    every folder between the version the database is at and the version you are going to, in ascending
@@ -49,8 +49,9 @@ the right type or width, so a hand-built table whose column is declared wrong st
 statement that binds it. `JobStore:SchemaProvisioning` set to `None` turns the check off; there is no
 good reason to.
 
-`CreateIfMissing` will not paper over that failure either: it creates only into a table prefix that
-holds **no** Quartz table, so a 3.x schema is refused rather than half-completed. Provisioning is not
+`CreateIfMissing` will not paper over that failure either. It asks whose schema this is before it
+creates anything: a table it needs that is already there and short of a column it needs was made by
+something that is not 4.x, so a 3.x schema is refused rather than half-completed. Provisioning is not
 migrating, and a schema with the missing *table* created and the missing *columns* still missing is a
 scheduler that starts, logs itself validated and fires nothing.
 
@@ -141,18 +142,32 @@ stores a string map therefore has to keep its writes on the 3.x nodes until the 
 store the map as a string it serializes itself. Nothing else in job data is affected, and a cluster on
 System.Text.Json is not affected at all.
 
-**Defer section 6 of the migration until the last 3.x node is gone.** Sections 1 to 5 are the required
-ones; section 6 realigns the index set, and it *drops eight indexes that the 3.20 migration created for
-3.x* — `IDX_QRTZ_T_G_J`, `IDX_QRTZ_T_N_STATE`, `IDX_QRTZ_T_N_G_STATE`, `IDX_QRTZ_T_NEXT_FIRE_TIME`,
-`IDX_QRTZ_T_NFT_ST_MISFIRE`, `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP`, `IDX_QRTZ_FT_G_J` and `IDX_QRTZ_FT_G_T`.
-Its replacements have the leading columns 4.x's queries want, not 3.x's, and two of the eight are read
-by 3.x alone: `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP` serves a 3.x statement with no 4.x counterpart, and
-`IDX_QRTZ_T_NFT_ST_MISFIRE` is the index 3.x drives its misfire sweep from — 4.x reads neither, which
-is why 4.0 stopped creating the second one at all
-([#3656](https://github.com/quartznet/quartznet/issues/3656)). Nothing breaks, but a 3.x node scans
-where it used to seek, which on a large schedule is the difference between a misfire sweep that
-finishes and one that times out. The script is guarded and re-runnable, so running sections 1 to 5 now
-and the whole file again afterwards costs nothing.
+**Run `schema_30_to_40_upgrade_<db>.sql` now and `schema_30_to_40_indexes_<db>.sql` when the last 3.x
+node is gone.** The 4.0 migration is two files for exactly this reason: everything in the first is
+additive and safe during the window, and the second realigns the index set, which is not. What it drops
+differs by dialect, because what 3.x created differs by dialect:
+
+| Database | What the index file drops that 3.x had |
+|---|---|
+| SQL Server | Eight: `IDX_QRTZ_T_G_J`, `IDX_QRTZ_T_N_STATE`, `IDX_QRTZ_T_N_G_STATE`, `IDX_QRTZ_T_NEXT_FIRE_TIME`, `IDX_QRTZ_T_NFT_ST_MISFIRE`, `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP`, `IDX_QRTZ_FT_G_J`, `IDX_QRTZ_FT_G_T` |
+| MySQL, Oracle, Firebird | Those two misfire indexes and eight more, including `IDX_QRTZ_J_GRP`, `IDX_QRTZ_J_REQ_RECOVERY`, `IDX_QRTZ_T_JG`, `IDX_QRTZ_FT_JG` and `IDX_QRTZ_FT_TG` |
+| PostgreSQL, SQLite | Two: `IDX_QRTZ_J_REQ_RECOVERY` and `IDX_QRTZ_T_NEXT_FIRE_TIME`. Neither ever created a misfire index at all |
+
+The replacements have the leading columns 4.x's queries want, not 3.x's. On the four dialects that
+have them, two of the drops are read by 3.x alone: `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP` serves a 3.x
+statement with no 4.x counterpart, and `IDX_QRTZ_T_NFT_ST_MISFIRE` is the index 3.x drives its misfire
+sweep from — 4.x reads neither, which is why 4.0 stopped creating the second one at all
+([#3656](https://github.com/quartznet/quartznet/issues/3656)).
+
+**PostgreSQL and SQLite wait for a different reason**, since the index the argument above rests on is
+one they never had: the file drops and recreates `IDX_QRTZ_T_NFT_ST`, the index *both* versions acquire
+on, and a 3.x node acquiring in the seconds between the two statements scans the whole trigger table.
+Firebird is the third case: its acquisition index keeps the 3.x shape, so nothing is dropped and
+recreated there, and it waits only for the misfire index.
+
+Nothing breaks either way — a 3.x node scans where it used to seek, which on a large schedule is the
+difference between a misfire sweep that finishes and one that times out. Both files are guarded and
+re-runnable, so running the upgrade now and the index file afterwards costs nothing.
 
 **A retry policy is invisible to a 3.x node, and a 3.x reschedule destroys one.** `RETRY_POLICY` and
 `RETRY_ATTEMPT` are new in 4.x, so a job that fails on a 3.x node is not retried and its attempt count
@@ -203,7 +218,7 @@ same environment just fine, thanks to forward compatibility", and gates its risk
 the list above is what it offers instead.
 
 Rolling back is available for the same reason the window works: the migration is additive, so a 3.x node
-starts against the 4.0 schema without anything being undone. Only section 6's index drops would need
+starts against the 4.0 schema without anything being undone. Only the index file's drops would need
 putting back, by re-running [`migrations/3.20`](https://github.com/quartznet/quartznet/tree/main/database/migrations/3.20) —
 and any calendar a 4.0 node wrote would need rewriting from a 3.x one.
 

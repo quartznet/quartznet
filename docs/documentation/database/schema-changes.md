@@ -226,12 +226,17 @@ Neither can run inside a transaction block, so run those statements one at a tim
 
 - Scripts: [`migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) — all databases
 
-Applies everything from [3.17](#version-3-17), [3.18](#version-3-18), [3.19](#version-3-19) and
-[3.20](#version-3-20), plus the retry columns, the `QRTZ_PAUSED_JOB_GRPS` table and the 4.x index
-shape, in one pass. Run it whether or not you applied the optional migrations — every statement is
-guarded, so it is safe on a partially-migrated database.
+It is **two files**, because they are run at two different moments:
 
-Sections, in order:
+| File | Status | When to run it |
+|---|---|---|
+| `schema_30_to_40_upgrade_<db>.sql` | **Mandatory** | Now. Everything in it is safe to run while 3.x nodes are still up. |
+| `schema_30_to_40_indexes_<db>.sql` | Optional, performance only | Once the last 3.x node has shut down, or straight afterwards on an offline upgrade. |
+
+The upgrade file applies everything from [3.17](#version-3-17), [3.18](#version-3-18) and
+[3.19](#version-3-19), plus the retry columns and the `QRTZ_PAUSED_JOB_GRPS` table. Run it whether or
+not you applied the optional migrations — every statement is guarded, so it is safe on a
+partially-migrated database. Its sections, in order:
 
 | # | Change | Status |
 |---|---|---|
@@ -240,18 +245,18 @@ Sections, in order:
 | 3 | `PREFERRED_NODE` / `PREFERRED_NODE_AUTO` columns | required |
 | 4 | `RETRY_POLICY` / `RETRY_ATTEMPT` columns | required |
 | 5 | `QRTZ_PAUSED_JOB_GRPS` table | required |
-| 6 | Index set aligned with the 4.x schema | optional |
-
-Run them in order — the drops in section 6 assume the creates above them have already succeeded.
-
-Sections 1–5 are safe to run while 3.x nodes are still up. **Section 6 is not**: it drops
-`IDX_QRTZ_T_NFT_ST_MISFIRE`, which 3.x drives its misfire sweep from and 4.x does not read at all
-([#3656](https://github.com/quartznet/quartznet/issues/3656)). Run section 6 once the last 3.x node
-has shut down.
 
 Sections 1–3 have 3.x counterparts and only fold them in. **Sections 4 and 5 do not**: they are new
 in 4.x, and they are why this migration is required even for a database that is fully migrated on
 3.x.
+
+The index file supersedes [3.20](#version-3-20) and lands the 4.x index shape. It is separate because
+it is the half that cannot run during a mixed window: it drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, which 3.x
+drives its misfire sweep from and 4.x does not read at all
+([#3656](https://github.com/quartznet/quartznet/issues/3656)). Run it top to bottom — the drops assume
+the creates above them have already succeeded — and re-run it as often as you like; every statement in
+it is guarded. A 4.x node starts perfectly well against a database that has taken the upgrade file and
+not this one; it scans where it would otherwise seek.
 
 `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` back a trigger's retry policy
 ([#3520](https://github.com/quartznet/quartznet/issues/3520)): the policy in its stored string form,
@@ -269,18 +274,19 @@ lost on restart; 4.x records the group names, which is what makes `JobGroup.Paus
 holding no jobs, so this is a table rather than a column on `QRTZ_JOB_DETAILS` — a group with no
 rows has nothing to hang a flag on.
 
-If you already built a schema from an **earlier 4.0 preview**, run the script again: every statement
-is guarded, so all it does the second time is apply what that preview did not have — the retry
-columns, and this table on a preview old enough to predate it. On SQLite nothing above section 5 is
-guarded, so check `PRAGMA table_info(QRTZ_TRIGGERS)` and run only the sections whose columns are
-missing.
+If you already built a schema from an **earlier 4.0 preview**, run both files again: every statement
+is guarded, so all they do the second time is apply what that preview did not have — the retry
+columns, this table on a preview old enough to predate it, and the index set as a pre-release moved it.
+On SQLite the upgrade file's sections 1–4 are not guarded — it has no conditional `ADD COLUMN` — so
+check `PRAGMA table_info(QRTZ_TRIGGERS)` and run only the sections whose columns are missing. The index
+file is guarded there as everywhere.
 
 The 4.x listing queries page with `ORDER BY JOB_GROUP, JOB_NAME` and
-`ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary keys are name-before-group, so section 6
+`ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary keys are name-before-group, so the index file
 adds `IDX_QRTZ_J_G_N` and `IDX_QRTZ_T_G_N` to serve those ordered scans. Without them each page
 is a scan plus a sort.
 
-Section 6 also reshapes `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on, from
+It also reshapes `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on, from
 `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)` to
 `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)`
 ([#3510](https://github.com/quartznet/quartznet/issues/3510)). Acquisition orders by
@@ -294,7 +300,7 @@ taken and keep the old shape. **Firebird keeps the three-column index**: its ind
 direction for the whole index, so it cannot express this one, and the trailing columns would be
 write cost with nothing to buy.
 
-Section 6 then drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, which SQL Server, MySQL, Oracle and Firebird
+It then drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, which SQL Server, MySQL, Oracle and Firebird
 created over `(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)` and PostgreSQL and SQLite
 never did ([#3656](https://github.com/quartznet/quartznet/issues/3656)). It leads with
 `MISFIRE_INSTR`, which both misfire statements compare with `<> -1` and no B-tree can seek past,
@@ -304,7 +310,7 @@ engines that had it, no optimizer picks it for either statement
 ([#3608](https://github.com/quartznet/quartznet/issues/3608),
 [#3656](https://github.com/quartznet/quartznet/issues/3656)); MySQL only appeared to, because
 `MySQLDelegate` named it in a `FORCE INDEX` hint that now names the acquisition index. **The drop
-sits after the reshape in the same section on purpose**, so a schema that never took the reshape
+sits after the reshape in the same file on purpose**, so a schema that never took the reshape
 takes it here first and none is left with neither index.
 
 Node affinity needs no data migration: 3.x and 4.x store pins identically.

@@ -133,9 +133,9 @@ range — exactly what the fourth index leads with since it was reshaped. Measur
 four engines ([#3608](https://github.com/quartznet/quartznet/issues/3608),
 [#3656](https://github.com/quartznet/quartznet/issues/3656)), no optimizer picks it for either misfire
 statement; MySQL only appeared to, because `MySQLDelegate` forced it by name, and that hint now points
-at the acquisition index. It was write cost with no reader. Upgrading from 3.x drops it in section 6 of
-`schema_30_to_40_upgrade_<dialect>.sql`, which waits for the last 3.x node to shut down — 3.x *does*
-sweep from it.
+at the acquisition index. It was write cost with no reader. Upgrading from 3.x drops it in
+`schema_30_to_40_indexes_<dialect>.sql`, which is a file of its own because it waits for the last 3.x
+node to shut down — 3.x *does* sweep from it.
 
 That fourth one is `IDX_QRTZ_T_NFT_ST`, the index both sweeps run on, and it is the only index in the
 schema whose shape differs by dialect:

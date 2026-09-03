@@ -47,13 +47,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// </para>
 /// <para>
 /// Two upgrade routes reach 4.0 and both are covered: <c>QRTZM_</c> takes the stepped route,
-/// applying the optional 3.17-3.20 migrations first, so the 4.0 script lands on a partially-migrated
-/// database; <c>QRTZD_</c> takes the direct route, applying nothing but the mandatory 4.0 script to
-/// an untouched 3.16 database. Either way the end state has to be table-for-table, column-for-column
-/// and index-for-index what a fresh install produces. Every dialect but SQLite says in its header
-/// that it serves both routes; SQLite's says the opposite, and the stepped route only reaches 4.0
-/// there because <see cref="SqliteAddColumnAlreadyApplied" /> does by hand what that header tells a
-/// reader to do.
+/// applying the optional 3.17-3.20 migrations first, so the 4.0 scripts land on a partially-migrated
+/// database; <c>QRTZD_</c> takes the direct route, applying nothing but the two mandatory-and-optional
+/// 4.0 files to an untouched 3.16 database. Either way the end state has to be table-for-table,
+/// column-for-column and index-for-index what a fresh install produces — which is also what makes the
+/// 4.0 upgrade's split into two files checkable here, since running only the first leaves the 3.x
+/// index set behind. Every dialect but SQLite says in its header that it serves both routes; SQLite's
+/// says the opposite, and the stepped route only reaches 4.0 there because
+/// <see cref="SqliteAddColumnAlreadyApplied" /> does by hand what that header tells a reader to do.
 /// </para>
 /// <para>
 /// Re-runnability is asserted on the stepped route, where every migration is applied twice. SQLite is
@@ -89,22 +90,31 @@ public class MigrationScriptTest
     private const string DropSwitchPrefix = "QRTZS_";
 
     /// <summary>Migrations that apply on top of the 3.16 baseline, in the order they must run.</summary>
+    /// <remarks>
+    /// The 4.0 upgrade is two files, and the order between them is the whole reason they are two:
+    /// <c>schema_30_to_40_upgrade</c> is the mandatory half and is safe to run while 3.x nodes are up,
+    /// and <c>schema_30_to_40_indexes</c> is the half that waits for the last of them to shut down.
+    /// A chain that ran only the first would leave the index set on its 3.x shape, which is what the
+    /// comparison with a fresh install then catches.
+    /// </remarks>
     private static readonly (string Version, string Name)[] SteppedChain =
     [
         ("3.17", "add_misfire_orig_fire_time"),
         ("3.18", "add_execution_group"),
         ("3.19", "add_preferred_node"),
         ("3.20", "index_alignment"),
-        ("4.0", "schema_30_to_40_upgrade")
+        ("4.0", "schema_30_to_40_upgrade"),
+        ("4.0", "schema_30_to_40_indexes")
     ];
 
     /// <summary>
-    /// The mandatory upgrade on its own. Its header says it supersedes the four above, so a database
-    /// that never ran any of them has to arrive at the same place.
+    /// The mandatory upgrade and its index half on their own. Their headers say they supersede the
+    /// four above, so a database that never ran any of them has to arrive at the same place.
     /// </summary>
     private static readonly (string Version, string Name)[] DirectChain =
     [
-        ("4.0", "schema_30_to_40_upgrade")
+        ("4.0", "schema_30_to_40_upgrade"),
+        ("4.0", "schema_30_to_40_indexes")
     ];
 
     [Test]

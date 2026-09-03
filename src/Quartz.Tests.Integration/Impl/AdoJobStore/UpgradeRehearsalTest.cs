@@ -52,7 +52,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// So the shape of a leg is: build the 3.20 schema under <c>QRTZU_</c>, have
 /// <c>Quartz.Tests.Integration.Seeder</c> fill it (once per serializer, under a scheduler name each,
 /// because every Quartz table is keyed by <c>SCHED_NAME</c> and two schedulers share a schema
-/// happily), run <c>database/migrations/4.0/schema_30_to_40_upgrade_&lt;dialect&gt;.sql</c> over it,
+/// happily), run both halves of <c>database/migrations/4.0/</c> over it — the mandatory
+/// <c>schema_30_to_40_upgrade_&lt;dialect&gt;.sql</c> and then <c>schema_30_to_40_indexes_…</c> —
 /// assert the structural equivalence <see cref="MigrationScriptTest" /> already asserts, and only then
 /// start a 4.0 scheduler and check every seeded row against the manifest the seeder wrote.
 /// </para>
@@ -165,8 +166,13 @@ public class UpgradeRehearsalTest
             manifests.Add(await SeedAsync(dialect, connectionString, serializer));
         }
 
+        // Both halves of the upgrade, in the order an operator runs them: the mandatory one while the
+        // 3.x nodes are still up, and the index set once the last of them has gone.
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_upgrade", dialect, RehearsalPrefix), dialect);
+
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_indexes", dialect, RehearsalPrefix), dialect);
 
         await MigrationScriptTest.AssertSchemaMatchesAsync(connection, dialect, RehearsalPrefix);
 

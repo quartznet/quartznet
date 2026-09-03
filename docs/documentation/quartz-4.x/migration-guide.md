@@ -293,10 +293,11 @@ run against one set of tables for as long as the rollout takes.
 state and what has not — including the one thing not to do during it, which is let a 4.0 node write a
 calendar.
 
-**4. Run the migration script's required sections.** One file per database, guarded throughout, safe to
-run twice — [Database Schema Migration](#database-schema-migration). It is mandatory even for a database
-that took every optional 3.x migration going, because 4.x validates the table set and
-`QRTZ_PAUSED_JOB_GRPS` is new. Leave the index sections for step 7. Schema before nodes, always:
+**4. Run the mandatory migration script.** `schema_30_to_40_upgrade_<database>.sql` — one file per
+database, guarded throughout, safe to run twice, and safe to run with 3.x nodes still firing:
+[Database Schema Migration](#database-schema-migration). It is mandatory even for a database that took
+every optional 3.x migration going, because 4.x validates the schema and `QRTZ_PAUSED_JOB_GRPS` is new.
+The index set is the *other* file in that folder, and it is step 7. Schema before nodes, always:
 an old node tolerates a new schema and a new node does not tolerate an old one —
 [Schema first, then nodes](operations.md#schema-first-then-nodes).
 
@@ -313,12 +314,14 @@ that moved is an alias you declare, in
 [Type loader](configuration/reference.md#type-loader). Then replace the nodes one at a time —
 [Replacing the nodes](operations.md#replacing-the-nodes).
 
-**7. Run the index sections, once the last 3.x node is gone.** They are the optional half of the same
-script — section 6, top to bottom: [Listing indexes](#listing-indexes-optional),
+**7. Run `schema_30_to_40_indexes_<database>.sql`, once the last 3.x node is gone.** It is the optional
+half of the upgrade, in a file of its own precisely so that this step is one command rather than an
+instruction to run part of a file: [Listing indexes](#listing-indexes-optional),
 [the reshaped acquisition index](#the-acquisition-index-is-reshaped-optional) and
-[the dropped misfire index](#the-misfire-index-is-dropped-optional). They are deferred because they
-drop indexes a 3.x node's statements may still be driving scans from — the misfire index is the one
-3.x sweeps misfires with.
+[the dropped misfire index](#the-misfire-index-is-dropped-optional). Run it top to bottom. It is
+deferred because it drops indexes a 3.x node's statements may still be driving scans from — the
+misfire index is the one 3.x sweeps misfires with — and because it drops and recreates the index
+*both* versions acquire on. On an offline upgrade, run it straight after step 4.
 
 [Before you go live](production-checklist.md) is the checklist for the state you should be in when this
 is done.
@@ -373,10 +376,11 @@ later, on the first statement that binds it, with whatever your provider says. R
 rather than section by section, and if a startup succeeded but a firing failed with a raw provider
 error, the column definitions are the first thing to check.
 
-`ProvisionSchema()` is not a way around this. It creates only into a table prefix that holds no Quartz
-table at all, so a 3.x schema is refused rather than half-completed — creating the one table 4.x added
-and leaving the columns it added missing would produce a scheduler that starts, reports itself
-provisioned, and then fails every acquisition for ever.
+`ProvisionSchema()` is not a way around this. Before it creates anything it asks whose schema this is:
+a table it needs that is already there and short of a column it needs was made by something that is not
+4.x, so a 3.x database is refused rather than half-completed. Creating the one table 4.x added and
+leaving the columns it added missing would produce a scheduler that starts, reports itself provisioned,
+and then fails every acquisition for ever.
 
 A **paused job group does not survive the upgrade**, and cannot: 3.x's ADO store records nothing when
 it pauses one — its `IsJobGroupPaused` returns a hard-coded `false` and `PauseJobs` only pauses the
@@ -411,11 +415,17 @@ opens; the schema migration does not look at the expressions it carries across.
 [Upgrading a running deployment](#upgrading-a-running-deployment) is the whole ordered sequence.
 :::
 
-Apply the script for your database from
-[database/migrations/4.0/](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) —
-`schema_30_to_40_upgrade_sqlServer.sql`, `_postgres`, `_mysql_innodb`, `_oracle`, `_sqlite` or
-`_firebird`. Every statement checks first, so it is safe to run whether or not you already applied
-the optional 3.x migrations, and safe to run twice.
+[database/migrations/4.0/](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0)
+holds **two** files per database, and they are run at two different moments:
+
+| File | Status | When |
+|---|---|---|
+| `schema_30_to_40_upgrade_<database>.sql` | **Mandatory** | Now. Everything in it is additive and safe to run while 3.x nodes are still firing. |
+| `schema_30_to_40_indexes_<database>.sql` | Optional, performance only | Once the last 3.x node has shut down — or straight afterwards, if nothing is running. |
+
+`<database>` is `sqlServer`, `postgres`, `mysql_innodb`, `oracle`, `sqlite` or `firebird`. Every
+statement in both checks first, so each is safe to run whether or not you already applied the optional
+3.x migrations, and safe to run twice. The three sections below describe what the *index* file does.
 
 For SQL Server the column additions look like this:
 
@@ -433,7 +443,7 @@ history, including what each optional 3.x migration does and what skipping it co
 
 ### Listing indexes (optional)
 
-The same script aligns the index set with the statements 4.x issues. Two of the additions matter
+The index file aligns the index set with the statements 4.x issues. Two of the additions matter
 most for the [job and trigger listings](#job-store-listings-became-queries):
 
 | Index | Table and columns |
@@ -446,14 +456,14 @@ keys are name-before-group, so no existing index serves those ordered scans. **T
 queries work without them, but each page becomes a scan plus a sort. Add them if you list jobs or triggers
 from a large schema. They are in the fresh-install scripts for every dialect already.
 
-The same section drops indexes that are a leftmost prefix of a wider one, or that no 4.x statement
+It also drops indexes that are a leftmost prefix of a wider one, or that no 4.x statement
 can drive a scan from. PostgreSQL gets the largest change: several of its indexes omitted
 `SCHED_NAME`, which is the leading column of every predicate Quartz issues, so they could not serve
 a single-scheduler lookup at all.
 
 ### The acquisition index is reshaped (optional)
 
-The same section also drops and recreates `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on
+The same file drops and recreates `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on
 ([#3510](https://github.com/quartznet/quartznet/issues/3510)):
 
 | | Table and columns |
@@ -472,13 +482,13 @@ alone. Firebird's indexes take one direction for the whole index, so it keeps th
 the MySQL and Oracle footnotes.
 
 **If you built a 4.0 preview schema before this landed**, re-run
-`schema_30_to_40_upgrade_<database>.sql` — or at least its section 6. The index name did not change,
-so the script drops it before recreating it; a guarded `CREATE INDEX` on its own would find the name
-taken and keep the old three columns.
+`schema_30_to_40_indexes_<database>.sql`. The index name did not change, so the script drops it before
+recreating it; a guarded `CREATE INDEX` on its own would find the name taken and keep the old three
+columns.
 
 ### The misfire index is dropped (optional)
 
-The same section drops `IDX_QRTZ_T_NFT_ST_MISFIRE`
+The same file drops `IDX_QRTZ_T_NFT_ST_MISFIRE`
 ([#3656](https://github.com/quartznet/quartznet/issues/3656)):
 
 | | Table and columns |
@@ -497,13 +507,13 @@ misfire index, no optimizer picks it for either statement
 `MySQLDelegate` named it in a `FORCE INDEX` hint; that hint now names the acquisition index. What was
 left is an index maintained on every trigger write and read by nothing.
 
-**The order inside section 6 is the precondition.** The reshape above is in the same section and comes
+**The order inside the file is the precondition.** The reshape above is in the same file and comes
 first, so a schema still carrying the three-column acquisition index is brought to the 4.x shape before
-this drop runs, and no schema is ever left with neither index. Run the section top to bottom, and
-re-run it as often as you like — every statement in it is guarded.
+this drop runs, and no schema is ever left with neither index. Run the file top to bottom, and re-run
+it as often as you like — every statement in it is guarded.
 
-**3.x reads this index**, which is the other half of why section 6 waits for the last 3.x node to shut
-down.
+**3.x reads this index**, which is the other half of why the index file waits for the last 3.x node to
+shut down.
 
 Full table creation scripts for fresh installations are available in [database/tables/](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
@@ -11551,10 +11561,11 @@ shape changed and only what a mis-stated configuration does is different.
 | rc.1 | `NativeJob` redirects the child's streams only when `ConsumeStreams` is on, and waits with `WaitForExitAsync`. A process writing more than a pipe buffer holds used to block for ever with the defaults | [`NativeJob` no longer redirects a stream nobody reads](#nativejob-no-longer-redirects-a-stream-nobody-reads) |
 | rc.1 | The health check reports `Degraded` for a **clustered** node whose last check-in is older than `QuartzHealthCheckOptions.ClusterCheckinTolerance` (`3`) times its own interval. `null` or `0` makes no such query, and an unclustered scheduler is not asked | [The health check reports the state it found](#the-health-check-reports-the-state-it-found) |
 | rc.1 | Each scheduling path logs under its own category — a scheduling file, `AddQuartz`, and the JSON plugin — where all three logged as `Quartz.Xml.XmlSchedulingDataProcessor`. The event ids are unchanged | [Each scheduling path logs under its own category](#each-scheduling-path-logs-under-its-own-category) |
-| rc.1 | The log catalogue moved: `7010` and `7011` are gone with the assembly sweep that raised them, and `1020` (a shutdown abandoning running work), `1021` (something subscribed where 3.x published telemetry), `3156` (a schema that was already complete), `3157` (a schema that is partly there, so nothing was created) and `9100`–`9103` (the dashboard's own events) are new | [Every message carries an event id](#every-message-carries-an-event-id) |
-| rc.1 | Schema validation probes the columns the 4.0 migration adds as well as the tables, and `CreateIfMissing` creates only into a prefix that holds no Quartz table. **A 4.x node against an unmigrated 3.x schema is now refused at startup** where `ProvisionSchema()` used to start it and fire nothing; both messages name `database/migrations/4.0/`. Log event `3157` is new | [Database Schema Migration](#database-schema-migration) |
+| rc.1 | The log catalogue moved: `7010` and `7011` are gone with the assembly sweep that raised them, and `1020` (a shutdown abandoning running work), `1021` (something subscribed where 3.x published telemetry), `3156` (a schema that was already complete) and `9100`–`9103` (the dashboard's own events) are new | [Every message carries an event id](#every-message-carries-an-event-id) |
+| rc.1 | Schema validation probes the columns the 4.0 migration adds as well as the tables, and `CreateIfMissing` refuses a schema 4.x did not create rather than building around it. **A 4.x node against an unmigrated 3.x schema is now refused at startup** where `ProvisionSchema()` used to start it and fire nothing; both messages name `database/migrations/4.0/` | [Database Schema Migration](#database-schema-migration) |
 | rc.1 | A paused **job** group binds what is added to it on the ADO store, as it always did in memory: a trigger stored for a job in a recorded-paused group is born `PAUSED`. A pre-release that paused a job group and then deployed a job into it ran that job | [The two job stores answer the same way](#the-two-job-stores-answer-the-same-way) |
-| rc.1 | The schema no longer creates `IDX_QRTZ_T_NFT_ST_MISFIRE`, and the 3.x-to-4.0 script drops it. **Re-run section 6 of `schema_30_to_40_upgrade_<database>.sql`** on a schema built from an earlier pre-release; nothing fails if you do not, the index is only maintained for nothing | [The misfire index is dropped](#the-misfire-index-is-dropped-optional) |
+| rc.1 | The 3.x-to-4.0 migration is **two files**: `schema_30_to_40_upgrade_<database>.sql` is the mandatory half and is safe during a mixed window, and the index set moved out of it into `schema_30_to_40_indexes_<database>.sql`, which is the half that waits for the last 3.x node. Section 6 of the old single file *is* that new file | [Database Schema Migration](#database-schema-migration) |
+| rc.1 | The schema no longer creates `IDX_QRTZ_T_NFT_ST_MISFIRE`, and the 3.x-to-4.0 migration drops it. **Run `schema_30_to_40_indexes_<database>.sql`** — section 6 of the old single file — on a schema built from an earlier pre-release; nothing fails if you do not, the index is only maintained for nothing | [The misfire index is dropped](#the-misfire-index-is-dropped-optional) |
 
 :::
 
