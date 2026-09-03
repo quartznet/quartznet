@@ -259,6 +259,46 @@ be added later without breaking anything, and it is filed for 4.1; auto-detectio
 because by then the existing reading of a six-field expression is the one people's schedules depend on.
 :::
 
+### If your expressions came from another .NET cron library
+
+Cronos and NCrontab are crontab-derived, and an expression written for either parses here — six fields
+have the same shape. Almost all of them also fire at the same instants. Two things differ, and both are
+silent, because the expression is perfectly valid Quartz cron; it simply means something else.
+
+**The day-of-week numbering.** Quartz numbers `1-7` with Sunday `1`; those libraries number `0-6` with
+Sunday `0`, and crontab itself `0-7` with both ends Sunday. So `0 0 2 * * 1` is 02:00 on **Sunday** here
+and 02:00 on **Monday** there — the same divergence [a Spring expression
+has](#an-expression-copied-from-spring), and the same answer: write the day as a name. `SUN` through
+`SAT` mean the same day in every one of these dialects.
+
+**Both day fields restricted.** Quartz fires on the **union** of day-of-month and day-of-week, which is
+crontab's rule; Cronos takes their intersection. `0 0 2 5 * MON` is "the 5th, and every Monday" here and
+"the 5th, if it is a Monday" there. Putting `?` in one of the two fields says which one is in charge and
+settles it.
+
+Everything else carries across. Searching from `2026-08-21T00:00:00Z`, against Cronos 0.11.0:
+
+| Expression | Quartz | Cronos | |
+|:---|:---|:---|:---|
+| `0 0 2 * * MON` | 2026-08-24 02:00 | 2026-08-24 02:00 | same |
+| `0 0 7 * * *` | 2026-08-21 07:00 | 2026-08-21 07:00 | same |
+| `0 0 */1 * * *` | 2026-08-21 01:00 | 2026-08-21 01:00 | same |
+| `0 */15 * * * *` | 2026-08-21 00:15 | 2026-08-21 00:15 | same |
+| `0 30 6 * * MON,TUE,WED,THU,FRI` | 2026-08-21 06:30 | 2026-08-21 06:30 | same |
+| `0 0 2 * * 1` | 2026-08-23 (**Sunday**) | 2026-08-24 (**Monday**) | **differ** |
+| `0 0 2 5 * MON` | 2026-08-24 (union) | 2026-10-05 (intersection) | **differ** |
+
+A **five**-field expression from one of those libraries is a different matter: `CronFormat.Unix` reads it
+and renumbers the days for you, so `CronExpression.Parse("0 2 * * 1", CronFormat.Unix)` is Monday, as its
+author meant. See [The Unix five-field form](#the-unix-five-field-form).
+
+::: tip Upgrading from 3.x with such an expression in the database
+3.x required `?` in exactly one day field, so an expression with two restricted day fields was
+*rejected* on the way in. It stores and fires on 4.0. The migration guide has an audit for finding the
+two shapes above among the expressions you already hold:
+[If your expressions came from another cron library](migration-guide.md#if-your-expressions-came-from-another-cron-library).
+:::
+
 ## H (hash) for load distribution
 
 The `H` symbol (for "hash") can be used in place of a specific value to spread scheduled tasks
