@@ -760,6 +760,17 @@ the survivor in each run, no unexpected scheduler error, no unobserved task exce
 heap and handle count no larger at the end than at the start (5 MB and ~635 handles throughout on
 PostgreSQL; 5 MB and ~730 on SQL Server).
 
+**The PostgreSQL run was repeated on the release candidate** — 30 minutes on `2e207e37b`, on
+2026-09-03 — because sixteen commits had touched `Quartz` since the runs above. It passed with the
+same shape and, on the same machine, numbers within a firing or two of the first: peak observed
+concurrency **1** over 2,661 firings of the serial job, every family still on its schedule (890
+simple, 591 daily-time-interval, 444 calendar-interval, 355 cron, 296 recurrence), 534 attempts at
+the failing job of which 356 were the retry policy's, 178 overruns interrupted, and the survivor
+replaying the killed node's one interrupted firing a second after the kill. It ended as the others
+did: nothing `ACQUIRED` or `BLOCKED`, `QRTZ_FIRED_TRIGGERS` empty, no unexpected scheduler error, no
+unobserved task exception, and a live heap of 4–5 MB behind 619–640 handles from the first minute to
+the thirtieth. The SQL Server figures above stand from the beta.1 run; it was not repeated.
+
 The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`; it is opt-in
 (`[Category("LongRunning")]`, `QUARTZ_SOAK_MINUTES`) and is run before a tag rather than in CI.
 
