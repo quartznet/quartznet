@@ -64,17 +64,19 @@ public partial class StdAdoDelegate
         DbCommand cmd;
         List<SchedulerStateRecord> list = new List<SchedulerStateRecord>();
 
+        // Bound in the order the statements name them - SCHED_NAME first, INSTANCE_NAME second - for a
+        // provider that binds positionally rather than by name.
         if (instanceName != null)
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectSchedulerState));
+            AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "instanceName", instanceName);
         }
         else
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectSchedulerStates));
+            AddCommandParameter(cmd, "schedulerName", schedName);
         }
-
-        AddCommandParameter(cmd, "schedulerName", schedName);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
