@@ -93,9 +93,9 @@
     <PackageVersion Include="StackExchange.Redis" Version="3.1.31" />
     <PackageVersion Include="TimeZoneConverter" Version="7.2.0" />
     <PackageVersion Include="Verify.NUnit" Version="32.0.0" />
-    <PackageVersion Include="WolverineFx" Version="6.32.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.32.0" />
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.32.0" />
+    <PackageVersion Include="WolverineFx" Version="6.33.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.33.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.33.0" />
   </ItemGroup>
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.5" />
