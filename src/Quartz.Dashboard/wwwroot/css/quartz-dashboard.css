@@ -131,6 +131,10 @@
     }
 }
 
+body{
+    margin:0;
+}
+
 /* Explicit theme override */
 .qz-dashboard[data-theme="light"] {
     --qz-color-primary: #2563eb;
