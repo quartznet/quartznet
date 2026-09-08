@@ -862,6 +862,18 @@ public class TriggerEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task UpdateTriggerDetailsShouldRejectABodyThatIsNotAnObject()
+    {
+        using HttpResponseMessage response = await WebApplicationFactory.CreateClient().PostAsync(
+            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/details",
+            new StringContent("null", Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "a body the endpoint cannot read is the caller's mistake, and the converter never sees a JSON "
+            + "null - so it is the framework that has to refuse it rather than the handler dereferencing it");
+    }
+
+    [Test]
     public async Task UpdateTriggerDetailsShouldRejectAnUnknownMisfireInstructionFamily()
     {
         using HttpResponseMessage response = await WebApplicationFactory.CreateClient().PostAsync(
