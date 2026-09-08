@@ -82,7 +82,7 @@ internal static class TriggerEndpoints
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/reschedule", RescheduleJob)
             .WithQuartzDefaults(nameof(RescheduleJob), "Reschedule job");
 
-        yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/details", UpdateTriggerDetails)
+        yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/update-details", UpdateTriggerDetails)
             .WithQuartzDefaults(nameof(UpdateTriggerDetails), "Update trigger details without rescheduling");
     }
 

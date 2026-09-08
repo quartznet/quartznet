@@ -434,7 +434,7 @@ public sealed class HttpScheduler : IScheduler
         ArgumentNullException.ThrowIfNull(update);
 
         var result = await httpClient.PostWithResponse<UpdateTriggerDetailsRequest, OperationAppliedResponse>(
-            $"{TriggerEndpointUrl(triggerKey)}/details",
+            $"{TriggerEndpointUrl(triggerKey)}/update-details",
             UpdateTriggerDetailsRequest.Create(update),
             jsonSerializerOptions,
             cancellationToken

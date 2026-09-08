@@ -52,7 +52,7 @@ Four behaviours changed without a signature changing:
 
 * **`HttpScheduler.UpdateTriggerDetails` works** rather than throwing `NotSupportedException`. It was the
   one `IScheduler` member the HTTP API had no route behind, and the API has one now:
-  `POST …/triggers/{triggerGroup}/{triggerName}/details`, answering `{ "applied": … }`. The body is a
+  `POST …/triggers/{triggerGroup}/{triggerName}/update-details`, answering `{ "applied": … }`. The body is a
   patch — a member it omits leaves the trigger's value alone, a member present as `null` clears it — and
   it carries the misfire instruction's schedule family, so an instruction aimed at a trigger of another
   family is refused here exactly as it is in process. A server on 4.0 answers `404` for the route, so

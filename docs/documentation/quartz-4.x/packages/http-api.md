@@ -201,7 +201,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/unschedule` | `{ triggers }` |
 | `POST` | `…/triggers/unschedule-by-group` | `{ triggers }` — selects by group matcher in the query string |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reschedule` | `{ firstFireTimeUtc }`, **`null`** when the trigger did not exist |
-| `POST` | `…/triggers/{triggerGroup}/{triggerName}/details` | `{ applied }` — edits the trigger in place, [as a patch](#editing-a-trigger-in-place) |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/update-details` | `{ applied }` — edits the trigger in place, [as a patch](#editing-a-trigger-in-place) |
 
 ### Calendars — 5
 
@@ -636,7 +636,7 @@ and nothing when the group was empty.
 
 ## Editing a trigger in place
 
-`POST …/triggers/{triggerGroup}/{triggerName}/details` changes a trigger's metadata and settings without
+`POST …/triggers/{triggerGroup}/{triggerName}/update-details` changes a trigger's metadata and settings without
 rescheduling it. Fire times, fire count and state are exactly what they were; only the fields the body
 names change. It is the wire form of
 [`IScheduler.UpdateTriggerDetails`](../how-tos/rescheduling-jobs.md), and it answers `{ "applied": … }`,
