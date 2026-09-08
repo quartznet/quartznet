@@ -453,6 +453,14 @@ spellings of `take` are answered differently on purpose:
 
 Set `MaxPageSize` to `0` where an export or a migration really has to take everything in one call.
 
+::: tip `take` is a string in the OpenAPI document
+Because `all` is one of the two values it takes. A generated document types the parameter the way the
+endpoint binds it, and no generator infers `an integer or the word "all"` from a CLR type, so the six
+listing operations describe `take` as `"A page size, or \"all\" for everything up to MaxPageSize"` —
+which is what says it is a string on purpose rather than a parameter someone forgot to type. A generated
+client therefore takes a string here; pass the number as its text.
+:::
+
 | Endpoint | Returns | Filters (besides paging) |
 |---|---|---|
 | `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, `jobType` (the same assembly-qualified name the detail body carries), durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith`, and the four `name*` filters |

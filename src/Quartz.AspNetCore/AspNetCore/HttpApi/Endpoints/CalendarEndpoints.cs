@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -37,7 +39,7 @@ internal static class CalendarEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        string? take = null,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
         string? nameContains = null,
         string? nameEndsWith = null,
