@@ -61,6 +61,17 @@ public class CronExpressionBenchmark
     }
 
     /// <summary>
+    /// The complement of the above, which is what a <c>CronCalendar</c> asks for: the next second the
+    /// expression does <i>not</i> fire at. It used to be a next-fire computation per second of the run,
+    /// so the number here is a run length rather than a constant (#3690).
+    /// </summary>
+    [Benchmark]
+    public DateTimeOffset? NextNonOccurrence()
+    {
+        return expression.GetNextInvalidTimeAfter(Start);
+    }
+
+    /// <summary>
     /// Chains 100 next-fire computations, the most representative of real
     /// scheduler load and the clearest amplifier of the per-call win and the
     /// per-call allocations.
