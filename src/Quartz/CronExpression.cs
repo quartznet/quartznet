@@ -390,38 +390,385 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// Returns the next date/time <i>after</i> the given date/time which does
     /// <i>not</i> satisfy the expression.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The expression fires on whole seconds, so the answer is the first whole second at or after
+    /// <paramref name="date" /> that it does not fire at. It is read off the expression's own field
+    /// sets rather than walked to: the complement of a cron field is as enumerable as the field is,
+    /// so a run of firing seconds is stepped over a minute, an hour, a day or a month at a time.
+    /// </para>
+    /// <para>
+    /// An expression can fire at every second there is — <c>* * * * * ?</c> is the plain one — and
+    /// then there is no such time to return. That answers <see langword="null" /> rather than walking a
+    /// century, one second at a time, to the year the scheduler gives up looking for a fire in.
+    /// </para>
+    /// </remarks>
     /// <param name="date">the date/time at which to begin the search for the next invalid date/time</param>
-    /// <returns>the next valid date/time</returns>
+    /// <returns>The first whole second at or after <paramref name="date" /> that this expression does not
+    /// fire at, or <see langword="null" /> when it fires at every second through to the give-up year.</returns>
     public DateTimeOffset? GetNextInvalidTimeAfter(DateTimeOffset date)
     {
-        long difference = 1000;
+        // move back to the nearest second: the expression has no opinion about milliseconds
+        DateTimeOffset cursor = CreateDateTimeWithoutMilliseconds(date);
 
-        // move back to the nearest second so differences will be accurate
-        var lastDate = new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, date.Offset).AddSeconds(-1);
-
-        //TODO: IMPROVE THIS! The following is a BAD solution to this problem. Performance will be very bad here, depending on the cron expression. It is, however A solution.
-
-        // Keep getting the next included time until it's farther than one second
-        // apart. At that point, lastDate is the last valid fire time. We return
-        // the second immediately following it.
-        while (difference == 1000)
+        while (true)
         {
-            var newDate = GetTimeAfter(lastDate);
+            DateTime wallClock = TimeZones.ConvertTime(cursor, TimeZone).DateTime;
+            DateTime? firstNonMatching = FirstNonMatchingWallClock(wallClock);
 
-            if (newDate is null)
+            if (firstNonMatching is null)
             {
-                break;
+                // every clock reading from here to the give-up year names a fire
+                return null;
             }
 
-            difference = (long) (newDate.Value - lastDate).TotalMilliseconds;
-
-            if (difference == 1000)
+            if (firstNonMatching.Value == wallClock)
             {
-                lastDate = newDate.Value;
+                // The clock reading names no fire - but a reading a spring-forward gap swallowed
+                // fires at the end of the gap, so at that one instant the expression fires although
+                // the reading the clock shows does not match it. GetTimeAfter is what knows that, so
+                // it has the last word on the instant this is about to answer with.
+                if (!IsSatisfiedBy(cursor))
+                {
+                    return cursor;
+                }
+
+                cursor = cursor.AddSeconds(1);
+                continue;
+            }
+
+            cursor = AdvanceWallClock(cursor, wallClock, (long) (firstNonMatching.Value - wallClock).TotalSeconds);
+        }
+    }
+
+    /// <summary>
+    /// How far ahead a clock change is looked for before a long skip is trusted. Two hours covers
+    /// every transition delta a zone has ever moved its clocks by.
+    /// </summary>
+    private const int ClockChangeProbeSeconds = 2 * 60 * 60;
+
+    /// <summary>
+    /// Advances <paramref name="cursor" /> by <paramref name="wallClockSeconds" /> of the zone's own
+    /// clock, stopping short of a clock change rather than stepping over one.
+    /// </summary>
+    /// <remarks>
+    /// Real time and the zone's clock advance together everywhere but at a daylight saving transition,
+    /// where a fall-back replays a wall-clock hour that real time has already spent and a gap skips one
+    /// it never spends. The run being stepped over is a run of clock <i>readings</i>, so a skip that
+    /// crossed a transition could land past readings the replay makes current again. Each skip is
+    /// therefore verified - the clock has to have advanced by exactly what was asked of it - and halved
+    /// until it has, down to the single second that can skip nothing at all. The hour ahead is probed
+    /// on its own first, because a fall-back that close replays readings from <i>before</i> the cursor,
+    /// which a longer skip carrying the same offset at both ends would not otherwise notice.
+    /// </remarks>
+    /// <param name="cursor">The instant to advance from.</param>
+    /// <param name="wallClock">The zone's clock reading at <paramref name="cursor" />.</param>
+    /// <param name="wallClockSeconds">How far the clock should read ahead afterwards.</param>
+    private DateTimeOffset AdvanceWallClock(DateTimeOffset cursor, DateTime wallClock, long wallClockSeconds)
+    {
+        if (wallClockSeconds <= 1 || !TimeZone.SupportsDaylightSavingTime)
+        {
+            return cursor.AddSeconds(wallClockSeconds);
+        }
+
+        long step = wallClockSeconds;
+
+        if (step > ClockChangeProbeSeconds && WallClockAdvance(cursor, wallClock, ClockChangeProbeSeconds) != ClockChangeProbeSeconds)
+        {
+            step = ClockChangeProbeSeconds;
+        }
+
+        while (step > 1 && WallClockAdvance(cursor, wallClock, step) != step)
+        {
+            step /= 2;
+        }
+
+        return cursor.AddSeconds(step);
+    }
+
+    /// <summary>
+    /// How far the zone's clock reads ahead of <paramref name="wallClock" /> after
+    /// <paramref name="seconds" /> of real time.
+    /// </summary>
+    private long WallClockAdvance(DateTimeOffset cursor, DateTime wallClock, long seconds)
+    {
+        DateTime advanced = TimeZones.ConvertTime(cursor.AddSeconds(seconds), TimeZone).DateTime;
+        return (long) (advanced - wallClock).TotalSeconds;
+    }
+
+    /// <summary>
+    /// The earliest clock reading at or after <paramref name="from" /> whose fields this expression does
+    /// not name, or <see langword="null" /> when it names every one of them through to
+    /// <see cref="TriggerConstants.YearToGiveUpSchedulingAt" />.
+    /// </summary>
+    /// <remarks>
+    /// This reads the field sets and knows nothing about time zones, which is what lets it answer in one
+    /// step what a walk answers in a million: with a second the expression skips, the very next minute
+    /// holds a reading it does not name, whatever the rest of the fields say; with every second named,
+    /// only a minute it skips does, and so on up through hours, days, months and years. A reading a
+    /// spring-forward gap swallowed is answered about as though it existed - the caller walks instants,
+    /// and no instant carries one.
+    /// </remarks>
+    private DateTime? FirstNonMatchingWallClock(DateTime from)
+    {
+        if (from.Year > TriggerConstants.YearToGiveUpSchedulingAt || !MatchesWallClock(from))
+        {
+            return from;
+        }
+
+        bool everySecond = seconds.CoversRange(0, 59);
+        bool everyMinute = minutes.CoversRange(0, 59);
+
+        // the rest of this minute
+        if (seconds.TryGetFirstMissingValue(from.Second + 1, 59, out int second))
+        {
+            return new DateTime(from.Year, from.Month, from.Day, from.Hour, from.Minute, second);
+        }
+
+        // the rest of this hour
+        if (from.Minute < 59)
+        {
+            int minute = -1;
+            if (!everySecond)
+            {
+                minute = from.Minute + 1;
+            }
+            else if (minutes.TryGetFirstMissingValue(from.Minute + 1, 59, out int nextMinute))
+            {
+                minute = nextMinute;
+            }
+
+            if (minute >= 0)
+            {
+                return new DateTime(from.Year, from.Month, from.Day, from.Hour, minute, FirstNonMatchingSecond(minute));
             }
         }
 
-        return lastDate.AddSeconds(1);
+        // the rest of this day
+        if (from.Hour < 23)
+        {
+            int hour = -1;
+            if (!everySecond || !everyMinute)
+            {
+                hour = from.Hour + 1;
+            }
+            else if (hours.TryGetFirstMissingValue(from.Hour + 1, 23, out int nextHour))
+            {
+                hour = nextHour;
+            }
+
+            if (hour >= 0)
+            {
+                DateTime? insideTheDay = FirstNonMatchingInHour(from.Date, hour);
+                if (insideTheDay is not null)
+                {
+                    return insideTheDay;
+                }
+            }
+        }
+
+        // and then whole days
+        DateTime day = from.Date.AddDays(1);
+
+        if (day.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+        {
+            // nothing fires past the give-up year, so its first midnight is a reading that names no fire
+            return day;
+        }
+
+        if (!DayMatches(day))
+        {
+            return day;
+        }
+
+        // a day the expression names holds an unnamed reading unless it names every second of the day,
+        // in which case the search is over whole days from the one after it
+        return FirstNonMatchingInDay(day) ?? FirstNonMatchingDay(day.AddDays(1));
+    }
+
+    /// <summary>
+    /// The first day at or after <paramref name="from" /> that this expression names no time on, or
+    /// <see langword="null" /> when it names every day through to the give-up year. Whole months are
+    /// stepped over rather than walked when neither day field restricts.
+    /// </summary>
+    private DateTime? FirstNonMatchingDay(DateTime from)
+    {
+        int year = from.Year;
+        int month = from.Month;
+        int day = from.Day;
+        bool everyDay = !IsRestrictedDayField(daysOfMonth) && !IsRestrictedDayField(daysOfWeek);
+
+        while (year <= TriggerConstants.YearToGiveUpSchedulingAt)
+        {
+            if (!years.Contains(year) || !months.Contains(month))
+            {
+                return new DateTime(year, month, day);
+            }
+
+            if (!everyDay)
+            {
+                int lastDayOfMonth = GetLastDayOfMonth(month, year);
+                for (int candidate = day; candidate <= lastDayOfMonth; candidate++)
+                {
+                    if (!DayOfMonthOrWeekMatches(new DateTime(year, month, candidate)))
+                    {
+                        return new DateTime(year, month, candidate);
+                    }
+                }
+            }
+
+            day = 1;
+            month++;
+            if (month > 12)
+            {
+                month = 1;
+                year++;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The earliest reading in <paramref name="day" /> this expression does not name, or
+    /// <see langword="null" /> when it names every second of it. The day itself is assumed to be one
+    /// the expression names.
+    /// </summary>
+    private DateTime? FirstNonMatchingInDay(DateTime day)
+    {
+        for (int hour = 0; hour <= 23; hour++)
+        {
+            DateTime? found = FirstNonMatchingInHour(day, hour);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The earliest reading in one hour of <paramref name="day" /> this expression does not name, or
+    /// <see langword="null" /> when it names every second of that hour.
+    /// </summary>
+    private DateTime? FirstNonMatchingInHour(DateTime day, int hour)
+    {
+        if (!hours.Contains(hour))
+        {
+            return new DateTime(day.Year, day.Month, day.Day, hour, 0, 0);
+        }
+
+        if (!seconds.CoversRange(0, 59))
+        {
+            // every minute of a named hour holds a second the expression skips, so its first minute does
+            return new DateTime(day.Year, day.Month, day.Day, hour, 0, FirstNonMatchingSecond(0));
+        }
+
+        if (minutes.TryGetFirstMissingValue(0, 59, out int minute))
+        {
+            return new DateTime(day.Year, day.Month, day.Day, hour, minute, 0);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The first second of <paramref name="minute" /> this expression does not name. The caller reaches
+    /// this only where one exists: either the minute names no fire at all, and so its first second does
+    /// not, or the seconds field skips a value.
+    /// </summary>
+    private int FirstNonMatchingSecond(int minute)
+    {
+        if (!minutes.Contains(minute))
+        {
+            return 0;
+        }
+
+        seconds.TryGetFirstMissingValue(0, 59, out int second);
+        return second;
+    }
+
+    /// <summary>
+    /// Whether every field of this expression names the given clock reading. This is
+    /// <see cref="IsSatisfiedBy" />'s answer everywhere a clock reading and an instant are the same
+    /// thing, which is everywhere but the end of a spring-forward gap.
+    /// </summary>
+    private bool MatchesWallClock(DateTime wallClock)
+    {
+        return seconds.Contains(wallClock.Second)
+               && minutes.Contains(wallClock.Minute)
+               && hours.Contains(wallClock.Hour)
+               && DayMatches(wallClock);
+    }
+
+    /// <summary>
+    /// Whether the year, month and day fields all name the given date.
+    /// </summary>
+    private bool DayMatches(DateTime date)
+    {
+        return years.Contains(date.Year)
+               && months.Contains(date.Month)
+               && DayOfMonthOrWeekMatches(date);
+    }
+
+    /// <summary>
+    /// Whether the two day fields name the given date, by the same rule
+    /// <see cref="ProgressNextFireTimeDay" /> walks them with: a field that restricts nothing defers to
+    /// the other, and two fields that both name days are unioned.
+    /// </summary>
+    private bool DayOfMonthOrWeekMatches(DateTime date)
+    {
+        bool dayOfMonthRestricted = IsRestrictedDayField(daysOfMonth);
+        bool dayOfWeekRestricted = IsRestrictedDayField(daysOfWeek);
+
+        if (!dayOfWeekRestricted)
+        {
+            return !dayOfMonthRestricted || DayOfMonthMatches(date);
+        }
+
+        if (!dayOfMonthRestricted)
+        {
+            return DayOfWeekMatches(date);
+        }
+
+        return DayOfMonthMatches(date) || DayOfWeekMatches(date);
+    }
+
+    /// <summary>
+    /// Whether the day-of-month field names the given date, 'L' and 'W' modifiers resolved for its month.
+    /// </summary>
+    private bool DayOfMonthMatches(DateTime date)
+    {
+        if (lastDaySpecs is null && nearestWeekdays is null)
+        {
+            return daysOfMonth.Contains(date.Day);
+        }
+
+        uint dayMask = CalculateDaysOfMonth(new DateTimeOffset(date.Year, date.Month, 1, 0, 0, 0, TimeSpan.Zero));
+        return (dayMask & (1u << date.Day)) != 0;
+    }
+
+    /// <summary>
+    /// Whether the day-of-week field names the given date, 'L' and '#' resolved for its month.
+    /// </summary>
+    private bool DayOfWeekMatches(DateTime date)
+    {
+        int dayOfWeek = (int) date.DayOfWeek + 1;
+
+        if (lastDayOfWeek)
+        {
+            // 'nL': that day of the week, in the last week of the month that has one
+            return dayOfWeek == daysOfWeek.Min && date.Day + 7 > GetLastDayOfMonth(date.Month, date.Year);
+        }
+
+        if (nthdayOfWeek != 0)
+        {
+            // 'n#m': that day of the week, in the mth week of the month
+            return dayOfWeek == daysOfWeek.Min && (date.Day - 1) / 7 + 1 == nthdayOfWeek;
+        }
+
+        return daysOfWeek.Contains(dayOfWeek);
     }
 
     /// <summary>
@@ -3071,6 +3418,48 @@ internal sealed class CronField : IEnumerable<int>
         overflow = null;
         isAllSpec = false;
         isNoSpec = false;
+    }
+
+    /// <summary>
+    /// The smallest value in <c>[start, end]</c> this field does <i>not</i> allow — the complement
+    /// scan the next-non-matching-time search is built on.
+    /// </summary>
+    /// <remarks>
+    /// A field holding the '*' or '?' marker allows every value, so it has no such value. The range
+    /// asked for is always one field's own, which is at most 0-59, so the scan stays inside
+    /// <see cref="bits" /> and never reaches the years overflow set.
+    /// </remarks>
+    /// <param name="start">The first value to consider.</param>
+    /// <param name="end">The last value to consider.</param>
+    /// <param name="missing">The smallest disallowed value, or 0 when there is none.</param>
+    /// <returns><see langword="true" /> when the field skips a value in the range.</returns>
+    internal bool TryGetFirstMissingValue(int start, int end, out int missing)
+    {
+        missing = 0;
+
+        if (isAllSpec || isNoSpec || start > end)
+        {
+            return false;
+        }
+
+        ulong window = (end - start == 63 ? ~0UL : (1UL << (end - start + 1)) - 1) << start;
+        ulong absent = ~bits & window;
+
+        if (absent == 0)
+        {
+            return false;
+        }
+
+        missing = BitUtil.TrailingZeroCount(absent);
+        return true;
+    }
+
+    /// <summary>
+    /// Whether this field allows every value in <c>[start, end]</c>.
+    /// </summary>
+    internal bool CoversRange(int start, int end)
+    {
+        return !TryGetFirstMissingValue(start, end, out _);
     }
 
     internal bool TryGetMinValueStartingFrom(int start, out int min)

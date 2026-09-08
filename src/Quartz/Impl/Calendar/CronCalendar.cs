@@ -165,6 +165,13 @@ public sealed class CronCalendar : BaseCalendar, IEquatable<CronCalendar>
     /// Calendar after the given time. Return the original value if timeStamp is
     /// included. Return 0 if all days are excluded.
     /// </summary>
+    /// <remarks>
+    /// An expression can exclude every instant there is — <c>* * * * * ?</c> is the plain one — and then
+    /// there is no time to answer with. That is a <see cref="SchedulerException" /> naming the
+    /// expression, because a calendar excluding everything is a configuration mistake rather than a
+    /// schedule with no next fire: a trigger it is attached to can never fire again.
+    /// </remarks>
+    /// <exception cref="SchedulerException">The calendar's expression excludes every instant.</exception>
     public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
     {
         DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(1); //plus on millisecond
@@ -182,7 +189,17 @@ public sealed class CronCalendar : BaseCalendar, IEquatable<CronCalendar>
                 // The end of the excluded range is the next time the expression does NOT satisfy.
                 // GetNextValidTimeAfter would land on another satisfied - excluded - time, and the
                 // loop would walk the excluded run millisecond by millisecond forever.
-                nextIncludedTime = cronExpression.GetNextInvalidTimeAfter(nextIncludedTime)!.Value;
+                DateTimeOffset? endOfExcludedRange = cronExpression.GetNextInvalidTimeAfter(nextIncludedTime);
+
+                if (endOfExcludedRange is null)
+                {
+                    Throw.SchedulerException(
+                        $"Cron calendar expression '{cronExpression.CronExpressionString}' excludes every instant, so no time after "
+                        + $"{timeUtc:o} is ever included. A calendar states the times a trigger may not fire; one that excludes them "
+                        + "all leaves the trigger nothing to fire at. Narrow the expression, or remove the calendar and the trigger with it.");
+                }
+
+                nextIncludedTime = endOfExcludedRange.Value;
             }
             else if (CalendarBase is not null &&
                      !CalendarBase.IsTimeIncluded(nextIncludedTime))
