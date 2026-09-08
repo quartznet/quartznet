@@ -24,7 +24,8 @@ is the reading order: six passes over the API, each with a theme, with the rest 
 by topic underneath. The compiler finds most of the work for you; the passes are for knowing why a name
 moved and what to reach for instead. Start with [Package Changes](#package-changes) — the first error
 a mixed 3.x/4.x project produces is a package problem rather than a code one, and it is described
-there.
+there. If that application is F#, read [Upgrading an F# project](#upgrading-an-f-project) first: the
+upgrade is the same one, but F# reports it as a longer list of errors than it has causes.
 
 **Is it neither, because you are starting something new?** None of this applies. Go to the
 [quick start](quick-start.md) and then [the tutorial](tutorial/).
@@ -3441,6 +3442,212 @@ If you need `Task` semantics (e.g., to await multiple times), call `.AsTask()` o
 :::
 
 For more information on `ValueTask` please see [Microsoft docs](https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.valuetask-1).
+
+## Upgrading an F# project
+
+Every 4.0 signature is reachable from F#, and F# honours a C# optional parameter at a call site, so
+`scheduler.Start()` and `scheduler.ScheduleJob(job, trigger)` are written the way this guide writes
+them. Four things still go differently, and the first build of an upgraded F# project reports many more
+errors than it has causes: F# infers the types of function parameters, so one signature it cannot match
+leaves everything downstream of it untyped, and each of those becomes an error of its own.
+[ForNeVeR/nightwatch#68](https://github.com/ForNeVeR/nightwatch/pull/68) — the upgrade this section was
+written from — reported thirteen errors for four causes. Fix them from the top of the file down, and
+rebuild after each one.
+
+::: tip A working copy of all of this
+[`src/Quartz.Examples.FSharp`](https://github.com/quartznet/quartznet/tree/main/src/Quartz.Examples.FSharp)
+is this section as one console application: a job, a scheduler built by `QuartzSchedulerBuilder`, the
+same scheduler built by a host, and one firing of each on the in-memory store. It is in the solution, so
+a call below that stops compiling fails the build, every `fsharp` block below is compared against it line
+for line, and the `ExamplesSmoke` target runs it on every pull request.
+:::
+
+### `FS0856` — a job is implemented with both parameters
+
+```text
+error FS0856: This override takes a different number of arguments to the corresponding abstract member. The following abstract members were found:
+   IJob.Execute(context: IJobExecutionContext, ?cancellationToken: System.Threading.CancellationToken) : ValueTask
+```
+
+`?cancellationToken` is how F# displays a C# optional parameter. It means what it says at a call site
+and nothing at all at an implementation, where the whole signature has to be written out. C# is no
+different — `Execute` gaining the token is a break for both languages, and
+[Jobs take a CancellationToken](#jobs-take-a-cancellationtoken) is why the parameter is there. What is
+F#-specific is the shape of the diagnostic: it reports the arity and not the parameter, and the reading
+of `?cancellationToken` it invites — declaring the parameter optional in F#'s own sense, with a leading
+`?` — trades FS0856 for `FS0001: This expression was expected to have type 'CancellationToken' but here
+has type 'CancellationToken option'`, because that syntax means an `option` rather than a defaulted
+argument.
+
+Write both parameters, and annotate them. Until the override matches there is nothing for F# to infer
+`context` from, which is where the `FS0072` and `FS0008` errors further down the file come from; they
+go away with this one.
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` is a C# project.
+     Copied from src/Quartz.Examples.FSharp/GreetJob.fs:27 — FSharpHowToTest fails when the two stop
+     matching. -->
+
+```fsharp
+member _.Execute(context: IJobExecutionContext, cancellationToken: CancellationToken) : ValueTask =
+    ValueTask(
+        task {
+            do! Task.Delay(TimeSpan.FromMilliseconds 1.0, cancellationToken)
+            printfn "GreetJob fired at %O" context.FireTimeUtc
+            Firings.record ()
+        }
+    )
+```
+
+FSharp.Core has no `valueTask { }` builder, so a `task { }` handed to `ValueTask`'s constructor is the
+idiom. A 3.x job written as `upcast task { … }` cannot be repaired by leaving the `upcast` in place:
+`ValueTask` is a struct and no supertype of `Task`, and what that produces is
+`FS0013: The static coercion from type Task<unit> to 'a ... involves an indeterminate type`.
+
+### `FS0041` — `ScheduleJob` has to know what it is being handed
+
+```text
+error FS0041: A unique overload for method 'ScheduleJob' could not be determined based on type information prior to this program point. A type annotation may be needed.
+
+Known types of arguments: IJobDetail * 'a
+
+Candidates:
+ - (extension) SchedulerJobExtensions.ScheduleJob<'TJob,'TInput when 'TJob :> IJob<'TInput>>(input: 'TInput, at: System.DateTimeOffset, ?options: OneOffJobOptions, ?cancellationToken: System.Threading.CancellationToken) : ValueTask<ScheduledOneOffJob>
+ - (extension) SchedulerJobExtensions.ScheduleJob<'TJob,'TInput when 'TJob :> IJob<'TInput>>(input: 'TInput, delay: System.TimeSpan, ?options: OneOffJobOptions, ?cancellationToken: System.Threading.CancellationToken) : ValueTask<ScheduledOneOffJob>
+ - IScheduler.ScheduleJob(jobDetail: IJobDetail, trigger: ITrigger, ?options: ScheduleJobOptions, ?cancellationToken: System.Threading.CancellationToken) : ValueTask<System.DateTimeOffset>
+ - IScheduler.ScheduleJob(jobDetail: IJobDetail, triggersForJob: System.Collections.Generic.IReadOnlyCollection<ITrigger>, ?options: ScheduleJobOptions, ?cancellationToken: System.Threading.CancellationToken) : ValueTask
+```
+
+The `'a` in *Known types of arguments* is the whole of it: the trigger arrived as an inferred function
+parameter, so at that point F# does not yet know what it is, and it will not pick an overload it cannot
+distinguish. C# never reaches this position, because a C# parameter has a declared type — which is why
+this is an F#-only error rather than an ambiguity in the API.
+
+4.0 widened the candidate set in two ways, both deliberate and both harmless in C#: `options` gained a
+default so that `ScheduleJob(job, trigger)` keeps compiling
+([the surviving overloads](#the-builder-surface-says-each-thing-once)), which makes every candidate a
+match for two arguments; and `SchedulerJobExtensions` adds the two typed-input overloads
+([a typed job can be scheduled in one call](#a-typed-job-can-be-scheduled-in-one-call)), which F#
+considers beside the interface's own.
+
+Annotate the value — as a parameter here, but a `let` binding or the call itself does just as well:
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` is a C# project.
+     Copied from src/Quartz.Examples.FSharp/Standalone.fs:39 — FSharpHowToTest fails when the two stop
+     matching. -->
+
+```fsharp
+let scheduleOne (scheduler: IScheduler) (job: IJobDetail) (trigger: ITrigger) : Task<DateTimeOffset> =
+    task {
+        return! scheduler.ScheduleJob(job, trigger)
+    }
+```
+
+Nothing about this is particular to `ScheduleJob`. Every asynchronous member on `IScheduler` ends with
+two optional parameters, so any of them that is overloaded resolves the same way, and any inferred value
+handed to one wants the same annotation.
+
+### `FS0041` — `Async.AwaitTask` has no `ValueTask` overload
+
+```text
+error FS0041: No overloads match for method 'AwaitTask'.
+
+Known type of argument: ValueTask
+
+Available overloads:
+ - static member Async.AwaitTask: task: Task -> Async<unit> // Argument 'task' doesn't match
+ - static member Async.AwaitTask: task: Task<'T> -> Async<'T> // Argument 'task' doesn't match
+```
+
+`Task` became `ValueTask` on nearly every member, so every `Async.AwaitTask(scheduler.…)` in a 3.x F#
+project reports this at once. Which answer you want depends on the computation expression you are in.
+
+Inside `task { }` there is nothing to convert: the builder binds anything awaitable, `ValueTask`
+included.
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` is a C# project.
+     Copied from src/Quartz.Examples.FSharp/Standalone.fs:45 — FSharpHowToTest fails when the two stop
+     matching. -->
+
+```fsharp
+let start (scheduler: IScheduler) : Task<unit> =
+    task {
+        do! scheduler.Start()
+    }
+```
+
+Inside `async { }`, ask the `ValueTask` for a `Task` and await that. `AsTask` may be called once and
+only once, which the warning above says and which an `async` block makes easy to honour: bind the result
+rather than the call.
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` is a C# project.
+     Copied from src/Quartz.Examples.FSharp/Standalone.fs:52 — FSharpHowToTest fails when the two stop
+     matching. -->
+
+```fsharp
+let stop (scheduler: IScheduler) : Async<unit> =
+    async {
+        do! scheduler.Shutdown(waitForJobsToComplete = true).AsTask() |> Async.AwaitTask
+    }
+```
+
+`task { }` is the one to reach for in new code: `AsTask()` allocates the object the `ValueTask` existed
+to avoid, once per call. An existing `Async`-based codebase does not have to be converted to get that —
+`Async.StartAsTask` goes the other way, so an `Async<unit>` such as `stop` is reached from inside a
+`task { }` with `do! Async.StartAsTask(stop scheduler)`.
+
+### `FS0039` — `StdSchedulerFactory` is gone, and its replacement is not constructed
+
+```text
+error FS0039: The value or constructor 'StdSchedulerFactory' is not defined. Maybe you want one of the following:
+   StandaloneSchedulerFactory
+   ISchedulerFactory
+```
+
+`StandaloneSchedulerFactory` is the type you end up holding, so the suggestion points at the right
+name — but it is not a drop-in for `StdSchedulerFactory()`, because its constructor is internal: the
+factory owns a service provider, and something has to have built one. Taking the suggestion literally
+trades FS0039 for `FS0801: This type has no accessible object constructors`.
+[`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone) is the C# form of this, and
+`QuartzSchedulerBuilder` is what builds the factory:
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` is a C# project.
+     Copied from src/Quartz.Examples.FSharp/Standalone.fs:10 — FSharpHowToTest fails when the two stop
+     matching. -->
+
+```fsharp
+let buildFactory () : StandaloneSchedulerFactory =
+    QuartzSchedulerBuilder
+        .Create(fun q ->
+            q
+                .ConfigureScheduler(fun options -> options.InstanceName <- "fsharp-example")
+                .UseInMemoryStore()
+            |> ignore)
+        .Build()
+```
+
+An F# lambda becomes the `Action<IQuartzBuilder>` the overload asks for with no ceremony, and each
+fluent call is piped into `ignore` because F# discards nothing for you. F# has no `await using`, so the
+factory — which owns that provider — is disposed where you are done with it, `do! factory.DisposeAsync()`
+inside a `task { }`.
+
+An application that already has a container uses the same callback through `AddQuartz`, exactly as C#
+does ([the standalone builder is the same builder](#the-standalone-builder-is-the-same-builder)):
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` is a C# project.
+     Copied from src/Quartz.Examples.FSharp/Hosting.fs:21 — FSharpHowToTest fails when the two stop
+     matching. -->
+
+```fsharp
+builder.Services
+    .AddQuartz(fun q ->
+        q
+            .UseInMemoryStore()
+            .ScheduleJob<GreetJob>(fun trigger ->
+                trigger.WithIdentity("greet-hosted", "fsharp").StartNow() |> ignore)
+        |> ignore)
+    .AddQuartzHostedService(fun options -> options.WaitForJobsToComplete <- true)
+|> ignore
+```
 
 ## SystemTime Replaced with TimeProvider
 
