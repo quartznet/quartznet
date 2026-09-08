@@ -424,11 +424,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
 
             if (firstNonMatching.Value == wallClock)
             {
-                // The clock reading names no fire - but a reading a spring-forward gap swallowed
-                // fires at the end of the gap, so at that one instant the expression fires although
-                // the reading the clock shows does not match it. GetTimeAfter is what knows that, so
-                // it has the last word on the instant this is about to answer with.
-                if (!IsSatisfiedBy(cursor))
+                if (!FiresOnAReadingItDoesNotName(cursor, wallClock))
                 {
                     return cursor;
                 }
@@ -439,6 +435,29 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
 
             cursor = AdvanceWallClock(cursor, wallClock, (long) (firstNonMatching.Value - wallClock).TotalSeconds);
         }
+    }
+
+    /// <summary>
+    /// Whether the expression fires at an instant whose clock reading its fields do not name, which is
+    /// true of exactly one instant per spring-forward gap: the one the clocks moved to, which is where
+    /// every reading the gap swallowed fires.
+    /// </summary>
+    /// <remarks>
+    /// The guard is <see cref="GetTimeAfter" />'s own - a reading whose predecessor does not exist is a
+    /// reading the clocks jumped to - so the two cannot disagree about which instant that is. Everywhere
+    /// else a clock reading and an instant name each other, so the fields have already answered and
+    /// there is nothing to walk.
+    /// </remarks>
+    private bool FiresOnAReadingItDoesNotName(DateTimeOffset cursor, DateTime wallClock)
+    {
+        if (!TimeZone.SupportsDaylightSavingTime
+            || wallClock.Ticks < TimeSpan.TicksPerSecond
+            || !TimeZone.IsInvalidTime(wallClock.AddSeconds(-1)))
+        {
+            return false;
+        }
+
+        return IsSatisfiedBy(cursor);
     }
 
     /// <summary>
