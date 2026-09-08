@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -111,12 +112,29 @@ internal sealed class SchedulerScopedServiceProvider
 
     private readonly IServiceProvider inner;
     private readonly object? key;
+
+    /// <summary>
+    /// The application container this scheduler was built beside, when it was built at runtime into a
+    /// container of its own, or <see langword="null" /> for a scheduler the application container
+    /// registered.
+    /// </summary>
+    /// <remarks>
+    /// A scheduler registered with <c>AddQuartz</c> lives in the application's own container, so
+    /// "everything else" is already one <see cref="IServiceProvider.GetService" /> away and there is
+    /// nothing to link to. One added at runtime lives in a container built for it alone, and this is
+    /// what everything the recipe did not register resolves from — which is what
+    /// makes a tenant's job an ordinary application component rather than something assembled out of a
+    /// second, half-empty container.
+    /// </remarks>
+    private readonly ApplicationLink? link;
+
     private Dictionary<Type, Func<IServiceProvider, string, object>>? declared;
 
-    private SchedulerScopedServiceProvider(IServiceProvider inner, object? key)
+    private SchedulerScopedServiceProvider(IServiceProvider inner, object? key, ApplicationLink? link)
     {
         this.inner = inner;
         this.key = key;
+        this.link = link;
     }
 
     private string Name => key as string ?? Options.DefaultName;
@@ -187,9 +205,19 @@ internal sealed class SchedulerScopedServiceProvider
     /// Returns a provider that resolves the given scheduler's parts. The default scheduler's services
     /// are not keyed, so it needs no wrapper.
     /// </summary>
+    /// <remarks>
+    /// The <see cref="ApplicationLink" /> is read from the provider rather than passed in, because the
+    /// registrations that call this are the same ones for a container scheduler and a runtime one — the
+    /// whole point of building a tenant through <c>AddQuartzScheduler</c> is that there is one
+    /// registration path. A container-registered scheduler pays one lookup that answers
+    /// <see langword="null" /> per part it constructs, which is build time rather than fire time; the
+    /// default scheduler pays nothing at all, since it needs no wrapper.
+    /// </remarks>
     public static IServiceProvider For(IServiceProvider provider, object? key)
     {
-        return key is null ? provider : new SchedulerScopedServiceProvider(provider, key);
+        return key is null
+            ? provider
+            : new SchedulerScopedServiceProvider(provider, key, provider.GetService<ApplicationLink>());
     }
 
     public object? GetService(Type serviceType)
@@ -235,35 +263,149 @@ internal sealed class SchedulerScopedServiceProvider
             return this;
         }
 
-        return inner.GetService(serviceType);
+        return link is null ? inner.GetService(serviceType) : FromGeneration(serviceType, link);
+    }
+
+    /// <summary>
+    /// Answers a request this scheduler's own registrations did not, for a scheduler that lives in a
+    /// container of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Three requests are decided rather than tried, because "ask the tenant, then the application" is
+    /// the wrong answer for each of them.
+    /// </para>
+    /// <para>
+    /// A <see cref="IJob" /> is the application's to build. Its constructor takes the application's
+    /// services — a unit of work, a database context — and a container resolves a service's dependencies
+    /// from itself rather than through whatever wrapper was asked, so a job built by the tenant's
+    /// container would be built from the half of the graph that does not have them.
+    /// </para>
+    /// <para>
+    /// Options belong to whoever configured them. The tenant's own settings are its container's, and so
+    /// is anything Quartz declares, since the tenant is the only scheduler its container holds; an
+    /// application's options type is the application's, and reading it from the tenant would answer with
+    /// a freshly defaulted instance nobody configured.
+    /// </para>
+    /// <para>
+    /// An <see cref="IEnumerable{T}" /> is the one shape where "the tenant answered nothing" and "the
+    /// tenant has none of these" are indistinguishable — a container answers an empty sequence rather
+    /// than <see langword="null" /> — so the decision is made on whether the tenant declares the item
+    /// type at all rather than on what came back.
+    /// </para>
+    /// </remarks>
+    private object? FromGeneration(Type serviceType, ApplicationLink application)
+    {
+        if (typeof(IJob).IsAssignableFrom(serviceType))
+        {
+            return application.Application.GetService(serviceType);
+        }
+
+        if (serviceType.IsConstructedGenericType)
+        {
+            Type definition = serviceType.GetGenericTypeDefinition();
+
+            if (definition == typeof(IOptions<>)
+                || definition == typeof(IOptionsMonitor<>)
+                || definition == typeof(IOptionsSnapshot<>)
+                || definition == typeof(IOptionsFactory<>))
+            {
+                return application.ConfiguresOptions(serviceType.GenericTypeArguments[0])
+                    ? inner.GetService(serviceType)
+                    : application.Application.GetService(serviceType);
+            }
+
+            if (definition == typeof(IEnumerable<>))
+            {
+                return Declares(serviceType.GenericTypeArguments[0])
+                    ? inner.GetService(serviceType)
+                    : application.Application.GetService(serviceType);
+            }
+        }
+
+        return inner.GetService(serviceType) ?? application.Application.GetService(serviceType);
+    }
+
+    /// <summary>
+    /// Whether this scheduler's own container holds a registration of a service type.
+    /// </summary>
+    private bool Declares(Type serviceType)
+    {
+        return inner.GetService<IServiceProviderIsService>()?.IsService(serviceType) ?? false;
     }
 
     /// <summary>
     /// Creates a scope whose provider still resolves this scheduler's parts.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Jobs are built inside a scope. Without this the scope comes straight from the container, so a job
     /// that takes an <see cref="ISchedulerFactory"/> is handed the default scheduler's — or, when only
     /// named schedulers exist, cannot be constructed at all.
+    /// </para>
+    /// <para>
+    /// A scheduler that lives in a container of its own opens <em>two</em> scopes, one in each container,
+    /// and hands out a provider over both. That is what makes a firing's scope the application's: a
+    /// scoped service a job and a middleware both take is one instance, created in the application's
+    /// scope and disposed with it when the job is returned. One scope over the tenant's container alone
+    /// would give the application's scoped services no scope to live in — the leak the platform's own
+    /// refusal of child containers warns about.
+    /// </para>
     /// </remarks>
     public IServiceScope CreateScope()
     {
-        return new Scope(inner.GetRequiredService<IServiceScopeFactory>().CreateScope(), key);
+        if (link is null)
+        {
+            return new Scope(inner.GetRequiredService<IServiceScopeFactory>().CreateScope(), key, link: null, application: null);
+        }
+
+        // The application's scope first: if the tenant's container cannot open one, there is something
+        // to dispose, and the other order would leave the application's scope behind instead.
+        IServiceScope application = link.Application.GetRequiredService<IServiceScopeFactory>().CreateScope();
+        try
+        {
+            IServiceScope scope = inner.GetRequiredService<IServiceScopeFactory>().CreateScope();
+            return new Scope(scope, key, link with { Application = application.ServiceProvider }, application);
+        }
+        catch
+        {
+            application.Dispose();
+            throw;
+        }
     }
 
     private sealed class Scope : IServiceScope, IAsyncDisposable
     {
         private readonly IServiceScope scope;
 
-        public Scope(IServiceScope scope, object? key)
+        /// <summary>
+        /// The scope opened in the application's container, for a scheduler that lives in one of its
+        /// own, or <see langword="null" /> when there is no second container.
+        /// </summary>
+        private readonly IServiceScope? application;
+
+        public Scope(IServiceScope scope, object? key, ApplicationLink? link, IServiceScope? application)
         {
             this.scope = scope;
-            ServiceProvider = For(scope.ServiceProvider, key);
+            this.application = application;
+            ServiceProvider = new SchedulerScopedServiceProvider(scope.ServiceProvider, key, link);
         }
 
         public IServiceProvider ServiceProvider { get; }
 
-        public void Dispose() => scope.Dispose();
+        public void Dispose()
+        {
+            try
+            {
+                scope.Dispose();
+            }
+            finally
+            {
+                // Always, even when the tenant's scope threw on the way out: the application's scope
+                // holds the job's own scoped services, and leaking those is the worse of the two.
+                application?.Dispose();
+            }
+        }
 
         /// <summary>
         /// Disposes the wrapped scope asynchronously where it supports it.
@@ -272,7 +414,22 @@ internal sealed class SchedulerScopedServiceProvider
         /// Jobs are torn down through <see cref="IAsyncDisposable"/>. Without it here, a scoped service
         /// that is only async-disposable throws when the container disposes the scope synchronously.
         /// </remarks>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
+        {
+            try
+            {
+                await DisposeOne(scope).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (application is not null)
+                {
+                    await DisposeOne(application).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private static ValueTask DisposeOne(IServiceScope scope)
         {
             if (scope is IAsyncDisposable asyncDisposable)
             {
@@ -286,22 +443,46 @@ internal sealed class SchedulerScopedServiceProvider
 
     public object? GetKeyedService(Type serviceType, object? serviceKey)
     {
-        return inner.GetKeyedService(serviceType, serviceKey);
+        if (link is null)
+        {
+            return inner.GetKeyedService(serviceType, serviceKey);
+        }
+
+        // This scheduler's own key means its own container first — that is where its recipe registered
+        // whatever it keyed. Any other key is somebody else's scheduler, and the application is the one
+        // that has those.
+        return Equals(serviceKey, key)
+            ? inner.GetKeyedService(serviceType, serviceKey) ?? link.Application.GetKeyedService(serviceType, serviceKey)
+            : link.Application.GetKeyedService(serviceType, serviceKey) ?? inner.GetKeyedService(serviceType, serviceKey);
     }
 
     public object GetRequiredKeyedService(Type serviceType, object? serviceKey)
     {
-        return inner.GetRequiredKeyedService(serviceType, serviceKey);
+        if (link is null)
+        {
+            return inner.GetRequiredKeyedService(serviceType, serviceKey);
+        }
+
+        return GetKeyedService(serviceType, serviceKey)
+            ?? throw new InvalidOperationException(
+                $"No service for type '{serviceType}' with key '{serviceKey}' has been registered.");
     }
 
     /// <summary>
     /// Answers what this scheduler can be given, not what the container holds unkeyed.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <see cref="ActivatorUtilities"/> asks this before choosing a constructor, and treats a service it
     /// is told does not exist as a parameter it cannot supply. Answering from the container directly
     /// would report every one of a named scheduler's own parts as missing, so a component with more than
     /// one constructor gets the wrong one chosen — or is rejected outright.
+    /// </para>
+    /// <para>
+    /// For a scheduler that lives in a container of its own the answer is the union of the two, because
+    /// what this provider <em>can supply</em> is the union: whichever container holds it,
+    /// <see cref="GetService" /> will find it.
+    /// </para>
     /// </remarks>
     public bool IsService(Type serviceType)
     {
@@ -326,12 +507,62 @@ internal sealed class SchedulerScopedServiceProvider
             return true;
         }
 
-        return inner.GetService<IServiceProviderIsService>()?.IsService(serviceType) ?? false;
+        return Declares(serviceType)
+            || (link is not null && (link.Application.GetService<IServiceProviderIsService>()?.IsService(serviceType) ?? false));
     }
 
+    /// <inheritdoc cref="IsService" />
     public bool IsKeyedService(Type serviceType, object? serviceKey)
     {
-        return inner.GetService<IServiceProviderIsKeyedService>()?.IsKeyedService(serviceType, serviceKey) ?? false;
+        return (inner.GetService<IServiceProviderIsKeyedService>()?.IsKeyedService(serviceType, serviceKey) ?? false)
+            || (link is not null
+                && (link.Application.GetService<IServiceProviderIsKeyedService>()?.IsKeyedService(serviceType, serviceKey) ?? false));
+    }
+}
+
+/// <summary>
+/// The application container a scheduler built at runtime resolves everything else from.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Registered as an instance in the container <c>SchedulerGeneration</c> builds for one tenant, which is
+/// how <see cref="SchedulerScopedServiceProvider.For" /> finds it without every registration having to
+/// be told about it. A container-registered scheduler has none, and behaves exactly as it did before
+/// this type existed.
+/// </para>
+/// <para>
+/// A record so that <c>with</c> can re-point it at a scope's provider while keeping what was computed
+/// once for the generation.
+/// </para>
+/// </remarks>
+/// <param name="Application">The application's provider, or the scope of it a firing is running in.</param>
+internal sealed record ApplicationLink(IServiceProvider Application)
+{
+    private static readonly Assembly quartz = typeof(IScheduler).Assembly;
+
+    /// <summary>
+    /// The options types the tenant's own container configures, validates or post-configures.
+    /// </summary>
+    /// <remarks>
+    /// Read off the tenant's service collection while it is being built, rather than probed for at
+    /// resolution time: asking the container whether it holds an <c>IConfigureOptions&lt;X&gt;</c> means
+    /// closing that generic over a type only known at run time, which is the one thing a native AOT
+    /// publish cannot do.
+    /// </remarks>
+    public FrozenSet<Type> ConfiguredOptions { get; init; } = FrozenSet<Type>.Empty;
+
+    /// <summary>
+    /// Whether an options type belongs to the tenant rather than to the application.
+    /// </summary>
+    /// <remarks>
+    /// Quartz's own options types always do: a tenant's container holds exactly one scheduler, so
+    /// <see cref="QuartzSchedulerOptions" /> read there is that scheduler's, and reading it from the
+    /// application would answer with whatever the application's own scheduler was configured with — or
+    /// with nothing. Anything else belongs to the tenant only if the recipe configured it.
+    /// </remarks>
+    public bool ConfiguresOptions(Type optionsType)
+    {
+        return optionsType.Assembly == quartz || ConfiguredOptions.Contains(optionsType);
     }
 }
 
