@@ -344,6 +344,12 @@
     "Scheduler '{SchedulerName}' was removed at runtime"
 4022  Information  ConfigurationLog.RuntimeSchedulerShutDownByHost
     "Scheduler '{SchedulerName}' was added at runtime and is being shut down with the host"
+4023  Information  ConfigurationLog.SchedulerRestarting
+    "Scheduler '{SchedulerName}' with instanceId '{SchedulerInstanceId}' is being restarted; waiting for {JobsExecuting} executing job(s)"
+4024  Information  ConfigurationLog.SchedulerRestarted
+    "Scheduler '{SchedulerName}' was restarted; instanceId '{PreviousSchedulerInstanceId}' replaced by '{SchedulerInstanceId}'"
+4025  Warning  ConfigurationLog.SchedulerRestartAbandoned
+    "Scheduler '{SchedulerName}' was shut down for a restart but {JobsStillExecuting} job(s) outlived the {DrainTimeout} drain, so no new scheduler was built; restart again once the work has finished"
 5000  Information  XmlSchedulingLog.ParsingFile
     "Parsing XML file: {FileName} with systemId: {SystemId}"
 5001  Information  XmlSchedulingLog.ParsingStream

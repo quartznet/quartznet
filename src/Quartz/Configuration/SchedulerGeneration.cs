@@ -159,6 +159,17 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
     public IScheduler? Scheduler { get; private set; }
 
     /// <summary>
+    /// The scheduler behind the facade, once it has been built.
+    /// </summary>
+    /// <remarks>
+    /// Recorded rather than resolved on demand, because it is read after the scheduler has been shut
+    /// down and what is wanted then is <see cref="Core.QuartzScheduler.RunningWorkDrained" /> — the
+    /// answer that shutdown could not return to its caller, and the only thing that says whether a
+    /// second generation may safely start over the same store.
+    /// </remarks>
+    public QuartzScheduler? QuartzScheduler { get; private set; }
+
+    /// <summary>
     /// Builds one scheduler's container, without creating the scheduler.
     /// </summary>
     /// <remarks>
@@ -256,7 +267,31 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
             .ConfigureAwait(false);
 
         Scheduler = scheduler;
+        QuartzScheduler = Scoped.GetScheduler<QuartzScheduler>(SchedulerName);
         return scheduler;
+    }
+
+    /// <summary>
+    /// A part of this generation that a replayed recipe would hand to the next one unchanged, or
+    /// <see langword="null" /> when the recipe named a type or a factory instead.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The store and the pool are recorded at construction, because they are read after this
+    /// generation's container is gone. These two are not: they are only ever compared while both
+    /// generations are alive, which is the moment a restart decides whether the recipe can produce a
+    /// second set of instances at all.
+    /// </para>
+    /// <para>
+    /// Resolved rather than inspected, because "did the recipe close over an instance" is not a question
+    /// a service descriptor answers: <c>UseJobFactory(myFactory)</c> and <c>UseJobFactory&lt;T&gt;()</c>
+    /// both end as a keyed singleton, and the difference only shows in whether two containers produce the
+    /// same object.
+    /// </para>
+    /// </remarks>
+    public T? Part<T>() where T : class
+    {
+        return Scoped.GetSchedulerService<T>(SchedulerName);
     }
 
     /// <summary>

@@ -47,6 +47,9 @@ expressions it reads differently.
 |---|---|
 | `ISchedulerRuntime : ISchedulerRegistry` | Adds and removes schedulers in a container that has already been built. `Add(schedulerName, configure, options, cancellationToken)` builds a scheduler into a container of its own and binds it into this container's repository; `Remove(schedulerName, waitForJobsToComplete, cancellationToken)` shuts it down and releases what was built for it. Registered by `AddQuartz`, and `ISchedulerRegistry` resolves to the same object, so one listing answers for both kinds of scheduler |
 | `SchedulerAddOptions` | What to add a scheduler with beyond its name and its recipe: `Properties`, `Configuration` and `CreateWithoutStarting`. A `readonly record struct`, like every other options type an application constructs and passes in, whose `default` means "build it from the recipe and run it" |
+| `ISchedulerRuntime.Restart` | `Restart(schedulerName, options, cancellationToken)` shuts a scheduler down and builds another from the recipe that built it — for a tenant this runtime added, and for one `AddQuartz(name, …)` registered, whose recipe is now recorded at registration. Nothing is restarted in place: the name is the only thing the two schedulers share |
+| `SchedulerRestartOptions` | `DrainTimeout` — how long to wait for the outgoing scheduler's jobs, thirty seconds by default — and `Start`, which defaults to "as the old one was". A `readonly record struct` whose `default` is a restart that changes nothing but the instances |
+| `SchedulerRestartException` | Thrown when the outgoing scheduler's jobs outlived the drain. Carries `SchedulerName`, `JobsStillExecuting` and `DrainTimeout`. The old scheduler is down and the new one was never built; ask again once the work has finished |
 
 Three behaviours changed without a signature changing:
 

@@ -748,6 +748,7 @@ namespace Quartz
     {
         System.Threading.Tasks.ValueTask<Quartz.IScheduler> Add(string schedulerName, System.Action<Quartz.IQuartzBuilder>? configure = null, Quartz.SchedulerAddOptions options = default, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> Remove(string schedulerName, bool waitForJobsToComplete = false, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.IScheduler> Restart(string schedulerName, Quartz.SchedulerRestartOptions options = default, System.Threading.CancellationToken cancellationToken = default);
     }
     public interface ISimpleTrigger : Quartz.ITrigger
     {
@@ -1576,6 +1577,18 @@ namespace Quartz
         public string Name { get; init; }
         public Quartz.SchedulerOrigin Origin { get; init; }
         public Quartz.SchedulerStatus? Status { get; init; }
+    }
+    public sealed class SchedulerRestartException : Quartz.SchedulerException
+    {
+        public System.TimeSpan DrainTimeout { get; }
+        public int JobsStillExecuting { get; }
+        public string SchedulerName { get; }
+    }
+    public readonly record struct SchedulerRestartOptions : System.IEquatable<Quartz.SchedulerRestartOptions>
+    {
+        public System.TimeSpan? DrainTimeout { get; init; }
+        public bool? Start { get; init; }
+        public static Quartz.SchedulerRestartOptions WithoutStarting { get; }
     }
     public enum SchedulerStatus
     {

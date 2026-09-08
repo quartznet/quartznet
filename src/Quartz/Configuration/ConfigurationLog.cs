@@ -122,4 +122,13 @@ internal static partial class ConfigurationLog
 
     [LoggerMessage(EventId = 4022, Level = LogLevel.Information, Message = "Scheduler '{SchedulerName}' was added at runtime and is being shut down with the host")]
     public static partial void RuntimeSchedulerShutDownByHost(this ILogger logger, string schedulerName);
+
+    [LoggerMessage(EventId = 4023, Level = LogLevel.Information, Message = "Scheduler '{SchedulerName}' with instanceId '{SchedulerInstanceId}' is being restarted; waiting for {JobsExecuting} executing job(s)")]
+    public static partial void SchedulerRestarting(this ILogger logger, string schedulerName, string schedulerInstanceId, int jobsExecuting);
+
+    [LoggerMessage(EventId = 4024, Level = LogLevel.Information, Message = "Scheduler '{SchedulerName}' was restarted; instanceId '{PreviousSchedulerInstanceId}' replaced by '{SchedulerInstanceId}'")]
+    public static partial void SchedulerRestarted(this ILogger logger, string schedulerName, string previousSchedulerInstanceId, string schedulerInstanceId);
+
+    [LoggerMessage(EventId = 4025, Level = LogLevel.Warning, Message = "Scheduler '{SchedulerName}' was shut down for a restart but {JobsStillExecuting} job(s) outlived the {DrainTimeout} drain, so no new scheduler was built; restart again once the work has finished")]
+    public static partial void SchedulerRestartAbandoned(this ILogger logger, string schedulerName, int jobsStillExecuting, TimeSpan drainTimeout);
 }

@@ -228,6 +228,9 @@ matching on its text is not.
 | 4020 | Information | `Quartz` | `"Scheduler '{SchedulerName}' with instanceId '{SchedulerInstanceId}' was added at runtime"` |
 | 4021 | Information | `Quartz` | `"Scheduler '{SchedulerName}' was removed at runtime"` |
 | 4022 | Information | `Quartz` | `"Scheduler '{SchedulerName}' was added at runtime and is being shut down with the host"` |
+| 4023 | Information | `Quartz` | `"Scheduler '{SchedulerName}' with instanceId '{SchedulerInstanceId}' is being restarted; waiting for {JobsExecuting} executing job(s)"` |
+| 4024 | Information | `Quartz` | `"Scheduler '{SchedulerName}' was restarted; instanceId '{PreviousSchedulerInstanceId}' replaced by '{SchedulerInstanceId}'"` |
+| 4025 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' was shut down for a restart but {JobsStillExecuting} job(s) outlived the {DrainTimeout} drain, so no new scheduler was built; restart again once the work has finished"` |
 | 5000 | Information | `Quartz` | `"Parsing XML file: {FileName} with systemId: {SystemId}"` |
 | 5001 | Information | `Quartz` | `"Parsing XML from stream with systemId: {SystemId}"` |
 | 5002 | Debug | `Quartz` | `"Found {JobGroupCount} delete job group commands."` |
