@@ -213,6 +213,33 @@ public sealed class SchedulerRegistryTest
                 + "them is behind a network that is down");
     }
 
+    [Test]
+    public async Task ARuntimeTenantIsListedWithOriginRuntime()
+    {
+        using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
+
+        IScheduler tenant = await provider.GetRequiredService<ISchedulerRuntime>().Add("initech");
+
+        try
+        {
+            List<SchedulerRegistration> registrations = await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
+
+            registrations.Select(x => x.Name).Should().Equal(["acme", "initech"],
+                "one listing answers for both doors a scheduler can come through, ordered the same way");
+            registrations.Should().ContainSingle(x => x.Name == "acme")
+                .Which.Origin.Should().Be(SchedulerOrigin.Container);
+
+            SchedulerRegistration runtime = registrations.Should().ContainSingle(x => x.Name == "initech").Subject;
+            runtime.Origin.Should().Be(SchedulerOrigin.Runtime,
+                "no registration accounts for it - it was added to a container that was already built");
+            runtime.Status.Should().Be(SchedulerStatus.Running);
+        }
+        finally
+        {
+            await tenant.Shutdown();
+        }
+    }
+
     private static ServiceProvider Container(Action<IServiceCollection> configure)
     {
         ServiceCollection services = new();

@@ -75,7 +75,16 @@ internal static class QuartzServiceRegistration
         // What the container was told to register, which the repository cannot know - it holds
         // schedulers, and a registration nothing has resolved yet has none. Listing tenants must not
         // start them, so the two are read together rather than by building everything registered.
-        services.TryAddSingleton<ISchedulerRegistry, ContainerSchedulerRegistry>();
+        services.TryAddSingleton<ContainerSchedulerRegistry>();
+
+        // And the schedulers the container was never told about, added after it was built. One object
+        // answers both interfaces because they are one question asked twice: a listing that omitted the
+        // runtime tenants would be wrong, and a second registry to be merged with the first at every
+        // call site is how it would come to be wrong. Registered whether or not anything ever adds a
+        // scheduler - it resolves nothing and opens nothing until it is asked to.
+        services.TryAddSingleton<SchedulerRuntime>();
+        services.TryAddSingleton<ISchedulerRegistry>(static provider => provider.GetRequiredService<SchedulerRuntime>());
+        services.TryAddSingleton<ISchedulerRuntime>(static provider => provider.GetRequiredService<SchedulerRuntime>());
 
         // "Another scheduler shares this database" is only knowable here, one level above the store.
         services.TryAddSingleton<SharedDatabaseValidator>();

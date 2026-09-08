@@ -225,6 +225,9 @@ matching on its text is not.
 | 4017 | Debug | `Quartz` | `"Thread pool closed to new work with {RunningTaskCount} running tasks remaining."` |
 | 4018 | Debug | `Quartz` | `"Shutdown of threadpool complete."` |
 | 4019 | Debug | `Quartz` | `"Shutdown complete"` |
+| 4020 | Information | `Quartz` | `"Scheduler '{SchedulerName}' with instanceId '{SchedulerInstanceId}' was added at runtime"` |
+| 4021 | Information | `Quartz` | `"Scheduler '{SchedulerName}' was removed at runtime"` |
+| 4022 | Information | `Quartz` | `"Scheduler '{SchedulerName}' was added at runtime and is being shut down with the host"` |
 | 5000 | Information | `Quartz` | `"Parsing XML file: {FileName} with systemId: {SystemId}"` |
 | 5001 | Information | `Quartz` | `"Parsing XML from stream with systemId: {SystemId}"` |
 | 5002 | Debug | `Quartz` | `"Found {JobGroupCount} delete job group commands."` |

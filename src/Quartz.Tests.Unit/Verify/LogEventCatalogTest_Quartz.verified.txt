@@ -338,6 +338,12 @@
     "Shutdown of threadpool complete."
 4019  Debug  ConfigurationLog.ZeroSizeThreadPoolShutdownComplete
     "Shutdown complete"
+4020  Information  ConfigurationLog.RuntimeSchedulerAdded
+    "Scheduler '{SchedulerName}' with instanceId '{SchedulerInstanceId}' was added at runtime"
+4021  Information  ConfigurationLog.RuntimeSchedulerRemoved
+    "Scheduler '{SchedulerName}' was removed at runtime"
+4022  Information  ConfigurationLog.RuntimeSchedulerShutDownByHost
+    "Scheduler '{SchedulerName}' was added at runtime and is being shut down with the host"
 5000  Information  XmlSchedulingLog.ParsingFile
     "Parsing XML file: {FileName} with systemId: {SystemId}"
 5001  Information  XmlSchedulingLog.ParsingStream

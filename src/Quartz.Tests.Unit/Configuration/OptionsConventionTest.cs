@@ -92,7 +92,12 @@ public class OptionsConventionTest
         // a keyed-service key is typed 'object' by Microsoft.Extensions.DependencyInjection's own
         // contract (ServiceDescriptor.ServiceKey, [FromKeyedServices(object)]), so an option that
         // carries one to the container cannot be narrower than the container itself.
-        ["Quartz.DataSourceOptions.DataSourceServiceKey"] = "a DI service key is typed 'object' by the container's contract"
+        ["Quartz.DataSourceOptions.DataSourceServiceKey"] = "a DI service key is typed 'object' by the container's contract",
+
+        // #3338: the runtime spelling of AddQuartz(name, configuration, …). A configuration section is
+        // Microsoft.Extensions.Configuration's own contract, and this member carries one *into* Quartz
+        // rather than being a setting bound *out of* one — which is the direction the rule is about.
+        ["Quartz.SchedulerAddOptions.Configuration"] = "a configuration section is Microsoft.Extensions.Configuration's contract, carried in rather than bound out of"
     };
 
     /// <summary>

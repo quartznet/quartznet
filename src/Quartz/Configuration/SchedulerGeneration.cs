@@ -96,6 +96,8 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
     private static readonly Type[] containerWideReads =
     [
         typeof(ISchedulerRegistry),
+        typeof(ISchedulerRuntime),
+        typeof(SchedulerRuntime),
         typeof(ContainerSchedulerRegistry),
     ];
 
@@ -326,18 +328,22 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
     }
 
     /// <summary>
-    /// Refuses a recipe that maps a job type onto something else, which a generation cannot honour.
+    /// Refuses a recipe that says how <em>this scheduler</em> builds a job type, which a generation
+    /// cannot honour.
     /// </summary>
     /// <remarks>
-    /// A job is built by the application, because its constructor takes the application's services and a
-    /// container resolves a service's dependencies from itself. So a mapping registered here — a
-    /// different implementation type, or a factory — would be read by nobody, and the job would be
-    /// activated as though the mapping had never been written. Saying so is the only honest answer;
-    /// silently ignoring it is how a tenant comes to run the wrong code.
     /// <para>
-    /// <c>AddJob&lt;T&gt;</c> and <c>ScheduleJob&lt;T&gt;</c> register a job type as itself, which is
-    /// inert rather than wrong: the type resolves from the application if it is registered there, and is
-    /// activated from this provider if it is not, which is what would have happened anyway.
+    /// A job is built by the application, because its constructor takes the application's services and a
+    /// container resolves a service's dependencies from itself. So <c>AddJobType</c> here — whichever
+    /// overload — would either be read by nobody or build the job out of the half of the graph that does
+    /// not have its dependencies. Saying so is the only honest answer; silently ignoring it is how a
+    /// tenant comes to run the wrong code, or to fail at its first firing rather than where the mistake
+    /// was written.
+    /// </para>
+    /// <para>
+    /// <c>AddJob&lt;T&gt;</c> and <c>ScheduleJob&lt;T&gt;</c> register a job type as itself and without a
+    /// key, which is inert rather than wrong: the type resolves from the application if it is registered
+    /// there and is activated from this provider if it is not, which is what would have happened anyway.
     /// </para>
     /// </remarks>
     private static void ThrowIfAJobIsRegisteredHere(IServiceCollection services, string schedulerName)
@@ -349,18 +355,21 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
                 continue;
             }
 
-            if (descriptor.ImplementationType is not null && descriptor.ImplementationType == descriptor.ServiceType)
+            // A keyed descriptor's ImplementationType throws rather than answering, so the shape is
+            // tested before anything is read off it - and every AddJobType overload is keyed here,
+            // because a scheduler added at runtime always has a name.
+            if (!descriptor.IsKeyedService && descriptor.ImplementationType == descriptor.ServiceType)
             {
                 continue;
             }
 
             Throw.SchedulerConfigException(
-                $"The recipe for scheduler '{schedulerName}' registers the job type "
-                + $"'{descriptor.ServiceType.FullName}' as something other than itself, and a scheduler added at "
-                + "runtime cannot honour that: its jobs are built by the application's container, which is where "
-                + "their dependencies are. Register the job type in the application's container instead — "
-                + "services.AddScoped<TJob, TImplementation>() or services.AddScoped<TJob>(provider => ...) — and "
-                + "leave the recipe to schedule it.");
+                $"The recipe for scheduler '{schedulerName}' says how it builds the job type "
+                + $"'{descriptor.ServiceType.FullName}', and a scheduler added at runtime does not build its own "
+                + "jobs: they are built by the application's container, which is where their dependencies are. "
+                + "Register the job type there instead — services.AddScoped<TJob>() or "
+                + "services.AddScoped<TJob, TImplementation>() — and leave the recipe to schedule it with "
+                + "AddJob<TJob>(...).");
         }
     }
 }
