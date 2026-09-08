@@ -27,12 +27,26 @@ namespace Quartz;
 /// What to add a scheduler with, beyond its name and the recipe that configures it.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The two settings-shaped members are the runtime spellings of the two <c>AddQuartz(name, …)</c>
 /// overloads that take settings, so a tenant described by a configuration section at startup is
 /// described by the same section when it arrives at runtime instead.
+/// </para>
+/// <para>
+/// Defaults are the conservative ones: no settings beyond what the recipe says, and the scheduler is
+/// started — which is the whole of what adding one at runtime is for. So <see langword="default"/> —
+/// which is what omitting the argument gives — is "build it from the recipe and run it".
+/// </para>
 /// </remarks>
-public sealed class SchedulerAddOptions
+/// <seealso cref="ISchedulerRuntime.Add" />
+public readonly record struct SchedulerAddOptions
 {
+    /// <summary>
+    /// Create the scheduler and leave starting it to the application. The name for
+    /// <c>new SchedulerAddOptions { CreateWithoutStarting = true }</c>.
+    /// </summary>
+    public static SchedulerAddOptions WithoutStarting => new() { CreateWithoutStarting = true };
+
     /// <summary>
     /// Flat <c>quartz.*</c> properties for the scheduler, as
     /// <c>AddQuartz(name, properties, …)</c> takes them.
@@ -56,7 +70,8 @@ public sealed class SchedulerAddOptions
     public IConfiguration? Configuration { get; init; }
 
     /// <summary>
-    /// Whether to start the scheduler once it has been created. <see langword="true" /> by default.
+    /// Whether the scheduler is left for the application to start, rather than started as soon as it
+    /// has been created.
     /// </summary>
     /// <remarks>
     /// This is the whole of the starting policy for a scheduler added at runtime.
@@ -66,5 +81,5 @@ public sealed class SchedulerAddOptions
     /// runtime arrives long after both. <see cref="QuartzHostedServiceOptions.WaitForJobsToComplete" />
     /// <em>does</em> apply, because it is about the host stopping, which is still ahead.
     /// </remarks>
-    public bool Start { get; init; } = true;
+    public bool CreateWithoutStarting { get; init; }
 }

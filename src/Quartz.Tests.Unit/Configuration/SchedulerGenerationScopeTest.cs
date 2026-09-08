@@ -164,7 +164,7 @@ public sealed class SchedulerGenerationScopeTest
         return SchedulerGeneration.Build(
             application,
             schedulerName,
-            new SchedulerAddOptions(),
+            default,
             builder => builder.ConfigureJobScope((scope, _, scheduler) =>
             {
                 ScopeRecorder recorder = scope.ServiceProvider.GetService<ScopeRecorder>();

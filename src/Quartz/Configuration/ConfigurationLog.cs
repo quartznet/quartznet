@@ -113,4 +113,13 @@ internal static partial class ConfigurationLog
 
     [LoggerMessage(EventId = 4019, Level = LogLevel.Debug, Message = "Shutdown complete")]
     public static partial void ZeroSizeThreadPoolShutdownComplete(this ILogger logger);
+
+    [LoggerMessage(EventId = 4020, Level = LogLevel.Information, Message = "Scheduler '{SchedulerName}' with instanceId '{SchedulerInstanceId}' was added at runtime")]
+    public static partial void RuntimeSchedulerAdded(this ILogger logger, string schedulerName, string schedulerInstanceId);
+
+    [LoggerMessage(EventId = 4021, Level = LogLevel.Information, Message = "Scheduler '{SchedulerName}' was removed at runtime")]
+    public static partial void RuntimeSchedulerRemoved(this ILogger logger, string schedulerName);
+
+    [LoggerMessage(EventId = 4022, Level = LogLevel.Information, Message = "Scheduler '{SchedulerName}' was added at runtime and is being shut down with the host")]
+    public static partial void RuntimeSchedulerShutDownByHost(this ILogger logger, string schedulerName);
 }

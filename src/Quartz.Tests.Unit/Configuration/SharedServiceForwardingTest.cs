@@ -33,9 +33,10 @@ public sealed class SharedServiceForwardingTest
             "written while a collection is being registered into, and a generation's collection holds "
             + "exactly one scheduler - the application's list of names is not that",
 
-        [typeof(ISchedulerRegistry)] =
-            "answers 'what schedulers are there', which a container holding one tenant cannot; removed "
-            + "from the generation's collection so the question falls through to the application's",
+        [typeof(ISchedulerRegistry)] = ContainerWide,
+        [typeof(ISchedulerRuntime)] = ContainerWide,
+        [typeof(SchedulerRuntime)] = ContainerWide,
+        [typeof(ContainerSchedulerRegistry)] = ContainerWide,
 
         [typeof(Microsoft.Extensions.Options.IValidateOptions<>)] =
             "a generation validates its own scheduler's options, and the validators are stateless - "
@@ -61,6 +62,10 @@ public sealed class SharedServiceForwardingTest
         [typeof(Microsoft.Extensions.Logging.Configuration.ILoggerProviderConfigurationFactory)] = Logging,
         [typeof(Microsoft.Extensions.Logging.Configuration.ILoggerProviderConfiguration<>)] = Logging,
     };
+
+    private const string ContainerWide =
+        "answers 'what schedulers are there', which a container holding one tenant cannot; removed from "
+        + "the generation's collection so the question falls through to the application's";
 
     private const string OptionsFramework =
         "the options framework's own plumbing, which every container that reads options has; a "
