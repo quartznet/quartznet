@@ -115,6 +115,13 @@ A few things worth knowing:
 * Some blocks are deliberately left as plain fences: those calling a package this repository does not
   reference, and the `BinaryFormatter` migration sample, which would drag in an unsupported
   compatibility package. Adding a NuGet dependency purely to compile a sample is not worth it.
+* A plain fence that a compiled example *does* back says where it came from. Two pages are in that
+  position: the Wolverine how-to, because the samples project may not reference `WolverineFx`, and
+  the migration guide's "Upgrading an F# project", because the samples project is C# and cannot hold
+  a line of F#. Each fence on them is preceded by an HTML comment reading
+  `Copied from <path>:<line>`, naming `src/Quartz.Examples.Wolverine` or `src/Quartz.Examples.FSharp`,
+  and `WolverineHowToTest` and `FSharpHowToTest` compare the fence with those lines of that file. Add
+  a fence to either page the same way, or the test fails it for being unattributed.
 
 `dotnet fallout VerifyDocsSnippets` is what CI runs. It fails when a page names a snippet that does not
 exist, when a marker was left empty, and when the committed markdown no longer matches the samples.
