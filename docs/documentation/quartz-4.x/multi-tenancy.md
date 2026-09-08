@@ -17,8 +17,8 @@ mechanics.
 | | Scheduler per tenant | Group per tenant | Database or prefix per tenant |
 |---|---|---|---|
 | **Isolation** | strongest: separate job store, thread pool, clock, listeners | logical only — one scheduler, one pool | strongest at rest; one process still runs them all |
-| **Tenants known at** | startup | any time | startup |
-| **Add a tenant at runtime** | no (needs a new container) | yes | no |
+| **Tenants known at** | startup or runtime | any time | startup |
+| **Add a tenant at runtime** | yes — [`ISchedulerRuntime`](#adding-a-tenant-while-the-process-is-running) | yes | no |
 | **Per-tenant concurrency limits** | yes, naturally | yes, via execution groups | yes |
 | **Per-tenant dashboard and API access** | yes — [`SchedulerAuthorizationPolicy`](#authorizing-a-tenant-on-its-own-scheduler) | no: Quartz authorizes a scheduler, not a group | yes, if each is its own scheduler |
 | **Cost per tenant** | a scheduling loop, a connection pool, a thread pool | ~nothing | a schema |
@@ -27,9 +27,11 @@ mechanics.
 They compose. The common shape for a SaaS with many small tenants is *one* scheduler, groups per
 tenant, one database — and a second scheduler for the handful of tenants that bought isolation.
 
-The question that usually decides it: **can a tenant appear while the process is running?** If yes, the
-scheduler-per-tenant model is out, because a scheduler cannot be added to a container that has already
-been built.
+The question that usually decides it is no longer "can a tenant appear while the process is running?" —
+[`ISchedulerRuntime`](#adding-a-tenant-while-the-process-is-running) adds one to a container that has
+already been built. What decides it is **cost per tenant**: the scheduler-per-tenant model gives each
+tenant a scheduling loop, a thread pool and — with a persistent store — a connection pool and a cluster
+check-in, which is fine for tens of tenants and not for thousands, however they arrive.
 
 ## Scheduler per tenant
 
@@ -813,6 +815,172 @@ delegate's place.
 Per-fire options are a snapshot: read what the tenant's configuration says *inside* the hook or the job,
 not once at startup, if tenants can be reconfigured while the process runs.
 
+## Adding a tenant while the process is running
+
+`AddQuartz(name, …)` registers a scheduler against `IServiceCollection`, which is closed once the
+container is built, so a tenant that appears afterwards has no registrations to be built from.
+`ISchedulerRuntime` is the other door. It takes a name the container never heard of, builds a scheduler
+for it into a container of its own — its own thread pool, job store, connection provider, plugins and
+listeners — binds it into the same `ISchedulerRepository` as every other scheduler, and starts it:
+
+<!-- snippet: sample_tenancy_runtime_onboarding -->
+```csharp
+ISchedulerRuntime runtime = app.Services.GetRequiredService<ISchedulerRuntime>();
+
+IScheduler tenant = await runtime.Add(tenantId, q =>
+{
+    q.UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId]));
+    q.UseDefaultThreadPool(maxConcurrency: 5);
+    q.AddJob<NightlyReportJob>(j => j.WithIdentity("nightly"));
+    q.AddTrigger<NightlyReportJob>(t => t.WithCronSchedule("0 30 2 * * ?"));
+});
+```
+<!-- endSnippet -->
+
+The callback is the same `IQuartzBuilder` an `AddQuartz(name, …)` callback is given, applied in the same
+order to the same phases, and whatever `ConfigureAllQuartzSchedulers` said about every scheduler in the
+container reaches it too — a package that adds something to every scheduler cannot know which door a
+scheduler came through. Everything that reads the repository sees the tenant without knowing it arrived
+late: `GetAllSchedulers`, `ISchedulerFactory.LookupScheduler`, the HTTP API, and the dashboard, which
+lists it as `SchedulerOrigin.Runtime` beside the container's registrations.
+
+Offboarding is `Remove`:
+
+<!-- snippet: sample_tenancy_offboarding -->
+```csharp
+ISchedulerRuntime runtime = app.Services.GetRequiredService<ISchedulerRuntime>();
+
+// Shuts the scheduler down, unbinds it from the repository and releases the container it was
+// built in. Nothing is deleted from the store: the tenant's rows stay where they are.
+bool removed = await runtime.Remove(tenantId, waitForJobsToComplete: true);
+```
+<!-- endSnippet -->
+
+It shuts the scheduler down, unbinds it and releases the container built for it. A name this runtime did
+not add answers `false` rather than throwing, so removing twice — or removing a tenant something else
+shut down — says what happened.
+
+::: warning Removing a tenant deletes none of its data
+A removed tenant's rows under its `SCHED_NAME` stay exactly where they are, and its `SCHEDULER_STATE`
+row expires the way a stopped node's does. Deleting a tenant's data is the application's decision, not a
+side effect of removing its scheduler — and a tenant added again under the same name picks up everything
+that was left.
+:::
+
+### What `Add` refuses
+
+It fails soft: a name it cannot take is refused with a `SchedulerConfigException` saying which rule and
+what to do about it, only the caller hears about it, and nothing is left behind — no half-built scheduler
+in the repository and nothing in the listing.
+
+| Refused | Because |
+|---|---|
+| a name `AddQuartz(name, …)` registered | its parts are registered under that name already; build it with `GetRequiredKeyedService<ISchedulerFactory>(name).GetScheduler()` |
+| the default scheduler's `InstanceName` | the same, for the one registration that has no service key of its own |
+| a name already added at runtime | `Remove` it first; a scheduler's thread pool and job store cannot be replaced underneath it |
+| a name already bound in the repository | a scheduler bound by hand, or one `AddQuartzHttpClient` bound, occupies the name as surely as a registration does |
+| any name, once the host is stopping | it would be created after the shutdown that would have stopped it |
+
+### Three things worth knowing
+
+**`IQuartzBuilder.Services` means the tenant's own collection**, not the application's. What the callback
+registers there belongs to this tenant and goes away with it. The one thing it may not register is how
+the tenant builds a job — `AddJobType` — because a job is built by the *application's* container, which
+is where its dependencies are; a recipe that tries is refused rather than quietly ignored. Register the
+job type in the application's container and let the recipe schedule it with `AddJob<T>(…)`.
+
+**`[FromKeyedServices("acme")] IScheduler` cannot reach a tenant added at runtime.** That is a container
+registration, and the point of `Add` is a name the container was never told about. Reach it through the
+scheduler `Add` returned, through `ISchedulerFactory.LookupScheduler(name)`, or through
+`ISchedulerRepository.Lookup(name)`.
+
+**A health check for a tenant is registered at build time**, with
+`services.AddHealthChecks().AddQuartz("acme")` — a check cannot be added to a built container any more
+than a scheduler can. Written before the tenant exists it reports unhealthy, and once the tenant is added
+it finds it through the repository. `AddQuartzHostedService("acme", o => o.WaitForJobsToComplete = true)`
+works the same way: registered at build time, read when the host stops, and applied to whichever tenant
+is running under that name — which is also what shuts a runtime tenant down inside the host's graceful
+shutdown window rather than at container disposal, after it has closed.
+
+### Without an application container
+
+`QuartzSchedulerBuilder` builds a scheduler from a container of its own, at any point in the process's
+life, and `ISchedulerRepository.Bind` makes the result visible to `GetAllSchedulers`, the dashboard and
+the HTTP API. This is the path for a process that has no application container for a tenant to resolve
+from — and it is what `ISchedulerRuntime` is made of:
+
+<!-- snippet: sample_tenancy_standalone_onboarding -->
+```csharp
+StandaloneSchedulerFactory tenantFactory = QuartzSchedulerBuilder
+    .Create(q => q
+        .ConfigureScheduler(o => o.InstanceName = tenantId)
+        .UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId])))
+    .Build();
+
+IScheduler tenant = await tenantFactory.GetScheduler();
+await tenant.Start();
+
+// Keep the factory: it owns the container, and it is the only handle that can shut the tenant
+// down again.
+tenantFactories[tenantId] = tenantFactory;
+app.Services.GetRequiredService<ISchedulerRepository>().Bind(tenant);
+```
+<!-- endSnippet -->
+
+Keep the factory for as long as the tenant exists — `tenantFactories` above is a dictionary keyed by
+tenant id — because it owns the container and is the only handle that can shut the tenant down again.
+`BuildScheduler()` is the shorter spelling that drops it on the floor, which is fine for a scheduler
+that lives as long as the process and wrong for one that has to be offboarded.
+
+What you take on by doing this: the returned `StandaloneSchedulerFactory` owns the container, so *you*
+start the scheduler and dispose the factory — the hosted service will not; the scheduler's jobs resolve
+from its own container rather than the application's unless you give it an `IJobFactory` that bridges;
+and health checks registered at startup do not cover it. `ISchedulerRuntime.Add` is the same shape with
+all three answered, which is the reason to prefer it wherever there is an application container.
+
+`Bind` refuses a duplicate **(name, instance id)** pair, not a duplicate name: two schedulers of one
+name and different instance ids coexist by design, which is how proxies to several nodes of one cluster
+are held. In practice the common case still throws, because a scheduler that has not opted into
+clustering takes the default instance id `NON_CLUSTERED` — so two non-clustered tenants sharing a name
+collide on the pair. Give each tenant's scheduler a distinct `InstanceName` and the question does not
+arise.
+
+Offboarding is disposing the factory, which shuts the tenant's scheduler down and then disposes its
+container. Unbind it too, so the application's repository stops listing it at once rather than at its
+next read:
+
+<!-- snippet: sample_tenancy_offboarding_standalone -->
+```csharp
+StandaloneSchedulerFactory tenantFactory = tenantFactories[tenantId];
+tenantFactories.Remove(tenantId);
+
+// Disposal shuts the scheduler down without waiting for its jobs, so ask for the wait here.
+IScheduler tenant = await tenantFactory.GetScheduler();
+await tenant.Shutdown(waitForJobsToComplete: true);
+
+await tenantFactory.DisposeAsync();
+app.Services.GetRequiredService<ISchedulerRepository>().Remove(tenantId);
+```
+<!-- endSnippet -->
+
+::: warning Disposal does not wait for running jobs
+`StandaloneSchedulerFactory.DisposeAsync` shuts down with `waitForJobsToComplete: false`, so a tenant's
+jobs are cut short — which is the same default `IScheduler.Shutdown()` and `QuartzHostedServiceOptions`
+both carry, and two Quartz-owned shutdown paths that disagreed about it would be a trap. Waiting is a
+call you make first, as above: `await scheduler.Shutdown(waitForJobsToComplete: true)` leaves the
+factory with nothing left to shut down, so the two compose and the disposal only releases the container.
+:::
+
+::: warning Unbinding is not offboarding
+`Remove` makes a tenant invisible; only the disposal stops it. A recipe that unbinds without disposing
+takes the tenant out of `GetAllSchedulers`, off the dashboard and out of the HTTP API while it goes on
+firing its triggers for the rest of the process's life, with nothing left able to reach it. Disposing
+the factory shuts its scheduler down, which is what makes the two steps above safe in either order.
+:::
+
+Weigh all of it against the group-per-tenant model, where onboarding a tenant is a `ScheduleJob` call
+and none of the above applies.
+
 ## Honest limits
 
 Things multi-tenant deployments ask Quartz for and do not get:
@@ -842,86 +1010,11 @@ is "this tenant may pause but not delete". The resource-based shape leaves room 
 evaluated against a `SchedulerResource`, and an operation requirement could join it later without another
 option — but that is not built.
 
-**Tenants cannot be onboarded at runtime *through the DI path*.** Schedulers are registered against
-`IServiceCollection`, which is closed once the container is built, and the hosted service enumerates
-them once at start. (Enumerating what *is* registered no longer requires starting anything —
-[`ISchedulerRegistry`](#listing-them) — but adding to it does still require a new container.) Nor can a
-scheduler be restarted after `Shutdown()`: the container owns its parts' lifetimes, and `GetScheduler()`
-throws rather than resurrecting a thread pool and a job store underneath a scheduler that can never run
-again. `Standby()` / `Start()` is the pause-and-resume pair.
-
-That is a limit of the DI path, not of the library. `QuartzSchedulerBuilder` builds a scheduler from a
-container of its own, at any point in the process's life, and `ISchedulerRepository.Bind` makes the
-result visible to `GetAllSchedulers`, the dashboard and the HTTP API:
-
-<!-- snippet: sample_tenancy_runtime_onboarding -->
-```csharp
-StandaloneSchedulerFactory tenantFactory = QuartzSchedulerBuilder
-    .Create(q => q
-        .ConfigureScheduler(o => o.InstanceName = tenantId)
-        .UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId])))
-    .Build();
-
-IScheduler tenant = await tenantFactory.GetScheduler();
-await tenant.Start();
-
-tenantFactories[tenantId] = tenantFactory;
-app.Services.GetRequiredService<ISchedulerRepository>().Bind(tenant);
-```
-<!-- endSnippet -->
-
-Keep the factory for as long as the tenant exists — `tenantFactories` above is a dictionary keyed by
-tenant id — because it owns the container and is the only handle that can shut the tenant down again.
-`BuildScheduler()` is the shorter spelling that drops it on the floor, which is fine for a scheduler
-that lives as long as the process and wrong for one that has to be offboarded.
-
-What you take on by doing this: the returned `StandaloneSchedulerFactory` owns the container, so *you*
-start the scheduler and dispose the factory — the hosted service will not; the scheduler's jobs resolve
-from its own container rather than the application's unless you give it an `IJobFactory` that bridges;
-and health checks registered at startup do not cover it.
-
-`Bind` refuses a duplicate **(name, instance id)** pair, not a duplicate name: two schedulers of one
-name and different instance ids coexist by design, which is how proxies to several nodes of one cluster
-are held. In practice the common case still throws, because a scheduler that has not opted into
-clustering takes the default instance id `NON_CLUSTERED` — so two non-clustered tenants sharing a name
-collide on the pair. Give each tenant's scheduler a distinct `InstanceName` and the question does not
-arise.
-
-Offboarding is disposing the factory, which shuts the tenant's scheduler down and then disposes its
-container. Unbind it too, so the application's repository stops listing it at once rather than at its
-next read:
-
-<!-- snippet: sample_tenancy_offboarding -->
-```csharp
-StandaloneSchedulerFactory tenantFactory = tenantFactories[tenantId];
-tenantFactories.Remove(tenantId);
-
-// Disposal shuts the scheduler down without waiting for its jobs, so ask for the wait here.
-IScheduler tenant = await tenantFactory.GetScheduler();
-await tenant.Shutdown(waitForJobsToComplete: true);
-
-await tenantFactory.DisposeAsync();
-app.Services.GetRequiredService<ISchedulerRepository>().Remove(tenantId);
-```
-<!-- endSnippet -->
-
-::: warning Disposal does not wait for running jobs
-`StandaloneSchedulerFactory.DisposeAsync` shuts down with `waitForJobsToComplete: false`, so a tenant's
-jobs are cut short — which is the same default `IScheduler.Shutdown()` and `QuartzHostedServiceOptions`
-both carry, and two Quartz-owned shutdown paths that disagreed about it would be a trap. Waiting is a
-call you make first, as above: `await scheduler.Shutdown(waitForJobsToComplete: true)` leaves the
-factory with nothing left to shut down, so the two compose and the disposal only releases the container.
-:::
-
-::: warning Unbinding is not offboarding
-`Remove` makes a tenant invisible; only the disposal stops it. A recipe that unbinds without disposing
-takes the tenant out of `GetAllSchedulers`, off the dashboard and out of the HTTP API while it goes on
-firing its triggers for the rest of the process's life, with nothing left able to reach it. Disposing
-the factory shuts its scheduler down, which is what makes the two steps above safe in either order.
-:::
-
-Weigh that against the group-per-tenant model, where onboarding is a `ScheduleJob` call and none of
-the above applies.
+**A scheduler cannot be restarted after `Shutdown()`.** The container owns its parts' lifetimes, and
+`GetScheduler()` throws rather than resurrecting a thread pool and a job store underneath a scheduler
+that can never run again. `Standby()` / `Start()` is the pause-and-resume pair; for a tenant added at
+runtime, `ISchedulerRuntime.Remove` followed by `Add` builds a new set of parts, which is what a restart
+would have to mean.
 
 **A per-tenant thread pool is a real cost.** Under the scheduler-per-tenant model each tenant gets a
 scheduling loop that wakes on its own idle timer, a thread pool, and — with a persistent store — a
