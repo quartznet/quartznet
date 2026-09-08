@@ -55,10 +55,11 @@ internal sealed class DeferredScheduler : IScheduler
         // The factory caches, so asking it again would be correct — but it takes a lock and a repository
         // lookup to say so, and this sits in front of every call a caller makes.
         var resolved = scheduler;
-        return resolved is not null ? new ValueTask<IScheduler>(resolved) : Create(cancellationToken);
+        return resolved is not null && !IsDown(resolved) ? new ValueTask<IScheduler>(resolved) : Create(cancellationToken);
 
         async ValueTask<IScheduler> Create(CancellationToken cancellationToken)
         {
+            Forget();
             return scheduler = await factory.GetScheduler(cancellationToken).ConfigureAwait(false);
         }
     }
@@ -77,9 +78,14 @@ internal sealed class DeferredScheduler : IScheduler
         get
         {
             var resolved = scheduler;
-            if (resolved is not null)
+            if (resolved is not null && !IsDown(resolved))
             {
                 return resolved;
+            }
+
+            if (resolved is not null)
+            {
+                Forget();
             }
 
             var pending = creation ??= factory.GetScheduler().AsTask();
@@ -95,6 +101,47 @@ internal sealed class DeferredScheduler : IScheduler
                 + "Resolve the scheduler after the host has started, or await any of its methods first — "
                 + "building a scheduler is asynchronous, and a property cannot wait for it.");
         }
+    }
+
+    /// <summary>
+    /// Whether the scheduler this handle remembers has stopped for good.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A handle outlives the scheduler it points at. <see cref="ISchedulerRuntime.Restart" /> shuts one
+    /// generation down and builds another under the same name, and every
+    /// <c>[FromKeyedServices("acme")] IScheduler</c> in the application holds one of these — so without
+    /// this check the whole application would go on injecting the dead generation while the repository,
+    /// the dashboard and the HTTP API all showed the live one. The registration is the identity here,
+    /// not the instance.
+    /// </para>
+    /// <para>
+    /// Asking the factory again is what finds the replacement: it answers from the repository, where the
+    /// new generation bound itself. With no live scheduler under the name it refuses exactly as it did
+    /// before, and says so — a shut-down scheduler is not silently rebuilt.
+    /// </para>
+    /// <para>
+    /// One volatile field read and one status read per forwarded call on the ordinary path, where the
+    /// status is a field on the scheduler this points at.
+    /// </para>
+    /// </remarks>
+    private static bool IsDown(IScheduler scheduler)
+    {
+        return scheduler.Status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown;
+    }
+
+    /// <summary>
+    /// Drops what this handle remembers, so the next use asks the factory rather than answering with a
+    /// scheduler that has stopped.
+    /// </summary>
+    /// <remarks>
+    /// The completed <see cref="creation" /> has to go with it: it holds the same dead scheduler, and a
+    /// synchronous member that only cleared the field would read it straight back out.
+    /// </remarks>
+    private void Forget()
+    {
+        scheduler = null;
+        creation = null;
     }
 
     public string SchedulerName => registrationName ?? options.Get(optionsName).InstanceName;

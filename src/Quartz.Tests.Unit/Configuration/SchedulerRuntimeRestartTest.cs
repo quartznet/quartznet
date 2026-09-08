@@ -55,7 +55,7 @@ public sealed class SchedulerRuntimeRestartTest
     {
         List<IJobStore> stores = [];
 
-        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
 
         IScheduler first = await Add(provider, "acme", q => q.UseJobStore(p => Record(stores, p)));
         first.Status.Should().Be(SchedulerStatus.Running);
@@ -85,7 +85,7 @@ public sealed class SchedulerRuntimeRestartTest
     {
         JobKey jobKey = new("nightly", "acme");
 
-        using ServiceProvider provider = Container(services => services.AddQuartz("acme", q =>
+        await using ServiceProvider provider = Container(services => services.AddQuartz("acme", q =>
             q.AddJob<RestartJob>(job => job.WithIdentity(jobKey).StoreDurably())));
 
         IScheduler first = await provider.GetRequiredKeyedService<ISchedulerFactory>("acme").GetScheduler();
@@ -105,6 +105,13 @@ public sealed class SchedulerRuntimeRestartTest
         throughTheFactory.Should().BeSameAs(second,
             "the factory answers from the repository, so a name that was restarted resolves to the generation "
             + "that is alive rather than to the one it replaced");
+
+        IScheduler handle = provider.GetRequiredKeyedService<IScheduler>("acme");
+        handle.SchedulerInstanceId.Should().Be(second.SchedulerInstanceId);
+        handle.Status.Should().Be(SchedulerStatus.Running,
+            "every [FromKeyedServices(\"acme\")] IScheduler in the application is one of these handles, and a "
+            + "handle that went on answering for the generation it first resolved would leave the application "
+            + "injecting the dead one while everything that reads the repository showed the live one");
     }
 
     /// <summary>
@@ -113,7 +120,7 @@ public sealed class SchedulerRuntimeRestartTest
     [Test]
     public async Task RestartOfARegisteredButUnbuiltSchedulerBuildsIt()
     {
-        using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
 
         IScheduler scheduler = await Restart(provider, "acme");
 
@@ -125,7 +132,7 @@ public sealed class SchedulerRuntimeRestartTest
     [Test]
     public async Task RestartRefusesTheDefaultScheduler()
     {
-        using ServiceProvider provider = Container(services =>
+        await using ServiceProvider provider = Container(services =>
             services.AddQuartz(q => q.ConfigureScheduler(o => o.InstanceName = "TheDefaultOne")));
 
         Func<Task> restart = async () => await Restart(provider, "TheDefaultOne");
@@ -141,7 +148,7 @@ public sealed class SchedulerRuntimeRestartTest
     [Test]
     public async Task RestartOfAnUnknownNameThrowsSchedulerNotFound()
     {
-        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
 
         Func<Task> restart = async () => await Restart(provider, "nobody");
 
@@ -160,7 +167,7 @@ public sealed class SchedulerRuntimeRestartTest
     {
         IJobStore shared = TestJobStores.Ram();
 
-        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
 
         IScheduler tenant = await Add(provider, "acme", q => q.UseJobStore(shared));
 
@@ -192,7 +199,7 @@ public sealed class SchedulerRuntimeRestartTest
     {
         int runs = 0;
 
-        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
 
         IScheduler tenant = await Add(provider, "acme", q =>
         {
@@ -218,7 +225,7 @@ public sealed class SchedulerRuntimeRestartTest
     [Test]
     public async Task RestartStartsTheNewSchedulerOnlyIfTheOldWasRunning()
     {
-        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
 
         IScheduler tenant = await Add(provider, "acme");
         await tenant.Standby();
@@ -241,7 +248,7 @@ public sealed class SchedulerRuntimeRestartTest
     [Test]
     public async Task AShutDownTenantCanBeRestarted()
     {
-        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
 
         IScheduler tenant = await Add(provider, "acme");
         await tenant.Shutdown();
@@ -267,7 +274,7 @@ public sealed class SchedulerRuntimeRestartTest
     [Test]
     public async Task OptionsConfiguredBesideAddQuartzAreNotReplayed()
     {
-        using ServiceProvider provider = Container(services =>
+        await using ServiceProvider provider = Container(services =>
         {
             services.AddQuartz("acme", _ => { });
             services.Configure<QuartzSchedulerOptions>("acme", o => o.InstanceId = "written-beside-the-call");
@@ -289,7 +296,7 @@ public sealed class SchedulerRuntimeRestartTest
     [Test]
     public async Task QuerySchedulersKeepsOriginContainerAcrossARestart()
     {
-        using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
 
         IScheduler first = await provider.GetRequiredKeyedService<ISchedulerFactory>("acme").GetScheduler();
         started.Add(first);
@@ -317,7 +324,7 @@ public sealed class SchedulerRuntimeRestartTest
         IHostApplicationLifetime lifetime = A.Fake<IHostApplicationLifetime>();
         A.CallTo(() => lifetime.ApplicationStopping).Returns(stopping.Token);
 
-        using ServiceProvider provider = Container(services =>
+        await using ServiceProvider provider = Container(services =>
         {
             services.AddSingleton(lifetime);
             services.AddQuartz("main", _ => { });
@@ -340,7 +347,7 @@ public sealed class SchedulerRuntimeRestartTest
     [Test]
     public async Task RestartRefusesABlankName()
     {
-        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
 
         Func<Task> restart = async () => await provider.GetRequiredService<ISchedulerRuntime>().Restart("  ");
 
