@@ -368,7 +368,12 @@ public static partial class QuartzServiceCollectionExtensions
 
         services.BindQuartzOptions(effective, name);
         JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, effective, name);
-        AddQuartzScheduler(services, name, LegacyProperties(effective), configure);
+
+        // The resolved section rather than the caller's, so that the recipe recorded for a restart reads
+        // exactly what this registration read. Handing the caller's back would leave the resolution to be
+        // redone against a configuration that is free to have changed - a reloading provider that gained
+        // a "Schedulers:{name}" child in between would make the replay read a different section.
+        AddQuartzScheduler(services, name, LegacyProperties(effective), configure, effective);
         return services;
     }
 
@@ -460,12 +465,19 @@ public static partial class QuartzServiceCollectionExtensions
     /// is not assembled by a second construction path that has to be kept in step with this one, and the
     /// recipe it is handed sees the same <see cref="IQuartzBuilder"/> in the same phase order.
     /// </para>
+    /// <para>
+    /// <c>configuration</c> is the section <c>properties</c> was flattened out of, recorded so that a
+    /// restart replays the section rather than its flattening — the two are not the same recipe, since
+    /// binding onto typed options is what the section does and the flat form does not. It is
+    /// <see langword="null"/> for a registration that was given a property bag to begin with.
+    /// </para>
     /// </remarks>
     internal static IServiceCollection AddQuartzScheduler(
         IServiceCollection services,
         string? schedulerName,
         NameValueCollection properties,
-        Action<IQuartzBuilder>? configure)
+        Action<IQuartzBuilder>? configure,
+        IConfiguration? configuration = null)
     {
         services.AddOptions();
 
@@ -512,6 +524,12 @@ public static partial class QuartzServiceCollectionExtensions
         if (schedulerName is not null)
         {
             registry.Add(schedulerName);
+
+            // Kept because a delegate that has been run and thrown away can never be run again, and
+            // building a second generation of this scheduler is running the whole of this method again
+            // into a collection of its own. The default scheduler records none: its parts are the
+            // unkeyed registrations, which nothing can tell apart from the application's own.
+            registry.AddBlueprint(new SchedulerBlueprint(schedulerName, properties, configuration, configure));
         }
 
         return services;
