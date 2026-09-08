@@ -850,7 +850,7 @@ public class TriggerEndpointsTest : WebApiTest
     public async Task UpdateTriggerDetailsShouldRejectAnUnparseableRetryPolicy()
     {
         using HttpResponseMessage response = await WebApplicationFactory.CreateClient().PostAsync(
-            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/details",
+            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/update-details",
             new StringContent("""{"retryPolicy":"not-a-policy"}""", Encoding.UTF8, "application/json"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
@@ -865,7 +865,7 @@ public class TriggerEndpointsTest : WebApiTest
     public async Task UpdateTriggerDetailsShouldRejectABodyThatIsNotAnObject()
     {
         using HttpResponseMessage response = await WebApplicationFactory.CreateClient().PostAsync(
-            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/details",
+            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/update-details",
             new StringContent("null", Encoding.UTF8, "application/json"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
@@ -877,7 +877,7 @@ public class TriggerEndpointsTest : WebApiTest
     public async Task UpdateTriggerDetailsShouldRejectAnUnknownMisfireInstructionFamily()
     {
         using HttpResponseMessage response = await WebApplicationFactory.CreateClient().PostAsync(
-            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/details",
+            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/update-details",
             new StringContent("""{"misfireInstruction":2,"misfireInstructionFamily":"Weekly"}""", Encoding.UTF8, "application/json"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
