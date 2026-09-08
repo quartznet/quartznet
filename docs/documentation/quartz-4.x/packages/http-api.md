@@ -119,7 +119,7 @@ validated against.
 
 ## Every endpoint
 
-Sixty routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
+Sixty-one routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
 `{name}` is the scheduler the request is for — every route but the first carries one, and every route
 that carries one is subject to
 [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when it is set.
@@ -176,7 +176,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/groups` | paged job groups: the four `name*` filters, `paused` |
 | `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused }` |
 
-### Triggers — 21
+### Triggers — 22
 
 | Method | Path | Answers |
 |---|---|---|
@@ -201,6 +201,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/unschedule` | `{ triggers }` |
 | `POST` | `…/triggers/unschedule-by-group` | `{ triggers }` — selects by group matcher in the query string |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reschedule` | `{ firstFireTimeUtc }`, **`null`** when the trigger did not exist |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/details` | `{ applied }` — edits the trigger in place, [as a patch](#editing-a-trigger-in-place) |
 
 ### Calendars — 5
 
@@ -632,6 +633,58 @@ unschedule is about triggers.
 The server resolves the group inside the same lock that empties it, and signals the scheduling change
 once. Listener events are per key here too: one `JobDeleted` or `JobUnscheduled` for each key removed,
 and nothing when the group was empty.
+
+## Editing a trigger in place
+
+`POST …/triggers/{triggerGroup}/{triggerName}/details` changes a trigger's metadata and settings without
+rescheduling it. Fire times, fire count and state are exactly what they were; only the fields the body
+names change. It is the wire form of
+[`IScheduler.UpdateTriggerDetails`](../how-tos/rescheduling-jobs.md), and it answers `{ "applied": … }`,
+with `false` when the key resolved to no trigger — not a `404`, for the reason
+[every other single-trigger mutation](#response-shape-conventions) answers that way.
+
+**The body is a patch, and absence is not the same as `null`.** A member the body omits leaves the
+trigger's value alone; a member present as `null` clears it. That is what lets one call set a
+description and another take one away, and it is why sending every member as `null` is a request to
+clear every one of them.
+
+```json
+{
+  "description": "nightly export",
+  "priority": 8,
+  "calendarName": null
+}
+```
+
+sets the description and the priority, disassociates the calendar, and leaves the job data, the misfire
+instruction, the node pin, the execution group and the retry policy where they were.
+
+| Member | Type | Meaning |
+|---|---|---|
+| `description` | string or `null` | The trigger's description |
+| `priority` | number | The trigger's priority |
+| `jobDataMap` | object or `null` | Replaces the trigger's job data; `null` empties it |
+| `calendarName` | string or `null` | The calendar to observe; `null` disassociates. The calendar must already exist |
+| `misfireInstruction` | number | The misfire instruction code, as a trigger body's `misfireInstruction` carries it |
+| `misfireInstructionFamily` | string or `null` | The schedule family the code is stated in — see below |
+| `preferredNode` | string or `null` | The node pin, as the triggers table holds it: `null` clears it, `"*"` asks for an automatic pin, anything else is a scheduler instance id |
+| `preferredNodeAuto` | bool | Sent beside `preferredNode`; whether the pin was handed out automatically rather than named |
+| `executionGroup` | string or `null` | The [execution group](../tutorial/execution-groups.md) whose thread limit this trigger's job counts against; `null` leaves every group |
+| `retryPolicy` | string or `null` | The [retry policy](../how-tos/retrying-failed-jobs.md) in its stored form, such as `"fixed;3;00:00:30"`; `null` stops retrying |
+
+**Name the misfire instruction's family.** `misfireInstructionFamily` is one of `Simple`, `Cron`,
+`CalendarInterval`, `DailyTimeInterval` or `Recurrence`, and it is what lets the scheduler refuse an
+instruction aimed at a trigger of another family: the same number means a different policy in each, so
+`2` is *do nothing* for a cron trigger and *reschedule now with existing repeat count* for a simple one.
+Omit it and the code is applied without that check, which is also the only way to set one on a trigger
+type of your own — such a trigger belongs to none of the five families, so naming any of them would be
+refused.
+
+::: warning A calendar name or a misfire instruction changes firing
+The rest of these fields are metadata, but the calendar and the misfire instruction are not: they change
+when the trigger fires. Neither recomputes fire times when it is set — the new value takes effect at the
+next scheduling evaluation.
+:::
 
 ## Configuration options
 

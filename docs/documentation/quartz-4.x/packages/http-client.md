@@ -209,13 +209,13 @@ what keeps an older client working.
 
 ## What is not supported remotely
 
-All three throw `NotSupportedException`, with a message that names the member and says why.
+Both throw `NotSupportedException`, with a message that names the member and says why. Neither is a
+missing route: both are things a process boundary makes impossible.
 
 | Member | Why not |
 |---|---|
 | `Context` | the scheduler context is a live object in the scheduler's own process; a copy fetched over HTTP could not be written back |
 | `ListenerManager` | listeners run in the process that executes jobs |
-| `UpdateTriggerDetails` | the HTTP API has no endpoint for it |
 
 Listeners are the important one: a `TriggerListener` registered on a client would never see anything,
 because nothing fires here. Register listeners where the scheduler actually runs.
