@@ -113,8 +113,15 @@ public class PublicApiTest
             + "the ASP.NET Core dependencies live) and accept the baseline it writes");
     }
 
+    /// <remarks>
+    /// The four shim packages are left out, and that is the whole of what "no assembly" costs here: they
+    /// carry a dependency and a readme, <c>IncludeBuildOutput</c> is false so no <c>lib</c> folder is
+    /// packed, and a baseline of an empty surface would be a file that looks like a guard without being
+    /// one. <c>src/QuartzShimPackage.props</c> says why they exist.
+    /// </remarks>
     private static IEnumerable<TestCaseData> PackableProjects() =>
         ShippedProjects.Find()
+            .Where(x => !ShippedProjects.IsShim(x))
             .Select(x => Path.GetFileNameWithoutExtension(x.Name))
             .Select(x => new TestCaseData(x).SetArgDisplayNames(x));
 }

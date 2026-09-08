@@ -168,6 +168,26 @@ If you use Newtonsoft.Json serialization, reference `Quartz.Serialization.Newton
 Configuration that names a type from one of the merged assemblies as a string keeps working: a name that fails to
 resolve is retried against `Quartz`, with a warning naming both spellings.
 
+### Empty packages under the four old ids
+
+From 4.0.1 those four ids — `Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting`,
+`Quartz.Serialization.Json` and `Quartz.Serialization.SystemTextJson` — are published at every 4.x version
+as **empty packages**: a dependency on the package that replaced them, a readme, and no assembly at all.
+
+**You still remove them.** They exist for one thing you cannot do by hand, which is let a dependency bot
+get to 4.x. A bot that updates Quartz together with any of these as one group resolves that group to the
+newest version *every* member has, and until 4.0.1 that was 3.20.1 — so the bot closed the 4.0.0 pull
+request it had already opened as superseded and landed 3.20.1 with green checks, and the consumer's only
+signal that 4.0 existed disappeared. With the empty packages there, the group resolves to 4.x, the upgrade
+pull request is the one that stays open, and the reference is yours to delete in it.
+
+Because they carry no assembly they cannot cause the `CS0433` above. A 3.x one still can, so an upgrade
+that leaves an old version pinned is not made safe by their existence.
+
+`Quartz.OpenTracing` and `OpenTelemetry.Instrumentation.Quartz` deliberately have no such package. Neither
+has a 4.x replacement to depend on, and an empty package would hide that rather than say it — the two
+sections below are what they need instead.
+
 `Quartz.OpenTracing` is **dropped** and has no 4.x release. It consumed the `DiagnosticSource` events that
 4.x replaced with `System.Diagnostics.Activity`, and the OpenTracing project itself is archived. Remove the
 package reference and the `AddQuartzOpenTracing` call, and subscribe to Quartz's activity source and meter
