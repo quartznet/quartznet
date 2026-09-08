@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Extensibility;
 using Quartz.Plugins.Json;
@@ -299,6 +300,38 @@ public static class MultiTenancySamples
             q.AddJob<NightlyReportJob>(j => j.WithIdentity("nightly"));
             q.AddTrigger<NightlyReportJob>(t => t.WithCronSchedule("0 30 2 * * ?"));
         });
+
+        #endregion
+    }
+
+    public static async Task Restart(IHost app, string tenantId, ILogger logger)
+    {
+        #region sample_tenancy_restart
+
+        ISchedulerRuntime runtime = app.Services.GetRequiredService<ISchedulerRuntime>();
+
+        try
+        {
+            // The new scheduler's container is built first, so a recipe that no longer works leaves the
+            // running one alone; then the old one is shut down waiting for its jobs; then the new one is
+            // created and started, which is when its store is initialised and its recovery runs.
+            IScheduler tenant = await runtime.Restart(tenantId, new SchedulerRestartOptions
+            {
+                DrainTimeout = TimeSpan.FromMinutes(2)
+            });
+        }
+        catch (SchedulerRestartException e)
+        {
+            // The old scheduler is down and the new one was never built, which is deliberate: its first
+            // act would have been a recovery sweep over work that is still running. Nothing has to be
+            // undone - ask again once the jobs have finished, and until then the tenant is listed with
+            // no status.
+            logger.LogWarning(
+                e,
+                "Tenant {Tenant} still has {Count} job(s) running; restarting again shortly",
+                tenantId,
+                e.JobsStillExecuting);
+        }
 
         #endregion
     }

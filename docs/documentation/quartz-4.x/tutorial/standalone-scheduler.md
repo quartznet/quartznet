@@ -125,9 +125,11 @@ story exists for the cases where a scheduler is *shorter*-lived than the process
 subcommand, a plug-in host.
 
 ::: warning
-A scheduler that has been shut down cannot be restarted. The container owns its parts' lifetimes, so
-`GetScheduler()` after a `Shutdown()` throws rather than quietly handing back a dead instance — build a
-new factory instead. `Standby()` / `Start()` is the pause-and-resume pair.
+A scheduler that has been shut down is not restarted in place. The container owns its parts' lifetimes,
+so `GetScheduler()` after a `Shutdown()` throws rather than quietly handing back a dead instance — build
+a new factory instead. `Standby()` / `Start()` is the pause-and-resume pair. In an application that has a
+container, [`ISchedulerRuntime.Restart`](../multi-tenancy.md#restarting-a-scheduler) does the
+build-a-new-one step for you, from the recipe the old one was built with.
 :::
 
 ## Jobs, triggers and calendars
