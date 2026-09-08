@@ -19,6 +19,7 @@ mechanics.
 | **Isolation** | strongest: separate job store, thread pool, clock, listeners | logical only — one scheduler, one pool | strongest at rest; one process still runs them all |
 | **Tenants known at** | startup or runtime | any time | startup |
 | **Add a tenant at runtime** | yes — [`ISchedulerRuntime`](#adding-a-tenant-while-the-process-is-running) | yes | no |
+| **Reconfigure a tenant at runtime** | yes — [`Restart`](#restarting-a-scheduler) rebuilds it from its recipe | its jobs and triggers, any time | no |
 | **Per-tenant concurrency limits** | yes, naturally | yes, via execution groups | yes |
 | **Per-tenant dashboard and API access** | yes — [`SchedulerAuthorizationPolicy`](#authorizing-a-tenant-on-its-own-scheduler) | no: Quartz authorizes a scheduler, not a group | yes, if each is its own scheduler |
 | **Cost per tenant** | a scheduling loop, a connection pool, a thread pool | ~nothing | a schema |
@@ -881,6 +882,109 @@ in the repository and nothing in the listing.
 | a name already bound in the repository | a scheduler bound by hand, or one `AddQuartzHttpClient` bound, occupies the name as surely as a registration does |
 | any name, once the host is stopping | it would be created after the shutdown that would have stopped it |
 
+### Restarting a scheduler
+
+`Restart` shuts a scheduler down and builds another one from the recipe that built it — for a tenant this
+runtime added, and for one `AddQuartz(name, …)` registered, whose recipe is recorded when the
+registration is made. Nothing is restarted in place: a scheduler's thread pool, job store, connection
+provider, plugins and listeners all refuse work once they have been shut down, so the second scheduler is
+a second set of instances and the name is the only thing the two share.
+
+<!-- snippet: sample_tenancy_restart -->
+```csharp
+ISchedulerRuntime runtime = app.Services.GetRequiredService<ISchedulerRuntime>();
+
+try
+{
+    // The new scheduler's container is built first, so a recipe that no longer works leaves the
+    // running one alone; then the old one is shut down waiting for its jobs; then the new one is
+    // created and started, which is when its store is initialised and its recovery runs.
+    IScheduler tenant = await runtime.Restart(tenantId, new SchedulerRestartOptions
+    {
+        DrainTimeout = TimeSpan.FromMinutes(2)
+    });
+}
+catch (SchedulerRestartException e)
+{
+    // The old scheduler is down and the new one was never built, which is deliberate: its first
+    // act would have been a recovery sweep over work that is still running. Nothing has to be
+    // undone - ask again once the jobs have finished, and until then the tenant is listed with
+    // no status.
+    logger.LogWarning(
+        e,
+        "Tenant {Tenant} still has {Count} job(s) running; restarting again shortly",
+        tenantId,
+        e.JobsStillExecuting);
+}
+```
+<!-- endSnippet -->
+
+The order is build, drain, create, and each step is where it is for a reason:
+
+- **Build first.** The new scheduler's container is built before the old one is touched, so a recipe that
+  no longer works — a connection string gone from configuration, a setting a later version rejects —
+  fails with a `SchedulerConfigException` and leaves the scheduler that is running exactly where it was.
+  Construction is not initialization: nothing opens a connection or starts a thread until the last step.
+- **Drain second.** The old scheduler is shut down waiting for its jobs, and waiting is not optional.
+  A persistent scheduler's first act on start is a crash-recovery sweep over its whole `SCHED_NAME` —
+  acquired and blocked triggers back to waiting, triggers left in `COMPLETE` deleted, every fired-trigger
+  row deleted — and none of it is filtered by instance id. A new generation started beside a job the old
+  one is still running would tear that job's bookkeeping out from under it.
+- **Create last.** The store is initialized, its schema checked, the declared jobs and triggers applied
+  and the recovery sweep run only once the drain has finished.
+
+`SchedulerRestartOptions.DrainTimeout` is how long that wait may take — thirty seconds by default,
+`Timeout.InfiniteTimeSpan` to wait until the jobs finish or the cancellation token fires. A wait that
+expires throws `SchedulerRestartException`, and the state it leaves is worth knowing precisely: the old
+scheduler is **shut down**, the new one was **never built**, and the tenant is listed with `Status: null`
+until a restart completes. Nothing has to be undone. Ask again once the work has finished — the next
+attempt waits for the abandoned generation before it builds anything, and starts the new scheduler if the
+one the failed attempt shut down was running.
+
+Making a drain finish is the job's business rather than the restart's:
+[`ShutdownJobInterruption`](configuration/reference.md#scheduler) asks running jobs to stop when the
+scheduler shuts down, and `[JobTimeout]` plus `AddJobTimeout` bounds one from the inside. Without either,
+a job that ignores its cancellation token will outlive any deadline.
+
+::: warning A job that outlives the drain is at-least-once
+If a job survives the timeout, the restart fails and the old generation goes on running it — but if you
+force the issue by restarting again once it has finished, the new generation's recovery re-fires anything
+it finds marked for recovery, exactly as it would after a crash. A restart is a node failure as far as
+recovery is concerned, because that is what it is.
+:::
+
+Four things a restart is observably not invisible about:
+
+- **Clustering.** With a fixed `InstanceId` the new generation's first check-in finds its own
+  `SCHEDULER_STATE` row and recovers nothing. With `AUTO` it takes a new id and the old row is left to
+  expire the way a stopped node's does, after which a peer — or the new generation — recovers it. Either
+  way a peer sees a restart the way it sees a node being restarted.
+- **Declared content is re-applied**, under the recipe's own `OverwriteExistingData`, which defaults to
+  `true`. A declared trigger's state in the database is reset by the restart; set
+  `Scheduling.IgnoreDuplicates` if that is not what you want.
+- **`RAMJobStore` keeps only what the recipe declares.** Anything scheduled through the API at runtime
+  goes away with the store the old generation owned. This is the one place where the store choice changes
+  what a restart means.
+- **Configuration written beside `AddQuartz` is not part of the recipe.** A
+  `services.Configure<QuartzSchedulerOptions>("acme", …)`, a keyed registration made directly against the
+  application's collection, an `AddQuartzHostedService("acme", …)` — these belong to the application's
+  container, and the next generation is built in a container of its own from what `AddQuartz` itself was
+  handed. Move the line inside the `AddQuartz("acme", …)` callback and both generations read it.
+
+Two refusals are worth reading before reaching for this:
+
+| Refused | Because |
+|---|---|
+| the default scheduler | its parts are the container's unkeyed registrations, which nothing can tell apart from the application's own, so there is no recipe to replay. Register it with `AddQuartz("name", …)` to make it restartable; `Standby()`/`Start()` pause and resume it |
+| a recipe that supplies a part as an instance | `UseJobStore(IJobStore)`, `UseThreadPool(IThreadPool)`, `UseJobFactory(instance)` and `UseInstanceIdGenerator(instance)` hand the new scheduler the object the old one is about to shut down. Register a type or a factory instead — `UseJobStore<T>()` or `UseJobStore(provider => …)` builds a new instance each time the recipe runs. The scheduler that is running is not touched |
+
+A name neither this runtime nor the container knows is a `SchedulerNotFoundException`. A name it knows
+whose scheduler has already been shut down — by hand, by the host, or by a restart whose drain gave up —
+is not an error at all: there is nothing to stop first, so restarting it starts it again.
+
+`Remove` is still the way to offboard a tenant. `Restart` keeps the tenant; it replaces the instances
+behind its name.
+
 ### Three things worth knowing
 
 **`IQuartzBuilder.Services` means the tenant's own collection**, not the application's. What the callback
@@ -1010,11 +1114,13 @@ is "this tenant may pause but not delete". The resource-based shape leaves room 
 evaluated against a `SchedulerResource`, and an operation requirement could join it later without another
 option — but that is not built.
 
-**A scheduler cannot be restarted after `Shutdown()`.** The container owns its parts' lifetimes, and
+**A scheduler is never restarted in place.** The container owns its parts' lifetimes, and
 `GetScheduler()` throws rather than resurrecting a thread pool and a job store underneath a scheduler
-that can never run again. `Standby()` / `Start()` is the pause-and-resume pair; for a tenant added at
-runtime, `ISchedulerRuntime.Remove` followed by `Add` builds a new set of parts, which is what a restart
-would have to mean.
+that can never run again. `Standby()` / `Start()` is the pause-and-resume pair.
+[`ISchedulerRuntime.Restart`](#restarting-a-scheduler) is the other answer: it builds a *new* set of
+parts from the recipe that built the old ones, which is what a restart can honestly mean. What it cannot
+replay is configuration written beside `AddQuartz` rather than inside it, and the default scheduler has
+no recipe at all.
 
 **A per-tenant thread pool is a real cost.** Under the scheduler-per-tenant model each tenant gets a
 scheduling loop that wakes on its own idle timer, a thread pool, and — with a persistent store — a
@@ -1057,4 +1163,4 @@ rest — so a view or a filter can reference them rather than repeat the strings
 - [Clustering](tutorial/advanced-enterprise-features.md) — what a shared database gives you
 - [Dashboard](packages/dashboard.md) — the Schedulers page, read-only mode, and how the policy above gates the UI
 - [HTTP API](packages/http-api.md#authorizing-per-scheduler) — the same policy on the other surface, and why it answers 403 before 404
-- [Migration Guide](migration-guide.md) — including why a shut-down scheduler cannot be restarted
+- [Migration Guide](migration-guide.md) — including why a shut-down scheduler is replaced rather than revived

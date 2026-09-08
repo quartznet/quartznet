@@ -1674,7 +1674,7 @@ public enum SchedulerStatus
     Running,        // firing triggers
     Standby,        // started once, stood down, can be started again
     ShuttingDown,   // Shutdown() is running
-    Shutdown        // down, and not restartable
+    Shutdown        // down for good; a new scheduler replaces it, this one never runs again
 }
 ```
 

@@ -530,9 +530,12 @@ name a policy evaluated per request against a `SchedulerResource` carrying the s
 may *do* to the scheduler it reaches is still process-wide — the dashboard's read-only flag — so
 "this tenant may look, that one may act" remains outside Quartz.NET on either version.
 
-**A shut-down scheduler cannot be restarted.** `Standby()` / `Start()` is the pause-and-resume pair.
-Shutdown is terminal: the scheduler refuses to start again and every other operation throws. You can
-build a *new* scheduler with the same name, but it is a new one, not a revived one.
+**A shut-down scheduler is not restarted in place.** `Standby()` / `Start()` is the pause-and-resume
+pair. Shutdown is terminal: the scheduler refuses to start again and every other operation throws. You
+can build a *new* scheduler with the same name, but it is a new one, not a revived one. On 4.1 and later
+[`ISchedulerRuntime.Restart`](quartz-4.x/multi-tenancy.md#restarting-a-scheduler) is that step as an API
+— it replays the recipe the scheduler was registered with, waits for the outgoing one's jobs, and binds
+the result under the same name.
 
 **The tenant does not reach your logs by itself.** The job and trigger group are tags on the execution
 traces, and on 4.x's metrics, but neither version puts them into a logging scope; if you want

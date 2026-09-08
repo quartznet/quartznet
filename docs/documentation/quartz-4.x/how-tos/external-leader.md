@@ -121,9 +121,11 @@ Three things decide the shape:
 * **`Start` is idempotent and resumes from standby.** The first call starts the scheduler; every later
   one resumes it. Only the first runs the store's start-up recovery and starts the plugins, so a
   re-election is cheap.
-* **`Standby` is not `Shutdown`.** Shutdown is terminal — a shut-down scheduler cannot be started again,
-  and `Start` after it throws *"The Scheduler cannot be restarted after Shutdown() has been called."*
-  Standby is reversible, which is what a leadership that can come back needs.
+* **`Standby` is not `Shutdown`.** Shutdown is terminal for that scheduler — `Start` after it throws
+  *"The Scheduler cannot be restarted after Shutdown() has been called."*, and what
+  [`ISchedulerRuntime.Restart`](../multi-tenancy.md#restarting-a-scheduler) offers is a *new* scheduler
+  built from the same registration, which is far more than losing a lease should cost. Standby is
+  reversible, which is what a leadership that can come back needs.
 * **`Standby` after shutdown throws**, with `SchedulerException("The Scheduler has been Shutdown.")`.
   Losing a lease while the host is already stopping is ordinary, so read `Status` before standing down
   rather than catching the exception.
