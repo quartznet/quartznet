@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -89,7 +91,7 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        string? take = null,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -347,7 +349,7 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        string? take = null,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
         bool? paused = null,
         string? nameContains = null,

@@ -162,6 +162,27 @@ internal sealed class EndpointHelper
     public const int MaxKeysToFetch = 1000;
 
     /// <summary>
+    /// What the generated OpenAPI document says about a listing's <c>take</c>, carried by a
+    /// <see cref="System.ComponentModel.DescriptionAttribute" /> on each of the six parameters.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The parameter is a <see langword="string" /> because <c>?take=all</c> is one of the two things it
+    /// accepts, and a document that says <c>string</c> where a reader expects <c>integer</c> looks like a
+    /// mistake unless something says why. This is that something ([#3682](https://github.com/quartznet/quartznet/issues/3682)).
+    /// </para>
+    /// <para>
+    /// A description rather than a schema of its own. The honest schema is
+    /// <c>oneOf: [integer, const "all"]</c>, and no OpenAPI generator infers it from an
+    /// <see cref="IParsable{TSelf}" /> — every one of them would still render the CLR type, so getting it
+    /// would take a schema filter written once per generator the host might be using. Quartz generates no
+    /// document of its own; the host's generator does, and there are several. A description is what all
+    /// of them read, so it is what this says.
+    /// </para>
+    /// </remarks>
+    public const string TakeDescription = "A page size, or \"" + HttpApiConstants.AllItems + "\" for everything up to MaxPageSize";
+
+    /// <summary>
     /// Reads the paging a listing request carried, answering the <c>take</c> to apply or
     /// <see langword="null" /> when the request named none and the query record's own default should
     /// stand.
