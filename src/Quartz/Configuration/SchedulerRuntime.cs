@@ -167,6 +167,7 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                 Name = schedulerName,
                 Options = options,
                 Configure = configure,
+                FromContainer = false,
                 Live = generation,
                 Number = generation.Number
             };
@@ -625,6 +626,7 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                 Name = blueprint.Name,
                 Options = Recipe(blueprint),
                 Configure = blueprint.Configure,
+                FromContainer = true,
 
                 // Generation one is the container's own keyed graph rather than anything this runtime
                 // built, so there is nothing to record but its number: what the restart shuts down is
@@ -940,6 +942,18 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
         public required Action<IQuartzBuilder>? Configure { get; init; }
 
         /// <summary>
+        /// Whether the recipe came from a container registration rather than from a call to
+        /// <see cref="Add" />.
+        /// </summary>
+        /// <remarks>
+        /// It decides one thing: whether the scheduler bound in the repository under this name is this
+        /// unit's first generation. For a registration it is, and shutting it down is what a restart is;
+        /// for a name this runtime added, anything in the repository that is not a generation this
+        /// runtime holds is somebody else's scheduler and not this one's to stop.
+        /// </remarks>
+        public required bool FromContainer { get; init; }
+
+        /// <summary>
         /// Which generation of this name the runtime last built, counting the container's own as one.
         /// </summary>
         public required int Number { get; set; }
@@ -1030,10 +1044,14 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                     generation);
             }
 
-            if (unit.Live is not null || repository.Lookup(unit.Name) is not { } registered)
+            // The repository is asked only for a name the container registered, and only while this
+            // runtime holds no generation of its own under it. Any other reading of it would be somebody
+            // else's scheduler wearing the same name — one bound by hand, one AddQuartzHttpClient bound —
+            // and this is not the place to notice that, nor is it something to shut down on the way past.
+            if (unit.Live is not null || !unit.FromContainer || repository.Lookup(unit.Name) is not { } registered)
             {
-                // Either a generation of ours that was never created, or a registration nothing has built
-                // or something has already shut down. Both mean the same thing here: nothing to stop.
+                // A generation of ours that was never created, a registration nothing has built, or one
+                // something has already shut down. All of them mean the same thing here: nothing to stop.
                 return null;
             }
 
