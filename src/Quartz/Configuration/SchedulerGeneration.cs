@@ -173,18 +173,28 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
     /// Builds one scheduler's container, without creating the scheduler.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Everything that can fail on bad configuration fails here, before anything has been bound or
     /// started: the property bag is checked, the recipe runs, the container is built, and the parts are
     /// constructed. What construction deliberately does not do is <em>initialize</em> them — a thread
     /// pool starts no thread and a database store opens no connection until <c>Initialize</c>, which is
     /// <see cref="Create" />'s to call.
+    /// </para>
+    /// <para>
+    /// <c>refuseInstanceParts</c> is set for every generation after the first, and is what makes
+    /// replaying a recipe safe: a recipe that closes over an object hands this generation the very object
+    /// the last one is using, and the refusal has to happen before a provider exists to own it. It is
+    /// <see langword="false" /> for a scheduler's first generation, where the object has not been used
+    /// yet and there is nothing to protect it from.
+    /// </para>
     /// </remarks>
     public static SchedulerGeneration Build(
         IServiceProvider application,
         string schedulerName,
         SchedulerAddOptions options,
         Action<IQuartzBuilder>? configure,
-        int number)
+        int number,
+        bool refuseInstanceParts)
     {
         ServiceCollection services = new();
 
@@ -222,6 +232,14 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
         }
 
         ThrowIfAJobIsRegisteredHere(services, schedulerName);
+
+        if (refuseInstanceParts)
+        {
+            // Before the provider exists, which is the whole point: a refusal after one has been built
+            // has to dispose it, and Microsoft's container disposes whatever a factory delegate returned
+            // - which for these overloads is the object the running scheduler is using.
+            ThrowIfAPartWasSuppliedAsAnInstance(services, schedulerName);
+        }
 
         foreach (Type containerWide in containerWideReads)
         {
@@ -371,6 +389,63 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
         }
 
         return configured.ToFrozenSet();
+    }
+
+    /// <summary>
+    /// Refuses a recipe that hands this generation an object the last one is already using.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A recipe made of <c>Use…&lt;T&gt;()</c> and factory registrations produces a new set of instances
+    /// every time it runs. One that closes over an object — <c>UseJobStore(myStore)</c> — produces the
+    /// same object, and that object belongs to a scheduler that is still running. Re-initialising it is
+    /// what <c>#3297</c> refused; handing it to a second scheduler is the same mistake wearing a
+    /// different hat.
+    /// </para>
+    /// <para>
+    /// Answered by reading the collection rather than by comparing what two containers produced, because
+    /// the timing is the point. A refusal here has built nothing and disposes nothing. A refusal after
+    /// the provider exists has to release it, and Microsoft's container releases whatever a factory
+    /// delegate returned — so refusing at that stage would dispose the running scheduler's own store if
+    /// it happened to be <see cref="IDisposable" />, which is a worse outcome than the mistake being
+    /// reported. <c>QuartzBuilder</c> leaves the note; this reads it.
+    /// </para>
+    /// </remarks>
+    private static void ThrowIfAPartWasSuppliedAsAnInstance(IServiceCollection services, string schedulerName)
+    {
+        List<string> parts = [];
+        foreach (ServiceDescriptor descriptor in services)
+        {
+            if (descriptor.ServiceType == typeof(SchedulerInstancePart)
+                && Instance(descriptor) is { } part
+                && !parts.Contains(part.PartType.Name, StringComparer.Ordinal))
+            {
+                parts.Add(part.PartType.Name);
+            }
+        }
+
+        if (parts.Count == 0)
+        {
+            return;
+        }
+
+        parts.Sort(StringComparer.Ordinal);
+
+        Throw.SchedulerConfigException(
+            $"The recipe for scheduler '{schedulerName}' supplies {string.Join(" and ", parts)} as an instance "
+            + "— UseJobStore(IJobStore), UseThreadPool(IThreadPool), UseJobFactory(instance) or "
+            + "UseInstanceIdGenerator(instance) — so replaying it would hand the new scheduler the very object "
+            + "the old one is using, and a shut-down instance cannot be re-initialised. Register a type or a "
+            + "factory instead: UseJobStore<T>(), UseThreadPool<T>() and UseJobStore(provider => new …) each "
+            + "build a new instance every time the recipe runs. A factory must return a new instance per "
+            + $"generation rather than close over a shared one. Scheduler '{schedulerName}' was not touched.");
+
+        static SchedulerInstancePart? Instance(ServiceDescriptor descriptor)
+        {
+            return descriptor.IsKeyedService
+                ? descriptor.KeyedImplementationInstance as SchedulerInstancePart
+                : descriptor.ImplementationInstance as SchedulerInstancePart;
+        }
     }
 
     /// <summary>

@@ -125,7 +125,16 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
             SchedulerGeneration generation;
             try
             {
-                generation = SchedulerGeneration.Build(application, schedulerName, options, configure, number: 1);
+                generation = SchedulerGeneration.Build(
+                    application,
+                    schedulerName,
+                    options,
+                    configure,
+                    number: 1,
+
+                    // A first generation may be handed an object: nothing has used it yet, and refusing
+                    // UseJobStore(myStore) at Add would be refusing an API that works.
+                    refuseInstanceParts: false);
             }
             catch (OptionsValidationException e)
             {
@@ -694,7 +703,16 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     {
         try
         {
-            return SchedulerGeneration.Build(application, unit.Name, unit.Options, unit.Configure, unit.Number + 1);
+            return SchedulerGeneration.Build(
+                application,
+                unit.Name,
+                unit.Options,
+                unit.Configure,
+                unit.Number + 1,
+
+                // Every generation after the first. The refusal it turns on happens before a provider
+                // exists, so a recipe that closes over an object costs the running scheduler nothing.
+                refuseInstanceParts: true);
         }
         catch (OptionsValidationException e)
         {
@@ -703,15 +721,23 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     }
 
     /// <summary>
-    /// Refuses a recipe that hands the next generation a part the last one is holding.
+    /// The second line: refuses a recipe whose <em>factory</em> handed the next generation the object
+    /// the last one is holding.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A recipe made of <c>Use…&lt;T&gt;()</c> and factory registrations produces a new set of instances
-    /// every time it is run. One that closes over an object — <c>UseJobStore(myStore)</c> — produces the
-    /// same object, and that object is about to be shut down. Nothing in a service descriptor says which
-    /// of the two a recipe is, so it is answered by building the next generation and comparing what came
-    /// out by reference.
+    /// The four <c>Use…(instance)</c> overloads are refused before a provider exists, by
+    /// <c>SchedulerGeneration.Build</c> reading the note <c>QuartzBuilder</c> left. This catches what
+    /// that cannot see: <c>UseJobStore(provider =&gt; sharedInstance)</c> is a factory registration by
+    /// its shape and an instance registration by its effect, and only comparing what two containers
+    /// produced tells them apart.
+    /// </para>
+    /// <para>
+    /// It is the second line rather than the first because it costs what the first one does not. By the
+    /// time it can answer, the next generation's container exists and holds the shared object, so
+    /// refusing means disposing a container that will take that object with it — which is why the
+    /// message says what it says, and why a factory that means to be replayed must return a new instance
+    /// each time it runs.
     /// </para>
     /// <para>
     /// Four parts, because these are the ones a recipe can be handed as an instance and that a scheduler
@@ -723,10 +749,10 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     /// </remarks>
     private static void ThrowIfTheRecipeSuppliesAnInstance(string schedulerName, Incumbent live, SchedulerGeneration next)
     {
-        string? shared = Shared(live.Store, next.StoreInstance, "a job store", "UseJobStore(IJobStore)")
-            ?? Shared(live.Pool, next.PoolInstance, "a thread pool", "UseThreadPool(IThreadPool)")
-            ?? Shared(live.JobFactory, next.Part<IJobFactory>(), "a job factory", "UseJobFactory(instance)")
-            ?? Shared(live.InstanceIdGenerator, next.Part<IInstanceIdGenerator>(), "an instance id generator", "UseInstanceIdGenerator(instance)");
+        string? shared = Shared(live.Store, next.StoreInstance, "job store", "UseJobStore(provider => …)")
+            ?? Shared(live.Pool, next.PoolInstance, "thread pool", "UseThreadPool(provider => …)")
+            ?? Shared(live.JobFactory, next.Part<IJobFactory>(), "job factory", "UseJobFactory(provider => …)")
+            ?? Shared(live.InstanceIdGenerator, next.Part<IInstanceIdGenerator>(), "instance id generator", "UseInstanceIdGenerator(provider => …)");
 
         if (shared is null)
         {
@@ -734,15 +760,16 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
         }
 
         Throw.SchedulerConfigException(
-            $"The recipe for scheduler '{schedulerName}' supplies {shared}, so replaying it hands the new "
-            + "scheduler the object the old one is about to shut down, and a shut-down instance cannot be "
-            + "re-initialised. Register a type or a factory instead — the same recipe written as "
-            + "UseJobStore<T>(), UseThreadPool<T>() or UseJobStore(provider => …) builds a new instance each "
-            + $"time it runs. Scheduler '{schedulerName}' is still running and was not touched.");
+            $"The recipe for scheduler '{schedulerName}' produced the same {shared} the running scheduler "
+            + "already has, so replaying it hands the new scheduler an object the old one is about to shut "
+            + "down, and a shut-down instance cannot be re-initialised. A factory registration is replayed "
+            + "once per generation and must return a new instance each time rather than close over a shared "
+            + "one — the container built for the refused generation is released, and it takes what the factory "
+            + $"returned with it. Scheduler '{schedulerName}' is still running and was not touched.");
 
         static string? Shared<T>(T? current, T? candidate, string what, string how) where T : class
         {
-            return current is not null && ReferenceEquals(current, candidate) ? $"{what} as an instance ({how})" : null;
+            return current is not null && ReferenceEquals(current, candidate) ? $"{what} ({how})" : null;
         }
     }
 
