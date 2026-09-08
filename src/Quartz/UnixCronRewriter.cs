@@ -183,8 +183,10 @@ internal static class UnixCronRewriter
         int day = ToQuartzDay(raw);
 
         // The name is the clearer thing to store - nobody reads 'MON' as the Unix 1 it came from - but
-        // only where it can stand on its own. A name in front of a step is 'MON/2', which Quartz rejects
-        // outright, and a name in front of a suffix would make 'SUNL' and '1L' two spellings of one day.
+        // only where it can stand on its own. A name in front of a step is 'MON/2', which 4.1 parses and
+        // reads exactly as '2/2' - but the numeric form is what this has always emitted, and an
+        // expression already stored must not change spelling under an upgrade. A name in front of a
+        // suffix would make 'SUNL' and '1L' two spellings of one day.
         return digits == value.Length && !stepped
             ? CronExpression.DayOfWeekNames[day]
             : string.Concat(day.ToString(CultureInfo.InvariantCulture), value.AsSpan(digits));

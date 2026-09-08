@@ -34,10 +34,14 @@ If you ran a 4.0 alpha or beta, everything that changed between one pre-release 
 collected in [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
 The rest of this guide is written as one statement about 3.x and 4.0, with no build numbers in it.
 
+**Already on 4.0?** Then this guide is not your upgrade —
+[Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1) is, and it is short.
+
 ## Upgrading from 4.0 to 4.1
 
-Everything in this section is an addition. Nothing in the 4.0 public surface moved, so an application
-on 4.0 compiles on 4.1 unchanged; what is here is what 4.1 makes newly possible.
+Nothing in the 4.0 public surface moved and the database schema did not either, so an application on
+4.0 compiles on 4.1 unchanged. What is here is what 4.1 makes newly possible, and the one cron
+expression it reads differently.
 
 | Added | What it is |
 |---|---|
@@ -62,6 +66,12 @@ Three behaviours changed without a signature changing:
 
 The mechanics, the refusals and the recipes are in
 [Multi-Tenancy](multi-tenancy.md#adding-a-tenant-while-the-process-is-running).
+
+One cron expression changes what it means:
+
+| Change | 4.0 | 4.1 |
+|---|---|---|
+| **Behaviour change.** `MON/2` — a textual day-of-week with a step — in any cron expression | `FormatException` | Parses, and means what `2/2` means: Monday, Wednesday and Friday. It meant *every second Monday* on 3.x, so an expression carried across both majors fires 156 times a year rather than 26, and nothing reports it. [What to do about it](#mon-2-is-a-fortnight-on-3-x-and-a-step-from-4-1) |
 
 ## The road from 3.x, phase by phase
 
@@ -5798,7 +5808,7 @@ turned `mon-fri` into `MON-FRI`.
 | `0 0 13 * 5` | `0 0 0 13 * FRI` — the 13th **and** every Friday, by the union rule |
 | `0 0 * * 0-6` | `0 0 0 * * ?` |
 | `0 0 * * 5-1` | `0 0 0 ? * FRI-MON` |
-| `0 0 * * 1/2` | `0 0 0 ? * 2/2` — numeric, because `MON/2` is [rejected](#the-parser-refuses-what-it-used-to-ignore) |
+| `0 0 * * 1/2` | `0 0 0 ? * 2/2` — numeric, although [`MON/2` parses from 4.1](#mon-2-is-a-fortnight-on-3-x-and-a-step-from-4-1) and means the same days |
 
 Because the format is an argument to the parse, **the XML schema, the HTTP API and the dashboard do not take
 one**: a five-field expression is something you write in C#, not something you store. The `@` macros below
@@ -5850,16 +5860,24 @@ A handful of expressions parsed, and then meant something other than what they s
 | `5C`, `1C` | parsed, meant `5` / `1`; `C` was never implemented | `FormatException` — use `ModifiedByCalendar` |
 | `*/0`, `5/0`, `0-10/0` | a step of 0 degenerated to no step | `FormatException` |
 | `0-10/120` | the step was never range-checked | `FormatException` — `Increment > 59 : 120`, as `0/120` already did |
-| `MON/2` | every second week — a fortnight with **no stable phase** | `FormatException` — `MON,WED,FRI` for a step through the week, or `RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")` for every second Monday |
+| `MON/2` | every second week — a fortnight with **no stable phase** | `FormatException` on 4.0; **parses on 4.1, as the step `2/2`** — see below |
+
+### `MON/2` is a fortnight on 3.x and a step from 4.1
 
 `MON/2` is the one that changes a schedule rather than only a spelling, so it is worth the paragraph. A
-textual day-of-week followed by `/` meant "every N weeks", and the numeric `2/2` beside it meant an ordinary
-step — two readings of the same grammar. The fortnight also had no stable phase: it counted whole weeks from
-wherever the search started, so a misfire, a restart, a failover or a dashboard query recomputed it from a
-different day and moved it. It is rejected rather than quietly re-read as a step, because re-reading it would
-turn a fortnightly job into a thrice-weekly one — 26 fires a year become 156 — with nothing logged. Every
-second Monday is `RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")`, which anchors the
-interval on the trigger's start time and so keeps its phase.
+textual day-of-week followed by `/` meant "every N weeks" on 3.x, and the numeric `2/2` beside it meant an
+ordinary step — two readings of the same grammar. The fortnight also had no stable phase: it counted whole
+weeks from wherever the search started, so a misfire, a restart, a failover or a dashboard query recomputed
+it from a different day and moved it.
+
+4.0 rejected the token outright rather than quietly re-reading it as a step. **4.1 accepts it as the step**:
+`MON/2` is `2/2`, Monday, Wednesday and Friday. So an expression carried from 3.x to 4.1 turns a fortnightly
+job into a thrice-weekly one — 26 fires a year become 156 — with nothing logged, because on 4.1 the
+expression is valid. It is the one shape in this guide that an upgrade cannot report to you, and the
+[audit below](#before-you-upgrade) is how to find it.
+
+Every second Monday is `RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")`, which anchors
+the interval on the trigger's start time and so keeps its phase.
 
 ### Before you upgrade
 
@@ -5875,14 +5893,16 @@ WHERE  CRON_EXPRESSION LIKE '%C%'    -- 'C' (calendar), never implemented
    OR  CRON_EXPRESSION LIKE '%/0%'   -- step of zero
    OR  CRON_EXPRESSION LIKE '%#%,%'  -- '#' beside other days
    OR  CRON_EXPRESSION LIKE '%,%#%'
-   OR  CRON_EXPRESSION LIKE '%/%'    -- then eyeball for a textual day-of-week step
+   OR  CRON_EXPRESSION LIKE '%/%'    -- then eyeball for a textual day-of-week step: 'MON/2'
    OR  CRON_EXPRESSION LIKE '%W%';   -- then eyeball for 'W' after a range
 ```
 
 Several of those clauses are deliberately over-wide and need reading by eye: most `/` is an ordinary step, most
 `W` is a legitimate `15W` or `LW`, and `%C%` also matches the month names `DEC` and `OCT`, because expressions
 are stored upper-cased. `CronExpression.TryParse` against the 4.0 assembly is the authoritative check once you
-have a candidate list.
+have a candidate list — **except for the textual day-of-week step**, which 4.1 parses. A name in front of a
+`/` — `MON/2`, `MON-FRI/2` — has to be read by eye whatever the parser says, because on 4.1 it is a valid
+expression that means something other than what it meant on 3.x.
 
 Two sources are **not** reachable from this query. `CronCalendar` expressions live inside the serialized blob
 in `QRTZ_CALENDARS` and surface only at deserialization, and expressions built in code or held in

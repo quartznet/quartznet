@@ -208,7 +208,9 @@ Extension policy, not taste. `how-tos/extending-quartz.md` is the reader-facing 
   runs the default on the forwarder; `DelegatingForwardingTest` sweeps both delegating types for it.
 - **Read-replica routing, if ever, is a DIM `IDbProvider.CreateReadConnection()`** — never a `readOnly`
   parameter on `CreateConnection`, which would break both public `IDbProvider` implementations.
-- **`MON/2` stays rejected** (ratified 2026-09-01); 4.1 may accept it additively.
+- **`MON/2` is 4.1's `2/2`**, and `MON-FRI/2` is `2-6/2`: a textual day-of-week takes a step, in lockstep
+  with the numeric form. 4.0 refused it because 3.x read it as a fortnight; that silent change of meaning
+  is a documented hazard, not a reason to reopen this.
 
 ## Build & Test
 

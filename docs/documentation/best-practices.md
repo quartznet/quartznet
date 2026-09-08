@@ -446,14 +446,20 @@ for every other Monday and `FREQ=DAILY;INTERVAL=3` for a three-day cadence that 
 [3.x](/documentation/quartz-3.x/tutorial/recurrencetrigger). Reaching for several cron triggers, or
 for a cron expression with a workaround in it, is usually the sign.
 
-**Quartz 3.x only:** `0 0 0 ? * MON/2` — a textual day-of-week with a step — means every other
-Monday there. 4.x rejects it, because the fortnight's phase was anchored to whatever last asked the
-expression a question: a misfire, a restart or a failover recomputed it from a different day and
-moved it. `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO` anchors on the trigger's start time instead, so the
-fortnight is a property of the trigger rather than of the caller. It is one of seven shapes 4.x
-refuses that 3.x accepted and then quietly reinterpreted;
+**The one expression that means three different things:** `0 0 0 ? * MON/2` — a textual day-of-week
+with a step. On **3.x** it is every other Monday. On **4.0** it is a `FormatException`. From **4.1**
+it parses and means what `0 0 0 ? * 2/2` means: Monday, Wednesday and Friday, 156 fires a year rather
+than 26, with nothing logged either way. So audit for it before upgrading from 3.x, whichever 4.x you
+are going to:
+[`MON/2` is a step through the week](/documentation/quartz-4.x/cron-expressions#mon-2-is-a-step-through-the-week)
+is the whole story, and
 [Forms the parser refuses](/documentation/quartz-4.x/cron-expressions#forms-the-parser-refuses) lists
-them, and the ones to audit a database for before upgrading.
+the six shapes 4.x rejects that 3.x accepted and then quietly reinterpreted.
+
+The fortnight went because its phase was anchored to whatever last asked the expression a question: a
+misfire, a restart or a failover recomputed it from a different day and moved it.
+`FREQ=WEEKLY;INTERVAL=2;BYDAY=MO` anchors on the trigger's start time instead, so the fortnight is a
+property of the trigger rather than of the caller.
 
 ### The two daylight saving rules
 

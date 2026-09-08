@@ -54,6 +54,8 @@ but don't care what day of the week that happens to be, I would put `10` in the 
 And `5/15` in the seconds field means "the seconds 5, 20, 35, and 50".
 You can also specify `/` after the `*` character - in this case `*` is equivalent to having `0` before the `/`.
 `1/3` in the day-of-month field means "fire every 3 days starting on the first day of the month".
+A day-of-week step may start from a name: `MON/2` is `2/2`, Monday, Wednesday and Friday — but see
+[`MON/2` is a step through the week](#mon-2-is-a-step-through-the-week) if the expression came from 3.x.
 - `L` ("last") - has different meaning in each of the two fields in which it is allowed.
 For example, the value `L` in the day-of-month field means "the last day of the month" - day 31 for January, day 28 for February on non-leap years.
 If used in the day-of-week field by itself, it simply means "7" or "SAT". But if used in the day-of-week field after another value, it means "the last xxx day of the month" -
@@ -86,7 +88,7 @@ The legal characters and the names of months and days of the week are not case s
 
 ## Forms the parser refuses
 
-Seven shapes parsed on 3.x and then meant something other than what they said — a special character was
+Six shapes parsed on 3.x and then meant something other than what they said — a special character was
 dropped on the floor, or a step degenerated. Each is a `FormatException` in 4.x, and the message names
 the expression that says what the author meant.
 
@@ -98,19 +100,33 @@ the expression that says what the author meant.
 | `5C`, `1C` | `5` / `1` — `C` ("calendar") was never implemented | `WithCalendarName`, which is what a calendar is for |
 | `*/0`, `5/0`, `0-10/0` | no step at all | `*` for every value, or a step of 1 or more |
 | `0-10/120` | an unchecked step; `0/120` was already rejected | a step inside the field's range |
-| `MON/2` | every second week, with no stable phase | `MON,WED,FRI` for a step through the week, or `RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")` for every second Monday |
-
-`MON/2` is the one that changes a schedule rather than only a spelling. A textual day-of-week followed by
-`/` meant "every N weeks", while the numeric `2/2` beside it meant an ordinary step — two readings of one
-grammar. The fortnight also had no phase to keep: it counted whole weeks from wherever the search
-happened to start, so a misfire, a restart, a failover or a dashboard query recomputed it from a
-different day and moved it. It is rejected rather than quietly re-read as a step, because re-reading it
-would turn a fortnightly job into a thrice-weekly one — 26 fires a year become 156 — with nothing logged.
-[`RecurrenceTrigger`](tutorial/recurrencetrigger.md) anchors the interval on the trigger's start time, so
-the fortnight belongs to the trigger.
 
 If a database may hold one of these expressions, audit it before upgrading:
 [Before you upgrade](migration-guide.md#before-you-upgrade) has the query.
+
+## `MON/2` is a step through the week
+
+A textual day-of-week may be followed by a step since 4.1, and it means exactly what its numeric twin
+means: `MON/2` is `2/2`, which is Monday, Wednesday and Friday. `MON-FRI/2` is `2-6/2`, the same three
+days. The step runs to Saturday and does not wrap, as it does after a number.
+
+::: danger An expression carried over from 3.x means something else
+On 3.x, `MON/2` meant **every second Monday** — a fortnight, not a step. On 4.0 it was rejected outright.
+On 4.1 it parses and fires on Monday, Wednesday and Friday: **26 fires a year become 156**, and nothing
+is logged, because the expression is valid.
+
+Audit for it before upgrading — [Before you upgrade](migration-guide.md#before-you-upgrade) has the
+query — and rewrite what you find. Every second Monday is
+`RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")`.
+[`RecurrenceTrigger`](tutorial/recurrencetrigger.md) anchors the interval on the trigger's start time, so
+the fortnight belongs to the trigger and keeps its phase — which 3.x's reading never did, counting whole
+weeks from wherever the search happened to start, so that a misfire, a restart, a failover or a dashboard
+query recomputed it from a different day and moved it.
+:::
+
+The value after the `/` has to be a whole number from 1 to 7, the same one the numeric spelling takes.
+`MON/X` and `SUN/9` are rejected, and the message says both what a step has to be and where the fortnight
+lives now.
 
 ## Macros
 
