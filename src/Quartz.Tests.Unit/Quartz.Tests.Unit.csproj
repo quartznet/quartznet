@@ -49,6 +49,17 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!--
+      Two floors this project alone has to step over. Microsoft.Extensions.Diagnostics.Testing ships
+      on dotnet/extensions' own cadence and 10.9.0 asks for 10.0.11 of both, which is above the floor
+      Directory.Packages.props sets for what Quartz ships. VersionOverride raises them here and nowhere
+      else, so the shipped packages keep asking their consumers for 10.0.0 - which is the whole point
+      of the floor - while the test host runs on what the fake logger needs.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <!--

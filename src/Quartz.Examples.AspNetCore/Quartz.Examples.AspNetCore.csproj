@@ -38,6 +38,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />
+    <!--
+      NSwag 14.7.1 asks for Newtonsoft.Json 13.0.3, above the 13.0.1 floor Quartz.Serialization.Newtonsoft
+      ships. This example ships nothing, so it raises the version for itself rather than moving a floor
+      every consumer of that package would inherit.
+    -->
+    <PackageReference Include="Newtonsoft.Json" VersionOverride="13.0.4" />
     <PackageReference Include="NSwag.AspNetCore" />
     <PackageReference Include="OpenTelemetry.Exporter.Console" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />

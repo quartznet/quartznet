@@ -39,6 +39,45 @@ updates:
       # every run would propose "upgrading" back to the dead 11.0.18.
       - dependency-name: "Fallout.*"
         versions: ["11.*"]
+      # The dependency floors, which are the versions a consumer inherits from a shipped nuspec rather
+      # than versions this repository runs on. Directory.Packages.props, "The floors a consumer
+      # inherits", says the whole of why: 4.0.0 floored six framework extensions at whatever
+      # Dependabot had most recently proposed, and an application pinning one of them a patch lower
+      # could not restore at all (#3717). A weekly minor or patch here is exactly the change that
+      # caused that, so it is not offered; a major still is, because a major is a decision.
+      #
+      # Raise one of these by hand, for a security advisory, to the version that fixed it.
+      # PackageDependencyTest fails a Microsoft.* floor that is not x.0.0 either way.
+      - dependency-name: "Microsoft.AspNetCore.SignalR.Client"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Configuration.Binder"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Configuration.EnvironmentVariables"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.DependencyInjection"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Diagnostics.HealthChecks"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Hosting"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Hosting.Abstractions"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Http"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Logging"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Logging.Console"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Microsoft.Extensions.Options.ConfigurationExtensions"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "Newtonsoft.Json"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "OpenTelemetry.Extensions.Hosting"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "StackExchange.Redis"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "TimeZoneConverter"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
     # Dependencies are matched against groups in the order they are declared here,
     # and each dependency ends up in the first group it matches.
     groups:

@@ -27,6 +27,13 @@
     <PackageReference Include="Quartz.Serialization.Json" VersionOverride="3.20.0" />
     <PackageReference Include="Quartz.Serialization.SystemTextJson" VersionOverride="3.20.0" />
 
+    <!--
+      Quartz.Serialization.Json 3.20.0 asks for Newtonsoft.Json 13.0.3, above the 13.0.1 floor this
+      repository's Quartz.Serialization.Newtonsoft now ships. Raised here only, for the same reason the
+      two pins above are: this project is a scratch process and inherits nothing to anyone.
+    -->
+    <PackageReference Include="Newtonsoft.Json" VersionOverride="13.0.4" />
+
     <!-- The six providers 3.20's DbProvider loads by assembly name, one per dialect it can seed. -->
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
