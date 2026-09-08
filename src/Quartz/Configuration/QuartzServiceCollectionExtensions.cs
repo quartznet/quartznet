@@ -342,6 +342,25 @@ public static partial class QuartzServiceCollectionExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        return AddQuartzScheduler(services, name, configuration, configure);
+    }
+
+    /// <summary>
+    /// Registers one named scheduler described by a configuration section, into whichever collection is
+    /// building it.
+    /// </summary>
+    /// <remarks>
+    /// Factored out of the public overload so that a scheduler added at runtime — whose collection is
+    /// its own rather than the application's — is registered by the same three steps in the same order.
+    /// Two roads to a configured scheduler that only resembled each other is how a setting comes to be
+    /// read on one of them and dropped on the other.
+    /// </remarks>
+    internal static IServiceCollection AddQuartzScheduler(
+        IServiceCollection services,
+        string name,
+        IConfiguration configuration,
+        Action<IQuartzBuilder>? configure)
+    {
         // Callers may pass either the scheduler's own section or the root section containing
         // "Schedulers:{name}", so resolve to whichever actually holds this scheduler's settings.
         var own = configuration.GetSection("Schedulers").GetSection(name);
@@ -362,7 +381,7 @@ public static partial class QuartzServiceCollectionExtensions
     /// collection would change what the scheduler was configured with, long after <c>AddQuartz</c>
     /// returned. The standalone builder has always copied for this reason, and these doors now agree.
     /// </remarks>
-    private static NameValueCollection PropertyBag(IEnumerable<KeyValuePair<string, string?>> properties)
+    internal static NameValueCollection PropertyBag(IEnumerable<KeyValuePair<string, string?>> properties)
     {
         return Checked(QuartzConfigurationHelper.ToNameValueCollection(properties));
     }
@@ -430,11 +449,19 @@ public static partial class QuartzServiceCollectionExtensions
     /// Registers one scheduler: its services, its configuration, and whatever the caller adds to it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The six phases below, and why they are in this order, are documented on
     /// <see cref="AddQuartz(IServiceCollection, IConfiguration, Action{IQuartzBuilder})"/> — where a
     /// caller can read them.
+    /// </para>
+    /// <para>
+    /// Internal rather than private because a scheduler added at runtime is registered by this method
+    /// too, into a collection of its own. That is what makes a runtime tenant an ordinary scheduler: it
+    /// is not assembled by a second construction path that has to be kept in step with this one, and the
+    /// recipe it is handed sees the same <see cref="IQuartzBuilder"/> in the same phase order.
+    /// </para>
     /// </remarks>
-    private static IServiceCollection AddQuartzScheduler(
+    internal static IServiceCollection AddQuartzScheduler(
         IServiceCollection services,
         string? schedulerName,
         NameValueCollection properties,
