@@ -28,6 +28,13 @@
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="FakeItEasy" Version="9.0.1" />
     <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="10.3.4" />
+    <!--
+      Named here because central package management is on: the F# SDK disables its own implicit
+      FSharp.Core reference when it sees ManagePackageVersionsCentrally, so a project that does not
+      ask for the package builds and then fails at startup with a missing FSharp.Core. Only
+      Quartz.Examples.FSharp references it. Keep it on the version the pinned SDK carries.
+    -->
+    <PackageVersion Include="FSharp.Core" Version="10.1.400" />
     <PackageVersion Include="MELT" Version="1.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />

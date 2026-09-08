@@ -3,6 +3,7 @@
     <Project Path="src/Quartz.Examples.Aspire.AppHost/Quartz.Examples.Aspire.AppHost.csproj" />
     <Project Path="src/Quartz.Examples.Aspire.Worker/Quartz.Examples.Aspire.Worker.csproj" />
     <Project Path="src/Quartz.Examples.AspNetCore/Quartz.Examples.AspNetCore.csproj" />
+    <Project Path="src/Quartz.Examples.FSharp/Quartz.Examples.FSharp.fsproj" />
     <Project Path="src/Quartz.Examples.HttpClient/Quartz.Examples.HttpClient.csproj" />
     <Project Path="src/Quartz.Examples.Wolverine/Quartz.Examples.Wolverine.csproj" />
     <Project Path="src/Quartz.Examples.Worker/Quartz.Examples.Worker.csproj" />

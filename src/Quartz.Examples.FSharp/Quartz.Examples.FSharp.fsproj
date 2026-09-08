@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Quartz.NET from F#, as one runnable console application.
+
+    An F# project upgrading from 3.x hits four compiler errors no C# project sees, because F# reads a
+    C# optional parameter as part of a member's arity and resolves overloads differently
+    (ForNeVeR/nightwatch#68). The section "Upgrading an F# project" in
+    docs/documentation/quartz-4.x/migration-guide.md is written against this project, and
+    FSharpHowToTest compares every fsharp fence on that page with the file and line it says it came
+    from. It is in Quartz.slnx so that `Compile` fails the moment one of those calls stops compiling,
+    which is the only reason an example project exists.
+
+    Nothing external is needed: the in-memory store, one job, one firing, twice over — once from
+    QuartzSchedulerBuilder and once from a host. Running this project exits 0 when both fired, and
+    the ExamplesSmoke target runs exactly that.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+
+  <!--
+    Compilation order is significant in F#: a file may only use what the files above it declare.
+  -->
+  <ItemGroup>
+    <Compile Include="GreetJob.fs" />
+    <Compile Include="Standalone.fs" />
+    <Compile Include="Hosting.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Named rather than implicit. The F# SDK adds FSharp.Core itself, but only when central package
+      management is off; with it on it sets DisableImplicitFSharpCoreReference and leaves the
+      reference to the project, which otherwise compiles and then fails at startup with
+      "Could not load file or assembly 'FSharp.Core'".
+    -->
+    <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+</Project>
