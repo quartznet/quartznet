@@ -132,4 +132,64 @@ public interface ISchedulerRuntime : ISchedulerRegistry
         string schedulerName,
         bool waitForJobsToComplete = false,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Shuts a scheduler down and builds another one from the recipe that built it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nothing is restarted, and the name is the only thing the two schedulers share. A scheduler's
+    /// thread pool, job store, connection provider, plugins and listeners are all one-way — every one of
+    /// them refuses work once it has been shut down — so a second generation is a second set of
+    /// instances, built by running the recipe again into a container of its own. That is what
+    /// <see cref="Add" /> does for a name the container never heard of, and it is what this does for a
+    /// name it did: <c>AddQuartz(name, …)</c> records what it was told, so a registered scheduler is
+    /// restartable too.
+    /// </para>
+    /// <para>
+    /// The order is build, drain, create — and each step is where it is for a reason. The new
+    /// generation's container is built <em>first</em>, so a recipe that no longer works leaves the old
+    /// scheduler running rather than nothing at all. The old scheduler is then shut down waiting for its
+    /// jobs, because a persistent store's recovery sweep runs over the whole scheduler name unfiltered
+    /// by instance id: a new generation that started while the old one's jobs ran would move their
+    /// triggers back to waiting and delete their fired-trigger rows underneath them. Only once that
+    /// drain has finished is the new scheduler created, which is when its store is initialized and its
+    /// declared jobs and triggers are applied.
+    /// </para>
+    /// <para>
+    /// A restart is observable from outside the process. With a fixed instance id the new generation
+    /// checks in under the same <c>SCHEDULER_STATE</c> row; with <c>AUTO</c> it takes a new one and the
+    /// old row expires the way a stopped node's does. Either way a clustered peer sees what it sees when
+    /// a node is restarted, because that is what this is. A job that outlives the drain is at-least-once:
+    /// the new generation's recovery re-fires it exactly as it would after a crash.
+    /// </para>
+    /// <para>
+    /// A name this runtime does not hold and the container did not register is a
+    /// <see cref="SchedulerNotFoundException" />. A name it holds but whose scheduler was shut down —
+    /// by hand, by the host, or by a restart whose drain gave up — is not an error: there is simply
+    /// nothing to shut down first, and this builds the next generation.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler's name.</param>
+    /// <param name="options">
+    /// How long to wait for the outgoing scheduler's jobs, and whether to start the new one. The default
+    /// waits thirty seconds and starts the new scheduler if the old one was running.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The new scheduler, created and bound.</returns>
+    /// <exception cref="SchedulerNotFoundException">
+    /// Neither this runtime nor the container holds a scheduler of that name.
+    /// </exception>
+    /// <exception cref="SchedulerConfigException">
+    /// The scheduler has no recipe that can be replayed — the default scheduler, or one whose recipe
+    /// supplies a part as an instance — or the recipe no longer builds. The old scheduler keeps running.
+    /// </exception>
+    /// <exception cref="SchedulerRestartException">
+    /// The outgoing scheduler's jobs were still running when the drain gave up. The old scheduler is
+    /// shut down and the new one was not built; ask again once the work has finished.
+    /// </exception>
+    ValueTask<IScheduler> Restart(
+        string schedulerName,
+        SchedulerRestartOptions options = default,
+        CancellationToken cancellationToken = default);
 }

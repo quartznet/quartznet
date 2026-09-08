@@ -4,7 +4,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Quartz.Core;
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Util;
 
 namespace Quartz.Configuration;
@@ -38,8 +40,25 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     private readonly ILogger<SchedulerRuntime> logger;
     private readonly IHostApplicationLifetime? applicationLifetime;
 
+    /// <summary>
+    /// What a restart waits for the outgoing scheduler's jobs when the caller says nothing.
+    /// </summary>
+    private static readonly TimeSpan defaultDrainTimeout = TimeSpan.FromSeconds(30);
+
     private readonly ConcurrentDictionary<string, SemaphoreSlim> gates = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, RuntimeUnit> units = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The container-registered schedulers this runtime has built a later generation of.
+    /// </summary>
+    /// <remarks>
+    /// A dictionary of their own, so that <see cref="QuerySchedulers" /> keeps calling them
+    /// <see cref="SchedulerOrigin.Container" />: they are the container's registrations, and a restart
+    /// changes which instances answer for a name rather than where the name came from. Everything else
+    /// treats the two kinds alike — one gate per name covers both, the host drains both, and disposal
+    /// releases both.
+    /// </remarks>
+    private readonly ConcurrentDictionary<string, RuntimeUnit> containerUnits = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Generations whose schedulers somebody else is shutting down, waiting to have their containers
@@ -148,7 +167,8 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                 Name = schedulerName,
                 Options = options,
                 Configure = configure,
-                Generation = generation
+                Live = generation,
+                Number = generation.Number
             };
 
             logger.RuntimeSchedulerAdded(scheduler.SchedulerName, scheduler.SchedulerInstanceId);
@@ -188,7 +208,7 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
 
             try
             {
-                if (unit.Generation.Scheduler is { } scheduler)
+                if (unit.Live?.Scheduler is { } scheduler)
                 {
                     await scheduler.Shutdown(waitForJobsToComplete, cancellationToken).ConfigureAwait(false);
                 }
@@ -196,12 +216,131 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
             finally
             {
                 // Even when the shutdown threw: the container is this generation's, and leaking it would
-                // leak the thread pool, the job store and its database connections along with it.
-                await unit.Generation.DisposeAsync().ConfigureAwait(false);
+                // leak the thread pool, the job store and its database connections along with it. The
+                // abandoned one is a generation a restart shut down but could not prove had finished, and
+                // it is released here for the same reason - its jobs are somebody else's problem now, and
+                // there is nothing left that would ever come back for its container.
+                await Release(unit.Live).ConfigureAwait(false);
+                await Release(unit.Abandoned?.Owned).ConfigureAwait(false);
             }
 
             logger.RuntimeSchedulerRemoved(unit.Name);
             return true;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IScheduler> Restart(
+        string schedulerName,
+        SchedulerRestartOptions options = default,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
+
+        SemaphoreSlim gate = Gate(schedulerName);
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            RuntimeUnit unit = UnitToRestart(schedulerName);
+
+            // Before anything is built or shut down: a restart that ran now would create its scheduler
+            // after the shutdown that would have stopped it, and would have shut the running one down on
+            // the way. Refusing here leaves the old scheduler for the host to drain.
+            ThrowIfTheHostIsStopping(unit.Name, "restarted");
+
+            TimeSpan drainTimeout = options.DrainTimeout ?? defaultDrainTimeout;
+            using CancellationTokenSource drain = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (drainTimeout != Timeout.InfiniteTimeSpan)
+            {
+                drain.CancelAfter(drainTimeout);
+            }
+
+            await ThrowIfAnEarlierRestartIsStillFinishing(unit, drainTimeout, drain.Token).ConfigureAwait(false);
+
+            // May be null, and that is not a failure: the scheduler was shut down by hand, by the host,
+            // or by a restart whose drain gave up, and there is simply nothing to stop before the next
+            // generation is built. Restarting something that is already down is starting it again.
+            Incumbent? live = Incumbent.Of(unit, application, repository);
+
+            SchedulerGeneration next = BuildNext(unit);
+
+            try
+            {
+                if (live is not null)
+                {
+                    // Read before the shutdown, because a shut-down scheduler reports Shutdown and would
+                    // make every restart leave the next generation in standby.
+                    ThrowIfTheRecipeSuppliesAnInstance(unit.Name, live, next);
+                }
+            }
+            catch
+            {
+                await Discard(next).ConfigureAwait(false);
+                throw;
+            }
+
+            bool wasRunning = live?.Facade.Status == SchedulerStatus.Running;
+            string? previousInstanceId = live?.Facade.SchedulerInstanceId;
+
+            if (live is not null)
+            {
+                logger.SchedulerRestarting(unit.Name, previousInstanceId!, live.JobsExecuting);
+
+                // Waiting is not optional. The next generation's first act is a recovery sweep over the
+                // whole scheduler name - triggers out of acquired and blocked, every fired-trigger row
+                // deleted - and it is unfiltered by instance id, so starting it beside a job the old
+                // generation is still running would tear that job's bookkeeping out from under it.
+                await live.Facade.Shutdown(waitForJobsToComplete: true, drain.Token).ConfigureAwait(false);
+
+                if (live.Drained != true)
+                {
+                    // Kept rather than forgotten: its jobs are still running, so the next attempt has to
+                    // wait for them before it may build anything, and the listing has to keep saying the
+                    // name is there with nothing running under it.
+                    unit.Live = null;
+                    unit.Abandoned = live;
+                    await Discard(next).ConfigureAwait(false);
+
+                    throw Abandoned(unit.Name, live.JobsExecuting, drainTimeout);
+                }
+
+                await Release(live.Owned).ConfigureAwait(false);
+                unit.Live = null;
+            }
+
+            IScheduler scheduler;
+            try
+            {
+                // Here, after the drain, and nowhere earlier: this is what initializes the store, takes
+                // the lock handler, runs the recovery sweep and applies the declared jobs and triggers.
+                scheduler = await next.Create(cancellationToken).ConfigureAwait(false);
+
+                if (options.Start ?? wasRunning)
+                {
+                    await scheduler.Start(cancellationToken).ConfigureAwait(false);
+                }
+
+                // Asked again for the reason Add asks again: building and starting is not instantaneous,
+                // and a host that began stopping in that window has already taken the schedulers it was
+                // going to drain.
+                ThrowIfTheHostIsStopping(unit.Name, "restarted");
+            }
+            catch
+            {
+                await Discard(next).ConfigureAwait(false);
+                throw;
+            }
+
+            unit.Live = next;
+            unit.Number = next.Number;
+            unit.Abandoned = null;
+
+            logger.SchedulerRestarted(unit.Name, previousInstanceId ?? "none", scheduler.SchedulerInstanceId);
+            return scheduler;
         }
         finally
         {
@@ -247,10 +386,17 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     /// rather than leaving them for container disposal, which happens after it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The units are taken rather than read, so a tenant is shut down once whoever gets to it first: the
     /// host through this, <see cref="Remove" /> through its gate, or <see cref="DisposeAsync" />. Their
     /// containers are kept back to be released when this is disposed, because the shutdown the caller is
     /// about to do has not happened yet.
+    /// </para>
+    /// <para>
+    /// A restarted container-registered scheduler is handed over too, and it has to be: the hosted
+    /// service resolved its schedulers when the host started, so what it holds under that name is the
+    /// generation the restart shut down. Nothing else would stop the one that replaced it.
+    /// </para>
     /// </remarks>
     internal List<IScheduler> TakeLiveSchedulers()
     {
@@ -259,23 +405,40 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
         Interlocked.Exchange(ref draining, 1);
 
         List<IScheduler> live = [];
+
         foreach (string name in units.Keys)
         {
-            if (!units.TryRemove(name, out RuntimeUnit? unit))
-            {
-                continue;
-            }
-
-            drained.Enqueue(unit.Generation);
-
-            if (unit.Generation.Scheduler is { } scheduler)
+            if (units.TryRemove(name, out RuntimeUnit? unit) && Take(unit) is { } scheduler)
             {
                 logger.RuntimeSchedulerShutDownByHost(unit.Name);
                 live.Add(scheduler);
             }
         }
 
+        foreach (string name in containerUnits.Keys)
+        {
+            if (containerUnits.TryRemove(name, out RuntimeUnit? unit) && Take(unit) is { } scheduler)
+            {
+                live.Add(scheduler);
+            }
+        }
+
         return live;
+
+        IScheduler? Take(RuntimeUnit unit)
+        {
+            Keep(unit.Live);
+            Keep(unit.Abandoned?.Owned);
+            return unit.Live?.Scheduler;
+        }
+
+        void Keep(SchedulerGeneration? generation)
+        {
+            if (generation is not null)
+            {
+                drained.Enqueue(generation);
+            }
+        }
     }
 
     /// <summary>
@@ -302,16 +465,12 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
 
         try
         {
-            foreach (string name in units.Keys)
+            foreach (RuntimeUnit unit in Taken(units).Concat(Taken(containerUnits)))
             {
-                if (!units.TryRemove(name, out RuntimeUnit? unit))
-                {
-                    continue;
-                }
+                Retain(unit.Live);
+                Retain(unit.Abandoned?.Owned);
 
-                drained.Enqueue(unit.Generation);
-
-                if (unit.Generation.Scheduler is not { } scheduler)
+                if (unit.Live?.Scheduler is not { } scheduler)
                 {
                     continue;
                 }
@@ -347,6 +506,28 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
         if (exceptions is not null)
         {
             throw new AggregateException("One or more runtime scheduler shutdowns failed.", exceptions);
+        }
+
+        List<RuntimeUnit> Taken(ConcurrentDictionary<string, RuntimeUnit> from)
+        {
+            List<RuntimeUnit> taken = [];
+            foreach (string name in from.Keys)
+            {
+                if (from.TryRemove(name, out RuntimeUnit? unit))
+                {
+                    taken.Add(unit);
+                }
+            }
+
+            return taken;
+        }
+
+        void Retain(SchedulerGeneration? generation)
+        {
+            if (generation is not null)
+            {
+                drained.Enqueue(generation);
+            }
         }
     }
 
@@ -414,6 +595,224 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     }
 
     /// <summary>
+    /// The unit a restart is about, creating one from the container's recipe the first time a registered
+    /// scheduler is restarted, and refusing every name that has no recipe to replay.
+    /// </summary>
+    /// <remarks>
+    /// The two dictionaries are asked before the registry is, because after one restart a
+    /// container-registered scheduler <em>is</em> a generation this runtime holds, and its next restart
+    /// has to be against that generation rather than against the recipe on its own.
+    /// </remarks>
+    private RuntimeUnit UnitToRestart(string schedulerName)
+    {
+        if (units.TryGetValue(schedulerName, out RuntimeUnit? added))
+        {
+            return added;
+        }
+
+        if (containerUnits.TryGetValue(schedulerName, out RuntimeUnit? restarted))
+        {
+            return restarted;
+        }
+
+        if (names.Blueprint(schedulerName) is { } blueprint)
+        {
+            RuntimeUnit unit = new()
+            {
+                Name = blueprint.Name,
+                Options = Recipe(blueprint),
+                Configure = blueprint.Configure,
+
+                // Generation one is the container's own keyed graph rather than anything this runtime
+                // built, so there is nothing to record but its number: what the restart shuts down is
+                // read from the repository, and its parts stay the container's to dispose.
+                Number = 1
+            };
+
+            return containerUnits.GetOrAdd(blueprint.Name, unit);
+        }
+
+        if (ContainerRegistration(schedulerName) is { } registered)
+        {
+            Throw.SchedulerConfigException(
+                $"Scheduler '{registered}' is registered without a name; its parts are the container's unkeyed "
+                + "registrations, so its recipe cannot be replayed — nothing can tell them apart from the "
+                + $"application's own. Register it with AddQuartz(\"{registered}\", …) to make it restartable; "
+                + "Standby()/Start() pause and resume it.");
+        }
+
+        throw new SchedulerNotFoundException(
+            schedulerName,
+            $"No scheduler named '{schedulerName}' is registered with this container or has been added at "
+            + "runtime, so there is no recipe to build one from. ISchedulerRuntime.Add(\"" + schedulerName
+            + "\", …) creates one.");
+    }
+
+    /// <summary>
+    /// The recipe a container registration was made with, in the form a generation is built from.
+    /// </summary>
+    /// <remarks>
+    /// One of the two, never both: a section says everything a property bag does, and
+    /// <see cref="SchedulerGeneration.Build" /> refuses a recipe that sets both rather than choosing
+    /// between them.
+    /// </remarks>
+    private static SchedulerAddOptions Recipe(SchedulerBlueprint blueprint)
+    {
+        if (blueprint.Configuration is not null)
+        {
+            return new SchedulerAddOptions { Configuration = blueprint.Configuration };
+        }
+
+        List<KeyValuePair<string, string?>> properties = [];
+        foreach (string? key in blueprint.Properties.AllKeys)
+        {
+            if (key is not null)
+            {
+                properties.Add(new KeyValuePair<string, string?>(key, blueprint.Properties[key]));
+            }
+        }
+
+        return new SchedulerAddOptions { Properties = properties };
+    }
+
+    /// <summary>
+    /// Builds the next generation's container, translating a configuration failure the way
+    /// <see cref="Add" /> does.
+    /// </summary>
+    /// <remarks>
+    /// Before the old scheduler is touched, so a recipe that no longer builds — a connection string
+    /// removed from configuration, a validator that has since been added — leaves the scheduler that is
+    /// running exactly where it was. Construction is not initialization: nothing here opens a connection
+    /// or starts a thread, which is what makes it safe to do beside a live generation.
+    /// </remarks>
+    private SchedulerGeneration BuildNext(RuntimeUnit unit)
+    {
+        try
+        {
+            return SchedulerGeneration.Build(application, unit.Name, unit.Options, unit.Configure, unit.Number + 1);
+        }
+        catch (OptionsValidationException e)
+        {
+            throw new SchedulerConfigException(string.Join(" ", e.Failures), e);
+        }
+    }
+
+    /// <summary>
+    /// Refuses a recipe that hands the next generation a part the last one is holding.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A recipe made of <c>Use…&lt;T&gt;()</c> and factory registrations produces a new set of instances
+    /// every time it is run. One that closes over an object — <c>UseJobStore(myStore)</c> — produces the
+    /// same object, and that object is about to be shut down. Nothing in a service descriptor says which
+    /// of the two a recipe is, so it is answered by building the next generation and comparing what came
+    /// out by reference.
+    /// </para>
+    /// <para>
+    /// Four parts, because these are the ones a recipe can be handed as an instance and that a scheduler
+    /// cannot work without. Plugins and listeners are supplied as instances too, and are deliberately not
+    /// checked: they are the application's to reason about, a plugin that tolerates a second
+    /// <c>Initialize</c> is perfectly legal, and refusing every recipe with a listener object in it would
+    /// leave almost nothing restartable.
+    /// </para>
+    /// </remarks>
+    private static void ThrowIfTheRecipeSuppliesAnInstance(string schedulerName, Incumbent live, SchedulerGeneration next)
+    {
+        string? shared = Shared(live.Store, next.StoreInstance, "a job store", "UseJobStore(IJobStore)")
+            ?? Shared(live.Pool, next.PoolInstance, "a thread pool", "UseThreadPool(IThreadPool)")
+            ?? Shared(live.JobFactory, next.Part<IJobFactory>(), "a job factory", "UseJobFactory(instance)")
+            ?? Shared(live.InstanceIdGenerator, next.Part<IInstanceIdGenerator>(), "an instance id generator", "UseInstanceIdGenerator(instance)");
+
+        if (shared is null)
+        {
+            return;
+        }
+
+        Throw.SchedulerConfigException(
+            $"The recipe for scheduler '{schedulerName}' supplies {shared}, so replaying it hands the new "
+            + "scheduler the object the old one is about to shut down, and a shut-down instance cannot be "
+            + "re-initialised. Register a type or a factory instead — the same recipe written as "
+            + "UseJobStore<T>(), UseThreadPool<T>() or UseJobStore(provider => …) builds a new instance each "
+            + $"time it runs. Scheduler '{schedulerName}' is still running and was not touched.");
+
+        static string? Shared<T>(T? current, T? candidate, string what, string how) where T : class
+        {
+            return current is not null && ReferenceEquals(current, candidate) ? $"{what} as an instance ({how})" : null;
+        }
+    }
+
+    /// <summary>
+    /// Refuses a restart while the generation an earlier one abandoned is still running its jobs.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The count is read first because it cannot block: a pool that implements only the default
+    /// <see cref="IThreadPool.Drain" /> falls back to a wait that cannot be given up on, and asking it
+    /// while jobs are plainly still running would hang the retry rather than refuse it. Once the count
+    /// reads zero the pool is asked anyway, because the count goes to zero before the last job's store
+    /// update is issued and it is precisely that write the next generation must not start beside.
+    /// </para>
+    /// <para>
+    /// The built-in pool answers this truthfully after a drain it gave up on, which is what makes a
+    /// retry a plain second call rather than something that has to keep state of its own.
+    /// </para>
+    /// </remarks>
+    private async ValueTask ThrowIfAnEarlierRestartIsStillFinishing(
+        RuntimeUnit unit,
+        TimeSpan drainTimeout,
+        CancellationToken drainToken)
+    {
+        if (unit.Abandoned is not { } abandoned)
+        {
+            return;
+        }
+
+        if (abandoned.JobsExecuting == 0 && await abandoned.Pool.Drain(drainToken).ConfigureAwait(false))
+        {
+            await Release(abandoned.Owned).ConfigureAwait(false);
+            unit.Abandoned = null;
+            return;
+        }
+
+        throw Abandoned(unit.Name, abandoned.JobsExecuting, drainTimeout);
+    }
+
+    /// <summary>
+    /// The report that a generation's work outlived the drain, logged and thrown as one.
+    /// </summary>
+    private SchedulerRestartException Abandoned(string schedulerName, int jobsStillExecuting, TimeSpan drainTimeout)
+    {
+        logger.SchedulerRestartAbandoned(schedulerName, jobsStillExecuting, drainTimeout);
+
+        return new SchedulerRestartException(
+            schedulerName,
+            jobsStillExecuting,
+            drainTimeout,
+            $"Scheduler '{schedulerName}' was shut down, but its work had not finished when the {drainTimeout} "
+            + $"drain gave up on it ({jobsStillExecuting} job(s) still executing), so no new scheduler was built. "
+            + "The next generation's first act is a recovery sweep over the whole scheduler name — every "
+            + "acquired and blocked trigger back to waiting, every fired-trigger row deleted — and it does not "
+            + "filter by instance id, so running it now would tear that work's bookkeeping out from under it. "
+            + $"Call Restart(\"{schedulerName}\") again once the work has finished; nothing else is needed, and "
+            + "until then the name is listed with no status. ShutdownJobInterruption and [JobTimeout] are how a "
+            + "job is made to stop.");
+    }
+
+    /// <summary>
+    /// Releases a generation's container, if there is one to release.
+    /// </summary>
+    /// <remarks>
+    /// There is not, for the generation a container registration built: its parts are keyed singletons in
+    /// the application's container, disposed with it. That is the one asymmetry between restarting a
+    /// registered scheduler and restarting one this runtime added, and it costs one dead object graph
+    /// per registered scheduler ever restarted.
+    /// </remarks>
+    private static ValueTask Release(SchedulerGeneration? generation)
+    {
+        return generation?.DisposeAsync() ?? default;
+    }
+
+    /// <summary>
     /// Refuses a name while the schedulers are being taken away.
     /// </summary>
     /// <remarks>
@@ -422,12 +821,12 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     /// there still something that will shut it down" — and only the second one is about the scheduler
     /// that now exists.
     /// </remarks>
-    private void ThrowIfTheHostIsStopping(string schedulerName)
+    private void ThrowIfTheHostIsStopping(string schedulerName, string verb = "added")
     {
         if (Volatile.Read(ref draining) == 1 || applicationLifetime?.ApplicationStopping.IsCancellationRequested == true)
         {
             Throw.SchedulerConfigException(
-                $"The host is stopping, so scheduler '{schedulerName}' was not added: it would be created after "
+                $"The host is stopping, so scheduler '{schedulerName}' was not {verb}: it would be created after "
                 + "the shutdown that would have stopped it, and nothing would come back for it.");
         }
     }
@@ -508,9 +907,9 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     /// One scheduler this runtime holds: what built it, and what it built.
     /// </summary>
     /// <remarks>
-    /// The blueprint is kept rather than discarded after the generation exists, because a recipe that
-    /// has been run and thrown away can never be run again — which is what every comparable system found
-    /// out about restart, and what this leaves room for.
+    /// The recipe is kept rather than discarded after the generation exists, because a recipe that has
+    /// been run and thrown away can never be run again — which is what every comparable system found out
+    /// about restart, and what makes <see cref="Restart" /> a replay rather than a resurrection.
     /// </remarks>
     private sealed class RuntimeUnit
     {
@@ -520,6 +919,109 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
 
         public required Action<IQuartzBuilder>? Configure { get; init; }
 
-        public required SchedulerGeneration Generation { get; init; }
+        /// <summary>
+        /// Which generation of this name the runtime last built, counting the container's own as one.
+        /// </summary>
+        public required int Number { get; set; }
+
+        /// <summary>
+        /// The generation this runtime built and has not released, or <see langword="null" /> while the
+        /// live scheduler is the container's own — or while there is none at all.
+        /// </summary>
+        /// <remarks>
+        /// Null in three quite different situations, which is why nothing infers anything from it beyond
+        /// "there is no container of ours to release": a container-registered scheduler before its first
+        /// restart, one whose restart was abandoned, and one that has been shut down by hand.
+        /// </remarks>
+        public SchedulerGeneration? Live { get; set; }
+
+        /// <summary>
+        /// The generation a restart shut down but could not prove had finished its work.
+        /// </summary>
+        /// <remarks>
+        /// Kept so the next attempt can wait for it rather than build over it, and released as soon as it
+        /// answers that its work is done.
+        /// </remarks>
+        public Incumbent? Abandoned { get; set; }
+    }
+
+    /// <summary>
+    /// The generation a restart is replacing, as the restart needs to see it.
+    /// </summary>
+    /// <remarks>
+    /// One shape for two quite different things — a generation this runtime built, and the keyed graph a
+    /// container registration produced — because a restart does the same five things to either: read its
+    /// status, name its parts, shut it down, ask whether its work finished, and release what it owns.
+    /// The last of those is the only place the two differ, and <see cref="Owned" /> is where the
+    /// difference is written down.
+    /// </remarks>
+    private sealed record Incumbent(
+        IScheduler Facade,
+        QuartzScheduler? Core,
+        IJobStore Store,
+        IThreadPool Pool,
+        IJobFactory? JobFactory,
+        IInstanceIdGenerator? InstanceIdGenerator,
+        SchedulerGeneration? Owned)
+    {
+        /// <summary>
+        /// How many jobs this generation is still running, or was still running when it was last asked.
+        /// </summary>
+        public int JobsExecuting => Core?.NumberOfJobsExecutingHere ?? 0;
+
+        /// <summary>
+        /// Whether the shutdown's wait for this generation's work succeeded, or <see langword="null" />
+        /// when the answer cannot be read.
+        /// </summary>
+        /// <remarks>
+        /// Unreadable only for a facade that is not this library's — a scheduler bound into the
+        /// repository by hand, or a proxy to another process — and an unreadable answer is treated as a
+        /// refusal, because the whole point of asking is to know before writing to a shared store.
+        /// </remarks>
+        public bool? Drained => Core?.RunningWorkDrained;
+
+        /// <summary>
+        /// The generation a restart of <paramref name="unit" /> would replace, or <see langword="null" />
+        /// when nothing is running under that name.
+        /// </summary>
+        /// <remarks>
+        /// The parts are resolved here, while the scheduler is still alive: they are keyed singletons and
+        /// are therefore already constructed, and after the shutdown a runtime generation's container may
+        /// well be gone.
+        /// </remarks>
+        public static Incumbent? Of(RuntimeUnit unit, IServiceProvider application, ISchedulerRepository repository)
+        {
+            if (unit.Live is { Scheduler: { } tenant } generation)
+            {
+                return new Incumbent(
+                    tenant,
+                    generation.QuartzScheduler,
+                    generation.StoreInstance,
+                    generation.PoolInstance,
+                    generation.Part<IJobFactory>(),
+                    generation.Part<IInstanceIdGenerator>(),
+                    generation);
+            }
+
+            if (unit.Live is not null || repository.Lookup(unit.Name) is not { } registered)
+            {
+                // Either a generation of ours that was never created, or a registration nothing has built
+                // or something has already shut down. Both mean the same thing here: nothing to stop.
+                return null;
+            }
+
+            // The container's own graph. Resolving it constructs nothing that is not already there, since
+            // the scheduler the repository is holding was built out of it.
+            QuartzSchedulerResources resources = application.GetScheduler<QuartzSchedulerResources>(unit.Name);
+
+            return new Incumbent(
+                registered,
+                (registered as StdScheduler)?.scheduler,
+                JobStores.Unwrap(resources.JobStore),
+                resources.ThreadPool,
+                application.GetSchedulerService<IJobFactory>(unit.Name),
+                application.GetSchedulerService<IInstanceIdGenerator>(unit.Name),
+                Owned: null);
+        }
     }
 }
