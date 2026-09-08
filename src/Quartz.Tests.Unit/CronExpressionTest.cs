@@ -557,11 +557,23 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [TestCase("0 5/0 * * * ?", "a step of 1 or more", "a step of zero after a value degenerated to the plain value")]
     [TestCase("0 0-10/0 * * * ?", "a step of 1 or more", "a step of zero inside a range degenerated to the range's start")]
     [TestCase("0 0-10/ * * * ?", "'/' must be followed by an integer", "a range with an empty step said nothing at all")]
-    [TestCase("0 0 12 ? * MON/X", "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO", "a step that is not a number is not a step, and the fortnight is the likely intent behind one")]
-    [TestCase("0 0 12 ? * MON/X", "whole number from 1 to 7", "so the message says what a step has to be")]
+    public void ExpressionsThatSaidOneThingAndDidAnotherAreRejected(string expression, string expectedInMessage, string reason)
+    {
+        Action act = () => new CronExpression(expression);
+
+        act.Should().Throw<FormatException>(reason).WithMessage($"*{expectedInMessage}*", reason);
+    }
+
+    /// <summary>
+    /// A textual day-of-week takes a step, so what is left to reject is a step that is not one. The
+    /// message still names the fortnight <c>MON/2</c> meant on 3.x, because somebody writing a step this
+    /// field cannot take is usually reaching for it.
+    /// </summary>
+    [TestCase("0 0 12 ? * MON/X", "whole number from 1 to 7", "a step that is not a number is not a step, and the message says what one is")]
+    [TestCase("0 0 12 ? * MON/X", "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO", "and where the fortnight the author may have meant lives now")]
     [TestCase("0 0 12 ? * SUN/9", "FREQ=WEEKLY;INTERVAL=2;BYDAY=SU", "a step outside 1-7 is rejected as the same construct, not as a range error")]
     [TestCase("0 0 12 ? * MON/0", "a step of 1 or more", "a step of zero says the same thing here as it does after a number")]
-    public void ExpressionsThatSaidOneThingAndDidAnotherAreRejected(string expression, string expectedInMessage, string reason)
+    public void ATextualDayOfWeekStepThatIsNotAStepIsRejected(string expression, string expectedInMessage, string reason)
     {
         Action act = () => new CronExpression(expression);
 
