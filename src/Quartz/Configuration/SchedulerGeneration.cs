@@ -191,6 +191,17 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
 
         if (options.Configuration is not null)
         {
+            // Both would mean one of them read and the other dropped without a word, which is what
+            // AddQuartzSchedulers refuses in the same words for the same reason: a section says
+            // everything a property bag does, so there is no reading of "both" that is not a silent loss.
+            if (options.Properties is not null)
+            {
+                Throw.SchedulerConfigException(
+                    $"The options for scheduler '{schedulerName}' set both Properties and Configuration. A "
+                    + "configuration section says everything a flat property bag does, so only one of them "
+                    + "would be read and the other dropped without a word. Use one or the other.");
+            }
+
             QuartzServiceCollectionExtensions.AddQuartzScheduler(services, schedulerName, options.Configuration, configure);
         }
         else
