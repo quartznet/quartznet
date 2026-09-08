@@ -13,6 +13,13 @@ namespace Quartz.Tests.Unit.Impl;
 /// with its thread pool and job store re-initialized underneath it, which looks alive and schedules
 /// nothing. The factory refuses instead, and says what to do rather than what went wrong.
 /// </summary>
+/// <remarks>
+/// The refusal stands, and what changed is what it can offer: <c>ISchedulerRuntime.Restart</c> builds
+/// another scheduler from the same registration into a container of its own, which is what a caller
+/// asking for a shut-down scheduler actually wanted. It is not what this path does, and the distinction
+/// is the point — the factory hands out a scheduler, and building a second generation of one is a
+/// decision somebody has to make on purpose.
+/// </remarks>
 [NonParallelizable]
 public sealed class ShutDownSchedulerIsNotRestartedTest
 {
@@ -28,10 +35,13 @@ public sealed class ShutDownSchedulerIsNotRestartedTest
 
         Func<Task> act = async () => await factory.GetScheduler();
 
-        await act.Should().ThrowAsync<SchedulerException>()
+        (await act.Should().ThrowAsync<SchedulerException>()
             .WithMessage("*RestartRefusedScheduler*has been shut down*Standby()/Start()*",
                 "a dead scheduler has to name the scheduler and the way to pause and resume, rather than "
-                + "silently handing back an instance that can never run again");
+                + "silently handing back an instance that can never run again"))
+            .WithMessage("*ISchedulerRuntime.Restart(\"RestartRefusedScheduler\")*",
+                "and the message now names the thing that does build another one from the same "
+                + "registration, since refusing without an alternative was the whole complaint");
     }
 
     [Test]

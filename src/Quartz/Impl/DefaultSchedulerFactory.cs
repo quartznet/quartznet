@@ -288,15 +288,23 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
     /// shutdown is claimed and cannot be abandoned, so it refuses every call already, and handing it back
     /// hands back the same dead scheduler a moment earlier.
     /// </para>
+    /// <para>
+    /// What the message can now offer is <see cref="ISchedulerRuntime.Restart" />, which is the honest
+    /// form of what a caller asking for a shut-down scheduler wanted: not this one revived, but another
+    /// one built from the same registration into a container of its own.
+    /// </para>
     /// </remarks>
     private static void ThrowIfShutdown(bool isShutdown, string schedulerName)
     {
         if (isShutdown)
         {
             Throw.SchedulerException(
-                $"Scheduler '{schedulerName}' has been shut down. A scheduler cannot be restarted within "
-                + "the same service provider, because the container owns its components' lifetimes. Use "
-                + "Standby()/Start() to pause and resume, or build a new host/container for a fresh scheduler.");
+                $"Scheduler '{schedulerName}' has been shut down, and the components the container built for "
+                + "it are one-way: a thread pool and a job store that have been shut down cannot be "
+                + "re-initialised, so handing this one back would hand back something that looks alive and "
+                + "schedules nothing. Use Standby()/Start() to pause and resume, or "
+                + $"ISchedulerRuntime.Restart(\"{schedulerName}\") builds a new scheduler from the same "
+                + "registration.");
         }
     }
 
