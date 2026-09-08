@@ -5881,7 +5881,7 @@ the interval on the trigger's start time and so keeps its phase.
 
 ### Before you upgrade
 
-Every row in that table is a string 3.x stored happily. The exception is thrown from
+Every row in the rejection table above is a string 3.x stored happily. The exception is thrown from
 `CronTriggerImpl.CronExpressionString`'s setter, which the ADO.NET job store calls while materialising a row,
 so a surviving expression fails the *read* rather than only the trigger. Audit the stored expressions first:
 
