@@ -318,7 +318,10 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
 
                 try
                 {
-                    await scheduler.Shutdown(waitForJobsToComplete: false).ConfigureAwait(false);
+                    // No token, said rather than defaulted. The host's own is the only one in reach and
+                    // it is already cancelled by the time a container is being disposed, so passing it
+                    // would abort the shutdown this exists to perform.
+                    await scheduler.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -478,7 +481,10 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
         {
             if (generation.Scheduler is { } scheduler)
             {
-                await scheduler.Shutdown(waitForJobsToComplete: false).ConfigureAwait(false);
+                // No token, said rather than defaulted, and deliberately not the caller's: a cancelled
+                // add is one of the ways to arrive here, and unwinding it must not be cancelled by the
+                // very token that caused it - that would leave the scheduler this is undoing running.
+                await scheduler.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch
