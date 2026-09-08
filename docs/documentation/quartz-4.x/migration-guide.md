@@ -183,9 +183,11 @@ pull request is the one that stays open, and the reference is yours to delete in
 Because they carry no assembly they cannot cause the `CS0433` above. A 3.x one still can, so an upgrade
 that leaves an old version pinned is not made safe by their existence.
 
-`Quartz.OpenTracing` and `OpenTelemetry.Instrumentation.Quartz` deliberately have no such package. Neither
-has a 4.x replacement to depend on, and an empty package would hide that rather than say it — the two
-sections below are what they need instead.
+The two 3.x packages that are *not* published this way are `Quartz.OpenTracing` and
+`Quartz.OpenTelemetry.Instrumentation`. Neither has a 4.x package to depend on, so there is nothing an empty
+one could point at, and publishing it would say "you are up to date" to a reference that has to go. What
+replaces both is Quartz's own activity source and meter — see
+[OpenTelemetry Integration](packages/opentelemetry-integration.md) and the two sections below.
 
 `Quartz.OpenTracing` is **dropped** and has no 4.x release. It consumed the `DiagnosticSource` events that
 4.x replaced with `System.Diagnostics.Activity`, and the OpenTracing project itself is archived. Remove the
