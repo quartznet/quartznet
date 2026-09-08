@@ -557,11 +557,10 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [TestCase("0 5/0 * * * ?", "a step of 1 or more", "a step of zero after a value degenerated to the plain value")]
     [TestCase("0 0-10/0 * * * ?", "a step of 1 or more", "a step of zero inside a range degenerated to the range's start")]
     [TestCase("0 0-10/ * * * ?", "'/' must be followed by an integer", "a range with an empty step said nothing at all")]
-    [TestCase("0 0 12 ? * MON/2", "MON,WED,FRI", "the numeric twin '2/2' is what a step through the week means")]
-    [TestCase("0 0 12 ? * MON/2", "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO", "a fortnight that keeps its phase is a recurrence rule, not a cron expression")]
-    [TestCase("0 0 12 ? * MON/2", "not stable", "the message has to say why the extension went, or it reads as an arbitrary removal")]
-    [TestCase("0 0 12 ? * MON/X", "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO", "a step that is not a number is still a textual day-of-week step")]
+    [TestCase("0 0 12 ? * MON/X", "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO", "a step that is not a number is not a step, and the fortnight is the likely intent behind one")]
+    [TestCase("0 0 12 ? * MON/X", "whole number from 1 to 7", "so the message says what a step has to be")]
     [TestCase("0 0 12 ? * SUN/9", "FREQ=WEEKLY;INTERVAL=2;BYDAY=SU", "a step outside 1-7 is rejected as the same construct, not as a range error")]
+    [TestCase("0 0 12 ? * MON/0", "a step of 1 or more", "a step of zero says the same thing here as it does after a number")]
     public void ExpressionsThatSaidOneThingAndDidAnotherAreRejected(string expression, string expectedInMessage, string reason)
     {
         Action act = () => new CronExpression(expression);
@@ -600,12 +599,60 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [TestCase("0 15 10 1-5 * ? 2010", "a range with nothing after it is a range")]
     [TestCase("0 0 18-21/1 ? * MON-FRI", "a step of 1 inside a range is a step, and a textual range is not a dash option")]
     [TestCase("0 0 12 ? * 2/2", "the numeric twin of 'MON/2' is an ordinary step and is untouched")]
+    [TestCase("0 0 12 ? * MON/2", "and 'MON/2' is that same step, spelled with a name")]
+    [TestCase("0 0 12 ? * MON-FRI/2", "as is a step through a textual range")]
     [TestCase("0 15 10 ? DEC * 2010", "'DEC' is a month name that happens to end in 'C', not a calendar option")]
     public void ExpressionsTheNewRejectionsMustNotCatchStillParse(string expression, string reason)
     {
         Action act = () => new CronExpression(expression);
 
         act.Should().NotThrow(reason);
+    }
+
+    /// <summary>
+    /// A day-of-week step is one construct with two spellings, and 4.1 accepts the textual one. The
+    /// point of the pair is that neither spelling can drift: every form below has to name the same days
+    /// as its numeric twin, and fire at the same instants through a week.
+    /// </summary>
+    /// <remarks>
+    /// Quartz.NET 3.x read <c>MON/2</c> as "every second Monday" rather than as the step, which is why
+    /// 4.0 refused it outright — see the migration guide. An expression carried over from 3.x therefore
+    /// means something else here, and something else again from what it meant on 4.0, where it did not
+    /// parse at all.
+    /// </remarks>
+    [TestCase("MON/2", "2/2", "every second day of the week from Monday: MON, WED, FRI")]
+    [TestCase("SUN/2", "1/2", "and from Sunday: SUN, TUE, THU, SAT")]
+    [TestCase("SAT/3", "7/3", "a step from the last day names only that day")]
+    [TestCase("MON/1", "2/1", "a step of one is every day from Monday on")]
+    [TestCase("TUE/7", "3/7", "the largest step this field takes")]
+    [TestCase("MON-FRI/2", "2-6/2", "a step through a range: MON, WED, FRI")]
+    [TestCase("FRI-MON/2", "6-2/2", "and through a range that wraps the week")]
+    public void ATextualDayOfWeekStepIsItsNumericTwin(string textual, string numeric, string reason)
+    {
+        CronExpression written = new CronExpression($"0 0 12 ? * {textual}", TimeZoneInfo.Utc);
+        CronExpression twin = new CronExpression($"0 0 12 ? * {numeric}", TimeZoneInfo.Utc);
+
+        written.GetSet(CronExpressionConstants.DayOfWeek).Should().Equal(twin.GetSet(CronExpressionConstants.DayOfWeek),
+            $"'{textual}' is '{numeric}' spelled with names - {reason}");
+
+        // A week of fires, because two fields holding the same values is only half of the claim.
+        DateTimeOffset start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        FireTimesThroughAWeek(written, start).Should().Equal(FireTimesThroughAWeek(twin, start),
+            $"'{textual}' and '{numeric}' have to fire at the same instants - {reason}");
+    }
+
+    private static List<DateTimeOffset> FireTimesThroughAWeek(CronExpression expression, DateTimeOffset start)
+    {
+        List<DateTimeOffset> fireTimes = [];
+        DateTimeOffset? next = start;
+        DateTimeOffset end = start.AddDays(7);
+
+        while ((next = expression.GetNextValidTimeAfter(next.Value)) is not null && next.Value < end)
+        {
+            fireTimes.Add(next.Value);
+        }
+
+        return fireTimes;
     }
 
     [Test]

@@ -1729,6 +1729,15 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
                             Throw.FormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
                         }
 
+                        // 'MON-FRI/2' is '2-6/2'. The two spellings stay in lockstep, so a step is read
+                        // here for the same reason HandleDashOption reads one after a numeric range.
+                        if (s.Length > i + 3 && s[i + 3] == '/')
+                        {
+                            CheckTextualDayOfWeekStep(s.Slice(i, 3), eval, s.Slice(i + 4));
+                            HandleSlashOption(s, sval, type, i + 3, eval);
+                            return;
+                        }
+
                         break;
                     case '#':
                         try
@@ -1747,8 +1756,10 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
 
                         break;
                     case '/':
-                        Throw.FormatException(TextualDayOfWeekStepMessage(sub, sval, s.Slice(i + 4)));
-                        break;
+                        // 'MON/2' is '2/2': the same step through the week, spelled with a name.
+                        CheckTextualDayOfWeekStep(sub, sval, s.Slice(i + 4));
+                        HandleSlashOption(s, sval, type, i + 3, -1);
+                        return;
                     case 'L':
                         lastDayOfWeek = true;
                         break;
@@ -2377,9 +2388,23 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     }
 
     /// <summary>
-    /// Builds the rejection message for a textual day-of-week followed by a step, such as <c>MON/2</c>.
-    /// Up to Quartz.NET 3.x that token meant "every second week"; the extension is gone, and the two
-    /// things a caller might have meant by it now live in two different places, so the message names both.
+    /// Rejects a textual day-of-week step whose step is not a step: the number after the <c>/</c> has to
+    /// be a whole number from 1 to 7, which is what the numeric spelling beside it takes. A step of 0 is
+    /// left to <see cref="CheckIncrementRange" />, so that <c>MON/0</c> and <c>2/0</c> say the same thing.
+    /// </summary>
+    private static void CheckTextualDayOfWeekStep(ReadOnlySpan<char> dayName, int dayOfWeek, ReadOnlySpan<char> stepText)
+    {
+        if (!int.TryParse(stepText, NumberStyles.None, CultureInfo.InvariantCulture, out int step) || step > 7)
+        {
+            Throw.FormatException(TextualDayOfWeekStepMessage(dayName, dayOfWeek, stepText));
+        }
+    }
+
+    /// <summary>
+    /// Builds the rejection message for a textual day-of-week followed by something that is not a step,
+    /// such as <c>MON/X</c> or <c>SUN/9</c>. The message says what the token would have meant had the
+    /// step been one, and what Quartz.NET 3.x read it as instead — a caller who writes an out-of-range
+    /// step here is usually reaching for that fortnight, which lives somewhere else now.
     /// </summary>
     /// <param name="dayName">the three-letter day name that was written, e.g. <c>MON</c></param>
     /// <param name="dayOfWeek">that day in Quartz's 1-7 numbering</param>
@@ -2390,16 +2415,18 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             ? parsed
             : 2;
 
-        return $"'{dayName.ToString()}/{stepText.ToString()}' is not supported. A textual day-of-week followed by '/' meant \"every second week\" "
-               + "in Quartz.NET 3.x, and that extension has been removed because its fortnight is not stable - a misfire, a restart or a "
-               + $"failover recomputes it from a different day and shifts the phase. Write '{StepThroughWeek(dayOfWeek, step)}' if you meant a "
-               + $"step through the week, or RecurrenceScheduleBuilder.Create(\"FREQ=WEEKLY;INTERVAL={step};BYDAY={RecurrenceDayCodes[dayOfWeek]}\") "
-               + $"if you meant one {DayOfWeekNames[dayOfWeek]} every {step} weeks.";
+        return $"'{dayName.ToString()}/{stepText.ToString()}' is not a step: the value after '/' has to be a whole number from 1 to 7, "
+               + $"the same one '{dayOfWeek}/{stepText.ToString()}' would take. A textual day-of-week followed by a step means what its "
+               + $"numeric twin means, so '{dayName.ToString()}/{step}' is '{StepThroughWeek(dayOfWeek, step)}' - a step through the week. "
+               + "Quartz.NET 3.x read it as \"every N weeks\" instead, and that reading is gone because its fortnight had no stable phase - "
+               + "a misfire, a restart or a failover recomputed it from a different day and moved it. "
+               + $"RecurrenceScheduleBuilder.Create(\"FREQ=WEEKLY;INTERVAL={step};BYDAY={RecurrenceDayCodes[dayOfWeek]}\") is one "
+               + $"{DayOfWeekNames[dayOfWeek]} every {step} weeks, and keeps its phase.";
     }
 
     /// <summary>
-    /// Renders the day names a numeric step through the week would have produced, e.g. Monday by 2 is
-    /// <c>MON,WED,FRI</c>. The list stops at Saturday and does not wrap, which is what <c>2/2</c> means.
+    /// Renders the day names a step through the week produces, e.g. Monday by 2 is <c>MON,WED,FRI</c>.
+    /// The list stops at Saturday and does not wrap, which is what <c>MON/2</c> and <c>2/2</c> mean.
     /// </summary>
     private static string StepThroughWeek(int dayOfWeek, int step)
     {

@@ -46,7 +46,7 @@ public class UnixCronFormatTest
     [TestCase("0 0 * * 0-7", "0 0 0 * * ?", "crontab has two Sundays, 0 and 7, so 0-7 is also the whole week")]
     [TestCase("0 0 * * 1-7", "0 0 0 * * ?", "MON through SUN is seven days, so it too is the whole week")]
     [TestCase("0 0 * * 5-1", "0 0 0 ? * FRI-MON", "a range may wrap the end of the week")]
-    [TestCase("0 0 * * 1/2", "0 0 0 ? * 2/2", "a step start renumbers as a number, never as a name - Quartz rejects 'MON/2' outright, so a name here would make the rewrite emit an expression its own parser refuses")]
+    [TestCase("0 0 * * 1/2", "0 0 0 ? * 2/2", "a step start renumbers as a number, never as a name - 'MON/2' parses and means the same thing, but the numeric form is what the rewrite has always emitted and a stored expression must not change spelling under an upgrade")]
     [TestCase("15 10 * * 1-5", "0 15 10 ? * MON-FRI", "the crontab weekday range everybody writes")]
     [TestCase("0 0 * * MON-FRI", "0 0 0 ? * MON-FRI", "names mean the same day in both dialects, so they pass through")]
     [TestCase("0 0 * * 0", "0 0 0 ? * SUN", "crontab's 0 is Sunday")]

@@ -87,9 +87,9 @@ public class CronExpressionBuilderTest
     [Test]
     public void TestDayOfWeekIncrementsMatchNumericIncrementSemantics()
     {
-        // numeric "2/2" means day 2 (MON) through SAT stepping by 2; the builder emits
-        // the equivalent explicit day name list instead, since a textual "MON/2" is
-        // rejected by the parser
+        // numeric "2/2" means day 2 (MON) through SAT stepping by 2; the builder emits the
+        // equivalent explicit day name list instead, which says the same thing as the "MON/2"
+        // the parser accepts and is the spelling a reader of the expression needs no rule for
         CronExpression expanded = CronExpressionBuilder.Create()
             .WithSecond(0)
             .WithMinute(0)
