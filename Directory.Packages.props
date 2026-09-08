@@ -30,29 +30,19 @@
     <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="10.3.4" />
     <PackageVersion Include="MELT" Version="1.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <!--
-      The stable 10.x line, aligned with the Microsoft.Extensions.* versions above. It spent a while on
-      11.0.0-preview.* - it was moved there while .NET 10 was itself in preview and Dependabot kept it
-      walking that line - which no shipped package took, because only the tests, the examples and the
-      trim canary reference it. PackageDependencyTest is what keeps that true.
+      The stable 10.x line. It spent a while on 11.0.0-preview.* - it was moved there while .NET 10 was
+      itself in preview and Dependabot kept it walking that line - which no shipped package took,
+      because only the tests, the examples and the trim canary reference it. PackageDependencyTest is
+      what keeps that true, and it is also why this stays current rather than joining the floors below:
+      nothing inherits it.
     -->
     <PackageVersion Include="Microsoft.Data.SQLite" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.9.0" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.9.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageVersion Include="MySqlConnector" Version="2.6.2" />
@@ -62,12 +52,10 @@
     <PackageVersion Include="NUnit" Version="4.6.1" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.14.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="6.3.0" />
-    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="Npgsql.DependencyInjection" Version="10.0.3" />
     <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
@@ -90,13 +78,74 @@
     <PackageVersion Include="Testcontainers.Oracle" Version="4.14.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
     <PackageVersion Include="Testcontainers.Redis" Version="4.14.0" />
-    <PackageVersion Include="StackExchange.Redis" Version="3.1.31" />
-    <PackageVersion Include="TimeZoneConverter" Version="7.2.0" />
     <PackageVersion Include="Verify.NUnit" Version="32.0.0" />
     <PackageVersion Include="WolverineFx" Version="6.33.0" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.33.0" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.33.0" />
   </ItemGroup>
+
+  <!--
+    The floors a consumer inherits. Every version below is copied verbatim into a shipped package's
+    nuspec as a minimum, and NuGet resolves a minimum by raising everything else to meet it: an
+    application pinning Microsoft.Extensions.Options at 10.0.10 and referencing Quartz 4.0.0 was told
+    "detected package downgrade" and stopped restoring, because 4.0.0 floored six framework extensions
+    at 10.0.11 — the central version on the day it was built, not a version anything in Quartz needs
+    (#3717). A floor is a demand made of every consumer, so it is the lowest version of its major that
+    still has the API used here rather than the newest one available.
+
+    The library therefore compiles against the floor on purpose, and so do the tests, the examples and
+    the benchmarks — one central version per id is what makes "it builds" mean "the floor is real".
+    Raise one only for a security advisory, and then to the fixed version rather than to the newest.
+    Everything else in this file is used only by tests, examples or the build, ships nowhere, and stays
+    current; a test project that genuinely needs a newer one of these ids says so with VersionOverride
+    on its own PackageReference rather than moving the floor.
+
+    Two of the ids here are not floors themselves. Microsoft.Extensions.Hosting and
+    Microsoft.Extensions.Logging.Console ship in nothing and are referenced only by tests and examples,
+    but dotnet/runtime versions the family in lockstep: 10.0.11 of either demands 10.0.11 of a floored
+    id, and CentralPackageTransitivePinningEnabled has already pinned that at the floor, so restore
+    fails. They sit with the floors so the family stays one line rather than two that disagree.
+
+    That pinning is also why several of these ids reach a nuspec no shipped project names them in —
+    Quartz.Jobs references nothing but Quartz, and inherits all six of Quartz's framework extensions as
+    dependencies of its own. A floor is therefore a demand made by every package here, not only by the
+    one that wrote the reference, which is what makes lowering them worth the trouble.
+
+    .github/dependabot.yml carries an ignore entry for each of these ids so a weekly minor or patch is
+    not offered, and PackageDependencyTest fails a Microsoft.* floor that is not x.0.0, so a bump that
+    gets past both still has to argue with a unit test that names this comment.
+  -->
+  <ItemGroup Label="Dependency floors">
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <!--
+      13.0.2 rather than 13.0.1, which is where the advisory-free 13.x line starts: TimeOnly and
+      DateOnly are reflected over member by member before it, so a job data map holding a TimeOnly
+      round-trips through the Json.NET serializer having quietly lost its seconds.
+      JobDataMapPortabilityTest is what says so, and it said so the first time this floor was set to
+      13.0.1.
+    -->
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.2" />
+    <!--
+      1.15.3 rather than the 1.9.0 the code compiles against: every earlier 1.x drags in an
+      OpenTelemetry.Api with GHSA-g94r-2vxg-569j, and 1.15.3 is the version that fixed it. This is the
+      "raise it for an advisory, to the fixed version" case, written down at the floor rather than
+      discovered by the next person who tries to lower it.
+    -->
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
+    <PackageVersion Include="StackExchange.Redis" Version="3.0.0" />
+    <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.5" />
     <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.205" />

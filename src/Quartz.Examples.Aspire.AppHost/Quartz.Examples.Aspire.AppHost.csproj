@@ -44,6 +44,27 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      Aspire 13.5.3 is built against the newest framework extensions and Newtonsoft.Json and asks for
+      them by exact patch, which is above the floors Directory.Packages.props sets for what Quartz
+      ships. An AppHost ships nothing, so it raises them for itself with VersionOverride rather than
+      dragging a floor up behind it - a floor is a demand made of every consumer, and no consumer of
+      Quartz should inherit Aspire's servicing schedule.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Http" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" VersionOverride="10.0.11" />
+    <PackageReference Include="Newtonsoft.Json" VersionOverride="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Quartz.Examples.Aspire.Worker\Quartz.Examples.Aspire.Worker.csproj" />
   </ItemGroup>
 

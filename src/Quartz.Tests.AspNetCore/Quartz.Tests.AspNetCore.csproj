@@ -36,6 +36,20 @@
          contract over a persistent store as well as over RAMJobStore; the store creates its own
          schema, so nothing else is needed. -->
     <PackageReference Include="Microsoft.Data.SQLite" />
+    <!--
+      The floors Directory.Packages.props sets are what Quartz asks of a consumer, and bunit and
+      Microsoft.AspNetCore.Mvc.Testing ask for more than that: 10.0.10 and 10.0.11 respectively, of
+      framework extensions this project never names itself. VersionOverride raises them for this
+      project alone, so nothing a consumer inherits moves.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit" />
