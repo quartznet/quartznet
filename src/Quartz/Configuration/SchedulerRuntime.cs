@@ -125,6 +125,14 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                 {
                     await scheduler.Start(cancellationToken).ConfigureAwait(false);
                 }
+
+                // Asked again, because building and starting a scheduler is not instantaneous and the
+                // unit is not registered until the line below this block. A host that began stopping in
+                // that window took the live schedulers from a map this one was not in yet, so the
+                // shutdown that should have drained it has already been and gone — and a started, bound
+                // scheduler would run past the graceful shutdown window with only container disposal
+                // left to catch it. Refusing here undoes it while there is still something holding it.
+                ThrowIfTheHostIsStopping(schedulerName);
             }
             catch
             {
@@ -399,6 +407,20 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                 + "scheduler bound by hand, or one AddQuartzHttpClient bound, is not this runtime's to remove.");
         }
 
+        ThrowIfTheHostIsStopping(schedulerName);
+    }
+
+    /// <summary>
+    /// Refuses a name while the schedulers are being taken away.
+    /// </summary>
+    /// <remarks>
+    /// Asked twice: before the work starts, and again once the scheduler is running and about to be
+    /// registered. The two readings answer different questions — "is it worth building this" and "is
+    /// there still something that will shut it down" — and only the second one is about the scheduler
+    /// that now exists.
+    /// </remarks>
+    private void ThrowIfTheHostIsStopping(string schedulerName)
+    {
         if (Volatile.Read(ref draining) == 1 || applicationLifetime?.ApplicationStopping.IsCancellationRequested == true)
         {
             Throw.SchedulerConfigException(

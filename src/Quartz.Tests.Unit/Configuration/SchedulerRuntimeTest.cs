@@ -194,6 +194,62 @@ public sealed class SchedulerRuntimeTest
     }
 
     /// <summary>
+    /// A host that begins stopping while a tenant is being built ends up with no tenant, rather than one
+    /// running past the shutdown that should have drained it.
+    /// </summary>
+    /// <remarks>
+    /// The window is between the check that lets the add proceed and the line that registers the unit:
+    /// building and starting a scheduler is not instantaneous, and a host stopping in the middle of it
+    /// takes the live schedulers from a map this one is not in yet. The scheduler would then be started
+    /// and bound with the graceful shutdown already behind it, and only container disposal — which runs
+    /// after the shutdown window closes — left to catch it. So the signal is read again once the
+    /// scheduler is running, and the add undoes itself.
+    /// <para>
+    /// The window is entered on purpose rather than raced for: the scheduler's own
+    /// <see cref="ISchedulerListener.SchedulerStarted" /> is awaited inside <c>Start()</c>, so cancelling
+    /// the host's token there lands between the start and the second reading every time.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task AddRacingTheHostsStopIsShutDownAndRefused()
+    {
+        using CancellationTokenSource stopping = new();
+        IHostApplicationLifetime lifetime = A.Fake<IHostApplicationLifetime>();
+        A.CallTo(() => lifetime.ApplicationStopping).Returns(stopping.Token);
+
+        using ServiceProvider provider = Container(services =>
+        {
+            services.AddSingleton(lifetime);
+            services.AddQuartz("main", _ => { });
+        });
+
+        RecordingThreadPool pool = new();
+
+        Func<Task> add = async () => await Add(
+            provider,
+            "acme",
+            configure: q => q
+                .UseThreadPool(pool)
+                .AddSchedulerListener(new StopTheHostWhenStarted(stopping)));
+
+        (await add.Should().ThrowAsync<SchedulerConfigException>(
+                "the host began stopping before this tenant was registered, so nothing was ever going to "
+                + "shut it down"))
+            .WithMessage("*host is stopping*");
+
+        provider.GetRequiredService<ISchedulerRepository>().Lookup("acme").Should().BeNull(
+            "the scheduler was bound and started before the second reading, so undoing the add has to "
+            + "unbind it - which shutting it down does");
+
+        (await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers())
+            .Should().NotContain(x => x.Name == "acme", "the unit was never registered, so nothing lists it");
+
+        pool.ShutdownCalled.Should().BeTrue(
+            "the whole generation is released, not merely forgotten: its thread pool is what would have "
+            + "gone on running work nothing could reach");
+    }
+
+    /// <summary>
     /// Bad configuration reaches the caller as the exception every other Quartz configuration mistake
     /// does, rather than as the options framework's own.
     /// </summary>
@@ -380,6 +436,52 @@ public sealed class SchedulerRuntimeTest
         services.AddLogging();
         configure(services);
         return services.BuildServiceProvider();
+    }
+
+    /// <summary>
+    /// Stops the host from inside the scheduler's own start notification, which is awaited by
+    /// <c>Start()</c> — so the flip lands in the window under test rather than near it.
+    /// </summary>
+    private sealed class StopTheHostWhenStarted : ISchedulerListener
+    {
+        private readonly CancellationTokenSource stopping;
+
+        public StopTheHostWhenStarted(CancellationTokenSource stopping) => this.stopping = stopping;
+
+        public ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default)
+        {
+            stopping.Cancel();
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// A thread pool that says whether it was shut down, which is how a released generation is told from
+    /// a forgotten one.
+    /// </summary>
+    private sealed class RecordingThreadPool : IThreadPool
+    {
+        public bool ShutdownCalled { get; private set; }
+
+        public int PoolSize => 1;
+
+        public ValueTask Initialize(CancellationToken cancellationToken = default) => default;
+
+        public ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<int>(ShutdownCalled ? 0 : 1);
+        }
+
+        public ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<bool>(false);
+        }
+
+        public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
+        {
+            ShutdownCalled = true;
+            return default;
+        }
     }
 
     private class RuntimeJob : IJob
