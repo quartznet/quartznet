@@ -18,6 +18,15 @@ internal sealed class SchedulerNameRegistry
     private readonly List<string> names = [];
 
     /// <summary>
+    /// What each named registration was told, kept so that its scheduler can be built again.
+    /// </summary>
+    /// <remarks>
+    /// Keyed the way <see cref="Find" /> compares, so a restart asked for under a different spelling
+    /// finds the recipe rather than reporting the name unknown.
+    /// </remarks>
+    private readonly Dictionary<string, SchedulerBlueprint> blueprints = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// The delegates <c>ConfigureAllQuartzSchedulers</c> has recorded, in the order they were recorded.
     /// </summary>
     private readonly List<Action<IQuartzBuilder>> configureAll = [];
@@ -92,6 +101,34 @@ internal sealed class SchedulerNameRegistry
         }
 
         names.Add(name);
+    }
+
+    /// <summary>
+    /// Records what a named registration was told, so that its scheduler can be built a second time.
+    /// </summary>
+    /// <remarks>
+    /// Recorded beside <see cref="Add" /> rather than instead of it: the list of names is what a
+    /// duplicate is caught against and what the listing reads, and it holds the default scheduler's
+    /// existence too, which has no recipe. A second recipe under one name cannot arrive, because
+    /// <see cref="Add" /> has already refused the name by the time this is called.
+    /// </remarks>
+    public void AddBlueprint(SchedulerBlueprint blueprint)
+    {
+        blueprints[blueprint.Name] = blueprint;
+    }
+
+    /// <summary>
+    /// The recipe a named registration was made with, or <see langword="null" /> when this collection
+    /// registered no scheduler under that name.
+    /// </summary>
+    /// <remarks>
+    /// The default scheduler has none, deliberately. Its parts are the container's unkeyed
+    /// registrations, indistinguishable from the application's own, so there is nothing to replay into a
+    /// container of its own — which is what <c>ISchedulerRuntime.Restart</c> says when it is asked.
+    /// </remarks>
+    public SchedulerBlueprint? Blueprint(string? name)
+    {
+        return name is not null && blueprints.TryGetValue(name, out SchedulerBlueprint? blueprint) ? blueprint : null;
     }
 
     /// <summary>
