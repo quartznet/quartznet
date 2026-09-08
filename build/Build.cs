@@ -521,6 +521,14 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// run; it walks the catalogue every entry is registered in and exits.
     /// </para>
     /// <para>
+    /// The fourth is <c>Quartz.Examples.FSharp</c>, which needs no marker to wait for because it ends by
+    /// itself: it fires one job on a scheduler built by <c>QuartzSchedulerBuilder</c> and one on a
+    /// scheduler built by a host, and returns non-zero if either firing did not arrive inside its own
+    /// thirty-second bound. It is the compiled half of the migration guide's "Upgrading an F# project",
+    /// and <c>Compile</c> already fails when a call that section teaches stops compiling — what running
+    /// it adds is that the two schedulers an F# caller builds still start, fire and shut down.
+    /// </para>
+    /// <para>
     /// Beside <see cref="BenchmarkSmoke" /> and <see cref="WolverineSmoke" />, after the unit tests, for
     /// the reason those give: all of them want the machine, and a failing test is the one worth reading
     /// first.
@@ -539,6 +547,11 @@ partial class Build : FalloutBuild, ICompile, IPack
                 .SetProjectFile(solution.AllProjects.First(x => x.Name == "Quartz.Examples"))
                 .SetConfiguration(configuration)
                 .SetApplicationArguments("--list")
+            );
+
+            DotNetRun(s => s
+                .SetProjectFile(solution.AllProjects.First(x => x.Name == "Quartz.Examples.FSharp"))
+                .SetConfiguration(configuration)
             );
 
             RunExampleUntilItSays(
