@@ -36,6 +36,18 @@ internal sealed class SchedulerNameRegistry
     public IReadOnlyList<string> Names => names;
 
     /// <summary>
+    /// The container-wide delegates, in the order they were recorded, for a scheduler this collection
+    /// will never register.
+    /// </summary>
+    /// <remarks>
+    /// A scheduler added at runtime is built in a collection of its own, so nothing here applies it —
+    /// but <c>ConfigureAllQuartzSchedulers</c> says "every scheduler in this container", and a tenant
+    /// bound into the container's repository is one. Replaying them onto the tenant's own collection is
+    /// what keeps that promise, and this is what it reads to do it.
+    /// </remarks>
+    public IReadOnlyList<Action<IQuartzBuilder>> ConfigureAllDelegates => configureAll;
+
+    /// <summary>
     /// Whether a default scheduler is registered — <c>AddQuartz()</c> without a name, or
     /// <c>AddQuartzScheduler()</c> directly, which is also how the standalone builder registers its one
     /// scheduler.

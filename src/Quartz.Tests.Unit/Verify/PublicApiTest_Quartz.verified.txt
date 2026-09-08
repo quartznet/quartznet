@@ -1426,6 +1426,13 @@ namespace Quartz
         public System.DateTimeOffset FirstFireTimeUtc { get; init; }
         public Quartz.TriggerKey TriggerKey { get; init; }
     }
+    public sealed class SchedulerAddOptions
+    {
+        public SchedulerAddOptions() { }
+        public Microsoft.Extensions.Configuration.IConfiguration? Configuration { get; init; }
+        public System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>>? Properties { get; init; }
+        public bool Start { get; init; }
+    }
     public sealed class SchedulerConfigException : Quartz.SchedulerException
     {
         public SchedulerConfigException(string message) { }
