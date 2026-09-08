@@ -194,6 +194,28 @@ public sealed class SchedulerRuntimeTest
     }
 
     [Test]
+    public async Task AddRefusesSettingsGivenTwoWaysAtOnce()
+    {
+        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+
+        Func<Task> add = async () => await Add(
+            provider,
+            "acme",
+            options: new SchedulerAddOptions
+            {
+                Properties = new Dictionary<string, string> { ["quartz.scheduler.instanceId"] = "one" },
+                Configuration = new ConfigurationBuilder().Build()
+            });
+
+        (await add.Should().ThrowAsync<SchedulerConfigException>(
+                "a section says everything a property bag does, so honouring one of them would drop the "
+                + "other without a word - which is what AddQuartzSchedulers refuses in the same words"))
+            .WithMessage("*Use one or the other*");
+
+        provider.GetRequiredService<ISchedulerRepository>().LookupAll().Should().BeEmpty();
+    }
+
+    [Test]
     public async Task ConfigureAllQuartzSchedulersReachesARuntimeTenant()
     {
         using ServiceProvider provider = Container(services =>

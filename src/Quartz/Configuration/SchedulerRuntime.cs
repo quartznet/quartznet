@@ -431,6 +431,16 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
         return string.Equals(instanceName, schedulerName, StringComparison.OrdinalIgnoreCase) ? instanceName : null;
     }
 
+    /// <summary>
+    /// The gate serialising add and remove for one name.
+    /// </summary>
+    /// <remarks>
+    /// Kept after a removal rather than dropped with the unit. A caller already waiting has the old gate
+    /// in hand, so removing it from the map would let the next <see cref="Add" /> take a fresh one and
+    /// run beside them — which is the exact race the gate exists to prevent, arriving only under the
+    /// remove-then-add sequence this API is for. What is retained is one semaphore per name ever used,
+    /// and a name space is bounded by the tenants an application has.
+    /// </remarks>
     private SemaphoreSlim Gate(string schedulerName)
     {
         return gates.GetOrAdd(schedulerName, static _ => new SemaphoreSlim(1, 1));

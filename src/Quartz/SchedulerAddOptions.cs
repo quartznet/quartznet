@@ -63,9 +63,9 @@ public readonly record struct SchedulerAddOptions
     /// </summary>
     /// <remarks>
     /// Either the scheduler's own section or a root section containing <c>Schedulers:{name}</c>; the
-    /// same resolution the registration-time overload does. Takes precedence over
-    /// <see cref="Properties" /> when both are set, because a section says everything a property bag
-    /// does and more.
+    /// same resolution the registration-time overload does. Setting this <em>and</em>
+    /// <see cref="Properties" /> is refused rather than resolved by precedence: a section says
+    /// everything a property bag does, so one of them would be read and the other dropped without a word.
     /// </remarks>
     public IConfiguration? Configuration { get; init; }
 
