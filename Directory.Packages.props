@@ -93,12 +93,16 @@
     (#3717). A floor is a demand made of every consumer, so it is the lowest version of its major that
     still has the API used here rather than the newest one available.
 
-    The library therefore compiles against the floor on purpose, and so do the tests, the examples and
-    the benchmarks — one central version per id is what makes "it builds" mean "the floor is real".
-    Raise one only for a security advisory, and then to the fixed version rather than to the newest.
-    Everything else in this file is used only by tests, examples or the build, ships nowhere, and stays
-    current; a test project that genuinely needs a newer one of these ids says so with VersionOverride
-    on its own PackageReference rather than moving the floor.
+    Everything here therefore compiles against the floor on purpose — one central version per id is what
+    makes "it builds" mean "the floor is real". Raise one only for a security advisory, and then to the
+    fixed version rather than to the newest. Everything else in this file is used only by tests, examples
+    or the build, ships nowhere, and stays current.
+
+    Five projects that ship nothing step over a floor with VersionOverride on their own PackageReference,
+    because Aspire, bunit, Microsoft.AspNetCore.Mvc.Testing, NSwag and the released Quartz.Serialization.Json
+    3.20.0 each ask for a newer patch than Quartz should demand of anybody. That is the only way to say it:
+    moving the floor instead would hand the demand to every consumer. Nothing that ships may do it, which
+    PackageDependencyTest holds.
 
     Two of the ids here are not floors themselves. Microsoft.Extensions.Hosting and
     Microsoft.Extensions.Logging.Console ship in nothing and are referenced only by tests and examples,
@@ -106,10 +110,10 @@
     id, and CentralPackageTransitivePinningEnabled has already pinned that at the floor, so restore
     fails. They sit with the floors so the family stays one line rather than two that disagree.
 
-    That pinning is also why several of these ids reach a nuspec no shipped project names them in —
-    Quartz.Jobs references nothing but Quartz, and inherits all six of Quartz's framework extensions as
-    dependencies of its own. A floor is therefore a demand made by every package here, not only by the
-    one that wrote the reference, which is what makes lowering them worth the trouble.
+    That pinning is also why several of these ids reach nuspecs that name none of them: Quartz.Jobs
+    references nothing but Quartz, and carries all six of Quartz's framework extensions as dependencies of
+    its own. A floor is therefore a demand made by every shipped package rather than only by the one that
+    wrote the reference, which is what makes lowering them worth the trouble.
 
     .github/dependabot.yml carries an ignore entry for each of these ids so a weekly minor or patch is
     not offered, and PackageDependencyTest fails a Microsoft.* floor that is not x.0.0, so a bump that
