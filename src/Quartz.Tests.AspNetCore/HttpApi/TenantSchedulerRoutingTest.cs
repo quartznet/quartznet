@@ -178,6 +178,73 @@ public abstract class TenantSchedulerRoutingTest
     }
 
     /// <summary>
+    /// A tenant the container never registered, added while the application was running: its routes
+    /// answer, the listing carries it, and removing it takes both away again.
+    /// </summary>
+    /// <remarks>
+    /// Nothing in the HTTP API knows this scheduler arrived late. Every endpoint group resolves through
+    /// <see cref="ISchedulerRepository" /> and the listing reads <see cref="ISchedulerRegistry" />, so a
+    /// tenant that binds itself into the one and is appended to the other is visible everywhere without a
+    /// special case — which is what makes runtime onboarding an addition rather than a second kind of
+    /// scheduler the whole API would have to learn about. The origin is what tells an operator which
+    /// kind of scheduler is in front of them: a container registration survives a restart, and this one
+    /// does not.
+    /// </remarks>
+    [Test]
+    public async Task ATenantAddedAtRuntimeIsListedWithOriginRuntimeAndItsRoutesAnswer()
+    {
+        WebApplicationFactory<Program> application = CreateApplication("acme");
+
+        using HttpClient client = application.CreateClient();
+
+        ISchedulerRuntime runtime = application.Services.GetRequiredService<ISchedulerRuntime>();
+        IScheduler tenant = await runtime.Add("runtime-acme", ConfigureStore);
+
+        try
+        {
+            using (HttpResponseMessage details = await client.GetAsync("schedulers/runtime-acme"))
+            {
+                details.StatusCode.Should().Be(HttpStatusCode.OK,
+                    "the route resolves through the repository, and a tenant added at runtime binds itself "
+                    + "into the same repository every other scheduler is in");
+            }
+
+            using (HttpResponseMessage jobs = await client.GetAsync("schedulers/runtime-acme/jobs"))
+            {
+                jobs.StatusCode.Should().Be(HttpStatusCode.OK,
+                    "every endpoint group resolves the same way, so none of them needs to know this "
+                    + "scheduler arrived after the container was built");
+            }
+
+            SchedulerHeaderDto[] listed = await ReadSchedulers(client);
+
+            SchedulerHeaderDto header = listed.Should().ContainSingle(x => x.Name == "runtime-acme").Subject;
+            header.Origin.Should().Be(SchedulerOrigin.Runtime,
+                "the origin is what tells an operator that this scheduler is not in the container's "
+                + "registrations and will not come back on its own after a restart");
+            header.Status.Should().Be(SchedulerStatus.Running);
+            header.SchedulerInstanceId.Should().Be(tenant.SchedulerInstanceId);
+
+            listed.Should().ContainSingle(x => x.Name == "acme")
+                .Which.Origin.Should().Be(SchedulerOrigin.Container,
+                    "the two kinds are listed side by side and told apart by their origin alone");
+        }
+        finally
+        {
+            (await runtime.Remove("runtime-acme")).Should().BeTrue();
+        }
+
+        using (HttpResponseMessage afterRemoval = await client.GetAsync("schedulers/runtime-acme"))
+        {
+            afterRemoval.StatusCode.Should().Be(HttpStatusCode.NotFound,
+                "removing shuts it down, which unbinds it from the repository the route reads");
+        }
+
+        (await ReadSchedulers(client)).Should().NotContain(x => x.Name == "runtime-acme",
+            "and the runtime forgot it, so nothing is left claiming a tenant that is gone");
+    }
+
+    /// <summary>
     /// Builds the test application with one named scheduler registered beside the default one, and
     /// records it for disposal. Per test rather than per fixture, because whether the tenant has been
     /// created is exactly what these tests differ on.
