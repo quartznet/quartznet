@@ -112,6 +112,97 @@ public class PackageDependencyTest
             + ".github/dependabot.yml can see it");
     }
 
+    /// <summary>
+    /// A shim carries exactly one dependency, on the package that replaced it, at its own version.
+    /// </summary>
+    /// <remarks>
+    /// That single dependency is the entire payload of the four empty packages 4.0.1 publishes under the
+    /// ids 4.0 folded away, and both halves of it matter. A second dependency, or one on something other
+    /// than the replacement, and a consumer who takes the shim by accident gets a graph nobody designed;
+    /// a version that is not this build's, and the group a dependency bot resolves stops being pinned to
+    /// the release the shim was published with, which is the whole reason the package exists (#3717). A
+    /// <c>ProjectReference</c> gives the version for free, so this test is really about keeping it one.
+    /// </remarks>
+    [TestCaseSource(nameof(ShimProjects))]
+    public void ShimDependsOnItsReplacementAndNothingElse(FileInfo project)
+    {
+        XDocument document = XDocument.Load(project.FullName);
+
+        document.Descendants("PackageReference").Should().BeEmpty(
+            $"{project.Name} is a shim, and a PackageReference would be a version resolved from "
+            + "Directory.Packages.props rather than this build's own — the shim has to move with the "
+            + "release it is published beside");
+
+        List<string> replacements = document
+            .Descendants("ProjectReference")
+            .Select(x => Path.GetFileNameWithoutExtension(((string) x.Attribute("Include")).Replace('\\', '/')))
+            .ToList();
+
+        replacements.Should().ContainSingle(
+            $"{project.Name} ships one dependency and nothing else: the package that replaced it")
+            .Which.Should().BeOneOf(["Quartz", "Quartz.Serialization.Newtonsoft"],
+                "those are the two packages the four folded ids were folded into");
+
+        ShimProps().Descendants("CentralPackageTransitivePinningEnabled")
+            .Select(x => x.Value.Trim())
+            .Should().Equal(["false"],
+                "transitive pinning writes every centrally versioned id in the graph into the nuspec as a "
+                + "dependency of its own, which turned this package into one with seven of them the first "
+                + "time it was packed. A shim has no assembly to pin anything for");
+    }
+
+    /// <summary>
+    /// A shim packs no assembly, which is what keeps it clear of the types it used to hold.
+    /// </summary>
+    /// <remarks>
+    /// Eight type names exist in both a 3.x assembly under one of these ids and <c>Quartz</c> 4.x, and the
+    /// migration guide documents the <c>CS0433</c> a consumer gets when both are referenced. A shim that
+    /// packed its (empty) build output would put an assembly with that identity back on the compiler's
+    /// reference list; <c>IncludeBuildOutput=false</c> in <c>src/QuartzShimPackage.props</c> is what does
+    /// not, and the import is how a project gets it.
+    /// </remarks>
+    [TestCaseSource(nameof(ShimProjects))]
+    public void ShimPacksNoAssembly(FileInfo project)
+    {
+        IEnumerable<string> imports = XDocument.Load(project.FullName)
+            .Descendants("Import")
+            .Select(x => ((string) x.Attribute("Project"))?.Replace('\\', '/'))
+            .Where(x => x is not null);
+
+        imports.Should().Contain(x => x.EndsWith(ShimPropsFileName, StringComparison.Ordinal),
+            $"{project.Name} is a shim, and {ShimPropsFileName} is what turns IncludeBuildOutput off — a "
+            + "shim that packed an assembly would reintroduce the CS0433 the migration guide documents");
+
+        ShimProps().Descendants("IncludeBuildOutput")
+            .Select(x => x.Value.Trim())
+            .Should().Equal(["false"],
+                $"{ShimPropsFileName} is the one place that decides a shim carries no assembly");
+    }
+
+    /// <summary>
+    /// The shared properties the four shims import, which is where what makes a shim a shim is written.
+    /// </summary>
+    private const string ShimPropsFileName = "QuartzShimPackage.props";
+
+    private static XDocument ShimProps()
+    {
+        FileInfo file = new(Path.Combine(RepositoryRoot.Find().FullName, "src", ShimPropsFileName));
+        file.Exists.Should().BeTrue("the four shim projects import it, and it is where they say what they are");
+
+        return XDocument.Load(file.FullName);
+    }
+
+    public static IEnumerable<TestCaseData> ShimProjects()
+    {
+        List<FileInfo> shims = ShippedProjects.Find().Where(ShippedProjects.IsShim).ToList();
+
+        shims.Should().HaveCount(4,
+            "the four ids 4.0 folded away are each published as an empty package at every 4.x version, and "
+            + "a shim that stops being one takes its whole guard with it rather than failing anything");
+
+        return shims.Select(x => new TestCaseData(x).SetArgDisplayNames(x.Directory!.Name));
+    }
+
     public static IEnumerable<TestCaseData> PackableProjects() => ShippedProjects.Find()
         .Select(x => new TestCaseData(x).SetArgDisplayNames(x.Directory!.Name));
 

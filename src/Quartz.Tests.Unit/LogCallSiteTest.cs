@@ -150,9 +150,16 @@ public class LogCallSiteTest
     /// projects is the list of packable ones and nothing less.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Without this, a package added after the conversion would ship unguarded — and it would look
     /// exactly like a package with nothing to convert, because both spend their whole life passing every
     /// other test in this file. A project that packs nothing is not covered and does not need to be.
+    /// </para>
+    /// <para>
+    /// Nor is a shim: the four empty packages published under the ids 4.0 folded away carry a dependency
+    /// and a readme and no assembly at all, so there is no call site in one to convert and no operator
+    /// reading its messages. <c>src/QuartzShimPackage.props</c> says why they exist.
+    /// </para>
     /// </remarks>
     [Test]
     public void EveryPackableProjectIsCovered()
@@ -160,6 +167,7 @@ public class LogCallSiteTest
         DirectoryInfo root = RepositoryRoot.Find();
 
         List<string> packable = ShippedProjects.Find()
+            .Where(x => !ShippedProjects.IsShim(x))
             .Select(x => Path.GetRelativePath(root.FullName, x.DirectoryName!).Replace('\\', '/'))
             .ToList();
 

@@ -1,0 +1,62 @@
+<Project>
+
+  <!--
+    What the four empty packages under 3.x ids are, and why they ship.
+
+    Quartz.Extensions.DependencyInjection, Quartz.Extensions.Hosting and Quartz.Serialization.SystemTextJson
+    were folded into Quartz in 4.0, and Quartz.Serialization.Json became Quartz.Serialization.Newtonsoft.
+    None of the four has a 4.0.0, so on nuget.org they stop at 3.20.1 — and a dependency bot that updates
+    Quartz together with any of them resolves the group to the newest version *every* member has. That is
+    3.20.1. The bot closes the 4.0.0 pull request it had already opened as superseded and lands 3.20.1 with
+    green checks, so the consumer's only signal that 4.0 exists disappears. Three repositories were found
+    doing exactly this in the adoption audit of 2026-09-08 (#3717), on ids that between them draw most of
+    the modern installed base.
+
+    So the four ship at every 4.x version and carry nothing at all. IncludeBuildOutput is false, so there is
+    no lib folder and no assembly — which is what keeps them clear of the CS0433 the migration guide
+    documents, the eight type names that exist in both a 3.x assembly under one of these ids and Quartz 4.x.
+    What a consumer gets is one dependency on the package that replaced it, at the same version, and a readme
+    saying to remove the reference. A one-off shim would not do the job: the group would re-anchor at 4.0.1
+    on the next bump, so these are republished with every release.
+
+    Quartz.OpenTracing and Quartz.OpenTelemetry.Instrumentation are deliberately not shimmed. Neither has a
+    4.x replacement, and an empty package would hide that rather than say it.
+
+    QuartzShimPackage is what the tests read, and each of the four sets it in its own project file rather
+    than inheriting it from here: it is the one property that changes what other tests do, so it belongs
+    where a reader of that project sees it. A shim has no assembly, so PublicApiTest has no surface to
+    snapshot and LogCallSiteTest has no call site to convert; both skip it by that property, with a reason,
+    rather than by name or by an empty baseline file. PackageReadmeTest and PackageMetadataTest still apply
+    in full — an empty package is still a package page somebody lands on — and PackageDependencyTest checks
+    the one thing that makes a shim work: exactly one dependency, on the package that replaced it, at this
+    package's own version.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- Nothing to symbolicate; a snupkg with no assembly in it is a file nobody can use. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <!--
+      One dependency, and only one. Transitive pinning writes every centrally versioned id in the graph
+      into the nuspec as a dependency of its own - which is how Quartz.Jobs comes to list six framework
+      extensions it never names - and it did the same here, turning a shim into a package with seven
+      dependencies. There is no assembly to pin anything for, so it is off: what this package says is
+      "take the one that replaced me", and the replacement's own nuspec answers for the rest.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+    <!--
+      NU5128 reports a dependency group for a target framework the package has no lib folder for. That is
+      the shape of a shim rather than a mistake in one: the dependency group is the entire payload.
+    -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    PackageReadmeFile, the None item that packs it, Title, Description and PackageTags stay in each project
+    rather than being shared from here: PackageReadmeTest and PackageMetadataTest read the project file, and
+    a shared answer is exactly what those two exist to catch — a package described by whatever the defaults
+    happened to say.
+  -->
+
+</Project>

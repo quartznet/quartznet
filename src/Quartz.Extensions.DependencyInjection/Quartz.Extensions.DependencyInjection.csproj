@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- An empty package under a 3.x id. ../QuartzShimPackage.props says what that means and why it ships. -->
+  <Import Project="..\QuartzShimPackage.props" />
+
+  <PropertyGroup>
+    <QuartzShimPackage>true</QuartzShimPackage>
+    <Title>Quartz.NET Dependency Injection (moved into Quartz)</Title>
+    <Description>Folded into Quartz in 4.0: AddQuartz, QuartzOptions and the rest live in the Quartz package now. This package is empty and exists only so a grouped dependency update can move to 4.x - remove the reference, and see the migration guide.</Description>
+    <PackageTags>$(PackageTags);dependency-injection;microsoft-extensions;moved;empty-package</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+</Project>

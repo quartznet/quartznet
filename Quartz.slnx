@@ -37,6 +37,19 @@
   <Project Path="build/_build.csproj">
     <Build Project="false" />
   </Project>
+  <!--
+    The four empty packages published under the ids 4.0 folded away, so a grouped dependency update can
+    resolve to 4.x rather than re-anchoring on 3.20.1. src/QuartzShimPackage.props explains them; they are
+    in the solution because Pack packs it and Publish pushes what Pack produced, and in a folder of their
+    own because there is nothing to read in any of them.
+  -->
+  <Folder Name="/Shims/">
+    <File Path="src/QuartzShimPackage.props" />
+    <Project Path="src/Quartz.Extensions.DependencyInjection/Quartz.Extensions.DependencyInjection.csproj" />
+    <Project Path="src/Quartz.Extensions.Hosting/Quartz.Extensions.Hosting.csproj" />
+    <Project Path="src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj" />
+    <Project Path="src/Quartz.Serialization.SystemTextJson/Quartz.Serialization.SystemTextJson.csproj" />
+  </Folder>
   <Project Path="src/Quartz.Aspire/Quartz.Aspire.csproj" />
   <Project Path="src/Quartz.AspNetCore/Quartz.AspNetCore.csproj" />
   <Project Path="src/Quartz.Dashboard/Quartz.Dashboard.csproj" />
