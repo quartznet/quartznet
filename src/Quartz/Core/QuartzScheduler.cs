@@ -510,6 +510,29 @@ internal sealed class QuartzScheduler
     public bool Clustered => resources.JobStore.Clustered;
 
     /// <summary>
+    /// Whether the work this scheduler was running had finished by the time <see cref="Shutdown" />
+    /// stopped waiting for it, or <see langword="null" /> while no shutdown has run.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Shutdown" /> always completes, whether or not the work it was waiting for did, because
+    /// everything after the wait — the job store, the plugins, the listeners — has to be told the
+    /// scheduler stopped regardless. The fact that the wait was abandoned is therefore recorded rather
+    /// than thrown, and this is where it is recorded.
+    /// </para>
+    /// <para>
+    /// It is not the same question as <see cref="NumberOfJobsExecutingHere" />: the barrier covers each
+    /// job's job store update as well as the job itself, and a job leaves that count before its update
+    /// is issued. Read by <c>SchedulerRuntime.Restart</c>, which must not build the next generation of a
+    /// scheduler over a store the previous one is still writing to — the recovery sweep a new generation
+    /// runs at start is unfiltered by instance id, so it would delete a still-running job's fired-trigger
+    /// row. Internal because it says something about a shutdown that has already happened, which only
+    /// whoever performed it is in a position to ask.
+    /// </para>
+    /// </remarks>
+    internal bool? RunningWorkDrained { get; private set; }
+
+    /// <summary>
     /// Halts the <see cref="QuartzScheduler" />'s firing of <see cref="ITrigger" />s,
     /// and cleans up all resources associated with the QuartzScheduler.
     /// <para>
@@ -585,7 +608,10 @@ internal sealed class QuartzScheduler
                 // that it gave up rather than throwing, so everything below still runs. The barrier
                 // covers each job's job store update as well as the job itself, because the pool was
                 // handed the whole of the execution, of which that update is the last act.
-                if (!await resources.ThreadPool.Drain(cancellationToken).ConfigureAwait(false))
+                bool drained = await resources.ThreadPool.Drain(cancellationToken).ConfigureAwait(false);
+                RunningWorkDrained = drained;
+
+                if (!drained)
                 {
                     logger.GaveUpWaitingForRunningJobs(resources.GetUniqueIdentifier());
                 }
@@ -597,6 +623,13 @@ internal sealed class QuartzScheduler
                 // from the absence of a completion. Counted before the pool is shut down, since that is
                 // what empties the list.
                 int stillExecuting = GetCurrentlyExecutingJobs().Count;
+
+                // The best this branch can say. Nothing was waited for, so "nothing was running when we
+                // looked" is the whole of the evidence — and it is evidence with a known hole in it, since
+                // a job leaves this count before its store update is issued. A caller that needs the
+                // stronger answer asks for the wait.
+                RunningWorkDrained = stillExecuting == 0;
+
                 if (stillExecuting > 0)
                 {
                     logger.ShuttingDownWithJobsStillExecuting(

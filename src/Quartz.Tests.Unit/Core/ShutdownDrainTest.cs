@@ -133,9 +133,92 @@ public class ShutdownDrainTest
             + "ShutdownJobInterruption's decision, and it defaults to never");
     }
 
+    /// <summary>
+    /// The answer <c>Shutdown</c> could not give its caller, kept where whoever performed the shutdown
+    /// can read it afterwards.
+    /// </summary>
+    /// <remarks>
+    /// Three readings, because the property has three states and each one means something different to
+    /// the caller that acts on it: nothing has been shut down, the work finished, and the wait was
+    /// abandoned with work still running. Only the middle one licenses building a second generation of a
+    /// scheduler over the same store.
+    /// </remarks>
+    [Test]
+    public async Task ShutdownRecordsWhetherItsWaitForRunningWorkSucceeded()
+    {
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = "running-work-drained"))
+            .BuildScheduler();
+
+        Drained(scheduler).Should().BeNull("nothing has been shut down, so there is no answer to give yet");
+
+        GatedJob.Reset();
+
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<GatedJob>().WithIdentity("gated").Build(),
+            TriggerBuilder.Create().WithIdentity("gated").StartNow().Build());
+
+        await scheduler.Start();
+        await GatedJob.Started.WaitAsync(TimeSpan.FromSeconds(30));
+
+        using CancellationTokenSource deadline = new(TimeSpan.FromMilliseconds(100));
+        await scheduler.Shutdown(waitForJobsToComplete: true, deadline.Token);
+
+        Drained(scheduler).Should().BeFalse(
+            "the deadline expired with the job still running, and a caller about to build a second scheduler over "
+            + "the same store needs to hear that rather than to infer it from a count that already reads zero");
+
+        GatedJob.Release();
+        await GatedJob.Finished.WaitAsync(TimeSpan.FromSeconds(30));
+
+        IScheduler quiet = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = "running-work-drained-quiet"))
+            .BuildScheduler();
+
+        await quiet.Start();
+        await quiet.Shutdown(waitForJobsToComplete: true);
+
+        Drained(quiet).Should().BeTrue("nothing was running, so the wait for running work succeeded immediately");
+    }
+
+    /// <summary>
+    /// A shutdown that did not wait answers from the count of executing jobs, which is the only evidence
+    /// it has.
+    /// </summary>
+    [Test]
+    public async Task AShutdownThatDidNotWaitSaysWhetherAnythingWasStillRunning()
+    {
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = "running-work-abandoned"))
+            .BuildScheduler();
+
+        GatedJob.Reset();
+
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<GatedJob>().WithIdentity("gated").Build(),
+            TriggerBuilder.Create().WithIdentity("gated").StartNow().Build());
+
+        await scheduler.Start();
+        await GatedJob.Started.WaitAsync(TimeSpan.FromSeconds(30));
+
+        await scheduler.Shutdown(waitForJobsToComplete: false);
+
+        Drained(scheduler).Should().BeFalse(
+            "a shutdown that abandoned a running job did not drain, and saying it had would license a second "
+            + "generation to start over a store the job is still writing to");
+
+        GatedJob.Release();
+        await GatedJob.Finished.WaitAsync(TimeSpan.FromSeconds(30));
+    }
+
     private static int ExecutingJobCount(IScheduler scheduler)
     {
         return ((StdScheduler) scheduler).scheduler.NumberOfJobsExecutingHere;
+    }
+
+    private static bool? Drained(IScheduler scheduler)
+    {
+        return ((StdScheduler) scheduler).scheduler.RunningWorkDrained;
     }
 
     /// <summary>

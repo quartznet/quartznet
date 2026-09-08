@@ -427,6 +427,56 @@ public class TaskSchedulingThreadPoolTest
         ran.Should().BeFalse("a refused work item must not run, since nothing will wait for it any more");
     }
 
+    /// <summary>
+    /// A drain that gave up ends in <c>ReleaseResources</c>, and the question is whether a pool that has
+    /// given back what it owns can still answer for the work it is still running.
+    /// </summary>
+    /// <remarks>
+    /// It can, and this pins it: the completion the first drain waited on is the one the second waits on
+    /// too, so the second answers <see langword="false" /> while the work runs and
+    /// <see langword="true" /> once it finishes. A caller that gave up on a restart and came back to it
+    /// therefore learns the truth rather than being told the pool drained because it had already been
+    /// torn down. Without this the retry path would need the completion kept in a field of its own.
+    /// </remarks>
+    [Test]
+    public async Task ASecondDrainAfterOneThatGaveUpStillAnswersForTheWorkThatIsRunning()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 2);
+        await threadPool.Initialize();
+
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource finished = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await threadPool.TryRun(async () =>
+        {
+            started.TrySetResult();
+            await release.Task.ConfigureAwait(false);
+            finished.TrySetResult();
+        });
+
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        using (CancellationTokenSource deadline = new(TimeSpan.FromMilliseconds(50)))
+        {
+            (await threadPool.Drain(deadline.Token)).Should().BeFalse("the work item outlived the deadline");
+        }
+
+        using (CancellationTokenSource second = new(TimeSpan.FromMilliseconds(50)))
+        {
+            (await threadPool.Drain(second.Token)).Should().BeFalse(
+                "the pool released its resources when the first drain gave up, and a pool that answered 'drained' "
+                + "on that account would be lying about work it is still running");
+        }
+
+        release.TrySetResult();
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        using CancellationTokenSource generous = new(TimeSpan.FromSeconds(30));
+        (await threadPool.Drain(generous.Token)).Should().BeTrue(
+            "the work has finished, so asking again is how a caller that gave up learns it may go ahead");
+    }
+
     [Test]
     public async Task DrainingAndShuttingDownInEitherOrderIsSafe()
     {
