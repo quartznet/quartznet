@@ -3543,8 +3543,8 @@ let scheduleOne (scheduler: IScheduler) (job: IJobDetail) (trigger: ITrigger) : 
 ```
 
 Nothing about this is particular to `ScheduleJob`. Every asynchronous member on `IScheduler` ends with
-two optional parameters, so any of them that is overloaded resolves the same way, and any inferred value
-handed to one wants the same annotation.
+at least one optional parameter, so any of the overloaded ones resolves the same way, and any inferred
+value handed to one wants the same annotation.
 
 ### `FS0041` — `Async.AwaitTask` has no `ValueTask` overload
 
