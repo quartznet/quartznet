@@ -34,6 +34,35 @@ If you ran a 4.0 alpha or beta, everything that changed between one pre-release 
 collected in [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
 The rest of this guide is written as one statement about 3.x and 4.0, with no build numbers in it.
 
+## Upgrading from 4.0 to 4.1
+
+Everything in this section is an addition. Nothing in the 4.0 public surface moved, so an application
+on 4.0 compiles on 4.1 unchanged; what is here is what 4.1 makes newly possible.
+
+| Added | What it is |
+|---|---|
+| `ISchedulerRuntime : ISchedulerRegistry` | Adds and removes schedulers in a container that has already been built. `Add(schedulerName, configure, options, cancellationToken)` builds a scheduler into a container of its own and binds it into this container's repository; `Remove(schedulerName, waitForJobsToComplete, cancellationToken)` shuts it down and releases what was built for it. Registered by `AddQuartz`, and `ISchedulerRegistry` resolves to the same object, so one listing answers for both kinds of scheduler |
+| `SchedulerAddOptions` | What to add a scheduler with beyond its name and its recipe: `Properties`, `Configuration` and `CreateWithoutStarting`. A `readonly record struct`, like every other options type an application constructs and passes in, whose `default` means "build it from the recipe and run it" |
+
+Three behaviours changed without a signature changing:
+
+* **`ISchedulerFactory.LookupScheduler` builds a registered-but-unbuilt scheduler** rather than
+  answering `null` for every name but its own factory's. What makes a scheduler exist is its
+  registration, so "give me tenant acme" no longer depends on whether something else happened to
+  resolve acme first. A scheduler *added at runtime* is found while it is alive and deliberately not
+  rebuilt once it has been shut down — it has no registration to be rebuilt from.
+* **`QuartzHostedService` shuts down the schedulers added at runtime** when the host stops, each under
+  the `QuartzHostedServiceOptions` registered for its name — so
+  `AddQuartzHostedService("acme", o => o.WaitForJobsToComplete = true)` configures a tenant that does
+  not exist yet. They were otherwise left to container disposal, which happens after the graceful
+  shutdown window has closed.
+* **A health check falls back to the repository** when the container holds no scheduler registration
+  under the name it was given, so `AddHealthChecks().AddQuartz("acme")` written at build time reports on
+  the tenant added under that name later. Its message when nothing is found names both places it looked.
+
+The mechanics, the refusals and the recipes are in
+[Multi-Tenancy](multi-tenancy.md#adding-a-tenant-while-the-process-is-running).
+
 ## The road from 3.x, phase by phase
 
 The 4.0 API is the result of six passes over the public surface, each with its own theme. The guide
@@ -3034,8 +3063,9 @@ public because `IQuartzApiClient` is replaceable; an application that implements
 has to fill the new members.
 
 `ISchedulerRegistry` is deliberately the *narrow* half of the API [#3338](https://github.com/quartznet/quartznet/issues/3338)
-sketches for runtime tenant lifecycle. Adding and removing schedulers at runtime is a 4.1 concern; when it
-lands, its manager interface extends this one rather than replacing it.
+sketches for runtime tenant lifecycle, and the promise held: 4.1's `ISchedulerRuntime` extends this
+interface rather than replacing it, and resolving either answers with the same object. See
+[Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1).
 
 ## A shared database says so when two schedulers disagree about the table prefix
 

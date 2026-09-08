@@ -286,10 +286,43 @@ public static class MultiTenancySamples
     public static async Task OnboardAtRuntime(
         IHost app,
         string tenantId,
+        IReadOnlyDictionary<string, string> connectionStrings)
+    {
+        #region sample_tenancy_runtime_onboarding
+
+        ISchedulerRuntime runtime = app.Services.GetRequiredService<ISchedulerRuntime>();
+
+        IScheduler tenant = await runtime.Add(tenantId, q =>
+        {
+            q.UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId]));
+            q.UseDefaultThreadPool(maxConcurrency: 5);
+            q.AddJob<NightlyReportJob>(j => j.WithIdentity("nightly"));
+            q.AddTrigger<NightlyReportJob>(t => t.WithCronSchedule("0 30 2 * * ?"));
+        });
+
+        #endregion
+    }
+
+    public static async Task Offboard(IHost app, string tenantId)
+    {
+        #region sample_tenancy_offboarding
+
+        ISchedulerRuntime runtime = app.Services.GetRequiredService<ISchedulerRuntime>();
+
+        // Shuts the scheduler down, unbinds it from the repository and releases the container it was
+        // built in. Nothing is deleted from the store: the tenant's rows stay where they are.
+        bool removed = await runtime.Remove(tenantId, waitForJobsToComplete: true);
+
+        #endregion
+    }
+
+    public static async Task OnboardWithoutAContainer(
+        IHost app,
+        string tenantId,
         IReadOnlyDictionary<string, string> connectionStrings,
         Dictionary<string, StandaloneSchedulerFactory> tenantFactories)
     {
-        #region sample_tenancy_runtime_onboarding
+        #region sample_tenancy_standalone_onboarding
 
         StandaloneSchedulerFactory tenantFactory = QuartzSchedulerBuilder
             .Create(q => q
@@ -300,18 +333,20 @@ public static class MultiTenancySamples
         IScheduler tenant = await tenantFactory.GetScheduler();
         await tenant.Start();
 
+        // Keep the factory: it owns the container, and it is the only handle that can shut the tenant
+        // down again.
         tenantFactories[tenantId] = tenantFactory;
         app.Services.GetRequiredService<ISchedulerRepository>().Bind(tenant);
 
         #endregion
     }
 
-    public static async Task Offboard(
+    public static async Task OffboardWithoutAContainer(
         IHost app,
         string tenantId,
         Dictionary<string, StandaloneSchedulerFactory> tenantFactories)
     {
-        #region sample_tenancy_offboarding
+        #region sample_tenancy_offboarding_standalone
 
         StandaloneSchedulerFactory tenantFactory = tenantFactories[tenantId];
         tenantFactories.Remove(tenantId);

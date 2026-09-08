@@ -445,6 +445,7 @@ rather than an isolation one.
 | Per-scheduler health check | No — one check, on the default scheduler | Yes, `q.AddQuartzHealthChecks()` per scheduler |
 | Metrics | No | Yes |
 | Runtime tenant onboarding without a container | Yes, `StdSchedulerFactory` / `DirectSchedulerFactory` | Yes, `QuartzSchedulerBuilder` |
+| Runtime tenant onboarding into the application's container | No | Yes, `ISchedulerRuntime.Add` / `Remove` |
 
 Both trees carry the mechanics in full:
 
@@ -545,14 +546,20 @@ ordinary API call.
 
 Under the scheduler-per-tenant model, the DI path is closed once the container is built —
 `AddQuartz` mutates `IServiceCollection`, and the hosted service enumerates schedulers once at
-start. But that is a limit of the DI path, not of the library. Both versions can build a scheduler at
-runtime outside the container: 3.x through `StdSchedulerFactory` or `DirectSchedulerFactory`, and 4.x
-through `QuartzSchedulerBuilder`, which creates and owns a container of its own.
+start. Both versions can nonetheless build a scheduler at runtime *outside* the container: 3.x through
+`StdSchedulerFactory` or `DirectSchedulerFactory`, and 4.x through `QuartzSchedulerBuilder`, which
+creates and owns a container of its own.
 
 What that costs you is worth knowing before you build on it: a scheduler created this way gets no
 hosted-service lifetime (you start and dispose it), its jobs resolve from its own container rather
 than the application's unless you give it a job factory that bridges, and it is not covered by health
-checks registered at startup. The per-version guides spell out the API and the trade-offs.
+checks registered at startup.
+
+4.1 answers all three with `ISchedulerRuntime.Add(name, configure)`, which builds the tenant into a
+container of its own but resolves the application's services, jobs and options from the application's —
+so the tenant's jobs are ordinary application components, the host drains it when it stops, and a health
+check registered under its name finds it. `Remove` shuts it down and releases everything built for it.
+The per-version guides spell out the API and the trade-offs.
 
 ## Anti-patterns
 
