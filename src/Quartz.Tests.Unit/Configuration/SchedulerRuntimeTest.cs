@@ -193,6 +193,33 @@ public sealed class SchedulerRuntimeTest
         provider.GetRequiredService<ISchedulerRepository>().LookupAll().Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Bad configuration reaches the caller as the exception every other Quartz configuration mistake
+    /// does, rather than as the options framework's own.
+    /// </summary>
+    /// <remarks>
+    /// Options validation is <em>how</em> configuration is checked and <c>OptionsValidationException</c>
+    /// is an implementation detail of that. <c>DefaultSchedulerFactory.GetScheduler</c> makes the same
+    /// translation, and a caller adding a scheduler at runtime should not have to catch two exception
+    /// types depending on which door the scheduler came through.
+    /// </remarks>
+    [Test]
+    public async Task AddReportsBadConfigurationAsASchedulerConfigException()
+    {
+        using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+
+        Func<Task> add = async () => await Add(
+            provider,
+            "acme",
+            configure: q => q.ConfigureScheduler(o => o.IdleWaitTime = TimeSpan.Zero));
+
+        (await add.Should().ThrowAsync<SchedulerConfigException>())
+            .WithMessage("*IdleWaitTime*", "the caller is told which setting is wrong");
+
+        provider.GetRequiredService<ISchedulerRepository>().LookupAll().Should().BeEmpty(
+            "the failure happens before anything is bound, and nothing is retained either way");
+    }
+
     [Test]
     public async Task AddRefusesSettingsGivenTwoWaysAtOnce()
     {
