@@ -81,6 +81,9 @@ internal static class TriggerEndpoints
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/reschedule", RescheduleJob)
             .WithQuartzDefaults(nameof(RescheduleJob), "Reschedule job");
+
+        yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/details", UpdateTriggerDetails)
+            .WithQuartzDefaults(nameof(UpdateTriggerDetails), "Update trigger details without rescheduling");
     }
 
     [ProducesResponseType(typeof(PagedResultDto<TriggerHeaderDto>), StatusCodes.Status200OK)]
@@ -528,6 +531,37 @@ internal static class TriggerEndpoints
         {
             var firstFireTimeUtc = await scheduler.RescheduleJob(new TriggerKey(triggerName, triggerGroup), request.NewTrigger, cancellationToken).ConfigureAwait(false);
             return new RescheduleJobResponse(firstFireTimeUtc);
+        });
+    }
+
+    /// <summary>
+    /// Edits a trigger's details in place — description, priority, job data, calendar, misfire
+    /// instruction, node pin, execution group and retry policy — without touching its fire times or its
+    /// state.
+    /// </summary>
+    /// <remarks>
+    /// A body member that is absent leaves its value alone and one present as <c>null</c> clears it, so
+    /// this is a patch rather than a replacement; <c>UpdateTriggerDetailsRequest</c> says why. A trigger
+    /// the key does not resolve answers <c>{ "applied": false }</c> rather than <c>404</c>, which is
+    /// what <see cref="IScheduler.UpdateTriggerDetails" /> answers and what every other single-trigger
+    /// mutation on this route family answers.
+    /// </remarks>
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
+    [Consumes(typeof(OpenApi.UpdateTriggerDetailsRequest), "application/json")]
+    private static Task<IResult> UpdateTriggerDetails(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        string triggerGroup,
+        string triggerName,
+        UpdateTriggerDetailsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            bool applied = await scheduler.UpdateTriggerDetails(new TriggerKey(triggerName, triggerGroup), request.AsUpdate(), cancellationToken).ConfigureAwait(false);
+            return new OperationAppliedResponse(applied);
         });
     }
 }

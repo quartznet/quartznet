@@ -66,6 +66,7 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(TriggerJobRequest))]
 [JsonSerializable(typeof(TriggerKeySetRequest))]
 [JsonSerializable(typeof(UnscheduleJobsRequest))]
+[JsonSerializable(typeof(UpdateTriggerDetailsRequest))]
 
 // Response bodies.
 [JsonSerializable(typeof(AffectedGroupsResponse))]

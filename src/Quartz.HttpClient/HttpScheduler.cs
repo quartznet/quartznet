@@ -45,10 +45,10 @@ namespace Quartz;
 /// derives from <see cref="SchedulerException" /> so one <c>catch</c> covers both.
 /// </para>
 /// <para>
-/// Three members cannot be honoured over a wire and raise <see cref="NotSupportedException" /> rather
-/// than pretending: <see cref="Context" />, <see cref="ListenerManager" /> and
-/// <see cref="UpdateTriggerDetails" />, each of which explains itself. <see cref="DisposeAsync" />
-/// pointedly does not shut the remote scheduler down — see its own remarks.
+/// Two members cannot be honoured over a wire and raise <see cref="NotSupportedException" /> rather
+/// than pretending: <see cref="Context" /> and <see cref="ListenerManager" />, each of which explains
+/// itself. Both are physical limits rather than missing routes. <see cref="DisposeAsync" /> pointedly
+/// does not shut the remote scheduler down — see its own remarks.
 /// </para>
 /// </remarks>
 public sealed class HttpScheduler : IScheduler
@@ -422,13 +422,25 @@ public sealed class HttpScheduler : IScheduler
         return result.FirstFireTimeUtc;
     }
 
-    /// <summary>
-    /// Not supported. The HTTP API has no endpoint for it, so there is nothing to call.
-    /// </summary>
-    /// <exception cref="NotSupportedException">Always.</exception>
-    public ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    /// <remarks>
+    /// The body carries only what the update set, so a member the caller never touched is not sent and
+    /// the trigger keeps it. The schedule family of a misfire instruction travels too, which is what
+    /// keeps <c>WithMisfireInstruction</c> rejected by the store for a trigger of another family here
+    /// exactly as it is in process.
+    /// </remarks>
+    public async ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
     {
-        throw NotSupportedRemotely(nameof(UpdateTriggerDetails), "the HTTP API has no endpoint for it");
+        ArgumentNullException.ThrowIfNull(update);
+
+        var result = await httpClient.PostWithResponse<UpdateTriggerDetailsRequest, OperationAppliedResponse>(
+            $"{TriggerEndpointUrl(triggerKey)}/details",
+            UpdateTriggerDetailsRequest.Create(update),
+            jsonSerializerOptions,
+            cancellationToken
+        ).ConfigureAwait(false);
+
+        return result.Applied;
     }
 
     /// <inheritdoc />

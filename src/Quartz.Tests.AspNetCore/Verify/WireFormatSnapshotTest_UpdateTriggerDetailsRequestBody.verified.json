@@ -1,0 +1,15 @@
+﻿{
+  "description": "nightly export",
+  "priority": 8,
+  "jobDataMap": {
+    "region": "eu-west",
+    "batchSize": 500
+  },
+  "calendarName": "HolidayCalendar",
+  "misfireInstruction": 2,
+  "misfireInstructionFamily": "Cron",
+  "preferredNode": "node-a",
+  "preferredNodeAuto": false,
+  "executionGroup": "imports",
+  "retryPolicy": "fixed;3;00:00:30"
+}

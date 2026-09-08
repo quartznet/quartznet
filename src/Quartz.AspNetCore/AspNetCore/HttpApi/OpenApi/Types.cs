@@ -226,3 +226,68 @@ internal interface RescheduleJobRequest
 {
     Trigger NewTrigger { get; }
 }
+
+/// <summary>
+/// The trigger-details patch. Every member is optional, and the two ways of leaving one out mean
+/// different things: a member that is <b>absent</b> leaves the trigger's value alone, and one present as
+/// <c>null</c> <b>clears</b> it. The schema cannot say that — an OpenAPI optional-and-nullable property
+/// is one thing — so it is said here and in the endpoint's own description.
+/// </summary>
+internal interface UpdateTriggerDetailsRequest
+{
+    /// <summary>
+    /// The description to set, or null to clear it
+    /// </summary>
+    string? Description { get; }
+
+    /// <summary>
+    /// The priority to set
+    /// </summary>
+    int Priority { get; }
+
+    /// <summary>
+    /// The job data map to set, or null to empty it
+    /// </summary>
+    JobDataMap? JobDataMap { get; }
+
+    /// <summary>
+    /// The calendar to associate the trigger with, or null to disassociate it
+    /// </summary>
+    string? CalendarName { get; }
+
+    /// <summary>
+    /// The misfire instruction code to set, as the trigger body's misfireInstruction carries it
+    /// </summary>
+    int MisfireInstruction { get; }
+
+    /// <summary>
+    /// The schedule family misfireInstruction is stated in — Simple, Cron, CalendarInterval,
+    /// DailyTimeInterval or Recurrence. The same number means a different policy in each, so naming one
+    /// is what lets the scheduler refuse an update aimed at a trigger of another family. Omit it to set
+    /// the code without that check, which is the only way to set one on a trigger type of your own
+    /// </summary>
+    string? MisfireInstructionFamily { get; }
+
+    /// <summary>
+    /// The node pin as the triggers table holds it: null to clear it, "*" to ask for an automatic pin,
+    /// or a scheduler instance id. Sent together with preferredNodeAuto
+    /// </summary>
+    string? PreferredNode { get; }
+
+    /// <summary>
+    /// Whether the pin was handed out automatically rather than named, as the triggers table holds it
+    /// </summary>
+    bool PreferredNodeAuto { get; }
+
+    /// <summary>
+    /// The execution group whose thread limit this trigger's job counts against, or null to leave every
+    /// group
+    /// </summary>
+    string? ExecutionGroup { get; }
+
+    /// <summary>
+    /// How the scheduler re-fires the trigger when its job fails, in the stored form the RETRY_POLICY
+    /// column carries — for example "fixed;3;00:00:30" — or null to stop retrying
+    /// </summary>
+    string? RetryPolicy { get; }
+}

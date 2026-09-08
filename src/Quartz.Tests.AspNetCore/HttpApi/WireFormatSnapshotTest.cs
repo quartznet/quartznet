@@ -273,6 +273,50 @@ public class WireFormatSnapshotTest : WebApiTest
         await VerifyBody(body);
     }
 
+    /// <summary>
+    /// The trigger-details patch, with every field an update can carry set. This is a body a client
+    /// <em>writes</em> rather than one the server does, so it is captured on its way out.
+    /// </summary>
+    /// <remarks>
+    /// Two things here are contract and nothing else pins them: the misfire instruction's schedule
+    /// family, which has no counterpart on a trigger and exists so the store can refuse an update aimed
+    /// at a trigger of another family, and the node pin travelling as the column pair the triggers table
+    /// holds rather than as one string.
+    /// </remarks>
+    [Test]
+    public async Task UpdateTriggerDetailsRequestBody()
+    {
+        string body = await CapturedUpdateBody(new TriggerDetailsUpdate()
+            .WithDescription("nightly export")
+            .WithPriority(8)
+            .WithJobDataMap(new JobDataMap { { "region", "eu-west" }, { "batchSize", 500 } })
+            .WithCalendarName("HolidayCalendar")
+            .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)
+            .WithPreferredNode(PreferredNode.For("node-a"))
+            .WithExecutionGroup("imports")
+            .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30))));
+
+        await VerifyBody(body);
+    }
+
+    /// <summary>
+    /// The same body when the caller asked for two changes: one member set to a value, one cleared, and
+    /// the six it never named absent altogether.
+    /// </summary>
+    /// <remarks>
+    /// Absent and <c>null</c> are the two halves of the patch and they mean opposite things, so a body
+    /// that wrote every member as <c>null</c> would read as "clear everything". That is what this pins.
+    /// </remarks>
+    [Test]
+    public async Task UpdateTriggerDetailsRequestBodyCarriesOnlyWhatWasSet()
+    {
+        string body = await CapturedUpdateBody(new TriggerDetailsUpdate()
+            .WithPriority(3)
+            .WithCalendarName(null));
+
+        await VerifyBody(body);
+    }
+
     [Test]
     public async Task ValidationProblemDetailsBody()
     {
@@ -485,6 +529,40 @@ public class WireFormatSnapshotTest : WebApiTest
             {
                 body.Should().Be(expectedBody, $"{method} {url} answers with exactly this body");
             }
+        }
+    }
+
+    /// <summary>
+    /// The JSON <see cref="HttpScheduler" /> puts on the wire for one update, taken off the request as
+    /// it leaves rather than rebuilt from the same serializer options — which would pin what this test
+    /// believes the client does instead of what it does.
+    /// </summary>
+    private async Task<string> CapturedUpdateBody(TriggerDetailsUpdate update)
+    {
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(A<TriggerKey>._, A<TriggerDetailsUpdate>._, A<CancellationToken>._)).Returns(true);
+
+        RequestBodyCapture capture = new();
+        using HttpClient client = WebApplicationFactory.CreateDefaultClient(capture);
+        await using HttpScheduler scheduler = new(TestData.SchedulerName, client);
+
+        await scheduler.UpdateTriggerDetails(new TriggerKey("trigger1", "group1"), update);
+
+        capture.Body.Should().NotBeNull("the client sends a body for this endpoint");
+        return capture.Body!;
+    }
+
+    private sealed class RequestBodyCapture : DelegatingHandler
+    {
+        public string? Body { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Content is not null)
+            {
+                Body = await request.Content.ReadAsStringAsync(cancellationToken);
+            }
+
+            return await base.SendAsync(request, cancellationToken);
         }
     }
 

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 
 using AwesomeAssertions.Execution;
 
@@ -718,16 +719,158 @@ public class TriggerEndpointsTest : WebApiTest
     }
 
     /// <summary>
-    /// There is no endpoint behind <see cref="IScheduler.UpdateTriggerDetails" />, so the client says
-    /// so in the same words it uses for the members a remote scheduler cannot have at all.
+    /// Every field a <see cref="TriggerDetailsUpdate" /> can carry survives the round trip, including
+    /// the schedule family of the misfire instruction — which is the one part of an update that has no
+    /// counterpart on a trigger and so could have been dropped in transit without anything noticing.
     /// </summary>
     [Test]
-    public async Task UpdateTriggerDetailsIsNotSupportedRemotely()
+    public async Task UpdateTriggerDetailsShouldCarryEveryFieldToTheScheduler()
     {
-        Func<Task> update = async () => await HttpScheduler.UpdateTriggerDetails(triggerKeyOne, new TriggerDetailsUpdate());
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(triggerKeyOne, A<TriggerDetailsUpdate>._, A<CancellationToken>._)).Returns(true);
 
-        (await update.Should().ThrowAsync<NotSupportedException>("the HTTP API has no endpoint for it"))
-            .WithMessage("*HttpScheduler.UpdateTriggerDetails*");
+        JobDataMap jobData = new() { { "key", "value" } };
+        RetryPolicy retryPolicy = RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30));
+
+        bool applied = await HttpScheduler.UpdateTriggerDetails(triggerKeyOne, new TriggerDetailsUpdate()
+            .WithDescription("nightly export")
+            .WithPriority(8)
+            .WithJobDataMap(jobData)
+            .WithCalendarName("SomeCalendar")
+            .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)
+            .WithPreferredNode(PreferredNode.For("node-a"))
+            .WithExecutionGroup("imports")
+            .WithRetryPolicy(retryPolicy));
+
+        applied.Should().BeTrue("the applied flag must round-trip over the wire");
+
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(A<TriggerKey>._, A<TriggerDetailsUpdate>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((TriggerKey key, TriggerDetailsUpdate update, CancellationToken _) =>
+            {
+                using (new AssertionScope())
+                {
+                    update.Description.Should().Be("nightly export");
+                    update.Priority.Should().Be(8);
+                    update.JobDataMap.Should().BeEquivalentTo(jobData);
+                    update.CalendarName.Should().Be("SomeCalendar");
+                    update.MisfireInstructionCode.Should().Be((int) CronTriggerMisfireInstruction.DoNothing);
+                    update.MisfireInstructionFamily.Should().Be(TriggerFamily.Cron,
+                        "the family is what lets the store refuse an update aimed at a trigger of another one, "
+                        + "and a bare code over the wire would skip that check");
+                    update.PreferredNode.Should().Be(PreferredNode.For("node-a"));
+                    update.ExecutionGroup.Should().Be("imports");
+                    update.RetryPolicy.Should().Be(retryPolicy);
+                }
+
+                return key.Equals(triggerKeyOne);
+            })
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    /// <summary>
+    /// The half of the patch that a body of nullable members could not express: what the caller did not
+    /// name is not sent, so the trigger keeps it.
+    /// </summary>
+    [Test]
+    public async Task UpdateTriggerDetailsShouldLeaveWhatTheCallerDidNotNameAlone()
+    {
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(triggerKeyOne, A<TriggerDetailsUpdate>._, A<CancellationToken>._)).Returns(true);
+
+        await HttpScheduler.UpdateTriggerDetails(triggerKeyOne, new TriggerDetailsUpdate().WithPriority(3));
+
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(A<TriggerKey>._, A<TriggerDetailsUpdate>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((TriggerKey _, TriggerDetailsUpdate update, CancellationToken _) =>
+            {
+                using (new AssertionScope())
+                {
+                    update.HasPriority.Should().BeTrue();
+                    update.HasDescription.Should().BeFalse("an untouched description must not arrive as one being cleared");
+                    update.HasCalendarName.Should().BeFalse();
+                    update.HasJobDataMap.Should().BeFalse();
+                    update.HasMisfireInstruction.Should().BeFalse();
+                    update.HasPreferredNode.Should().BeFalse();
+                    update.HasExecutionGroup.Should().BeFalse();
+                    update.HasRetryPolicy.Should().BeFalse();
+                }
+
+                return true;
+            })
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    /// <summary>
+    /// The other half: a member the caller set to <see langword="null" /> is sent, and clears.
+    /// </summary>
+    [Test]
+    public async Task UpdateTriggerDetailsShouldCarryTheClearingOfAValue()
+    {
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(triggerKeyOne, A<TriggerDetailsUpdate>._, A<CancellationToken>._)).Returns(true);
+
+        await HttpScheduler.UpdateTriggerDetails(triggerKeyOne, new TriggerDetailsUpdate()
+            .WithDescription(null)
+            .WithCalendarName(null)
+            .WithExecutionGroup(null)
+            .WithRetryPolicy(null)
+            .WithPreferredNode(PreferredNode.None));
+
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(A<TriggerKey>._, A<TriggerDetailsUpdate>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((TriggerKey _, TriggerDetailsUpdate update, CancellationToken _) =>
+            {
+                using (new AssertionScope())
+                {
+                    update.HasDescription.Should().BeTrue("null is a value here, not an omission");
+                    update.Description.Should().BeNull();
+                    update.HasCalendarName.Should().BeTrue();
+                    update.CalendarName.Should().BeNull();
+                    update.HasExecutionGroup.Should().BeTrue();
+                    update.ExecutionGroup.Should().BeNull();
+                    update.HasRetryPolicy.Should().BeTrue();
+                    update.RetryPolicy.Should().BeNull();
+                    update.HasPreferredNode.Should().BeTrue();
+                    update.PreferredNode.Should().Be(PreferredNode.None);
+                }
+
+                return true;
+            })
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task UpdateTriggerDetailsShouldReportATriggerThatDoesNotExist()
+    {
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(triggerKeyTwo, A<TriggerDetailsUpdate>._, A<CancellationToken>._)).Returns(false);
+
+        bool applied = await HttpScheduler.UpdateTriggerDetails(triggerKeyTwo, new TriggerDetailsUpdate().WithPriority(1));
+
+        applied.Should().BeFalse(
+            "a trigger the key does not resolve is the scheduler's own false rather than a 404 - the same "
+            + "answer pause, resume and error-state reset give");
+    }
+
+    [Test]
+    public async Task UpdateTriggerDetailsShouldRejectAnUnparseableRetryPolicy()
+    {
+        using HttpResponseMessage response = await WebApplicationFactory.CreateClient().PostAsync(
+            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/details",
+            new StringContent("""{"retryPolicy":"not-a-policy"}""", Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "a policy string the scheduler cannot parse would otherwise arrive as 'stop retrying', which is "
+            + "the opposite of what was asked for");
+
+        A.CallTo(() => FakeScheduler.UpdateTriggerDetails(A<TriggerKey>._, A<TriggerDetailsUpdate>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task UpdateTriggerDetailsShouldRejectAnUnknownMisfireInstructionFamily()
+    {
+        using HttpResponseMessage response = await WebApplicationFactory.CreateClient().PostAsync(
+            $"schedulers/{TestData.SchedulerName}/triggers/{triggerKeyOne.Group}/{triggerKeyOne.Name}/details",
+            new StringContent("""{"misfireInstruction":2,"misfireInstructionFamily":"Weekly"}""", Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "a family nobody recognises would otherwise be dropped, and the code applied without the check "
+            + "naming a family is what asks for");
     }
 
     /// <summary>
