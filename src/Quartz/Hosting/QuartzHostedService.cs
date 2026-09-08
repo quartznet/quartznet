@@ -326,10 +326,25 @@ public class QuartzHostedService : IHostedLifecycleService
     /// enumerating a list somebody else was clearing, which is the
     /// <see cref="InvalidOperationException" /> #3701 reported out of <c>RunAsync</c>.
     /// </para>
+    /// <para>
+    /// The schedulers added while the host was running are drained here too. They are not this
+    /// service's — nothing here created them, and it learns of them only now — but the alternative is
+    /// leaving them to container disposal, which happens after the graceful shutdown window has closed,
+    /// so a tenant's running jobs would be abandoned rather than waited for. There is no second hosted
+    /// service and nothing is resolved at start; a container with no runtime tenants asks a question
+    /// that answers nothing.
+    /// </para>
     /// </remarks>
     private async ValueTask ShutdownSchedulers(CancellationToken cancellationToken)
     {
         List<HostedScheduler> toShutDown = Interlocked.Exchange(ref schedulers, []);
+
+        // Each under its own name, so AddQuartzHostedService("acme", o => o.WaitForJobsToComplete = true)
+        // configures a tenant that did not exist when that line was written.
+        foreach (IScheduler tenant in serviceProvider.GetService<SchedulerRuntime>()?.TakeLiveSchedulers() ?? [])
+        {
+            toShutDown.Add(new HostedScheduler(tenant, options.Get(tenant.SchedulerName)));
+        }
 
         // Every shutdown is started before any of them is awaited, so that the waits for running jobs
         // overlap. A scheduler that throws before it yields is captured rather than left to abandon the

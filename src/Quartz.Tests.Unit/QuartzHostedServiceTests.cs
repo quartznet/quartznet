@@ -847,6 +847,78 @@ public class QuartzHostedServiceTests
     }
 
     /// <summary>
+    /// A scheduler added while the host was running is shut down when the host stops, under the settings
+    /// registered for its name.
+    /// </summary>
+    /// <remarks>
+    /// Not because it is this service's - nothing here created it, and it learns of it only at the stop -
+    /// but because the alternative is leaving it to container disposal, which happens after the graceful
+    /// shutdown window has closed. A tenant's running jobs would be abandoned rather than waited for,
+    /// which is what <c>WaitForJobsToComplete</c> exists to prevent; that it is read under the tenant's
+    /// own name is what lets the setting be written before the tenant exists, which is the only time a
+    /// registration can be written at all.
+    /// </remarks>
+    [Test]
+    public async Task StopAsyncShutsDownARuntimeTenant()
+    {
+        HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
+        builder.Services.AddSingleton<IHostLifetime, SilentHostLifetime>();
+        builder.Services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "runtime-drain"));
+        builder.Services.AddQuartzHostedService();
+
+        // Written before the tenant exists, which is the only time a registration can be written.
+        builder.Services.AddQuartzHostedService("acme", options => options.WaitForJobsToComplete = true);
+
+        using IHost host = builder.Build();
+        await host.StartAsync();
+
+        IScheduler tenant = await host.Services.GetRequiredService<ISchedulerRuntime>().Add("acme");
+
+        await tenant.ScheduleJob(
+            JobBuilder.Create<DrainingJob>().WithIdentity("draining").Build(),
+            TriggerBuilder.Create().WithIdentity("draining").StartNow().Build());
+
+        (await DrainingJob.Started.Task.WaitAsync(TimeSpan.FromSeconds(30))).Should().BeTrue();
+
+        await host.StopAsync();
+
+        tenant.Status.Should().Be(SchedulerStatus.Shutdown,
+            "the host's graceful shutdown window is where a tenant is stopped, and container disposal "
+            + "happens after that window has closed");
+
+        DrainingJob.Finished.Should().BeTrue(
+            "WaitForJobsToComplete was registered under the tenant's name, so the drain waited for the job "
+            + "the tenant was running - a shutdown that did not read those options would have returned "
+            + "while it was still going");
+
+        List<SchedulerRegistration> listing =
+            await host.Services.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
+        listing.Should().NotContain(x => x.Name == "acme",
+            "the runtime let go of it when the host took it, so it is no longer something Remove has work "
+            + "left to do for");
+    }
+
+    /// <summary>
+    /// A job that is still running when the host is asked to stop.
+    /// </summary>
+    private sealed class DrainingJob : IJob
+    {
+        public static readonly TaskCompletionSource<bool> Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static bool Finished { get; private set; }
+
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult(true);
+
+            // Long enough that a shutdown which did not wait would return first, short enough that the
+            // test is not a stopwatch.
+            await Task.Delay(TimeSpan.FromMilliseconds(500), CancellationToken.None);
+            Finished = true;
+        }
+    }
+
+    /// <summary>
     /// A host lifetime that neither waits for anything nor installs a console handler.
     /// </summary>
     private sealed class SilentHostLifetime : IHostLifetime
