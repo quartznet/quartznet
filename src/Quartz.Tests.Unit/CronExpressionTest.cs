@@ -653,6 +653,20 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
             $"'{textual}' and '{numeric}' have to fire at the same instants - {reason}");
     }
 
+    /// <summary>
+    /// The textual range never rejected a step: it read the two day names, stopped, and dropped whatever
+    /// followed — so <c>MON-FRI/2</c> quietly meant <c>MON-FRI</c>, five days where the author asked for
+    /// three. That is the shape #3591 removed everywhere else, and reading the step is what removes it here.
+    /// </summary>
+    [Test]
+    public void AStepAfterATextualRangeIsNotDropped()
+    {
+        CronExpression stepped = new CronExpression("0 0 12 ? * MON-FRI/2", TimeZoneInfo.Utc);
+
+        stepped.GetSet(CronExpressionConstants.DayOfWeek).Should().Equal([2, 4, 6],
+            "'MON-FRI/2' is '2-6/2' - Monday, Wednesday and Friday - and not the five days of 'MON-FRI'");
+    }
+
     private static List<DateTimeOffset> FireTimesThroughAWeek(CronExpression expression, DateTimeOffset start)
     {
         List<DateTimeOffset> fireTimes = [];

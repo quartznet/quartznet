@@ -40,8 +40,8 @@ The rest of this guide is written as one statement about 3.x and 4.0, with no bu
 ## Upgrading from 4.0 to 4.1
 
 Nothing in the 4.0 public surface moved and the database schema did not either, so an application on
-4.0 compiles on 4.1 unchanged. What is here is what 4.1 makes newly possible, and the one cron
-expression it reads differently.
+4.0 compiles on 4.1 unchanged. What is here is what 4.1 makes newly possible, and the two cron
+expressions it reads differently.
 
 | Added | What it is |
 |---|---|
@@ -67,11 +67,12 @@ Three behaviours changed without a signature changing:
 The mechanics, the refusals and the recipes are in
 [Multi-Tenancy](multi-tenancy.md#adding-a-tenant-while-the-process-is-running).
 
-One cron expression changes what it means:
+Two cron expressions change what they mean, and neither can be reported to you — both parse on 4.1:
 
 | Change | 4.0 | 4.1 |
 |---|---|---|
 | **Behaviour change.** `MON/2` — a textual day-of-week with a step — in any cron expression | `FormatException` | Parses, and means what `2/2` means: Monday, Wednesday and Friday. It meant *every second Monday* on 3.x, so an expression carried across both majors fires 156 times a year rather than 26, and nothing reports it. [What to do about it](#mon-2-is-a-fortnight-on-3-x-and-a-step-from-4-1) |
+| **Behaviour change.** `MON-FRI/2` — a step after a textual *range* | Parsed, and the step was dropped: it meant `MON-FRI`, five days | `2-6/2` — Monday, Wednesday and Friday, the three days it says. A trigger written this way has been firing on two days it never asked for |
 
 ## The road from 3.x, phase by phase
 
