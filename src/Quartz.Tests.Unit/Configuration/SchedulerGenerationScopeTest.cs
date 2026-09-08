@@ -174,7 +174,8 @@ public sealed class SchedulerGenerationScopeTest
                     recorder.FromScope[scheduler.SchedulerName] = unitOfWork;
                 }
             }),
-            number: 1);
+            number: 1,
+            refuseInstanceParts: false);
     }
 
     /// <summary>

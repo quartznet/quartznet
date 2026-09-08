@@ -78,14 +78,14 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     public IQuartzBuilder UseThreadPool(IThreadPool threadPool)
     {
         ArgumentNullException.ThrowIfNull(threadPool);
-        RegisterConfigured<IThreadPool>((_, _) => threadPool);
+        RegisterConfiguredInstance(threadPool);
         return this;
     }
 
     public IQuartzBuilder UseJobStore(IJobStore jobStore)
     {
         ArgumentNullException.ThrowIfNull(jobStore);
-        RegisterConfigured<IJobStore>((_, _) => jobStore);
+        RegisterConfiguredInstance(jobStore);
         return this;
     }
 
@@ -209,7 +209,7 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     public IQuartzBuilder UseJobFactory(IJobFactory jobFactory)
     {
         ArgumentNullException.ThrowIfNull(jobFactory);
-        RegisterConfigured<IJobFactory>((_, _) => jobFactory);
+        RegisterConfiguredInstance(jobFactory);
         return this;
     }
 
@@ -244,7 +244,7 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     {
         ArgumentNullException.ThrowIfNull(generator);
         GenerateInstanceId();
-        RegisterConfigured<IInstanceIdGenerator>((_, _) => generator);
+        RegisterConfiguredInstance(generator);
         return this;
     }
 
@@ -540,6 +540,73 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         {
             Services.TryAddKeyedSingleton(schedulerKey, (provider, key) => factory(provider, key));
         }
+    }
+
+    /// <summary>
+    /// Registers a part the caller supplied as an object, and notes that it did.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The registration is the same one <see cref="RegisterConfigured{TService}" /> makes — a factory
+    /// closing over the object — and nothing about resolving it changes. What is added beside it is a
+    /// <see cref="SchedulerInstancePart" /> saying which part came in that way, so a second generation
+    /// of this scheduler can be refused by <em>reading</em> the collection rather than by building one
+    /// and comparing. See the remarks on <see cref="SchedulerInstancePart" /> for why that distinction
+    /// is not a nicety.
+    /// </para>
+    /// <para>
+    /// The note is added only when this registration is the one that takes. Registration is first-wins,
+    /// so an instance supplied after something else already claimed the part is inert — and a note about
+    /// an object nothing will ever resolve would refuse a restart that replays perfectly.
+    /// </para>
+    /// </remarks>
+    private void RegisterConfiguredInstance<TService>(TService instance)
+        where TService : class
+    {
+        bool alreadyClaimed = IsRegistered(typeof(TService));
+
+        RegisterConfigured<TService>((_, _) => instance);
+
+        if (alreadyClaimed)
+        {
+            return;
+        }
+
+        SchedulerInstancePart part = new(typeof(TService));
+
+        if (schedulerKey is null)
+        {
+            Services.AddSingleton(part);
+        }
+        else
+        {
+            Services.AddKeyedSingleton(schedulerKey, part);
+        }
+    }
+
+    /// <summary>
+    /// Whether this scheduler's collection already says how to build one of its parts.
+    /// </summary>
+    private bool IsRegistered(Type serviceType)
+    {
+        foreach (ServiceDescriptor descriptor in Services)
+        {
+            if (descriptor.ServiceType != serviceType)
+            {
+                continue;
+            }
+
+            bool mine = schedulerKey is null
+                ? !descriptor.IsKeyedService
+                : descriptor.IsKeyedService && string.Equals(descriptor.ServiceKey as string, schedulerKey, StringComparison.Ordinal);
+
+            if (mine)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

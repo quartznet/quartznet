@@ -971,12 +971,13 @@ Four things a restart is observably not invisible about:
   container, and the next generation is built in a container of its own from what `AddQuartz` itself was
   handed. Move the line inside the `AddQuartz("acme", …)` callback and both generations read it.
 
-Two refusals are worth reading before reaching for this:
+Three refusals are worth reading before reaching for this:
 
 | Refused | Because |
 |---|---|
 | the default scheduler | its parts are the container's unkeyed registrations, which nothing can tell apart from the application's own, so there is no recipe to replay. Register it with `AddQuartz("name", …)` to make it restartable; `Standby()`/`Start()` pause and resume it |
-| a recipe that supplies a part as an instance | `UseJobStore(IJobStore)`, `UseThreadPool(IThreadPool)`, `UseJobFactory(instance)` and `UseInstanceIdGenerator(instance)` hand the new scheduler the object the old one is about to shut down. Register a type or a factory instead — `UseJobStore<T>()` or `UseJobStore(provider => …)` builds a new instance each time the recipe runs. The scheduler that is running is not touched |
+| a recipe that supplies a part as an instance | `UseJobStore(IJobStore)`, `UseThreadPool(IThreadPool)`, `UseJobFactory(instance)` and `UseInstanceIdGenerator(instance)` hand the new scheduler the object the old one is about to shut down. Register a type or a factory instead — `UseJobStore<T>()` or `UseJobStore(provider => new …)` builds a new instance each time the recipe runs. Refused before anything is built, so the scheduler that is running is not touched at all |
+| a factory that returns the running scheduler's part | `UseJobStore(provider => sharedInstance)` is a factory by its shape and an instance by its effect, and only building the next generation and comparing tells them apart. **A factory registration must return a new instance per generation**: it is replayed once for each, and the container built for a refused generation is released, taking whatever the factory returned with it |
 
 A name neither this runtime nor the container knows is a `SchedulerNotFoundException`. A name it knows
 whose scheduler has already been shut down — by hand, by the host, or by a restart whose drain gave up —

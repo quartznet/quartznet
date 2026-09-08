@@ -159,13 +159,20 @@ public sealed class SchedulerRuntimeRestartTest
     }
 
     /// <summary>
-    /// A recipe that closes over an object cannot produce a second generation, and says so instead of
-    /// handing the new scheduler the instance the old one shut down.
+    /// A recipe that closes over an object cannot produce a second generation, and says so before it has
+    /// built anything at all.
     /// </summary>
+    /// <remarks>
+    /// The timing is what the assertions are about. A refusal reached by building the next generation and
+    /// comparing the parts would have to release the container it built, and Microsoft's container
+    /// releases whatever a factory delegate returned — which here is the store the <em>running</em>
+    /// scheduler is using. So the test watches the store: it must not have been initialized a second
+    /// time, it must not have been disposed, and the scheduler that has it must still fire.
+    /// </remarks>
     [Test]
     public async Task RestartRefusesARecipeThatSuppliesAJobStoreInstance()
     {
-        IJobStore shared = TestJobStores.Ram();
+        RecordingJobStore shared = new(TestJobStores.Ram());
 
         await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
 
@@ -174,14 +181,78 @@ public sealed class SchedulerRuntimeRestartTest
         Func<Task> restart = async () => await Restart(provider, "acme");
 
         (await restart.Should().ThrowAsync<SchedulerConfigException>(
-                "replaying the recipe hands the new scheduler the object the old one is about to shut down, and "
-                + "an instance is the one thing a recipe cannot produce twice"))
-            .WithMessage("*a job store as an instance*")
+                "replaying the recipe would hand the new scheduler the object the old one is using, and an "
+                + "instance is the one thing a recipe cannot produce twice"))
+            .WithMessage("*IJobStore as an instance*")
             .WithMessage("*UseJobStore(IJobStore)*")
-            .WithMessage("*still running*");
+            .WithMessage("*was not touched*");
+
+        shared.Disposed.Should().BeFalse(
+            "the refusal happens before a provider exists, so there is no container to release — and one that "
+            + "had to be released would have taken the running scheduler's own store with it");
+        shared.Initializations.Should().Be(1,
+            "nothing of the next generation was built, so the store was never initialized a second time");
 
         tenant.Status.Should().Be(SchedulerStatus.Running,
             "the refusal is decided before anything is shut down, so a caller that gets it has lost nothing");
+        provider.GetRequiredService<ISchedulerRepository>().Lookup("acme").Should().BeSameAs(tenant);
+
+        await FiresAJob(tenant);
+    }
+
+    /// <summary>
+    /// The same, for the thread pool — the other part whose object a recipe most often closes over.
+    /// </summary>
+    [Test]
+    public async Task RestartRefusesARecipeThatSuppliesAThreadPoolInstance()
+    {
+        DisposableThreadPool shared = new();
+
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+
+        IScheduler tenant = await Add(provider, "acme", q => q.UseThreadPool(shared));
+
+        Func<Task> restart = async () => await Restart(provider, "acme");
+
+        (await restart.Should().ThrowAsync<SchedulerConfigException>())
+            .WithMessage("*IThreadPool as an instance*")
+            .WithMessage("*UseThreadPool(IThreadPool)*");
+
+        shared.Disposed.Should().BeFalse(
+            "a pool the running scheduler draws its threads from has to survive a refusal that exists to "
+            + "protect it");
+        shared.ShutdownCalled.Should().BeFalse("nothing was shut down, because nothing was built");
+        tenant.Status.Should().Be(SchedulerStatus.Running);
+    }
+
+    /// <summary>
+    /// A factory that closes over a shared object is refused too — by the second line, which is why its
+    /// message says a factory must return a new instance.
+    /// </summary>
+    /// <remarks>
+    /// This is the case the collection cannot be read for: <c>UseJobStore(provider =&gt; shared)</c> is a
+    /// factory registration by its shape and an instance registration by its effect, and only comparing
+    /// what two containers produced tells them apart.
+    /// </remarks>
+    [Test]
+    public async Task RestartRefusesAFactoryThatReturnsTheStoreTheRunningSchedulerHas()
+    {
+        IJobStore shared = TestJobStores.Ram();
+
+        await using ServiceProvider provider = Container(services => services.AddQuartz("main", _ => { }));
+
+        IScheduler tenant = await Add(provider, "acme", q => q.UseJobStore(_ => shared));
+
+        Func<Task> restart = async () => await Restart(provider, "acme");
+
+        (await restart.Should().ThrowAsync<SchedulerConfigException>(
+                "a factory is replayed once per generation, so one that hands back the same object every time "
+                + "is an instance registration wearing a factory's clothes"))
+            .WithMessage("*the same job store (UseJobStore(provider => *")
+            .WithMessage("*must return a new instance each time*")
+            .WithMessage("*still running*");
+
+        tenant.Status.Should().Be(SchedulerStatus.Running);
         provider.GetRequiredService<ISchedulerRepository>().Lookup("acme").Should().BeSameAs(tenant);
     }
 
@@ -398,11 +469,104 @@ public sealed class SchedulerRuntimeRestartTest
         return store;
     }
 
+    /// <summary>
+    /// Proves a scheduler still works by making it fire something, which is the only assertion a refusal
+    /// that claims to have left it alone can be held to.
+    /// </summary>
+    private static async Task FiresAJob(IScheduler scheduler)
+    {
+        SignallingJob.Reset();
+
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<SignallingJob>().WithIdentity("after-the-refusal").Build(),
+            TriggerBuilder.Create().WithIdentity("after-the-refusal").StartNow().Build());
+
+        await SignallingJob.Fired.WaitAsync(TimeSpan.FromSeconds(30));
+    }
+
     private sealed class RestartJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
+        }
+    }
+
+    private sealed class SignallingJob : IJob
+    {
+        private static TaskCompletionSource fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static Task Fired => fired.Task;
+
+        public static void Reset()
+        {
+            fired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            fired.TrySetResult();
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// A store that is <see cref="IDisposable" />, which is what makes the refusal's timing observable:
+    /// a container built for a refused generation would dispose it, and the running scheduler's store is
+    /// the very object it holds.
+    /// </summary>
+    private sealed class RecordingJobStore : DelegatingJobStore, IDisposable
+    {
+        public RecordingJobStore(IJobStore inner) : base(inner)
+        {
+        }
+
+        public bool Disposed { get; private set; }
+
+        public int Initializations { get; private set; }
+
+        public override ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default)
+        {
+            Initializations++;
+            return base.Initialize(identity, cancellationToken);
+        }
+
+        public void Dispose()
+        {
+            Disposed = true;
+        }
+    }
+
+    /// <inheritdoc cref="RecordingJobStore" />
+    private sealed class DisposableThreadPool : IThreadPool, IDisposable
+    {
+        public bool Disposed { get; private set; }
+
+        public bool ShutdownCalled { get; private set; }
+
+        public int PoolSize => 1;
+
+        public ValueTask Initialize(CancellationToken cancellationToken = default) => default;
+
+        public ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<int>(ShutdownCalled ? 0 : 1);
+        }
+
+        public ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<bool>(false);
+        }
+
+        public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
+        {
+            ShutdownCalled = true;
+            return default;
+        }
+
+        public void Dispose()
+        {
+            Disposed = true;
         }
     }
 }
