@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Components.Shared;
@@ -806,6 +807,58 @@ public class InProcessQuartzApiClientTest
         finally
         {
             await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// A scheduler added while the application was running reaches the dashboard's listing carrying the
+    /// origin that says so.
+    /// </summary>
+    /// <remarks>
+    /// Over a real container rather than the stub registry above, because what is under test is the
+    /// whole path — <c>SchedulerRuntime</c> appending the tenant to the container's registrations, and
+    /// this client joining that against the repository for the instance id. The origin is the only thing
+    /// in the listing that distinguishes the two kinds, and an operator needs it: a container
+    /// registration comes back after a restart and this one does not.
+    /// </remarks>
+    [Test]
+    public async Task TheListingCarriesASchedulerAddedAtRuntimeWithItsOrigin()
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz("core", q => q.UseInMemoryStore());
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        IScheduler tenant = await provider.GetRequiredService<ISchedulerRuntime>()
+            .Add("runtime-acme", q => q.UseInMemoryStore());
+
+        try
+        {
+            IOptions<QuartzDashboardOptions> options = Options.Create(new QuartzDashboardOptions());
+            InProcessQuartzApiClient client = new(
+                provider.GetRequiredService<ISchedulerRepository>(),
+                provider.GetRequiredService<ISchedulerRegistry>(),
+                options,
+                TestData.Dashboard.HistoryStore(),
+                new SchedulerAuthorization(options, new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()));
+
+            List<SchedulerHeaderDto> schedulers = await client.GetSchedulers();
+
+            SchedulerHeaderDto header = schedulers.Should().ContainSingle(x => x.SchedulerName == "runtime-acme").Subject;
+            header.Origin.Should().Be(SchedulerOrigin.Runtime,
+                "nothing in the container registered it, so nothing in the container will bring it back");
+            header.Status.Should().Be(SchedulerStatus.Running);
+            header.SchedulerInstanceId.Should().Be(tenant.SchedulerInstanceId,
+                "the registration carries no instance id, so the repository is asked for it - and the "
+                + "tenant is in the same repository every other scheduler is in");
+
+            schedulers.Should().ContainSingle(x => x.SchedulerName == "core")
+                .Which.Origin.Should().Be(SchedulerOrigin.Container);
+        }
+        finally
+        {
+            await tenant.Shutdown();
         }
     }
 
