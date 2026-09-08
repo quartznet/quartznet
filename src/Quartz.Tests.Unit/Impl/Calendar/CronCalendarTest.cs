@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Diagnostics;
+
 using Quartz.Impl.Calendar;
 using Quartz.Impl;
 
@@ -127,6 +129,68 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
             "the search must step to the end of the excluded range, not crawl it millisecond by millisecond");
         (await search).Should().Be(new DateTimeOffset(2026, 1, 1, 10, 0, 0, TimeSpan.Zero),
             "the first included instant after 09:30 is the top of the next hour, where the expression stops matching");
+    }
+
+    /// <summary>
+    /// The other half of #3690: an expression that excludes every instant has no next included time to
+    /// answer with. The search used to look for one a second at a time until <c>GetTimeAfter</c> gave up
+    /// a century out, and then returned an instant the calendar excludes — a wrong answer after three
+    /// billion cron computations. It is a configuration mistake, so it is said out loud.
+    /// </summary>
+    [Test]
+    public void ACalendarThatExcludesEveryInstantSaysSoRatherThanWalkingACentury()
+    {
+        CronCalendar calendar = new CronCalendar(null, "* * * * * ?", TimeZoneInfo.Utc);
+        DateTimeOffset from = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        calendar.IsTimeIncluded(from).Should().BeFalse("the expression matches every instant, and this calendar excludes what it matches");
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        Action act = () => calendar.GetNextIncludedTimeUtc(from);
+        SchedulerException thrown = act.Should().Throw<SchedulerException>(
+            "there is no included time to return, and no answer is better than an excluded one").Which;
+        stopwatch.Stop();
+
+        thrown.Message.Should().Contain("excludes every instant", "the message has to say what is wrong with the calendar");
+        thrown.Message.Should().Contain("* * * * * ?", "and name the expression, which is the thing to change");
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1),
+            "the answer is read off the expression's fields; walking to the give-up year for it took minutes");
+    }
+
+    /// <summary>
+    /// The two members have to agree: everything the next-included search steps over is a time
+    /// <see cref="CronCalendar.IsTimeIncluded" /> excludes, and the instant it lands on is one it
+    /// includes. A search that reads its answer off the expression's fields rather than walking to it is
+    /// only right if that holds.
+    /// </summary>
+    [TestCase("* * 9 ? * *", "2026-01-01T09:30:00Z", "the whole of the excluded hour is stepped over at once")]
+    [TestCase("* * 1-3 ? * *", "2026-01-01T02:00:00Z", "and the whole of a three hour range")]
+    [TestCase("0/15 * * * * ?", "2026-01-01T09:30:00Z", "an excluded run one second long ends at the next second")]
+    [TestCase("0 0 12 * * ?", "2026-01-01T12:00:00Z", "as does a single daily fire")]
+    [TestCase("* * * ? * MON", "2026-01-05T13:00:00Z", "a whole excluded Monday ends at midnight")]
+    public void EveryInstantTheNextIncludedSearchStepsOverIsOneTheCalendarExcludes(string expression, string from, string reason)
+    {
+        CronCalendar calendar = new CronCalendar(null, expression, TimeZoneInfo.Utc);
+        DateTimeOffset start = DateTimeOffset.Parse(from);
+
+        DateTimeOffset included = calendar.GetNextIncludedTimeUtc(start);
+
+        included.Should().BeAfter(start, reason);
+        calendar.IsTimeIncluded(included).Should().BeTrue($"{reason}: the instant the search lands on is included");
+
+        // Sample the stepped-over range rather than walk it: an excluded day is 86,400 instants, and
+        // each IsTimeIncluded is a cron computation.
+        TimeSpan range = included - start;
+        TimeSpan step = range.TotalSeconds > 2000 ? TimeSpan.FromTicks(range.Ticks / 2000) : TimeSpan.FromSeconds(1);
+
+        for (DateTimeOffset excluded = start.AddMilliseconds(1); excluded < included; excluded += step)
+        {
+            calendar.IsTimeIncluded(excluded).Should().BeFalse(
+                $"{reason}: {excluded:O} lies before the first included instant {included:O}, so it must be excluded");
+        }
+
+        calendar.IsTimeIncluded(included.AddMilliseconds(-1)).Should().BeFalse(
+            $"{reason}: the millisecond before the first included instant is still excluded");
     }
 
     protected override CronCalendar GetTargetObject()
