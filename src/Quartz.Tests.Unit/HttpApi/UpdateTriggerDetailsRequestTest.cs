@@ -216,6 +216,19 @@ public class UpdateTriggerDetailsRequestTest
         Read(json).AsUpdate().JobDataMap.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// A body that clears the job data reads and writes back as itself, so the emptying survives a hop
+    /// through a proxy that reads the contract and re-emits it.
+    /// </summary>
+    [Test]
+    public void ClearingTheJobDataMapSurvivesBeingWrittenBack()
+    {
+        UpdateTriggerDetailsRequest request = Read("""{"jobDataMap":null}""");
+
+        JsonSerializer.Serialize(request, wireOptions).Should().Be("""{"jobDataMap":null}""");
+        request.AsUpdate().JobDataMap.Should().BeEmpty("clearing the map is setting it to an empty one");
+    }
+
     [Test]
     public void AnUpdateThatSetsNothingIsAnEmptyBody()
     {
