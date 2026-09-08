@@ -259,7 +259,12 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                 drain.CancelAfter(drainTimeout);
             }
 
-            await ThrowIfAnEarlierRestartIsStillFinishing(unit, drainTimeout, drain.Token).ConfigureAwait(false);
+            // Read before the abandoned generation is let go of. An attempt whose drain gave up shut a
+            // running scheduler down, and the attempt that finishes the job should leave the name the way
+            // it found it rather than in standby because the first one already did the shutting down.
+            bool abandonedWasRunning = unit.Abandoned?.WasRunning == true;
+
+            await ThrowIfAnEarlierRestartIsStillFinishing(unit, drainTimeout, drain.Token, cancellationToken).ConfigureAwait(false);
 
             // May be null, and that is not a failure: the scheduler was shut down by hand, by the host,
             // or by a restart whose drain gave up, and there is simply nothing to stop before the next
@@ -272,8 +277,6 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
             {
                 if (live is not null)
                 {
-                    // Read before the shutdown, because a shut-down scheduler reports Shutdown and would
-                    // make every restart leave the next generation in standby.
                     ThrowIfTheRecipeSuppliesAnInstance(unit.Name, live, next);
                 }
             }
@@ -283,7 +286,7 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                 throw;
             }
 
-            bool wasRunning = live?.Facade.Status == SchedulerStatus.Running;
+            bool wasRunning = live?.WasRunning ?? abandonedWasRunning;
             string? previousInstanceId = live?.Facade.SchedulerInstanceId;
 
             if (live is not null)
@@ -742,39 +745,56 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     }
 
     /// <summary>
-    /// Refuses a restart while the generation an earlier one abandoned is still running its jobs.
+    /// Waits out the generation an earlier restart abandoned, and refuses this one if its work is still
+    /// not finished.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The count is read first because it cannot block: a pool that implements only the default
-    /// <see cref="IThreadPool.Drain" /> falls back to a wait that cannot be given up on, and asking it
-    /// while jobs are plainly still running would hang the retry rather than refuse it. Once the count
-    /// reads zero the pool is asked anyway, because the count goes to zero before the last job's store
-    /// update is issued and it is precisely that write the next generation must not start beside.
+    /// The pool is asked rather than the count of executing jobs, because a job leaves that count before
+    /// its job store update is issued and it is exactly that write the next generation must not start
+    /// beside. The built-in pool answers truthfully after a drain it gave up on — the completion the
+    /// first wait watched is the one this watches — which is what makes a retry a plain second call
+    /// rather than something that has to keep state of its own.
     /// </para>
     /// <para>
-    /// The built-in pool answers this truthfully after a drain it gave up on, which is what makes a
-    /// retry a plain second call rather than something that has to keep state of its own.
+    /// Bounded twice over: by the deadline on the token, which a pool of ours honours, and by
+    /// <see cref="TaskAsyncEnumerableExtensions" />' wait on the same token, because
+    /// <see cref="IThreadPool.Drain" />'s default implementation ends in a wait that cannot be given up
+    /// on. A pool that never overrode it would otherwise hang the retry rather than refuse it, and the
+    /// caller would have no way to learn that it had.
     /// </para>
     /// </remarks>
     private async ValueTask ThrowIfAnEarlierRestartIsStillFinishing(
         RuntimeUnit unit,
         TimeSpan drainTimeout,
-        CancellationToken drainToken)
+        CancellationToken drainToken,
+        CancellationToken cancellationToken)
     {
         if (unit.Abandoned is not { } abandoned)
         {
             return;
         }
 
-        if (abandoned.JobsExecuting == 0 && await abandoned.Pool.Drain(drainToken).ConfigureAwait(false))
+        bool finished;
+        try
         {
-            await Release(abandoned.Owned).ConfigureAwait(false);
-            unit.Abandoned = null;
-            return;
+            finished = await abandoned.Pool.Drain(drainToken).AsTask().WaitAsync(drainToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The deadline, not the caller. Reported as an answer for the same reason Drain reports it
+            // as one: giving up on the wait is a fact about the old generation, not a failure of this
+            // call, and the caller is the one that knows what to do about it.
+            finished = false;
         }
 
-        throw Abandoned(unit.Name, abandoned.JobsExecuting, drainTimeout);
+        if (!finished)
+        {
+            throw Abandoned(unit.Name, abandoned.JobsExecuting, drainTimeout);
+        }
+
+        await Release(abandoned.Owned).ConfigureAwait(false);
+        unit.Abandoned = null;
     }
 
     /// <summary>
@@ -954,10 +974,16 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     /// status, name its parts, shut it down, ask whether its work finished, and release what it owns.
     /// The last of those is the only place the two differ, and <see cref="Owned" /> is where the
     /// difference is written down.
+    /// <para>
+    /// <c>WasRunning</c> is captured rather than read on demand, because it is the question a shutdown
+    /// destroys the answer to: after it, every scheduler reports <see cref="SchedulerStatus.Shutdown" />,
+    /// and the next generation's starting policy defaults to what this one was doing.
+    /// </para>
     /// </remarks>
     private sealed record Incumbent(
         IScheduler Facade,
         QuartzScheduler? Core,
+        bool WasRunning,
         IJobStore Store,
         IThreadPool Pool,
         IJobFactory? JobFactory,
@@ -996,6 +1022,7 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
                 return new Incumbent(
                     tenant,
                     generation.QuartzScheduler,
+                    tenant.Status == SchedulerStatus.Running,
                     generation.StoreInstance,
                     generation.PoolInstance,
                     generation.Part<IJobFactory>(),
@@ -1017,6 +1044,7 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
             return new Incumbent(
                 registered,
                 (registered as StdScheduler)?.scheduler,
+                registered.Status == SchedulerStatus.Running,
                 JobStores.Unwrap(resources.JobStore),
                 resources.ThreadPool,
                 application.GetSchedulerService<IJobFactory>(unit.Name),
