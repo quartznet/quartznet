@@ -47,17 +47,38 @@ internal sealed class QuartzHealthCheck : IHealthCheck
             ? serviceProvider.GetService<ISchedulerFactory>()
             : serviceProvider.GetKeyedService<ISchedulerFactory>(target.SchedulerName);
 
-        if (schedulerFactory is null)
+        if (schedulerFactory is not null)
         {
-            return HealthCheckResult.Unhealthy(target.SchedulerName is null
-                ? "There is no default Quartz scheduler in this container, so this health check has nothing to "
-                  + "report on. Every scheduler here is registered under a name; call AddQuartzHealthChecks() on "
-                  + "the scheduler's own builder, or AddQuartz(schedulerName) on the health checks builder, so the "
-                  + "check knows which one it is for."
-                : $"There is no Quartz scheduler named '{target.SchedulerName}' in this container.");
+            return await Evaluate(
+                await schedulerFactory.GetScheduler(cancellationToken).ConfigureAwait(false),
+                cancellationToken).ConfigureAwait(false);
         }
 
-        IScheduler scheduler = await schedulerFactory.GetScheduler(cancellationToken).ConfigureAwait(false);
+        // No registration under that name — but a scheduler added at runtime has none and is still a
+        // scheduler this container is running. It is in the repository, which is where everything else
+        // that reads across both kinds looks, so the check does too. A health check is registered at
+        // build time, when a tenant that has not been added yet has no name for anybody to write, so
+        // AddQuartz("acme") on the health-checks builder is how a check waits for one.
+        if (target.SchedulerName is not null
+            && serviceProvider.GetService<Extensibility.ISchedulerRepository>()?.Lookup(target.SchedulerName) is { } tenant)
+        {
+            return await Evaluate(tenant, cancellationToken).ConfigureAwait(false);
+        }
+
+        return HealthCheckResult.Unhealthy(target.SchedulerName is null
+            ? "There is no default Quartz scheduler in this container, so this health check has nothing to "
+              + "report on. Every scheduler here is registered under a name; call AddQuartzHealthChecks() on "
+              + "the scheduler's own builder, or AddQuartz(schedulerName) on the health checks builder, so the "
+              + "check knows which one it is for."
+            : $"There is no Quartz scheduler named '{target.SchedulerName}' in this container, nor a scheduler "
+              + "added at runtime under that name.");
+    }
+
+    /// <summary>
+    /// Reports on a scheduler, however it was found.
+    /// </summary>
+    private async ValueTask<HealthCheckResult> Evaluate(IScheduler scheduler, CancellationToken cancellationToken)
+    {
         string name = scheduler.SchedulerName;
 
         switch (scheduler.Status)

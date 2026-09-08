@@ -64,7 +64,72 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             return await GetScheduler(cancellationToken).ConfigureAwait(false);
         }
 
-        return schedulerRepository.Lookup(schedulerName);
+        if (schedulerRepository.Lookup(schedulerName) is { } live)
+        {
+            return live;
+        }
+
+        return await Build(schedulerName, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Builds another of this container's registered schedulers, for a name nothing has built yet.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Asking for this factory's own scheduler by name has always been able to create it; asking for a
+    /// sibling's could not, so under a multi-tenant registration the answer to "give me tenant acme"
+    /// depended on whether somebody else had happened to resolve it first. The registration is what says
+    /// the scheduler exists, so it is what this reads: a registered name is built through that
+    /// scheduler's own factory, which binds it into the repository the same way it would have been bound
+    /// had the container resolved it.
+    /// </para>
+    /// <para>
+    /// A scheduler <em>added at runtime</em> is deliberately not built here. It is in the repository
+    /// while it is alive, so the branch above answers for it; once it has been shut down there is
+    /// nothing to rebuild from — its parts are one set of instances in a container of their own, which
+    /// is the whole reason it was built that way. It is <see cref="ISchedulerRuntime" />'s to add again.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<IScheduler?> Build(string schedulerName, CancellationToken cancellationToken)
+    {
+        SchedulerNameRegistry? registry = serviceProvider.GetService<SchedulerNameRegistry>();
+        if (registry is null)
+        {
+            return null;
+        }
+
+        if (registry.Find(schedulerName) is { } registered)
+        {
+            return await Factory(registered).GetScheduler(cancellationToken).ConfigureAwait(false);
+        }
+
+        // The default scheduler is the one registration whose name is not the name it was registered
+        // under - it has no service key at all - so its options are read to learn it.
+        if (registry.HasDefaultScheduler
+            && string.Equals(
+                serviceProvider.GetSchedulerOptions<QuartzSchedulerOptions>(null).InstanceName,
+                schedulerName,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return await Factory(null).GetScheduler(cancellationToken).ConfigureAwait(false);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Another scheduler's factory, by the key its parts are registered under — <see langword="null" />
+    /// for the default scheduler, whose registrations are the unkeyed ones.
+    /// </summary>
+    /// <remarks>
+    /// Asked for by key rather than by type, because this factory's own provider is scoped to this
+    /// scheduler: a plain <c>GetRequiredService&lt;ISchedulerFactory&gt;()</c> here would answer with
+    /// this one, whichever scheduler was asked for.
+    /// </remarks>
+    private ISchedulerFactory Factory(string? key)
+    {
+        return serviceProvider.GetRequiredKeyedService<ISchedulerFactory>(key);
     }
 
     public async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)

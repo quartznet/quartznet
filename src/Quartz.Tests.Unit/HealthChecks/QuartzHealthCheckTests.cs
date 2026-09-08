@@ -278,6 +278,62 @@ public class QuartzHealthCheckTests
         A.CallTo(() => scheduler.QueryClusterNodes(A<CancellationToken>._)).MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// A health check registered for a name the container does not hold reports on the scheduler added
+    /// under that name at runtime.
+    /// </summary>
+    /// <remarks>
+    /// A health check is registered while the container is being built, when a tenant that has not been
+    /// added yet has no keyed <c>ISchedulerFactory</c> for the check to resolve — and never will have
+    /// one. The repository is where everything else that reads across both kinds of scheduler looks, so
+    /// the check looks there too rather than reporting a running tenant as absent.
+    /// </remarks>
+    [Test]
+    public async Task AHealthCheckForARuntimeTenantFindsItInTheRepository()
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz("core", q => q.UseInMemoryStore());
+        services.AddHealthChecks().AddQuartz("acme");
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        provider.GetKeyedService<ISchedulerFactory>("acme").Should().BeNull(
+            "the premise of the test is a name the container never registered");
+
+        IScheduler tenant = await provider.GetRequiredService<ISchedulerRuntime>().Add("acme", q => q.UseInMemoryStore());
+
+        try
+        {
+            HealthReportEntry result = await Run(provider, "quartz-scheduler-acme");
+
+            result.Status.Should().Be(HealthStatus.Healthy);
+            result.Description.Should().Contain("acme");
+        }
+        finally
+        {
+            await tenant.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task AHealthCheckForANameNothingHoldsSaysBothPlacesItLooked()
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz("core", q => q.UseInMemoryStore());
+        services.AddHealthChecks().AddQuartz("acme");
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        HealthReportEntry result = await Run(provider, "quartz-scheduler-acme");
+
+        result.Status.Should().Be(HealthStatus.Unhealthy);
+        result.Description.Should().Contain("added at runtime under that name",
+            "the message names both places the check looked, so an operator can tell 'never registered' "
+            + "from 'registered and not built'");
+    }
+
     private static async Task<HealthReportEntry> Check(
         SchedulerStatus status,
         SchedulerException? storeFailure = null,

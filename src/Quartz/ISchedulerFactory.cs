@@ -54,9 +54,15 @@ public interface ISchedulerFactory
     /// <para>
     /// This is a lookup, which is why it is named for one and why it is nullable while
     /// <see cref="GetScheduler(CancellationToken)" /> is not: any name other than this factory's own
-    /// belongs to a scheduler somebody else registered, and it may not exist. Asking for this factory's
-    /// own scheduler by name builds it on demand, exactly as <see cref="GetScheduler(CancellationToken)" />
-    /// would; the comparison ignores case, because that is how the repository indexes names.
+    /// belongs to a scheduler somebody else registered, and it may not exist. The comparison ignores
+    /// case, because that is how the repository indexes names.
+    /// </para>
+    /// <para>
+    /// A name the container <em>registered</em> is built on demand, whether or not it is this factory's
+    /// own: what makes a scheduler exist is the registration, so "give me tenant acme" does not depend
+    /// on whether something else happened to resolve it first. A name added at runtime with
+    /// <see cref="ISchedulerRuntime" /> is found while it is alive and not rebuilt after it has been
+    /// shut down — it has no registration to be rebuilt from, and adding it again is that interface's.
     /// </para>
     /// <para>
     /// Only schedulers from the same container are visible. A scheduler built by a
