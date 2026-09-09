@@ -112,6 +112,42 @@ public sealed class QuartzHttpApiOptions
     /// </remarks>
     public string? SchedulerAuthorizationPolicy { get; set; }
 
+    /// <summary>
+    /// Which job types a request may name. Null — the default — allows every one, which is what every
+    /// earlier release did.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the narrowing for the thing <c>SECURITY.md</c> says is not a vulnerability: a caller who
+    /// passes authorization can schedule any type that implements <see cref="IJob" />, and
+    /// <c>Quartz.Jobs</c>' <c>NativeJob</c> implements it and starts the executable its job data names.
+    /// An operator who knows which jobs their deployment schedules can say so here, and the surface stops
+    /// being "any <see cref="IJob" /> on the probing path".
+    /// </para>
+    /// <para>
+    /// The predicate is given the job type <em>name</em>, exactly as the request spelled it. Nothing
+    /// resolves it first, and that is the point: a name arriving over HTTP is data until the side that
+    /// runs the job loads it, and resolving one here to compare types would be the assembly probe this
+    /// API exists not to make. So match on the string — a set of names, a namespace prefix — and allow
+    /// for the fact that one type has more than one spelling: <c>Acme.Jobs.Nightly, Acme.Jobs</c> and the
+    /// same name with <c>Version</c>, <c>Culture</c> and <c>PublicKeyToken</c> after it are both it. A
+    /// predicate matching a bare <c>StartsWith</c> on the namespace covers every spelling at once.
+    /// </para>
+    /// <para>
+    /// A refused name is <c>403</c> with problem details naming the type the request asked for and
+    /// nothing else — it is the caller's own input, so it gives nothing away. The refusal is per request
+    /// rather than per job, so <c>schedule-jobs</c> stores none of its batch when one job in it names a
+    /// type that is not allowed.
+    /// </para>
+    /// <para>
+    /// It is one predicate for the process, like everything else here, so it cannot say that one
+    /// scheduler may run a type another may not; the request's scheduler name is not passed to it. The
+    /// dashboard's <c>QuartzDashboardOptions.IsJobTypeAllowed</c> is the same setting for that surface,
+    /// and the two are configured separately because a deployment can map one of them and not the other.
+    /// </para>
+    /// </remarks>
+    public Func<string, bool>? IsJobTypeAllowed { get; set; }
+
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
 
     /// <summary>

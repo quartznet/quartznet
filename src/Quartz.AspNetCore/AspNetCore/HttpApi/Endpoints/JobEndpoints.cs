@@ -76,7 +76,8 @@ internal static class JobEndpoints
             .WithQuartzDefaults(nameof(DeleteJobsByGroup), "Delete jobs by group");
 
         yield return builder.MapPost(patternPrefix, AddJob)
-            .WithQuartzDefaults(nameof(AddJob), "Add job");
+            .WithQuartzDefaults(nameof(AddJob), "Add job")
+            .ProducesJobTypeRefusal(options);
 
         yield return builder.MapGet(patternPrefix + "/groups", QueryJobGroups)
             .WithQuartzDefaults(nameof(QueryJobGroups), "Query job groups");
@@ -493,7 +494,7 @@ internal static class JobEndpoints
         EndpointHelper.AssertIsValid(request);
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            IJobDetail newJob = RequestedJobDetail.From(request.Job);
+            IJobDetail newJob = RequestedJobDetail.From(request.Job, endpointHelper.IsJobTypeAllowed);
             var options = new AddJobOptions
             {
                 Replace = request.Replace,

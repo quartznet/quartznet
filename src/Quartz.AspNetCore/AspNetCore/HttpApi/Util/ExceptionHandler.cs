@@ -32,6 +32,11 @@ internal sealed class ExceptionHandler
     /// member was missing from one that never carries it.
     /// </para>
     /// <para>
+    /// A <c>403</c> is neither: it is a decision, not a failure, so it names no exception type — the
+    /// refusal <see cref="SchedulerAuthorization" /> writes in front of an endpoint carries none either,
+    /// and the two are the same answer to the caller whichever of them produced it.
+    /// </para>
+    /// <para>
     /// A <c>500</c> is a fault the caller cannot act on, and naming the type that produced it buys
     /// nothing it does not also leak. Nor does its message: an <c>ArgumentOutOfRangeException</c> from a
     /// driver names the server, the database, the login or the constraint as readily as it names a
@@ -60,6 +65,14 @@ internal sealed class ExceptionHandler
         {
             logger.NotFound(exception);
             return Problem(exception, GetMessageWithInnerExceptionMessage(exception), StatusCodes.Status404NotFound);
+        }
+
+        if (exception is ForbiddenException)
+        {
+            // Warning, not Debug: the caller got the request right and a rule the operator configured
+            // said no, which is the one thing on this path an operator asked to be told about.
+            logger.Forbidden(exception.Message);
+            return Problem(exception, exception.Message, StatusCodes.Status403Forbidden, nameTheExceptionType: false);
         }
 
         if (exception is SchedulerException)

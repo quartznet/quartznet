@@ -33,9 +33,11 @@ report of one will be closed with a link back to this section — so please save
   names, so an authorized caller scheduling it is the API working as designed. `Quartz.Plugins` depends
   on `Quartz.Jobs`, so that type can be on the probing path of an application whose project file never
   names it. A job stored by one node is likewise resolved and constructed on **every** node that reads
-  it, which is what a clustered scheduler is for. `QuartzDashboardOptions.ReadOnly` and the two
-  `SchedulerAuthorizationPolicy` settings are the only narrowings on offer. Authorize these surfaces the
-  way you would authorize a shell —
+  it, which is what a clustered scheduler is for. Four narrowings are on offer, and no more:
+  `QuartzDashboardOptions.ReadOnly`, the two `SchedulerAuthorizationPolicy` settings, and — from 4.1 —
+  `QuartzHttpApiOptions.IsJobTypeAllowed` and its dashboard twin, a predicate over the job type *name* a
+  request carries, which is what turns "any `IJob` on the probing path" into a list an operator wrote.
+  Authorize these surfaces the way you would authorize a shell —
   [HTTP API](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/http-api.html#production-hardening),
   [dashboard](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html#production-hardening).
 - **There is no rate limiting on any Quartz surface**, by design. ASP.NET Core's own rate limiter

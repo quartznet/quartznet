@@ -1031,6 +1031,108 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// <see cref="QuartzDashboardOptions.IsJobTypeAllowed" /> is enforced where every other rule the
+    /// dashboard has is: in the client, so it holds for whatever calls it rather than for the pages alone.
+    /// </summary>
+    /// <remarks>
+    /// The refused name is <c>Quartz.Jobs.NativeJob</c> — the type <c>SECURITY.md</c> names as the reason
+    /// a visitor who may write is trusted with the host — and neither it nor its package is referenced
+    /// here, so nothing could have resolved it on the way to being refused.
+    /// </remarks>
+    [Test]
+    public async Task ARefusedJobTypeIsNotAddedAndNotScheduled()
+    {
+        IScheduler scheduler = await CreateScheduler("JobTypeAllowListTest");
+        try
+        {
+            string name = scheduler.SchedulerName;
+            QuartzDashboardOptions options = new()
+            {
+                IsJobTypeAllowed = jobType => jobType.StartsWith("Quartz.Tests.AspNetCore.", StringComparison.Ordinal)
+            };
+
+            InProcessQuartzApiClient client = CreateClient(
+                scheduler, TestData.Dashboard.HistoryStore(), options, new TestSchedulerAuthorizationService());
+
+            Func<Task> add = async () => await client.AddJob(name, new AddJobRequest(JobDto("refused", NativeJobTypeName), Replace: true, StoreNonDurableWhileAwaitingScheduling: null));
+            await add.Should().ThrowAsync<UnauthorizedAccessException>(
+                "a refused job type is the same kind of answer as a scheduler the visitor may not see")
+                .WithMessage("*" + NativeJobTypeName + "*");
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("refused-trigger", "group1")
+                .ForJob("refused", "group1")
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .Build();
+
+            Func<Task> schedule = async () => await client.ScheduleJob(name, new ScheduleJobRequest(trigger, JobDto("refused", NativeJobTypeName)));
+            await schedule.Should().ThrowAsync<UnauthorizedAccessException>(
+                "both writes that name a job type go through the same builder, which is why the rule is there");
+
+            (await scheduler.Exists(new JobKey("refused", "group1"))).Should().BeFalse(
+                "the refusal comes before anything is built, so the scheduler never hears about it");
+
+            await client.AddJob(name, new AddJobRequest(JobDto("allowed", typeof(NoOpJob).AssemblyQualifiedName!), Replace: true, StoreNonDurableWhileAwaitingScheduling: null));
+            (await scheduler.Exists(new JobKey("allowed", "group1"))).Should().BeTrue(
+                "an allow-list decides which names are accepted and changes nothing about the one that is");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// The default. Every dashboard that never set the option names whatever it always named.
+    /// </summary>
+    [Test]
+    public async Task WithNoAllowListAnyJobTypeIsAccepted()
+    {
+        IScheduler scheduler = await CreateScheduler("NoJobTypeAllowListTest");
+        try
+        {
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            await client.AddJob(
+                scheduler.SchedulerName,
+                new AddJobRequest(JobDto("native", NativeJobTypeName), Replace: true, StoreNonDurableWhileAwaitingScheduling: null));
+
+            IJobDetail? stored = await scheduler.GetJobDetail(new JobKey("native", "group1"));
+            stored.Should().NotBeNull();
+            stored!.JobType.FullName.Should().Be(NativeJobTypeName,
+                "null allows every type, it is the default, and the name is still stored unresolved");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// The type <c>SECURITY.md</c> names, and one this project cannot resolve — asserted rather than
+    /// assumed, because the tests above mean less if it can.
+    /// </summary>
+    private const string NativeJobTypeName = "Quartz.Jobs.NativeJob, Quartz.Jobs";
+
+    [Test]
+    public void TheRefusedJobTypeNameIsGenuinelyUnresolvable()
+    {
+        Type.GetType(NativeJobTypeName, throwOnError: false).Should().BeNull();
+    }
+
+    private static JobDetailDto JobDto(string name, string jobTypeName) => new(
+        Name: name,
+        Group: "group1",
+        JobType: jobTypeName,
+        Description: null,
+        Durable: true,
+        RequestsRecovery: false,
+        // Stated, so that nothing has a reason to go looking for the type to deduce them.
+        ConcurrentExecutionDisallowed: false,
+        PersistJobDataAfterExecution: false,
+        JobDataMap: new JobDataMap());
+
     private static async Task<IScheduler> CreateScheduler(string testName)
     {
         NameValueCollection properties = new()

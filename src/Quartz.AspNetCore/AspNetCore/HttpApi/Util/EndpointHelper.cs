@@ -28,7 +28,18 @@ internal sealed class EndpointHelper
     {
         this.jsonOptions = jsonOptions;
         maxPageSize = apiOptions.Value.MaxPageSize;
+        IsJobTypeAllowed = apiOptions.Value.IsJobTypeAllowed;
     }
+
+    /// <summary>
+    /// <see cref="QuartzHttpApiOptions.IsJobTypeAllowed" />, read once and handed to
+    /// <see cref="RequestedJobDetail.From" /> by the three endpoints that take a job in their body.
+    /// </summary>
+    /// <remarks>
+    /// Read here for the reason <see cref="QuartzHttpApiOptions.MaxPageSize" /> is: the endpoints already
+    /// receive this type, so an option one of them needs costs no second injection.
+    /// </remarks>
+    public Func<string, bool>? IsJobTypeAllowed { get; }
 
     /// <summary>
     /// The one place the API turns a response into JSON. Generic because every caller already has the

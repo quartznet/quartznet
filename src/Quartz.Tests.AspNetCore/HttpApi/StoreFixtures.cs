@@ -87,6 +87,35 @@ public sealed class SchedulerAuthorizationEndpointPersistentStoreTest : Schedule
 }
 
 /// <summary>
+/// Every assertion <see cref="JobTypeAllowListTest" /> makes, over <c>RAMJobStore</c>.
+/// </summary>
+[NonParallelizable]
+public sealed class JobTypeAllowListInMemoryStoreTest : JobTypeAllowListTest;
+
+/// <summary>
+/// The same assertions, over a persistent store.
+/// </summary>
+/// <remarks>
+/// "Nothing was stored" is what a refusal has to mean, and the store that has to mean it in production is
+/// the one a deployment with an HTTP API in front of it runs. It is the same tests: what changes is what
+/// is underneath them.
+/// </remarks>
+[NonParallelizable]
+public sealed class JobTypeAllowListPersistentStoreTest : JobTypeAllowListTest
+{
+    private readonly SqliteStores stores = new("api-job-type-allow-list");
+    private int scheduler;
+
+    protected override void ConfigureStore(IQuartzBuilder builder)
+    {
+        stores.Configure(builder, $"scheduler-{Interlocked.Increment(ref scheduler)}");
+    }
+
+    [OneTimeTearDown]
+    public void DeleteDatabases() => stores.Dispose();
+}
+
+/// <summary>
 /// Every assertion <see cref="TenantSchedulerRoutingTest" /> makes, over <c>RAMJobStore</c>.
 /// </summary>
 [NonParallelizable]

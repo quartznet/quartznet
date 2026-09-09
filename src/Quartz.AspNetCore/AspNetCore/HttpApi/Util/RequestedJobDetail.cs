@@ -36,6 +36,11 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// the same <see cref="BadHttpRequestException" /> a validation failure raises.
 /// </para>
 /// <para>
+/// Being the one place is also what makes <see cref="QuartzHttpApiOptions.IsJobTypeAllowed" />
+/// enforceable: every job type name that arrives on this API arrives here, so an allow-list applied here
+/// covers all three endpoints and cannot be forgotten by a fourth.
+/// </para>
+/// <para>
 /// Gathering the three in one place also gathers what they have in common for trimming:
 /// <see cref="JobDetailDto.AsIJobDetail" /> is <c>[RequiresUnreferencedCode]</c>, because the job type on
 /// the wire is a string, and this type is where that statement stops travelling — the endpoints reach it
@@ -46,8 +51,23 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// </remarks>
 internal static class RequestedJobDetail
 {
-    public static IJobDetail From(JobDetailDto dto)
+    /// <param name="dto">The job the request carried.</param>
+    /// <param name="isJobTypeAllowed">
+    /// <see cref="QuartzHttpApiOptions.IsJobTypeAllowed" />, or null when the deployment allows every
+    /// type. It is asked before the conversion, so a name an operator refused is never turned into
+    /// anything — and it is asked here rather than at the three endpoints, because this is the one place
+    /// a job type name arrives from a request. The name is passed as the request spelled it: this API
+    /// resolves no type name it is handed, which is what the predicate is written against.
+    /// </param>
+    public static IJobDetail From(JobDetailDto dto, Func<string, bool>? isJobTypeAllowed)
     {
+        // A missing or malformed name is a 400 from the conversion below, and stays one: it is a request
+        // to fix rather than a permission to be refused, and the predicate is written for type names.
+        if (isJobTypeAllowed is not null && dto.JobType is { Length: > 0 } jobType && !isJobTypeAllowed(jobType))
+        {
+            throw ForbiddenException.ForJobType(jobType);
+        }
+
         var (jobDetail, errorReason) = dto.AsIJobDetail();
         return jobDetail ?? throw new BadHttpRequestException("Request validation failed: " + errorReason);
     }

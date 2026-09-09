@@ -590,11 +590,27 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new TriggerKey(key.Name, key.Group);
     }
 
-    private static IJobDetail BuildJobDetail(JobDetailDto source)
+    /// <summary>
+    /// The one place a job type name given to this client becomes a job, and therefore the one place
+    /// <see cref="QuartzDashboardOptions.IsJobTypeAllowed" /> is enforced.
+    /// </summary>
+    /// <remarks>
+    /// An instance method for that: it needs the options, which is also what keeps the refusal in the
+    /// client rather than in whatever called it — the same reason <see cref="EnsureWritable" /> is here.
+    /// </remarks>
+    private IJobDetail BuildJobDetail(JobDetailDto source)
     {
         if (string.IsNullOrWhiteSpace(source.JobType))
         {
             throw new InvalidOperationException("Job type is required.");
+        }
+
+        // Asked before anything is built, and asked with the name as it was written: the dashboard does
+        // not resolve a job type name it is handed, so a predicate over the string is all there is to ask.
+        Func<string, bool>? isJobTypeAllowed = options.Value.IsJobTypeAllowed;
+        if (isJobTypeAllowed is not null && !isJobTypeAllowed(source.JobType))
+        {
+            throw new UnauthorizedAccessException($"Job type '{source.JobType}' is not allowed.");
         }
 
         JobDataMap jobDataMap = source.JobDataMap ?? new JobDataMap();
