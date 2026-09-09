@@ -128,7 +128,7 @@ pages and not the hub — and in the integrated overload would reach the host ap
 
 ## Options
 
-`AddQuartzDashboard(options => …)` takes six settings, and none of them points the dashboard at a
+`AddQuartzDashboard(options => …)` takes seven settings, and none of them points the dashboard at a
 scheduler — **the dashboard renders the schedulers registered in its own application**, reading them
 through the `IQuartzApiClient` in the container rather than over a network.
 
@@ -138,6 +138,7 @@ through the `IQuartzApiClient` in the container rather than over a network.
 | `AuthorizationPolicy` | none | The policy applied to the dashboard pages, hub, circuit and assets — see [Policy and role-based authorization](#policy-and-role-based-authorization) |
 | `SchedulerAuthorizationPolicy` | none | The policy each *scheduler* is held to, evaluated against that scheduler — see [One scheduler at a time](#one-scheduler-at-a-time) |
 | `ReadOnly` | `false` | Hides every mutating action: no pause, resume, trigger-now, reschedule, unschedule or delete |
+| `IsJobTypeAllowed` | none | A predicate over the job type *name* a call names; a name it refuses raises `UnauthorizedAccessException` — see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
 | `HistoryRetention` | 24 hours | How far back the dashboard's own history store keeps executions and misfires — see [Execution history and misfires](#execution-history-and-misfires) |
 | `HistoryMaxEntriesPerScheduler` | `2000` | How many executions and how many misfires it keeps per scheduler, oldest dropped first |
 
@@ -565,6 +566,40 @@ schedulers* each of those shows; it does not narrow what may be done to the ones
 Note what read-only is not: it hides the dashboard's controls and does nothing to the HTTP API, which is
 mapped and authorized separately. A dashboard in read-only mode over an API that anyone may post to is
 read-only in appearance alone.
+
+### Narrowing which job types may be named
+
+`ReadOnly` refuses every write; `IsJobTypeAllowed` refuses one kind of them. Adding or scheduling a job
+through the dashboard's `IQuartzApiClient` names the job's type as a string, so a visitor who may write can
+name any type that implements `IJob` — and with `Quartz.Jobs` on the probing path that includes
+`NativeJob`, which starts the executable its job data names:
+
+<!-- snippet: sample_dashboard_job_type_allow_list -->
+```csharp
+services.AddQuartzDashboard(options =>
+{
+    // The predicate sees the job type name as it was written, so a namespace prefix covers
+    // every spelling of the same type. The HTTP API takes the same predicate under
+    // QuartzHttpApiOptions.IsJobTypeAllowed; the two surfaces are configured separately.
+    options.IsJobTypeAllowed = jobType => jobType.StartsWith("Acme.Jobs.", StringComparison.Ordinal);
+});
+```
+<!-- endSnippet -->
+
+A refused name raises `UnauthorizedAccessException`, the way a scheduler the visitor fails
+`SchedulerAuthorizationPolicy` for does. It is enforced in the client rather than in the pages, for the
+reason `ReadOnly` is: the client is the one place every call goes through, so the rule holds wherever the
+call was made from.
+
+The predicate is given the *name*, as it was written — nothing resolves it first, because the dashboard
+stores a job type name unresolved for the same reason the HTTP API does. Match on the string, and prefer a
+namespace prefix to a set of exact names: `Acme.Jobs.Nightly, Acme.Jobs` and the same name carrying
+`Version`, `Culture` and `PublicKeyToken` are both the same type.
+
+It says nothing about the HTTP API, which is mapped and configured separately;
+`QuartzHttpApiOptions.IsJobTypeAllowed` is the same setting
+[for that surface](http-api.md#narrowing-which-job-types-may-be-named), and a deployment that serves both
+sets both.
 
 ### Browser security headers are the host's
 

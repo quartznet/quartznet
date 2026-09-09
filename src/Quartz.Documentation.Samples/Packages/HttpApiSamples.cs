@@ -48,6 +48,21 @@ public static class HttpApiSamples
         #endregion
     }
 
+    public static void JobTypeAllowList(WebApplicationBuilder builder)
+    {
+        #region sample_httpapi_job_type_allow_list
+
+        builder.Services.AddQuartzHttpApi(options =>
+        {
+            // The predicate sees the job type name exactly as the request spelled it. A namespace
+            // prefix therefore covers every spelling of the same type - with or without the
+            // assembly's version, culture and public key token.
+            options.IsJobTypeAllowed = jobType => jobType.StartsWith("Acme.Jobs.", StringComparison.Ordinal);
+        });
+
+        #endregion
+    }
+
     public static async ValueTask ClientAgainstTheApi(System.Net.Http.HttpClient httpClient)
     {
         #region sample_httpapi_client

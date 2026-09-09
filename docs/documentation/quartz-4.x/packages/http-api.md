@@ -704,6 +704,7 @@ next scheduling evaluation.
 | `IncludeStackTraceInProblemDetails` | `false` | Adds `Quartz-ExceptionStackTrace` to RFC 7807 error payloads, and puts a `500`'s real message back in `detail` |
 | `MaxPageSize` | `1000` | The most items one paged request may return; `0` leaves them unbounded — see [Listing endpoints are paged](#listing-endpoints-are-paged) |
 | `SchedulerAuthorizationPolicy` | none | The policy every route that names a scheduler is held to, evaluated against that scheduler — see [Authorizing per scheduler](#authorizing-per-scheduler) |
+| `IsJobTypeAllowed` | none | A predicate over the job type *name* a request carries; a name it refuses is `403` — see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
 
 There is one set of these per process, not one per scheduler: `ApiPath` describes the endpoints, and
 every scheduler is reached under it. Calling `services.AddQuartzHttpApi(configure)` twice therefore
@@ -727,6 +728,47 @@ same resource, so one handler answers for both. The worked example, with the han
 Setting it in a container with no authorization services fails at startup. The check is authorization and
 never authentication: an anonymous caller gets whatever the policy says, which is a `403` when it refuses,
 so keep `RequireAuthorization()` on the mapped group if they should be challenged with a `401` first.
+
+### Narrowing which job types may be named
+
+Three endpoints take a job in their body — add-job, schedule and schedule-multiple — and the job's type is
+a name the request carries. A caller who passes authorization can therefore name any type that implements
+`IJob`, and with `Quartz.Jobs` on the probing path that includes `NativeJob`, which starts the executable
+its job data names. `IsJobTypeAllowed` is where an operator says which names a request may use:
+
+<!-- snippet: sample_httpapi_job_type_allow_list -->
+```csharp
+builder.Services.AddQuartzHttpApi(options =>
+{
+    // The predicate sees the job type name exactly as the request spelled it. A namespace
+    // prefix therefore covers every spelling of the same type - with or without the
+    // assembly's version, culture and public key token.
+    options.IsJobTypeAllowed = jobType => jobType.StartsWith("Acme.Jobs.", StringComparison.Ordinal);
+});
+```
+<!-- endSnippet -->
+
+A name the predicate refuses is answered `403` with problem details whose `detail` names the type the
+request asked for and nothing else — that name is the caller's own input, so repeating it says which job
+was refused without saying anything about what the server has. The refusal is per *request*, so
+`schedule-multiple` stores none of its batch when one job in it names a type that is not allowed, and it is
+recorded as event `9005` at `Warning`.
+
+Three things are worth knowing before writing one:
+
+- **The predicate sees a name, not a `Type`.** Nothing resolves it first, which is the point: a name that
+  arrived over HTTP is data until the side that runs the job loads it, and resolving one here to compare
+  types would be exactly the assembly probe this API avoids ([A job type is a name](#a-job-type-is-a-name-and-its-two-attribute-flags-may-be-absent)).
+- **One type has several spellings.** `Acme.Jobs.Nightly, Acme.Jobs` and the same name carrying `Version`,
+  `Culture` and `PublicKeyToken` both name it, so a set of exact strings is easy to get wrong; a namespace
+  prefix covers them all at once.
+- **A malformed name is still a `400`.** An allow-list narrows what may be named; it does not turn a
+  request the caller should fix into a permission they should ask for.
+
+It is one predicate for the process, like every other setting here, so it cannot say that one scheduler
+may run a type another may not — the scheduler's name is not passed to it. `QuartzDashboardOptions.IsJobTypeAllowed`
+is the same setting for the [dashboard](dashboard.md#narrowing-which-job-types-may-be-named), configured
+separately because a deployment can map one surface and not the other.
 
 ## Calling it from .NET
 
@@ -785,14 +827,17 @@ that remains is over the payload rather than over the contract.
   nothing, but `AllowAnonymous()` is a way to say nothing that startup accepts — do not reach for it to
   make the message go away
 - Do not expose either this or the [dashboard](dashboard.md) to a network you would not hand a shell on:
-  a job's type is a string the request names, and `Quartz.Jobs` puts `NativeJob` within reach of it
+  a job's type is a string the request names, and `Quartz.Jobs` puts `NativeJob` within reach of it.
+  `IsJobTypeAllowed` narrows *which* names a request may use — see
+  [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) — and is worth setting
+  wherever the jobs a deployment schedules are known ahead of time
 - Keep `IncludeStackTraceInProblemDetails` disabled in production — it returns the stack trace *and* a
   `500`'s real message
 - Restrict mutating operations (schedule, delete, pause/resume, shutdown) to trusted operator roles.
   Quartz has no per-operation permission model to do it with: **a caller who passes authorization is
   trusted with the whole API**, down to reading every job's data map. `SchedulerAuthorizationPolicy`
-  narrows *which schedulers* a caller reaches and nothing else, so anything finer belongs in the policy
-  or in a gateway in front of this
+  narrows *which schedulers* a caller reaches and `IsJobTypeAllowed` narrows *which job types* they may
+  name; anything finer than those two belongs in the policy or in a gateway in front of this
 - Leave `MaxPageSize` set. One request cannot then materialize an unbounded result
 - In clustered setups, treat API calls as scheduler control operations that affect cluster-wide behavior
 - There is **no rate limiting** on this surface. ASP.NET Core's own rate limiter middleware applies to it

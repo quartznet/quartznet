@@ -335,6 +335,7 @@ matching on its text is not.
 | 9002 | Debug | `Quartz.AspNetCore` | `"NotFoundException thrown"` |
 | 9003 | Warning | `Quartz.AspNetCore` | `"SchedulerException thrown when handling api request to url {Url}"` |
 | 9004 | Error | `Quartz.AspNetCore` | `"Exception thrown when handling api request to url {Url}"` |
+| 9005 | Warning | `Quartz.AspNetCore` | `"Api request refused: {Reason}"` |
 | 9100 | Information | `Quartz.Dashboard` | `"Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome}"` |
 | 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason}"` |
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |

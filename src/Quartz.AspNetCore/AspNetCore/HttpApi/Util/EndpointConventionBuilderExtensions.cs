@@ -28,6 +28,26 @@ internal static class EndpointConventionBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Declares the <c>403</c> a job type <see cref="QuartzHttpApiOptions.IsJobTypeAllowed" /> refuses
+    /// produces, on the three endpoints that take a job in their body.
+    /// </summary>
+    /// <remarks>
+    /// Only where one can be refused, which is why it is not part of <see cref="WithQuartzDefaults" />:
+    /// a described response that cannot occur is a described response a client writes a branch for. It is
+    /// the rule <see cref="SchedulerAuthorization" /> follows for its own <c>403</c>, which is added to a
+    /// route only when a policy is configured and only when the route names a scheduler.
+    /// </remarks>
+    public static RouteHandlerBuilder ProducesJobTypeRefusal(this RouteHandlerBuilder builder, QuartzHttpApiOptions options)
+    {
+        if (options.IsJobTypeAllowed is not null)
+        {
+            builder.ProducesProblem(StatusCodes.Status403Forbidden);
+        }
+
+        return builder;
+    }
+
     private static async Task ExceptionHandlingWrapper(HttpContext context, RequestDelegate next)
     {
         try

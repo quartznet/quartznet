@@ -33,9 +33,9 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// <c>LogEventCatalogTest</c> in <c>Quartz.Tests.AspNetCore</c> makes a change to one a reviewed diff.
 /// </para>
 /// <para>
-/// All five are raised while turning an exception into the problem details a request is answered with,
-/// and the level says who has to act: a request the caller got wrong is Debug, a scheduler that
-/// refused is Warning, and anything else is a server fault at Error.
+/// All six are raised while turning an exception into the problem details a request is answered with,
+/// and the level says who has to act: a request the caller got wrong is Debug, a scheduler or a
+/// configured rule that refused is Warning, and anything else is a server fault at Error.
 /// </para>
 /// </remarks>
 internal static partial class HttpApiLog
@@ -54,4 +54,13 @@ internal static partial class HttpApiLog
 
     [LoggerMessage(EventId = 9004, Level = LogLevel.Error, Message = "Exception thrown when handling api request to url {Url}")]
     public static partial void ExceptionHandlingRequest(this ILogger logger, string url, Exception exception);
+
+    /// <remarks>
+    /// The reason rather than the exception: a refusal is the answer the operator's own configuration
+    /// asked for, and a stack trace of the request pipeline says nothing about it that the reason does
+    /// not. Warning, because an operator who narrowed what may be scheduled wants to see the attempts
+    /// that were turned away.
+    /// </remarks>
+    [LoggerMessage(EventId = 9005, Level = LogLevel.Warning, Message = "Api request refused: {Reason}")]
+    public static partial void Forbidden(this ILogger logger, string reason);
 }

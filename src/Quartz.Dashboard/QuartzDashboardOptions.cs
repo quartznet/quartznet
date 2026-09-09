@@ -82,6 +82,34 @@ public sealed class QuartzDashboardOptions
     public bool ReadOnly { get; set; }
 
     /// <summary>
+    /// Which job types a call through the dashboard's <c>IQuartzApiClient</c> may name. Null — the
+    /// default — allows every one, which is what every earlier release did.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the narrowing for the thing <c>SECURITY.md</c> says is not a vulnerability: a visitor who
+    /// passes authorization can add or schedule a job of any type that implements <see cref="IJob" />,
+    /// and <c>Quartz.Jobs</c>' <c>NativeJob</c> implements it and starts the executable its job data
+    /// names. Where <see cref="ReadOnly" /> refuses every mutation, this refuses one kind of them.
+    /// </para>
+    /// <para>
+    /// The predicate is given the job type <em>name</em>, as it was written, and nothing resolves it
+    /// first — the dashboard stores a job type name unresolved for the same reason the HTTP API does, so
+    /// that a name arriving from outside never makes this process probe its assemblies. Match on the
+    /// string, and remember that one type has more than one spelling: <c>Acme.Jobs.Nightly, Acme.Jobs</c>
+    /// and the same name carrying <c>Version</c>, <c>Culture</c> and <c>PublicKeyToken</c> are both it.
+    /// </para>
+    /// <para>
+    /// A refused name raises <see cref="UnauthorizedAccessException" />, the way a scheduler the visitor
+    /// fails <see cref="SchedulerAuthorizationPolicy" /> for does. Enforced by the client rather than by
+    /// the pages, so it holds wherever the call is made from. It says nothing about the HTTP API, which
+    /// is mapped and configured separately: <c>QuartzHttpApiOptions.IsJobTypeAllowed</c> is the same
+    /// setting for that surface.
+    /// </para>
+    /// </remarks>
+    public Func<string, bool>? IsJobTypeAllowed { get; set; }
+
+    /// <summary>
     /// How far back the dashboard's own history store keeps executions and misfires. Defaults to 24 hours.
     /// </summary>
     /// <remarks>

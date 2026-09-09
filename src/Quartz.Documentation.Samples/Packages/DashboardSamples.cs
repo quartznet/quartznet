@@ -104,6 +104,21 @@ public static class DashboardSamples
         #endregion
     }
 
+    public static void JobTypeAllowList(IServiceCollection services)
+    {
+        #region sample_dashboard_job_type_allow_list
+
+        services.AddQuartzDashboard(options =>
+        {
+            // The predicate sees the job type name as it was written, so a namespace prefix covers
+            // every spelling of the same type. The HTTP API takes the same predicate under
+            // QuartzHttpApiOptions.IsJobTypeAllowed; the two surfaces are configured separately.
+            options.IsJobTypeAllowed = jobType => jobType.StartsWith("Acme.Jobs.", StringComparison.Ordinal);
+        });
+
+        #endregion
+    }
+
     public static void AuthorizationPolicy(WebApplicationBuilder builder)
     {
         #region sample_dashboard_authorization_policy

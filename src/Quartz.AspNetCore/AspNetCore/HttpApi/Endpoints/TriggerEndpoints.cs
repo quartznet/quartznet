@@ -65,10 +65,12 @@ internal static class TriggerEndpoints
             .WithQuartzDefaults(nameof(IsTriggerGroupPaused), "Is trigger group paused");
 
         yield return builder.MapPost(patternPrefix + "/schedule", ScheduleJob)
-            .WithQuartzDefaults(nameof(ScheduleJob), "Schedule job");
+            .WithQuartzDefaults(nameof(ScheduleJob), "Schedule job")
+            .ProducesJobTypeRefusal(options);
 
         yield return builder.MapPost(patternPrefix + "/schedule-multiple", ScheduleJobs)
-            .WithQuartzDefaults(nameof(ScheduleJobs), "Schedule jobs");
+            .WithQuartzDefaults(nameof(ScheduleJobs), "Schedule jobs")
+            .ProducesJobTypeRefusal(options);
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/unschedule", UnscheduleJob)
             .WithQuartzDefaults(nameof(UnscheduleJob), "Unschedule job");
@@ -418,7 +420,7 @@ internal static class TriggerEndpoints
                 return new ScheduleJobResponse(firstFireTime);
             }
 
-            IJobDetail jobDetail = RequestedJobDetail.From(request.Job);
+            IJobDetail jobDetail = RequestedJobDetail.From(request.Job, endpointHelper.IsJobTypeAllowed);
             var firstFireTimeWithJob = await scheduler.ScheduleJob(jobDetail, request.Trigger, options, cancellationToken).ConfigureAwait(false);
             return new ScheduleJobResponse(firstFireTimeWithJob);
         });
@@ -436,10 +438,12 @@ internal static class TriggerEndpoints
         EndpointHelper.AssertIsValid(request);
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
         {
+            // Every job is converted before any of them is stored, so one refused type name refuses the
+            // whole batch rather than half of it.
             var jobsAndTriggers = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
             foreach (var (jobDetailDto, triggers) in request.JobsAndTriggers)
             {
-                IJobDetail jobDetail = RequestedJobDetail.From(jobDetailDto);
+                IJobDetail jobDetail = RequestedJobDetail.From(jobDetailDto, endpointHelper.IsJobTypeAllowed);
                 jobsAndTriggers.Add(jobDetail, triggers);
             }
 
