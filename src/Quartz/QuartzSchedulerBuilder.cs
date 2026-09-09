@@ -276,19 +276,42 @@ public sealed class QuartzSchedulerBuilder
     /// </para>
     /// <para>
     /// Skipped as soon as a logging provider has been registered on
-    /// <see cref="IQuartzBuilder.Services" />, because then the caller has said where logging goes and
-    /// the container's own factory is the answer.
+    /// <see cref="IQuartzBuilder.Services" /> <em>and</em> there is a factory to consume it, because
+    /// then the caller has said where logging goes and the container's own factory is the answer. Both
+    /// halves are checked because Quartz registers no <see cref="ILoggerFactory" /> any more (#3730): a
+    /// provider on its own used to be enough, since <c>AddQuartz</c> called <c>AddLogging()</c> and so
+    /// there was always something to consume it, and now it is a half-configured container that would
+    /// write nowhere. That is refused out loud rather than bridged in silence, because a caller who
+    /// registered a provider has said where the lines go and sending them somewhere else is the one
+    /// answer that helps nobody.
     /// </para>
     /// </remarks>
+    /// <exception cref="SchedulerConfigException">
+    /// Logging providers are registered with no <see cref="ILoggerFactory" /> to consume them.
+    /// </exception>
     private void BridgeLoggingToLogProvider()
     {
-        if (services.Any(static descriptor => descriptor.ServiceType == typeof(ILoggerProvider)))
+        bool providers = services.Any(static descriptor => descriptor.ServiceType == typeof(ILoggerProvider));
+        bool factory = services.Any(static descriptor => descriptor.ServiceType == typeof(ILoggerFactory));
+
+        if (providers)
         {
-            return;
+            if (factory)
+            {
+                return;
+            }
+
+            throw new SchedulerConfigException(
+                "Logging providers are registered on the builder's Services, but no ILoggerFactory is, "
+                + "so nothing would read them. Quartz registers no factory of its own — that would beat "
+                + "an application's own AddLogging and drop its providers. Register the provider through "
+                + "logging configuration instead: Services.AddLogging(logging => logging.AddProvider(…)), "
+                + "which brings a factory with it. To log through LogProvider.SetLogProvider instead, "
+                + "register no provider here at all.");
         }
 
         // Replace rather than TryAdd: a caller who called AddLogging() without adding a provider has
-        // already registered the factory this stands in for.
+        // registered a factory with nothing behind it, which is the thing this stands in for.
         services.Replace(ServiceDescriptor.Singleton<ILoggerFactory>(LogProviderLoggerFactory.Instance));
     }
 }
