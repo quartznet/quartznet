@@ -122,6 +122,23 @@ public interface IScheduler : IAsyncDisposable
     string SchedulerInstanceId { get; }
 
     /// <summary>
+    /// The instance Id of the <see cref="IScheduler" />, asked asynchronously.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The asynchronous twin of <see cref="SchedulerInstanceId" />, and the member to call from a
+    /// request path. A scheduler in this process answers with the same string either way. A proxy for a
+    /// scheduler in another process — <c>HttpScheduler</c> — has to ask it, and the property can only do
+    /// that by blocking the calling thread for the round trip; this one awaits it.
+    /// </para>
+    /// <para>
+    /// A default implementation answers <see cref="SchedulerInstanceId" />, so a scheduler written
+    /// outside this repository needs no change and reports what the property does.
+    /// </para>
+    /// </remarks>
+    ValueTask<string> GetSchedulerInstanceId(CancellationToken cancellationToken = default) => new(SchedulerInstanceId);
+
+    /// <summary>
     /// The clock this scheduler reads: what it calls "now" when it decides a trigger is due, and what a
     /// trigger built for it should compute its fire times from.
     /// </summary>
@@ -160,6 +177,27 @@ public interface IScheduler : IAsyncDisposable
     /// <seealso cref="Standby" />
     /// <seealso cref="Shutdown(bool, CancellationToken)" />
     SchedulerStatus Status { get; }
+
+    /// <summary>
+    /// Where the <see cref="IScheduler" /> is in its lifecycle, asked asynchronously.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The asynchronous twin of <see cref="Status" />, and the member to call from a request path. A
+    /// scheduler in this process answers with the same value either way, and the answer is as
+    /// instantaneous a snapshot here as it is there. A proxy for a scheduler in another process —
+    /// <c>HttpScheduler</c> — has to ask it, and the property can only do that by blocking the calling
+    /// thread for the round trip; this one awaits it.
+    /// </para>
+    /// <para>
+    /// A default implementation answers <see cref="Status" />, so a scheduler written outside this
+    /// repository needs no change and reports what the property does.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="Start" />
+    /// <seealso cref="Standby" />
+    /// <seealso cref="Shutdown(bool, CancellationToken)" />
+    ValueTask<SchedulerStatus> GetStatus(CancellationToken cancellationToken = default) => new(Status);
 
     /// <summary>
     /// Get a <see cref="SchedulerMetadata" /> object describing the settings

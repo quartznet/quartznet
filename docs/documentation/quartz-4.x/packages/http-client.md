@@ -235,8 +235,23 @@ thread for the round trip. `SchedulerName` is the one that is free — the clien
 `Status` is one request for the whole lifecycle, where the `IsStarted` / `InStandbyMode` / `IsShutdown`
 it replaces were three requests to the same endpoint, each reading a different field of the same answer.
 
-Do not touch them on a request path. `GetMetadata()` is the async member that answers most of the same
-questions in one call:
+Do not touch the two properties on a request path. Both have an asynchronous twin on `IScheduler` —
+`GetStatus()` and `GetSchedulerInstanceId()` — which ask the same question in the same one request and
+await the answer instead of holding a thread while it arrives. These are the members to call:
+
+<!-- snippet: sample_httpclient_status -->
+```csharp
+SchedulerStatus status = await scheduler.GetStatus(cancellationToken);
+string instanceId = await scheduler.GetSchedulerInstanceId(cancellationToken);
+```
+<!-- endSnippet -->
+
+They are default interface members that answer the property, so a scheduler in this process reports
+exactly what it did before and pays nothing for the indirection; only a proxy overrides them. The
+properties stay, and stay blocking — `IScheduler` declares them, and a property cannot be awaited.
+
+`GetMetadata()` answers both and the rest of the scheduler's details in one request, so prefer it where
+more than the status is wanted:
 
 <!-- snippet: sample_httpclient_metadata -->
 ```csharp

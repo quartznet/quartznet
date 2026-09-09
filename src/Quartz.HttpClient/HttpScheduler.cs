@@ -107,10 +107,24 @@ public sealed class HttpScheduler : IScheduler
     /// <inheritdoc />
     /// <remarks>
     /// One round trip, and a blocking one: <see cref="IScheduler" /> declares this a property, and a
-    /// property cannot be awaited. Prefer <see cref="GetMetadata" /> where the calling code can await —
-    /// it answers this and the rest of the scheduler's details in the same request.
+    /// property cannot be awaited. Prefer <see cref="GetSchedulerInstanceId" />, which asks the same
+    /// question in the same one request without holding a thread while it is answered, or
+    /// <see cref="GetMetadata" /> where the whole of the scheduler's details is wanted.
     /// </remarks>
     public string SchedulerInstanceId => GetSchedulerDetailsSync().SchedulerInstanceId;
+
+    /// <summary>
+    /// The remote scheduler's instance Id, read over the network without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// One round trip, the same one <see cref="SchedulerInstanceId" /> makes and the same one
+    /// <see cref="GetMetadata" /> makes. This is the member to call from a request path.
+    /// </remarks>
+    public async ValueTask<string> GetSchedulerInstanceId(CancellationToken cancellationToken = default)
+    {
+        var schedulerDto = await GetSchedulerDetails(cancellationToken).ConfigureAwait(false);
+        return schedulerDto.SchedulerInstanceId;
+    }
 
     /// <summary>
     /// The system clock, which is the only honest answer a proxy can give.
@@ -130,9 +144,25 @@ public sealed class HttpScheduler : IScheduler
     /// </summary>
     /// <remarks>
     /// One round trip, where the three booleans this replaces were three - each asking the same endpoint
-    /// the same question and reading a different field of the answer.
+    /// the same question and reading a different field of the answer. A blocking round trip, though:
+    /// prefer <see cref="GetStatus" />, which asks the same question without holding a thread while it
+    /// is answered.
     /// </remarks>
     public SchedulerStatus Status => GetSchedulerDetailsSync().Status;
+
+    /// <summary>
+    /// The remote scheduler's lifecycle state, read over the network without blocking the calling
+    /// thread.
+    /// </summary>
+    /// <remarks>
+    /// One round trip, the same one <see cref="Status" /> makes. This is the member to call from a
+    /// request path.
+    /// </remarks>
+    public async ValueTask<SchedulerStatus> GetStatus(CancellationToken cancellationToken = default)
+    {
+        var schedulerDto = await GetSchedulerDetails(cancellationToken).ConfigureAwait(false);
+        return schedulerDto.Status;
+    }
 
     /// <summary>
     /// Not supported. The context belongs to the scheduler's own process: it is a live, writable

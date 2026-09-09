@@ -50,6 +50,8 @@ expressions it reads differently.
 | `ISchedulerRuntime.Restart` | `Restart(schedulerName, options, cancellationToken)` shuts a scheduler down and builds another from the recipe that built it — for a tenant this runtime added, and for one `AddQuartz(name, …)` registered, whose recipe is now recorded at registration. Nothing is restarted in place: the name is the only thing the two schedulers share |
 | `SchedulerRestartOptions` | `DrainTimeout` — how long to wait for the outgoing scheduler's jobs, thirty seconds by default — and `Start`, which defaults to "as the old one was". A `readonly record struct` whose `default` is a restart that changes nothing but the instances |
 | `SchedulerRestartException` | Thrown when the outgoing scheduler's jobs outlived the drain. Carries `SchedulerName`, `JobsStillExecuting` and `DrainTimeout`. The old scheduler is down and the new one was never built; ask again once the work has finished |
+| `IScheduler.GetStatus` | The asynchronous twin of `Status`, as a **default interface member** answering the property — so an `IScheduler` implemented outside this repository compiles unchanged and reports what it already reported. `HttpScheduler` overrides it: the same one round trip the property makes, awaited rather than blocked on. See [Blocking members](packages/http-client.md#blocking-members) |
+| `IScheduler.GetSchedulerInstanceId` | The asynchronous twin of `SchedulerInstanceId`, likewise a **default interface member** answering the property and likewise overridden by `HttpScheduler`. The two properties stay, and stay blocking over HTTP; these are the members to call on a request path |
 
 Four behaviours changed without a signature changing:
 

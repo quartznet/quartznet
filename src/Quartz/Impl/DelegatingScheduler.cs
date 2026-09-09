@@ -36,6 +36,12 @@ public class DelegatingScheduler : IScheduler
     public virtual string SchedulerInstanceId => scheduler.SchedulerInstanceId;
 
     /// <inheritdoc />
+    public virtual ValueTask<string> GetSchedulerInstanceId(CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetSchedulerInstanceId(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public virtual TimeProvider TimeProvider => scheduler.TimeProvider;
 
     /// <inheritdoc />
@@ -43,6 +49,12 @@ public class DelegatingScheduler : IScheduler
 
     /// <inheritdoc />
     public virtual SchedulerStatus Status => scheduler.Status;
+
+    /// <inheritdoc />
+    public virtual ValueTask<SchedulerStatus> GetStatus(CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetStatus(cancellationToken);
+    }
 
     /// <inheritdoc />
     public virtual ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default)

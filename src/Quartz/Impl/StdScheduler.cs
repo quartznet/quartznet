@@ -58,6 +58,14 @@ internal sealed class StdScheduler : IScheduler
     public string SchedulerInstanceId => scheduler.SchedulerInstanceId;
 
     /// <summary>
+    /// The proxied <see cref="QuartzScheduler" />'s instance Id, which is already in this process.
+    /// </summary>
+    public ValueTask<string> GetSchedulerInstanceId(CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<string>(scheduler.SchedulerInstanceId);
+    }
+
+    /// <summary>
     /// The clock the proxied <see cref="QuartzScheduler" /> was built with.
     /// </summary>
     public TimeProvider TimeProvider => scheduler.resources.TimeProvider;
@@ -100,6 +108,15 @@ internal sealed class StdScheduler : IScheduler
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public SchedulerStatus Status => scheduler.Status;
+
+    /// <summary>
+    /// Reads the same field of the proxied <see cref="QuartzScheduler" /> that <see cref="Status" />
+    /// does, since nothing has to be waited for to answer here.
+    /// </summary>
+    public ValueTask<SchedulerStatus> GetStatus(CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<SchedulerStatus>(scheduler.Status);
+    }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
