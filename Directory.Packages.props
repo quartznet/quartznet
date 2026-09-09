@@ -36,7 +36,6 @@
     -->
     <PackageVersion Include="FSharp.Core" Version="10.1.400" />
     <PackageVersion Include="MELT" Version="1.1.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <!--
       The stable 10.x line. It spent a while on 11.0.0-preview.* - it was moved there while .NET 10 was
@@ -106,7 +105,7 @@
     or the build, ships nowhere, and stays current.
 
     Five projects that ship nothing step over a floor with VersionOverride on their own PackageReference,
-    because Aspire, bunit, Microsoft.AspNetCore.Mvc.Testing, NSwag and the released Quartz.Serialization.Json
+    because Aspire, bunit, NSwag and the released Quartz.Serialization.Json
     3.20.0 each ask for a newer patch than Quartz should demand of anybody. That is the only way to say it:
     moving the floor instead would hand the demand to every consumer. Nothing that ships may do it, which
     PackageDependencyTest holds.
@@ -135,6 +134,14 @@
     gets past both still has to argue with a unit test that names this comment.
   -->
   <ItemGroup Label="Dependency floors">
+    <!--
+      Test-only, and here for the same reason Microsoft.Extensions.Hosting is: it is a member of the
+      lockstep family, and 10.0.12 of it demands 10.0.12 of Configuration.Binder and
+      Configuration.EnvironmentVariables - so a Dependabot bump of this one package raised two floors
+      (#3748), and Dependabot applies a group member's requirement over an ignore entry. At the floor
+      it demands nothing the floors do not already give.
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
