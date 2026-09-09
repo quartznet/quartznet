@@ -9,7 +9,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <summary>
 /// Two clustered nodes carrying every kind of work the scheduler can be asked to do, for half an hour,
 /// with the failures a cluster meets in production induced along the way — and then asked what they
-/// left behind.
+/// left behind. A third scheduler is added to node A's container at run time and rebuilt throughout,
+/// because a tenant that comes and goes is the other thing a long-lived process does to a database.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -51,8 +52,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <c>LAST_CHECKIN_TIME</c>, and a node with a fake clock is a node in a cluster that does not exist.
 /// Where the test needs the past it moves a row, with <c>BackdateCheckin</c>.
 /// </para>
+/// <para>
+/// <b>The runtime tenant is the other half</b>, and lives in <c>ClusteredSoakTestBase.Tenant.cs</c>:
+/// a third scheduler added through <see cref="ISchedulerRuntime" /> to the container node A was built
+/// from, storing under its own <c>SCHED_NAME</c> in the same tables, restarted and recycled throughout
+/// the run. Its assertions are its own; the cluster's are unchanged by its presence, which is itself
+/// something the run is asked to show.
+/// </para>
 /// </remarks>
-public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
+public abstract partial class ClusteredSoakTestBase : ClusteredJobStoreTestBase
 {
     private const string Group = "clusterSoak";
     private const string NodeA = "soak-node-a";
@@ -103,11 +111,18 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
     {
         TimeSpan duration = SoakDuration();
         SoakRecorder.Reset();
+        TenantLedger.Reset();
 
         List<ResourceSample> samples = [];
         List<string> timeline = [];
 
-        IScheduler nodeA = await CreateSoakScheduler(NodeA);
+        // Node A is built into a container this fixture keeps hold of, because the tenant below is added
+        // to that container: ISchedulerRuntime is a service of the container a scheduler was built from,
+        // and the standalone builder hides its own. Node B has no such need and is built the way every
+        // other clustered fixture builds a node — which also keeps one of the two nodes on the path the
+        // earlier soak runs took.
+        SchedulerHost hostA = await CreateSoakHost(NodeA);
+        IScheduler nodeA = hostA.Scheduler;
         IScheduler nodeB = await CreateSoakScheduler(NodeB);
 
         try
@@ -123,6 +138,8 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
 
             Note(timeline, started, $"workload scheduled; running for {duration}");
 
+            await StartTenant(hostA, timeline, started);
+
             // The phases, as fractions of the run, so a five-minute smoke exercises the same sequence a
             // half-hour gate does. Each one is a failure a cluster meets in production.
             DateTimeOffset standbyAt = started + duration * 0.25;
@@ -130,6 +147,14 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
             DateTimeOffset killAt = started + duration * 0.55;
             DateTimeOffset replaceAt = started + duration * 0.70;
             DateTimeOffset deadline = started + duration;
+
+            // The tenant's own phases, expressed the same way: at the half hour this gate runs for they
+            // are a restart every three minutes and a remove-and-add every seven, which is what the gate
+            // asks for, and a shorter run scales both rather than skipping them entirely.
+            TimeSpan restartEvery = duration / 10;
+            TimeSpan recycleEvery = duration * 7 / 30;
+            DateTimeOffset tenantRestartAt = started + restartEvery;
+            DateTimeOffset tenantRecycleAt = started + recycleEvery;
 
             // Long enough that a sample is a settled heap rather than a moment in a collection, short
             // enough that a five-minute smoke still produces a series to read a trend off.
@@ -192,6 +217,24 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
                     Note(timeline, now, $"'{NodeB}' replaced and rejoined the cluster");
                 }
 
+                // Its own chain, because the tenant's life is independent of the cluster's failures: it
+                // is a scheduler beside them rather than one of them, and a run that only rebuilt it
+                // while nothing else was happening would be the easy half of the question.
+                if (now >= tenantRecycleAt)
+                {
+                    await RebuildTenant(timeline, TenantRebuildKind.Recycle);
+
+                    // Both clocks. A recycle is a rebuild too, so restarting a moment after one would
+                    // measure the same thing twice and shorten the interval the gate asked for.
+                    tenantRecycleAt = DateTimeOffset.UtcNow + recycleEvery;
+                    tenantRestartAt = DateTimeOffset.UtcNow + restartEvery;
+                }
+                else if (now >= tenantRestartAt)
+                {
+                    await RebuildTenant(timeline, TenantRebuildKind.Restart);
+                    tenantRestartAt = DateTimeOffset.UtcNow + restartEvery;
+                }
+
                 if (now >= sampleAt)
                 {
                     samples.Add(ResourceSample.Take(now - started));
@@ -206,6 +249,10 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
         }
         finally
         {
+            // The tenant first, so that its own shutdown is not racing node A's — and so that a failure
+            // in it cannot leave the cluster running, which the catch inside StopTenant is there for.
+            await StopTenant(timeline);
+
             // Waiting for the jobs is the point rather than politeness: the "nothing left behind"
             // assertions below are about a cluster that finished its work, not one that was cut off
             // mid-firing.
@@ -215,10 +262,13 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
                 await nodeB.Shutdown(waitForJobsToComplete: true);
             }
 
+            await hostA.Services.DisposeAsync();
+
             // Here rather than at the end of the run, so that a soak which fell over halfway through
             // still says how far it got and what it had seen. That is most of what a run this long is
             // for, and it is exactly the run that will not reach the end.
             TestContext.Out.WriteLine(Report(timeline, samples, duration));
+            TestContext.Out.WriteLine(TenantReport());
         }
 
         await AssertNothingLeftBehind();
@@ -226,6 +276,10 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
         AssertNoOverlap();
         AssertNoUnobservedFailures();
         AssertResourcesFlat(samples);
+
+        await AssertTenantLeftNothingBehind();
+        AssertTenantKeptItsSchedule();
+        AssertTenantRebuilds();
     }
 
     /// <summary>
@@ -266,14 +320,31 @@ public abstract class ClusteredSoakTestBase : ClusteredJobStoreTestBase
             instanceId,
             checkinIntervalMs: 2000,
             checkinMisfireThresholdMs: 15_000,
-            configure: properties =>
-            {
-                properties["quartz.threadPool.maxConcurrency"] = MaxConcurrency.ToString(CultureInfo.InvariantCulture);
-                properties["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = MaxConcurrency.ToString(CultureInfo.InvariantCulture);
-                properties["quartz.jobStore.misfireThreshold"] =
-                    ((int) MisfireThreshold.TotalMilliseconds).ToString(CultureInfo.InvariantCulture);
-            },
+            configure: ConfigureSoakNode,
             configureBuilder: quartz => quartz.AddJobTimeout());
+    }
+
+    /// <summary>
+    /// The same node, built into a container this fixture keeps — which is what
+    /// <see cref="ISchedulerRuntime" /> is resolved from, and therefore what the runtime tenant is added
+    /// to. Only node A needs it.
+    /// </summary>
+    private Task<SchedulerHost> CreateSoakHost(string instanceId)
+    {
+        return CreateSchedulerHost(
+            instanceId,
+            checkinIntervalMs: 2000,
+            checkinMisfireThresholdMs: 15_000,
+            configure: ConfigureSoakNode,
+            configureBuilder: quartz => quartz.AddJobTimeout());
+    }
+
+    private static void ConfigureSoakNode(NameValueCollection properties)
+    {
+        properties["quartz.threadPool.maxConcurrency"] = MaxConcurrency.ToString(CultureInfo.InvariantCulture);
+        properties["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = MaxConcurrency.ToString(CultureInfo.InvariantCulture);
+        properties["quartz.jobStore.misfireThreshold"] =
+            ((int) MisfireThreshold.TotalMilliseconds).ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>
