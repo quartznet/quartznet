@@ -176,6 +176,7 @@ internal static class JsonSchedulingHelper
             var calendarName = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.CalendarName)]);
             var executionGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ExecutionGroup)]);
             var retryPolicy = ParseRetryPolicy(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.RetryPolicy)]), name);
+            var preferredNode = SchedulingFileValues.ReadPreferredNode(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.PreferredNode)]), $"JSON trigger '{name}'");
             var priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             var startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             var startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
@@ -251,6 +252,7 @@ internal static class JsonSchedulingHelper
                 .WithCalendarName(calendarName)
                 .WithExecutionGroup(executionGroup)
                 .WithRetryPolicy(retryPolicy)
+                .WithPreferredNode(preferredNode)
                 .WithSchedule(schedule)
                 .Build();
 
@@ -585,16 +587,6 @@ internal static class JsonSchedulingHelper
     /// </summary>
     private static RetryPolicy? ParseRetryPolicy(string? value, string triggerName)
     {
-        if (value is null)
-        {
-            return null;
-        }
-
-        if (!RetryPolicy.TryParse(value, out RetryPolicy? policy))
-        {
-            throw new SchedulerConfigException($"JSON trigger '{triggerName}': '{value}' is not a retry policy.");
-        }
-
-        return policy;
+        return SchedulingFileValues.ReadRetryPolicy(value, $"JSON trigger '{triggerName}'");
     }
 }

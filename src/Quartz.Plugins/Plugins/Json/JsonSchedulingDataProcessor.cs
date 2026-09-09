@@ -337,6 +337,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
                 .WithCalendarName(NormalizeEmpty(triggerDef.CalendarName))
                 .WithExecutionGroup(NormalizeEmpty(triggerDef.ExecutionGroup))
                 .WithRetryPolicy(ParseRetryPolicy(NormalizeEmpty(triggerDef.RetryPolicy), triggerName))
+                .WithPreferredNode(SchedulingFileValues.ReadPreferredNode(NormalizeEmpty(triggerDef.PreferredNode), $"Trigger '{triggerName}'"))
                 .WithSchedule(schedule)
                 .Build();
 
@@ -487,16 +488,6 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
     /// </summary>
     private static RetryPolicy? ParseRetryPolicy(string? value, string triggerName)
     {
-        if (value is null)
-        {
-            return null;
-        }
-
-        if (!RetryPolicy.TryParse(value, out RetryPolicy? policy))
-        {
-            throw new SchedulerConfigException($"Trigger '{triggerName}': '{value}' is not a retry policy.");
-        }
-
-        return policy;
+        return SchedulingFileValues.ReadRetryPolicy(value, $"Trigger '{triggerName}'");
     }
 }

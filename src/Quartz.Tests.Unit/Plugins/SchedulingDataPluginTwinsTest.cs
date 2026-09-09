@@ -2,13 +2,17 @@
 
 using System.Collections.Specialized;
 using System.Reflection;
+using System.Text;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.Configuration;
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Plugins.Json;
 using Quartz.Plugins.Xml;
+using Quartz.Xml;
 
 namespace Quartz.Tests.Unit.Plugin;
 
@@ -86,6 +90,136 @@ public sealed class SchedulingDataPluginTwinsTest
         json.ScanInterval.Should().Be(TimeSpan.FromSeconds(45));
         json.FailOnFileNotFound.Should().BeFalse();
         json.FailOnSchedulingError.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// The two formats declare a trigger's execution group, retry policy and preferred node in the same
+    /// words, and produce the same trigger from them.
+    /// </summary>
+    /// <remarks>
+    /// These three were JSON-only until 4.1 — the XML schema had no element for any of them — so this is
+    /// where the catching-up is held. A parity test is the only thing that keeps two readers of one
+    /// concept honest: each of them alone can be entirely self-consistent and still disagree with the
+    /// other about what <c>*</c> means.
+    /// </remarks>
+    [Test]
+    public async Task BothFormatsDeclareTheSameTriggerSettings()
+    {
+        List<ITrigger> xml = await ReadXml($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+              <schedule>
+                <job>
+                  <name>job1</name>
+                  <job-type>{JobType}</job-type>
+                </job>
+                <trigger>
+                  <cron>
+                    <name>pinned</name>
+                    <job-name>job1</job-name>
+                    <execution-group>batch</execution-group>
+                    <retry-policy>fixed;3;00:00:30</retry-policy>
+                    <preferred-node>production-node-1</preferred-node>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+                <trigger>
+                  <cron>
+                    <name>autoPinned</name>
+                    <job-name>job1</job-name>
+                    <preferred-node>*</preferred-node>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+                <trigger>
+                  <cron>
+                    <name>unpinned</name>
+                    <job-name>job1</job-name>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+              </schedule>
+            </job-scheduling-data>
+            """);
+
+        List<ITrigger> json = ReadJson($$"""
+            {
+              "Schedule": {
+                "Jobs": [{ "Name": "job1", "JobType": "{{JobType}}" }],
+                "Triggers": [
+                  {
+                    "Name": "pinned", "JobName": "job1",
+                    "ExecutionGroup": "batch",
+                    "RetryPolicy": "fixed;3;00:00:30",
+                    "PreferredNode": "production-node-1",
+                    "Cron": { "Expression": "0 0 12 * * ?" }
+                  },
+                  {
+                    "Name": "autoPinned", "JobName": "job1",
+                    "PreferredNode": "*",
+                    "Cron": { "Expression": "0 0 12 * * ?" }
+                  },
+                  {
+                    "Name": "unpinned", "JobName": "job1",
+                    "Cron": { "Expression": "0 0 12 * * ?" }
+                  }
+                ]
+              }
+            }
+            """);
+
+        Settings(xml).Should().Equal(Settings(json),
+            "the two formats are one feature spelled twice, so a trigger declared the same way in each "
+            + "has to come out the same - including what '*' means, which is an automatic pin and not a "
+            + "node named '*'");
+
+        Settings(xml).Should().Equal(
+            [
+                "pinned: group=batch, retry=fixed;3;00:00:30, node=production-node-1, auto=False",
+                "autoPinned: group=, retry=, node=, auto=True",
+                "unpinned: group=, retry=, node=, auto=False",
+            ],
+            "and the settings they agree on are the ones the documents state");
+    }
+
+    private const string JobType = "Quartz.Jobs.NoOpJob, Quartz.Jobs";
+
+    private static List<string> Settings(List<ITrigger> triggers)
+    {
+        return triggers
+            .Select(x => $"{x.Key.Name}: group={x.ExecutionGroup}, retry={x.RetryPolicy}, node={x.PreferredNode.Node}, auto={x.PreferredNode.IsAutomatic}")
+            .ToList();
+    }
+
+    private static async Task<List<ITrigger>> ReadXml(string document)
+    {
+        ExposedXmlProcessor processor = new();
+        await processor.ProcessStream(new MemoryStream(Encoding.UTF8.GetBytes(document)), systemId: null);
+        return processor.Triggers;
+    }
+
+    private static List<ITrigger> ReadJson(string document)
+    {
+        JsonSchedulingDataProcessor processor = new(
+            NullLogger<JsonSchedulingDataProcessor>.Instance,
+            new SimpleTypeLoader(),
+            TimeProvider.System);
+
+        processor.ProcessJsonContent(document);
+        return [.. processor.ParsedTriggers];
+    }
+
+    /// <summary>
+    /// The XML processor keeps what it loaded for its subclasses, which is what the JSON one is.
+    /// </summary>
+    private sealed class ExposedXmlProcessor : XmlSchedulingDataProcessor
+    {
+        public ExposedXmlProcessor()
+            : base(NullLogger<XmlSchedulingDataProcessor>.Instance, new SimpleTypeLoader(), TimeProvider.System)
+        {
+        }
+
+        public List<ITrigger> Triggers => LoadedTriggers;
     }
 
     /// <summary>
