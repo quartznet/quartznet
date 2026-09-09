@@ -581,6 +581,12 @@ internal sealed class QuartzSchedulerThread
                             // will see accurate in-flight counts immediately
                             runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 1, (_, c) => c + 1);
 
+                            // Counted the same way, and for the shutdown's benefit: a firing is in flight
+                            // from here until the run shell's last act, the job store update that
+                            // completes it. A shutdown that is not waiting for its jobs still gives these
+                            // a moment to land, because the store refuses a completion once it has closed.
+                            qs.ExecutionDispatched();
+
                             Func<ValueTask> jobRunner = async () =>
                             {
                                 try
@@ -590,17 +596,21 @@ internal sealed class QuartzSchedulerThread
                                 finally
                                 {
                                     DecrementExecutionGroupCount(normalizedGroup);
+                                    qs.ExecutionSettled();
                                 }
                             };
 
                             // Deliberately not this thread's token: TriggersFired has already committed
                             // this firing to the job store and advanced the trigger, so refusing to dispatch
-                            // now loses the occurrence entirely. Only the pool's own shutdown may say no.
+                            // now loses the occurrence entirely. Only the pool's own shutdown may say no —
+                            // and a shutdown stops this loop before it closes the pool, so that a firing
+                            // this thread has already committed is never one nobody runs (#3746).
                             var threadPoolRunResult = await qsRsrcs.ThreadPool.TryRun(jobRunner, CancellationToken.None).ConfigureAwait(false);
                             if (!threadPoolRunResult)
                             {
-                                // The lambda never ran - decrement the count we pre-incremented
+                                // The lambda never ran - decrement the counts we pre-incremented
                                 DecrementExecutionGroupCount(normalizedGroup);
+                                qs.ExecutionSettled();
 
                                 // Check if the scheduler is being shutdown
                                 if (halted || cancellationTokenSource.Token.IsCancellationRequested)

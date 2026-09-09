@@ -529,8 +529,104 @@ internal sealed class QuartzScheduler
     /// row. Internal because it says something about a shutdown that has already happened, which only
     /// whoever performed it is in a position to ask.
     /// </para>
+    /// <para>
+    /// A shutdown that did not wait answers from the same barrier, over the window it gives dispatched
+    /// executions to settle — so a job that finished within it makes this <see langword="true" /> rather
+    /// than the count of executing jobs deciding, which never covered the store update.
+    /// </para>
     /// </remarks>
     internal bool? RunningWorkDrained { get; private set; }
+
+    /// <summary>
+    /// How long a shutdown that is not waiting for its jobs lets the executions it has already
+    /// dispatched report their completions before the job store is torn down.
+    /// </summary>
+    /// <remarks>
+    /// A store round trip's worth, and no more. The window exists because a completion the store has
+    /// closed to leaves a firing's bookkeeping for somebody else to do — see <see cref="Shutdown" /> —
+    /// and it is short because anything longer would be waiting for the jobs themselves, which is what
+    /// <c>waitForJobsToComplete: true</c> is. Deliberately not configurable: an application that needs
+    /// its executions to finish asks for the wait, and one that needs out now is not made to wait on a
+    /// job by this.
+    /// </remarks>
+    private static readonly TimeSpan DispatchedExecutionSettleWindow = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// The executions this scheduler has handed to the thread pool and that have not finished.
+    /// </summary>
+    /// <remarks>
+    /// "Finished" is the whole of a firing — the job, its listeners, and the job store update that
+    /// completes the trigger — because what the pool is handed is the whole run shell. That is what
+    /// makes this a different question from <see cref="NumberOfJobsExecutingHere" />, which a job leaves
+    /// before its store update is issued. Kept here rather than read off the thread pool because
+    /// <see cref="IThreadPool.Drain" />'s default implementation waits however long the jobs take, and
+    /// an unwaited shutdown must not become a waiting one because of which pool is installed.
+    /// </remarks>
+    private int dispatchedExecutions;
+
+    /// <summary>
+    /// Completed when <see cref="dispatchedExecutions" /> next reaches zero. Only a shutdown that is
+    /// waiting for that ever installs one.
+    /// </summary>
+    private TaskCompletionSource? dispatchedExecutionsSettled;
+
+    /// <summary>
+    /// Counts an execution the scheduler thread is about to hand to the thread pool.
+    /// </summary>
+    internal void ExecutionDispatched()
+    {
+        Interlocked.Increment(ref dispatchedExecutions);
+    }
+
+    /// <summary>
+    /// Counts an execution out again, once everything it does — its job store update included — is done.
+    /// </summary>
+    internal void ExecutionSettled()
+    {
+        if (Interlocked.Decrement(ref dispatchedExecutions) == 0)
+        {
+            Volatile.Read(ref dispatchedExecutionsSettled)?.TrySetResult();
+        }
+    }
+
+    /// <summary>
+    /// Waits out <see cref="DispatchedExecutionSettleWindow" /> for the executions in flight, and says
+    /// whether they finished.
+    /// </summary>
+    /// <remarks>
+    /// Reports rather than throws, exactly as the waiting branch's drain does: the rest of the shutdown
+    /// has to run whether or not the work it gave a moment to took it.
+    /// </remarks>
+    private async ValueTask<bool> SettleDispatchedExecutions(CancellationToken cancellationToken)
+    {
+        if (Volatile.Read(ref dispatchedExecutions) == 0)
+        {
+            return true;
+        }
+
+        TaskCompletionSource settled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Volatile.Write(ref dispatchedExecutionsSettled, settled);
+
+        // Read again now that there is something to complete: an execution that finished between the
+        // check above and the assignment decremented against no source at all, and nothing else would
+        // ever complete this one.
+        if (Volatile.Read(ref dispatchedExecutions) == 0)
+        {
+            settled.TrySetResult();
+        }
+
+        try
+        {
+            await settled.Task
+                .WaitAsync(DispatchedExecutionSettleWindow, resources.TimeProvider, cancellationToken)
+                .ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception e) when (e is TimeoutException or OperationCanceledException)
+        {
+            return false;
+        }
+    }
 
     /// <summary>
     /// Halts the <see cref="QuartzScheduler" />'s firing of <see cref="ITrigger" />s,
@@ -574,7 +670,19 @@ internal sealed class QuartzScheduler
             // neither running nor shut down. The token bounds the wait for running jobs and nothing else.
             await StopFiring(CancellationToken.None).ConfigureAwait(false);
 
-            await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
+            await schedThread.Halt(wait: false).ConfigureAwait(false);
+
+            // The firing loop is brought to a full stop here, before anything it depends on is torn
+            // down, and not — as it used to be — after the thread pool has been closed to new work.
+            // TriggersFired commits a firing to the job store and advances the trigger before the
+            // execution is handed to the pool, so a dispatch the pool refuses in between is an
+            // occurrence that never happens and that nothing afterwards recovers: the trigger has
+            // moved past it, and only a job asking for recovery would ever get it back (#3746). The
+            // wait itself is not new — the same await ran a few lines further down — and it cannot
+            // stall on the pool, since the loop waits for a free thread on its own token, which Halt
+            // has just cancelled. What is new is that a shutdown which does not wait for its jobs now
+            // gets the same guarantee one that does always had through Halt(wait: true).
+            await schedThread.Shutdown().ConfigureAwait(false);
 
             await NotifySchedulerListenersShuttingDown(CancellationToken.None).ConfigureAwait(false);
 
@@ -618,18 +726,24 @@ internal sealed class QuartzScheduler
             }
             else
             {
+                // Not a wait for the jobs — that is what the other branch is for, and this returns the
+                // instant nothing is in flight — but the executions already dispatched are given a short
+                // window to report what they did. A completion issued after the job store has closed is
+                // refused by it: the ADO store answers one that arrives after Shutdown with "JobStore is
+                // shutdown", so a firing that ran to completion is left with its fired-trigger row in
+                // place and, for a DisallowConcurrentExecution job, its trigger BLOCKED — which only a
+                // peer's cluster recovery settles, a check-in timeout later, and which nothing settles at
+                // all outside a cluster until this node next starts (#3746). A job that is genuinely
+                // still working is abandoned exactly as before once the window closes; its residue is
+                // then a peer's to recover, which is the same answer a crashed node gets.
+                bool drained = await SettleDispatchedExecutions(cancellationToken).ConfigureAwait(false);
+                RunningWorkDrained = drained;
+
                 // Loud, because this is a shutdown that abandoned work. The default is 3.x's and stays,
                 // but "the process stopped and four jobs were half-done" is not something to find out
-                // from the absence of a completion. Counted before the pool is shut down, since that is
-                // what empties the list.
+                // from the absence of a completion. Counted after the window rather than before it, so
+                // that it names what was actually abandoned rather than what was merely in flight.
                 int stillExecuting = GetCurrentlyExecutingJobs().Count;
-
-                // The best this branch can say. Nothing was waited for, so "nothing was running when we
-                // looked" is the whole of the evidence — and it is evidence with a known hole in it, since
-                // a job leaves this count before its store update is issued. A caller that needs the
-                // stronger answer asks for the wait.
-                RunningWorkDrained = stillExecuting == 0;
-
                 if (stillExecuting > 0)
                 {
                     logger.ShuttingDownWithJobsStillExecuting(
@@ -638,11 +752,6 @@ internal sealed class QuartzScheduler
 
                 await resources.ThreadPool.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
             }
-
-            // Scheduler thread may have be waiting for the fire time of an acquired
-            // trigger and need time to release the trigger once halted, so make sure
-            // the thread is dead before continuing to shutdown the job store.
-            await schedThread.Shutdown().ConfigureAwait(false);
 
             // Same reasoning as the pool shutdown above: in hosted shutdown the caller's token is
             // the graceful-deadline token, which by design may already have fired while waiting for
