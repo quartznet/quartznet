@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.Diagnostics;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -82,6 +83,36 @@ public sealed class LoggingRegistrationTest
         (await scheduler.GetStatus()).Should().Be(SchedulerStatus.Running,
             "a container that was never told where logging goes is still a container a scheduler builds "
             + "and runs out of - nothing about logging may be a precondition for scheduling");
+    }
+
+    /// <summary>
+    /// (i, continued) A component of your own, built by Quartz in that same container, still gets
+    /// everything its constructor asks for — an <see cref="ILoggerFactory" /> included.
+    /// </summary>
+    /// <remarks>
+    /// It has always been satisfiable, because <c>AddQuartz</c> used to call <c>AddLogging()</c>. Now
+    /// the factory comes from the provider Quartz activates through rather than from a registration, so
+    /// this holds the two together: the ambient bridge arrives, and the keyed parameter beside it still
+    /// resolves the way the container would have resolved it.
+    /// </remarks>
+    [Test]
+    public void AComponentBuiltInThatContainerStillGetsAnILoggerFactory()
+    {
+        ServiceCollection services = new();
+        services.AddKeyedSingleton("audit", new AuditSink());
+        services.AddQuartz(quartz => quartz.UseInstanceIdGenerator<DemandingInstanceIdGenerator>());
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        DemandingInstanceIdGenerator generator = provider.GetRequiredService<IInstanceIdGenerator>()
+            .Should().BeOfType<DemandingInstanceIdGenerator>().Subject;
+
+        generator.LoggerFactory.Should().BeOfType<LogProviderLoggerFactory>(
+            "'you configured no logging, so your component cannot be built' is not an answer, and the "
+            + "ambient bridge is where the rest of Quartz already writes when nothing was configured");
+        generator.Sink.Should().NotBeNull(
+            "and the provider Quartz activates through has to stay an ordinary one for everything else, "
+            + "keyed constructor parameters included");
     }
 
     /// <summary>
@@ -250,6 +281,33 @@ public sealed class LoggingRegistrationTest
 
         await scheduler.Start();
         return scheduler;
+    }
+
+    /// <summary>
+    /// Something for a keyed constructor parameter to be, so that the component below asks the
+    /// activating provider for two different kinds of thing at once.
+    /// </summary>
+    private sealed class AuditSink;
+
+    /// <summary>
+    /// A component of the shape an application writes: it takes a logger factory, and something else
+    /// the container holds under a key.
+    /// </summary>
+    private sealed class DemandingInstanceIdGenerator : IInstanceIdGenerator
+    {
+        public DemandingInstanceIdGenerator(
+            ILoggerFactory loggerFactory,
+            [FromKeyedServices("audit")] AuditSink sink)
+        {
+            LoggerFactory = loggerFactory;
+            Sink = sink;
+        }
+
+        public ILoggerFactory LoggerFactory { get; }
+
+        public AuditSink Sink { get; }
+
+        public ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default) => new("demanding");
     }
 
     /// <summary>
