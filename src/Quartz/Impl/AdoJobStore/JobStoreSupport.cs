@@ -3848,7 +3848,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
         try
         {
-            await Delegate.DeletePausedTriggerGroup(conn, AllGroupsPaused, cancellationToken).ConfigureAwait(false);
+            // Every paused group, not just the all-groups marker: the loop above only visits groups the
+            // trigger table knows about, so a group that was paused while it held no triggers would keep
+            // its row and go on pausing whatever was scheduled into it after a resume-all had resumed
+            // everything. RAMJobStore has always cleared its whole set here.
+            await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
