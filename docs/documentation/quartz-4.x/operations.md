@@ -830,8 +830,41 @@ share of them is one statement: `SelectJobForTrigger` now selects `IS_NONCONCURR
 `IS_UPDATE_DATA`, so that a process without the job's class still reads the job's attribute flags
 (#3705). Rescheduling, editing and deleting a trigger are what reach it, and the soak's workload does
 none of the three — it schedules its triggers once and then runs. The other commit is
-`QuartzHostedService`'s stop path, which the fixture never enters, because it builds each node from
-`QuartzSchedulerBuilder` rather than from a host. The figures above therefore stand for the release.
+`QuartzHostedService`'s stop path, which the fixture never enters, because it builds its nodes into
+containers of its own rather than from a host. The figures above therefore stand for the release.
+
+**A runtime-added tenant was put through the same half hour** — 30 minutes on `b67f0faa9a`, on
+2026-09-09 — because 4.1 is the first release in which a scheduler can arrive after the container was
+built, and nothing had asked what a hundred rebuilds against a real database leave behind. Beside the
+two nodes, a third scheduler was added to node A's container through
+[`ISchedulerRuntime.Add`](multi-tenancy.md), storing under its own `SCHED_NAME` in the same
+tables, with a `[DisallowConcurrentExecution]` job firing every two seconds and an ordinary one every
+second. It was restarted through `ISchedulerRuntime.Restart` with a thirty-second drain every three
+minutes, and removed and added again from the same recipe every seven: twelve rebuilds, thirteen
+generations.
+
+It passed, and the cluster beside it landed firing for firing where the 4.0 runs left it — peak
+observed concurrency **1** over 2,645 firings of the serial job, 890 simple, 591
+daily-time-interval, 444 calendar-interval, 354 cron and 296 recurrence, 534 attempts at the failing
+job of which 356 were the retry policy's, 178 overruns interrupted, and the survivor replaying the
+killed node's one interrupted firing a second after the kill. The tenant's own numbers are the new
+ones. Its ordinary trigger had **1,796 scheduled fire times and fired every one of them exactly
+once**: a rebuild is a gap of under a second, far inside the misfire threshold, so each new
+generation caught the missed occurrences up rather than letting them go, and none was skipped. Its
+serial job's peak observed concurrency was **1** over 898 firings across all thirteen generations —
+`[DisallowConcurrentExecution]` is a claim about the job rather than about the generation running it,
+and the trigger rows carry the block over a rebuild. No drain was abandoned, and every rebuild was
+firing again within 0.9 s against a budget of ten. It ended as the cluster did: nothing `ACQUIRED` or
+`BLOCKED` under either scheduler name, `QRTZ_FIRED_TRIGGERS` empty for both, and a live heap of 5 MB
+behind 629–656 handles across all thirty samples.
+
+One thing the run settled rather than measured: **a non-clustered scheduler's instance id is
+`NON_CLUSTERED` in every generation**, because the id generator is not called for a store that shares
+its database with nobody. So the instance id cannot tell one generation of a restarted tenant from
+the next, and anything that has to correlate a record with the generation that wrote it needs
+something else — the fixture stamps an ordinal into the scheduler's `SchedulerContext` as the recipe
+runs, which says the stronger thing anyway, since the number only advances when the recipe is
+replayed.
 
 The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`; it is opt-in
 (`[Category("LongRunning")]`, `QUARTZ_SOAK_MINUTES`) and is run before a tag rather than in CI.
