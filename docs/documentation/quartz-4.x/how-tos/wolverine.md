@@ -216,11 +216,11 @@ public static void Register(WolverineOptions opts, string cron)
 
 What that wires up is one `SingularAgent` per cluster keeping the *next* occurrence of every schedule
 pre-scheduled as an ordinary scheduled message, so delivery, durability and replay stay the machinery
-Wolverine already had. Every occurrence carries a deterministic deduplication id, `{name}:{occurrence}`,
-so an agent failover that re-publishes one collapses it at consumption rather than running it twice.
-With a relational message store, a `wolverine_recurring_messages` table records which schedule owns
-which pending envelope, the agent periodically confirms that envelope is still sitting in the inbox,
-and a successor agent adopts it instead of publishing a second one.
+Wolverine already had. Every occurrence carries a deterministic deduplication id,
+`{name}:{occurrenceUtc:O}`, so an agent failover that re-publishes one collapses it at consumption
+rather than running it twice. With a relational message store, a `wolverine_recurring_messages` table
+records which schedule owns which pending envelope, the agent periodically confirms that envelope is
+still sitting in the inbox, and a successor agent adopts it instead of publishing a second one.
 
 Three things are worth knowing before relying on it, all of them
 [documented](https://wolverinefx.net/guide/messaging/recurring.html) rather than discovered:
@@ -713,8 +713,8 @@ waits for the next sweep.
   integration, prefer it.
 * **It does not put Quartz's schedule under Wolverine's leader election.** Trigger ownership is the
   Quartz cluster's business, and a persistent store with `UseClustering()` already handles it. The
-  agent in the last-but-one section decides which node *runs a scheduler*, not which node fires a
-  trigger.
+  agent in "Letting Wolverine start the scheduler" decides which node *runs a scheduler*, not which
+  node fires a trigger.
 * **It does not make in-memory scheduling durable.** With the default in-memory store a restart loses
   every pending trigger, exactly as it loses Wolverine's in-memory scheduled envelopes. Use a
   persistent store for anything that must survive.
