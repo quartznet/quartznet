@@ -1222,7 +1222,77 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         {
             Log.WarnException("Database connection Shutdown unsuccessful.", sqle);
         }
+
+        // Last, after the store's own work: a lock handler is entitled to assume the store has stopped
+        // asking for locks by the time it is told to close, and whatever it opened - a Redis multiplexer,
+        // for instance - outlives the scheduler until it is.
+        await ShutdownLockHandler().ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Releases whatever the lock handler opened, and reports rather than propagates a failure.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="ISemaphore" /> says how to take a lock and how to give it back and nothing about
+    /// closing, and it cannot gain a member on this branch: <c>netstandard2.0</c> and <c>net462</c> have
+    /// no default interface members, so anything added here would break every implementation outside
+    /// this repository. A handler that holds something therefore says so the ordinary way, by
+    /// implementing <see cref="IDisposable" /> or <c>IAsyncDisposable</c>, and this is where the store
+    /// honours it.
+    /// </para>
+    /// <para>
+    /// A handler that throws on the way down is logged rather than allowed to abandon the rest of the
+    /// shutdown, which is the same treatment the connection manager above gets: a scheduler stuck
+    /// half-down is worse than a connection that outlives it.
+    /// </para>
+    /// </remarks>
+    private async Task ShutdownLockHandler()
+    {
+        // Null for a store that was never initialized, which a host that failed during startup can
+        // still shut down.
+        ISemaphore lockHandler = LockHandler;
+        if (lockHandler is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await CloseLockHandler(lockHandler).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Log.WarnException($"Lock handler {lockHandler.GetType().Name} failed to shut down, so whatever it opened is still open.", e);
+        }
+    }
+
+#if NET6_0_OR_GREATER
+    /// <summary>
+    /// Closes the handler the way it asked to be closed, preferring the asynchronous form.
+    /// </summary>
+    private static async Task CloseLockHandler(ISemaphore lockHandler)
+    {
+        if (lockHandler is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            return;
+        }
+
+        (lockHandler as IDisposable)?.Dispose();
+    }
+#else
+    /// <summary>
+    /// Closes the handler. <c>IAsyncDisposable</c> is not in the <c>netstandard2.0</c> or <c>net462</c>
+    /// surface this assembly compiles against, so downlevel there is only the synchronous form — which
+    /// is why <c>RedisSemaphore</c> implements both.
+    /// </summary>
+    private static Task CloseLockHandler(ISemaphore lockHandler)
+    {
+        (lockHandler as IDisposable)?.Dispose();
+        return Task.CompletedTask;
+    }
+#endif
 
     /// <summary>
     /// Indicates whether this job store supports persistence.

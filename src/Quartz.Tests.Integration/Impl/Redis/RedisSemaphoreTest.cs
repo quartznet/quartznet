@@ -310,4 +310,40 @@ public class RedisSemaphoreTest
             await semaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess);
         }
     }
+
+    /// <summary>
+    /// The handler closes the multiplexer it opened. Before #3639 nothing did, so every host that ever
+    /// built and shut down a scheduler left a live Redis connection and its heartbeat behind — once per
+    /// scheduler, for the life of the process.
+    /// </summary>
+    /// <remarks>
+    /// A real server rather than a substitute, because the assertion is that the connection is actually
+    /// gone; <c>Quartz.Tests.Unit</c>'s <c>RedisSemaphoreShutdownTest</c> is where the branches are
+    /// covered.
+    /// </remarks>
+    [Test]
+    public async Task AShutdownClosesTheConnectionTheHandlerOpened()
+    {
+        RedisSemaphore closing = new RedisSemaphore
+        {
+            RedisConfiguration = RedisTestEnvironment.ConnectionString,
+            SchedName = "TestScheduler",
+            KeyPrefix = "quartz:test:lock:"
+        };
+
+        Guid requestorId = Guid.NewGuid();
+        await closing.ObtainLock(requestorId, null, JobStoreSupport.LockTriggerAccess);
+        await closing.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess);
+
+        IConnectionMultiplexer opened = closing.Connection;
+        opened.Should().NotBeNull("the handler opens its multiplexer on the first lock and keeps it");
+        opened.IsConnected.Should().BeTrue();
+
+        await closing.DisposeAsync();
+
+        closing.Connection.Should().BeNull("the handler has let go of what it closed");
+        opened.IsConnected.Should().BeFalse(
+            "a scheduler that has shut down owns no Redis connection, and an open one goes on "
+            + "heartbeating for the life of the process");
+    }
 }
