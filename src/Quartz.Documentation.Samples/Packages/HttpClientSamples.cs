@@ -112,6 +112,16 @@ public static class HttpClientSamples
         #endregion
     }
 
+    public static async ValueTask StatusWithoutBlocking(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        #region sample_httpclient_status
+
+        SchedulerStatus status = await scheduler.GetStatus(cancellationToken);
+        string instanceId = await scheduler.GetSchedulerInstanceId(cancellationToken);
+
+        #endregion
+    }
+
     public static async ValueTask QueryTriggers(IScheduler scheduler, CancellationToken cancellationToken)
     {
         #region sample_httpclient_query_triggers

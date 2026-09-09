@@ -149,6 +149,19 @@ internal sealed class DeferredScheduler : IScheduler
     public string SchedulerInstanceId => Resolved.SchedulerInstanceId;
 
     /// <summary>
+    /// The instance Id of the scheduler this handle points at, building it first if nothing has yet.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Resolve" /> rather than <see cref="Resolved" />: this member can wait for a scheduler
+    /// to be built, so it answers where the property would have to refuse.
+    /// </remarks>
+    public async ValueTask<string> GetSchedulerInstanceId(CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.GetSchedulerInstanceId(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// The built scheduler's clock, or the system clock while there is no scheduler yet.
     /// </summary>
     /// <remarks>
@@ -162,6 +175,20 @@ internal sealed class DeferredScheduler : IScheduler
     public SchedulerContext Context => Resolved.Context;
 
     public SchedulerStatus Status => Resolved.Status;
+
+    /// <summary>
+    /// Where the scheduler this handle points at is in its lifecycle, building it first if nothing has
+    /// yet.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Resolve" /> rather than <see cref="Resolved" />: this member can wait for a scheduler
+    /// to be built, so it answers where the property would have to refuse.
+    /// </remarks>
+    public async ValueTask<SchedulerStatus> GetStatus(CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.GetStatus(cancellationToken).ConfigureAwait(false);
+    }
 
     public IListenerManager ListenerManager => Resolved.ListenerManager;
 

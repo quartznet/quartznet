@@ -28,6 +28,65 @@ public class HttpSchedulerStatusTest
     }
 
     [Test]
+    public async Task GetStatusIsTheSameRoundTripWithoutBlockingAThread()
+    {
+        CountingHandler handler = new(Body(SchedulerStatus.Standby));
+        HttpScheduler scheduler = new("TestScheduler", new HttpClient(handler) { BaseAddress = new Uri("http://quartz.test/") });
+
+        SchedulerStatus status = await scheduler.GetStatus();
+
+        status.Should().Be(SchedulerStatus.Standby,
+            "the asynchronous member reads the same field of the same answer the property does");
+        handler.Requests.Should().Be(1,
+            "awaiting the answer rather than blocking for it does not make it a second request");
+    }
+
+    [Test]
+    public async Task GetSchedulerInstanceIdIsOneRoundTrip()
+    {
+        CountingHandler handler = new(Body(SchedulerStatus.Running));
+        HttpScheduler scheduler = new("TestScheduler", new HttpClient(handler) { BaseAddress = new Uri("http://quartz.test/") });
+
+        string instanceId = await scheduler.GetSchedulerInstanceId();
+
+        instanceId.Should().Be("NON_CLUSTERED");
+        handler.Requests.Should().Be(1);
+    }
+
+    /// <summary>
+    /// The two asynchronous members answer what the two properties answer, which is the whole of their
+    /// contract — they exist to cost a thread less, not to say anything different.
+    /// </summary>
+    [Test]
+    public async Task TheAsynchronousMembersAnswerWhatThePropertiesAnswer()
+    {
+        CountingHandler handler = new(Body(SchedulerStatus.Running));
+        HttpScheduler scheduler = new("TestScheduler", new HttpClient(handler) { BaseAddress = new Uri("http://quartz.test/") });
+
+        (await scheduler.GetStatus()).Should().Be(scheduler.Status);
+        (await scheduler.GetSchedulerInstanceId()).Should().Be(scheduler.SchedulerInstanceId);
+    }
+
+    /// <summary>
+    /// And the cancellation token reaches the request, which is the other thing a property could not do.
+    /// </summary>
+    [Test]
+    public async Task ACancelledTokenStopsTheRequestRatherThanTheAnswer()
+    {
+        CountingHandler handler = new(Body(SchedulerStatus.Running));
+        HttpScheduler scheduler = new("TestScheduler", new HttpClient(handler) { BaseAddress = new Uri("http://quartz.test/") });
+
+        using CancellationTokenSource cancellation = new();
+        await cancellation.CancelAsync();
+
+        Func<Task> act = async () => await scheduler.GetStatus(cancellation.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>(
+            "a caller that gave up on the answer should not go on waiting for the round trip");
+        handler.Requests.Should().Be(0);
+    }
+
+    [Test]
     public async Task MetadataReportsTheSameStatusTheSchedulerDoes()
     {
         CountingHandler handler = new(Body(SchedulerStatus.ShuttingDown));
@@ -70,6 +129,8 @@ public class HttpSchedulerStatusTest
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             Interlocked.Increment(ref requests);
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
