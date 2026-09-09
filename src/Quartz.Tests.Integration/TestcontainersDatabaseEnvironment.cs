@@ -57,8 +57,8 @@ internal static class TestcontainersDatabaseEnvironment
             string targetDatabase = Environment.GetEnvironmentVariable("QUARTZ_TEST_DATABASE")?.ToLowerInvariant();
             bool startAll = string.IsNullOrEmpty(targetDatabase) || targetDatabase == "all";
 
-            // No database containers needed for basic, sqlite, or redis tests (redis has its own container via RedisTestEnvironment)
-            if (targetDatabase is "basic" or "sqlite" or "redis")
+            // No database containers needed for basic or sqlite tests.
+            if (targetDatabase is "basic" or "sqlite")
             {
                 initialized = true;
                 return;
@@ -66,7 +66,13 @@ internal static class TestcontainersDatabaseEnvironment
 
             try
             {
-                if (startAll || targetDatabase == "postgres")
+                // The Redis leg brings its own Redis through RedisTestEnvironment, and takes a
+                // PostgreSQL besides. Redis there is the *lock*, not the store, so proving that two
+                // schedulers locking through it never double-fire needs a store they can cluster over —
+                // and SQLite, the one engine that needs no container, refuses clustering outright and
+                // substitutes its own lock handler for whatever was configured. See
+                // RedisClusterTestBase.
+                if (startAll || targetDatabase is "postgres" or "redis")
                 {
                     await StartPostgreSqlContainerAsync(await ReadScriptAsync("database", "tables", "tables_postgres.sql"));
                 }

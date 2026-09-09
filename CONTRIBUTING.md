@@ -27,7 +27,10 @@ Integration tests provision their database dependencies through Testcontainers f
   The values are `postgres`, `sqlserver`, `mysql`, `oracle`, `firebird`, `sqlite`, `redis`, `basic`
   (everything that needs no database) and `all`, and they set both the test-category filter and the
   `QUARTZ_TEST_DATABASE` variable the Testcontainers fixture reads. Naming none means `all`, which
-  starts seven containers — two for SQL Server, and one of them Oracle — before a single test runs.
+  starts seven containers before a single test runs — one each for PostgreSQL, MySQL, Oracle, Firebird
+  and Redis, and two for SQL Server; the Oracle one is what makes that wait long. `redis` starts two:
+  its own, and a PostgreSQL for the two schedulers of `RedisTwoNodeTest` to share, because Redis there
+  is the lock rather than the store.
 
 This builds and runs tests the way the CI server does. `IntegrationTest` is skipped on one machine
 only: a Windows or macOS CI leg, neither of which has a Docker daemon. It runs on yours.
