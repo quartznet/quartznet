@@ -42,7 +42,7 @@ namespace Quartz.Tests.Unit.Core;
 /// cluster is until the node next starts.
 /// </remarks>
 [NonParallelizable]
-public class UnwaitedShutdownTest
+public sealed class UnwaitedShutdownTest
 {
     [SetUp]
     public void ResetJobs()
