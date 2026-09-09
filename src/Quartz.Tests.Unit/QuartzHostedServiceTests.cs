@@ -346,6 +346,40 @@ public class QuartzHostedServiceTests
         }
     }
 
+    /// <summary>
+    /// A start delay no timer will wait out is refused where the host can still hear about it. Left to
+    /// the wait, it faults a task nothing observes until the host stops, and the application is left
+    /// with a scheduler that was created, bound and reported healthy and simply never started (#3577).
+    /// </summary>
+    [Test]
+    [TestCase(false)]
+    [TestCase(true)]
+    [Parallelizable(ParallelScope.All)]
+    public async Task StartAsync_WithAStartDelayNoTimerWillWaitOut_ShouldRefuseItRatherThanNeverStart(bool awaitApplicationStarted)
+    {
+        var applicationLifetime = new MockApplicationLifetime();
+        var schedulerFactory = new MockSchedulerFactory();
+        var quartzHostedService = new QuartzHostedService(
+            applicationLifetime,
+            schedulerFactory,
+            Options.Create(new QuartzHostedServiceOptions
+            {
+                AwaitApplicationStarted = awaitApplicationStarted,
+                StartDelay = TimeSpan.FromDays(60),
+            }));
+
+        using var startupCts = new CancellationTokenSource();
+
+        Func<Task> act = async () => await quartzHostedService.StartAsync(startupCts.Token);
+
+        (await act.Should().ThrowAsync<ArgumentOutOfRangeException>(
+                "host startup is the last moment anybody is listening"))
+            .WithMessage("*StartDelay*");
+
+        schedulerFactory.LastCreatedScheduler.Should().BeNull(
+            "the refusal comes before the scheduler is built, so nothing is left bound to a start that will never happen");
+    }
+
     [Test]
     [TestCase(false, false, true)]
     [TestCase(true, false, true)]

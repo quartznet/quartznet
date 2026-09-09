@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
+using Quartz.Util;
+
 #if NETCOREAPP3_1_OR_GREATER
 using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
 #else
@@ -32,6 +34,16 @@ public sealed class QuartzHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        // Read where the host can still hear about it. The delay is waited out by StartDelayed, on a
+        // task nothing observes until the host stops, so one no timer will take used to leave a
+        // scheduler that was created, bound and reported healthy and simply never started.
+        if (options.Value.StartDelay is TimeSpan startDelay)
+        {
+            TimerLimits.EnsureWaitable(startDelay, nameof(QuartzHostedServiceOptions) + "." + nameof(QuartzHostedServiceOptions.StartDelay),
+                "The hosted service waits it out before starting the scheduler. Leave it unset and start "
+                + "the scheduler yourself if it has to wait longer than that.");
+        }
+
         try
         {
             // Require successful initialization for application startup to succeed

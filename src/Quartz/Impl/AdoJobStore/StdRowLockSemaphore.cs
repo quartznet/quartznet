@@ -26,6 +26,7 @@ using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Logging;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
 
@@ -73,8 +74,24 @@ public class StdRowLockSemaphore : DBSemaphore
     /// <summary>
     /// Sleep between attempts, defaults to 1 second.
     /// </summary>
+    /// <remarks>
+    /// Checked here because a lock handler has no options type and so nothing that validates it at
+    /// startup. Left unchecked, a period longer than a timer will wait out is refused by the first
+    /// contended lock attempt instead — with the lock unacquired and nothing naming the setting.
+    /// </remarks>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan RetryPeriod { get; set; } = TimeSpan.FromMilliseconds(1000);
+    public TimeSpan RetryPeriod
+    {
+        get => retryPeriod;
+        set
+        {
+            TimerLimits.EnsureWaitable(value, nameof(RetryPeriod),
+                "It is waited out between the attempts to take a contended lock row.");
+            retryPeriod = value;
+        }
+    }
+
+    private TimeSpan retryPeriod = TimeSpan.FromMilliseconds(1000);
 
     /// <summary>
     /// Execute the SQL select for update that will lock the proper database row.
