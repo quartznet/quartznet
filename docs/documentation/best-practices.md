@@ -708,8 +708,11 @@ entities changes.
 ### Shutdown has a deadline
 
 `WaitForJobsToComplete` is off by default, which means a shutdown returns while jobs are still
-running. Turning it on makes the scheduler wait — but not indefinitely, and the bound is not a
-Quartz setting:
+running. It is not quite instant even so: from Quartz 4.1 a shutdown that does not wait still stops
+firing before it closes its thread pool, and still gives the executions already in flight a couple of
+seconds to report their completions, so a job that was about to finish leaves nothing behind for a
+peer to recover. Turning `WaitForJobsToComplete` on makes the scheduler wait for the jobs themselves —
+but not indefinitely, and that bound is not a Quartz setting:
 
 <!-- snippet: sample_best_practices_shutdown -->
 ```csharp

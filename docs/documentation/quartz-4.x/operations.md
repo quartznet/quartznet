@@ -68,10 +68,17 @@ has no variables, delete the block between the `BEGIN DROP TABLES` and `END DROP
 Once the schema is ahead of every node, replace the nodes one at a time. Three things happen as each
 one goes down and comes back that are worth knowing about in advance.
 
-**A clean shutdown gives its reservations back.** When the scheduling loop halts, every trigger it had
-acquired but not yet fired is released to `WAITING`, so another node picks it up on its next pass
-rather than waiting for the failure detector. A process that is killed rather than stopped does not do
-this, and its reservations wait for the check-in machinery below.
+**A clean shutdown gives its reservations back.** The scheduling loop is halted and waited for before
+anything else is torn down, so every trigger it had acquired but not yet fired is released to `WAITING`
+for another node to pick up on its next pass rather than waiting for the failure detector — and a
+firing it had already committed is dispatched rather than dropped. A process that is killed rather than
+stopped does neither, and what it left waits for the check-in machinery below.
+
+**A shutdown that does not wait still settles what it can.** Since 4.1 it gives the executions already
+in flight a couple of seconds to report their completions before the job store is closed, because a
+completion issued after that is refused and leaves the firing `EXECUTING` with its trigger `BLOCKED`.
+It is still not a wait for the jobs — a job still working when the window closes is abandoned, and
+what it leaves is a peer's to recover.
 
 **A clean shutdown does not delete the node's check-in row.** Nothing removes a `QRTZ_SCHEDULER_STATE`
 row on the way down; the row stays, with the timestamp the node last wrote, until a peer notices it has

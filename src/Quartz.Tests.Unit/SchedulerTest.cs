@@ -31,15 +31,21 @@ public class SchedulerTest
     {
         public const string ExecutingWaitHandleKey = "ExecutingWaitHandle";
         public const string CompletedWaitHandleKey = "CompletedWaitHandle";
+        public const string DelayKey = "Delay";
 
         public static TimeSpan Delay = TimeSpan.FromMilliseconds(200);
 
-        public static JobDataMap CreateJobDataMap(ManualResetEvent executing, ManualResetEvent completed)
+        /// <param name="delay">
+        /// How long the job takes, for a test that needs one longer than the window a shutdown gives its
+        /// executions to settle. Defaults to <see cref="Delay" />.
+        /// </param>
+        public static JobDataMap CreateJobDataMap(ManualResetEvent executing, ManualResetEvent completed, TimeSpan? delay = null)
         {
             return new JobDataMap
             {
                 { ExecutingWaitHandleKey, executing },
-                { CompletedWaitHandleKey, completed }
+                { CompletedWaitHandleKey, completed },
+                { DelayKey, delay ?? Delay }
             };
         }
 
@@ -53,7 +59,7 @@ public class SchedulerTest
             var signalExecuting = (ManualResetEvent) executing;
             signalExecuting.Set();
 
-            Thread.Sleep(Delay);
+            Thread.Sleep(context.JobDetail.JobDataMap.TryGetValue(DelayKey, out var delay) ? (TimeSpan) delay : Delay);
 
             if (!context.JobDetail.JobDataMap.TryGetValue(CompletedWaitHandleKey, out var completed))
             {
@@ -329,9 +335,17 @@ public class SchedulerTest
         });
     }
 
+    /// <remarks>
+    /// The job outlasts the short window an unwaited shutdown gives its executions to report their
+    /// completions (see <c>UnwaitedShutdownTest</c>), because that window is exactly what could be
+    /// mistaken for the wait this test says does not happen. A job that ends inside it is one the
+    /// shutdown does linger for — briefly, and to settle its bookkeeping rather than to see it through.
+    /// </remarks>
     [Test]
     public void TestShutdownWithoutWaitShouldNotBlockUntilAllTasksHaveCompleted()
     {
+        TimeSpan jobDuration = TimeSpan.FromSeconds(10);
+
         var schedulerName = Guid.NewGuid().ToString();
         var executing = new ManualResetEvent(false);
         var completed = new ManualResetEvent(false);
@@ -346,7 +360,7 @@ public class SchedulerTest
         scheduler.Start().GetAwaiter().GetResult();
 
         var job = JobBuilder.Create<TestJobWithDelay>()
-            .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed))
+            .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed, jobDuration))
             .Build();
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithSimpleSchedule(x => x.WithRepeatCount(0))
@@ -364,13 +378,13 @@ public class SchedulerTest
 
         stopwatch.Stop();
 
-        Assert.Multiple(() =>
-        {
-            // Shutdown should be fast since we're not waiting for tasks to complete
-            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50));
-            // The task should still be executing
-            Assert.That(completed.WaitOne(0), Is.False);
-        });
+        stopwatch.Elapsed.Should().BeLessThan(jobDuration,
+            "a shutdown that was told not to wait for its jobs must come back long before the job it "
+            + "abandoned does");
+
+        completed.WaitOne(0).Should().BeFalse(
+            "the job is still running, which is what 'did not wait' means — it is left to finish on its "
+            + "own thread");
     }
 
     [Test]

@@ -22,6 +22,11 @@ namespace Quartz.Tests.Integration.Impl.Redis;
 /// the case that leaves a <c>BLOCKED</c> trigger behind for the survivor's cluster recovery to unblock,
 /// and that unblocking is part of what "costs the cluster no firing" means.
 /// </para>
+/// <para>
+/// It runs twice, once for each kind of leave. The promise is the same for both — a shutdown that does
+/// not wait for its jobs is what a host stopping does by default — and the two differ only in what the
+/// leaver still owes when it goes.
+/// </para>
 /// </remarks>
 [Category("db-redis")]
 [NonParallelizable]
@@ -40,8 +45,33 @@ public sealed class RedisLockHandlerShutdownUnderLoadTest : RedisClusterTestBase
 
     protected override string SchedulerName => "redis-shutdown-load";
 
+    /// <summary>
+    /// A graceful leave: the node stops taking work, lets the firing it is running finish, and only
+    /// then closes its store and its Redis connection.
+    /// </summary>
     [Test]
-    public async Task ANodeLeavingMidRunClosesItsConnectionAndCostsTheClusterNoFiring()
+    public Task ANodeLeavingMidRunClosesItsConnectionAndCostsTheClusterNoFiring()
+    {
+        return ANodeLeavingMidRunCostsTheClusterNoFiring(waitForJobsToComplete: true);
+    }
+
+    /// <summary>
+    /// The same leave without the wait, which is what a host stopping does by default.
+    /// </summary>
+    /// <remarks>
+    /// The firing the node is running goes on running on its own thread, and the completion it owes the
+    /// store is issued after the scheduler has stopped — which is where this used to cost the cluster
+    /// exactly one of its 160 firings (#3746). It promises what the graceful case does because a
+    /// shutdown that does not wait still stops firing before it closes the thread pool, and still gives
+    /// the executions it has dispatched a moment to report themselves.
+    /// </remarks>
+    [Test]
+    public Task ANodeLeavingWithoutWaitingCostsTheClusterNoFiring()
+    {
+        return ANodeLeavingMidRunCostsTheClusterNoFiring(waitForJobsToComplete: false);
+    }
+
+    private async Task ANodeLeavingMidRunCostsTheClusterNoFiring(bool waitForJobsToComplete)
     {
         await using RedisNode nodeA = await CreateNode("nodeA");
         await using RedisNode nodeB = await CreateNode("nodeB");
@@ -74,15 +104,11 @@ public sealed class RedisLockHandlerShutdownUnderLoadTest : RedisClusterTestBase
 
         int nodeBBeforeLeaving = NodeFiringCount("nodeB");
 
-        // A graceful leave: the node stops taking work, lets the firing it is running finish, and only
-        // then closes its store and its Redis connection. That is what "costs the cluster no firing"
-        // can promise. A node that shuts down without waiting is a different case with a different
-        // answer: the firing it was executing runs to completion on its own thread, but the store the
-        // completion reports to is already closed, so the trigger's bookkeeping is left for a peer's
-        // cluster recovery to settle, and neither job here requests recovery. On CI that lost exactly
-        // one of 160 firings once (#3746); this fixture proves the graceful case and that issue owns
-        // the other.
-        await nodeA.Scheduler.Shutdown(waitForJobsToComplete: true);
+        // Both kinds of leave have to cost the cluster nothing, which is why this fixture runs twice.
+        // The waiting one lets the firing it is running finish before it closes its store; the other
+        // does not, and the firing it was executing then reports its completion to a scheduler that has
+        // already stopped — which is where an unwaited leave used to lose a firing (#3746).
+        await nodeA.Scheduler.Shutdown(waitForJobsToComplete);
 
         opened.IsConnected.Should().BeFalse(
             "the multiplexer belongs to the handler and the handler to the store, so a scheduler that "
