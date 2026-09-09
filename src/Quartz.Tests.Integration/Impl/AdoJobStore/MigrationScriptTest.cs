@@ -904,37 +904,15 @@ public class MigrationScriptTest
     /// </summary>
     internal static async Task WithSqliteAsync(Func<SqliteConnection, string, Task> body)
     {
-        string file = Path.Combine(Path.GetTempPath(), $"quartz-migration-{Guid.NewGuid():N}.db");
-        string connectionString = $"Data Source={file};";
+        using SqliteTestDatabase database = new SqliteTestDatabase("migration");
 
-        try
-        {
-            await using (SqliteConnection connection = new SqliteConnection(connectionString))
-            {
-                await connection.OpenAsync();
+        await using SqliteConnection connection = new SqliteConnection(database.ConnectionString);
+        await connection.OpenAsync();
 
-                // The fresh schema the migrated one has to end up matching. The other dialects get
-                // this from the test environment, which creates it when the container starts.
-                await ExecuteScriptAsync(connection, CurrentTableScript("sqlite"), "sqlite");
+        // The fresh schema the migrated one has to end up matching. The other dialects get this from
+        // the test environment, which creates it when the container starts.
+        await ExecuteScriptAsync(connection, CurrentTableScript("sqlite"), "sqlite");
 
-                await body(connection, connectionString);
-            }
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
-
-            try
-            {
-                if (File.Exists(file))
-                {
-                    File.Delete(file);
-                }
-            }
-            catch (IOException)
-            {
-                // the file is only test scratch space, leaving it behind is not worth failing over
-            }
-        }
+        await body(connection, database.ConnectionString);
     }
 }

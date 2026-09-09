@@ -45,15 +45,13 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// </remarks>
 public sealed class StartupRefusalSqliteTest
 {
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
     private ServiceProvider? container;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-startup-refusal-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("startup-refusal");
     }
 
     [TearDown]
@@ -65,12 +63,7 @@ public sealed class StartupRefusalSqliteTest
             container = null;
         }
 
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     /// <summary>
@@ -88,7 +81,7 @@ public sealed class StartupRefusalSqliteTest
     {
         IScheduler scheduler = await GetScheduler(nameof(StartingFromInsideAnEnlistmentScopeIsRefusedAndSaysSo));
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         await using DbTransaction transaction = await connection.BeginTransactionAsync();
 
@@ -125,7 +118,7 @@ public sealed class StartupRefusalSqliteTest
     {
         IScheduler scheduler = await GetScheduler(nameof(OnceTheScopeIsGoneTheSameSchedulerStarts));
 
-        await using (SqliteConnection connection = new(connectionString))
+        await using (SqliteConnection connection = new(database.ConnectionString))
         {
             await connection.OpenAsync();
             await using DbTransaction transaction = await connection.BeginTransactionAsync();
@@ -173,7 +166,7 @@ public sealed class StartupRefusalSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
                 store.UseClustering();
             });
@@ -267,7 +260,7 @@ public sealed class StartupRefusalSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
                 store.ConfigureStore(options => options.AcceptEnlistedTransactions = true);
             });

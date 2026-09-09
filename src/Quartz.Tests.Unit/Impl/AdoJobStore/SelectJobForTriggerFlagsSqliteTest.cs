@@ -61,25 +61,18 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
     private static readonly JobKey JobKey = new("cleanup", "acme");
     private static readonly TriggerKey TriggerKey = new("cleanup", "acme");
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-select-job-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("select-job");
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -146,7 +139,7 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
         });
@@ -182,7 +175,7 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
             ObjectSerializer = new SystemTextJsonObjectSerializer(),
         });
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         using ConnectionAndTransactionHolder holder = new(connection, transaction: null);
 
@@ -192,7 +185,7 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
     private IDbProvider Provider()
     {
         DbMetadata metadata = DbMetadataResolver.BuiltIn().ResolveWithoutTypes("SQLite-Microsoft");
-        return new ProviderFactoryDbProvider(metadata, SqliteFactory.Instance, connectionString);
+        return new ProviderFactoryDbProvider(metadata, SqliteFactory.Instance, database.ConnectionString);
     }
 
     /// <summary>

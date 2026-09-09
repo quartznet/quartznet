@@ -12,7 +12,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [NonParallelizable]
 public sealed class SharedDatabaseTenancySqliteTest : SharedDatabaseTenancyTestBase
 {
-    private string databaseFile;
+    private SqliteTestDatabase database;
 
     protected override void UseDatabase(IPersistentStoreBuilder store)
     {
@@ -21,7 +21,7 @@ public sealed class SharedDatabaseTenancySqliteTest : SharedDatabaseTenancyTestB
 
     protected override async Task PrepareDatabase()
     {
-        databaseFile = $"tenancy-shared-{Guid.NewGuid():N}.db";
+        database = new SqliteTestDatabase("tenancy-shared");
 
         await using SqliteConnection connection = new SqliteConnection(ConnectionString);
         await connection.OpenAsync();
@@ -32,26 +32,13 @@ public sealed class SharedDatabaseTenancySqliteTest : SharedDatabaseTenancyTestB
 
     protected override Task CleanUpDatabase()
     {
-        // The file is this fixture's alone, so it goes rather than its rows. Pools have to be cleared
-        // first or the handle the store left behind keeps the file locked on Windows.
-        SqliteConnection.ClearAllPools();
-
-        if (databaseFile is not null && File.Exists(databaseFile))
-        {
-            try
-            {
-                File.Delete(databaseFile);
-            }
-            catch (IOException)
-            {
-                // scratch space; leaving one behind is not worth failing a passing test over
-            }
-        }
+        // The file is this fixture's alone, so it goes rather than its rows.
+        database?.Dispose();
 
         return Task.CompletedTask;
     }
 
-    private string ConnectionString => $"Data Source={databaseFile};";
+    private string ConnectionString => database.ConnectionString;
 
     private static string LoadTableScript()
     {

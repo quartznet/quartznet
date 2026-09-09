@@ -64,8 +64,7 @@ public sealed class AdministrationNodeSqliteTest
     private static readonly TriggerKey PlainTrigger = new("nightly-report", "acme");
     private static readonly TriggerKey GatedTrigger = new("message-cleanup", "acme");
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     private StandaloneSchedulerFactory workerFactory = null!;
     private StandaloneSchedulerFactory adminFactory = null!;
@@ -81,8 +80,7 @@ public sealed class AdministrationNodeSqliteTest
     {
         WorkerJobs.Reset();
 
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-admin-node-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("admin-node");
 
         workerFactory = QuartzSchedulerBuilder.Create(q =>
         {
@@ -106,7 +104,7 @@ public sealed class AdministrationNodeSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
         }).Build();
@@ -141,7 +139,7 @@ public sealed class AdministrationNodeSqliteTest
             q.UseThreadPool<ZeroSizeThreadPool>();
             q.UseTypeLoader<UnknownJobTypeLoader>();
 
-            q.UsePersistentStore(store => store.UseSqlite(SqliteFactory.Instance, connectionString));
+            q.UsePersistentStore(store => store.UseSqlite(SqliteFactory.Instance, database.ConnectionString));
         }).Build();
 
         admin = await adminFactory.GetScheduler();
@@ -159,32 +157,7 @@ public sealed class AdministrationNodeSqliteTest
         adminFactory.Dispose();
         workerFactory.Dispose();
 
-        SqliteConnection.ClearAllPools();
-
-        DeleteDatabaseFile();
-    }
-
-    /// <summary>
-    /// Deletes the file, giving the last connection a moment to let go of it.
-    /// </summary>
-    /// <remarks>
-    /// The two schedulers have been shut down and the pools cleared by the time this runs, but on
-    /// Windows a handle that was closed a microsecond ago can still fail the delete, and a fixture that
-    /// leaves a stray temporary file behind is worse than one that waits.
-    /// </remarks>
-    private void DeleteDatabaseFile()
-    {
-        for (int attempt = 0; attempt < 20 && File.Exists(databaseFile); attempt++)
-        {
-            try
-            {
-                File.Delete(databaseFile);
-            }
-            catch (IOException)
-            {
-                Thread.Sleep(50);
-            }
-        }
+        database.Dispose();
     }
 
     /// <summary>
@@ -466,7 +439,7 @@ public sealed class AdministrationNodeSqliteTest
     /// </summary>
     private async Task<string> StoredTriggerState(TriggerKey key)
     {
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         await using SqliteCommand command = connection.CreateCommand();
@@ -483,7 +456,7 @@ public sealed class AdministrationNodeSqliteTest
     /// </summary>
     private async Task<(bool NonConcurrent, bool UpdateData)> StoredJobFlags(JobKey key)
     {
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         await using SqliteCommand command = connection.CreateCommand();

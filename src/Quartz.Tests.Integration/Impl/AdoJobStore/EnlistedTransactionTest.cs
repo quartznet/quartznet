@@ -566,8 +566,8 @@ public class EnlistedTransactionTest
     /// </summary>
     private TestProvider Sqlite()
     {
-        sqliteFile = Path.Combine(Path.GetTempPath(), $"quartz-enlisted-{Guid.NewGuid():N}.db");
-        string connectionString = $"Data Source={sqliteFile}";
+        sqliteDatabase = new SqliteTestDatabase("enlisted");
+        string connectionString = sqliteDatabase.ConnectionString;
 
         return new TestProvider(
             DataSourceOptions.Providers.Sqlite,
@@ -591,24 +591,13 @@ public class EnlistedTransactionTest
         return connectionString;
     }
 
-    private string sqliteFile;
+    private SqliteTestDatabase sqliteDatabase;
 
     [TearDown]
     public void DeleteSqliteDatabase()
     {
-        if (sqliteFile is null)
-        {
-            return;
-        }
-
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(sqliteFile))
-        {
-            File.Delete(sqliteFile);
-        }
-
-        sqliteFile = null;
+        sqliteDatabase?.Dispose();
+        sqliteDatabase = null;
     }
 
     [DisallowConcurrentExecution]

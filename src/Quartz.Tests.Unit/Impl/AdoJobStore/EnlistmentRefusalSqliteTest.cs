@@ -47,15 +47,13 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// </remarks>
 public sealed class EnlistmentRefusalSqliteTest
 {
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
     private ServiceProvider? container;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-enlistment-refusal-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("enlistment-refusal");
     }
 
     [TearDown]
@@ -67,12 +65,7 @@ public sealed class EnlistmentRefusalSqliteTest
             container = null;
         }
 
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -83,7 +76,7 @@ public sealed class EnlistmentRefusalSqliteTest
         TransactionOptions options = new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted };
         using (new TransactionScope(TransactionScopeOption.RequiresNew, options, TransactionScopeAsyncFlowOption.Enabled))
         {
-            await using SqliteConnection connection = new(connectionString);
+            await using SqliteConnection connection = new(database.ConnectionString);
             await connection.OpenAsync();
 
             Action enlist = () => scheduler.EnlistConnection(connection);
@@ -108,7 +101,7 @@ public sealed class EnlistmentRefusalSqliteTest
         IScheduler scheduler = await GetScheduler(nameof(EnlistingTheConnectionsOwnTransactionStillDiscardsTheScheduleOnRollback));
         JobKey jobKey = new JobKey("enlisted", "sqlite");
 
-        await using (SqliteConnection connection = new(connectionString))
+        await using (SqliteConnection connection = new(database.ConnectionString))
         {
             await connection.OpenAsync();
             await using DbTransaction transaction = await connection.BeginTransactionAsync();
@@ -144,7 +137,7 @@ public sealed class EnlistmentRefusalSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
                 store.ConfigureStore(options => options.AcceptEnlistedTransactions = true);
             });

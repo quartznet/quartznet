@@ -53,15 +53,13 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// </remarks>
 public sealed class StoreJobDataAsStringsTest
 {
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
     private ServiceProvider? container;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-job-data-strings-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("job-data-strings");
     }
 
     [TearDown]
@@ -73,12 +71,7 @@ public sealed class StoreJobDataAsStringsTest
             container = null;
         }
 
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     /// <summary>
@@ -279,7 +272,7 @@ public sealed class StoreJobDataAsStringsTest
 
     private async Task<string> ReadJobData(string name, string group)
     {
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         await using SqliteCommand command = connection.CreateCommand();
@@ -308,7 +301,7 @@ public sealed class StoreJobDataAsStringsTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
                 store.ConfigureStore(options => options.StoreJobDataAsStrings = storeJobDataAsStrings);
             });

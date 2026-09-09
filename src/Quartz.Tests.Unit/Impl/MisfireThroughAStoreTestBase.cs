@@ -71,7 +71,7 @@ public abstract class MisfireThroughAStoreTestBase
     private const string TablePrefix = "QRTZ_";
     private const string DataSourceName = "misfire-through-a-store-sqlite";
 
-    private string databaseFileName;
+    private SqliteTestDatabase database;
     private IDbProvider dbProvider;
     private readonly List<MisfireStoreUnderTest> stores = [];
     private int storeCounter;
@@ -79,33 +79,22 @@ public abstract class MisfireThroughAStoreTestBase
     [OneTimeSetUp]
     public async Task CreateDatabase()
     {
-        databaseFileName = $"test-misfire-store-{Guid.NewGuid():N}.db";
+        database = new SqliteTestDatabase("misfire-store");
 
-        await using (SqliteConnection connection = new($"Data Source={databaseFileName};"))
+        await using (SqliteConnection connection = new(database.ConnectionString))
         {
             await connection.OpenAsync();
             await using SqliteCommand command = new(LoadSqliteTableScript(), connection);
             await command.ExecuteNonQueryAsync();
         }
 
-        dbProvider = new DbProvider("SQLite-Microsoft", $"Data Source={databaseFileName};");
+        dbProvider = new DbProvider("SQLite-Microsoft", database.ConnectionString);
     }
 
     [OneTimeTearDown]
     public void DropDatabase()
     {
-        SqliteConnection.ClearAllPools();
-        if (File.Exists(databaseFileName))
-        {
-            try
-            {
-                File.Delete(databaseFileName);
-            }
-            catch (IOException)
-            {
-                // the file is only test scratch space, leaving it behind is not worth failing over
-            }
-        }
+        database.Dispose();
     }
 
     [TearDown]

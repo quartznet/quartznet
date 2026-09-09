@@ -14,44 +14,30 @@ namespace Quartz.Tests.AspNetCore.HttpApi;
 /// </remarks>
 internal sealed class SqliteStores : IDisposable
 {
-    private readonly ConcurrentDictionary<string, string> files = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, SqliteTestDatabase> databases = new(StringComparer.Ordinal);
     private readonly string prefix;
 
     public SqliteStores(string prefix) => this.prefix = prefix;
 
     public void Configure(IQuartzBuilder builder, string schedulerName)
     {
-        string file = files.GetOrAdd(
-            schedulerName,
-            _ => Path.Combine(Path.GetTempPath(), $"quartz-{prefix}-{Guid.NewGuid():N}.db"));
+        SqliteTestDatabase database = databases.GetOrAdd(schedulerName, _ => new SqliteTestDatabase(prefix));
 
         builder.UsePersistentStore(store =>
         {
-            store.UseSqlite(SqliteFactory.Instance, $"Data Source={file}");
+            store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
             store.ProvisionSchema();
         });
     }
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
-
-        foreach (string file in files.Values)
+        foreach (SqliteTestDatabase database in databases.Values)
         {
-            if (File.Exists(file))
-            {
-                try
-                {
-                    File.Delete(file);
-                }
-                catch (IOException)
-                {
-                    // A file the store has not finished letting go of is a temp file, not a failure.
-                }
-            }
+            database.Dispose();
         }
 
-        files.Clear();
+        databases.Clear();
     }
 }
 

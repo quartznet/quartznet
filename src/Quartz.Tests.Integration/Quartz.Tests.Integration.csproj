@@ -14,6 +14,12 @@
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
     <Compile Include="..\Quartz.Tests.Unit\TestJobStores.cs" />
     <!--
+      A SQLite file a fixture owns, with pooling off so that no teardown anywhere has to reach for the
+      process-global SqliteConnection.ClearAllPools (#3755). Shared by source with the two other test
+      projects, because the fixtures that needed it are spread across all three.
+    -->
+    <Compile Include="..\Quartz.Tests.Unit\SqliteTestDatabase.cs" />
+    <!--
       The zones and walk helpers the daylight saving time tests are written against. Shared rather
       than copied so that both projects state a transition premise the same way, and so a zone that
       moves is corrected in one place.

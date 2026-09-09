@@ -68,25 +68,18 @@ public sealed class DbLockHandlerRowLockSqliteTest
     private const string SelectWithoutForUpdate =
         "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName";
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-row-lock-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("row-lock");
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     private static IEnumerable<TestCaseData> RowLockHandlers()
@@ -114,7 +107,7 @@ public sealed class DbLockHandlerRowLockSqliteTest
 
         DbLockHandler lockHandler = Initialize(create);
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         using ConnectionAndTransactionHolder holder = new(connection, transaction: null);
 
@@ -139,7 +132,7 @@ public sealed class DbLockHandlerRowLockSqliteTest
 
         DbLockHandler lockHandler = Initialize(create);
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         using ConnectionAndTransactionHolder holder = new(connection, transaction: null);
 
@@ -194,7 +187,7 @@ public sealed class DbLockHandlerRowLockSqliteTest
         DbLockHandler lockHandler = Initialize(create);
         ICountStatements counter = (ICountStatements) lockHandler;
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         using ConnectionAndTransactionHolder holder = new(connection, transaction: null);
 
@@ -227,7 +220,7 @@ public sealed class DbLockHandlerRowLockSqliteTest
 
         DbLockHandler lockHandler = Initialize(create);
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         using ConnectionAndTransactionHolder holder = new(connection, transaction: null);
 
@@ -260,7 +253,7 @@ public sealed class DbLockHandlerRowLockSqliteTest
 
         DbLockHandler lockHandler = Initialize(create);
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         using ConnectionAndTransactionHolder holder = new(connection, transaction: null);
 
@@ -281,7 +274,7 @@ public sealed class DbLockHandlerRowLockSqliteTest
     private DbLockHandler Initialize(Func<IDbProvider, DbLockHandler> create)
     {
         DbMetadata metadata = DbMetadataResolver.BuiltIn().ResolveWithoutTypes("SQLite-Microsoft");
-        ProviderFactoryDbProvider provider = new(metadata, SqliteFactory.Instance, connectionString);
+        ProviderFactoryDbProvider provider = new(metadata, SqliteFactory.Instance, database.ConnectionString);
 
         DbLockHandler lockHandler = create(provider);
         lockHandler.Initialize(new LockHandlerContext
@@ -311,7 +304,7 @@ public sealed class DbLockHandlerRowLockSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
         });

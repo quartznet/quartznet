@@ -22,7 +22,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -118,7 +117,7 @@ public sealed class BusIntegrationScenarioTest
     private readonly List<Activity> executeActivities = [];
 
     private string run;
-    private string databaseFile;
+    private SqliteTestDatabase database;
     private FakeTimeProvider clock;
     private BusRecorder recorder;
     private ActivityListener listener;
@@ -141,7 +140,7 @@ public sealed class BusIntegrationScenarioTest
         {
             // Nothing creates the file and nothing runs a script against it: the store provisions its
             // own schema the first time it is built, which is step 1's business.
-            databaseFile = $"bus-scenario-{run}.db";
+            database = new SqliteTestDatabase($"bus-scenario-{run}");
         }
 
         lock (executeActivities)
@@ -196,27 +195,8 @@ public sealed class BusIntegrationScenarioTest
 
         scheduler = null;
 
-        if (databaseFile is null)
-        {
-            return;
-        }
-
-        // Pools first, or the handle the store left behind keeps the file locked on Windows.
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            try
-            {
-                File.Delete(databaseFile);
-            }
-            catch (IOException)
-            {
-                // scratch space; leaving one behind is not worth failing a passing test over
-            }
-        }
-
-        databaseFile = null;
+        database?.Dispose();
+        database = null;
     }
 
     /// <summary>
@@ -742,7 +722,7 @@ public sealed class BusIntegrationScenarioTest
 
     private string SchedulerName => $"bus-{run}";
 
-    private string ConnectionString => $"Data Source={databaseFile};";
+    private string ConnectionString => database.ConnectionString;
 
     private DateTimeOffset Now => clock.GetUtcNow();
 

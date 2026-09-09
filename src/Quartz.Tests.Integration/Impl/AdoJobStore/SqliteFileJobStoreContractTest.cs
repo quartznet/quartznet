@@ -36,7 +36,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// </remarks>
 public abstract class SqliteFileJobStoreContractTest : AdoJobStoreContractTest
 {
-    private string dbFileName;
+    private SqliteTestDatabase database;
 
     protected override string DbProviderName => "SQLite-Microsoft";
 
@@ -44,34 +44,21 @@ public abstract class SqliteFileJobStoreContractTest : AdoJobStoreContractTest
 
     protected override async ValueTask<string> PrepareDatabase()
     {
-        dbFileName = $"test-store-contract-{Guid.NewGuid():N}.db";
-        string connectionString = $"Data Source={dbFileName};";
+        database = new SqliteTestDatabase("store-contract");
 
-        await using (SqliteConnection connection = new SqliteConnection(connectionString))
+        await using (SqliteConnection connection = new SqliteConnection(database.ConnectionString))
         {
             await connection.OpenAsync();
             await using SqliteCommand command = new SqliteCommand(LoadSqliteTableScript(), connection);
             await command.ExecuteNonQueryAsync();
         }
 
-        return connectionString;
+        return database.ConnectionString;
     }
 
     protected override ValueTask DisposeStore()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(dbFileName))
-        {
-            try
-            {
-                File.Delete(dbFileName);
-            }
-            catch (IOException)
-            {
-                // the file is only test scratch space, leaving it behind is not worth failing over
-            }
-        }
+        database.Dispose();
 
         return default;
     }

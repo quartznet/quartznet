@@ -113,32 +113,13 @@ public sealed class SchedulerAcrossDstTransitionTest
 
     private static readonly ConcurrentDictionary<string, FireCollector> collectors = new(StringComparer.Ordinal);
 
-    private string databaseFile;
+    private SqliteTestDatabase database;
 
     [TearDown]
     public void DeleteDatabaseFile()
     {
-        if (databaseFile is null)
-        {
-            return;
-        }
-
-        // Pools first, or the handle the store left behind keeps the file locked on Windows.
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            try
-            {
-                File.Delete(databaseFile);
-            }
-            catch (IOException)
-            {
-                // scratch space; leaving one behind is not worth failing a passing test over
-            }
-        }
-
-        databaseFile = null;
+        database?.Dispose();
+        database = null;
     }
 
     public static IEnumerable<TestCaseData> Cases()
@@ -380,11 +361,11 @@ public sealed class SchedulerAcrossDstTransitionTest
         }).Build();
     }
 
-    private string ConnectionString => $"Data Source={databaseFile};";
+    private string ConnectionString => database.ConnectionString;
 
     private void PrepareDatabase()
     {
-        databaseFile = $"dst-scheduler-{Guid.NewGuid():N}.db";
+        database = new SqliteTestDatabase("dst-scheduler");
 
         using SqliteConnection connection = new SqliteConnection(ConnectionString);
         connection.Open();

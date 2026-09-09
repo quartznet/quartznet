@@ -44,16 +44,14 @@ public sealed class TypeFreeDbProviderTest
         BindByName = true,
     };
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public async Task CreateSchema()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-type-free-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("type-free");
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         SqliteCommand command = connection.CreateCommand();
@@ -64,15 +62,14 @@ public sealed class TypeFreeDbProviderTest
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-        File.Delete(databaseFile);
+        database.Dispose();
     }
 
     [Test]
     public async Task AFactoryProviderRunsAScheduleWithNoTypeNamed()
     {
         DbMetadata metadata = TypeFreeSqlite;
-        IDbProvider provider = new ProviderFactoryDbProvider(metadata, SqliteFactory.Instance, connectionString);
+        IDbProvider provider = new ProviderFactoryDbProvider(metadata, SqliteFactory.Instance, database.ConnectionString);
 
         await ScheduleFireAndReadBack(provider, nameof(AFactoryProviderRunsAScheduleWithNoTypeNamed));
     }
@@ -81,7 +78,7 @@ public sealed class TypeFreeDbProviderTest
     public async Task ADataSourceProviderRunsAScheduleWithNoTypeNamed()
     {
         DbMetadata metadata = TypeFreeSqlite;
-        await using SqliteDataSource dataSource = new(connectionString);
+        await using SqliteDataSource dataSource = new(database.ConnectionString);
         IDbProvider provider = new DataSourceDbProvider(metadata, dataSource);
 
         await ScheduleFireAndReadBack(provider, nameof(ADataSourceProviderRunsAScheduleWithNoTypeNamed));
@@ -94,7 +91,7 @@ public sealed class TypeFreeDbProviderTest
     [Test]
     public void NeitherProviderIsBuiltOnTheReflectiveOne()
     {
-        using SqliteDataSource dataSource = new(connectionString);
+        using SqliteDataSource dataSource = new(database.ConnectionString);
 
         typeof(ProviderFactoryDbProvider).Should().NotBeAssignableTo<DbProvider>();
         typeof(DataSourceDbProvider).Should().NotBeAssignableTo<DbProvider>(

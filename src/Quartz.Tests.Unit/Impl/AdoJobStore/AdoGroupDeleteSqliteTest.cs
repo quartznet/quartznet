@@ -48,25 +48,18 @@ public sealed class AdoGroupDeleteSqliteTest
     private const string SagaGroup = "saga-17";
     private const string OtherGroup = "saga-18";
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-group-delete-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("group-delete");
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -160,7 +153,7 @@ public sealed class AdoGroupDeleteSqliteTest
 
     private async Task<int> CountOfPausedJobGroups()
     {
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         await using SqliteCommand command = connection.CreateCommand();
@@ -200,7 +193,7 @@ public sealed class AdoGroupDeleteSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 // #3550: the store creates the schema it needs, so the test needs no script of its own.
                 store.ProvisionSchema();
             });
