@@ -176,7 +176,7 @@ internal static class JsonSchedulingHelper
             var calendarName = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.CalendarName)]);
             var executionGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ExecutionGroup)]);
             var retryPolicy = ParseRetryPolicy(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.RetryPolicy)]), name);
-            var preferredNode = SchedulingFileValues.ReadPreferredNode(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.PreferredNode)]), $"JSON trigger '{name}'");
+            PreferredNode preferredNode = SchedulingFileValues.ReadPreferredNode(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.PreferredNode)]), $"JSON trigger '{name}'");
             var priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             var startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             var startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
