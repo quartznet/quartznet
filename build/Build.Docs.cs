@@ -16,7 +16,10 @@ public partial class Build
 {
     Target DocsBuild => _ => _
         .DependsOn(DocsSnippets)
-        .DependsOn(ApiDoc)
+        // Not DependsOn: the VuePress CLI empties the output directory before it builds, so a
+        // reference generated first would be deleted rather than published. ApiDoc is ordered after
+        // this target and triggered by it, which is the order the docs workflow's steps are in too.
+        .Triggers(ApiDoc)
         .Executes(() =>
         {
             if (IsServerBuild)
@@ -91,7 +94,9 @@ public partial class Build
     /// <para>
     /// Two docfx passes: <c>metadata</c> reads the projects with Roslyn and writes one YAML file per
     /// namespace and type, <c>build</c> turns those into the site. docfx runs its own restore, so this
-    /// target needs no compiled output and depends on nothing.
+    /// target needs no compiled output and depends on nothing. It is ordered <em>after</em>
+    /// <see cref="DocsBuild" /> rather than before it, because the VuePress CLI empties the output
+    /// directory the two of them share.
     /// </para>
     /// <para>
     /// A malformed doc comment or an <c>xref</c> that resolves nowhere fails the build rather than
@@ -101,6 +106,7 @@ public partial class Build
     /// </para>
     /// </remarks>
     Target ApiDoc => _ => _
+        .After(DocsBuild)
         .Executes(() =>
         {
             // The metadata pass is incremental over whatever is already in api/, so a type that was
