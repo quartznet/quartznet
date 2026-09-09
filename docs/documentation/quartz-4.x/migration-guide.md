@@ -52,6 +52,8 @@ expressions it reads differently.
 | `SchedulerRestartException` | Thrown when the outgoing scheduler's jobs outlived the drain. Carries `SchedulerName`, `JobsStillExecuting` and `DrainTimeout`. The old scheduler is down and the new one was never built; ask again once the work has finished |
 | `IScheduler.GetStatus` | The asynchronous twin of `Status`, as a **default interface member** answering the property — so an `IScheduler` implemented outside this repository compiles unchanged and reports what it already reported. `HttpScheduler` overrides it: the same one round trip the property makes, awaited rather than blocked on. See [Blocking members](packages/http-client.md#blocking-members) |
 | `IScheduler.GetSchedulerInstanceId` | The asynchronous twin of `SchedulerInstanceId`, likewise a **default interface member** answering the property and likewise overridden by `HttpScheduler`. The two properties stay, and stay blocking over HTTP; these are the members to call on a request path |
+| `PreferredNode` in a scheduling file | A trigger's [preferred node](tutorial/node-affinity.md#in-a-scheduling-file) is a field in every scheduling file now: `PreferredNode` in the `Quartz:Schedule` section and in `quartz_jobs.json`, `<preferred-node>` in `quartz_jobs.xml`. A scheduler instance id pins the trigger to that node; `"*"` pins it to whichever node fires it first; absent leaves it unpinned. `configuration/json.md` used to say it was deliberately absent — declaring it in a file is what a deployment-specific file is for |
+| `<execution-group>` and `<retry-policy>` in `job_scheduling_data_2_0.xsd` | The XML format catches up with JSON on the two trigger settings written since the schema was. The schema keeps its `2.0` version and its namespace: all three new elements are optional and sit between `<calendar-name>` and `<job-data-map>`, so a file written before they existed validates and means exactly what it meant. The three *trigger kinds* stay [frozen](packages/quartz-plugins.md#the-xml-trigger-kinds-are-frozen) |
 
 Four behaviours changed without a signature changing:
 
@@ -4739,16 +4741,19 @@ A schema violation still throws `SchedulingDataValidationException` carrying eve
 `XmlSchedulingDataProcessorPlugin` still wraps whatever surfaces in a `SchedulerException`, so a
 plugin-based setup sees no change at all.
 
-**Nor will it change.** The schema is frozen at what it already says: `simple`, `cron` and
-`calendar-interval` triggers, and none of the trigger kinds or trigger settings written since. A
-daily time interval trigger, a recurrence rule, a [retry policy](#a-trigger-can-carry-a-retry-policy)
-and an execution group are expressible in the JSON format and are not expressible in XML, now or later — two file
-formats that both grow is two parsers and two schemas for one feature, and the XML one is the one that
-has to keep loading files written twenty years ago. It does: **XML scheduling is not deprecated and is
-not going away in 4.x**, and a schedule that only needs the three trigger kinds above never has to
-move. Write a new schedule as JSON, and move an XML one when it needs something the schema cannot
-spell. `UseJsonSchedulingConfiguration` takes the same `FileSchedulingOptions` as its XML twin, so the
-registration is one word different.
+**Nor will the trigger kinds change.** The schema is frozen at the three it already declares —
+`simple`, `cron` and `calendar-interval` — and will not gain a fourth. A daily time interval trigger
+and a recurrence rule are expressible in the JSON format and are not expressible in XML, now or
+later — two file formats that both grow *trigger kinds* is two parsers and two schemas for one feature,
+and the XML one is the one that has to keep loading files written twenty years ago. It does: **XML
+scheduling is not deprecated and is not going away in 4.x**, and a schedule that only needs the three
+trigger kinds above never has to move. Write a new schedule that needs a fourth as JSON, and move an
+XML one when it needs a shape the schema cannot spell. `UseJsonSchedulingConfiguration` takes the same
+`FileSchedulingOptions` as its XML twin, so the registration is one word different.
+
+A trigger *setting* is a different thing from a trigger kind, and 4.1 added three of them to the schema
+as optional elements: `<execution-group>`, `<retry-policy>` and `<preferred-node>`. See
+[Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1) — a 4.0 file is unaffected either way.
 
 ### The shipped plugins are sealed
 

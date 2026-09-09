@@ -237,9 +237,10 @@ scheduler read the declaration. A rule that cannot be parsed is refused as the f
 the rule, rather than at the first firing.
 
 ::: tip
-This trigger kind is JSON only. The XML format is [frozen](../packages/quartz-plugins.md#the-xml-format-is-frozen)
-at the three kinds its schema already declares and will not gain a `<recurrence>` element, so a
-recurrence rule is declared in JSON or written in code.
+This trigger kind is JSON only. The XML format is
+[frozen](../packages/quartz-plugins.md#the-xml-trigger-kinds-are-frozen) at the three trigger kinds its
+schema already declares and will not gain a `<recurrence>` element, so a recurrence rule is declared in
+JSON or written in code.
 :::
 
 ### Common Trigger Fields
@@ -257,16 +258,35 @@ All trigger types support these optional fields:
 | `CalendarName` | Calendar to apply |
 | `ExecutionGroup` | The trigger's [execution group](../tutorial/execution-groups.md) |
 | `RetryPolicy` | The trigger's [retry policy](../how-tos/retrying-failed-jobs.md) in its stored form, for example `fixed;3;00:00:30` |
+| `PreferredNode` | The cluster node the trigger [prefers](../tutorial/node-affinity.md): a scheduler instance id, or `"*"` to pin it to whichever node fires it first. Omitted leaves it unpinned |
 | `StartTime` | ISO 8601 start time (e.g., `"2024-01-01T00:00:00Z"`) |
 | `StartTimeSecondsInFuture` | Start time as seconds from now (mutually exclusive with StartTime) |
 | `EndTime` | ISO 8601 end time |
 | `JobDataMap` | Key-value pairs for the trigger's data map |
 
-One trigger property has no field here and is not an oversight: a
-[preferred node](../tutorial/node-affinity.md) pins a trigger to one member of a cluster, which is a
-statement about a deployment rather than about a schedule — the same file read on a machine that does not
-have that node would pin the trigger to nothing. Set it in code, or through the
-[HTTP API](../packages/http-api.md).
+`PreferredNode` is the one that says something about the deployment rather than about the schedule, and
+declaring it in a file is what a deployment-specific file is for: every machine that reads the file pins
+the trigger to the node it names, which is the point of pinning it at all.
+
+```json
+{
+  "Name": "nightlyReport",
+  "JobName": "reportJob",
+  "PreferredNode": "production-node-1",
+  "Cron": { "Expression": "0 0 2 * * ?" }
+}
+```
+
+::: warning
+The name is a scheduler instance id and must match one **exactly** — pin comparisons happen in SQL using
+the database's string collation, so a value differing only in case is a different node, and on a
+case-sensitive database one that never matches. A file naming a node that no longer exists pins the
+trigger to nothing, and the trigger stops firing until the node comes back, the pin is cleared or the
+file is corrected. `"*"` avoids naming a node at all: the first node to fire the trigger claims it and
+keeps it, and the pin is released if that node stops checking in.
+:::
+
+The same field is spelled `<preferred-node>` in the XML format.
 
 ## Multiple Named Schedulers
 

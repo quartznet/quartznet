@@ -171,7 +171,7 @@ Recommended over `LoggingTriggerHistoryPlugin` when using structured logging pro
 
 ### JsonSchedulingDataProcessorPlugin
 
-This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. JSON is the maintained scheduling-file format — it is the one that gains a field when a trigger gains one, and [the XML format is frozen](#the-xml-format-is-frozen) at what it can already express. One trigger property is expressible in neither: a [preferred node](../tutorial/node-affinity.md) pins a trigger to a cluster member, which is a deployment's decision rather than a schedule's, so it is set in code or through the [HTTP API](http-api.md). Everything else a trigger carries has a field — see [Common Trigger Fields](../configuration/json.md#common-trigger-fields).
+This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. JSON is the maintained scheduling-file format — it is the one that gains a schedule shape when a trigger gains one, and [the XML trigger kinds are frozen](#the-xml-trigger-kinds-are-frozen) at the three its schema declares. Every setting a trigger carries has a field, including its [preferred node](../tutorial/node-affinity.md) — see [Common Trigger Fields](../configuration/json.md#common-trigger-fields).
 
 ::: warning
 The periodically scanning of files for changes is not currently supported in a clustered environment.
@@ -206,7 +206,7 @@ See [JSON Configuration](../configuration/json.md) for the full JSON file format
 
 ### XmlSchedulingDataProcessorPlugin
 
-This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. It is the XML twin of `JsonSchedulingDataProcessorPlugin` — same surface, same settings, and a format that is frozen.
+This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. It is the XML twin of `JsonSchedulingDataProcessorPlugin` — same surface, same settings, and a format [frozen at three trigger kinds](#the-xml-trigger-kinds-are-frozen).
 
 <!-- snippet: sample_plugins_xml_scheduling -->
 ```csharp
@@ -232,26 +232,54 @@ the file relates to the scheduler, and neither can say anything about how the fi
 The [ProcessingDirectives](../configuration/json.md#processingdirectives) section has the details; they
 apply to both formats.
 
-#### The XML format is frozen
+#### The XML trigger kinds are frozen
 
-`job_scheduling_data_2_0.xsd`, the schema every XML scheduling file is validated against, is what the
-XML format will be for the life of 4.x. It declares three trigger kinds — `simple`, `cron` and
-`calendar-interval` — and it will not gain a fourth, nor the trigger settings written since:
+`job_scheduling_data_2_0.xsd`, the schema every XML scheduling file is validated against, declares three
+trigger kinds — `simple`, `cron` and `calendar-interval` — and it will not gain a fourth:
 
 | To schedule | XML | JSON |
 |---|---|---|
 | a simple, cron or calendar-interval trigger | `<simple>`, `<cron>`, `<calendar-interval>` | `Simple`, `Cron`, `CalendarInterval` |
 | a daily time interval trigger | not expressible, and will not be | `DailyTimeInterval` |
 | a [recurrence trigger](../tutorial/recurrencetrigger.md) | not expressible, and will not be | [`Recurrence`](../configuration/json.md#recurrence-trigger) |
-| a trigger with a [retry policy](../how-tos/retrying-failed-jobs.md) | not expressible, and will not be | `RetryPolicy` |
-| a trigger in an [execution group](../tutorial/execution-groups.md) | not expressible, and will not be | `ExecutionGroup` |
+| a trigger in an [execution group](../tutorial/execution-groups.md) | `<execution-group>` | `ExecutionGroup` |
+| a trigger with a [retry policy](../how-tos/retrying-failed-jobs.md) | `<retry-policy>` | `RetryPolicy` |
+| a trigger with a [preferred node](../tutorial/node-affinity.md) | `<preferred-node>` | `PreferredNode` |
 
-This is a decision, not a backlog. Two file formats that both grow means two parsers, two schemas and
-two sets of documentation for one feature, and the XML one is the one carrying twenty years of files
-that must keep loading unchanged. So it keeps loading them: **XML scheduling is not deprecated and is
-not going away in 4.x**. A `quartz_jobs.xml` that worked on 3.x works here, and a schedule that only
-needs the three trigger kinds above can stay in XML indefinitely. Write a new schedule as JSON, and
-move an XML one when it needs something the schema above cannot spell.
+This is a decision, not a backlog. A trigger *kind* is a schedule shape with a parser, a misfire
+vocabulary and a schema branch of its own; two formats that both grow trigger kinds means two of each
+for one feature, and the XML one is the one carrying twenty years of files that must keep loading
+unchanged. So it keeps loading them: **XML scheduling is not deprecated and is not going away in 4.x**.
+A `quartz_jobs.xml` that worked on 3.x works here. Write a new schedule that needs a fourth kind as
+JSON, and move an XML one when it needs a shape the schema above cannot spell.
+
+The bottom three rows are the exception that proves where the line is. An execution group, a retry
+policy and a preferred node are not schedule shapes — each is one optional string on a trigger that
+already exists, so each is one optional element, and the last of them is the reason: pinning a trigger
+to a cluster node is exactly the sort of thing a deployment states in its own file. They were added in
+4.1 as optional elements between `<calendar-name>` and `<job-data-map>`, so the schema keeps its `2.0`
+version and its `http://quartznet.sourceforge.net/JobSchedulingData` namespace — an additive optional
+element does not change what a reader has to understand — and a file written before they existed
+validates and means exactly what it meant:
+
+```xml
+<trigger>
+  <cron>
+    <name>nightlyReport</name>
+    <job-name>reportJob</job-name>
+    <calendar-name>holidays</calendar-name>
+    <execution-group>batch</execution-group>
+    <retry-policy>fixed;3;00:00:30</retry-policy>
+    <preferred-node>production-node-1</preferred-node>
+    <cron-expression>0 0 2 * * ?</cron-expression>
+  </cron>
+</trigger>
+```
+
+The order matters, as it does for every element in an XML scheduling file: the schema is a sequence, so
+the three go where they are shown above. `<preferred-node>` takes a scheduler instance id or `*` for
+[an automatic pin](../tutorial/node-affinity.md#auto-pin-mode); `<retry-policy>` takes the policy's
+stored form. A value that cannot be read is refused as the file is read, naming the trigger.
 
 ### JobInterruptMonitorPlugin — retired
 
