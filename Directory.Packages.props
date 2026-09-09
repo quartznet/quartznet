@@ -34,7 +34,7 @@
       ask for the package builds and then fails at startup with a missing FSharp.Core. Only
       Quartz.Examples.FSharp references it. Keep it on the version the pinned SDK carries.
     -->
-    <PackageVersion Include="FSharp.Core" Version="10.1.400" />
+    <PackageVersion Include="FSharp.Core" Version="10.1.401" />
     <PackageVersion Include="MELT" Version="1.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
