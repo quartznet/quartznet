@@ -202,6 +202,18 @@ jobs:
           # handful of lines in it and little else Sonar reads, so three repeated lines were 4.8 % of
           # the new code and failed the 3 % gate on a change that added no code at all.
           #
+          # src/Quartz/Configuration/JsonSchedulingModels.cs and
+          # src/Quartz.Plugins/Plugins/Json/JsonJobSchedulingData.cs are twins by design, and out of
+          # duplication analysis for that reason. They are the same trigger shape read from two
+          # places -- the Quartz:Schedule section of appsettings.json and a standalone
+          # quartz_jobs.json -- in two assemblies, each with its own source-generated
+          # JsonSerializerContext, so neither can be the other's base type and a shared one would be
+          # a third assembly's worth of indirection to save a property list. Their agreeing is the
+          # requirement: SchedulingDataPluginTwinsTest fails when the two formats stop reading a
+          # trigger the same way. So a field added to a trigger is added to both, and lands as a
+          # block of new lines identical in each -- 6.4 % of the new code on the change that added
+          # PreferredNode, against the 3 % gate.
+          #
           # src/Quartz.Examples.AspNetCore/wwwroot/lib/ leaves analysis entirely, for the reason the
           # generated schema does: it is not this repository's source. It is Bootstrap, vendored
           # unmodified, and it was every open reliability bug on the project bar five — 81 of 86, all
@@ -218,7 +230,7 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,src/Quartz.Examples.AspNetCore/wwwroot/lib/**" \
-            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**,docs/.vuepress/configs/**" \
+            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**,docs/.vuepress/configs/**,src/Quartz/Configuration/JsonSchedulingModels.cs,src/Quartz.Plugins/Plugins/Json/JsonJobSchedulingData.cs" \
             /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Tests.Integration.Seeder/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.FSharp/**,src/Quartz.Examples.Wolverine/**,src/Quartz.Examples/**,src/Quartz.Examples.AspNetCore/**,src/Quartz.Examples.HttpClient/**,src/Quartz.Examples.Worker/**,database/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,generatedOracleGuardExceptions,repeatedObjectNames,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \

@@ -384,7 +384,7 @@ internal class XmlSchedulingDataProcessor
             var triggerGroup = triggerNode.Group.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
             var triggerDescription = triggerNode.Description.TrimEmptyToNull();
             var triggerCalendarRef = triggerNode.CalendarName.TrimEmptyToNull();
-            var triggerExecutionGroup = triggerNode.ExecutionGroup.TrimEmptyToNull();
+            string? triggerExecutionGroup = triggerNode.ExecutionGroup.TrimEmptyToNull();
             RetryPolicy? triggerRetryPolicy = SchedulingFileValues.ReadRetryPolicy(triggerNode.RetryPolicy.TrimEmptyToNull(), $"XML trigger '{triggerName}'");
             PreferredNode triggerPreferredNode = SchedulingFileValues.ReadPreferredNode(triggerNode.PreferredNode.TrimEmptyToNull(), $"XML trigger '{triggerName}'");
             string triggerJobName = triggerNode.JobName.TrimEmptyToNull()!;
