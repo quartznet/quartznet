@@ -23,6 +23,7 @@ public sealed class InjectedLoggingTest
     public void TheSchedulersResourcesCarryTheContainersLoggerFactory()
     {
         ServiceCollection services = new();
+        services.AddLogging();
         services.AddQuartz();
 
         using ServiceProvider provider = services.BuildServiceProvider();
@@ -34,20 +35,25 @@ public sealed class InjectedLoggingTest
     }
 
     /// <remarks>
-    /// Asked of the resolver rather than of a scheduler built without a logger factory, because there is
-    /// no such scheduler to build: <c>AddQuartz</c> calls <c>AddLogging</c>, and taking the factory back
-    /// out leaves <c>ILogger&lt;T&gt;</c> unresolvable, so the graph fails before any component could
-    /// fall back to anything. This is the rule the resources are filled in from.
+    /// Quartz registers no <see cref="ILoggerFactory" />, so this is every container that was never told
+    /// where logging goes rather than an exotic one assembled by hand — including the one this test
+    /// builds, which calls <c>AddQuartz</c> and nothing else.
     /// </remarks>
     [Test]
     public void AContainerWithNoLoggerFactoryFallsBackToTheAmbientOne()
     {
         ServiceCollection services = new();
+        services.AddQuartz();
+
         using ServiceProvider provider = services.BuildServiceProvider();
 
         provider.GetSchedulerLoggerFactory()
             .Should().BeOfType<LogProviderLoggerFactory>(
                 "falling silent is the one answer a component that used to log has no business giving");
+
+        provider.GetRequiredService<QuartzSchedulerResources>().LoggerFactory
+            .Should().BeOfType<LogProviderLoggerFactory>(
+                "and the resources are filled in from that rule, so a scheduler still builds");
     }
 
     [Test]

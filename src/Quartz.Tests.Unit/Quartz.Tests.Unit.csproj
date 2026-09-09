@@ -55,10 +55,15 @@
       Directory.Packages.props sets for what Quartz ships. VersionOverride raises them here and nowhere
       else, so the shipped packages keep asking their consumers for 10.0.0 - which is the whole point
       of the floor - while the test host runs on what the fake logger needs.
+
+      Microsoft.Extensions.Logging.Abstractions is the same thing one level down: 10.0.11 of
+      Microsoft.Extensions.Logging above asks for 10.0.11 of it, and transitive pinning would hold it at
+      the floor and call the difference a downgrade.
     -->
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Logging" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

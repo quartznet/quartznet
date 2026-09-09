@@ -51,7 +51,18 @@ internal static class QuartzServiceRegistration
     public static IServiceCollection AddQuartzSharedServices(this IServiceCollection services)
     {
         services.AddQuartzOptionsValidation();
-        services.AddLogging();
+
+        // The logger a Quartz component is injected, and nothing else from the logging stack. This used
+        // to be AddLogging(), which also registers ILoggerFactory -> LoggerFactory and the filter
+        // options behind it; Quartz references only Microsoft.Extensions.Logging.Abstractions now, and
+        // could not register that factory even if it wanted to (#3730).
+        //
+        // Nor should it. Every registration here is a TryAdd, so the first one wins, and a factory
+        // registered by AddQuartz would beat the services.AddLogging(b => b.AddConsole()) an application
+        // writes after it — the providers would be dropped and nothing would say so. Where log lines go
+        // is the application's to decide, whichever line it decides it on; QuartzLogger<T> reads the
+        // decision when it is constructed rather than requiring it to have been made first.
+        services.TryAdd(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(QuartzLogger<>)));
 
         // Job execution metrics. Built from the container's IMeterFactory when it has one — every
         // application on the generic host calls AddMetrics() for itself — so the measurements belong to
@@ -402,11 +413,13 @@ internal static class QuartzServiceRegistration
     /// Resolves the factory a scheduler's own parts create their loggers from.
     /// </summary>
     /// <remarks>
-    /// <see cref="AddQuartzSharedServices" /> calls <c>AddLogging()</c>, so this is the application's
-    /// factory in every container Quartz assembles. The fallback is for a container put together by
-    /// hand that has none: logging through <see cref="LogProvider" /> is what those components did
-    /// before they were injected a factory at all, so it is what they keep doing rather than falling
-    /// silent.
+    /// The application's, whenever the application has one — a generic host, or any
+    /// <c>services.AddLogging(…)</c> before or after <c>AddQuartz</c>. Quartz registers no
+    /// <see cref="ILoggerFactory" /> of its own, because a <c>TryAdd</c> of one would beat the
+    /// application's later call and drop its providers (#3730), so this is a <c>GetService</c> and not a
+    /// <c>GetRequiredService</c>. The fallback is for the container that was told nothing: logging
+    /// through <see cref="LogProvider" /> is what those components did before they were injected a
+    /// factory at all, so it is what they keep doing rather than falling silent.
     /// </remarks>
     internal static ILoggerFactory GetSchedulerLoggerFactory(this IServiceProvider provider)
     {

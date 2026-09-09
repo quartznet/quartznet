@@ -58,9 +58,25 @@ public sealed class SharedServiceForwardingTest
         [typeof(Microsoft.Extensions.Options.IOptionsMonitorCache<>)] = OptionsFramework,
 
         [typeof(Microsoft.Extensions.Logging.ILogger<>)] = Logging,
-        [typeof(Microsoft.Extensions.Logging.ILoggerFactory)] = Logging,
-        [typeof(Microsoft.Extensions.Logging.Configuration.ILoggerProviderConfigurationFactory)] = Logging,
-        [typeof(Microsoft.Extensions.Logging.Configuration.ILoggerProviderConfiguration<>)] = Logging,
+    };
+
+    /// <summary>
+    /// The other direction: a service a generation is handed that the shared registration deliberately
+    /// does not make, and why.
+    /// </summary>
+    /// <remarks>
+    /// One entry, and it is the exception that proves the rule the test below states. Everything else
+    /// forwarded is something <c>AddQuartzSharedServices</c> would otherwise register a second copy of;
+    /// this one is something nobody registers at all, and forwarding it is how a tenant reaches it.
+    /// </remarks>
+    private static readonly Dictionary<Type, string> forwardedWithoutRegistration = new()
+    {
+        [typeof(Microsoft.Extensions.Logging.ILoggerFactory)] =
+            "Quartz registers no logger factory - a TryAdd of one would beat the AddLogging an "
+            + "application writes after AddQuartz and drop its providers in silence (#3730). It is "
+            + "still forwarded, because where a tenant's log lines go is the application's decision "
+            + "and its factory is the whole of that decision; an application that made none forwards "
+            + "nothing, and the tenant falls back to the ambient bridge exactly as the application does",
     };
 
     private const string ContainerWide =
@@ -72,8 +88,10 @@ public sealed class SharedServiceForwardingTest
         + "generation reads its own options through its own";
 
     private const string Logging =
-        "AddLogging()'s registrations, which follow the ILoggerFactory that is forwarded - the factory "
-        + "is what decides where a log line goes, and it is the application's";
+        "the logger follows the ILoggerFactory that is forwarded - the factory is what decides where a "
+        + "log line goes, and it is the application's. A generation registers its own QuartzLogger<T>, "
+        + "which reads the forwarded factory, so a tenant's lines land where the application's do "
+        + "without a second registration to keep in step";
 
     [Test]
     public void EverySharedServiceIsEitherForwardedOrExcused()
@@ -111,9 +129,13 @@ public sealed class SharedServiceForwardingTest
             registered.Add(descriptor.ServiceType);
         }
 
-        SchedulerGeneration.ForwardedServiceTypes.Should().OnlyContain(x => registered.Contains(x),
-            "the list drifts in both directions: a service that stopped being registered here is one a "
-            + "generation is still trying to carry across, which is a forward of nothing at all");
+        SchedulerGeneration.ForwardedServiceTypes
+            .Where(x => !forwardedWithoutRegistration.ContainsKey(x))
+            .Should().OnlyContain(x => registered.Contains(x),
+                "the list drifts in both directions: a service that stopped being registered here is one "
+                + "a generation is still trying to carry across, which is a forward of nothing at all - "
+                + "unless it is one nobody registers, in which case say so in "
+                + nameof(forwardedWithoutRegistration));
     }
 
     [Test]
@@ -122,6 +144,9 @@ public sealed class SharedServiceForwardingTest
         excused.Should().OnlyContain(x => !string.IsNullOrWhiteSpace(x.Value),
             "an excuse without a reason is a service somebody classified in a hurry, and the next reader "
             + "has no way to tell whether it was thought about");
+
+        forwardedWithoutRegistration.Should().OnlyContain(x => !string.IsNullOrWhiteSpace(x.Value),
+            "and the same for the other direction, where the reason is the whole of the classification");
     }
 
     private static bool IsClassified(Type serviceType)

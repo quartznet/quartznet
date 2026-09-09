@@ -36,6 +36,12 @@
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="Npgsql" />
+    <!--
+      Those drivers drag in Microsoft.Extensions.Caching.Memory, pinned centrally at 10.0.10, which asks
+      for a Microsoft.Extensions.Logging.Abstractions above the 10.0.0 floor Quartz ships. Raised for
+      this project alone, which inherits nothing to anybody.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.11" />
   </ItemGroup>
 
   <ItemGroup>

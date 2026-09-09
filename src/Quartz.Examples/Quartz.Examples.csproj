@@ -23,6 +23,13 @@
     <!-- The clustering example's database driver. Quartz names a provider rather than referencing
          one, so without this the example fails at startup with a missing assembly. -->
     <PackageReference Include="Microsoft.Data.SqlClient" />
+    <!--
+      The driver above drags in Microsoft.Extensions.Caching.Memory, pinned centrally at 10.0.10, which
+      asks for a Microsoft.Extensions.Logging.Abstractions above the 10.0.0 floor Quartz ships. Raised
+      for this project alone, which inherits nothing to anybody - a floor is a demand made of every
+      consumer, and no consumer should inherit a driver's servicing schedule.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="NLog.Extensions.Logging" />
     <PackageReference Include="Serilog" />
