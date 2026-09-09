@@ -8,7 +8,7 @@ start, tutorial, configuration, how-tos - lives on the
 maps the 3.x names onto these.
 
 This set rolls forward with every 4.x minor release. The 3.x reference stays at
-[/apidoc/3.0](https://docs.quartz-scheduler.net/apidoc/3.0/html).
+[/apidoc/3.0](https://docs.quartz-scheduler.net/apidoc/3.0).
 
 ## Where to start
 

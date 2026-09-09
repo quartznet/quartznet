@@ -1,4 +1,4 @@
-// The docfx project behind https://docs.quartz-scheduler.net/apidoc/4.x/.
+// The docfx project behind https://www.quartz-scheduler.net/apidoc/4.x/.
 //
 // It sits at the repository root rather than under `docs/`, which is VuePress's source directory:
 // every `.md` under there becomes a site page, is link-checked by `npm run docs:check-links` and

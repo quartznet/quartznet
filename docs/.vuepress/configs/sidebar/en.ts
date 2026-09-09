@@ -57,7 +57,7 @@ export const sidebarEn: SidebarConfig = [
         // Generated with docfx by `dotnet fallout ApiDoc` and deployed with the site; the folder is
         // 4.x rather than a version because the set rolls forward with every 4.x minor release.
         text: "API Documentation",
-        link: "https://docs.quartz-scheduler.net/apidoc/4.x/",
+        link: "https://www.quartz-scheduler.net/apidoc/4.x/",
       },
     ],
   },
