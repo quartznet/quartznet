@@ -11,6 +11,8 @@ on:
       # the markdown lint's rules, and the trees it is scoped to
       - '.markdownlint.jsonc'
       - '.markdownlint-cli2.jsonc'
+      # the docfx project the API reference is generated from
+      - 'apidoc/**'
       # the compiled samples the documentation shows, and the target that injects them
       - 'src/Quartz.Documentation.Samples/**'
       - 'build/**'
@@ -65,6 +67,14 @@ jobs:
 
       - name: Build
         run: npm run docs:build
+
+      # The same target the deploy runs, for the same reason the snippet check runs here: the site is
+      # never published from a reference that does not generate. A doc comment whose <param> names a
+      # parameter that is gone, or an <see cref> that resolves nowhere, fails this step. It only sees
+      # a pull request that touches one of the paths above, so a doc comment broken by a change to
+      # src/ alone is caught by the next run rather than by its own pull request.
+      - name: Build the API reference
+        run: dotnet fallout ApiDoc
 
       # markdownlint's MD051 cannot check fragments against a VuePress slugger, so it is off;
       # this is the replacement. See the note in .markdownlint.jsonc.

@@ -53,9 +53,12 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/database/schema-changes",
       "/documentation/quartz-4.x/migration-guide",
       "/documentation/troubleshooting",
-      // No "API Documentation" entry for 4.x: nothing generates apidoc/4.0, so the link 404s. The
-      // 3.x, 2.x and 1.x entries below point at generated sets that exist. Restore this when
-      // something publishes one.
+      {
+        // Generated with docfx by `dotnet fallout ApiDoc` and deployed with the site; the folder is
+        // 4.x rather than a version because the set rolls forward with every 4.x minor release.
+        text: "API Documentation",
+        link: "https://docs.quartz-scheduler.net/apidoc/4.x/",
+      },
     ],
   },
   {

@@ -1,0 +1,69 @@
+// The docfx project behind https://docs.quartz-scheduler.net/apidoc/4.x/.
+//
+// It sits at the repository root rather than under `docs/`, which is VuePress's source directory:
+// every `.md` under there becomes a site page, is link-checked by `npm run docs:check-links` and
+// linted by `npm run docs:lint`. A docfx landing page is none of those things, and putting one in
+// that tree would publish it twice - once themed by VuePress at /apidoc/, once by docfx inside the
+// generated set.
+//
+// `dotnet fallout ApiDoc` runs `docfx metadata` and then `docfx build` over this file; nothing else
+// invokes docfx. The generated `api/` folder and the site output are both untracked.
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          // The ten shipped packages. The four 3.x shim packages under `src` carry no assembly at
+          // all (see src/QuartzShimPackage.props), so there is nothing to document in them.
+          "src": "../src",
+          "files": [
+            "Quartz/Quartz.csproj",
+            "Quartz.AspNetCore/Quartz.AspNetCore.csproj",
+            "Quartz.Aspire/Quartz.Aspire.csproj",
+            "Quartz.Dashboard/Quartz.Dashboard.csproj",
+            "Quartz.Extensions.Redis/Quartz.Extensions.Redis.csproj",
+            "Quartz.HttpClient/Quartz.HttpClient.csproj",
+            "Quartz.Jobs/Quartz.Jobs.csproj",
+            "Quartz.Plugins/Quartz.Plugins.csproj",
+            "Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj",
+            "Quartz.Serialization.Newtonsoft/Quartz.Serialization.Newtonsoft.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      // Everything targets net10.0, but a project is evaluated without a solution here, so the
+      // configuration has to be named or docfx would document the Debug build's symbols.
+      "properties": {
+        "TargetFramework": "net10.0",
+        "Configuration": "Release"
+      },
+      "filter": "filterConfig.yml"
+    }
+  ],
+  "build": {
+    "content": [
+      { "files": [ "api/**.yml", "api/**.md" ] },
+      { "files": [ "index.md", "toc.yml" ] }
+    ],
+    // Straight into the VuePress output, so one `dist` holds the whole published site. The folder is
+    // `4.x` and not `4.1`: the set rolls forward with every minor release, and the sidebar and the
+    // package readmes link to it by that name. A reader wanting 3.x's set still finds it at
+    // /apidoc/3.0, which is published from quartznet.github.io rather than from here.
+    "output": "../docs/.vuepress/dist/apidoc/4.x",
+    "template": [ "default", "modern" ],
+    "globalMetadata": {
+      "_appName": "Quartz.NET",
+      "_appTitle": "Quartz.NET 4.x API reference",
+      "_appFooter": "<span>Quartz.NET 4.x API reference &middot; <a href=\"https://www.quartz-scheduler.net/documentation/\">Documentation</a> &middot; <a href=\"https://github.com/quartznet/quartznet\">GitHub</a></span>",
+      // Root-relative, so they resolve against whichever host serves the deployed site. Both files
+      // come from docs/.vuepress/public and land at the root of the same `dist`.
+      "_appLogoPath": "/quartz-logo-small.png",
+      "_appFaviconPath": "/favicon.ico",
+      "_enableSearch": true
+    }
+    // No `xref` entry: the documentation site publishes no xrefmap to resolve against, and docfx
+    // already resolves every BCL and Microsoft.Extensions.* reference to learn.microsoft.com on its
+    // own. The third-party types that remain (Newtonsoft.Json, StackExchange.Redis) render as plain
+    // text, which is what an unresolvable reference should look like.
+  }
+}

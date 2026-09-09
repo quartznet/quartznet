@@ -82,7 +82,7 @@ public static class JobInputBuilderExtensions
         return builder.UsingJobData(SchedulerConstants.JobInput, input);
     }
 
-    /// <inheritdoc cref="UsingInput{TJob, TInput}(JobBuilder{TJob}, TInput)" />
+    /// <inheritdoc cref="UsingInput{TJob, TInput}(JobBuilder{TJob}, TInput)" path="/summary|/remarks|/typeparam|/returns" />
     /// <param name="configurator">The job being configured.</param>
     /// <param name="input">The payload the job runs with.</param>
     public static IJobConfigurator<TJob> UsingInput<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
@@ -94,7 +94,7 @@ public static class JobInputBuilderExtensions
         return configurator.UsingJobData(SchedulerConstants.JobInput, input);
     }
 
-    /// <inheritdoc cref="UsingInput{TJob, TInput}(TriggerBuilder{TJob}, TInput)" />
+    /// <inheritdoc cref="UsingInput{TJob, TInput}(TriggerBuilder{TJob}, TInput)" path="/summary|/remarks|/typeparam|/returns" />
     /// <param name="configurator">The trigger being configured.</param>
     /// <param name="input">The payload the job runs with when this trigger fires it.</param>
     public static ITriggerConfigurator<TJob> UsingInput<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(

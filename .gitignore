@@ -55,7 +55,6 @@ _dotCover*/
 /package/*
 *.zip
 website
-/doc/apidoc
 *.nupkg
 /packages
 /buildlog.txt
@@ -89,6 +88,13 @@ node_modules
 
 docs/.vuepress/dist
 docs/.vuepress/.temp
+
+# What docfx generates under apidoc/: the YAML metadata it reads the projects into, and the site it
+# renders from that. The site the docs workflow deploys is written into docs/.vuepress/dist instead;
+# _site is only there for a `docfx serve` preview.
+/apidoc/api
+/apidoc/obj
+/apidoc/_site
 
 /node_modules
 BenchmarkDotNet.Artifacts

@@ -1,0 +1,16 @@
+# What the generated reference leaves out, beyond the internals docfx already skips.
+#
+# The dashboard's Blazor components. The Razor compiler emits a public class per .razor file, so they
+# cannot be made internal, but they are the dashboard's UI rather than API anyone calls - the same
+# reason PublicApiTest excludes them from the Quartz.Dashboard baseline. _Imports is that one step
+# further: a public class whose whole content is the @using list every component compiles with.
+#
+# As things stand docfx does not see them anyway: it bundles its own Roslyn, and the SDK's Razor
+# source generator refuses to load into a compiler older than the one it was built against, so no
+# component ever reaches this filter. That is exactly why the rule is written down - the day docfx
+# ships a newer Roslyn, nineteen components would otherwise appear in the reference on their own.
+apiRules:
+  - exclude:
+      uidRegex: ^Quartz\.Dashboard\.Components
+  - exclude:
+      uidRegex: ^Quartz\.Dashboard\._Imports$

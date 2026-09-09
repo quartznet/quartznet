@@ -397,7 +397,7 @@ public static class QuartzBuilderExtensions
         return builder.AddJobType<TJob, TJob>(ServiceLifetime.Scoped);
     }
 
-    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder)" />
+    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder)" path="/summary|/remarks|/typeparam" />
     /// <param name="builder">The builder.</param>
     /// <param name="lifetime">How long one instance lives.</param>
     public static IQuartzBuilder AddJobType<
@@ -425,7 +425,7 @@ public static class QuartzBuilderExtensions
         return builder.AddJobType<TJob, TImplementation>(ServiceLifetime.Scoped);
     }
 
-    /// <inheritdoc cref="AddJobType{TJob, TImplementation}(IQuartzBuilder)" />
+    /// <inheritdoc cref="AddJobType{TJob, TImplementation}(IQuartzBuilder)" path="/summary|/remarks|/typeparam" />
     /// <param name="builder">The builder.</param>
     /// <param name="lifetime">How long one instance lives.</param>
     public static IQuartzBuilder AddJobType<
@@ -461,7 +461,7 @@ public static class QuartzBuilderExtensions
         return builder.AddJobType(implementationFactory, ServiceLifetime.Scoped);
     }
 
-    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder, Func{IServiceProvider, TJob})" />
+    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder, Func{IServiceProvider, TJob})" path="/summary|/remarks|/typeparam" />
     /// <param name="builder">The builder.</param>
     /// <param name="implementationFactory">Builds the job.</param>
     /// <param name="lifetime">How long one instance lives.</param>
