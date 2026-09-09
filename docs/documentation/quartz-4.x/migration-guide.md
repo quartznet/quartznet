@@ -40,8 +40,9 @@ The rest of this guide is written as one statement about 3.x and 4.0, with no bu
 ## Upgrading from 4.0 to 4.1
 
 Nothing in the 4.0 public surface moved and the database schema did not either, so an application on
-4.0 compiles on 4.1 unchanged. What is here is what 4.1 makes newly possible, and the two cron
-expressions it reads differently.
+4.0 compiles on 4.1 unchanged — unless it was using a package it took transitively from `Quartz` and
+`Quartz` no longer carries, which is the one dependency change below. What is here is what 4.1 makes
+newly possible, that change, and the two cron expressions 4.1 reads differently.
 
 | Added | What it is |
 |---|---|
@@ -83,6 +84,32 @@ Four behaviours changed without a signature changing:
 
 The mechanics, the refusals and the recipes are in
 [Multi-Tenancy](multi-tenancy.md#adding-a-tenant-while-the-process-is-running).
+
+One dependency changed, and a consumer can see it: **`Quartz` depends on
+`Microsoft.Extensions.Logging.Abstractions` rather than `Microsoft.Extensions.Logging`.** Quartz writes
+log events, and building the pipeline that carries them is the application's job — the implementation
+package was referenced for exactly one call, `AddLogging()` inside `AddQuartz`, and it is not made any
+more. Nothing in the public surface moves, and an application under a host, or one that calls
+`services.AddLogging(…)` on either side of `AddQuartz`, sees no difference at all: Quartz logs through
+whatever `ILoggerFactory` the container holds, as it always has.
+
+What changes is a project that used `LoggerFactory`, `AddLogging` or another
+`Microsoft.Extensions.Logging` type without ever referencing the package, taking it transitively through
+`Quartz`. That project references it:
+
+```shell
+dotnet add package Microsoft.Extensions.Logging
+```
+
+Two consequences follow, and a hosted application meets neither. A container that configured no logging
+at all now holds no `ILoggerFactory`: `AddQuartz` used to register one, and registering one now would
+beat the `services.AddLogging(logging => logging.AddConsole())` written on the line after it and drop
+the application's providers in silence. Such a container still builds and runs a scheduler, and its
+lines go to `LogProvider` — where everything Quartz cannot inject a logger into already writes. And
+`QuartzSchedulerBuilder` refuses at `Build()` a container holding `ILoggerProvider` registrations with
+no `ILoggerFactory` to read them, which used to work because Quartz's own `AddLogging()` supplied the
+factory; register the provider the ordinary way, `Services.AddLogging(logging =>
+logging.AddProvider(…))`, which brings a factory with it.
 
 Two cron expressions change what they mean, and neither can be reported to you — both parse on 4.1:
 
