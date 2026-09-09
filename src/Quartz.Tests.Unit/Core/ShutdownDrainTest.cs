@@ -182,8 +182,9 @@ public class ShutdownDrainTest
     }
 
     /// <summary>
-    /// A shutdown that did not wait answers from the count of executing jobs, which is the only evidence
-    /// it has.
+    /// A shutdown that did not wait answers from the short window it gives the executions already in
+    /// flight — see <c>UnwaitedShutdownTest</c> — and a job that is still working when that window
+    /// closes is abandoned, which is what this asks about.
     /// </summary>
     [Test]
     public async Task AShutdownThatDidNotWaitSaysWhetherAnythingWasStillRunning()
@@ -202,6 +203,9 @@ public class ShutdownDrainTest
         await GatedJob.Started.WaitAsync(TimeSpan.FromSeconds(30));
 
         await scheduler.Shutdown(waitForJobsToComplete: false);
+
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown,
+            "the window bounds an unwaited shutdown, it does not turn it into one that waits for its jobs");
 
         Drained(scheduler).Should().BeFalse(
             "a shutdown that abandoned a running job did not drain, and saying it had would license a second "
