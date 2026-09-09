@@ -4,6 +4,8 @@ using System.Data.Common;
 using System.Globalization;
 using System.Text;
 
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
@@ -93,7 +95,62 @@ public abstract class ClusteredJobStoreTestBase
         Action<NameValueCollection> configure = null,
         Action<IQuartzBuilder> configureBuilder = null)
     {
-        var properties = new NameValueCollection
+        NameValueCollection properties = NodeProperties(instanceId, checkinIntervalMs, checkinMisfireThresholdMs, configure);
+
+        // Cluster nodes share the scheduler (instance) name, and a factory's repository lookup is
+        // name-only — but each factory owns its own repository, so every call here builds a genuinely
+        // separate node rather than handing back the first one.
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create(configureBuilder).UseProperties(properties).Build();
+        return await factory.GetScheduler();
+    }
+
+    /// <summary>
+    /// Builds one node of this fixture's cluster into a container the caller keeps hold of, rather than
+    /// into the one <see cref="QuartzSchedulerBuilder" /> creates and hides.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Same scheduler, same flat properties, same callback — <c>AddQuartz(properties, configure)</c> is
+    /// what the standalone builder calls into. What the caller gets in addition is the
+    /// <see cref="IServiceProvider" />, which is the only way to reach the container-wide services a
+    /// node shares with the application that hosts it: <see cref="ISchedulerRuntime" /> above all, since
+    /// a scheduler added at run time is added to <em>a container</em>, and
+    /// <see cref="StandaloneSchedulerFactory" /> deliberately exposes none.
+    /// </para>
+    /// <para>
+    /// The container is the caller's to dispose, and disposing it shuts down whatever it still holds. A
+    /// fixture that only needs a node uses <see cref="CreateScheduler" />.
+    /// </para>
+    /// </remarks>
+    /// <inheritdoc cref="CreateScheduler" path="/param" />
+    protected async Task<SchedulerHost> CreateSchedulerHost(
+        string instanceId,
+        int checkinIntervalMs = 1000,
+        int checkinMisfireThresholdMs = 2000,
+        Action<NameValueCollection> configure = null,
+        Action<IQuartzBuilder> configureBuilder = null)
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(
+            NodeProperties(instanceId, checkinIntervalMs, checkinMisfireThresholdMs, configure),
+            configureBuilder);
+
+        ServiceProvider provider = services.BuildServiceProvider();
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        return new SchedulerHost(provider, scheduler);
+    }
+
+    /// <summary>
+    /// The flat properties one node of this fixture's cluster is configured from, whichever of the two
+    /// doors above builds it.
+    /// </summary>
+    private NameValueCollection NodeProperties(
+        string instanceId,
+        int checkinIntervalMs,
+        int checkinMisfireThresholdMs,
+        Action<NameValueCollection> configure)
+    {
+        NameValueCollection properties = new()
         {
             ["quartz.scheduler.instanceName"] = SchedulerName,
             ["quartz.scheduler.instanceId"] = instanceId,
@@ -114,13 +171,18 @@ public abstract class ClusteredJobStoreTestBase
         };
 
         configure?.Invoke(properties);
-
-        // Cluster nodes share the scheduler (instance) name, and a factory's repository lookup is
-        // name-only — but each factory owns its own repository, so every call here builds a genuinely
-        // separate node rather than handing back the first one.
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create(configureBuilder).UseProperties(properties).Build();
-        return await factory.GetScheduler();
+        return properties;
     }
+
+    /// <summary>
+    /// A node and the container it was built from.
+    /// </summary>
+    /// <remarks>
+    /// The pair rather than the scheduler alone, because the interesting half is the container: it is
+    /// what an application hosting this node would have, and what the services a scheduler does not own
+    /// — the repository, the registry, the runtime — are resolved from.
+    /// </remarks>
+    protected sealed record SchedulerHost(ServiceProvider Services, IScheduler Scheduler);
 
     protected static Task WaitForCondition(
         Func<Task<bool>> condition,
