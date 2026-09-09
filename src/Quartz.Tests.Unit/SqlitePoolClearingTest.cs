@@ -1,3 +1,5 @@
+using Microsoft.Data.Sqlite;
+
 namespace Quartz.Tests.Unit;
 
 /// <summary>
@@ -67,6 +69,42 @@ public class SqlitePoolClearingTest
             + Environment.NewLine
             + "See https://github.com/quartznet/quartznet/issues/3755. A fixture that genuinely needs a pool "
             + "clears its own with SqliteConnection.ClearPool(connection) and says here why it is exempt");
+    }
+
+    /// <summary>
+    /// The replacement keeps the promise the rule above is built on: no pool, and no file left behind.
+    /// </summary>
+    /// <remarks>
+    /// <c>Pooling</c> is asserted through the builder rather than by looking for a substring, because
+    /// what matters is the value the driver reads — a keyword the builder decided was a default and
+    /// dropped would leave every fixture pooling again with nothing to say so.
+    /// </remarks>
+    [Test]
+    public void ASqliteTestDatabaseTurnsPoolingOffAndTakesItsFileWithIt()
+    {
+        string file;
+
+        using (SqliteTestDatabase database = new("pool-clearing"))
+        {
+            SqliteConnectionStringBuilder parsed = new(database.ConnectionString);
+
+            parsed.Pooling.Should().BeFalse(
+                "the fixtures stopped clearing pools because they no longer create one, so a connection "
+                + "string that quietly pooled would put the race back with nothing left to notice it");
+
+            file = database.DatabaseFile;
+            parsed.DataSource.Should().Be(file,
+                "the path a fixture is handed has to be the database its connection string opens");
+
+            using SqliteConnection connection = new(database.ConnectionString);
+            connection.Open();
+
+            File.Exists(file).Should().BeTrue("opening a connection is what creates the file");
+        }
+
+        File.Exists(file).Should().BeFalse(
+            "a fixture that owns its database leaves nothing behind in the temporary directory — which "
+            + "is what the ClearAllPools() call was there to make possible");
     }
 
     /// <summary>
