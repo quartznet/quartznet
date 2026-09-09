@@ -111,11 +111,19 @@
     moving the floor instead would hand the demand to every consumer. Nothing that ships may do it, which
     PackageDependencyTest holds.
 
-    Two of the ids here are not floors themselves. Microsoft.Extensions.Hosting and
-    Microsoft.Extensions.Logging.Console ship in nothing and are referenced only by tests and examples,
-    but dotnet/runtime versions the family in lockstep: 10.0.11 of either demands 10.0.11 of a floored
-    id, and CentralPackageTransitivePinningEnabled has already pinned that at the floor, so restore
-    fails. They sit with the floors so the family stays one line rather than two that disagree.
+    Three of the ids here are not floors themselves. Microsoft.Extensions.Hosting,
+    Microsoft.Extensions.Logging and Microsoft.Extensions.Logging.Console ship in nothing and are
+    referenced only by tests and examples, but dotnet/runtime versions the family in lockstep: 10.0.11
+    of any of them demands 10.0.11 of a floored id, and CentralPackageTransitivePinningEnabled has
+    already pinned that at the floor, so restore fails. They sit with the floors so the family stays one
+    line rather than two that disagree.
+
+    Microsoft.Extensions.Logging is the newest of the three and used to be a floor: Quartz referenced it
+    for one call, services.AddLogging(), and every shipped package inherited it. Quartz references
+    Microsoft.Extensions.Logging.Abstractions instead as of 4.1 (#3730), so no nuspec names the
+    implementation package any more — but Microsoft.Extensions.Hosting and
+    Microsoft.Extensions.Logging.Console both pull it in transitively, and it is pinned here for the
+    same lockstep reason they are.
 
     That pinning is also why several of these ids reach nuspecs that name none of them: Quartz.Jobs
     references nothing but Quartz, and carries all six of Quartz's framework extensions as dependencies of
@@ -136,6 +144,7 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
     <!--

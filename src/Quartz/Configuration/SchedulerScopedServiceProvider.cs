@@ -3,9 +3,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Core;
+using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -215,9 +217,18 @@ internal sealed class SchedulerScopedServiceProvider
     /// </remarks>
     public static IServiceProvider For(IServiceProvider provider, object? key)
     {
-        return key is null
-            ? provider
-            : new SchedulerScopedServiceProvider(provider, key, provider.GetService<ApplicationLink>());
+        if (key is not null)
+        {
+            return new SchedulerScopedServiceProvider(provider, key, provider.GetService<ApplicationLink>());
+        }
+
+        // The default scheduler's parts are unkeyed, so nothing needs redirecting - with one exception.
+        // Quartz registers no ILoggerFactory (#3730), and a component whose constructor asks for one has
+        // to be handed the ambient bridge rather than refused. The check is a singleton lookup made once
+        // per component built, and answers "yes" in every application that configured logging at all.
+        return provider.GetService<ILoggerFactory>() is null
+            ? new AmbientLoggerFactoryProvider(provider)
+            : provider;
     }
 
     public object? GetService(Type serviceType)
@@ -233,6 +244,15 @@ internal sealed class SchedulerScopedServiceProvider
         if (serviceType == typeof(TimeProvider))
         {
             return inner.GetKeyedService(serviceType, key) ?? inner.GetService(serviceType);
+        }
+
+        // Quartz registers no ILoggerFactory, so a container that was never told where logging goes has
+        // none to inject into a component that asks for one - a custom job store, a serializer, a
+        // listener. The ambient bridge is the answer there, for the same reason a scheduler's own parts
+        // fall back to it (#3730).
+        if (serviceType == typeof(ILoggerFactory))
+        {
+            return inner.GetService(serviceType) ?? LogProviderLoggerFactory.Instance;
         }
 
         // The trigger persistence delegates are one service type registered several times, so they
@@ -495,6 +515,12 @@ internal sealed class SchedulerScopedServiceProvider
         {
             return IsKeyedService(serviceType, key)
                 || (inner.GetService<IServiceProviderIsService>()?.IsService(serviceType) ?? false);
+        }
+
+        // Always, because GetService always answers it: the container's factory or the ambient bridge.
+        if (serviceType == typeof(ILoggerFactory))
+        {
+            return true;
         }
 
         if (NamedOptions(serviceType) is not null

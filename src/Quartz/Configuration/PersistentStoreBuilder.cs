@@ -147,7 +147,9 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
         if (schedulerKey is null)
         {
-            Services.AddSingleton(factory);
+            // See RegisterScoped: the wrapper is what lets a connection provider of your own take an
+            // ILoggerFactory in a container that was never told where logging goes.
+            Services.AddSingleton(provider => factory(SchedulerScopedServiceProvider.For(provider, key: null)));
         }
         else
         {
@@ -379,7 +381,10 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     {
         if (schedulerKey is null)
         {
-            Services.TryAddSingleton(factory);
+            // Through the same wrapper as the keyed branch, although the default scheduler's parts need
+            // no redirecting: it is what supplies an ILoggerFactory to a component that asks for one in
+            // a container that has none, which Quartz no longer registers (#3730).
+            Services.TryAddSingleton(provider => factory(SchedulerScopedServiceProvider.For(provider, key: null)));
         }
         else
         {

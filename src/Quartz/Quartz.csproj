@@ -93,7 +93,15 @@
     -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <!--
+      The abstractions, not Microsoft.Extensions.Logging itself. Quartz writes log events and never
+      builds the pipeline that carries them: ILogger, ILoggerFactory, ILoggerProvider, the
+      [LoggerMessage] partials and NullLoggerFactory all live here, and LoggerFactory — the
+      implementation, and the AddLogging() that registers it — belongs to whoever composes the
+      application. So AddQuartz registers ILogger<> and no ILoggerFactory at all, and every place
+      Quartz needs a factory asks the container for one and falls back if there is none (issue #3730).
+    -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
 

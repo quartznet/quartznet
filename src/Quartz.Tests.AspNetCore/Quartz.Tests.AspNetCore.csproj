@@ -47,6 +47,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Hosting" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" VersionOverride="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Logging" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" VersionOverride="10.0.11" />

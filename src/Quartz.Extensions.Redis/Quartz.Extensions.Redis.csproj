@@ -25,6 +25,23 @@
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <!--
+      The one shipped project that does not restate Quartz's floors in its own nuspec, and the reason is
+      StackExchange.Redis. Transitive pinning turns every centrally versioned id in the graph into a
+      direct dependency at exactly the central version, and NuGet resolves a direct reference in
+      preference to a deeper one whichever way round the versions are - so pinning
+      Microsoft.Extensions.Logging.Abstractions at the 10.0.0 floor while StackExchange.Redis 3.0.0 asks
+      for 10.0.5 is a package downgrade (NU1109) rather than a floor being raised to meet a demand.
+
+      The alternatives were worse. Raising the floor to 10.0.5 would hand StackExchange.Redis' servicing
+      schedule to every consumer of Quartz itself, which is the mistake #3717 was about; a
+      VersionOverride would write a floor into this nuspec where neither Directory.Packages.props nor
+      Dependabot can see it, which PackageDependencyTest refuses on any shipped project. Turning the
+      pinning off leaves this package's nuspec saying what it actually depends on - Quartz and
+      StackExchange.Redis - and a consumer inherits Quartz's floors through Quartz, which is where they
+      are declared and checked. Same reasoning as src/QuartzShimPackage.props, for the same mechanism.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup>
