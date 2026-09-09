@@ -408,6 +408,13 @@ public class QuartzScheduler :
             throw new SchedulerException(
                 "The Scheduler cannot be restarted after Shutdown() has been called.");
         }
+
+        // Checked here rather than left to the timer below. The wait runs on a task nobody observes, so
+        // a delay the timer refuses faults that task, is collected without a word, and leaves a
+        // scheduler that never starts — no exception, no log line, nothing pointing at the delay.
+        TimerLimits.EnsureWaitable(delay, "delay",
+            "The scheduler waits it out before starting, on a task nobody observes.");
+
         Task.Run(async () =>
         {
             await Task.Delay(delay, cancellationToken).ConfigureAwait(false);

@@ -67,6 +67,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     private INextVersionDelegate? nextVersionDelegate;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
     private TimeSpan? misfirehandlerFrequence;
+    private TimeSpan clusterCheckinInterval;
+    private TimeSpan dbRetryInterval;
+    private TimeSpan transientRetryInterval;
 
     private ClusterManager? clusterManager;
     private MisfireHandler? misfireHandler;
@@ -181,7 +184,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// detecting failed instances.
     /// </summary>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan ClusterCheckinInterval { get; set; }
+    public TimeSpan ClusterCheckinInterval
+    {
+        get => clusterCheckinInterval;
+        set
+        {
+            TimerLimits.EnsureWaitable(value, nameof(ClusterCheckinInterval),
+                "The cluster manager sleeps for it between check-ins.");
+            clusterCheckinInterval = value;
+        }
+    }
 
     /// <summary>
     /// The time span by which a check-in must have missed its
@@ -204,7 +216,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// </summary>
     /// <value>The db retry interval.</value>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan DbRetryInterval { get; set; }
+    public TimeSpan DbRetryInterval
+    {
+        get => dbRetryInterval;
+        set
+        {
+            TimerLimits.EnsureWaitable(value, nameof(DbRetryInterval),
+                "The store waits it out after a database failure, and the misfire handler and the cluster "
+                + "manager both sleep for it while their last pass is failing.");
+            dbRetryInterval = value;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the maximum number of retries for transient database exceptions
@@ -226,7 +248,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// near-immediate. Set to <see cref="TimeSpan.Zero"/> for no delay between retries.
     /// </remarks>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan TransientRetryInterval { get; set; }
+    public TimeSpan TransientRetryInterval
+    {
+        get => transientRetryInterval;
+        set
+        {
+            TimerLimits.EnsureWaitable(value, nameof(TransientRetryInterval),
+                "It is waited out between the retries of a transiently failed statement.");
+            transientRetryInterval = value;
+        }
+    }
 
     /// <summary>
     /// Get or set whether this instance should use database-based thread
@@ -316,6 +347,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             {
                 throw new ArgumentException("MisfireHandlerFrequency must be larger than 0");
             }
+
+            TimerLimits.EnsureWaitable(value, nameof(MisfireHandlerFrequency),
+                "The misfire handler sleeps for it between passes, and a delay longer than this is "
+                + "refused by the timer rather than by the store — which is why an unbounded value used "
+                + "to be reported out of Shutdown.");
+
             misfirehandlerFrequence = value;
         }
     }
@@ -665,6 +702,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         if (string.IsNullOrWhiteSpace(DataSource))
         {
             throw new SchedulerConfigException("DataSource name not set.");
+        }
+
+        // The misfire threshold is also how long the misfire handler sleeps between passes when no
+        // frequency of its own is set, so it reaches the same Task.Delay and the same ceiling. It is
+        // checked here rather than on its setter because the two properties can be written in either
+        // order, and a threshold longer than a timer will wait out is only a mistake when nothing
+        // overrides it.
+        if (misfirehandlerFrequence is null && MisfireThreshold > TimerLimits.MaxDelay)
+        {
+            throw new SchedulerConfigException(TimerLimits.TooLong(
+                nameof(MisfireThreshold),
+                MisfireThreshold,
+                TimerLimits.MaxDelay,
+                nameof(MisfireHandlerFrequency) + " is unset, so this is also how long the misfire handler "
+                + "sleeps between passes. Set " + nameof(MisfireHandlerFrequency) + " to keep a threshold "
+                + "this long."));
         }
 
         typeLoadHelper = loadHelper;
