@@ -55,19 +55,24 @@ public sealed class UnwaitedShutdownSqliteTest
     private string databaseFile = null!;
     private string connectionString = null!;
 
+    /// <remarks>
+    /// Pooling is off, which is what lets this fixture clean up after itself without
+    /// <see cref="SqliteConnection.ClearAllPools" />: that call is global, the assembly runs its
+    /// fixtures in parallel, and Microsoft.Data.Sqlite's pool hands out the underlying handle rather
+    /// than a copy — so clearing it disposes connections another fixture is in the middle of using. An
+    /// unpooled connection closes its handle when it is disposed, so the file is deletable anyway.
+    /// </remarks>
     [SetUp]
     public void CreateEmptyDatabase()
     {
         databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-unwaited-shutdown-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        connectionString = $"Data Source={databaseFile};Pooling=False";
         ParkingJob.Reset();
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
         if (File.Exists(databaseFile))
         {
             File.Delete(databaseFile);
