@@ -542,12 +542,12 @@ internal sealed class QuartzScheduler
     /// dispatched report their completions before the job store is torn down.
     /// </summary>
     /// <remarks>
-    /// A store round trip's worth, and no more. The window exists because a completion the store has
-    /// closed to leaves a firing's bookkeeping for somebody else to do — see <see cref="Shutdown" /> —
-    /// and it is short because anything longer would be waiting for the jobs themselves, which is what
-    /// <c>waitForJobsToComplete: true</c> is. Deliberately not configurable: an application that needs
-    /// its executions to finish asks for the wait, and one that needs out now is not made to wait on a
-    /// job by this.
+    /// A store round trip's worth, and no more. The window exists because a completion issued to a store
+    /// that has already closed is refused, and leaves a firing's bookkeeping for somebody else to do —
+    /// see <see cref="Shutdown" /> — and it is short because anything longer would be waiting for the
+    /// jobs themselves, which is what <c>waitForJobsToComplete: true</c> is. Deliberately not
+    /// configurable: an application that needs its executions to finish asks for the wait, and one that
+    /// needs out now is not made to wait on a job by this.
     /// </remarks>
     private static readonly TimeSpan DispatchedExecutionSettleWindow = TimeSpan.FromSeconds(2);
 
@@ -637,12 +637,16 @@ internal sealed class QuartzScheduler
     /// </summary>
     /// <param name="waitForJobsToComplete">
     /// if <see langword="true" /> the scheduler will not allow this method
-    /// to return until all currently executing jobs have completed.
+    /// to return until all currently executing jobs have completed. If <see langword="false" /> it waits
+    /// for no job, but still gives the executions already in flight
+    /// <see cref="DispatchedExecutionSettleWindow" /> to report their completions, so that a firing
+    /// which ends on the way out is recorded rather than left for a peer to recover.
     /// </param>
     /// <param name="cancellationToken">
-    /// Bounds the wait for running jobs, and nothing else. Cancelling it stops the scheduler waiting —
-    /// it does not cancel the jobs, and it does not abandon the shutdown, which always runs to the end
-    /// so that the job store, the plugins and the listeners are all told the scheduler has stopped.
+    /// Bounds the wait for running jobs, and nothing else — the window above included. Cancelling it
+    /// stops the scheduler waiting; it does not cancel the jobs, and it does not abandon the shutdown,
+    /// which always runs to the end so that the job store, the plugins and the listeners are all told
+    /// the scheduler has stopped.
     /// </param>
     public async ValueTask Shutdown(
         bool waitForJobsToComplete = false,
