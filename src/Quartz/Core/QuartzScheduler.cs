@@ -542,12 +542,19 @@ internal sealed class QuartzScheduler
     /// dispatched report their completions before the job store is torn down.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A store round trip's worth, and no more. The window exists because a completion issued to a store
     /// that has already closed is refused, and leaves a firing's bookkeeping for somebody else to do —
     /// see <see cref="Shutdown" /> — and it is short because anything longer would be waiting for the
     /// jobs themselves, which is what <c>waitForJobsToComplete: true</c> is. Deliberately not
     /// configurable: an application that needs its executions to finish asks for the wait, and one that
     /// needs out now is not made to wait on a job by this.
+    /// </para>
+    /// <para>
+    /// Measured on the scheduler's own <see cref="TimeProvider" />, as every other wait here is — so a
+    /// fixture that hands the scheduler a fake clock and then shuts down with a job parked has to
+    /// advance that clock, or the window it is waiting out never elapses.
+    /// </para>
     /// </remarks>
     private static readonly TimeSpan DispatchedExecutionSettleWindow = TimeSpan.FromSeconds(2);
 
