@@ -52,8 +52,15 @@ namespace Quartz.Impl.Redis;
 /// quartz.jobStore.lockHandler.redisConfiguration = localhost:6379
 /// </code>
 /// </para>
+/// <para>
+/// The multiplexer this opens on its first lock belongs to the handler, and the job store closes it
+/// when it shuts down: <see cref="ISemaphore" /> has no member that means "we are done with you" and
+/// cannot gain one on this branch, so the handler says what it holds by being
+/// <see cref="IAsyncDisposable" /> and <see cref="IDisposable" />, and <c>JobStoreSupport.Shutdown</c>
+/// honours whichever of the two the framework it is running on has.
+/// </para>
 /// </remarks>
-public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
+public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware, IAsyncDisposable, IDisposable
 {
     private static readonly LuaScript ReleaseLockScript = LuaScript.Prepare(
         "if redis.call('get', @key) == @value then return redis.call('del', @key) else return 0 end");
@@ -64,6 +71,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
     private IConnectionMultiplexer? redis;
     private readonly SemaphoreSlim connectionLock = new(1, 1);
+    private int disposed;
     private int lockTtlMilliseconds = 30_000;
     private int lockRetryIntervalMilliseconds = 100;
 
@@ -283,6 +291,115 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
         }
     }
 
+    /// <summary>
+    /// Closes the connection this handler opened, if it opened one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The multiplexer is the whole reason this member exists. The handler opens one on its first lock
+    /// and keeps it for the life of the scheduler; before 3.21.0 nothing ever closed it, so a host that
+    /// built, ran and shut down a scheduler left a live Redis connection and its heartbeat behind — once
+    /// per scheduler, for the life of the process. <c>JobStoreSupport.Shutdown</c> calls this, after the
+    /// misfire handler, the cluster manager and the connection manager have stopped, so no acquire is in
+    /// flight by the time it runs.
+    /// </para>
+    /// <para>
+    /// A handler that never took a lock never connected, and closes nothing. Closing twice is harmless:
+    /// the connection is taken under the same gate the connect takes, so the second call finds nothing
+    /// to close.
+    /// </para>
+    /// </remarks>
+    public async ValueTask DisposeAsync()
+    {
+        if (!EnterDispose())
+        {
+            return;
+        }
+
+        // The same gate the connect takes, so a close racing a first acquire closes the connection that
+        // acquire opened rather than stepping over it. Awaited rather than waited on, because the connect
+        // it may be queued behind is a network round trip.
+        IConnectionMultiplexer? opened;
+        await connectionLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            opened = redis;
+            redis = null;
+        }
+        finally
+        {
+            connectionLock.Release();
+        }
+
+        if (opened != null)
+        {
+            log.Info("Closing the Redis connection");
+            await opened.CloseAsync().ConfigureAwait(false);
+            opened.Dispose();
+        }
+
+        DisposeGates();
+    }
+
+    /// <summary>
+    /// The same close, for a framework without <see cref="IAsyncDisposable" />.
+    /// </summary>
+    /// <remarks>
+    /// <c>net462</c> and <c>netstandard2.0</c> builds of <c>Quartz</c> cannot see
+    /// <see cref="IAsyncDisposable" /> at all, so the store reaches the handler through this one there.
+    /// It closes the same connection the same way; only the waiting is different.
+    /// </remarks>
+    public void Dispose()
+    {
+        if (!EnterDispose())
+        {
+            return;
+        }
+
+        IConnectionMultiplexer? opened = TakeConnection();
+        if (opened != null)
+        {
+            log.Info("Closing the Redis connection");
+            opened.Close();
+            opened.Dispose();
+        }
+
+        DisposeGates();
+    }
+
+    /// <summary>
+    /// Whether this call is the one that gets to close. The job store calls this once; a handler shared
+    /// between two stores would not, and a second close of a connection somebody else has since opened
+    /// would take a live one down.
+    /// </summary>
+    private bool EnterDispose() => Interlocked.Exchange(ref disposed, 1) == 0;
+
+    /// <summary>
+    /// <see cref="DisposeAsync" />'s take, for a caller that cannot await: the same gate, waited on
+    /// rather than awaited.
+    /// </summary>
+    private IConnectionMultiplexer? TakeConnection()
+    {
+        connectionLock.Wait();
+        try
+        {
+            IConnectionMultiplexer? opened = redis;
+            redis = null;
+            return opened;
+        }
+        finally
+        {
+            connectionLock.Release();
+        }
+    }
+
+    private void DisposeGates()
+    {
+        connectionLock.Dispose();
+        triggerLock.Dispose();
+        stateLock.Dispose();
+    }
+
     private string BuildKey(string lockName)
     {
         if (!string.IsNullOrEmpty(SchedName))
@@ -291,6 +408,29 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
         }
 
         return $"{KeyPrefix}{lockName}";
+    }
+
+    /// <summary>
+    /// How the handler opens its multiplexer.
+    /// </summary>
+    /// <remarks>
+    /// StackExchange.Redis offers neither an in-process server nor a seam over
+    /// <see cref="ConnectionMultiplexer.ConnectAsync(string, System.IO.TextWriter)" />, so substituting
+    /// the connect is the only way a test can watch what a shutdown does to the connection. Nothing
+    /// outside this repository's tests sets it, and the ownership is unchanged either way: the handler
+    /// closes whatever it opened through this.
+    /// </remarks>
+    internal Func<string, Task<IConnectionMultiplexer>> Connect { get; set; } = OpenConnection;
+
+    /// <summary>
+    /// The multiplexer this handler has opened, <see langword="null" /> before the first lock and again
+    /// after it has been closed.
+    /// </summary>
+    internal IConnectionMultiplexer? Connection => redis;
+
+    private static async Task<IConnectionMultiplexer> OpenConnection(string configuration)
+    {
+        return await ConnectionMultiplexer.ConnectAsync(configuration).ConfigureAwait(false);
     }
 
     private async Task<IConnectionMultiplexer> GetConnectionAsync(CancellationToken cancellationToken = default)
@@ -309,7 +449,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
             }
 
             log.Info("Connecting to Redis");
-            redis = await ConnectionMultiplexer.ConnectAsync(RedisConfiguration).ConfigureAwait(false);
+            redis = await Connect(RedisConfiguration).ConfigureAwait(false);
             return redis;
         }
         finally
@@ -355,5 +495,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
             owner = null;
             semaphore.Release();
         }
+
+        public void Dispose() => semaphore.Dispose();
     }
 }
