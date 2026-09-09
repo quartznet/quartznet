@@ -143,7 +143,17 @@
 
   <xs:complexType name="abstractTriggerType" abstract="true">
     <xs:annotation>
-      <xs:documentation>Common Trigger definitions</xs:documentation>
+      <xs:documentation>
+        Common Trigger definitions.
+
+        execution-group, retry-policy and preferred-node were added in Quartz.NET 4.1 and are optional,
+        so the schema's version stays 2.0 and its namespace stays
+        http://quartznet.sourceforge.net/JobSchedulingData: a file written against 2.0 declares none of
+        them and validates unchanged, and a version is what a reader has to understand rather than a
+        record of when the schema was last touched. The three elements sit between calendar-name and
+        job-data-map, which is where a sequence can take new optional members without moving any
+        existing one.
+      </xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="name" type="xs:string" />
@@ -153,6 +163,21 @@
       <xs:element name="job-group" type="xs:string" minOccurs="0" />
       <xs:element name="priority" type="xs:nonNegativeInteger" minOccurs="0" />
       <xs:element name="calendar-name" type="xs:string" minOccurs="0" />
+      <xs:element name="execution-group" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>The execution group the trigger belongs to, which bounds how many of its members run at once.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="retry-policy" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>The trigger's retry policy in its stored form, for example fixed;3;00:00:30.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="preferred-node" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>The cluster node the trigger prefers: a scheduler instance id, or * to pin it to whichever node fires it first.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
       <xs:element name="job-data-map" type="job-data-mapType" minOccurs="0" />
       <xs:sequence minOccurs="0">
         <xs:choice>

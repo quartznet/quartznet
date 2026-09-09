@@ -120,6 +120,12 @@ internal sealed class JsonFileTriggerDefinition
     /// </summary>
     public string? RetryPolicy { get; set; }
 
+    /// <summary>
+    /// The cluster node the trigger prefers: a scheduler instance id, <c>*</c> for an automatic pin, or
+    /// absent for no preference.
+    /// </summary>
+    public string? PreferredNode { get; set; }
+
     public string? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public string? EndTime { get; set; }

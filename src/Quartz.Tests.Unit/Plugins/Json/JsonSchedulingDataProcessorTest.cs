@@ -298,6 +298,88 @@ public class JsonSchedulingDataProcessorTest
     }
 
     [Test]
+    public void ParsesPreferredNode()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
+                "Triggers": [{ "Name": "testTrigger", "JobName": "testJob", "PreferredNode": "production-node-1", "Cron": { "Expression": "0 0 12 * * ?" } }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        ITrigger trigger = processor.ParsedTriggers[0];
+        trigger.PreferredNode.Node.Should().Be("production-node-1",
+            "a deployment-specific file is exactly where a trigger's node belongs, and the name is a "
+            + "scheduler instance id");
+        trigger.PreferredNode.IsAutomatic.Should().BeFalse();
+    }
+
+    [Test]
+    public void APreferredNodeOfStarIsAnAutomaticPin()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
+                "Triggers": [{ "Name": "testTrigger", "JobName": "testJob", "PreferredNode": "*", "Cron": { "Expression": "0 0 12 * * ?" } }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        processor.ParsedTriggers[0].PreferredNode.Should().Be(PreferredNode.Auto,
+            "a file that does not know the node names can still ask for the trigger to stay wherever it "
+            + "first lands");
+    }
+
+    [Test]
+    public void ATriggerThatNamesNoPreferredNodeIsUnpinned()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
+                "Triggers": [{ "Name": "testTrigger", "JobName": "testJob", "Cron": { "Expression": "0 0 12 * * ?" } }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        processor.ParsedTriggers[0].PreferredNode.Should().Be(PreferredNode.None,
+            "the field is optional, and a file that says nothing about nodes leaves the trigger to any "
+            + "of them");
+    }
+
+    [Test]
+    public void ANodeNameThePinningProtocolReservesIsRefused()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
+                "Triggers": [{ "Name": "testTrigger", "JobName": "testJob", "PreferredNode": "_", "Cron": { "Expression": "0 0 12 * * ?" } }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        var act = () => processor.ProcessJsonContent(json);
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a trigger pinned to a node that cannot exist would never fire")
+            .WithMessage("*is not a preferred node*");
+    }
+
+    [Test]
     public void MissingJobName_Throws()
     {
         var json = """{ "Schedule": { "Jobs": [{ "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }] } }""";

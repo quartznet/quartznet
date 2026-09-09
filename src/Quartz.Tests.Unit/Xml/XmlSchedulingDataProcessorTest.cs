@@ -1704,6 +1704,177 @@ public class XmlSchedulingDataProcessorTest
             .WithMessage("*must be durable*");
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Execution group, retry policy and preferred node: the trigger settings XML caught up on in 4.1
+    // ---------------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task ExecutionGroupRetryPolicyAndPreferredNodeAreRead()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <calendar-name>calendarName</calendar-name>
+                  <execution-group>batch</execution-group>
+                  <retry-policy>fixed;3;00:00:30</retry-policy>
+                  <preferred-node>production-node-1</preferred-node>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        ITrigger trigger = processor.SingleTrigger;
+        trigger.ExecutionGroup.Should().Be("batch");
+        trigger.RetryPolicy.Should().Be(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30)));
+        trigger.PreferredNode.Node.Should().Be("production-node-1");
+        trigger.PreferredNode.IsAutomatic.Should().BeFalse(
+            "a node the document names is a pin the deployment chose, not one a node claimed");
+        trigger.CalendarName.Should().Be("calendarName",
+            "the three new elements sit between calendar-name and job-data-map, so the elements around "
+            + "them still read");
+    }
+
+    [Test]
+    public async Task APreferredNodeOfStarIsAnAutomaticPin()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <preferred-node>*</preferred-node>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        processor.SingleTrigger.PreferredNode.Should().Be(PreferredNode.Auto,
+            "'*' is how a file asks for the pin a node claims by firing the trigger first, since a file "
+            + "cannot name a node it does not know");
+    }
+
+    /// <summary>
+    /// A file written against the 2.0 schema as it stood before 4.1 declares none of the three, and the
+    /// trigger it produces is the one it always produced.
+    /// </summary>
+    [Test]
+    public async Task AFileFromBeforeTheThreeElementsExistedStillLoads()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <simple>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <calendar-name>calendarName</calendar-name>
+                  <job-data-map>
+                    <entry>
+                      <key>triggerKey</key>
+                      <value>triggerValue</value>
+                    </entry>
+                  </job-data-map>
+                  <start-time>2020-01-01T10:00:00Z</start-time>
+                  <repeat-count>5</repeat-count>
+                  <repeat-interval>3000</repeat-interval>
+                </simple>
+              </trigger>
+            </schedule>
+            """));
+
+        ITrigger trigger = processor.SingleTrigger;
+        trigger.ExecutionGroup.Should().BeNull();
+        trigger.RetryPolicy.Should().BeNull();
+        trigger.PreferredNode.Should().Be(PreferredNode.None,
+            "the three elements are optional additions to the 2.0 schema, so a file that predates them "
+            + "validates and means exactly what it meant");
+        trigger.CalendarName.Should().Be("calendarName");
+        trigger.JobDataMap.GetString("triggerKey").Should().Be("triggerValue");
+    }
+
+    [Test]
+    public async Task AnUnreadableRetryPolicyIsRefusedAsTheFileIsRead()
+    {
+        Func<Task> act = async () => await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <retry-policy>every other tuesday</retry-policy>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        await act.Should().ThrowAsync<SchedulerConfigException>(
+                "a trigger that would silently never retry is worse than a file that refuses to load")
+            .WithMessage("*is not a retry policy*");
+    }
+
+    [Test]
+    public async Task ANodeNameThePinningProtocolReservesIsRefused()
+    {
+        Func<Task> act = async () => await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <preferred-node>_</preferred-node>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        await act.Should().ThrowAsync<SchedulerConfigException>(
+                "a trigger pinned to a node that cannot exist would never fire, and the file is where "
+                + "that can still be said")
+            .WithMessage("*is not a preferred node*");
+    }
+
+    /// <summary>
+    /// The schema puts the three in one place, so a document stating them somewhere else is rejected
+    /// rather than silently ignored.
+    /// </summary>
+    [Test]
+    public async Task TheThreeElementsHaveOneOrderAndTheSchemaHoldsThemToIt()
+    {
+        Func<Task> act = async () => await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                  <preferred-node>production-node-1</preferred-node>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        await act.Should().ThrowAsync<SchedulingDataValidationException>();
+    }
+
     private static JobHeader JobHeaderFor(string name, string group)
     {
         return new JobHeader(new JobKey(name, group), null, JobType, true, false, false, false);

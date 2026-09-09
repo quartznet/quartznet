@@ -29,6 +29,13 @@ internal sealed class JsonTriggerDefinition
     /// </summary>
     public string? RetryPolicy { get; set; }
 
+    /// <summary>
+    /// The cluster node the trigger prefers: a scheduler instance id, <c>*</c> for an automatic pin, or
+    /// absent for no preference. Spelled as the stored string for the same reason
+    /// <see cref="RetryPolicy" /> is.
+    /// </summary>
+    public string? PreferredNode { get; set; }
+
     public DateTimeOffset? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public DateTimeOffset? EndTime { get; set; }

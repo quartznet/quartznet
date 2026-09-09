@@ -218,6 +218,9 @@ internal sealed class JobSchedulingData
         trigger.JobGroup = Text(element, "job-group");
         trigger.Priority = Text(element, "priority");
         trigger.CalendarName = Text(element, "calendar-name");
+        trigger.ExecutionGroup = Text(element, "execution-group");
+        trigger.RetryPolicy = Text(element, "retry-policy");
+        trigger.PreferredNode = Text(element, "preferred-node");
         trigger.MisfireInstruction = Text(element, "misfire-instruction");
         trigger.JobDataMap = ReadJobDataMap(element);
         trigger.StartTime = Timestamp(element, "start-time");
@@ -350,6 +353,23 @@ internal abstract class TriggerDefinition
     public string? Priority { get; set; }
 
     public string? CalendarName { get; set; }
+
+    /// <summary>
+    /// The <c>execution-group</c> element, or null when the document names no group.
+    /// </summary>
+    public string? ExecutionGroup { get; set; }
+
+    /// <summary>
+    /// The <c>retry-policy</c> element in its stored form, for example <c>fixed;3;00:00:30</c>, or null
+    /// when the document states none.
+    /// </summary>
+    public string? RetryPolicy { get; set; }
+
+    /// <summary>
+    /// The <c>preferred-node</c> element: a scheduler instance id, <c>*</c> for an automatic pin, or
+    /// null when the document states no preference.
+    /// </summary>
+    public string? PreferredNode { get; set; }
 
     public string? MisfireInstruction { get; set; }
 

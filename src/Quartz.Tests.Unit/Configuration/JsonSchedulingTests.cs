@@ -421,6 +421,42 @@ public class JsonSchedulingTests
     }
 
     [Test]
+    public void AddQuartz_WithPreferredNodeInJson_PinsTheTrigger()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "pinnedJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "pinnedTrigger" },
+            { "Schedule:Triggers:0:JobName", "pinnedJob" },
+            { "Schedule:Triggers:0:PreferredNode", "production-node-1" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+            { "Schedule:Triggers:1:Name", "autoPinnedTrigger" },
+            { "Schedule:Triggers:1:JobName", "pinnedJob" },
+            { "Schedule:Triggers:1:PreferredNode", "*" },
+            { "Schedule:Triggers:1:Cron:Expression", "0 0 * * * ?" },
+            { "Schedule:Triggers:2:Name", "unpinnedTrigger" },
+            { "Schedule:Triggers:2:JobName", "pinnedJob" },
+            { "Schedule:Triggers:2:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        var provider = services.BuildServiceProvider();
+        var triggers = provider.ScheduledTriggers();
+
+        triggers.Should().HaveCount(3);
+        triggers.Single(x => x.Key.Name == "pinnedTrigger").PreferredNode.Node.Should().Be("production-node-1",
+            "the Schedule section and a standalone quartz_jobs.json are one format, so a field on one is "
+            + "a field on the other");
+        triggers.Single(x => x.Key.Name == "autoPinnedTrigger").PreferredNode.Should().Be(PreferredNode.Auto);
+        triggers.Single(x => x.Key.Name == "unpinnedTrigger").PreferredNode.Should().Be(PreferredNode.None);
+    }
+
+    [Test]
     public void AddQuartz_StartTimeSecondsInFutureInJson_IsRelativeToTheSchedulersClock()
     {
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero));
