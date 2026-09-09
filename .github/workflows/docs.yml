@@ -8,6 +8,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '**/docs*.yml'
+      # the docfx project the API reference is generated from
+      - 'apidoc/**'
       # the compiled samples the documentation shows, and the target that injects them
       - 'src/Quartz.Documentation.Samples/**'
       - 'build/**'
@@ -62,6 +64,14 @@ jobs:
 
       - name: Build
         run: npm run docs:build
+
+      # The API reference, generated with docfx from the XML documentation comments of the ten shipped
+      # packages and written into docs/.vuepress/dist/apidoc/4.x — inside the site the next step
+      # deploys, so /apidoc/4.x/ is published with the rest of it. It runs after the VuePress build
+      # rather than before it because nothing may wipe the directory afterwards. A malformed doc
+      # comment fails this step; the pull request leg runs the same target for that reason.
+      - name: Build the API reference
+        run: dotnet fallout ApiDoc
 
       # A broken link is a property of the site as a whole, and the pull request leg only ever sees the
       # pages one change touched: a heading renamed on one page 404s every fragment that pointed at it

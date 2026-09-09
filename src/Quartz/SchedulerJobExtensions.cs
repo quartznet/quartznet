@@ -135,7 +135,7 @@ public static class SchedulerJobExtensions
         return Schedule<TJob, TInput>(scheduler, input, at, options, cancellationToken);
     }
 
-    /// <inheritdoc cref="ScheduleJob{TJob, TInput}(IScheduler, TInput, DateTimeOffset, OneOffJobOptions, CancellationToken)" />
+    /// <inheritdoc cref="ScheduleJob{TJob, TInput}(IScheduler, TInput, DateTimeOffset, OneOffJobOptions, CancellationToken)" path="/summary|/typeparam|/returns" />
     /// <param name="scheduler">The scheduler to schedule on.</param>
     /// <param name="input">The payload the firing carries, put on the trigger.</param>
     /// <param name="delay">How long from now the job should run.</param>
