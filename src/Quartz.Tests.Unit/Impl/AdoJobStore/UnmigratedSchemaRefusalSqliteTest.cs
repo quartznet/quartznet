@@ -51,15 +51,13 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// </remarks>
 public sealed class UnmigratedSchemaRefusalSqliteTest
 {
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
     private ServiceProvider? container;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-unmigrated-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("unmigrated");
     }
 
     [TearDown]
@@ -71,12 +69,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
             container = null;
         }
 
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     /// <summary>
@@ -249,7 +242,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
             .Split('\n')
             .Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)));
 
-        using SqliteConnection connection = new(connectionString);
+        using SqliteConnection connection = new(database.ConnectionString);
         connection.Open();
 
         foreach (string statement in statements.Split(';', StringSplitOptions.RemoveEmptyEntries))
@@ -314,7 +307,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     /// </summary>
     private void Execute(string sql)
     {
-        using SqliteConnection connection = new(connectionString);
+        using SqliteConnection connection = new(database.ConnectionString);
         connection.Open();
 
         using SqliteCommand command = connection.CreateCommand();
@@ -324,7 +317,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
 
     private bool TableExists(string table)
     {
-        using SqliteConnection connection = new(connectionString);
+        using SqliteConnection connection = new(database.ConnectionString);
         connection.Open();
 
         using SqliteCommand command = connection.CreateCommand();
@@ -346,7 +339,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
 
                 if (provision)
                 {
@@ -376,7 +369,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
         });

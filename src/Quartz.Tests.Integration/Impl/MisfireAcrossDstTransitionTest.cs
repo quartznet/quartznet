@@ -65,14 +65,14 @@ public sealed class MisfireAcrossDstTransitionTest
     /// <summary>Anything overdue by more than five minutes has misfired.</summary>
     private static readonly TimeSpan MisfireThreshold = TimeSpan.FromMinutes(5);
 
-    private string databaseFile;
+    private SqliteTestDatabase database;
     private IDbProvider dbProvider;
     private RecoverableJobStore adoJobStore;
 
     [SetUp]
     public async Task CreateDatabase()
     {
-        databaseFile = $"dst-misfire-{Guid.NewGuid():N}.db";
+        database = new SqliteTestDatabase("dst-misfire");
 
         await using (SqliteConnection connection = new SqliteConnection(ConnectionString))
         {
@@ -93,21 +93,8 @@ public sealed class MisfireAcrossDstTransitionTest
             adoJobStore = null;
         }
 
-        SqliteConnection.ClearAllPools();
-
-        if (databaseFile is not null && File.Exists(databaseFile))
-        {
-            try
-            {
-                File.Delete(databaseFile);
-            }
-            catch (IOException)
-            {
-                // scratch space; leaving one behind is not worth failing a passing test over
-            }
-        }
-
-        databaseFile = null;
+        database?.Dispose();
+        database = null;
     }
 
     /// <summary>
@@ -335,7 +322,7 @@ public sealed class MisfireAcrossDstTransitionTest
         return value is long ticks ? new DateTimeOffset(ticks, TimeSpan.Zero) : null;
     }
 
-    private string ConnectionString => $"Data Source={databaseFile};";
+    private string ConnectionString => database.ConnectionString;
 
     private static string LoadTableScript()
     {

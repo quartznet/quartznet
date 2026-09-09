@@ -20,6 +20,12 @@
       both rather than copied into either.
     -->
     <Compile Include="..\Quartz.Tests.Unit\PublicApiRendering.cs" Link="PublicApiRendering.cs" />
+    <!--
+      A SQLite file a fixture owns, with pooling off so that no teardown anywhere has to reach for the
+      process-global SqliteConnection.ClearAllPools (#3755). Shared by source with the two other test
+      projects, because the fixtures that needed it are spread across all three.
+    -->
+    <Compile Include="..\Quartz.Tests.Unit\SqliteTestDatabase.cs" Link="SqliteTestDatabase.cs" />
   </ItemGroup>
 
   <ItemGroup>

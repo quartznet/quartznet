@@ -52,31 +52,19 @@ public sealed class UnwaitedShutdownSqliteTest
     private static readonly JobKey jobKey = new("parked", "unwaited");
     private static readonly TriggerKey triggerKey = new("t-parked", "unwaited");
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
-    /// <remarks>
-    /// Pooling is off, which is what lets this fixture clean up after itself without
-    /// <see cref="SqliteConnection.ClearAllPools" />: that call is global, the assembly runs its
-    /// fixtures in parallel, and Microsoft.Data.Sqlite's pool hands out the underlying handle rather
-    /// than a copy — so clearing it disposes connections another fixture is in the middle of using. An
-    /// unpooled connection closes its handle when it is disposed, so the file is deletable anyway.
-    /// </remarks>
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-unwaited-shutdown-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile};Pooling=False";
+        database = new SqliteTestDatabase("unwaited-shutdown");
         ParkingJob.Reset();
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -141,7 +129,7 @@ public sealed class UnwaitedShutdownSqliteTest
 
     private async Task<List<string>> ReadColumn(string sql)
     {
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         await using SqliteCommand command = connection.CreateCommand();
@@ -170,7 +158,7 @@ public sealed class UnwaitedShutdownSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
         });

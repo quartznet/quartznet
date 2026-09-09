@@ -25,7 +25,7 @@ public class MisfireBatchRecoveryTest
     private const string DataSourceName = "misfire-batch-sqlite";
     private const string SchedulerName = "MisfireBatchRecoveryTest";
 
-    private string dbFileName;
+    private SqliteTestDatabase database;
     private IDbProvider dbProvider;
     private CountingSQLiteDelegate.Counter commandCounter;
     private readonly List<TestLocalTransactionJobStore> jobStores = [];
@@ -34,9 +34,9 @@ public class MisfireBatchRecoveryTest
     public async Task SetUp()
     {
         jobStores.Clear();
-        dbFileName = $"test-misfire-batch-{Guid.NewGuid():N}.db";
+        database = new SqliteTestDatabase("misfire-batch");
 
-        await using (var connection = new SqliteConnection($"Data Source={dbFileName};"))
+        await using (var connection = new SqliteConnection(database.ConnectionString))
         {
             await connection.OpenAsync();
             await using var command = new SqliteCommand(LoadSqliteTableScript(), connection);
@@ -45,7 +45,7 @@ public class MisfireBatchRecoveryTest
 
         // The store reads through the provider it is constructed with, so the test only has to build
         // one — there is no registry to publish it to.
-        dbProvider = new DbProvider("SQLite-Microsoft", $"Data Source={dbFileName};");
+        dbProvider = new DbProvider("SQLite-Microsoft", database.ConnectionString);
 
         commandCounter = new CountingSQLiteDelegate.Counter();
         CountingSQLiteDelegate.CurrentCounter = commandCounter;
@@ -63,18 +63,7 @@ public class MisfireBatchRecoveryTest
 
         CountingSQLiteDelegate.CurrentCounter = null;
 
-        SqliteConnection.ClearAllPools();
-        if (File.Exists(dbFileName))
-        {
-            try
-            {
-                File.Delete(dbFileName);
-            }
-            catch (IOException)
-            {
-                // the file is only test scratch space, leaving it behind is not worth failing over
-            }
-        }
+        database.Dispose();
     }
 
     [Test]

@@ -59,31 +59,24 @@ public sealed class TriggerStateStatementsSqliteTest
     private static readonly JobKey jobKey = new("job", Group);
     private static readonly TriggerKey triggerKey = new("trigger", Group);
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-state-statements-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("state-statements");
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
     public async Task AStateWrittenByKeyIsTheStateReadBack()
     {
-        await using Harness harness = await Harness.Create(connectionString);
+        await using Harness harness = await Harness.Create(database.ConnectionString);
 
         (await harness.Delegate.UpdateTriggerState(harness.Connection, triggerKey, StoredTriggerState.Paused))
             .Should().Be(1, "the trigger is there, so the update names a row that exists");
@@ -96,7 +89,7 @@ public sealed class TriggerStateStatementsSqliteTest
     [Test]
     public async Task AConditionalStateChangeAppliesOnlyFromTheStateItNames()
     {
-        await using Harness harness = await Harness.Create(connectionString);
+        await using Harness harness = await Harness.Create(database.ConnectionString);
 
         (await harness.Delegate.UpdateTriggerStateFromOtherState(
                 harness.Connection, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Blocked))
@@ -112,7 +105,7 @@ public sealed class TriggerStateStatementsSqliteTest
     [Test]
     public async Task AJobsTriggersAreMovedByKeyAndConditionally()
     {
-        await using Harness harness = await Harness.Create(connectionString);
+        await using Harness harness = await Harness.Create(database.ConnectionString);
 
         (await harness.Delegate.UpdateTriggerStatesForJob(harness.Connection, jobKey, StoredTriggerState.Blocked))
             .Should().Be(1, "the job has one trigger, and it is named by the job rather than by its own key");
@@ -131,7 +124,7 @@ public sealed class TriggerStateStatementsSqliteTest
     [Test]
     public async Task MisfiredTriggersAreCountedInTheStateTheyAreIn()
     {
-        await using Harness harness = await Harness.Create(connectionString);
+        await using Harness harness = await Harness.Create(database.ConnectionString);
 
         DateTimeOffset afterTheTrigger = DateTimeOffset.UtcNow.AddDays(2);
 
@@ -151,7 +144,7 @@ public sealed class TriggerStateStatementsSqliteTest
     [Test]
     public async Task AJobWithNoFiredTriggerRowIsNotExecuting()
     {
-        await using Harness harness = await Harness.Create(connectionString);
+        await using Harness harness = await Harness.Create(database.ConnectionString);
 
         (await harness.Delegate.IsJobCurrentlyExecuting(harness.Connection, jobKey)).Should().BeFalse(
             "nothing has fired, so the EXECUTING count over FIRED_TRIGGERS is zero — and the state this "
@@ -161,7 +154,7 @@ public sealed class TriggerStateStatementsSqliteTest
     [Test]
     public async Task ARetryWritesTheAttemptTheNextFireTimeAndTheState()
     {
-        await using Harness harness = await Harness.Create(connectionString);
+        await using Harness harness = await Harness.Create(database.ConnectionString);
 
         IOperableTrigger trigger = (await harness.Delegate.SelectTrigger(harness.Connection, triggerKey))!;
 
@@ -193,7 +186,7 @@ public sealed class TriggerStateStatementsSqliteTest
     public async Task ADialectsOwnClaimOnAnAcquiredTriggerIsTheOneTheStoreWouldReach()
     {
         await using Harness harness = await Harness.Create(
-            connectionString,
+            database.ConnectionString,
             store => store.UseDriverDelegate<ClaimRecordingDelegate>());
 
         ClaimRecordingDelegate dialect = harness.Delegate.Should().BeOfType<ClaimRecordingDelegate>(

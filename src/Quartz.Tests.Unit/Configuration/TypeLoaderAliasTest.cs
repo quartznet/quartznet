@@ -34,25 +34,18 @@ public sealed class TypeLoaderAliasTest
     /// </summary>
     private const string StoredName = "Acme.Jobs.NightlyReport, Acme.Jobs";
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-alias-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("alias");
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -245,7 +238,7 @@ public sealed class TypeLoaderAliasTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
 
@@ -265,7 +258,7 @@ public sealed class TypeLoaderAliasTest
 
     private async Task<int> Execute(string sql)
     {
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         await using SqliteCommand command = connection.CreateCommand();
@@ -276,7 +269,7 @@ public sealed class TypeLoaderAliasTest
 
     private async Task<string?> Scalar(string sql)
     {
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         await using SqliteCommand command = connection.CreateCommand();

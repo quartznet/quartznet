@@ -46,27 +46,20 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// </remarks>
 public sealed class SchemaProvisioningSqliteTest
 {
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
         // Not created here: an empty path is a valid SQLite database the moment something opens it,
         // which is exactly the "nothing is there yet" case provisioning is for.
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-provisioning-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("provisioning");
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -95,7 +88,7 @@ public sealed class SchemaProvisioningSqliteTest
         // would fail, and one that recreated a table would take the rows with it.
         await ScheduleFireAndReadBack("second");
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         (await Scalar(connection, "SELECT COUNT(*) FROM QRTZ_JOB_DETAILS")).Should().Be(2,
@@ -108,7 +101,7 @@ public sealed class SchemaProvisioningSqliteTest
     {
         await ScheduleFireAndReadBack(nameof(ProvisioningCreatesEveryObjectUnderTheConfiguredPrefix), tablePrefix: "QRTZP_");
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         (await Scalar(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'QRTZP!_%' ESCAPE '!'"))
@@ -188,7 +181,7 @@ public sealed class SchemaProvisioningSqliteTest
                 // registrations are TryAdd, so the first one to name a delegate is the one that runs.
                 configure?.Invoke(store);
 
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
 
                 if (tablePrefix is not null)
                 {

@@ -44,14 +44,12 @@ public sealed class SchedulerRuntimeDrainTest
     /// </remarks>
     private static readonly int[] recoveryCounters = [3018, 3019, 3021, 3022];
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-runtime-drain-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("runtime-drain");
         GatedJob.Reset();
     }
 
@@ -59,20 +57,7 @@ public sealed class SchedulerRuntimeDrainTest
     public void DeleteDatabase()
     {
         GatedJob.Release();
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            try
-            {
-                File.Delete(databaseFile);
-            }
-            catch (IOException)
-            {
-                // A connection pool that has not finished closing. The file is in the temp directory and
-                // the test has already said what it had to say.
-            }
-        }
+        database.Dispose();
     }
 
     /// <summary>
@@ -242,7 +227,7 @@ public sealed class SchedulerRuntimeDrainTest
     {
         builder.UsePersistentStore(store =>
         {
-            store.UseSqlite(SqliteFactory.Instance, connectionString);
+            store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
             store.ProvisionSchema();
         });
     }

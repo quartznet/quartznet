@@ -47,14 +47,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [NonParallelizable]
 public sealed class AdoJobStoreLoggingTest
 {
-    private string dbFileName = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public async Task SetUp()
     {
-        dbFileName = $"test-store-logging-{Guid.NewGuid():N}.db";
+        database = new SqliteTestDatabase("store-logging");
 
-        await using SqliteConnection connection = new($"Data Source={dbFileName};");
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         await using SqliteCommand command = new(LoadSqliteTableScript(), connection);
         await command.ExecuteNonQueryAsync();
@@ -63,19 +63,7 @@ public sealed class AdoJobStoreLoggingTest
     [TearDown]
     public void TearDown()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(dbFileName))
-        {
-            try
-            {
-                File.Delete(dbFileName);
-            }
-            catch (IOException)
-            {
-                // scratch space; leaving it behind is not worth failing a test over
-            }
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -93,7 +81,7 @@ public sealed class AdoJobStoreLoggingTest
             quartz.ConfigureScheduler(options => options.InstanceName = "logging-store");
             quartz.UsePersistentStore(store =>
             {
-                store.UseSqlite($"Data Source={dbFileName};");
+                store.UseSqlite(database.ConnectionString);
                 store.UseSystemTextJsonSerializer();
             });
         });

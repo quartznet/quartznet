@@ -25,7 +25,6 @@ using System.Collections.Specialized;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Documentation.Samples.HowTos;
@@ -64,25 +63,18 @@ public sealed class ConfiguredTypeNamesResolveTest
 
     private const string ExternalTransactionJobStoreName = "Quartz.Impl.AdoJobStore.ExternalTransactionJobStore, Quartz";
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-delegate-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("delegate");
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -224,7 +216,7 @@ public sealed class ConfiguredTypeNamesResolveTest
         ServiceCollection chosenInCode = new();
         chosenInCode.AddQuartz(q => q.UsePersistentStore(store =>
         {
-            store.UseSqlite(connectionString);
+            store.UseSqlite(database.ConnectionString);
             store.UseAmbientTransactions();
         }));
         using ServiceProvider fromCode = chosenInCode.BuildServiceProvider();
@@ -255,7 +247,7 @@ public sealed class ConfiguredTypeNamesResolveTest
             ["quartz.jobStore.dataSource"] = "default",
             ["quartz.jobStore.schemaProvisioning"] = nameof(SchemaProvisioning.CreateIfMissing),
             ["quartz.dataSource.default.provider"] = "SQLite-Microsoft",
-            ["quartz.dataSource.default.connectionString"] = connectionString
+            ["quartz.dataSource.default.connectionString"] = database.ConnectionString
         };
     }
 

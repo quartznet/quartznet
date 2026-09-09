@@ -49,15 +49,13 @@ public sealed class SchemaValidationTest
     /// <summary>The tables the cases below drop one at a time.</summary>
     private static readonly string[] EveryValidatedTable = AdoConstants.AllTableNames;
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
     private ServiceProvider? container;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-validation-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("validation");
     }
 
     [TearDown]
@@ -69,12 +67,7 @@ public sealed class SchemaValidationTest
             container = null;
         }
 
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     /// <summary>
@@ -227,7 +220,7 @@ public sealed class SchemaValidationTest
 
     private void Execute(string sql)
     {
-        using SqliteConnection connection = new(connectionString);
+        using SqliteConnection connection = new(database.ConnectionString);
         connection.Open();
 
         using SqliteCommand command = connection.CreateCommand();
@@ -248,7 +241,7 @@ public sealed class SchemaValidationTest
 
             // No ProvisionSchema(): SchemaProvisioning.Validate is the default, and validating what
             // somebody else installed is the whole subject here.
-            q.UsePersistentStore(store => store.UseSqlite(SqliteFactory.Instance, connectionString));
+            q.UsePersistentStore(store => store.UseSqlite(SqliteFactory.Instance, database.ConnectionString));
         });
 
         container = services.BuildServiceProvider();

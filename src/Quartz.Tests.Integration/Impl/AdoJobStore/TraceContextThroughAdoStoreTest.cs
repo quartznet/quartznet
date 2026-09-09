@@ -47,7 +47,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [NonParallelizable]
 public sealed class TraceContextThroughAdoStoreTest
 {
-    private string databaseFile;
+    private SqliteTestDatabase database;
     private ActivityListener listener;
     private readonly List<Activity> stoppedActivities = [];
 
@@ -81,20 +81,8 @@ public sealed class TraceContextThroughAdoStoreTest
     {
         listener?.Dispose();
 
-        // Pools first, or the handle the store left behind keeps the file locked on Windows.
-        SqliteConnection.ClearAllPools();
-
-        if (databaseFile is not null && File.Exists(databaseFile))
-        {
-            try
-            {
-                File.Delete(databaseFile);
-            }
-            catch (IOException)
-            {
-                // scratch space; leaving one behind is not worth failing a passing test over
-            }
-        }
+        database?.Dispose();
+        database = null;
     }
 
     [Test]
@@ -198,11 +186,11 @@ public sealed class TraceContextThroughAdoStoreTest
         return null;
     }
 
-    private string ConnectionString => $"Data Source={databaseFile};";
+    private string ConnectionString => database.ConnectionString;
 
     private async Task PrepareDatabase()
     {
-        databaseFile = $"trace-context-{Guid.NewGuid():N}.db";
+        database = new SqliteTestDatabase("trace-context");
 
         await using SqliteConnection connection = new SqliteConnection(ConnectionString);
         await connection.OpenAsync();

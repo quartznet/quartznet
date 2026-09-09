@@ -54,6 +54,8 @@ public class AdoJobStorePagingTest
 
     private readonly List<IScheduler> createdSchedulers = [];
 
+    private SqliteTestDatabase database;
+
     [Test]
     [Category("db-sqlserver")]
     public Task TestSqlServer()
@@ -99,23 +101,16 @@ public class AdoJobStorePagingTest
     [Category("db-sqlite")]
     public async Task TestSQLiteMicrosoft()
     {
-        string dbFileName = "test-paging-sqlite-ms.db";
-        if (File.Exists(dbFileName))
-        {
-            SqliteConnection.ClearAllPools();
-            File.Delete(dbFileName);
-        }
+        database = new SqliteTestDatabase("paging-sqlite-ms");
 
-        string connectionString = $"Data Source={dbFileName};";
-
-        await using (SqliteConnection connection = new SqliteConnection(connectionString))
+        await using (SqliteConnection connection = new SqliteConnection(database.ConnectionString))
         {
             await connection.OpenAsync();
             await using SqliteCommand command = new SqliteCommand(LoadSqliteTableScript(), connection);
             await command.ExecuteNonQueryAsync();
         }
 
-        await RunPagingTest("SQLite-Microsoft", connectionString, typeof(SQLiteDelegate));
+        await RunPagingTest("SQLite-Microsoft", database.ConnectionString, typeof(SQLiteDelegate));
     }
 
     private static string LoadSqliteTableScript()
@@ -522,5 +517,9 @@ public class AdoJobStorePagingTest
         }
 
         createdSchedulers.Clear();
+
+        // Only the SQLite case has one, and it goes after the shutdown so nothing is still holding it.
+        database?.Dispose();
+        database = null;
     }
 }

@@ -56,15 +56,13 @@ public sealed class PreferredNodeConditionalUpdateSqliteTest
 
     private static readonly TriggerKey PinnedTrigger = new("pinned", "affinity");
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
     private ServiceProvider? container;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-preferred-node-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("preferred-node");
     }
 
     [TearDown]
@@ -76,12 +74,7 @@ public sealed class PreferredNodeConditionalUpdateSqliteTest
             container = null;
         }
 
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     /// <summary>
@@ -186,7 +179,7 @@ public sealed class PreferredNodeConditionalUpdateSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
         });
@@ -224,7 +217,7 @@ public sealed class PreferredNodeConditionalUpdateSqliteTest
             ObjectSerializer = new SystemTextJsonObjectSerializer(),
         });
 
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         using ConnectionAndTransactionHolder holder = new(connection, transaction: null);
 
@@ -237,7 +230,7 @@ public sealed class PreferredNodeConditionalUpdateSqliteTest
     private IDbProvider Provider()
     {
         DbMetadata metadata = DbMetadataResolver.BuiltIn().ResolveWithoutTypes("SQLite-Microsoft");
-        return new ProviderFactoryDbProvider(metadata, SqliteFactory.Instance, connectionString);
+        return new ProviderFactoryDbProvider(metadata, SqliteFactory.Instance, database.ConnectionString);
     }
 
     /// <summary>
@@ -245,7 +238,7 @@ public sealed class PreferredNodeConditionalUpdateSqliteTest
     /// </summary>
     private async Task<(string? Node, bool Automatic)> StoredPin()
     {
-        await using SqliteConnection connection = new(connectionString);
+        await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
         await using SqliteCommand command = connection.CreateCommand();

@@ -58,25 +58,18 @@ public sealed class SubMillisecondIntervalSqliteTest
     /// <summary>Half a millisecond: representable in a <see cref="TimeSpan" />, not in the column.</summary>
     private static readonly TimeSpan SubMillisecond = TimeSpan.FromTicks(TimeSpan.TicksPerMillisecond / 2);
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-submilli-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("submilli");
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     [Test]
@@ -172,7 +165,7 @@ public sealed class SubMillisecondIntervalSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
         });

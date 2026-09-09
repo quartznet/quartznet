@@ -49,27 +49,20 @@ public sealed class AdoCancellationSqliteTest
 {
     private const string Group = "cancellation";
 
-    private string databaseFile = null!;
-    private string connectionString = null!;
+    private SqliteTestDatabase database = null!;
     private CancellingSqliteDelegate driverDelegate = null!;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
-        databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-cancellation-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={databaseFile}";
+        database = new SqliteTestDatabase("cancellation");
         driverDelegate = new CancellingSqliteDelegate();
     }
 
     [TearDown]
     public void DeleteDatabase()
     {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(databaseFile))
-        {
-            File.Delete(databaseFile);
-        }
+        database.Dispose();
     }
 
     /// <summary>
@@ -240,7 +233,7 @@ public sealed class AdoCancellationSqliteTest
                 // Registered before the dialect is chosen, because UseSqlite registers SQLiteDelegate
                 // with TryAdd and the first registration is the one that wins.
                 store.UseDriverDelegate(_ => driverDelegate);
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
             });
         });
 
@@ -268,7 +261,7 @@ public sealed class AdoCancellationSqliteTest
 
             q.UsePersistentStore(store =>
             {
-                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 // #3550: the store creates the schema it needs, so the test needs no script of its own.
                 store.ProvisionSchema();
             });
