@@ -5,42 +5,50 @@ title: 'Quartz.NET with Wolverine'
 
 # Quartz.NET with Wolverine
 
-[Wolverine](https://wolverinefx.net) can deliver a message later. It cannot say "every weekday at
-03:00", and its maintainer has said it never will: the request for cron scheduling,
-[JasperFx/wolverine#1403](https://github.com/JasperFx/wolverine/issues/1403), was closed the day it was
-opened with "We're not doing this, ever. *Maybe* there'll be a move to integrate Quartz.net or Hangfire
-*with* Wolverine, but it's not something I'm interested in having to support." That position has since
-turned into a plan rather than a refusal. Wolverine 6's
-[master issue](https://github.com/JasperFx/wolverine/issues/2715) lists "Scheduler integrations —
-Quartz.Net + TickerQ" among its goals, its
-[migration-guide tracker](https://github.com/JasperFx/wolverine/issues/2717) says the integrations get
-"opt-in package references and configuration" documented, the
-[release punchlist](https://github.com/JasperFx/wolverine/issues/2745) records that the maintainer
+[Wolverine](https://wolverinefx.net) has a cron of its own since 6.34, so this page is no longer about
+a gap.
+
+The request for one, [JasperFx/wolverine#1403](https://github.com/JasperFx/wolverine/issues/1403), was
+closed the day it was opened with "We're not doing this, ever. *Maybe* there'll be a move to integrate
+Quartz.net or Hangfire *with* Wolverine, but it's not something I'm interested in having to support."
+[JasperFx/wolverine#4307](https://github.com/JasperFx/wolverine/pull/4307), merged on 5 September 2026
+and shipped in 6.34.0 two days later, is the other side of that position rather than a reversal of it.
+`opts.Schedules.ScheduleRecurring` publishes a message on a cron expression, and the parser behind it
+is [Cronos](https://github.com/HangfireIO/Cronos), taken into the core package as — in the pull
+request's own framing — "a parser, not a scheduling engine; MIT, zero transitive deps, correct DST".
+What shipped is a cron expression riding the scheduled-message machinery Wolverine already had. It is
+deliberately not a scheduler, and the difference is the subject of this page.
+
+Nothing has shipped *between* the two libraries. There is no `WolverineFx.Quartz` package and no
+`Quartz.Wolverine` package. A first-class integration was on Wolverine 6's list — its
+[master issue](https://github.com/JasperFx/wolverine/issues/2715) named "Scheduler integrations —
+Quartz.Net + TickerQ" among the release's goals, its
+[release punchlist](https://github.com/JasperFx/wolverine/issues/2745) recorded that the maintainer
 "wants involvement before this lands", and the
 [Critter Stack roadmap post of 24 July 2026](https://jeremydmiller.com/2026/07/24/critter-stack-roadmap-for-the-rest-of-2026/)
-says "It's quite possible that Wolverine gets first class documentation and integration for Quartz.Net
-and TickerQ first". Wolverine has already shipped the hook the integration needs:
-["Sending Raw Message Data"](https://wolverinefx.net/guide/messaging/message-bus.html) exists, in its
-own words, for "integrating scheduling libraries like Quartz.NET or Hangfire where you might be
-persisting a `byte[]` for a message to be sent via Wolverine at a certain time".
-
-Nothing has shipped on either side. There is no `WolverineFx.Quartz` package and no `Quartz.Wolverine`
-package; this page is a recipe, not an announcement, and it is written against Wolverine 6.30.3.
+said "It's quite possible that Wolverine gets first class documentation and integration for Quartz.Net
+and TickerQ first" — but those issues are closed and no package has appeared. So this is a recipe, not
+an announcement, and it is written against Wolverine 6.35.0. The one hook such an integration would
+need is already there: ["Sending Raw Message Data"](https://wolverinefx.net/guide/messaging/message-bus.html)
+exists, in its own words, for "integrating scheduling libraries like Quartz.NET or Hangfire where you
+might be persisting a `byte[]` for a message to be sent via Wolverine at a certain time", and
+[Deferring a serialized envelope](#deferring-a-serialized-envelope) below is that hook used.
 
 ::: tip A working copy of all of this
 `src/Quartz.Examples.Wolverine` in the
 [Quartz.NET repository](https://github.com/quartznet/quartznet/tree/main/src/Quartz.Examples.Wolverine)
 is this page as one console application that builds and runs. It is in the solution, so a call on this
 page that stops compiling fails the build, and every C# block below is checked against it line for
-line. `dotnet run --project src/Quartz.Examples.Wolverine -- --smoke` exercises all six parts against
+line. `dotnet run --project src/Quartz.Examples.Wolverine -- --smoke` exercises all seven parts against
 the in-memory store and exits non-zero if any of them stops working; the `WolverineSmoke` build target
 runs exactly that on every pull request, on all three operating systems, with no database involved.
 :::
 
 ## Which library should own the schedule
 
-Before wiring anything together it is worth being clear about what is genuinely missing, because most
-of what a bus calls "scheduling" is not what a scheduler does.
+Before wiring anything together it is worth being clear about which runtime should hold the schedule.
+Most of what a bus calls "scheduling" is not what a scheduler does — and since 6.34 the honest answer
+is "it depends", where for years it was "Quartz, because there is nothing else".
 
 A transport's delay is a property of one message. Azure Service Bus says so outright: "Because the
 feature is anchored on individual messages and messages can only be enqueued once, Service Bus doesn't
@@ -69,26 +77,42 @@ offered recurrence at all, consistent with its self-description as a "message bu
 defines a scheduler abstraction whose whole surface is "at this time" and "after this delay", with cron
 left to whichever backend it is pointed at — Quartz being one.
 
-The honest counter-example is MassTransit, which went the other way. Having relied on Quartz for
-recurring messages for years — and it still ships `MassTransit.Quartz` — it grew a cron parser of
-its own inside its Job Service in 2024, and now
-[tells users](https://masstransit.io/documentation/patterns/job-consumers) that "Quartz.NET or Hangfire
-are NOT required". So this is a live disagreement, not settled practice.
+Two buses went the other way. MassTransit had relied on Quartz for recurring messages for years — and
+it still ships `MassTransit.Quartz` — before growing a cron parser of its own inside its Job Service in
+2024, and it now [tells users](https://masstransit.io/documentation/patterns/job-consumers) that
+"Quartz.NET or Hangfire are NOT required". Wolverine is the second, and its version is narrower on
+purpose: a cron expression deciding *when* an occurrence is published, over the delivery, durability
+and replay it already had.
 
-The axis that decides it, in four questions:
+Here is the whole of it side by side. Nothing in the right-hand column is a criticism of the left: a
+bus that grew a cron did not set out to grow a scheduler, and several of these rows are decisions
+Wolverine's feature declines to make on purpose.
 
-* Does the schedule outlive any individual message? A rule that keeps producing work is not a delayed
-  send, however many times you re-arm one.
-* Does a missed firing need a defined outcome rather than a silent drop? That decision is a misfire
-  policy, and something has to own it.
-* Must the schedule be inspectable, re-schedulable and cancellable after the fact, by something other
-  than the code that created it?
-* Who is on the hook when a cron expression turns out to be wrong across a daylight-saving transition?
-  That is the maintenance surface Wolverine's maintainer declined to take on, and it is a real one.
+| | Wolverine `opts.Schedules` | A Quartz trigger |
+|---|---|---|
+| Cron grammar | Cronos: five fields, or six with a leading seconds field | Quartz: six fields, or seven with a trailing year, plus `L`, `W`, `#`, `H` hashing, wrapping ranges and a five-field [`CronFormat.Unix`](../cron-expressions.md) mode |
+| Time zone | per schedule; UTC unless one is supplied | per trigger, with `InTimeZone` |
+| Fastest cadence | every five seconds; anything quicker is refused at the registration call site | no floor |
+| A firing the process was down for | skipped, always | a misfire instruction per trigger: `DoNothing` skips it, `FireAndProceed` fires one catch-up, `IgnoreMisfires` fires all of them |
+| Dates it must not fire on | nothing; the handler returns early | a calendar on the trigger: `HolidayCalendar`, `CronCalendar`, `DailyCalendar`, `WeeklyCalendar`, `AnnualCalendar`, `MonthlyCalendar` |
+| Where the schedule lives | in code, at `UseWolverine`; the set is whatever the process was compiled with | in the job store; added, rescheduled and deleted while the host is up, by any node |
+| Pause and resume | `IRecurringScheduleControl.PauseAsync`/`ResumeAsync`/`QueryAsync`, durable where the store has the tracking table; a resume never back-fills | `PauseTrigger`, `PauseTriggerGroups`, `PauseAll` and their resume halves, with the misfire instruction deciding what the paused window did |
+| One firing, cancelled or moved | cancel the pre-scheduled envelope | `RescheduleJob`, `UnscheduleJob`, or `UnscheduleJobs` over a group matcher — a set operation rather than one call per handle |
+| Which node runs it | one `SingularAgent` per cluster, re-assigned on failover | the store's own trigger lock, so a scheduler on every node still fires each trigger once; `PreferredNode` pins one where the work is node-specific |
+| The same occurrence twice | a deterministic deduplication id, `{name}:{occurrenceUtc:O}`, collapsed at consumption | trigger acquisition is the lock, so a firing is exclusive before the job runs rather than after |
+| Payload | whatever the registered factory builds from the occurrence time | a `JobDataMap`, or a typed input through `UsingInput` — persisted with the trigger and changeable between firings |
+| Overlapping runs | an occurrence is a message like any other | `[DisallowConcurrentExecution]` on the job |
+| Failure | the message's own retries and dead-letter queue | a [retry policy on the trigger](retrying-failed-jobs.md), plus `JobExecutionException`'s refire and unschedule options |
+| Ordering when several are due at once | the receiving endpoint's own concurrency | `Priority` on the trigger; `MaxBatchSize` and a fire-ahead window on the scheduler |
+| Watching it | the `recurring-schedule` header on each occurrence, surfaced as a `wolverine.schedule.name` activity tag | `GetCurrentlyExecutingJobs` and `Interrupt`, the [HTTP API](../packages/http-api.md) and the [dashboard](../packages/dashboard.md) |
+| Durability | the message store's inbox, plus a `wolverine_recurring_messages` row per schedule | [any supported database](../db/), or in-memory |
 
-Where the answers are yes, a scheduler earns its place beside the bus. Where they are no — a saga
-timeout, a retry in ten minutes, a delayed reply — Wolverine's own `ScheduleAsync` is the right tool
-and adding Quartz buys nothing.
+Be fair about what that means. For "publish message X every weekday at 03:00, and skip whatever the
+process was down for", Wolverine's own schedule is now the right answer: three lines inside
+`UseWolverine`, no second runtime, and the occurrence rides the outbox the application already trusts.
+Adding Quartz for that buys a set of tables nobody asked for. The right-hand column is what you are
+paying for when you do add it: "Wolverine's own schedules" and "When the schedule still belongs in
+Quartz" below are the two halves of that choice, in code.
 
 ## Setting the two up
 
@@ -111,6 +135,10 @@ builder.UseWolverine(opts =>
     // there is no live message for Wolverine to route on. A local queue keeps that free of a broker.
     opts.PublishMessage<ArchiveOrders>().ToLocalQueue(Part3RawMessageData.EndpointName);
 
+    // Part 7: Wolverine's own recurring schedule, registered here rather than inside AddQuartz because
+    // it is Wolverine's. Since 6.34 this is what most of part 1 would otherwise be reaching for.
+    Part7WolverineSchedules.Register(opts, options.ExpiryCron);
+
     if (options.HasDatabase)
     {
         // The outbox, the inbox and the node table part 5's agent needs. Quartz's own tables go in the
@@ -129,7 +157,7 @@ Quartz is registered the way it always is. The in-memory store is the fallback, 
 would only restate the default; the persistent branch is what the last two sections need:
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Program.cs:41 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Program.cs:45 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -160,14 +188,68 @@ builder.Services.AddQuartz(q =>
 });
 ```
 
-## Publishing on a cron schedule
+## Wolverine's own schedules
 
-This is the capability Wolverine does not have, and it is a job like any other. Take `IMessageBus` in
-the constructor — Quartz resolves the job from a fresh scope per firing, so a scoped `IMessageBus` is
-exactly right — and publish:
+The registration goes inside `UseWolverine` rather than inside `AddQuartz`, and that placement is the
+whole point: the schedule is Wolverine's, and the scheduler never learns it exists.
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:34 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part7WolverineSchedules.cs:66 — WolverineHowToTest fails when the two stop
+     matching. -->
+
+```csharp
+public static void Register(WolverineOptions opts, string cron)
+{
+    // Cronos' grammar, not Quartz's. The zone is the schedule's own, so a deployment that means
+    // "03:15 local" says so here rather than hoping the host agrees — the same decision part 1
+    // makes with InTimeZone, and one of the few this feature and a Quartz trigger both let you make.
+    CronSchedule schedule = new(cron, TimeZoneInfo.Utc);
+
+    // The factory is handed the occurrence time, which is this feature's answer to reading
+    // context.ScheduledFireTimeUtc rather than the clock: the message describes the window the
+    // schedule says it is for. Without a name the schedule is named for its message type, and
+    // ScheduleRecurring<T>(cron) is the whole registration for a message with a parameterless
+    // constructor.
+    opts.Schedules.ScheduleRecurring(ScheduleName, schedule, occurrence => new ExpireUnpaidOrders(occurrence));
+}
+```
+
+What that wires up is one `SingularAgent` per cluster keeping the *next* occurrence of every schedule
+pre-scheduled as an ordinary scheduled message, so delivery, durability and replay stay the machinery
+Wolverine already had. Every occurrence carries a deterministic deduplication id, `{name}:{occurrence}`,
+so an agent failover that re-publishes one collapses it at consumption rather than running it twice.
+With a relational message store, a `wolverine_recurring_messages` table records which schedule owns
+which pending envelope, the agent periodically confirms that envelope is still sitting in the inbox,
+and a successor agent adopts it instead of publishing a second one.
+
+Three things are worth knowing before relying on it, all of them
+[documented](https://wolverinefx.net/guide/messaging/recurring.html) rather than discovered:
+
+* **Nothing faster than every five seconds.** Durable scheduled messages replay on
+  `DurabilitySettings.ScheduledJobPollingTime`, five seconds by default, so a quicker cadence is
+  refused at the registration call site rather than accepted and delivered late. The example's smoke
+  run gives this schedule `*/5 * * * * *` for that reason — part 1's Quartz trigger fires every two
+  seconds under `--smoke`, and Wolverine would not take that expression.
+* **No message store is a supported mode, with a startup warning.** The schedules run on the in-memory
+  scheduled model: an occurrence inside a restart window is lost and there is no store-backed
+  deduplication. `DurabilityMode.Serverless` and `DurabilityMode.MediatorOnly` are different — they run
+  no agents at all, so a host in either mode with a schedule registered refuses to start rather than
+  accepting a schedule that would silently never fire.
+* **A missed occurrence is skipped, never back-filled**, including the window a `PauseAsync` /
+  `ResumeAsync` pair covers. That is the largest single difference from a Quartz trigger, and it is
+  what the next section is about.
+
+## When the schedule still belongs in Quartz
+
+The right-hand column of the table above comes down to four things. A firing the process was down for
+needs a *decided* outcome rather than a fixed one; the schedule has to be addable, movable and
+removable while the host is up; there are dates it must not fire on; or it must not overlap itself. Any
+of those, and the schedule is a Quartz trigger that publishes into Wolverine — a job like any other.
+Take `IMessageBus` in the constructor (Quartz resolves the job from a fresh scope per firing, so a
+scoped `IMessageBus` is exactly right) and publish:
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
+     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:35 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -203,7 +285,7 @@ public sealed class ReconciliationJob : IJob<ReconciliationWindow>
 `JobDataMap` lookup. Register it with a cron trigger and `UsingInput`:
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:84 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:85 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -214,14 +296,16 @@ q.ScheduleJob<ReconciliationJob>(trigger => trigger
         // so here rather than hoping the host agrees.
         .InTimeZone(TimeZoneInfo.Utc)
         // What happens when the process was down at 03:00. DoNothing skips to the next
-        // firing; FireAndProceed publishes one catch-up message. Wolverine has no equivalent
-        // decision to make, because it has nothing to miss.
+        // firing, which is what part 7's schedule does and all it does; FireAndProceed
+        // publishes one catch-up message, which is the choice Wolverine's own schedules do
+        // not offer.
         .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing))
     .UsingInput(new ReconciliationWindow(TimeSpan.FromDays(1))));
 ```
 
 Read `context.ScheduledFireTimeUtc` rather than the clock. A trigger firing late after a misfire still
-reports the time it was scheduled for, and that is the window the run is about.
+reports the time it was scheduled for, and that is the window the run is about — the same reading of
+the schedule that the occurrence-time parameter gives a Wolverine schedule's message factory.
 
 ## Scheduling one firing from a handler
 
@@ -347,7 +431,7 @@ public async ValueTask Execute(
         // whatever was serialized, which this job has no static knowledge of.
         envelope.MessageType = input.MessageTypeName;
 
-        // Setting Destination is not optional, and Wolverine 6.30.3 does not do it for you.
+        // Setting Destination is not optional, and Wolverine 6.35.0 does not do it for you.
         // DestinationEndpoint.SendRawMessageAsync assigns Sender but leaves Destination null, and
         // Executor.ExecuteAsync logs both success and failure through envelope.Destination!, so a
         // raw message that is handled perfectly still ends the pipeline with a
@@ -360,10 +444,12 @@ public async ValueTask Execute(
 Two things are load-bearing there. `Envelope.MessageType` is set from the stored name rather than from
 `SetMessageType<T>()`, because the job has no static knowledge of what was serialized;
 `typeof(T).ToMessageTypeName()` on the storing side honours a `[MessageIdentity]` alias where a raw
-`FullName` would not. And `Envelope.Destination` has to be set by hand: on Wolverine 6.30.3,
+`FullName` would not. And `Envelope.Destination` has to be set by hand: as of Wolverine 6.35.0,
 `SendRawMessageAsync` assigns `Sender` but leaves `Destination` null, while `Executor.ExecuteAsync`
 logs both success and failure through `envelope.Destination!` — so a raw message that is handled
-perfectly still ends its pipeline with a `NullReferenceException` out of the logging call.
+perfectly still ends its pipeline with a `NullReferenceException` out of the logging call. Take that
+one line out of the example and the smoke run still reports the message delivered, with a
+`NullReferenceException` from `Executor.ExecuteAsync` logged beside it.
 
 Why bother, when the previous section publishes a live object instead? Because the envelope is
 serialized at the moment the decision was made. A payload stored as bytes is not re-derived from
@@ -422,7 +508,7 @@ Everything that reads a scheduler still sees it; nothing fires until something c
 is unaffected — the hosted service stops every scheduler it created, started or not.
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Program.cs:69 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Program.cs:73 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -609,11 +695,12 @@ own documentation, and every one of them bites here:
 
 The transaction is opened by hand rather than by Wolverine's `[Transactional]` attribute, and that is
 not a stylistic choice. Wolverine's transactional middleware supplies whatever its persistence provider
-supplies, and on 6.30.3 the raw-ADO.NET Postgres package supplies nothing: every
-`IPersistenceFrameProvider` in the tree belongs to Marten, Entity Framework Core, RavenDB, CosmosDB,
-Fisher or Polecat. A handler declaring `[Transactional] Handle(T msg, NpgsqlTransaction tx)` against
-plain `PersistMessagesWithPostgresql` compiles and then fails at runtime with "JasperFx was unable to
-resolve a variable of type Npgsql.NpgsqlTransaction". An application that already has Marten or EF Core
+supplies, and as of 6.35.0 the raw-ADO.NET Postgres package supplies nothing: neither
+`Wolverine.Postgresql` nor `Wolverine.RDBMS` defines an `IPersistenceFrameProvider`, because the ones
+that exist arrive with a document store or an ORM and raw ADO.NET is neither. A handler declaring
+`[Transactional] Handle(T msg, NpgsqlTransaction tx)` against plain `PersistMessagesWithPostgresql`
+compiles and then fails at runtime with "JasperFx was unable to resolve a variable of type
+Npgsql.NpgsqlTransaction". An application that already has Marten or EF Core
 can use `[Transactional]` and take the provider's own session or `DbContext` — but then the commit
 happens in generated code after the handler returns, so the enlistment scope necessarily disposes
 first, and the signal is spent on a trigger the loop cannot yet see. Nothing is lost; the trigger simply
@@ -632,8 +719,10 @@ waits for the next sweep.
   every pending trigger, exactly as it loses Wolverine's in-memory scheduled envelopes. Use a
   persistent store for anything that must survive.
 * **It does not replace Wolverine's own scheduling.** `ScheduleAsync` and `TimeoutMessage` remain the
-  right answer for a delayed message or a saga timeout. Reach for Quartz when the schedule is a rule
-  rather than a message.
+  right answer for a delayed message or a saga timeout, and since 6.34 `opts.Schedules` is the right
+  answer for a recurring publish whose only failure mode is "skip what was missed". Reach for Quartz
+  when the schedule needs a misfire policy, a calendar, a change while the host is up, or an operator
+  looking at it.
 
 ## See also
 

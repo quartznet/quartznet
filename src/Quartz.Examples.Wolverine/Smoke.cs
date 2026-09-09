@@ -6,7 +6,7 @@ namespace Quartz.Examples.Wolverine;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The point of the flag is that a build server can prove the six parts still work, not merely that
+/// The point of the flag is that a build server can prove the seven parts still work, not merely that
 /// the process starts. A run that starts, schedules nothing and exits zero would be worse than no
 /// check at all.
 /// </para>
@@ -39,6 +39,7 @@ public static class Smoke
             Events.RemindersCancelled,
             Events.RawEnvelopeStored,
             Events.RawEnvelopeDelivered,
+            Events.WolverineSchedulePublished,
         ];
 
         if (options.HasDatabase)

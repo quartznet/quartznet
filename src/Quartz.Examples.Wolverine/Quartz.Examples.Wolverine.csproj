@@ -3,11 +3,12 @@
   <!--
     Quartz.NET beside Wolverine, as one runnable console application.
 
-    Wolverine can deliver a message later; it cannot say "every weekday at 03:00", and its maintainer
-    has said it never will (JasperFx/wolverine#1403). The gap is what this project fills, and the
-    accompanying page is docs/documentation/quartz-4.x/how-tos/wolverine.md. It is in Quartz.slnx so
-    that `Compile` fails the moment a call this page teaches stops compiling — which is the only
-    reason an example project exists.
+    Since Wolverine 6.34 both libraries can say "every weekday at 03:00" (JasperFx/wolverine#4307), so
+    what this project shows is the two side by side — part 7 is Wolverine's own schedule, part 1 the
+    Quartz trigger — and the five ways the two runtimes are wired together. The accompanying page is
+    docs/documentation/quartz-4.x/how-tos/wolverine.md. It is in Quartz.slnx so that `Compile` fails
+    the moment a call this page teaches stops compiling — which is the only reason an example project
+    exists.
 
     Everything here runs with no external service: Wolverine's in-memory local transport and Quartz's
     in-memory store. Set QUARTZ_WOLVERINE_POSTGRES to a connection string and the same program adds

@@ -104,7 +104,7 @@ public sealed class DeferredEnvelopeJob : IJob<DeferredEnvelope>
             // whatever was serialized, which this job has no static knowledge of.
             envelope.MessageType = input.MessageTypeName;
 
-            // Setting Destination is not optional, and Wolverine 6.30.3 does not do it for you.
+            // Setting Destination is not optional, and Wolverine 6.35.0 does not do it for you.
             // DestinationEndpoint.SendRawMessageAsync assigns Sender but leaves Destination null, and
             // Executor.ExecuteAsync logs both success and failure through envelope.Destination!, so a
             // raw message that is handled perfectly still ends the pipeline with a

@@ -14,6 +14,11 @@ namespace Quartz.Examples.Wolverine;
 /// <param name="ReminderDelay">
 /// How far ahead part 2 schedules its follow-up. Days in a real application, seconds here.
 /// </param>
+/// <param name="ExpiryCron">
+/// The expression part 7 registers with Wolverine's own scheduler. Cronos' grammar rather than
+/// Quartz's, and no faster than every five seconds: <c>CronSchedule</c> refuses a quicker cadence at
+/// the registration call site, because durable scheduled messages replay on a five-second poll.
+/// </param>
 /// <param name="PostgresConnectionString">
 /// Set from <c>QUARTZ_WOLVERINE_POSTGRES</c>. When it is absent — which is the case on every CI leg —
 /// parts 5 and 6 fall back to the forms that need no database, and say so.
@@ -22,6 +27,7 @@ public sealed record ExampleOptions(
     bool Smoke,
     string ReconciliationCron,
     TimeSpan ReminderDelay,
+    string ExpiryCron,
     string? PostgresConnectionString)
 {
     /// <summary>
@@ -53,6 +59,9 @@ public sealed record ExampleOptions(
             // expression otherwise, which is what the page shows.
             ReconciliationCron: smoke ? "0/2 * * * * ?" : Part1RecurringPublishing.NightlyCron,
             ReminderDelay: smoke ? TimeSpan.FromSeconds(2) : TimeSpan.FromMinutes(30),
+            // Every five seconds, which is as fast as Wolverine's own schedules go: part 1's "0/2"
+            // would be refused at registration rather than accepted and delivered late.
+            ExpiryCron: smoke ? "*/5 * * * * *" : Part7WolverineSchedules.NightlyCron,
             PostgresConnectionString: Environment.GetEnvironmentVariable(PostgresVariable));
 
         return Current;

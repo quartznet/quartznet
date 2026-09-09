@@ -50,10 +50,10 @@ namespace Quartz.Examples.Wolverine;
  *     in different schemas, but one DbTransaction cannot span two servers.
  *
  * Why the transaction is opened by hand rather than by [Transactional]: Wolverine's transactional
- * middleware supplies whatever its persistence provider supplies, and on 6.30.3 the raw-ADO.NET
- * Postgres package supplies nothing. Every IPersistenceFrameProvider in the tree belongs to Marten,
- * Entity Framework Core, RavenDB, CosmosDB, Fisher or Polecat; there is none in Wolverine.RDBMS or
- * Wolverine.Postgresql. A handler declaring `[Transactional] Handle(T msg, NpgsqlTransaction tx)`
+ * middleware supplies whatever its persistence provider supplies, and on 6.35.0 the raw-ADO.NET
+ * Postgres package supplies nothing. Neither Wolverine.Postgresql nor Wolverine.RDBMS defines an
+ * IPersistenceFrameProvider; the ones that exist arrive with a document store or an ORM, and raw
+ * ADO.NET is neither. A handler declaring `[Transactional] Handle(T msg, NpgsqlTransaction tx)`
  * against plain PersistMessagesWithPostgresql compiles and then fails at runtime with
  * "JasperFx was unable to resolve a variable of type Npgsql.NpgsqlTransaction". Adding Marten or EF
  * Core would fix that and is what most Wolverine applications already have — but doing it by hand is
