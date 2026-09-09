@@ -1,10 +1,11 @@
 # Quartz.NET with Wolverine
 
 A runnable console application putting Quartz.NET beside the [Wolverine](https://wolverinefx.net)
-message bus. Wolverine can deliver a message later but has no recurring or cron concept at all, and its
-maintainer has said it never will
-([JasperFx/wolverine#1403](https://github.com/JasperFx/wolverine/issues/1403)); this project is the
-recipe for filling that gap, and the prose that goes with it is
+message bus. Since Wolverine 6.34
+([JasperFx/wolverine#4307](https://github.com/JasperFx/wolverine/pull/4307)) both libraries can publish
+a message on a cron expression, so the two are shown side by side — part 7 registers a Wolverine
+schedule, part 1 a Quartz trigger — along with the five ways the two runtimes are wired together. The
+prose that goes with it is
 [Quartz.NET with Wolverine](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/wolverine.html).
 
 Every C# block on that page is copied from this project and checked against it by
@@ -35,7 +36,7 @@ QUARTZ_WOLVERINE_POSTGRES="Host=localhost;Database=quartz;Username=quartz;Passwo
 The schema is created on startup in that mode, including a small `refunds` table the last part writes
 to.
 
-## The six parts
+## The seven parts
 
 | File | What it shows |
 |---|---|
@@ -45,5 +46,7 @@ to.
 | `Part4TunedLatency.cs` | `IdleWaitTime`, `MaxBatchSize` and `BatchTriggerAcquisitionFireAheadTimeWindow`, and what they really bound |
 | `Part5StartedByWolverine.cs` | `AutoStart = false`, with the scheduler started by Wolverine's runtime |
 | `Part6EnlistedTransaction.cs` | One transaction holding the application's row, Wolverine's outgoing envelope and Quartz's trigger |
+| `Part7WolverineSchedules.cs` | Wolverine's own `opts.Schedules.ScheduleRecurring`, so part 1 can be compared with it rather than described against it |
 
-Each file opens with a comment saying what Wolverine lacks and what Quartz supplies.
+Each file opens with a comment saying what the part is for, and parts 1 and 7 open with the two halves
+of the same comparison.

@@ -18,10 +18,10 @@ public class WolverineHowToTest
     private const string ExampleDirectory = "src/Quartz.Examples.Wolverine";
 
     /// <summary>
-    /// The page teaches six parts of the example, so six is the fewest fences it can carry and still be
-    /// the page this test exists for.
+    /// The page teaches seven parts of the example, so seven is the fewest fences it can carry and
+    /// still be the page this test exists for.
     /// </summary>
-    private const int LeastExpectedFences = 6;
+    private const int LeastExpectedFences = 7;
 
     [Test]
     public void EveryFencedSampleAppearsVerbatimInTheExample()

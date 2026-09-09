@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 namespace Quartz.Examples.Wolverine;
 
 /// <summary>
-/// What the six parts did, so that <c>--smoke</c> can assert each one actually happened rather than
+/// What the seven parts did, so that <c>--smoke</c> can assert each one actually happened rather than
 /// assert that the process survived.
 /// </summary>
 /// <remarks>
@@ -53,7 +53,7 @@ public static class Ledger
 }
 
 /// <summary>
-/// The names the six parts record against, so <c>--smoke</c> and the parts cannot drift apart by a
+/// The names the seven parts record against, so <c>--smoke</c> and the parts cannot drift apart by a
 /// typo in a string literal.
 /// </summary>
 public static class Events
@@ -66,4 +66,5 @@ public static class Events
     public const string RawEnvelopeDelivered = "part3:raw-envelope-delivered";
     public const string SchedulerStartedByWolverine = "part5:scheduler-started";
     public const string RefundApprovedInTransaction = "part6:refund-approved";
+    public const string WolverineSchedulePublished = "part7:wolverine-schedule-published";
 }

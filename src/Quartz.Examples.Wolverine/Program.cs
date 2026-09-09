@@ -30,6 +30,10 @@ builder.UseWolverine(opts =>
     // there is no live message for Wolverine to route on. A local queue keeps that free of a broker.
     opts.PublishMessage<ArchiveOrders>().ToLocalQueue(Part3RawMessageData.EndpointName);
 
+    // Part 7: Wolverine's own recurring schedule, registered here rather than inside AddQuartz because
+    // it is Wolverine's. Since 6.34 this is what most of part 1 would otherwise be reaching for.
+    Part7WolverineSchedules.Register(opts, options.ExpiryCron);
+
     if (options.HasDatabase)
     {
         // The outbox, the inbox and the node table part 5's agent needs. Quartz's own tables go in the
