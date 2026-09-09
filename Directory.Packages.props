@@ -45,7 +45,7 @@
       what keeps that true, and it is also why this stays current rather than joining the floors below:
       nothing inherits it.
     -->
-    <PackageVersion Include="Microsoft.Data.SQLite" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Data.SQLite" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
@@ -68,7 +68,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
     <PackageVersion Include="OpenTracing" Version="0.12.1" />
     <PackageVersion Include="Oracle.ManagedDataAccess" Version="23.26.100" />
-    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.300" />
+    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.301" />
     <PackageVersion Include="PublicApiGenerator" Version="11.5.4" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
