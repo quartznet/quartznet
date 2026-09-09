@@ -89,9 +89,9 @@ node_modules
 docs/.vuepress/dist
 docs/.vuepress/.temp
 
-# What docfx generates under apidoc/: the YAML metadata it reads the projects into, and the site it
-# renders from that. The site the docs workflow deploys is written into docs/.vuepress/dist instead;
-# _site is only there for a `docfx serve` preview.
+# What docfx generates under apidoc/: the YAML metadata it reads the projects into, and whatever a
+# local run renders. `dotnet fallout ApiDoc` writes the site into docs/.vuepress/dist/apidoc/4.x,
+# which is ignored above; _site is docfx's own default output, for a run that overrides it.
 /apidoc/api
 /apidoc/obj
 /apidoc/_site
