@@ -51,6 +51,6 @@ use this file except in compliance with the License. You may obtain a copy
 of the License [here](http://www.apache.org/licenses/LICENSE-2.0).
 
 For API documentation, please refer to the
-[4.x API reference](https://docs.quartz-scheduler.net/apidoc/4.x/), which is generated from the XML
+[4.x API reference](https://www.quartz-scheduler.net/apidoc/4.x/), which is generated from the XML
 documentation comments of the shipped packages and rolls forward with every 4.x minor release. The
-3.x set stays at [/apidoc/3.0](https://docs.quartz-scheduler.net/apidoc/3.0/html).
+3.x set stays at [/apidoc/3.0](https://docs.quartz-scheduler.net/apidoc/3.0).
