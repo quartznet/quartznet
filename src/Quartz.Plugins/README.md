@@ -43,10 +43,11 @@ The flat `quartz.plugin.{name}.{property}` keys Quartz 3 used still work and mea
 These plugins live in the `Quartz.Plugins.*` namespaces. In Quartz 3 they were the singular
 `Quartz.Plugin.*`; a `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning.
 
-JSON is the maintained format for a schedule kept in a file. The XML format is frozen at
-`job_scheduling_data_2_0.xsd` — simple, cron and calendar-interval triggers — and will not gain the
-trigger kinds or trigger settings added since. Existing files keep working; write a new schedule as
-JSON.
+JSON is the maintained format for a schedule kept in a file. `job_scheduling_data_2_0.xsd` is frozen at
+three trigger kinds — simple, cron and calendar-interval — and will not gain a fourth, though a trigger
+*setting* can still land as an optional element: 4.1 added `<execution-group>`, `<retry-policy>` and
+`<preferred-node>`. Existing files keep working; write a new schedule that needs another trigger kind
+as JSON.
 
 ## Documentation
 

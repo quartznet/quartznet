@@ -87,6 +87,47 @@ string collation, so a value differing only in case is a different node — and 
 database, one that never matches.
 :::
 
+### In a scheduling file
+
+A pin is as much a statement about a deployment as about a schedule, so a deployment-specific
+scheduling file can make it. In JSON — the `Quartz:Schedule` section of `appsettings.json`, or a
+standalone `quartz_jobs.json` — it is a
+[common trigger field](../configuration/json.md#common-trigger-fields):
+
+```json
+{
+  "Name": "nightlyReport",
+  "JobName": "reportJob",
+  "PreferredNode": "production-node-1",
+  "Cron": { "Expression": "0 0 2 * * ?" }
+}
+```
+
+In `quartz_jobs.xml` it is an optional `<preferred-node>` element, which the schema places after
+`<retry-policy>` and before `<job-data-map>`:
+
+```xml
+<trigger>
+  <cron>
+    <name>nightlyReport</name>
+    <job-name>reportJob</job-name>
+    <preferred-node>production-node-1</preferred-node>
+    <cron-expression>0 0 2 * * ?</cron-expression>
+  </cron>
+</trigger>
+```
+
+Both spell `*` for [an automatic pin](#auto-pin-mode), and both leave the trigger unpinned when the
+value is absent — so re-reading a file clears a pin that was set some other way, exactly as it clears
+an execution group. A node name the pinning protocol reserves is refused as the file is read, naming
+the trigger, rather than scheduling a trigger that could never fire.
+
+::: warning
+A file naming a node that this cluster does not have pins the trigger to nothing, and it stops firing
+until the node appears, the pin is cleared or the file is corrected. Name a node in a file that belongs
+to one deployment; use `*` in a file that is read by more than one.
+:::
+
 ## Auto-pin mode
 
 When a trigger's preferred node is `PreferredNode.Auto`:
