@@ -58,7 +58,19 @@ newly possible, that change, and the two cron expressions 4.1 reads differently.
 | `QuartzDashboardOptions.IsJobTypeAllowed` | The same predicate for the dashboard's `IQuartzApiClient`, where a refused name raises `UnauthorizedAccessException` the way a scheduler the visitor may not see does. Enforced in the client rather than in the pages, as `ReadOnly` is. The two surfaces are configured separately because a deployment can map one and not the other — see [Narrowing which job types may be named](packages/dashboard.md#narrowing-which-job-types-may-be-named) |
 | `<execution-group>` and `<retry-policy>` in `job_scheduling_data_2_0.xsd` | The XML format catches up with JSON on the two trigger settings written since the schema was. The schema keeps its `2.0` version and its namespace: all three new elements are optional and sit between `<calendar-name>` and `<job-data-map>`, so a file written before they existed validates and means exactly what it meant. The three *trigger kinds* stay [frozen](packages/quartz-plugins.md#the-xml-trigger-kinds-are-frozen) |
 
-Four behaviours changed without a signature changing:
+Five behaviours changed without a signature changing:
+
+* **`Shutdown(waitForJobsToComplete: false)` no longer drops a firing, and settles what it can.** It
+  stops the scheduler's own firing loop and waits for it before closing the thread pool, so an
+  occurrence the loop had already committed to the store — `TriggersFired` has run and the trigger has
+  moved past it — is dispatched rather than refused and lost. It then gives the executions already in
+  flight up to two seconds to report their completions before the job store is torn down, because a
+  completion that arrives after the store has closed is refused and leaves the firing `EXECUTING` with
+  its trigger `BLOCKED` for a peer to recover a check-in timeout later. It is still not a wait for the
+  jobs: it returns the moment nothing is in flight, and a job still working when the window closes is
+  abandoned as before. What an application sees is a shutdown — the default one, since
+  `QuartzHostedServiceOptions.WaitForJobsToComplete` is off — that can take up to two seconds longer
+  when a job was running. See [When a node leaves](tutorial/advanced-enterprise-features.md#when-a-node-leaves).
 
 * **`HttpScheduler.UpdateTriggerDetails` works** rather than throwing `NotSupportedException`. It was the
   one `IScheduler` member the HTTP API had no route behind, and the API has one now:

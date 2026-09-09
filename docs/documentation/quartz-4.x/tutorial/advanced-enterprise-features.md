@@ -195,6 +195,34 @@ The same listing is behind `GET /schedulers/{name}/nodes` in the
 [HTTP API](../packages/http-api.md#cluster-nodes) and the Cluster page of the
 [dashboard](../packages/dashboard.md).
 
+## When a node leaves
+
+A node that is shut down rather than killed hands back what it can, and the two kinds of shutdown now
+differ less than they used to.
+
+**It stops firing before it stops running jobs.** The scheduling loop is halted and waited for first, so
+every trigger it had reserved but not yet fired is released to `WAITING` for another node to pick up on
+its next pass, and a firing it had already committed — the fired-trigger row written, the trigger moved
+on to its next instant — is dispatched rather than dropped. This holds whether or not the shutdown waits
+for jobs; before 4.1 the unwaited kind could close the thread pool underneath its own loop and lose that
+occurrence outright, which nothing but `RequestRecovery` would ever get back.
+
+**It settles the firings it can, then leaves the rest.** `Shutdown(waitForJobsToComplete: true)` waits
+for its executions, so nothing is left over at all. `Shutdown(waitForJobsToComplete: false)` — what
+`AddQuartzHostedService` does unless told otherwise — does not wait for the jobs, but it does give the
+executions already in flight a couple of seconds to report their completions before the job store is
+closed, because a completion issued after that is refused: the firing stays `EXECUTING` and, for a
+`[DisallowConcurrentExecution]` job, its trigger stays `BLOCKED`. A job still working when the window
+closes is abandoned, and what it leaves is what a crashed node leaves — a peer settles it once the
+check-in lapses, which is `CheckinInterval + CheckinMisfireThreshold` and then a grace period for an
+execution that may still be alive.
+
+**It does not delete its check-in row.** Nothing removes a `QRTZ_SCHEDULER_STATE` row on the way down;
+it stays with the timestamp the node last wrote until a peer decides the node has failed and recovers
+it. So a node that leaves is declared failed on the same schedule as one that crashed — the argument
+for waiting for the jobs, and for the window above, is that a node with nothing left over has nothing
+to be recovered.
+
 ## Asking for recovery
 
 Failover recovers a dead node's *executions*, and only for jobs that asked. `RequestRecovery()` on the
