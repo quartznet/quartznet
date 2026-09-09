@@ -361,10 +361,18 @@ public interface IScheduler : IAsyncDisposable
     /// pass through <see cref="SchedulerStatus.Standby" /> on the way, and no listener is told it stood
     /// down: a scheduler being torn down is not one waiting to be started again.
     /// </para>
+    /// <para>
+    /// Firing stops before anything is torn down, so a trigger this scheduler had reserved is released
+    /// for another node and one it had already fired is still run. What it does about the executions
+    /// under way is <paramref name="waitForJobsToComplete" />'s answer.
+    /// </para>
     /// </remarks>
     /// <param name="waitForJobsToComplete">
     /// if <see langword="true" /> the scheduler will not allow this method
-    /// to return until all currently executing jobs have completed.
+    /// to return until all currently executing jobs have completed. If <see langword="false" /> it waits
+    /// for no job, but still gives the executions already in flight a couple of seconds to report their
+    /// completions, so that a firing which ends on the way out is recorded rather than left for a peer
+    /// to recover; one still working when that window closes is abandoned.
     /// </param>
     /// <param name="cancellationToken">
     /// Bounds the wait for running jobs, so that a shutdown can be given a deadline. Cancelling it stops

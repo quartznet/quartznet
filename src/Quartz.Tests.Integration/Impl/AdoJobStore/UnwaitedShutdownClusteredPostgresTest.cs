@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Data.Common;
 using System.Diagnostics;
 using System.Globalization;
 
@@ -145,10 +144,11 @@ public sealed class UnwaitedShutdownClusteredPostgresTest : ClusteredPostgresTes
                             + "waited for it, or the row sits there until a peer's cluster recovery — which "
                             + $"here is thirty seconds away. State:\n{await DumpDatabaseState()}");
 
-            // Not compared with WAITING: the survivor is running, so by the time this reads the row it
-            // may legitimately have acquired or even fired the trigger again. BLOCKED is the one answer
-            // that can only mean the leaver's execution is still recorded as holding the job.
-            (await TriggerState(triggerKey)).Should().NotBe("BLOCKED",
+            // Asked as "is it BLOCKED" rather than "is it WAITING": the survivor is running, so by the
+            // time this reads the row it may legitimately have acquired or even fired the trigger again.
+            // BLOCKED is the one answer that can only mean the leaver's execution is still recorded as
+            // holding the job.
+            (await CountBlockedTriggerRows(triggerKey)).Should().Be(0,
                 "the execution that was holding the trigger has finished, so nothing is holding it any "
                 + "more — a trigger left BLOCKED by a departed node is a schedule that stops dead until a "
                 + "peer times the leaver out");
@@ -217,31 +217,18 @@ public sealed class UnwaitedShutdownClusteredPostgresTest : ClusteredPostgresTes
     }
 
     /// <summary>
-    /// The trigger's stored state, read from the row rather than through <c>GetTriggerState</c>, which
-    /// maps several stored states onto one answer and so cannot tell BLOCKED from WAITING.
+    /// Whether the trigger's row says BLOCKED, asked of the row rather than through
+    /// <c>GetTriggerState</c>, which maps several stored states onto one answer and so cannot tell
+    /// BLOCKED from WAITING.
     /// </summary>
-    private async Task<string> TriggerState(TriggerKey triggerKey)
+    private async Task<int> CountBlockedTriggerRows(TriggerKey triggerKey)
     {
-        using DbConnection connection = Database.CreateConnection();
-        await connection.OpenAsync();
-
-        using DbCommand command = connection.CreateCommand();
-        command.CommandText =
-            "SELECT TRIGGER_STATE FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName "
-            + "AND TRIGGER_NAME = @triggerName AND TRIGGER_GROUP = @triggerGroup";
-        AddParameter(command, "schedulerName", SchedulerName);
-        AddParameter(command, "triggerName", triggerKey.Name);
-        AddParameter(command, "triggerGroup", triggerKey.Group);
-
-        return (string) await command.ExecuteScalarAsync();
-
-        static void AddParameter(DbCommand command, string name, string value)
-        {
-            DbParameter parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value;
-            command.Parameters.Add(parameter);
-        }
+        return await CountRows(
+            "SELECT COUNT(*) FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName "
+            + "AND TRIGGER_NAME = @triggerName AND TRIGGER_GROUP = @triggerGroup AND TRIGGER_STATE = 'BLOCKED'",
+            ("schedulerName", SchedulerName),
+            ("triggerName", triggerKey.Name),
+            ("triggerGroup", triggerKey.Group));
     }
 
     private static string NodeFiringCounts()
