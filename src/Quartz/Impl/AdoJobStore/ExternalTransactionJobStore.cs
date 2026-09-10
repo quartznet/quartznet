@@ -165,7 +165,7 @@ internal class ExternalTransactionJobStore : AdoJobStoreBase
                     conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                 }
 
-                transOwner = await LockHandler.AcquireLock(requestorId, conn!, lockKind.Value, cancellationToken).ConfigureAwait(false);
+                transOwner = await AcquireLock(requestorId, conn, lockKind.Value, cancellationToken).ConfigureAwait(false);
             }
 
             if (conn is null)

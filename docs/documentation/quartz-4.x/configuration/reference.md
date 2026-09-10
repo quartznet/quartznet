@@ -171,6 +171,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `MisfireHandlerFrequency` | TimeSpan? | `MisfireThreshold` | How often misfires are handled. |
 | `MaxMisfiresToHandleAtATime` | int | `20` | How many misfired triggers are handled per pass. |
 | `CommandTimeout` | TimeSpan? | provider default | How long a statement may run before the provider cancels it, applied to every statement the store issues including the lock handler's. Unset leaves each provider's own default, usually 30 seconds. ADO.NET counts whole seconds, so the value is rounded **up** — `00:00:01.500` is applied as 2 seconds, because rounding down would turn a sub-second value into `0`, which means "no timeout". |
+| `LockWaitWarningThreshold` | TimeSpan? | `00:00:30` | How long one attempt to take a job store lock may go on before it is logged as slow — warning **3716**, once per acquisition, naming the lock and the wait so far. A blocked lock statement returns nothing and throws nothing, so nothing else reports a node that has stopped scheduling; this only reports, and `CommandTimeout` or a wait timeout in the lock statement is what ends the wait. `null` turns it off; zero is refused, because a warning on every lock is the same as no signal. See [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone). |
 | `DbRetryInterval` | TimeSpan | `00:00:15` | How long to wait before retrying after a database failure. |
 | `MaxTransientRetries` | int | `3` | How many times a transient failure such as a deadlock is retried. Transient means the driver's own `DbException.IsTransient`, a SQLSTATE in class `40` — the standard's "transaction rollback", covering a serialization failure or a deadlock whichever provider reports it, with `40002` excepted because a deferred constraint violation fails identically on every retry — SQL Server's transient error numbers, SQLite's busy and locked codes, or a timeout. |
 | `TransientRetryInterval` | TimeSpan | `00:00:01` | Delay between transient retries. |
@@ -378,7 +379,10 @@ handler that needs building — as `UseRedisLockHandler()` does.
 
 `SelectWithLockSql` belongs to the handler the store builds for itself. A handler chosen with
 `UseLockHandler` takes its statement through its own constructor instead, so setting both leaves the
-option doing nothing — the store logs a warning at startup when it finds that combination.
+option doing nothing — the store logs a warning at startup when it finds that combination. It is also
+where a server-side lock wait timeout goes, which on Oracle is the only place one can go: a statement
+ending `FOR UPDATE WAIT 20` fails with `ORA-30006` rather than waiting behind a lock nobody is going to
+release — see [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
 
 Both this and `UseSerializer` register against the scheduler that owns the store. Registering
 `ILockHandler` or `IObjectSerializer` directly against `Services` registers it for the container, which a
@@ -831,6 +835,7 @@ Two differences are worth knowing:
 | `quartz.jobStore.maxTransientRetries` | `JobStore:MaxTransientRetries` |
 | `quartz.jobStore.transientRetryInterval` | `JobStore:TransientRetryInterval` |
 | `quartz.jobStore.dbRetryInterval` | `JobStore:DbRetryInterval` |
+| `quartz.jobStore.commandTimeout` | `JobStore:CommandTimeout` — the key 3.22 added, in milliseconds; `0` means the provider's own default, which here is leaving the option unset |
 | `quartz.jobStore.retryableActionErrorLogThreshold` | `JobStore:RetryableActionErrorLogThreshold` |
 | `quartz.jobStore.dataSource` | set for you by the database methods |
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |

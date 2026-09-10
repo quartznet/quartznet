@@ -78,6 +78,9 @@ with no web stack owes you nothing on the security ones.
    [Metrics](packages/opentelemetry-integration.md#metrics).
 6. **The event ids you alert on are written down.** An id is stable across releases where a message's
    wording is not — [Log Events](log-events.md).
+7. **Warning 3716 and `quartz.jobstore.lock.wait.duration` are alerted on.** A node blocked on the job
+   store lock produces no other signal at all — [Log Events](log-events.md) and
+   [Metrics](packages/opentelemetry-integration.md#metrics).
 
 ## Secure
 
@@ -102,6 +105,9 @@ with no web stack owes you nothing on the security ones.
    [Assume the job will run more than once](../best-practices.md#assume-the-job-will-run-more-than-once).
 3. **One restore has been rehearsed on a copy**, because what a restore means for work that was in flight
    when the backup was taken is not obvious — [Backup and restore](operations.md#backup-and-restore).
+4. **A node that vanishes while holding the lock has been survived.** Cutting a node's network is not the
+   same test as killing it, and only the first one leaves the lock held —
+   [A Lock Held by a Connection That Is Gone](../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
 
 ## See also
 

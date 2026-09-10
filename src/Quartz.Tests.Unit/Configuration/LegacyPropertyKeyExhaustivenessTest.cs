@@ -94,6 +94,7 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.jobStore.clustering.checkinInterval",
         "quartz.jobStore.clustering.checkinMisfireThreshold",
         "quartz.jobStore.clustering.enabled",
+        "quartz.jobStore.commandTimeout",
         "quartz.jobStore.dataSource",
         "quartz.jobStore.dbRetryInterval",
         "quartz.jobStore.doubleCheckLockMisfireHandler",

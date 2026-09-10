@@ -111,6 +111,35 @@ public static class VersionNeutralPageSamples
         });
     }
 
+    public static void OracleLockWait(IServiceCollection services, string connectionString)
+    {
+        services.AddQuartz(q =>
+        {
+            #region sample_troubleshooting_oracle_lock_wait
+
+            q.UsePersistentStore(s =>
+            {
+                s.UseSystemTextJsonSerializer();
+                s.UseOracle(connectionString);
+
+                s.ConfigureStore(options =>
+                {
+                    // Bounds every statement the store issues, the lock statement included: what would
+                    // have been a wait with no end becomes a failure the store retries and reports.
+                    options.CommandTimeout = TimeSpan.FromSeconds(30);
+
+                    // And Oracle's own wait timeout, written into the lock statement itself, which
+                    // fails it with ORA-30006 after twenty seconds. {0} is the table prefix, and the
+                    // @ parameter prefix is rewritten for the driver.
+                    options.SelectWithLockSql =
+                        "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName FOR UPDATE WAIT 20";
+                });
+            });
+
+            #endregion
+        });
+    }
+
     public static void RenamedJobTypesDeclared(IServiceCollection services)
     {
         #region sample_troubleshooting_type_loader_map

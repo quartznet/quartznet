@@ -659,6 +659,12 @@ internal static class QuartzPropertyBridge
         parser.Bool("quartz.jobStore.clustered", ImplyDbLocks);
         parser.Bool("quartz.jobStore.clustering.enabled", ImplyDbLocks);
         parser.Milliseconds(LegacyPropertyKeys.JobStoreDbRetryInterval, value => options.DbRetryInterval = value);
+        // Zero is 3.22's way of saying "leave the provider's own default alone", which here is an unset
+        // option: the validator refuses a non-positive timeout, so bridging the zero literally would
+        // turn a working 3.x configuration into a startup failure.
+        parser.Milliseconds(
+            LegacyPropertyKeys.JobStoreCommandTimeout,
+            value => options.CommandTimeout = value == TimeSpan.Zero ? null : value);
         parser.Bool("quartz.jobStore.useDBLocks", value => options.UseDbLocks = value);
         parser.Bool("quartz.jobStore.lockOnInsert", value => options.LockOnInsert = value);
         parser.Bool("quartz.jobStore.acquireTriggersWithinLock", value => options.AcquireTriggersWithinLock = value);

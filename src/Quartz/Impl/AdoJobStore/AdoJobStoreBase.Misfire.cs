@@ -364,7 +364,7 @@ internal abstract partial class AdoJobStoreBase
                 // For SQLite: acquire lock before opening connection to avoid
                 // "database is locked" errors from concurrent serializable transactions.
                 // Skip the double-check optimization since in-memory lock is cheap.
-                transOwner = await LockHandler.AcquireLock(requestorId, null, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                transOwner = await AcquireLock(requestorId, null, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                 conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                 staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
@@ -387,7 +387,7 @@ internal abstract partial class AdoJobStoreBase
 
                 if (misfireCount > 0)
                 {
-                    transOwner = await LockHandler.AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                    transOwner = await AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
 
                     result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                     staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
@@ -396,7 +396,7 @@ internal abstract partial class AdoJobStoreBase
                 {
                     // Even when no misfired triggers exist, check for triggers stuck
                     // in ACQUIRED state (e.g., from a failed ReleaseAcquiredTrigger call)
-                    transOwner = await LockHandler.AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                    transOwner = await AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                     staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
                 }
             }

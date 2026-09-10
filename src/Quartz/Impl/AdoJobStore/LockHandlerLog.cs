@@ -88,4 +88,7 @@ internal static partial class LockHandlerLog
 
     [LoggerMessage(EventId = 3715, Level = LogLevel.Debug, Message = "Inserting new lock row for lock: '{LockName}' being obtained: {RequestorId}")]
     public static partial void LockRowInserting(this ILogger logger, string lockName, Guid requestorId);
+
+    [LoggerMessage(EventId = 3716, Level = LogLevel.Warning, Message = "Lock '{LockName}' has not been obtained after {Elapsed}, past the {Threshold} warning threshold (requestor {RequestorId}). Another node may be holding it in a long transaction, or a session whose client is gone - a dead connection the database has not yet cleaned up - may still hold the row; only AdoJobStoreOptions.CommandTimeout or a lock wait timeout in the lock statement bounds that wait. See https://www.quartz-scheduler.net/documentation/troubleshooting.html#a-lock-held-by-a-connection-that-is-gone")]
+    public static partial void LockWaitExceededThreshold(this ILogger logger, string lockName, TimeSpan elapsed, TimeSpan threshold, Guid requestorId);
 }

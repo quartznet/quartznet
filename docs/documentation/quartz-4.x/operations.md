@@ -659,6 +659,23 @@ merely busy database into a retry storm. ADO.NET counts whole seconds, and Quart
 value **up** — `00:00:01.500` is applied as 2 seconds — because rounding down would turn a sub-second
 value into `0`, which every provider reads as "wait forever".
 
+The peer does not have to have stopped for that to happen. A node whose network was cut while it held
+the lock leaves a database session behind that the server still believes has a client, still holding the
+open transaction and the row — the client's socket was aborted locally and no reset ever reached the
+server. Quartz cannot free another session's lock, so on this path the timeout is the whole of what a
+client can do, and the rest is a server-side setting that ends the dead session:
+[A Lock Held by a Connection That Is Gone](../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone)
+has both halves, per database. On Oracle, where there is no session-level DML lock wait timeout, the
+tidier client-side answer is a wait timeout in the lock statement itself —
+`SelectWithLockSql` ending `FOR UPDATE WAIT 20`, which fails with `ORA-30006` — because it ends the wait
+in the server rather than cancelling the statement from outside.
+
+While a wait is in progress, `JobStore:LockWaitWarningThreshold` (30 seconds by default, `null` to turn
+it off) logs **warning 3716** once per acquisition, naming the lock, how long it has been waited for and
+the requestor. Every acquisition is also measured on `quartz.jobstore.lock.wait.duration`, tagged with
+`quartz.jobstore.lock` — `TRIGGER_ACCESS` or `STATE_ACCESS`. Alert on the warning: it is the only signal
+a node stalled on a lock produces, because a blocked statement raises nothing at all.
+
 ### What counts as transient
 
 A failure the store considers transient is retried `MaxTransientRetries` times (default 3),
@@ -986,3 +1003,10 @@ repository rather than from any of these.
 - Camunda, [Restore a backup](https://docs.camunda.io/docs/self-managed/operational-guides/backup-restore/restore/)
 - Quartz (Java), [JDBC-JobStore clustering](https://www.quartz-scheduler.org/documentation/quartz-2.3.0/configuration/ConfigJDBCJobStoreClustering.html)
 - Martin Fowler, [Parallel Change](https://martinfowler.com/bliki/ParallelChange.html)
+- Oracle, [`SQLNET.EXPIRE_TIME`](https://docs.oracle.com/en/database/oracle/oracle-database/21/netrf/parameters-for-the-sqlnet.ora.html),
+  [`MAX_IDLE_BLOCKER_TIME`](https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/MAX_IDLE_BLOCKER_TIME.html)
+  and ODP.NET [`OracleCommand.CommandTimeout`](https://docs.oracle.com/en/database/oracle/oracle-database/26/odpnt/CommandCommandTimeout.html)
+- PostgreSQL, [connection settings](https://www.postgresql.org/docs/current/runtime-config-connection.html)
+  and [client connection defaults](https://www.postgresql.org/docs/current/runtime-config-client.html)
+- Microsoft, [TCP/IP properties for SQL Server](https://learn.microsoft.com/en-us/sql/tools/configuration-manager/tcp-ip-properties-protocols-tab)
+- MySQL, [InnoDB parameters](https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html#sysvar_innodb_lock_wait_timeout)

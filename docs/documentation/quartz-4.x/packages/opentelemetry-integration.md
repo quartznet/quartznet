@@ -107,7 +107,7 @@ job cannot carry a `traceparent` forward into its next firing.
 
 ## Metrics
 
-Nine instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
+Ten instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
 `quartz.scheduler.id`** — the name says which scheduler, the id says which node of it, and a cluster is
 several nodes sharing one name.
 
@@ -130,6 +130,7 @@ reading anything.
 | `quartz.cluster.checkin.duration` | `Histogram<double>` | `s` | `error.type`² | How long a cluster check-in took. Recorded per attempt, so a retried one is two measurements. |
 | `quartz.cluster.recovery.trigger` | `Counter<long>` | `{trigger}` | `quartz.cluster.recovered.instance.id` | Fired-trigger rows recovered from a node that failed. |
 | `quartz.jobstore.operation.duration` | `Histogram<double>` | `s` | `quartz.jobstore.operation`, `error.type`² | Every round trip to the store, named by the operation. |
+| `quartz.jobstore.lock.wait.duration` | `Histogram<double>` | `s` | `quartz.jobstore.lock`, `error.type`² | How long one attempt to take a job store lock took. A re-entrant acquisition waited for nothing and is not recorded. |
 
 ¹ Only when the trigger names an execution group. A trigger in no group carries no such attribute rather
 than an empty one, so the two are not folded into one series.
@@ -139,8 +140,15 @@ than an empty one, so the two are not folded into one series.
 string finds a slow operation in a trace and in a metric. Its histogram's count is how many of each
 operation there were, and the `error.type`-tagged part of that count is how many failed.
 
-The two cluster instruments come from the ADO.NET store, which is the only clustered one. The other
-seven are store-agnostic.
+`quartz.jobstore.lock`'s value is the `LOCK_NAME` column's — `TRIGGER_ACCESS`, which every scheduling
+operation takes, or `STATE_ACCESS`, which the cluster check-in takes. This is the one instrument that
+says something while a scheduler is stalled rather than after: a lock statement blocked behind another
+session returns nothing and throws nothing, so no operation is recorded and no failure is counted. The
+warning that goes with it is event 3716 — [Log Events](../log-events.md) — and the case behind both is
+[A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
+
+The two cluster instruments and the lock-wait histogram come from the ADO.NET store, which is the only
+clustered one. The other seven are store-agnostic.
 
 ### Reading the numbers
 

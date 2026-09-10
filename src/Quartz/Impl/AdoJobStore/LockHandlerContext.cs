@@ -65,6 +65,19 @@ public sealed record LockHandlerContext
     public TimeSpan? CommandTimeout { get; init; }
 
     /// <summary>
+    /// How long one attempt to take a lock may go on before it is reported as slow, from
+    /// <see cref="AdoJobStoreOptions.LockWaitWarningThreshold" />. <see langword="null" /> reports
+    /// nothing, and is what a context built by hand carries.
+    /// </summary>
+    /// <remarks>
+    /// A blocked lock statement neither throws nor returns, so nothing else in the store notices a wait
+    /// that never ends. <see cref="DbLockHandler" /> logs one warning per acquisition once the wait has
+    /// lasted this long; it does not end the wait, which is <see cref="CommandTimeout" />'s job or the
+    /// lock statement's own.
+    /// </remarks>
+    public TimeSpan? LockWaitWarningThreshold { get; init; }
+
+    /// <summary>
     /// The factory the handler creates its logger from, defaulting to
     /// <see cref="NullLoggerFactory.Instance" />.
     /// </summary>

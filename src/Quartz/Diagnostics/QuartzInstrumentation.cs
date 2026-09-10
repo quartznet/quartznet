@@ -85,5 +85,8 @@ public static class QuartzInstrumentation
 
         /// <summary>How long one round trip to the job store took — a histogram, seconds, tagged by operation.</summary>
         public const string JobStoreOperationDuration = "quartz.jobstore.operation.duration";
+
+        /// <summary>How long a job store lock took to acquire — a histogram, seconds, tagged by lock.</summary>
+        public const string JobStoreLockWaitDuration = "quartz.jobstore.lock.wait.duration";
     }
 }

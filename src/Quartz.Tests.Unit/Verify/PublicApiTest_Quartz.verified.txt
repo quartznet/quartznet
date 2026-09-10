@@ -31,6 +31,7 @@ namespace Quartz
         public bool DoubleCheckLockMisfireHandler { get; set; }
         public System.Func<System.Exception, bool>? IsTransient { get; set; }
         public bool LockOnInsert { get; set; }
+        public System.TimeSpan? LockWaitWarningThreshold { get; set; }
         public int MaxMisfiresToHandleAtATime { get; set; }
         public int MaxTransientRetries { get; set; }
         public System.TimeSpan? MisfireHandlerFrequency { get; set; }
@@ -1902,6 +1903,7 @@ namespace Quartz.Diagnostics
         public const string FireInstanceId = "quartz.fire.instance.id";
         public const string JobGroup = "quartz.job.group";
         public const string JobName = "quartz.job.name";
+        public const string JobStoreLock = "quartz.jobstore.lock";
         public const string JobStoreOperation = "quartz.jobstore.operation";
         public const string JobType = "quartz.job.type";
         public const string RecoveredInstanceId = "quartz.cluster.recovered.instance.id";
@@ -1971,6 +1973,7 @@ namespace Quartz.Diagnostics
             public const string ClusterRecoveryTrigger = "quartz.cluster.recovery.trigger";
             public const string JobExecutionActive = "quartz.job.execution.active";
             public const string JobExecutionDuration = "quartz.job.execution.duration";
+            public const string JobStoreLockWaitDuration = "quartz.jobstore.lock.wait.duration";
             public const string JobStoreOperationDuration = "quartz.jobstore.operation.duration";
             public const string TriggerAcquired = "quartz.trigger.acquired";
             public const string TriggerAcquisitionDuration = "quartz.trigger.acquisition.duration";
@@ -2523,6 +2526,7 @@ namespace Quartz.Impl.AdoJobStore
         public LockHandlerContext() { }
         public System.TimeSpan? CommandTimeout { get; init; }
         public required string InstanceId { get; init; }
+        public System.TimeSpan? LockWaitWarningThreshold { get; init; }
         public Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory { get; init; }
         public required string SchedulerName { get; init; }
         public required string TablePrefix { get; init; }

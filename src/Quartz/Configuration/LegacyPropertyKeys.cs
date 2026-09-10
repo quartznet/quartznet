@@ -75,6 +75,16 @@ internal static class LegacyPropertyKeys
     internal const string JobStorePrefix = "quartz.jobStore";
     internal const string JobStoreType = "quartz.jobStore.type";
     internal const string JobStoreDbRetryInterval = "quartz.jobStore.dbRetryInterval";
+
+    /// <summary>
+    /// 3.22's <c>CommandTimeout</c>, in milliseconds, where zero means the provider's own default.
+    /// </summary>
+    /// <remarks>
+    /// The key is under a supported prefix, so a configuration carrying it started a scheduler either
+    /// way — with every statement, the lock statement included, left unbounded and nothing said about
+    /// it. It is bridged rather than merely tolerated for that reason.
+    /// </remarks>
+    internal const string JobStoreCommandTimeout = "quartz.jobStore.commandTimeout";
     internal const string JobStoreLockHandlerPrefix = JobStorePrefix + ".lockHandler";
     internal const string JobStoreLockHandlerType = JobStoreLockHandlerPrefix + ".type";
     internal const string DataSourcePrefix = "quartz.dataSource";

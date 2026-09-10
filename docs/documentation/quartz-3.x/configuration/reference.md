@@ -352,6 +352,7 @@ JobStoreTX can be tuned with the following properties:
 
 | Property Name                                | Required | Type    | Default Value                                                                |
 |----------------------------------------------|----------|---------|------------------------------------------------------------------------------|
+| quartz.jobStore.commandTimeout               | no       | long    | 0 (the provider's own default)                                               |
 | quartz.jobStore.dbRetryInterval              | no       | long    | 15000   (15 seconds)                                                         |
 | quartz.jobStore.driverDelegateType           | yes      | string  | null                                                                         |
 | quartz.jobStore.dataSource                   | yes      | string  | null                                                                         |
@@ -367,6 +368,16 @@ JobStoreTX can be tuned with the following properties:
 | quartz.jobStore.acquireTriggersWithinLock    | no       | boolean | false (or true - see doc below)                                              |
 | quartz.jobStore.lockHandler.type             | no       | string  | null                                                                         |
 | quartz.jobStore.driverDelegateInitString     | no       | string  | null                                                                         |
+
+### `quartz.jobStore.commandTimeout`
+
+Since 3.22.0. The amount of time in milliseconds that a statement issued by the JobStore may run before the ADO.NET provider cancels it.
+Zero, the default, leaves whatever default the provider gives a new command.
+
+This covers every statement the JobStore issues, including the one the lock handler takes its row lock with, which is where it matters most: a node waiting on `QRTZ_LOCKS` behind a peer that stopped without releasing the row cannot schedule anything until the statement gives up.
+`System.Data.Common.DbCommand.CommandTimeout` counts whole seconds, so the value is rounded *up* — 1500 is applied as 2 seconds, because rounding down would turn a sub-second value into 0, which every provider reads as "wait forever".
+
+See [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone) for the case this was added for, and for the server-side settings that go with it.
 
 ### `quartz.jobStore.dbRetryInterval`
 

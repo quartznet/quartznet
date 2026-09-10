@@ -298,6 +298,8 @@
     "Lock '{LockName}' was not obtained by: {RequestorId} - will try again."
 3715  Debug  LockHandlerLog.LockRowInserting
     "Inserting new lock row for lock: '{LockName}' being obtained: {RequestorId}"
+3716  Warning  LockHandlerLog.LockWaitExceededThreshold
+    "Lock '{LockName}' has not been obtained after {Elapsed}, past the {Threshold} warning threshold (requestor {RequestorId}). Another node may be holding it in a long transaction, or a session whose client is gone - a dead connection the database has not yet cleaned up - may still hold the row; only AdoJobStoreOptions.CommandTimeout or a lock wait timeout in the lock statement bounds that wait. See https://www.quartz-scheduler.net/documentation/troubleshooting.html#a-lock-held-by-a-connection-that-is-gone"
 4000  Debug  ConfigurationLog.SharedDatabaseCheckUnavailable
     "The shared-database check could not read what database scheduler '{SchedulerName}' talks to."
 4001  Warning  ConfigurationLog.SchedulersShareDatabaseWithDifferentPrefixes

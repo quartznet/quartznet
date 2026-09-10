@@ -24,6 +24,7 @@ using System.Data.Common;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -48,6 +49,12 @@ public abstract class DbLockHandler : ILockHandler
 
     private string expandedSql = null!;
     private string expandedInsertSql = null!;
+
+    /// <summary>
+    /// How long an acquisition may go on before it is reported, or <see langword="null" /> to report
+    /// nothing. Told to the handler through <see cref="Initialize" />.
+    /// </summary>
+    private TimeSpan? lockWaitWarningThreshold;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DbLockHandler"/> class.
@@ -101,6 +108,14 @@ public abstract class DbLockHandler : ILockHandler
     /// </remarks>
     public void Initialize(LockHandlerContext context)
     {
+        // Refused where it is configured rather than at the first contended lock, which is the one place
+        // it would otherwise be reported from - with the lock unacquired and nothing naming the setting.
+        if (context.LockWaitWarningThreshold is { } threshold)
+        {
+            TimerLimits.EnsureWaitable(threshold, nameof(LockHandlerContext.LockWaitWarningThreshold));
+        }
+
+        lockWaitWarningThreshold = context.LockWaitWarningThreshold;
         schedulerName = context.SchedulerName;
         tablePrefix = context.TablePrefix;
         TimeProvider = context.TimeProvider;
@@ -143,8 +158,21 @@ public abstract class DbLockHandler : ILockHandler
         var key = new ThreadLockKey(requestorId, lockKind);
         if (!IsLockOwner(key))
         {
-            await ExecuteSql(requestorId, conn!, lockName, expandedSql, expandedInsertSql, cancellationToken)
-                .ConfigureAwait(false);
+            // A blocked lock statement neither returns nor throws, so nothing else in the store notices
+            // that this node has stopped scheduling. The timer is the only thing that will say so.
+            SlowLockWait? slowWait = lockWaitWarningThreshold is { } threshold && logger.IsEnabled(LogLevel.Warning)
+                ? new SlowLockWait(logger, lockName, requestorId, threshold, TimeProvider)
+                : null;
+
+            try
+            {
+                await ExecuteSql(requestorId, conn!, lockName, expandedSql, expandedInsertSql, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                slowWait?.Dispose();
+            }
 
             if (isDebugEnabled)
             {
@@ -286,6 +314,73 @@ public abstract class DbLockHandler : ILockHandler
     private protected IAdoUtil AdoUtil => adoUtil;
 
     private AdoUtil adoUtil;
+
+    /// <summary>
+    /// One acquisition's wait, and the warning logged when it outlives the threshold.
+    /// </summary>
+    /// <remarks>
+    /// The state is a single word so that the timer callback and the completing acquisition settle the
+    /// race between them with one compare-and-swap: whichever gets there first decides whether the
+    /// warning is logged at all, and the wait is never reported after the lock has been given.
+    /// </remarks>
+    private sealed class SlowLockWait : IDisposable
+    {
+        private const int StateWaiting = 0;
+        private const int StateWarned = 1;
+        private const int StateCompleted = 2;
+
+        private readonly ILogger logger;
+        private readonly string lockName;
+        private readonly Guid requestorId;
+        private readonly TimeSpan threshold;
+        private readonly TimeProvider timeProvider;
+        private readonly long started;
+        private readonly ITimer timer;
+
+        private int state;
+
+        public SlowLockWait(
+            ILogger logger,
+            string lockName,
+            Guid requestorId,
+            TimeSpan threshold,
+            TimeProvider timeProvider)
+        {
+            this.logger = logger;
+            this.lockName = lockName;
+            this.requestorId = requestorId;
+            this.threshold = threshold;
+            this.timeProvider = timeProvider;
+            started = timeProvider.GetTimestamp();
+
+            // Created last, because the callback can run on another thread the moment the timer exists
+            // and it reads every field above. Created before the statement is issued, so a wait that
+            // blocks on the very first await is already being watched.
+            timer = timeProvider.CreateTimer(
+                static waiter => ((SlowLockWait) waiter!).Warn(),
+                this,
+                threshold,
+                Timeout.InfiniteTimeSpan);
+        }
+
+        public void Dispose()
+        {
+            Interlocked.CompareExchange(ref state, StateCompleted, StateWaiting);
+            timer.Dispose();
+        }
+
+        private void Warn()
+        {
+            if (Interlocked.CompareExchange(ref state, StateWarned, StateWaiting) != StateWaiting)
+            {
+                // The lock arrived first. A warning about a wait that is already over would send an
+                // operator looking for a stall that no longer exists.
+                return;
+            }
+
+            logger.LockWaitExceededThreshold(lockName, timeProvider.GetElapsedTime(started), threshold, requestorId);
+        }
+    }
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
     private readonly struct ThreadLockKey : IEquatable<ThreadLockKey>

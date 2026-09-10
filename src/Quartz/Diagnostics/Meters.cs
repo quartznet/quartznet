@@ -47,6 +47,7 @@ internal sealed class Meters : IDisposable
     private readonly Histogram<double> clusterCheckinDuration;
     private readonly Counter<long> clusterRecoveredTriggers;
     private readonly Histogram<double> jobStoreOperationDuration;
+    private readonly Histogram<double> jobStoreLockWaitDuration;
 
     public Meters(IMeterFactory? meterFactory)
     {
@@ -98,6 +99,11 @@ internal sealed class Meters : IDisposable
         // count is how many of each there were, and its error.type subset how many failed, so this one
         // instrument answers rate, latency and failure for the whole store surface.
         jobStoreOperationDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.JobStoreOperationDuration, "s", "Elapsed time spent on a job store operation");
+
+        // How long the cluster's own mutex took to hand over. Every clustered node's scheduling passes
+        // through it, so this is where a peer that stopped holding the row - or a database session whose
+        // client is gone - shows up as a number rather than as a scheduler that has gone quiet.
+        jobStoreLockWaitDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.JobStoreLockWaitDuration, "s", "Elapsed time spent waiting for a job store lock");
     }
 
     public static Meters Shared => shared.Value;
@@ -178,6 +184,38 @@ internal sealed class Meters : IDisposable
         }
 
         jobStoreOperationDuration.Record(duration.TotalSeconds, tags);
+    }
+
+    /// <summary>
+    /// Whether anything is collecting the lock-wait histogram. Asked before an acquisition is timed, so
+    /// a store nobody is watching pays a boolean per lock rather than two timestamps.
+    /// </summary>
+    internal bool JobStoreLockWaitEnabled => jobStoreLockWaitDuration.Enabled;
+
+    /// <summary>
+    /// One attempt to take a job store lock, named by the <c>LOCK_NAME</c> the store contends for, and
+    /// what it failed with when it did.
+    /// </summary>
+    internal void RecordJobStoreLockWait(
+        string schedulerName,
+        string schedulerId,
+        string lockName,
+        TimeSpan duration,
+        Exception? exception)
+    {
+        TagList tags = new()
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+            { ActivityTags.JobStoreLock, lockName },
+        };
+
+        if (exception is not null)
+        {
+            tags.Add(ErrorType.TagName, ErrorType.Of(exception));
+        }
+
+        jobStoreLockWaitDuration.Record(duration.TotalSeconds, tags);
     }
 
     /// <summary>
