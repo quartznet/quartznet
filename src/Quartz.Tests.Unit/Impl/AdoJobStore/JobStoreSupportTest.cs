@@ -252,6 +252,96 @@ public class JobStoreSupportTest
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
+    /// <summary>
+    /// Replacing a trigger leaves the fired-trigger rows of its executions alone. A replaced trigger keeps
+    /// its identity and its job, so an execution the row records is still one to finish or to recover —
+    /// and re-applying an application's <c>AddTrigger</c> registrations on start replaces every trigger it
+    /// declares, before recovery has read a row of the run the kill interrupted (#3759).
+    /// </summary>
+    [Test]
+    public async Task TestReplaceTrigger_ShouldKeepFiredTriggersForTriggerKey()
+    {
+        var triggerKey = new TriggerKey("t1", "g1");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IJobDetail job = CreateConcurrentJob();
+
+        A.CallTo(() => driverDelegate.SelectJobForTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<Spi.ITypeLoadHelper>.Ignored,
+            false,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult<IJobDetail>(job));
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult(1));
+
+        (await jobStoreSupport.CallReplaceTrigger(conn, triggerKey, CreateTestTrigger())).Should().BeTrue();
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.InsertTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IOperableTrigger>.That.Matches(t => t.Key.Equals(triggerKey)),
+            AdoConstants.StateWaiting,
+            job,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        // A replacement is not a removal: the rows record executions of the job, which is still there.
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// The same rule on the delegate shape that deletes by key in one statement.
+    /// </summary>
+    [Test]
+    public async Task TestReplaceTrigger_NextVersionDelegate_ShouldKeepFiredTriggersForTriggerKey()
+    {
+        IDriverDelegate nvDelegate = A.Fake<IDriverDelegate>(x => x.Implements<INextVersionDelegate>());
+        jobStoreSupport.DirectDelegate = nvDelegate;
+
+        var triggerKey = new TriggerKey("t1", "g1");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IJobDetail job = CreateConcurrentJob();
+
+        A.CallTo(() => nvDelegate.SelectJobForTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<Spi.ITypeLoadHelper>.Ignored,
+            false,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult<IJobDetail>(job));
+
+        A.CallTo(() => nvDelegate.DeleteTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult(1));
+
+        (await jobStoreSupport.CallReplaceTrigger(conn, triggerKey, CreateTestTrigger())).Should().BeTrue();
+
+        A.CallTo(() => ((INextVersionDelegate) nvDelegate).DeleteFiredTriggers(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<TriggerKey>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+
+        A.CallTo(() => nvDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
     [Test]
     public async Task TestRemoveJob_ShouldDeleteFiredTriggersForJobKey()
     {
@@ -1139,6 +1229,11 @@ public class JobStoreSupportTest
         internal Task<bool> CallRemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             return RemoveTrigger(conn, triggerKey, CancellationToken.None);
+        }
+
+        internal Task<bool> CallReplaceTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, IOperableTrigger newTrigger)
+        {
+            return ReplaceTrigger(conn, triggerKey, newTrigger, CancellationToken.None);
         }
 
         internal Task<TriggerFiredBundle> CallTriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
