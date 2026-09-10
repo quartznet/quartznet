@@ -41,6 +41,22 @@ public class AdoUtil
         log = LogProvider.GetLogger("Quartz.SQL");
     }
 
+    /// <summary>
+    /// Gets or sets how long a command prepared here may run before the provider cancels it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null" />, the default, leaves whatever default the provider gives a new command.
+    /// </para>
+    /// <para>
+    /// <see cref="System.Data.IDbCommand.CommandTimeout" /> counts whole seconds, so the value is
+    /// rounded <em>up</em>: rounding down would turn anything under a second into zero, which every
+    /// provider reads as "wait forever".
+    /// </para>
+    /// </remarks>
+    /// <value>The command timeout, or <see langword="null" /> for the provider's own default.</value>
+    public TimeSpan? CommandTimeout { get; set; }
+
     public void AddCommandParameter(IDbCommand cmd, string paramName, object? paramValue)
     {
         AddCommandParameter(cmd, paramName, paramValue, null, null);
@@ -87,6 +103,12 @@ public class AdoUtil
     {
         DbCommand cmd = dbProvider.CreateCommand();
         cmd.CommandText = commandText;
+
+        if (CommandTimeout is { } commandTimeout)
+        {
+            cmd.CommandTimeout = (int) Math.Ceiling(commandTimeout.TotalSeconds);
+        }
+
         cth.Attach(cmd);
 
         if (log.IsDebugEnabled())
