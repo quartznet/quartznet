@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Specialized;
 
 using Quartz.Impl.AdoJobStore.Common;
@@ -44,6 +45,16 @@ public class DelegateInitializationArgs
     /// Object serializer and deserializer strategy to use.
     /// </summary>
     public IObjectSerializer? ObjectSerializer { get; set; }
+
+    /// <summary>
+    /// How long a statement the delegate issues may run before the provider cancels it, or
+    /// <see langword="null" /> to leave the provider's own default in place.
+    /// </summary>
+    /// <remarks>
+    /// This is <c>quartz.jobStore.commandTimeout</c> as the store received it; the delegate hands it to
+    /// the <see cref="AdoUtil" /> that prepares its commands.
+    /// </remarks>
+    public TimeSpan? CommandTimeout { get; set; }
 
     /// <summary>
     /// Custom driver delegate initialization.

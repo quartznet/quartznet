@@ -79,6 +79,29 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     internal ILog Log { get; }
 
     /// <summary>
+    /// Gets or sets how long the statements this handler takes its lock with may run before the
+    /// provider cancels them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null" />, the default, leaves whatever default the provider gives a new command.
+    /// The job store writes <c>quartz.jobStore.commandTimeout</c> here once its lock handler is known,
+    /// so a handler configured with <c>quartz.jobStore.lockHandler.type</c> is bounded too.
+    /// </para>
+    /// <para>
+    /// This is the wait that matters most: a node blocked on the lock row behind a session that is
+    /// gone - a connection the database has not yet noticed is dead - waits here, and nothing else
+    /// ends that wait.
+    /// </para>
+    /// </remarks>
+    /// <value>The command timeout, or <see langword="null" /> for the provider's own default.</value>
+    public TimeSpan? CommandTimeout
+    {
+        get => AdoUtil.CommandTimeout;
+        set => AdoUtil.CommandTimeout = value;
+    }
+
+    /// <summary>
     /// Execute the SQL that will lock the proper database row.
     /// </summary>
     protected abstract Task ExecuteSQL(

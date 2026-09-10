@@ -70,6 +70,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     private TimeSpan clusterCheckinInterval;
     private TimeSpan dbRetryInterval;
     private TimeSpan transientRetryInterval;
+    private TimeSpan commandTimeout;
 
     private ClusterManager? clusterManager;
     private MisfireHandler? misfireHandler;
@@ -227,6 +228,59 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             dbRetryInterval = value;
         }
     }
+
+    /// <summary>
+    /// Gets or sets how long a statement the job store issues may run before the provider cancels it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Defaults to <see cref="TimeSpan.Zero" />, which leaves each statement with whatever default the
+    /// ADO.NET provider gives a new command - 30 seconds for most of them. Configured as
+    /// <c>quartz.jobStore.commandTimeout</c>, in milliseconds.
+    /// </para>
+    /// <para>
+    /// This covers every statement the store issues, including the ones the lock handler takes its row
+    /// lock with, which is where a timeout matters most: a node blocked on the lock row behind a peer
+    /// that stopped without releasing it - or behind a session whose client is gone, which the database
+    /// has not yet cleaned up - waits there with the whole scheduling loop stalled, and nothing else
+    /// ends that wait. Once a statement does fail, the store retries it after
+    /// <see cref="DbRetryInterval" /> and recovers by itself.
+    /// </para>
+    /// <para>
+    /// <see cref="System.Data.IDbCommand.CommandTimeout" /> counts whole seconds, so a value is rounded
+    /// <em>up</em> to the next second - a configured 1500ms is applied as 2 seconds. Rounding up rather
+    /// than down keeps a sub-second value from becoming zero, which every provider reads as "wait
+    /// forever".
+    /// </para>
+    /// </remarks>
+    /// <value>The command timeout, or <see cref="TimeSpan.Zero" /> for the provider's own default.</value>
+    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+    public TimeSpan CommandTimeout
+    {
+        get => commandTimeout;
+        set
+        {
+            if (value < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(CommandTimeout), value,
+                    $"{nameof(CommandTimeout)} cannot be negative. Leave it at TimeSpan.Zero to keep the provider's own default.");
+            }
+
+            if (value.TotalSeconds > int.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(CommandTimeout), value,
+                    $"{nameof(CommandTimeout)} must be at most {int.MaxValue} seconds, which is the longest wait ADO.NET's whole-second command timeout can express.");
+            }
+
+            commandTimeout = value;
+        }
+    }
+
+    /// <summary>
+    /// What <see cref="CommandTimeout" /> means to the parts that apply it: the configured duration, or
+    /// <see langword="null" /> when it is unset and the provider's own default stands.
+    /// </summary>
+    private TimeSpan? ConfiguredCommandTimeout => commandTimeout == TimeSpan.Zero ? null : commandTimeout;
 
     /// <summary>
     /// Gets or sets the maximum number of retries for transient database exceptions
@@ -641,6 +695,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                         args.TypeLoadHelper = typeLoadHelper;
                         args.ObjectSerializer = ObjectSerializer;
                         args.InitString = DriverDelegateInitString;
+                        args.CommandTimeout = ConfiguredCommandTimeout;
 
                         var ctor = delegateType.GetConstructor(Type.EmptyTypes);
                         if (ctor == null)
@@ -838,6 +893,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             {
                 Log.Warn("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
             }
+        }
+
+        // Whether the handler was chosen here or handed to us by quartz.jobStore.lockHandler.type, the
+        // statements it locks with are the store's statements and are bounded by the store's timeout.
+        // A handler that does not talk to a database has nothing to bound, and an unset timeout leaves
+        // a handler that was given one of its own alone.
+        if (ConfiguredCommandTimeout is { } lockHandlerCommandTimeout && LockHandler is DBSemaphore dbSemaphore)
+        {
+            dbSemaphore.CommandTimeout = lockHandlerCommandTimeout;
         }
 
 #if DIAGNOSTICS_SOURCE

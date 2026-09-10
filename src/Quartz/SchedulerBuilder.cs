@@ -451,6 +451,26 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         }
 
         /// <summary>
+        /// Sets how long a statement the job store issues may run before the provider cancels it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Unset by default, which leaves each statement with whatever default the ADO.NET provider
+        /// gives a new command - 30 seconds for most of them.
+        /// </para>
+        /// <para>
+        /// This covers every statement the store issues, the ones the lock handler takes its row lock
+        /// with included, which is where a timeout matters most: a node blocked on the lock row behind
+        /// a session the database has not yet noticed is dead waits there with the whole scheduling
+        /// loop stalled. Once a statement fails, the store retries it after <see cref="RetryInterval" />.
+        /// </para>
+        /// </remarks>
+        public TimeSpan CommandTimeout
+        {
+            set => SetProperty("quartz.jobStore.commandTimeout", ((int) value.TotalMilliseconds).ToString());
+        }
+
+        /// <summary>
         /// Sets the maximum number of retries for transient database exceptions
         /// (such as deadlocks) before giving up and propagating the exception.
         /// </summary>

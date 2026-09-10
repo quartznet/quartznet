@@ -828,6 +828,7 @@ namespace Quartz
         }
         public class PersistentStoreOptions : Quartz.SchedulerBuilder.StoreOptions
         {
+            public System.TimeSpan CommandTimeout { set; }
             public long IdleWaitTime { set; }
             public int MaxTransientRetries { set; }
             public bool PerformSchemaValidation { set; }
@@ -1398,6 +1399,7 @@ namespace Quartz.Impl.AdoJobStore
     public class AdoUtil
     {
         public AdoUtil(Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
+        public System.TimeSpan? CommandTimeout { get; set; }
         public void AddCommandParameter(System.Data.IDbCommand cmd, string paramName, object? paramValue) { }
         public void AddCommandParameter(System.Data.IDbCommand cmd, string paramName, object? paramValue, System.Enum? dataType, int? size) { }
         public System.Data.Common.DbCommand PrepareCommand(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder cth, string commandText) { }
@@ -1442,6 +1444,7 @@ namespace Quartz.Impl.AdoJobStore
     {
         protected DBSemaphore(string tablePrefix, string? schedName, string defaultSQL, string defaultInsertSQL, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
         protected Quartz.Impl.AdoJobStore.AdoUtil AdoUtil { get; }
+        public System.TimeSpan? CommandTimeout { get; set; }
         protected string InsertSQL { set; }
         public bool RequiresConnection { get; }
         protected string SQL { get; set; }
@@ -1464,6 +1467,7 @@ namespace Quartz.Impl.AdoJobStore
     public class DelegateInitializationArgs
     {
         public DelegateInitializationArgs() { }
+        public System.TimeSpan? CommandTimeout { get; set; }
         public Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; set; }
         public string? InitString { get; set; }
         public string InstanceId { get; set; }
@@ -1642,6 +1646,8 @@ namespace Quartz.Impl.AdoJobStore
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
         public System.TimeSpan ClusterCheckinMisfireThreshold { get; set; }
         public bool Clustered { get; set; }
+        [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
+        public System.TimeSpan CommandTimeout { get; set; }
         public Quartz.Util.IDbConnectionManager ConnectionManager { get; set; }
         public string DataSource { get; set; }
         protected Quartz.Impl.AdoJobStore.Common.DbMetadata DbMetadata { get; }

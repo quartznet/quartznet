@@ -78,7 +78,10 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         DbProvider = args.DbProvider;
         typeLoadHelper = args.TypeLoadHelper;
         useProperties = args.UseProperties;
-        adoUtil = new AdoUtil(args.DbProvider);
+        adoUtil = new AdoUtil(args.DbProvider)
+        {
+            CommandTimeout = args.CommandTimeout
+        };
         objectSerializer = args.ObjectSerializer!;
 
         AddDefaultTriggerPersistenceDelegates();
