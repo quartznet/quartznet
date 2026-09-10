@@ -202,6 +202,133 @@ public class RecoverJobsTest
         await scheduler.Shutdown(true);
     }
 
+    /// <summary>
+    /// A trigger rescheduled before the restarted node starts — which is what re-applying an
+    /// application's <c>AddTrigger</c> registrations on startup does — keeps the record of the execution
+    /// the kill interrupted, so the job that asked to be recovered is (#3759).
+    /// </summary>
+    [Test]
+    public async Task TestRecoveryStillHappensAfterTriggerIsRescheduledBeforeStart()
+    {
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out var dataSourceName);
+
+        // One store per process: the restarted node is a new process, and a store that has been shut
+        // down refuses work until its scheduler starts, which is after the reschedule under test.
+        JobStoreTX CreateJobStore()
+        {
+            // A recovery trigger carries a data map, and a store without a serializer cannot write one.
+            var serializer = new JsonObjectSerializer();
+            serializer.Initialize();
+
+            return new JobStoreTX
+            {
+                DataSource = dataSourceName,
+                InstanceId = "SINGLE_NODE_TEST",
+                InstanceName = dataSourceName,
+                MisfireThreshold = TimeSpan.FromSeconds(1),
+                ObjectSerializer = serializer
+            };
+        }
+
+        var factory = DirectSchedulerFactory.Instance;
+
+        factory.CreateScheduler(new DefaultThreadPool(), CreateJobStore());
+        var scheduler = await factory.GetScheduler();
+
+        RecoverJobsTestJob.runForever = true;
+
+        await scheduler.Clear();
+
+        var jobKey = new JobKey("rescheduledRecovery", "testGroup");
+        var triggerKey = new TriggerKey("rescheduledRecovery", "testGroup");
+
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<RecoverJobsTestJob>()
+                .WithIdentity(jobKey)
+                .RequestRecovery(true)
+                .Build(),
+            TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromHours(1))
+                    .RepeatForever()
+                ).Build()
+        );
+
+        await scheduler.Start();
+
+        // wait to be sure job is executing
+        await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // emulate fail over situation
+        await scheduler.Shutdown(false);
+
+        CountFiredTriggers(dataSourceName, scheduler.SchedulerName, triggerKey).Should().Be(1,
+            "the premise: the kill interrupted a firing the store knows about");
+
+        // the restarted node re-applies its declared trigger before it starts
+        factory.CreateScheduler(new DefaultThreadPool(), CreateJobStore());
+        IScheduler restarted = await factory.GetScheduler();
+
+        var declaredAgain = TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartNow()
+            .WithSimpleSchedule(x => x
+                .WithInterval(TimeSpan.FromHours(1))
+                .RepeatForever()
+            ).Build();
+        (await restarted.RescheduleJob(triggerKey, declaredAgain)).Should().NotBeNull("the trigger was there to replace");
+
+        CountFiredTriggers(dataSourceName, restarted.SchedulerName, triggerKey).Should().Be(1,
+            "a reschedule is not a removal: the interrupted execution's record stays for recovery to read");
+
+        RecoverJobsTestJob.runForever = false;
+
+        var recovered = new ManualResetEventSlim(false);
+        restarted.ListenerManager.AddJobListener(new RecoveryDetectionListener(recovered));
+        await restarted.Start();
+
+        recovered.Wait(TimeSpan.FromSeconds(15)).Should().BeTrue(
+            "the job asked to be recovered and its execution was interrupted; rescheduling its trigger changes neither");
+
+        await restarted.Shutdown(true);
+    }
+
+    private static int CountFiredTriggers(string dataSourceName, string schedulerName, TriggerKey triggerKey)
+    {
+        using var connection = DBConnectionManager.Instance.GetConnection(dataSourceName);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{schedulerName}' AND TRIGGER_NAME = '{triggerKey.Name}' AND TRIGGER_GROUP = '{triggerKey.Group}'";
+        return Convert.ToInt32(command.ExecuteScalar());
+    }
+
+    private sealed class RecoveryDetectionListener : JobListenerSupport
+    {
+        private readonly ManualResetEventSlim recovered;
+
+        public RecoveryDetectionListener(ManualResetEventSlim recovered)
+        {
+            this.recovered = recovered;
+        }
+
+        public override string Name => nameof(RecoveryDetectionListener);
+
+        public override Task JobToBeExecuted(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            if (context.Recovering)
+            {
+                recovered.Set();
+            }
+
+            return Task.CompletedTask;
+        }
+    }
+
     [DisallowConcurrentExecution]
     public class RecoverJobsTestJob : IJob
     {
