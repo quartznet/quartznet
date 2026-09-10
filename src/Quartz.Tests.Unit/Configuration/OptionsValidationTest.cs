@@ -152,6 +152,79 @@ public class OptionsValidationTest
     }
 
     /// <summary>
+    /// Zero would be a warning on every lock the store takes — the same as no signal at all — and a
+    /// negative threshold is a timer that refuses to be created. "Report nothing" is spelled by leaving
+    /// it unset.
+    /// </summary>
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void ALockWaitWarningThresholdThatIsNotPositiveIsAConfigurationError(int seconds)
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.LockWaitWarningThreshold = TimeSpan.FromSeconds(seconds);
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*LockWaitWarningThreshold*");
+    }
+
+    [Test]
+    public void ALockWaitWarningThresholdNoTimerWillWaitOutIsAConfigurationError()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.LockWaitWarningThreshold = TimeSpan.FromDays(90);
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*LockWaitWarningThreshold*4294967294ms (49.7 days)*");
+    }
+
+    [Test]
+    public void ALockWaitWarningThresholdTurnedOffIsFine()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.LockWaitWarningThreshold = null;
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow("null is how an application says it does not want a slow lock reported");
+    }
+
+    /// <summary>
+    /// A default rather than an opt-in, because the failure it reports is one nothing else reports at
+    /// all: a blocked lock statement returns nothing and throws nothing.
+    /// </summary>
+    [Test]
+    public void ASlowLockIsReportedWithoutBeingAskedFor()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options => options.DataSource = "test")));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.LockWaitWarningThreshold
+            .Should().Be(TimeSpan.FromSeconds(30));
+    }
+
+    /// <summary>
     /// Asking for clustering and then switching it off leaves database locking on, no cluster manager
     /// and no check-in row — a shape nobody means to configure. Not clustering is spelled by not calling
     /// <c>UseClustering</c>.

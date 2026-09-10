@@ -192,6 +192,7 @@ schema validation:
 | `TablePrefix` (required) | ignored by a handler that does not lock in the database |
 | `TimeProvider` | wait on this rather than on wall time, so retry behaviour is testable |
 | `CommandTimeout` | from `AdoJobStoreOptions.CommandTimeout` |
+| `LockWaitWarningThreshold` | from `AdoJobStoreOptions.LockWaitWarningThreshold`; `null` in a context built by hand |
 
 The store calls it on both construction paths, and that is why it exists: a handler the container
 supplied would otherwise query `QRTZ_LOCKS` with a null scheduler name, whatever the store is actually
@@ -199,6 +200,12 @@ configured with.
 
 `CommandTimeout` earns its keep here specifically. A node waiting on `QRTZ_LOCKS` behind a peer that
 stopped without releasing the row cannot make progress until the statement gives up.
+
+`LockWaitWarningThreshold` is the other half of that: how long one acquisition may go on before it is
+worth saying so. `DbLockHandler` acts on it for you — a handler deriving from it logs warning 3716 once
+per slow acquisition without writing a line — and a handler of its own making is free to ignore it or to
+report the wait its own way. Either way the store times every acquisition on
+`quartz.jobstore.lock.wait.duration`, so a handler owes nothing for the metric.
 
 ## Registering it
 

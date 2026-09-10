@@ -802,6 +802,50 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         options.UseBackgroundThreads.Should().BeTrue();
     }
 
+    /// <summary>
+    /// 3.22 gave the 3.x line a <c>quartz.jobStore.commandTimeout</c>, in milliseconds, which is how an
+    /// application there bounds the lock statement. The key is under a supported prefix, so a
+    /// configuration carrying it started a 4.x scheduler either way — with every statement left
+    /// unbounded and nothing said about it.
+    /// </summary>
+    [Test]
+    public void TheCommandTimeout3xGrewIsUnderstoodHere()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "test",
+            ["quartz.jobStore.commandTimeout"] = "20000",
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<AdoJobStoreOptions>>().Get(Options.DefaultName);
+
+        options.CommandTimeout.Should().Be(TimeSpan.FromSeconds(20),
+            "the 3.x key counts milliseconds, and reading 20000 as days would be a timeout nobody could hit");
+    }
+
+    /// <summary>
+    /// Zero is 3.x's way of saying "leave the provider's own default alone", and 4.x spells that with an
+    /// unset option — its validator refuses a non-positive one.
+    /// </summary>
+    [Test]
+    public void ACommandTimeoutOfZeroMeansTheProvidersOwnDefault()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "test",
+            ["quartz.jobStore.commandTimeout"] = "0",
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<AdoJobStoreOptions>>().Get(Options.DefaultName);
+
+        options.CommandTimeout.Should().BeNull(
+            "bridging the zero literally would turn a working 3.x configuration into a startup failure");
+    }
+
     [Test]
     public async Task PluginSettingsInConfigurationFindAPluginAddedInCode()
     {

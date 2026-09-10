@@ -128,6 +128,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         SchemaProvisioning = options.SchemaProvisioning;
         SelectWithLockSql = options.SelectWithLockSql;
         CommandTimeout = options.CommandTimeout;
+        LockWaitWarningThreshold = options.LockWaitWarningThreshold;
 
         // Registered through UseTriggerPersistenceDelegate<T>() (or translated from the legacy
         // quartz.jobStore.driverDelegateInitString key by the property bridge) and handed to the driver
@@ -414,6 +415,16 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// </remarks>
     internal TimeSpan? CommandTimeout { get; }
 
+    /// <summary>
+    /// How long one attempt to take a lock may go on before the lock handler reports it as slow, or
+    /// <see langword="null" /> to report nothing.
+    /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.LockWaitWarningThreshold" />, and handed to the
+    /// lock handler, which is where the wait actually happens.
+    /// </remarks>
+    internal TimeSpan? LockWaitWarningThreshold { get; }
+
     protected ITypeLoader TypeLoader => typeLoader;
 
     /// <summary>
@@ -653,6 +664,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             TablePrefix = TablePrefix,
             TimeProvider = timeProvider,
             CommandTimeout = CommandTimeout,
+            LockWaitWarningThreshold = LockWaitWarningThreshold,
             LoggerFactory = LoggerFactory,
         });
 

@@ -503,6 +503,25 @@ internal sealed class AdoJobStoreOptionsValidator : IValidateOptions<AdoJobStore
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.CommandTimeout)} must be positive when set.");
         }
 
+        // Zero would be a warning on every lock the store takes, which says nothing about a lock that is
+        // stuck; "warn about nothing" is spelled by leaving it unset.
+        if (options.LockWaitWarningThreshold is { } lockWaitWarningThreshold)
+        {
+            if (lockWaitWarningThreshold <= TimeSpan.Zero)
+            {
+                (failures ??= []).Add($"{nameof(AdoJobStoreOptions.LockWaitWarningThreshold)} must be positive when set.");
+            }
+            else if (lockWaitWarningThreshold > TimerLimits.MaxDelay)
+            {
+                (failures ??= []).Add(TimerLimits.TooLong(
+                    nameof(AdoJobStoreOptions.LockWaitWarningThreshold),
+                    lockWaitWarningThreshold,
+                    TimerLimits.MaxDelay,
+                    "A timer waits it out beside the lock attempt, so a threshold longer than this is "
+                    + "refused by the timer rather than by the store."));
+            }
+        }
+
         if (options.MaxMisfiresToHandleAtATime < 1)
         {
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MaxMisfiresToHandleAtATime)} must be at least 1.");

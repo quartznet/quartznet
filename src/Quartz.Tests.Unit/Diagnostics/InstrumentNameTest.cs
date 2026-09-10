@@ -138,6 +138,7 @@ public sealed class InstrumentNameTest
                 "quartz.cluster.checkin.duration",
                 "quartz.cluster.recovery.trigger",
                 "quartz.jobstore.operation.duration",
+                "quartz.jobstore.lock.wait.duration",
             ],
             "these are the strings the OpenTelemetry integration page tabulates and the Aspire dashboard "
             + "charts, so publishing them as constants must not be an occasion to rename one");

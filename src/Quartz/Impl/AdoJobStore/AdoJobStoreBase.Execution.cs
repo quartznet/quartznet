@@ -213,6 +213,66 @@ internal abstract partial class AdoJobStoreBase
         return new ConnectionAndTransactionHolder(conn, tx, ownsResources: true, borrowedFrom: null, logger: ConnectionLogger);
     }
 
+    /// <summary>
+    /// Takes one of the scheduler's locks through the configured handler, and measures how long it took.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every acquisition in the store goes through here rather than calling the handler directly, so
+    /// that the lock-wait histogram covers all of them: the scheduling operations, the cluster
+    /// check-in's two locks and the misfire handler's. A wait on <c>QRTZ_LOCKS</c> is the one place a
+    /// clustered scheduler can stall without anything failing, and this is the number that shows it.
+    /// </para>
+    /// <para>
+    /// A re-entrant acquisition — the handler answering <see langword="false" /> because this requestor
+    /// already holds the lock — is not measured. It waited on nothing, and recording it would pull the
+    /// histogram down towards zero with hand-backs the operator did not ask about.
+    /// </para>
+    /// </remarks>
+    /// <returns>Whether this caller is the one that has to release the lock.</returns>
+    protected async ValueTask<bool> AcquireLock(
+        Guid requestorId,
+        ConnectionAndTransactionHolder? conn,
+        SchedulerLock lockKind,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Meters.JobStoreLockWaitEnabled)
+        {
+            return await LockHandler.AcquireLock(requestorId, conn, lockKind, cancellationToken).ConfigureAwait(false);
+        }
+
+        long started = timeProvider.GetTimestamp();
+        bool acquired;
+        try
+        {
+            acquired = await LockHandler.AcquireLock(requestorId, conn, lockKind, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            // A failed acquisition is the interesting one: it is what a timed-out or refused lock
+            // statement looks like, and leaving it out would report only the waits that ended well.
+            Meters.RecordJobStoreLockWait(
+                InstanceName,
+                InstanceId,
+                lockKind.ToLockName(),
+                timeProvider.GetElapsedTime(started),
+                exception);
+            throw;
+        }
+
+        if (acquired)
+        {
+            Meters.RecordJobStoreLockWait(
+                InstanceName,
+                InstanceId,
+                lockKind.ToLockName(),
+                timeProvider.GetElapsedTime(started),
+                exception: null);
+        }
+
+        return acquired;
+    }
+
     protected async ValueTask ReleaseLock(
         Guid requestorId,
         SchedulerLock? lockKind,
@@ -716,7 +776,7 @@ internal abstract partial class AdoJobStoreBase
                         conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                     }
 
-                    transOwner = await LockHandler.AcquireLock(requestorId.Value, conn, lockKind.Value, cancellationToken).ConfigureAwait(false);
+                    transOwner = await AcquireLock(requestorId.Value, conn, lockKind.Value, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn is null)

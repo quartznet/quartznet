@@ -135,7 +135,7 @@ internal abstract partial class AdoJobStoreBase
 
                 if (firstCheckIn || failedRecords is not null && failedRecords.Count > 0)
                 {
-                    transStateOwner = await LockHandler.AcquireLock(requestorId, conn, SchedulerLock.StateAccess, cancellationToken).ConfigureAwait(false);
+                    transStateOwner = await AcquireLock(requestorId, conn, SchedulerLock.StateAccess, cancellationToken).ConfigureAwait(false);
 
                     // Now that we own the lock, make sure we still have work to do.
                     // The first time through, we also need to make sure we update/create our state record
@@ -150,7 +150,7 @@ internal abstract partial class AdoJobStoreBase
 
                     if (failedRecords.Count > 0)
                     {
-                        transOwner = await LockHandler.AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                        transOwner = await AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                         //getLockHandler().obtainLock(conn, LockJobAccess);
 
                         await ClusterRecover(conn, failedRecords, cancellationToken).ConfigureAwait(false);

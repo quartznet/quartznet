@@ -87,6 +87,17 @@ public static class ActivityTags
     public const string JobStoreOperation = "quartz.jobstore.operation";
 
     /// <summary>
+    /// Which job store lock a measurement is about, as the <c>LOCK_NAME</c> column spells it —
+    /// <c>TRIGGER_ACCESS</c> or <c>STATE_ACCESS</c>.
+    /// </summary>
+    /// <remarks>
+    /// The two locks are contended for by different work and stall for different reasons, so folding
+    /// them into one series would hide a check-in that cannot get <c>STATE_ACCESS</c> behind the
+    /// trigger traffic that dominates the other.
+    /// </remarks>
+    public const string JobStoreLock = "quartz.jobstore.lock";
+
+    /// <summary>
     /// The instance id of the cluster node whose work is being recovered, which is a node other than the
     /// one reporting the measurement.
     /// </summary>

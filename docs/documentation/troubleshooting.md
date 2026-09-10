@@ -112,6 +112,149 @@ Prefer letting the sweep or a restart handle it.
 * Use clustered mode if running multiple scheduler instances — it includes automatic recovery for failed nodes.
 * Keep jobs short-running to minimize the window for failures.
 
+## A Lock Held by a Connection That Is Gone
+
+**Symptoms:** every node of a cluster stops firing at the same moment, and the log says nothing at all —
+no exception, no misfire, no `SchedulerError`, not even a retry. The processes are healthy and the
+scheduler still reports itself as running. In the database, a session is waiting on `QRTZ_LOCKS` and the
+session blocking it belongs to a client that is no longer there.
+
+**Diagnosis:** ask the database who is blocking whom, and then whether the blocker's client still
+exists.
+
+```sql
+-- Oracle
+SELECT sid, serial#, status, last_call_et, blocking_session, event
+FROM v$session
+WHERE blocking_session IS NOT NULL
+   OR sid IN (SELECT blocking_session FROM v$session WHERE blocking_session IS NOT NULL);
+
+-- PostgreSQL: the blocker is the one sitting in 'idle in transaction'
+SELECT pid, state, wait_event_type, wait_event, state_change, pg_blocking_pids(pid) AS blocked_by
+FROM pg_stat_activity
+WHERE backend_type = 'client backend';
+
+-- SQL Server
+SELECT session_id, blocking_session_id, wait_type, wait_time, command
+FROM sys.dm_exec_requests
+WHERE blocking_session_id <> 0;
+
+-- MySQL
+SELECT * FROM performance_schema.data_lock_waits;
+```
+
+If the blocking session has been idle for as long as the outage has lasted, and belongs to a node whose
+process you can see is gone, this is what you are looking at.
+
+**Cause:** a node held the `TRIGGER_ACCESS` row lock and its connection died in a way that told the
+server nothing. Killing the process sends a TCP reset and the server tears the session down at once,
+which is why killing a node does *not* reproduce this. Cutting the network out from under a live
+process sends nothing: the socket is aborted on the client side, no FIN or RST ever reaches the server,
+and so the server keeps the session, its open transaction and the row lock, and goes on holding all
+three until *it* notices the client is gone. When the node comes back it connects on a fresh session
+and queues behind its own ghost.
+
+**Quartz cannot release that lock, and neither can any other client.** A row lock belongs to the
+session that took it; only the server can end a session that is not there any more. What Quartz can
+do — and until [#3764](https://github.com/quartznet/quartznet/issues/3764) did not — is make the wait
+finite and make it visible, because a blocked lock statement returns nothing and throws nothing, so the
+handler's retry loop, the store's transient-failure handling and the scheduler's error listener all
+wait with it in silence.
+
+There are two fixes and they solve different halves. Take both.
+
+### Make the wait finite
+
+This is what turns a stall into a failure the scheduler reports and recovers from. It does not free the
+lock.
+
+* **`CommandTimeout`** — `JobStore:CommandTimeout` in 4.x, `quartz.jobStore.commandTimeout` from 3.22 —
+  applies to every statement the store issues, the lock statement included, on every database. On
+  Oracle, ODP.NET's [`CommandTimeout`](https://docs.oracle.com/en/database/oracle/oracle-database/26/odpnt/CommandCommandTimeout.html)
+  cancels the statement rather than ending the wait server-side; the cancel usually surfaces as
+  `ORA-01013`, and on some managed-driver versions as `ORA-03111` instead. Either way it is a statement
+  that failed, and Quartz treats it as one.
+* **A wait timeout in the lock statement itself.** Oracle has no session-level DML lock wait timeout, so
+  on Oracle this is the cleaner of the two: `FOR UPDATE WAIT 20` fails the statement with `ORA-30006`
+  after twenty seconds.
+
+<!-- snippet: sample_troubleshooting_oracle_lock_wait -->
+```csharp
+q.UsePersistentStore(s =>
+{
+    s.UseSystemTextJsonSerializer();
+    s.UseOracle(connectionString);
+
+    s.ConfigureStore(options =>
+    {
+        // Bounds every statement the store issues, the lock statement included: what would
+        // have been a wait with no end becomes a failure the store retries and reports.
+        options.CommandTimeout = TimeSpan.FromSeconds(30);
+
+        // And Oracle's own wait timeout, written into the lock statement itself, which
+        // fails it with ORA-30006 after twenty seconds. {0} is the table prefix, and the
+        // @ parameter prefix is rewritten for the driver.
+        options.SelectWithLockSql =
+            "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName FOR UPDATE WAIT 20";
+    });
+});
+```
+<!-- endSnippet -->
+
+On 3.x the same statement is a flat key:
+
+```text
+quartz.jobStore.selectWithLockSQL = SELECT * FROM {0}LOCKS WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName FOR UPDATE WAIT 20
+```
+
+PostgreSQL's equivalent is the [`lock_timeout`](https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-LOCK-TIMEOUT)
+setting, which aborts any statement that waits longer than it to acquire a lock; Npgsql sets it per
+connection with `Options=-c lock_timeout=20000` in the connection string. On MySQL,
+[`innodb_lock_wait_timeout`](https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html#sysvar_innodb_lock_wait_timeout)
+already bounds the waiter at 50 seconds by default, so this half is done for you.
+
+**What Quartz then does.** The row-lock handler attempts the statement `MaxRetry` times — three by
+default, a second apart — and then throws `LockException`. The scheduler thread reports the first
+failure through `ISchedulerListener.SchedulerError` and backs off `DbRetryInterval` before trying
+again; the check-in and misfire loops log every `RetryableActionErrorLogThreshold`-th consecutive
+failure as an error. None of it is fatal, and the scheduler picks up by itself the moment the lock is
+released — the point is that the cluster is now loud instead of silent.
+
+On 4.x it is also loud before the timeout expires: an acquisition that has been waiting longer than
+`JobStore:LockWaitWarningThreshold` (30 seconds by default) logs **warning 3716** once, naming the lock
+and how long it has waited, and every acquisition is measured on the `quartz.jobstore.lock.wait.duration`
+histogram, tagged with `quartz.jobstore.lock`. That warning is the one to alert on: while a lock wait is
+in progress, nothing else in Quartz produces a signal at all.
+
+### Make the server drop the dead session
+
+This is the half that actually frees the lock, and it is configured on the database server rather than
+in Quartz.
+
+| Database | Setting | What it does |
+|---|---|---|
+| Oracle | [`SQLNET.EXPIRE_TIME=n`](https://docs.oracle.com/en/database/oracle/oracle-database/21/netrf/parameters-for-the-sqlnet.ora.html) in the **server's** `sqlnet.ora` | Dead connection detection: probes every *n* minutes to verify the client is still there and closes the connection when it is not, which ends the session and rolls its transaction back. Default `0` — off — which leaves you on the operating system's TCP keepalive, typically two hours. A single-digit number of minutes is the usual setting. |
+| Oracle | [`MAX_IDLE_BLOCKER_TIME`](https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/MAX_IDLE_BLOCKER_TIME.html) (19c and later, minutes, `ALTER SYSTEM`, per-PDB) | Terminates a session that has been **idle while blocking another session** for that long. Safer than it sounds: a session executing a long statement is never idle, so a long query or a slow job is not a candidate. The only Quartz session it can reach is one sitting idle between the statements of a lock-holding transaction, which is milliseconds unless the process is paused — and if one is ever caught there, the commit fails and the store retries. A few minutes is a good backstop next to `EXPIRE_TIME`. |
+| PostgreSQL | [`tcp_keepalives_idle` / `_interval` / `_count`](https://www.postgresql.org/docs/current/runtime-config-connection.html#GUC-TCP-KEEPALIVES-IDLE), and [`idle_in_transaction_session_timeout`](https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-IDLE-IN-TRANSACTION-SESSION-TIMEOUT) | The keepalive settings default to `0`, meaning the operating system's own values; setting them makes the server notice a gone client on its own schedule. `idle_in_transaction_session_timeout` terminates a session idle inside an open transaction, which is exactly the shape a lock-holding ghost has. |
+| SQL Server | [Keep Alive](https://learn.microsoft.com/en-us/sql/tools/configuration-manager/tcp-ip-properties-protocols-tab) on the TCP/IP protocol, in SQL Server Configuration Manager | Enabled on every connection, unlike the operating system default, and [30 seconds with a one-second retransmission interval](https://learn.microsoft.com/en-us/archive/blogs/sql_protocols/understand-special-tcpip-property-keep-alive-in-sql-server-2005) out of the box — so an orphaned connection is usually dropped inside a minute and this case rarely lasts long here. |
+| MySQL | OS keepalive (`net.ipv4.tcp_keepalive_time`), and `wait_timeout` | The dead session lives until the operating system's keepalive gives up — two hours by default on Linux — or until `wait_timeout` (eight hours) closes an idle connection. Tune the keepalive; `innodb_lock_wait_timeout` covers the waiter but nothing else covers the holder. |
+
+::: warning
+**Client-side keepalive is not a substitute.** ODP.NET's `Keep Alive=true`, `(ENABLE=BROKEN)` in a
+connect descriptor, and the client-side `EXPIRE_TIME` of newer clients all help the *client* notice a
+dead *server*. None of them can free a lock held by a session on the server, which is the direction this
+failure runs in.
+:::
+
+### Rehearsing it
+
+Reproduce it before you need to. Put a breakpoint after the lock statement in a clustered node — or
+suspend the process — and then disable that machine's network adapter rather than killing the process,
+because killing it sends the reset that makes the server clean up. Every other node stops firing within
+one lock attempt. On 4.x, warning 3716 appears after `LockWaitWarningThreshold` and the lock-wait
+histogram climbs; with the server-side setting in place, the lock is released and the cluster resumes on
+its own once the server drops the session.
+
 ## The Misfire Sweep Times Out
 
 **Symptoms:** `JobPersistenceException` with an inner timeout from the misfire handler, repeating every
@@ -430,8 +573,13 @@ mechanism the map is, applied to Quartz's own type names rather than to yours.
    * For clustered setups, account for the additional cluster management connections.
 
 2. **Connection timeouts** — The database is slow to respond or the network is unreliable.
-   * Increase `CommandTimeout` in your connection string.
+   * Set the store's own `CommandTimeout` — `JobStore:CommandTimeout` in 4.x,
+     `quartz.jobStore.commandTimeout` from 3.22 — rather than a connection-string keyword. It bounds
+     every statement the store issues, and it is the only setting that reaches the lock statement; not
+     every driver has a connection-string equivalent, and ODP.NET has none.
    * Verify network latency between the scheduler and database server.
+   * If the statements are not slow but stuck, and the whole cluster is stuck with them, see
+     [A Lock Held by a Connection That Is Gone](#a-lock-held-by-a-connection-that-is-gone).
 
 3. **Lock contention** — Multiple scheduler instances competing for the same rows.
    * Two schedulers share a name (`Scheduler:InstanceName`, or `quartz.scheduler.instanceName`) only when

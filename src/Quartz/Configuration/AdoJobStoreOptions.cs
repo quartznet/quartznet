@@ -82,6 +82,33 @@ public sealed class AdoJobStoreOptions
     public TimeSpan? CommandTimeout { get; set; }
 
     /// <summary>
+    /// How long one attempt to take a job store lock may go on before it is reported as slow, or
+    /// <see langword="null" /> to report nothing however long a lock takes. Defaults to 30 seconds.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A lock statement that is blocked throws nothing and returns nothing, so a node waiting behind a
+    /// peer that stopped without releasing <c>QRTZ_LOCKS</c> — or behind a database session whose client
+    /// is gone and which the server has not yet cleaned up — stops scheduling in complete silence: no
+    /// retry runs, no failure is counted, and no listener is told. This is what breaks the silence. One
+    /// warning is logged per acquisition, under event id 3716, and it names the lock, how long the wait
+    /// has lasted and which requestor is waiting.
+    /// </para>
+    /// <para>
+    /// It reports and nothing more: the wait is still the database's to end, and
+    /// <see cref="CommandTimeout" /> — or a wait timeout written into the lock statement itself, through
+    /// <see cref="SelectWithLockSql" /> — is what bounds it. Both are worth setting; this one only makes
+    /// sure the operator finds out.
+    /// </para>
+    /// <para>
+    /// Zero is refused rather than read as "warn immediately". Every acquisition takes some time, so a
+    /// zero threshold is a warning per lock taken, which is the same as no signal at all; "report
+    /// nothing" is spelled <see langword="null" />.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? LockWaitWarningThreshold { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// How long to wait before retrying after a database failure.
     /// </summary>
     public TimeSpan DbRetryInterval { get; set; } = TimeSpan.FromSeconds(15);
