@@ -205,6 +205,85 @@ public class AdoJobStoreBaseTest
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
+    /// <summary>
+    /// Removing a trigger takes the fired-trigger rows of its executions with it: an execution whose
+    /// trigger was deliberately unscheduled is not one to recover (#744).
+    /// </summary>
+    [Test]
+    public async Task DeleteTrigger_DeletesTheFiredTriggerRowsOfItsExecutions()
+    {
+        var triggerKey = new TriggerKey("t1", "g1");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<CancellationToken>.Ignored)).Returns(new ValueTask<int>(1));
+
+        (await jobStoreSupport.CallDeleteTrigger(conn, triggerKey)).Should().BeTrue();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<FiredTriggerQuery>.That.Matches(x => x.Trigger == triggerKey && x.Job == null && x.InstanceId == null),
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// Replacing a trigger leaves the fired-trigger rows of its executions alone. A replaced trigger keeps
+    /// its identity and its job, so an execution the row records is still one to finish or to recover —
+    /// and re-applying an application's <c>AddTrigger</c> registrations on start replaces every trigger it
+    /// declares, before recovery has read a row of the run the kill interrupted (#3759).
+    /// </summary>
+    [Test]
+    public async Task ReplaceTrigger_KeepsTheFiredTriggerRowsOfItsExecutions()
+    {
+        var triggerKey = new TriggerKey("t1", "g1");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IJobDetail job = CreateConcurrentJob();
+
+        A.CallTo(() => driverDelegate.SelectJobForTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<ITypeLoader>.Ignored,
+            false,
+            A<CancellationToken>.Ignored)).Returns(new ValueTask<IJobDetail>(job));
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<CancellationToken>.Ignored)).Returns(new ValueTask<int>(1));
+
+        (await jobStoreSupport.CallReplaceTrigger(conn, triggerKey, CreateTestTrigger())).Should().BeTrue();
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.InsertTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IOperableTrigger>.That.Matches(t => t.Key.Equals(triggerKey)),
+            StoredTriggerState.Waiting,
+            job,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        // A replacement is not a removal: the rows record executions of the job, which is still there.
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<FiredTriggerQuery>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IReadOnlyCollection<string>>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
     [Test]
     public async Task TestExecuteInLocalTransactionLock_RetriesOnTransientException()
     {
@@ -1127,6 +1206,16 @@ public class AdoJobStoreBaseTest
         internal ValueTask<bool> CallRemoveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             return DeleteJob(conn, jobKey, true, CancellationToken.None);
+        }
+
+        internal ValueTask<bool> CallDeleteTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        {
+            return DeleteTrigger(conn, triggerKey, CancellationToken.None);
+        }
+
+        internal ValueTask<bool> CallReplaceTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, IOperableTrigger newTrigger)
+        {
+            return ReplaceTrigger(conn, triggerKey, newTrigger, CancellationToken.None);
         }
 
         internal ValueTask<TriggerFiredBundle> CallTriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
@@ -3461,6 +3550,51 @@ public class AdoJobStoreBaseTest
                 A<string>.Ignored,
                 A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// The one record the grace period never applies to is this node's own, which its first check-in
+    /// hands to recovery. However recent the previous run's last check-in, that run ended with the
+    /// process, and the check-in that follows writes a fresh timestamp over the only thing a later scan
+    /// could judge a deferral by — so a deferral here would never be resolved: the row would sit there
+    /// and the job's triggers would stay BLOCKED behind it (#3759).
+    /// </summary>
+    [Test]
+    public async Task ClusterRecover_ShouldNeverDeferRecoveryOfItsOwnPreviousRun()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        // A second ago: a peer would have granted this row the whole grace period.
+        SchedulerStateRecord own = new(OwnInstanceId, ClusterNow - TimeSpan.FromSeconds(1), CheckinInterval);
+
+        JobKey serial = new("serial", "jg");
+        GivenFiredTriggersForInstance(OwnInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, new TriggerKey("t-executing", "tg"), serial, disallowsConcurrentExecution: true, instanceId: OwnInstanceId));
+
+        await jobStoreSupport.CallClusterRecover(conn, [own]);
+
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                conn,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == OwnInstanceId),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        // Nothing is preserved, so nothing is deleted row by row.
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyCollection<string>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // The triggers the execution was holding are let go.
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobsFromOtherState(
+                conn,
+                A<IReadOnlyCollection<JobKey>>.That.Matches(jobKeys => jobKeys.Contains(serial)),
+                StoredTriggerState.Waiting,
+                StoredTriggerState.Blocked,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
     }
 
     [Test]

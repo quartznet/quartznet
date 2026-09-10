@@ -360,7 +360,9 @@ Here's a quick summary of the other properties which can be defined for a job in
 In other words, non-durable jobs have a life span bounded by the existence of its triggers.
 - `RequestsRecovery` - if a job "requests recovery", and it is executing during the time of a 'hard shutdown' of the scheduler
 (i.e. the process it is running within crashes, or the machine is shut off), then it is re-executed when the scheduler is started again.
-In this case, the `JobExecutionContext.Recovering` property will return true.
+In this case, the `JobExecutionContext.Recovering` property will return true. The interrupted execution is remembered by the
+job store until the scheduler starts and recovers it, and rescheduling its trigger in the meantime — which is what re-applying
+your `AddJob`/`AddTrigger` registrations on startup does — does not forget it. Unscheduling the trigger does.
 
 ## A JobDetail of your own
 

@@ -586,13 +586,28 @@ internal abstract partial class AdoJobStoreBase
     /// job is held back rather than recovered this pass.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// On the first detection the node may still be alive, so the record is preserved and given a grace
     /// period. Once that expires — elapsed time past two failure detection cycles — full cleanup is
     /// performed. The decision is derived entirely from database state, so every node of the cluster
     /// makes the same one (#2817).
+    /// </para>
+    /// <para>
+    /// Except for this node's own previous run, which its first check-in recovers: there is no doubt
+    /// about whether that one is still alive, and there is no second detection to leave the rows for —
+    /// the check-in that follows writes a fresh timestamp over the row every later scan would have judged
+    /// by. A deferral here is a fired-trigger row nothing ever settles and, for a job that disallows
+    /// concurrent execution, a trigger left <c>BLOCKED</c> behind an execution that ended with the
+    /// process (#3759).
+    /// </para>
     /// </remarks>
     private bool CanDeferRecovery(SchedulerStateRecord record)
     {
+        if (record.SchedulerInstanceId == InstanceId)
+        {
+            return false;
+        }
+
         bool isOrphanedInstance = record.CheckinInterval == default && record.CheckinTimestamp == default;
         if (isOrphanedInstance)
         {
