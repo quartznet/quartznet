@@ -57,6 +57,14 @@ Because the trigger is replaced, everything derived from the old one is recomput
 starts empty, a `SimpleTrigger`'s repeat count starts over, and a paused trigger comes back in whatever
 state the new trigger's group implies. Use it when the *schedule* changed.
 
+What is *not* touched is any execution already under way. A firing of the old trigger keeps running and
+completes as itself, and in a persistent store its fired-trigger record stays until it does — so a job
+that requested recovery is still recovered if the node dies mid-execution, even when the trigger was
+rescheduled in between. That matters more than it sounds: the jobs and triggers you declare with
+`AddJob` and `AddTrigger` are re-applied as a reschedule every time the process starts, before the
+scheduler starts and recovery runs. Unscheduling a trigger is the other case: it takes the records of its
+executions with it, and nothing is recovered for a trigger you removed on purpose.
+
 ## Changing metadata in place: UpdateTriggerDetails
 
 `UpdateTriggerDetails` patches a stored trigger without rescheduling it. Fire times and trigger state

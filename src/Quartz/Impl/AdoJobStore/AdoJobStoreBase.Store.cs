@@ -380,24 +380,30 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Delete a trigger, its listeners, and its Simple/Cron/BLOB sub-table entry.
+    /// Delete a trigger, its listeners, its Simple/Cron/BLOB sub-table entry, and the fired-trigger rows
+    /// of its executions.
     /// </summary>
+    /// <remarks>
+    /// The fired rows go because this is a removal: an execution whose trigger was deliberately
+    /// unscheduled is not one to bring back as a recovery run (#744), and a recovery trigger built from a
+    /// row whose trigger is gone would have no job data to copy (#2083). A <em>replacement</em> is the
+    /// other case and does not come through here — see
+    /// <see cref="ReplaceTrigger(ConnectionAndTransactionHolder, TriggerKey, IOperableTrigger, CancellationToken)" />.
+    /// </remarks>
     /// <seealso cref="DeleteJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
     /// <seealso cref="DeleteTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
-    /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, TriggerKey, IOperableTrigger, CancellationToken)" />
     private async ValueTask<bool> DeleteTriggerAndChildren(
         ConnectionAndTransactionHolder conn,
         TriggerKey key,
         CancellationToken cancellationToken)
     {
         bool deleted = await Delegate.DeleteTrigger(conn, key, cancellationToken).ConfigureAwait(false) > 0;
-        
-        // Also clean up any fired trigger records to prevent recovery triggers from being created
+
         if (deleted)
         {
             await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery { Trigger = key }, cancellationToken).ConfigureAwait(false);
         }
-        
+
         return deleted;
     }
 
@@ -499,6 +505,26 @@ internal abstract partial class AdoJobStoreBase
             cancellationToken);
     }
 
+    /// <summary>
+    /// Deletes the trigger row and stores the replacement, leaving the fired-trigger rows of the old
+    /// trigger's executions alone.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A replacement is not a removal. The trigger keeps its identity and its job, so an execution the
+    /// row records is still one to finish — its completion deletes the row by fire instance id — or, if
+    /// the node running it died, one to recover. Deleting the rows here is what #3759 was: an application
+    /// that declares its triggers through <c>AddTrigger</c> has them re-applied as a reschedule every time
+    /// it starts, before recovery has read a row of the run the kill interrupted, so a job that asked to
+    /// be recovered never was. Only <see cref="DeleteTriggerAndChildren" /> deletes them.
+    /// </para>
+    /// <para>
+    /// The kept row is a row the store reads: the replacement of a trigger whose job disallows concurrent
+    /// execution is stored <c>BLOCKED</c> behind an execution still in flight, as any trigger of that job
+    /// is, and is released by the execution's completion or by recovery — where deleting the row would
+    /// have let it fire alongside the execution it could not see.
+    /// </para>
+    /// </remarks>
     protected ValueTask<bool> ReplaceTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -528,7 +554,7 @@ internal abstract partial class AdoJobStoreBase
                     Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
 
-                bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                bool removedTrigger = await Delegate.DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) > 0;
 
                 await AddTrigger(conn, newTrigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
 

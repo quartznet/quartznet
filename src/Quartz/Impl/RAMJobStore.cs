@@ -113,8 +113,8 @@ public sealed class RAMJobStore : IJobStore
     /// in existence is the largest number of triggers that have ever been executing at once, which the
     /// thread pool caps. Only <see cref="ReleaseExecutionNoLock" /> returns one, and only after taking it
     /// out of <see cref="executingFireInstances" /> — the trigger-removal paths drop their maps rather
-    /// than pooling them, because <see cref="ReplaceTrigger" /> keeps a reference to put back should the
-    /// replacement fail. Guarded by the store lock, like everything else here.
+    /// than pooling them, since a removal is rare beside a firing and a map dropped there is one the next
+    /// firing simply allocates. Guarded by the store lock, like everything else here.
     /// </para>
     /// </remarks>
     private readonly Stack<Dictionary<string, FireInstanceEntry>> spareFireInstanceMaps = new();
@@ -684,9 +684,10 @@ public sealed class RAMJobStore : IJobStore
         return deleted;
     }
 
-    // keepExecutions: whether executions already started under this key survive. Only a trigger being
-    // replaced in place keeps them, matching the ADO store, where updating a trigger leaves its
-    // fired-trigger rows alone but deleting one removes them. There is no default: every caller says which.
+    // keepExecutions: whether executions already started under this key survive. A trigger being replaced
+    // keeps them, whether in place or through ReplaceTrigger, matching the ADO store, where a replacement
+    // leaves the trigger's fired-trigger rows alone and only a removal deletes them (#3759). There is no
+    // default: every caller says which.
     private bool RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, ref PendingSignals pending)
     {
         if (!keepExecutions)
@@ -762,14 +763,12 @@ public sealed class RAMJobStore : IJobStore
                     Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
 
-                // Kept so the rollback below can put them back: the old trigger is still the one running
-                // them until the replacement actually succeeds.
-                executingFireInstances.TryGetValue(triggerKey, out var fireInstances);
-
-                // The old trigger is deleted rather than updated, so its executions go with it, as they do
-                // in the ADO store where ReplaceTrigger deletes the fired-trigger rows. Removing through
-                // the shared path means anything kept per trigger is cleaned up here too.
-                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: false, ref pending);
+                // The old trigger is deleted rather than updated, but its executions stay: a replaced
+                // trigger keeps its identity and its job, so what was running under the key is still
+                // running under it, as in the ADO store where a replacement leaves the fired-trigger rows
+                // for the execution's completion, or for recovery, to settle (#3759). Removing through the
+                // shared path means everything else kept per trigger is cleaned up here too.
+                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: true, ref pending);
 
                 try
                 {
@@ -779,13 +778,6 @@ public sealed class RAMJobStore : IJobStore
                 {
                     // put previous trigger back...
                     AddTriggerNoLock(tw.Trigger, replace: false, ref pending);
-
-                    // ...along with the executions it never stopped running.
-                    if (fireInstances is not null)
-                    {
-                        executingFireInstances[triggerKey] = fireInstances;
-                    }
-
                     throw;
                 }
             }

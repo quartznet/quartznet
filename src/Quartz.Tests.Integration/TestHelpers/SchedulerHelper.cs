@@ -24,10 +24,15 @@ public class SchedulerHelper
     /// <summary>
     /// Builds a database-backed scheduler with explicit scheduler options.
     /// </summary>
+    /// <param name="configureBuilder">
+    /// What the store's options cannot say: clustering, locking, a serializer of the test's own. Runs
+    /// after the database and the default serializer are chosen, so it can override either.
+    /// </param>
     public static ValueTask<IScheduler> CreateScheduler(
         string provider,
         Action<QuartzSchedulerOptions> configureScheduler,
-        Action<AdoJobStoreOptions>? configureStore = null)
+        Action<AdoJobStoreOptions>? configureStore = null,
+        Action<IPersistentStoreBuilder>? configureBuilder = null)
     {
         return QuartzSchedulerBuilder
             .Create(q => q
@@ -42,6 +47,7 @@ public class SchedulerHelper
                         options.TablePrefix = TablePrefix;
                         configureStore?.Invoke(options);
                     });
+                    configureBuilder?.Invoke(store);
                 }))
             .BuildScheduler();
     }

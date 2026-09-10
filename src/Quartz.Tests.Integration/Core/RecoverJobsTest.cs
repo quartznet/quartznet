@@ -239,6 +239,106 @@ public class RecoverJobsTest
             "Job should NOT execute with recovery=true after trigger was explicitly removed");
     }
 
+    /// <summary>
+    /// Builds a clustered scheduler sharing one database under a fixed instance id, so a restart under
+    /// the same id recovers its own previous run on its first check-in — the reporter's configuration.
+    /// </summary>
+    private ValueTask<IScheduler> CreateClusteredRecoveryScheduler(string dataSourceName)
+    {
+        return SchedulerHelper.CreateScheduler(
+            provider,
+            options =>
+            {
+                options.InstanceName = dataSourceName;
+                options.InstanceId = "CLUSTERED_NODE_TEST";
+            },
+            store => store.MisfireThreshold = TimeSpan.FromSeconds(1),
+            builder => builder.UseClustering());
+    }
+
+    /// <summary>
+    /// A trigger rescheduled before the restarted node starts — which is what re-applying an
+    /// application's <c>AddTrigger</c> registrations on startup does — keeps the record of the execution
+    /// the kill interrupted, so the job that asked to be recovered is (#3759). The clustered counterpart
+    /// of <c>RecoveryAfterStartupRescheduleSqliteTest</c>, on the reporter's database.
+    /// </summary>
+    [Test]
+    public async Task TestRecoveryStillHappensAfterTriggerIsRescheduledBeforeStart()
+    {
+        var dataSourceName = DatabaseHelper.GetDataSourceName(provider);
+        var scheduler = await CreateClusteredRecoveryScheduler(dataSourceName);
+
+        RecoverJobsTestJob.runForever = true;
+
+        await scheduler.Clear();
+
+        var job = JobBuilder.Create<RecoverJobsTestJob>()
+            .WithIdentity("test-recovery", "test-group")
+            .RequestRecovery()
+            .Build();
+
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity("test-trigger", "test-group")
+            .ForJob(job)
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build();
+
+        await scheduler.ScheduleJob(job, trigger);
+        await scheduler.Start();
+
+        // Wait for job to start executing
+        await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // Simulate scheduler crash (shutdown without waiting for jobs to complete)
+        await scheduler.Shutdown(false);
+
+        (await CountFiredTriggers(scheduler.SchedulerName, "test-trigger")).Should().Be(1,
+            "the premise: the kill interrupted a firing the store knows about");
+
+        // The restarted node re-applies its declared trigger before it starts.
+        var newScheduler = await CreateClusteredRecoveryScheduler(dataSourceName);
+        var declaredAgain = TriggerBuilder.Create()
+            .WithIdentity("test-trigger", "test-group")
+            .ForJob(job)
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build();
+        (await newScheduler.RescheduleJob(declaredAgain.Key, declaredAgain)).Should().NotBeNull("the trigger was there to replace");
+
+        (await CountFiredTriggers(newScheduler.SchedulerName, "test-trigger")).Should().Be(1,
+            "a reschedule is not a removal: the interrupted execution's record stays for recovery to read");
+
+        RecoverJobsTestJob.runForever = false;
+
+        var recoveryExecuted = new ManualResetEventSlim(false);
+        newScheduler.ListenerManager.AddJobListener(new RecoveryDetectionListener(recoveryExecuted));
+
+        await newScheduler.Start();
+
+        recoveryExecuted.Wait(TimeSpan.FromSeconds(15)).Should().BeTrue(
+            "the job asked to be recovered and its execution was interrupted; rescheduling its trigger changes neither");
+
+        await newScheduler.Shutdown(true);
+    }
+
+    private async Task<int> CountFiredTriggers(string schedulerName, string triggerName)
+    {
+        using var connection = DatabaseHelper.CreateConnection(provider);
+        await connection.OpenAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @triggerName";
+        var schedulerNameParameter = command.CreateParameter();
+        schedulerNameParameter.ParameterName = "@schedulerName";
+        schedulerNameParameter.Value = schedulerName;
+        command.Parameters.Add(schedulerNameParameter);
+        var triggerNameParameter = command.CreateParameter();
+        triggerNameParameter.ParameterName = "@triggerName";
+        triggerNameParameter.Value = triggerName;
+        command.Parameters.Add(triggerNameParameter);
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
+    }
+
     private sealed class RecoveryDetectionListener : IJobListener
     {
         private readonly ManualResetEventSlim recoveryExecuted;

@@ -847,12 +847,13 @@ public class RAMJobStoreTest
     }
 
     /// <summary>
-    /// ReplaceTrigger deletes rather than updates, so unlike AddTrigger(AddTriggerOptions.Replacing) it does
-    /// not carry the executions over — matching the ADO store, where ReplaceTrigger removes the
-    /// fired-trigger rows and an in-place update leaves them.
+    /// ReplaceTrigger carries the executions over, as AddTrigger(AddTriggerOptions.Replacing) does: a
+    /// replaced trigger keeps its identity and its job, so what was running under the key is still running
+    /// under it — matching the ADO store, where a replacement leaves the fired-trigger rows for the
+    /// execution's own completion, or for recovery, to settle (#3759). Only a removal forgets them.
     /// </summary>
     [Test]
-    public async Task GetTriggerState_ForgetsExecutions_WhenTriggerIsReplacedMidExecution()
+    public async Task GetTriggerState_KeepsExecutions_WhenTriggerIsReplacedMidExecution()
     {
         DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("replacedWhileExecutingTrigger", d);
@@ -865,8 +866,14 @@ public class RAMJobStoreTest
         var replacement = ExecutingTestTrigger("replacedWhileExecutingTrigger", d);
         (await fJobStore.ReplaceTrigger(trigger.Key, replacement)).Should().BeTrue();
 
-        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal,
-            "the replaced trigger was deleted, so its execution went with it");
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing,
+            "the replaced trigger kept its identity, and the execution that started under it is still running");
+
+        // The completion arrives for the execution the replacement inherited, and settles it.
+        var bundle = fired[0].TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
     }
 
     /// <summary>
