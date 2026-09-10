@@ -11,7 +11,7 @@ the dashboard fits:
 
 - **It reads the schedulers in its own process**, through the `IQuartzApiClient` in the container. No
   address to configure and no scheduler to point it at; a dashboard over another process is
-  [#3387](https://github.com/quartznet/quartznet/issues/3387) and is 4.1.
+  [#3387](https://github.com/quartznet/quartznet/issues/3387), a design record with no release attached.
 - **Every scheduler the container knows about**, not just the default one — including a registration
   nothing has built yet, which is shown as such rather than omitted. The header's picker switches
   between them and every page follows it.
@@ -741,15 +741,16 @@ So it is a *local* trap almost exclusively: an unpublished build started with
 ## Current limitations
 
 - **The dashboard renders its own process.** There is no address to point it at another one; a remote
-  dashboard is [#3387](https://github.com/quartznet/quartznet/issues/3387) and is 4.1.
+  dashboard is [#3387](https://github.com/quartznet/quartznet/issues/3387), a design record with no
+  release attached.
 - **Neither *page* is the record.** Live Logs is a live view that starts when the page opens and keeps a
   hundred events; the Action Log keeps 250 and only what this process's dashboard did. Neither survives
   a restart, and neither is lossless — use [metrics](opentelemetry-integration.md) for anything you need
   to be able to go back to. Every Action Log entry is also written to your `ILogger`, and that copy does
   survive.
 - **The history store is in-memory and per-process**, so history does not survive a restart and one
-  node cannot show another's unless you register a shared `IDashboardHistoryStore`. A database-backed
-  one ships with 4.1.
+  node cannot show another's unless you register a shared `IDashboardHistoryStore`. That interface is
+  the seam for a shared one; Quartz ships no database-backed implementation.
 - **Read-only is one setting for the whole process**, not per scheduler and not per operation — "acme
   may look, globex may act" and "this tenant may pause but not delete" are not expressible. Which
   *schedulers* a visitor sees is expressible; see [One scheduler at a time](#one-scheduler-at-a-time).
