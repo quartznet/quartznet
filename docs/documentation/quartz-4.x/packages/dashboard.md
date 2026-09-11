@@ -9,18 +9,20 @@ title: Dashboard
 Ten pages, listed under [The pages](#the-pages). What they are built on, which is what decides where
 the dashboard fits:
 
-- **It reads the schedulers in its own process**, through the `IQuartzApiClient` in the container. No
-  address to configure and no scheduler to point it at; a dashboard over another process is
-  [#3387](https://github.com/quartznet/quartznet/issues/3387), a design record with no release attached.
+- **It reads the schedulers registered in its own container**, through the `IQuartzApiClient` in it.
+  Usually that means the schedulers this process runs, and there is nothing to configure. A scheduler
+  in *another* process is registered like any other, with `AddQuartzHttpClient` — see
+  [Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http).
 - **Every scheduler the container knows about**, not just the default one — including a registration
   nothing has built yet, which is shown as such rather than omitted. The header's picker switches
   between them and every page follows it.
 - **Cluster-aware wherever the store is.** With a persistent job store the executing view, the fire
   counts and the node listing are the whole cluster's rather than this process's, and the pages say
   which of the two you are looking at.
-- **Its own execution history**, installed and populated without anything further being written, and
-  bounded by age as well as by count. It is in-memory and per-process unless you
-  [give it a store of your own](#execution-history-and-misfires).
+- **Execution history**, installed and populated without anything further being written, and bounded by
+  age as well as by count. It is in-memory and per-process unless you
+  [give it a store of your own](#execution-history-and-misfires); for a scheduler in another process it
+  is read from that process.
 - **A live event stream** over SignalR, fed by plugins installed into every scheduler in the container.
 - **Authorization at three levels that compose** — who reaches the dashboard, which schedulers they see
   once they are in, and whether anyone may change anything. See
@@ -146,10 +148,11 @@ Both history bounds are rejected at startup if they are not positive: a window o
 execution the moment it is recorded, which looks exactly like a history plugin that was never installed.
 
 ::: tip Pointing a dashboard at another process
-There is no option for it. `AddQuartzDashboard` registers its client with `TryAdd`, so an application
-can register its own `IQuartzApiClient` and have the pages read whatever it likes; a supported remote
-dashboard — with the authentication forwarding, execution limits and history story such a thing needs —
-is designed in [#3387](https://github.com/quartznet/quartznet/issues/3387).
+There is no option for it, because it is not an option: register that scheduler with
+`AddQuartzHttpClient` and the dashboard renders it beside the local ones. See
+[Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http).
+`AddQuartzDashboard` also registers its client with `TryAdd`, so an application that wants the pages to
+read something else entirely can register its own `IQuartzApiClient`.
 :::
 
 ### Writing your own `IQuartzApiClient`
@@ -305,6 +308,10 @@ It is a live view, not a log: it starts when the page opens, holds the newest hu
 the rest. Nothing here survives a reload, and nothing here is the record — see
 [Current limitations](#current-limitations).
 
+A scheduler in another process has no feed here and the page says so: the events are broadcast onto that
+process's own hub, which this one has no reader for. Every other page works over HTTP — see
+[Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http).
+
 ### Action Log
 
 `/quartz/actions` — what was done *from this dashboard*: time, scheduler, action, target, whether it succeeded and any
@@ -357,15 +364,79 @@ in the file that set them.
 
 ## The schedulers the dashboard covers
 
-`AddQuartzDashboard()` installs the dashboard's own two plugins — the live event feed and the execution
-history the History page reads — into **every** scheduler in the container, and the order of the calls
-does not matter. A scheduler registered with `AddQuartz("acme", …)` therefore has a populated Live Logs
-view and History page just like the default one; each scheduler gets its own instance of each plugin,
-initialized with its own name, and history entries are attributed to the scheduler that produced them.
+`AddQuartzDashboard()` installs its live event feed into **every** scheduler in the container and calls
+`AddQuartzExecutionHistory()`, which installs Quartz's execution recorder into every one of them too.
+The order of the calls does not matter. A scheduler registered with `AddQuartz("acme", …)` therefore has
+a populated Live Logs view and History page just like the default one; each scheduler gets its own
+instance of each, initialized with its own name, and history entries are attributed to the scheduler
+that produced them.
 
 It does this with `ConfigureAllQuartzSchedulers`, so nothing extra is written at the call site. Which
 schedulers those are is what [the Schedulers page](#schedulers) lists — every registration in the
 container, built or not.
+
+## Fronting a scheduler in another process over HTTP
+
+A scheduler the dashboard renders does not have to be one this process runs. Register it with
+`AddQuartzHttpClient` — the same registration any application uses to drive a scheduler over
+[the Quartz HTTP API](http-client.md) — and it joins the listing beside the local ones:
+
+<!-- snippet: sample_dashboard_remote_http -->
+```csharp
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+// The credential and the timeout are the HttpClient's: the dashboard adds nothing of its own.
+// A short timeout matters — every page reading this scheduler waits on it.
+builder.Services.AddHttpClient("quartz", client =>
+{
+    client.BaseAddress = new Uri("https://scheduler.internal/quartz-api/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.Add("X-Api-Key", "…");
+});
+
+// The scheduler's name has to be the one the target goes by: it is in every route.
+builder.Services.AddQuartzHttpClient("QuartzScheduler", "quartz");
+
+builder.Services.AddQuartzDashboard();
+```
+<!-- endSnippet -->
+
+The target has to be a process that maps the HTTP API (`app.MapQuartzHttpApi()`), and its scheduler's
+name has to be the name given here: it is in every route the client calls.
+
+What each page does over it:
+
+| Page | Over HTTP |
+|---|---|
+| Overview, Jobs, Triggers, Calendars, Currently Executing, Cluster | Everything they show, read through the API's routes |
+| Every action — pause, resume, trigger now, reschedule, delete | Performed in the target's process, by the target's scheduler |
+| Execution History | The **target's own** history, read from the process that recorded it |
+| Live Logs | Nothing, and it says so — the events are broadcast onto the target process's hub, and this one has no reader for it |
+| Schedulers, and the header's picker | The scheduler is listed as `Remote`, because every page about it is about somebody else's process |
+
+Four things worth knowing before pointing one at production:
+
+- **One target is one process.** The client calls one `HttpClient`, so behind a load balancer a
+  node-local action — Currently Executing, interrupting a firing, the node's own check-in — lands on
+  whichever node the balancer chose, and two page renders may be two different nodes. Point it at a
+  node's own address, not at the fleet's, when that distinction matters. Fronting several processes as
+  one fleet is [#3387](https://github.com/quartznet/quartznet/issues/3387).
+- **The credential is the `HttpClient`'s.** `QuartzDashboardOptions.AuthorizationPolicy` decides who may
+  open the dashboard; what the dashboard presents to the target is whatever the named client was
+  configured with — a header, a handler, a certificate. Nothing is forwarded from the signed-in user.
+- **Give the client a short timeout.** Every page reading that scheduler waits for it, and
+  `HttpClient`'s default is 100 seconds. The scheduler *listing* is bounded separately — it asks each
+  scheduler under a deadline of its own and reports one that does not answer as `Unknown` — but a page
+  that reads jobs or triggers waits for the client.
+- **The dashboard's `ReadOnly` and the API's are two settings.** `QuartzDashboardOptions.ReadOnly` hides
+  this dashboard's mutating controls; it says nothing about what the target will accept.
+  [`QuartzHttpApiOptions.ReadOnly`](http-api.md#serving-reads-only) on the target refuses every mutating
+  route, whoever asks — including a dashboard whose buttons are still on screen, which then reports the
+  refusal the server gave.
+
+A target running a Quartz HTTP API older than 4.1 has no history routes. The History page says so — "this
+scheduler runs in another process and its Quartz HTTP API does not serve execution history" — and the
+Overview's misfire tile keeps its dash rather than reporting zero misfires nobody counted.
 
 ## Hosting under a custom path
 
@@ -413,7 +484,7 @@ A custom dashboard path is **not** supported when integrating into an existing B
 
 ## Execution history and misfires
 
-`AddQuartzDashboard()` installs the history plugin itself, so the **History** page at `/quartz/history`
+`AddQuartzDashboard()` calls `AddQuartzExecutionHistory()`, so the **History** page at `/quartz/history`
 is populated without anything further being written. Each row names the job, the trigger, the node that
 ran it, when it fired, how long it took, whether it succeeded and the error if it did not.
 
@@ -427,9 +498,12 @@ Beneath the executions the page lists **misfires**: firings the scheduler missed
 never appear in the execution history however long a reader stares at it; each row names the trigger,
 the job it points at, the node that noticed, the firing that was missed and when it was noticed.
 
-The store `AddQuartzDashboard` registers is per-process and in-memory, bounded both by age
-(`HistoryRetention`, 24 hours) and by count (`HistoryMaxEntriesPerScheduler`, 2000 of each feed per
-scheduler):
+The history is Quartz's rather than the dashboard's: what records it is
+`AddQuartzExecutionHistory()`'s recorder, what holds it is the container's
+`IExecutionHistoryStore`, and the [HTTP API](http-api.md#execution-history) serves the same rows. The
+shipped store is per-process and in-memory, bounded both by age (`HistoryRetention`, 24 hours) and by
+count (`HistoryMaxEntriesPerScheduler`, 2000 of each feed per scheduler) — while the dashboard is
+registered, those two settings are what the bounds are taken from:
 
 <!-- snippet: sample_dashboard_history_bounds -->
 ```csharp
@@ -446,11 +520,23 @@ last recorded, so its page shows executions from an arbitrary distance in the pa
 how old they are. The window is measured on the scheduler's `TimeProvider`, and it applies when history
 is read as well as when it is written — otherwise a scheduler that never writes again never forgets.
 
-To keep history somewhere that survives a restart, register your own `IDashboardHistoryStore` before
-calling `AddQuartzDashboard` (its registration is a `TryAdd`). Both feeds carry `SchedulerInstanceId`,
-which is what makes one store shared by a whole cluster readable. It carries the `CountMisfires(name,
-since)` count-over-a-window a summary needs, so an implementation backed by a database can answer that
-with one `COUNT(*)` rather than by loading rows it would throw away.
+To keep history somewhere that survives a restart, register your own store before calling
+`AddQuartzDashboard` (the shipped registration is a `TryAdd`). **There are two seams, and both work:**
+
+- **`Quartz.Extensibility.IExecutionHistoryStore`** is the one to write against. It is Quartz's own, so
+  a store registered there is written by the recorder, read by the dashboard's pages *and* served by the
+  HTTP API's history routes.
+- **`IDashboardHistoryStore`** is the 4.0 seam and is unchanged: register one and the dashboard adapts it
+  onto the other, in both directions — the recorder's rows land in your store and everything reads out of
+  it. It is the same five members under different names.
+
+Both feeds carry `SchedulerInstanceId`, which is what makes one store shared by a whole cluster readable.
+Both carry the `CountMisfires(name, since)` count-over-a-window a summary needs, so an implementation
+backed by a database can answer that with one `COUNT(*)` rather than by loading rows it would throw away.
+
+`DashboardHistoryPlugin` is no longer registered by `AddQuartzDashboard` — the recorder
+`AddQuartzExecutionHistory()` installs does that work. The type is still there and still works; do not
+register it beside the recorder, or every execution is recorded twice.
 
 ### Enabling the history plugins
 
@@ -565,7 +651,9 @@ schedulers* each of those shows; it does not narrow what may be done to the ones
 
 Note what read-only is not: it hides the dashboard's controls and does nothing to the HTTP API, which is
 mapped and authorized separately. A dashboard in read-only mode over an API that anyone may post to is
-read-only in appearance alone.
+read-only in appearance alone. The API has a setting of the same name —
+[`QuartzHttpApiOptions.ReadOnly`](http-api.md#serving-reads-only) — which refuses every mutating route
+whoever asks; that is the one that binds a dashboard fronting the API from another process.
 
 ### Narrowing which job types may be named
 
@@ -740,17 +828,20 @@ So it is a *local* trap almost exclusively: an unpublished build started with
 
 ## Current limitations
 
-- **The dashboard renders its own process.** There is no address to point it at another one; a remote
-  dashboard is [#3387](https://github.com/quartznet/quartznet/issues/3387), a design record with no
-  release attached.
+- **One target is one process.** A scheduler in another process is rendered and driven over HTTP — see
+  [Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http)
+  — but one registration points at one address, and Live Logs has nothing to show over it. Fronting a
+  fleet of processes as one, with an event stream and per-target credentials of its own, is
+  [#3387](https://github.com/quartznet/quartznet/issues/3387).
 - **Neither *page* is the record.** Live Logs is a live view that starts when the page opens and keeps a
   hundred events; the Action Log keeps 250 and only what this process's dashboard did. Neither survives
   a restart, and neither is lossless — use [metrics](opentelemetry-integration.md) for anything you need
   to be able to go back to. Every Action Log entry is also written to your `ILogger`, and that copy does
   survive.
-- **The history store is in-memory and per-process**, so history does not survive a restart and one
-  node cannot show another's unless you register a shared `IDashboardHistoryStore`. That interface is
-  the seam for a shared one; Quartz ships no database-backed implementation.
+- **The shipped history store is in-memory and per-process**, so history does not survive a restart and
+  one node cannot show another's unless you register a shared store. `IExecutionHistoryStore` is the
+  seam for a shared one — `IDashboardHistoryStore` still is too; Quartz ships no database-backed
+  implementation of either.
 - **Read-only is one setting for the whole process**, not per scheduler and not per operation — "acme
   may look, globex may act" and "this tenant may pause but not delete" are not expressible. Which
   *schedulers* a visitor sees is expressible; see [One scheduler at a time](#one-scheduler-at-a-time).

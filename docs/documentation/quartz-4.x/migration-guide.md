@@ -67,7 +67,7 @@ newly possible, that change, and the two cron expressions 4.1 reads differently.
 | Three history routes | `GET …/schedulers/{schedulerName}/history/executions` (`skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`), `GET …/history/misfires` (the same minus `jobContains`) and `GET …/history/misfires/count?since=…`. Per-scheduler authorization applies, because the routes name the scheduler. A 4.0 host has none of them, so a 4.1 client asking a 4.0 server gets `404` — which `HttpExecutionHistoryStore` reports as "this target serves no history" rather than as an error |
 | `QuartzHttpApiOptions.ReadOnly` | `false` by default, which is what every earlier release did. Set it and every route that changes something answers `403` with problem details saying the API is read-only — before the handler runs, so no body is read and no scheduler is looked up. Mutation is per route rather than per verb: the two bulk fetches, `POST …/jobs/fetch` and `POST …/triggers/fetch`, are reads and are served. It binds this API only; a dashboard mapped beside it has its own `QuartzDashboardOptions.ReadOnly`. See [Serving reads only](packages/http-api.md#serving-reads-only) |
 
-Five behaviours changed without a signature changing:
+Nine behaviours changed without a signature changing:
 
 * **`Shutdown(waitForJobsToComplete: false)` no longer drops a firing, and settles what it can.** It
   stops the scheduler's own firing loop and waits for it before closing the thread pool, so an
@@ -102,9 +102,31 @@ Five behaviours changed without a signature changing:
 * **A health check falls back to the repository** when the container holds no scheduler registration
   under the name it was given, so `AddHealthChecks().AddQuartz("acme")` written at build time reports on
   the tenant added under that name later. Its message when nothing is found names both places it looked.
+* **`AddQuartzHttpApi()` records execution history.** It calls `AddQuartzExecutionHistory()`, so a
+  worker that maps the API answers the new history routes rather than answering them empty. In memory
+  and bounded — 24 hours, 2000 rows per scheduler per feed — as the dashboard's has always been. A
+  process that does not want it sets `ExecutionHistoryOptions.MaxEntriesPerScheduler` to `0`, which
+  stops the recorder; a process that wants it kept elsewhere registers an `IExecutionHistoryStore`
+  before the call. See [Execution history](packages/http-api.md#execution-history).
+* **`AddQuartzDashboard()` no longer registers `DashboardHistoryPlugin`.** The recorder
+  `AddQuartzExecutionHistory()` installs does that work, and two of them would record every execution
+  twice. The type is still public and still works; do not register it beside the recorder.
+  `IDashboardHistoryStore` is unchanged and still the dashboard's seam — a store registered against it
+  is adapted onto `IExecutionHistoryStore` in both directions.
+* **Nothing in Quartz reads `Status` or `SchedulerInstanceId` off a scheduler in another process any
+  more.** `ISchedulerRepository` read the first under its lock on every lookup, so one unreachable
+  `HttpScheduler` stalled every lookup in the process for the client's timeout — the HTTP API's own
+  scheduler resolution included. The scheduler listing asks the asynchronous twins under a two-second
+  deadline instead, and reports a target that does not answer as `SchedulerStatus.Unknown` with a null
+  instance id. See [Blocking members](packages/http-client.md#blocking-members).
+* **`AddQuartzHttpClient` refuses a scheduler name it has already registered.** The keyed registration
+  is appended, so a second call under the same name was last-wins and the first target stopped existing
+  with nothing saying so. Give the targets different scheduler names.
 
 The mechanics, the refusals and the recipes are in
-[Multi-Tenancy](multi-tenancy.md#adding-a-tenant-while-the-process-is-running).
+[Multi-Tenancy](multi-tenancy.md#adding-a-tenant-while-the-process-is-running), and the dashboard's side
+of the last three is
+[Fronting a scheduler in another process over HTTP](packages/dashboard.md#fronting-a-scheduler-in-another-process-over-http).
 
 One dependency changed, and a consumer can see it: **`Quartz` depends on
 `Microsoft.Extensions.Logging.Abstractions` rather than `Microsoft.Extensions.Logging`.** Quartz writes

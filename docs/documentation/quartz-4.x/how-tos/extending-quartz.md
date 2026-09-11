@@ -21,7 +21,8 @@ reflection over its internals. This page is the index of the seams, and the poli
 | Run code around every job | `IJobExecutionMiddleware` | [Job Execution Middleware](../tutorial/job-execution-middleware.md) |
 | React to scheduler events | `IJobListener`, `ITriggerListener`, `ISchedulerListener`, `ISchedulerPlugin` | [Trigger and Job Listeners](../tutorial/trigger-and-job-listeners.md) |
 | Change how jobs are constructed, types are loaded, work is scheduled | `IJobFactory`, `ITypeLoader`, `IThreadPool` | [Configuration Reference](../configuration/reference.md) |
-| Serve the dashboard from somewhere else, or keep its history | `IQuartzApiClient`, `IDashboardHistoryStore` | [Dashboard](../packages/dashboard.md) |
+| Keep what a scheduler has run and missed | `IExecutionHistoryStore` | [Execution history](../packages/http-api.md#execution-history) |
+| Serve the dashboard from somewhere else | `IQuartzApiClient` | [Dashboard](../packages/dashboard.md) |
 
 Every one of these is registered through a `Use*` or `Add*` method on `IQuartzBuilder` or
 `IPersistentStoreBuilder`. Registration is **first-wins** (`TryAdd`): register yours *instead of* the

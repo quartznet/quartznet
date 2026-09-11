@@ -39,8 +39,14 @@ The API manages jobs and triggers, so authorize it: `MapQuartzHttpApi` returns t
 builder to say so on, and a mapping that says nothing refuses to start. It adds no authentication of its
 own, every route mutates, and a job scheduled through it names its type as a string the request supplies
 — which, with `Quartz.Jobs` on the host's probing path, reaches `NativeJob` and its process. Say
-`AllowAnonymous()` where you mean it. `AddQuartz` and the health check beside it come from the core
-package; serving the health report at `/healthz` is what needs ASP.NET Core.
+`AllowAnonymous()` where you mean it, or `AddQuartzHttpApi(options => options.ReadOnly = true)` where
+nothing should write through the API at all. `AddQuartz` and the health check beside it come from the
+core package; serving the health report at `/healthz` is what needs ASP.NET Core.
+
+Mapping the API also records what its schedulers run and miss, and serves it under
+`…/schedulers/{name}/history` — which is what lets a dashboard in another process show a History page.
+It is kept in memory and bounded; `AddQuartzExecutionHistory(options => options.MaxEntriesPerScheduler = 0)`
+opts out.
 
 ## Documentation
 

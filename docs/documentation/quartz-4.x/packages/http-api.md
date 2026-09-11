@@ -130,7 +130,7 @@ one-flag form, `{ groups }` / `{ jobs }` / `{ triggers }` are the key-set and gr
 *paged* is the [paged envelope](#listing-endpoints-are-paged). An unknown scheduler is `404` on every
 one of them.
 
-### Schedulers — 13
+### Schedulers — 16
 
 | Method | Path | Answers |
 |---|---|---|
@@ -144,6 +144,9 @@ one of them.
 | `POST` | `{ApiPath}/schedulers/{name}/pause-all` | empty |
 | `POST` | `{ApiPath}/schedulers/{name}/resume-all` | empty |
 | `GET` | `{ApiPath}/schedulers/{name}/nodes` | The cluster's nodes — [see below](#cluster-nodes) |
+| `GET` | `{ApiPath}/schedulers/{name}/history/executions` | A page of what the scheduler has run — [see below](#execution-history) |
+| `GET` | `{ApiPath}/schedulers/{name}/history/misfires` | A page of the firings it missed |
+| `GET` | `{ApiPath}/schedulers/{name}/history/misfires/count` | `{ count }` since `?since=` — the one a summary tile asks for |
 | `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited |
 | `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty — replaces the whole set |
 | `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty — the same as posting an empty set |
@@ -508,6 +511,10 @@ A listing gives you headers, not whole objects. To get the full detail for a pag
 
 Keys that do not exist are simply absent from the response, and at most 1000 keys can be fetched per call.
 
+These two are `POST` because the keys are a body, not because they change anything: they are the only
+non-`GET` routes this API serves that are reads. `ReadOnly` serves them for that reason — see
+[Serving reads only](#serving-reads-only).
+
 ::: warning Changed in 4.x
 These endpoints previously returned bare arrays of keys, or a `{ "names": [ … ] }` object for the group and
 calendar listings. Both shapes are gone; every listing returns the paged envelope above.
@@ -554,6 +561,57 @@ The verdicts are what the answering node believes, read off its own clock, so on
 clocks two nodes can disagree. Join the listing to
 `GET {ApiPath}/schedulers/{name}/jobs/fire-instances` on `schedulerInstanceId` to see what each node is
 running.
+
+## Execution history
+
+A job store holds what is *scheduled*. What *happened* — what ran, how long it took, whether it threw,
+and what was missed — is kept by the container's `IExecutionHistoryStore`, and three routes serve it:
+
+| Path | Query | Answers |
+|---|---|---|
+| `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains` | A page of executions, newest first |
+| `GET {ApiPath}/schedulers/{name}/history/misfires` | the same, minus `jobContains` | A page of misfires, newest first |
+| `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since` — a `DateTimeOffset`, required | `{ "count": 3 }` |
+
+```json
+{
+  "items": [
+    {
+      "schedulerInstanceId": "web-01",
+      "jobGroup": "reports",
+      "jobName": "nightly",
+      "triggerGroup": "reports",
+      "triggerName": "at-midnight",
+      "firedAtUtc": "2026-08-26T00:00:00+00:00",
+      "duration": "00:00:01.5000000",
+      "succeeded": false,
+      "exceptionMessage": "the job threw"
+    }
+  ],
+  "hasMore": false,
+  "totalCount": 1
+}
+```
+
+The scheduler's own name is not on the rows — the route named it — while the **node's** id is on every
+one of them, because a cluster's history is several nodes' and a reader has to be able to tell them
+apart. `schedulerInstanceId` narrows to one of them; `jobContains` and `triggerContains` match a key's
+group, its name, or the two joined as `group.name`, case-insensitively. Paging is the same envelope
+every other listing uses, and [`MaxPageSize`](#listing-endpoints-are-paged) bounds it the same way.
+
+**`AddQuartzHttpApi()` records that history.** It calls `AddQuartzExecutionHistory()`, so a worker that
+maps the API answers these routes rather than answering them empty with nothing to say why. What records
+it is one recorder installed into every scheduler in the container; what holds it is an in-memory store
+bounded by age and by count, as the dashboard's has always been. To opt out, record nothing:
+
+```csharp
+services.AddQuartzExecutionHistory(options => options.MaxEntriesPerScheduler = 0);
+```
+
+To keep history somewhere that survives a restart, register an `IExecutionHistoryStore` of your own
+before `AddQuartzHttpApi()`; the shipped registration is a `TryAdd`. A dashboard in the same process
+reads the same store — see
+[Execution history and misfires](dashboard.md#execution-history-and-misfires).
 
 ## Pause and resume report what they did
 
@@ -703,6 +761,7 @@ next scheduling evaluation.
 | `ApiPath` | `/quartz-api` | The base path every endpoint is served under — see [Where the API is served](#where-the-api-is-served) |
 | `IncludeStackTraceInProblemDetails` | `false` | Adds `Quartz-ExceptionStackTrace` to RFC 7807 error payloads, and puts a `500`'s real message back in `detail` |
 | `MaxPageSize` | `1000` | The most items one paged request may return; `0` leaves them unbounded — see [Listing endpoints are paged](#listing-endpoints-are-paged) |
+| `ReadOnly` | `false` | Refuses every route that changes something with `403` — see [Serving reads only](#serving-reads-only) |
 | `SchedulerAuthorizationPolicy` | none | The policy every route that names a scheduler is held to, evaluated against that scheduler — see [Authorizing per scheduler](#authorizing-per-scheduler) |
 | `IsJobTypeAllowed` | none | A predicate over the job type *name* a request carries; a name it refuses is `403` — see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
 
@@ -710,6 +769,35 @@ There is one set of these per process, not one per scheduler: `ApiPath` describe
 every scheduler is reached under it. Calling `services.AddQuartzHttpApi(configure)` twice therefore
 configures the same options twice, and the callback registered last wins for any setting both of them
 touch.
+
+### Serving reads only
+
+`ReadOnly = true` refuses every route that changes something:
+
+```csharp
+services.AddQuartzHttpApi(options => options.ReadOnly = true);
+```
+
+A refused request is `403` with problem details reading *The Quartz HTTP API is configured as
+read-only.*, decided **before** the handler runs — so no body is read and no scheduler is looked up, and
+a caller cannot map the schedulers of a process by which refusal comes back. It carries no
+`Quartz-ExceptionType`, like every other refusal: nothing failed, a rule the operator configured said
+no.
+
+It is one switch for the whole mutating surface, which route-level authorization can only match by
+naming thirty-odd routes and keeping the list current. Reach for it where a process maps the API to feed
+a dashboard, a monitoring tool or a report and nothing should be able to write through it.
+
+**Mutation is a property of the route, not of its verb.** The two bulk fetches —
+`POST {ApiPath}/schedulers/{name}/jobs/fetch` and `POST …/triggers/fetch` — are reads that take a body of
+keys, and they are served. Everything else that is not a `GET` is refused, pausing, resuming,
+interrupting and resetting a trigger from its error state included: each of them changes what the
+scheduler will do next.
+
+It binds this API and nothing else. The scheduler in the process goes on firing jobs, and a dashboard
+mapped beside it has its own [`QuartzDashboardOptions.ReadOnly`](dashboard.md#read-only-mode) — neither
+setting binds the other surface. A dashboard *fronting* this API from another process is bound by this
+one, and reports the refusal it gave.
 
 ### Authorizing per scheduler
 
@@ -838,6 +926,9 @@ that remains is over the payload rather than over the contract.
   trusted with the whole API**, down to reading every job's data map. `SchedulerAuthorizationPolicy`
   narrows *which schedulers* a caller reaches and `IsJobTypeAllowed` narrows *which job types* they may
   name; anything finer than those two belongs in the policy or in a gateway in front of this
+- Set `ReadOnly` where nothing should write through this API at all — a process that maps it to feed a
+  dashboard, a monitoring tool or a report. It refuses every mutating route in one setting, whoever
+  asks; see [Serving reads only](#serving-reads-only)
 - Leave `MaxPageSize` set. One request cannot then materialize an unbounded result
 - In clustered setups, treat API calls as scheduler control operations that affect cluster-wide behavior
 - There is **no rate limiting** on this surface. ASP.NET Core's own rate limiter middleware applies to it
