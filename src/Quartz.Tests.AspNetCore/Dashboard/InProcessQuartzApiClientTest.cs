@@ -840,7 +840,8 @@ public class InProcessQuartzApiClientTest
                 provider.GetRequiredService<ISchedulerRepository>(),
                 provider.GetRequiredService<ISchedulerRegistry>(),
                 options,
-                TestData.Dashboard.HistoryStore(),
+                new ExecutionHistoryStoreOverDashboardStore(TestData.Dashboard.HistoryStore()),
+                NoKeyedServices.Instance,
                 new SchedulerAuthorization(options, new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()));
 
             List<SchedulerHeaderDto> schedulers = await client.GetSchedulers();
@@ -874,7 +875,7 @@ public class InProcessQuartzApiClientTest
         IScheduler scheduler = await CreateScheduler(nameof(TheHistoryFeedsAnswerWithAPageEvenWhenNothingWasRecorded));
         try
         {
-            DashboardHistoryStore store = TestData.Dashboard.HistoryStore();
+            IDashboardHistoryStore store = TestData.Dashboard.HistoryStore();
             InProcessQuartzApiClient client = CreateClient(scheduler, store);
             DashboardHistoryQuery historyQuery = new() { SchedulerName = scheduler.SchedulerName };
             DashboardMisfireQuery misfireQuery = new() { SchedulerName = scheduler.SchedulerName };
@@ -1171,8 +1172,23 @@ public class InProcessQuartzApiClientTest
             repository,
             new StubSchedulerRegistry(repository, registeredButNotCreated),
             options,
-            historyStore,
+            // The dashboard's seam is one side of a pair, and what the client reads is the other: an
+            // application that registered its own IDashboardHistoryStore has Quartz's history answered
+            // out of it, which is exactly what AddQuartzDashboard wires up.
+            new ExecutionHistoryStoreOverDashboardStore(historyStore),
+            NoKeyedServices.Instance,
             new SchedulerAuthorization(options, authorizationService, new TestAuthenticationStateProvider()));
+    }
+
+    /// <summary>
+    /// A container with no keyed services in it, which is what a scheduler with no remote target beside
+    /// it looks like: every history read falls through to the process's own store.
+    /// </summary>
+    private sealed class NoKeyedServices : IServiceProvider
+    {
+        public static readonly NoKeyedServices Instance = new();
+
+        public object? GetService(Type serviceType) => null;
     }
 
     /// <summary>

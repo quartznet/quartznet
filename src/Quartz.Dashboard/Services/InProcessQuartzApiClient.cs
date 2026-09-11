@@ -17,6 +17,7 @@
  */
 #endregion
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Extensibility;
@@ -45,20 +46,28 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     private readonly ISchedulerRepository schedulerRepository;
     private readonly ISchedulerRegistry schedulerRegistry;
     private readonly IOptions<QuartzDashboardOptions> options;
-    private readonly IDashboardHistoryStore historyStore;
+    private readonly IExecutionHistoryStore historyStore;
+    private readonly IServiceProvider serviceProvider;
     private readonly SchedulerAuthorization authorization;
 
+    /// <remarks>
+    /// The container is taken as well as the history store, because a scheduler's history store is
+    /// looked up by that scheduler's name: one in another process keeps its history there, and
+    /// <c>AddQuartzHttpClient</c> registers a reader of it keyed by the scheduler's name.
+    /// </remarks>
     public InProcessQuartzApiClient(
         ISchedulerRepository schedulerRepository,
         ISchedulerRegistry schedulerRegistry,
         IOptions<QuartzDashboardOptions> options,
-        IDashboardHistoryStore historyStore,
+        IExecutionHistoryStore historyStore,
+        IServiceProvider serviceProvider,
         SchedulerAuthorization authorization)
     {
         this.schedulerRepository = schedulerRepository;
         this.schedulerRegistry = schedulerRegistry;
         this.options = options;
         this.historyStore = historyStore;
+        this.serviceProvider = serviceProvider;
         this.authorization = authorization;
     }
 
@@ -545,16 +554,28 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     }
 
     /// <remarks>
+    /// <para>
     /// The history store is not a scheduler and has no repository entry, but its rows belong to one — so
     /// the query's scheduler is authorized here the way <see cref="ResolveScheduler" /> does it for the
     /// members that resolve a scheduler.
+    /// </para>
+    /// <para>
+    /// Which store answers is <see cref="HistoryFor" />'s decision: a scheduler in another process keeps
+    /// its history there, and reading this process's would show an empty page for a scheduler that has
+    /// run all day.
+    /// </para>
     /// </remarks>
     public async ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         await Authorize(query.SchedulerName, cancellationToken).ConfigureAwait(false);
-        return await historyStore.QueryExecutions(query, cancellationToken).ConfigureAwait(false);
+
+        PagedResult<ExecutionHistoryEntry> page = await HistoryFor(query.SchedulerName)
+            .QueryExecutions(query.AsExecutionHistoryQuery(), cancellationToken)
+            .ConfigureAwait(false);
+
+        return DashboardHistoryMapping.Map(page, static entry => entry.AsDashboardHistoryEntry());
     }
 
     /// <inheritdoc cref="QueryExecutions" />
@@ -563,14 +584,47 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         ArgumentNullException.ThrowIfNull(query);
 
         await Authorize(query.SchedulerName, cancellationToken).ConfigureAwait(false);
-        return await historyStore.QueryMisfires(query, cancellationToken).ConfigureAwait(false);
+
+        PagedResult<MisfireHistoryEntry> page = await HistoryFor(query.SchedulerName)
+            .QueryMisfires(query.AsMisfireHistoryQuery(), cancellationToken)
+            .ConfigureAwait(false);
+
+        return DashboardHistoryMapping.Map(page, static entry => entry.AsDashboardMisfireEntry());
     }
 
     /// <inheritdoc cref="QueryExecutions" />
     public async ValueTask<int> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default)
     {
         await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
-        return await historyStore.CountMisfires(schedulerName, since, cancellationToken).ConfigureAwait(false);
+        return await HistoryFor(schedulerName).CountMisfires(schedulerName, since, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The store that holds one scheduler's history: its own process's.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A scheduler registered with <c>AddQuartzHttpClient</c> has a reader of its target's history keyed
+    /// by its name, and that registration is what says the scheduler is somewhere else — the same thing
+    /// <see cref="SchedulerOrigin.Remote" /> says in a listing, asked without a listing's cost. Every
+    /// other scheduler's history is this process's, which is where its recorder writes.
+    /// </para>
+    /// <para>
+    /// A remote target whose API does not serve history raises <see cref="NotSupportedException" />, and
+    /// the pages that read it say so rather than showing an empty page or a zero — which would be an
+    /// answer nobody gave.
+    /// </para>
+    /// </remarks>
+    private IExecutionHistoryStore HistoryFor(string schedulerName)
+    {
+        // A container that does not do keyed services holds no per-scheduler store either, so asking it
+        // would only be a way to throw.
+        if (string.IsNullOrWhiteSpace(schedulerName) || serviceProvider is not IKeyedServiceProvider keyed)
+        {
+            return historyStore;
+        }
+
+        return keyed.GetKeyedService(typeof(IExecutionHistoryStore), schedulerName) as IExecutionHistoryStore ?? historyStore;
     }
 
     private static GroupMatcher<TKey>? BuildGroupMatcher<TKey>(string? groupFilter) where TKey : Key<TKey>

@@ -25,7 +25,7 @@ public class DashboardHistoryPluginTest
     [Test]
     public async Task AnExecutionIsRecordedAgainstTheNodeThatRanIt()
     {
-        DashboardHistoryStore store = TestData.Dashboard.HistoryStore(new FakeTimeProvider(Now));
+        IDashboardHistoryStore store = TestData.Dashboard.HistoryStore(new FakeTimeProvider(Now));
         IScheduler scheduler = FakeScheduler();
 
         DashboardHistoryPlugin plugin = new(ProviderWith(store), new FakeTimeProvider(Now));
@@ -42,7 +42,7 @@ public class DashboardHistoryPluginTest
     [Test]
     public async Task AMisfireIsRecorded()
     {
-        DashboardHistoryStore store = TestData.Dashboard.HistoryStore(new FakeTimeProvider(Now));
+        IDashboardHistoryStore store = TestData.Dashboard.HistoryStore(new FakeTimeProvider(Now));
         IScheduler scheduler = FakeScheduler();
 
         DashboardHistoryPlugin plugin = new(ProviderWith(store), new FakeTimeProvider(Now));
@@ -67,7 +67,7 @@ public class DashboardHistoryPluginTest
     [Test]
     public async Task AMisfireIsNotAnExecution()
     {
-        DashboardHistoryStore store = TestData.Dashboard.HistoryStore(new FakeTimeProvider(Now));
+        IDashboardHistoryStore store = TestData.Dashboard.HistoryStore(new FakeTimeProvider(Now));
         IScheduler scheduler = FakeScheduler();
 
         DashboardHistoryPlugin plugin = new(ProviderWith(store), new FakeTimeProvider(Now));

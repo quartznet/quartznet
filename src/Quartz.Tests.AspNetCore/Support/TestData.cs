@@ -428,25 +428,29 @@ public static class TestData
         /// A history store bounded the way an application that configured nothing would have it, on a
         /// clock a test can move.
         /// </summary>
-        internal static DashboardHistoryStore HistoryStore(
+        /// <remarks>
+        /// The dashboard's seam over the history Quartz keeps, which is what <c>AddQuartzDashboard</c>
+        /// registers: the dashboard no longer has a store of its own, it has a view of that one.
+        /// </remarks>
+        internal static IDashboardHistoryStore HistoryStore(
             TimeProvider? timeProvider = null,
             TimeSpan? retention = null,
             int? maxEntriesPerScheduler = null)
         {
-            QuartzDashboardOptions options = new();
+            ExecutionHistoryOptions options = new();
             if (retention is { } configuredRetention)
             {
-                options.HistoryRetention = configuredRetention;
+                options.Retention = configuredRetention;
             }
 
             if (maxEntriesPerScheduler is { } configuredMax)
             {
-                options.HistoryMaxEntriesPerScheduler = configuredMax;
+                options.MaxEntriesPerScheduler = configuredMax;
             }
 
-            return new DashboardHistoryStore(
+            return new DashboardHistoryStoreOverExecutionHistory(new InMemoryExecutionHistoryStore(
                 Microsoft.Extensions.Options.Options.Create(options),
-                timeProvider ?? TimeProvider.System);
+                timeProvider ?? TimeProvider.System));
         }
 
         /// <summary>

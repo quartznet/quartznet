@@ -29,11 +29,20 @@ namespace Quartz.Dashboard.Plugins;
 /// something to show.
 /// </summary>
 /// <remarks>
-/// The rows go to the <see cref="IDashboardHistoryStore" /> in the container, which by default keeps
-/// them in memory for <c>HistoryRetention</c> — a dashboard's history is an operator's recent view
-/// rather than an audit log. Registered by <c>AddQuartzDashboard</c> against every scheduler in the
-/// container, and told its own scheduler's name when it is initialized, which is what its rows are
-/// keyed by.
+/// <para>
+/// <strong>Superseded, and no longer registered by <c>AddQuartzDashboard</c>.</strong> Quartz records
+/// this itself now: <c>AddQuartzExecutionHistory()</c> — which the dashboard and the HTTP API both call
+/// — installs a recorder against every scheduler in the container, and what it records is what the
+/// dashboard's pages, the API's history routes and an <see cref="IDashboardHistoryStore" /> of an
+/// application's own all see. Do not register this beside that recorder: two of them writing the same
+/// events records every execution twice, and a history that counts one run as two is worse than none.
+/// </para>
+/// <para>
+/// It is still here, still public and still works, for an application that registered it by name and
+/// wants no other change. The rows go to the <see cref="IDashboardHistoryStore" /> in the container,
+/// which by default is a view of the history Quartz keeps. It is told its own scheduler's name when it
+/// is initialized, which is what its rows are keyed by.
+/// </para>
 /// </remarks>
 public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener, ITriggerListener
 {
