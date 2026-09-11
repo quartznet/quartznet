@@ -43,9 +43,10 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
     /// </summary>
     /// <remarks>
     /// One budget for the query rather than one per scheduler: a listing is a page render, and a
-    /// process fronting five unreachable targets must not take five times as long to say so. A local
-    /// scheduler spends none of it — its default interface members answer the properties, which are
-    /// fields.
+    /// process fronting five unreachable targets must not take five times as long to say so. Every
+    /// scheduler is asked before any answer is waited for, so sharing the budget costs a reachable
+    /// target nothing. A local scheduler spends none of it — its default interface members answer the
+    /// properties, which are fields.
     /// </remarks>
     internal static readonly TimeSpan StatusTimeout = TimeSpan.FromSeconds(2);
 
@@ -64,6 +65,17 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
         using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(StatusTimeout);
 
+        // Every scheduler is asked before any answer is waited for. The budget is the listing's rather
+        // than each scheduler's, so a target that spends all of it must not be able to spend anybody
+        // else's: asked in turn, one stalled proxy would leave every scheduler behind it in the loop
+        // being asked with a token that was already cancelled, and reported as unreachable although it
+        // answered at once. A local scheduler completes before this loop reaches the next entry.
+        Dictionary<string, Task<LiveState>> asked = new(StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, IScheduler> entry in live)
+        {
+            asked[entry.Key] = Ask(entry.Value, deadline.Token, cancellationToken);
+        }
+
         List<SchedulerRegistration> registrations = [];
         HashSet<string> reported = new(StringComparer.OrdinalIgnoreCase);
 
@@ -74,8 +86,8 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
                 continue;
             }
 
-            LiveState state = live.TryGetValue(name, out IScheduler? registered)
-                ? await Ask(registered, deadline.Token, cancellationToken).ConfigureAwait(false)
+            LiveState state = asked.TryGetValue(name, out Task<LiveState>? pending)
+                ? await pending.ConfigureAwait(false)
                 : default;
 
             registrations.Add(new SchedulerRegistration(name, SchedulerOrigin.Container, state.Status)
@@ -91,7 +103,7 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
                 continue;
             }
 
-            LiveState state = await Ask(scheduler, deadline.Token, cancellationToken).ConfigureAwait(false);
+            LiveState state = await asked[scheduler.SchedulerName].ConfigureAwait(false);
 
             registrations.Add(new SchedulerRegistration(
                 scheduler.SchedulerName,
@@ -149,7 +161,7 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
     /// cancellation is not swallowed: only the deadline's is.
     /// </para>
     /// </remarks>
-    private static async ValueTask<LiveState> Ask(
+    private static async Task<LiveState> Ask(
         IScheduler scheduler,
         CancellationToken deadline,
         CancellationToken cancellationToken)

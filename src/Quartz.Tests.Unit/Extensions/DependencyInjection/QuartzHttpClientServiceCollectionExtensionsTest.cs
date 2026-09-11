@@ -217,6 +217,60 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
         act.Should().NotThrow("a named scheduler is keyed by its name and never wanted the unkeyed slot");
     }
 
+    /// <summary>
+    /// A second target under a name already registered is refused rather than quietly taking the first
+    /// one's place.
+    /// </summary>
+    /// <remarks>
+    /// The keyed <see cref="IScheduler" /> registration is appended, so the last call won and the first
+    /// target simply stopped existing — with the repository holding one entry under the name either way,
+    /// and nothing anywhere saying which process it pointed at.
+    /// </remarks>
+    [Test]
+    public void ASecondTargetCannotTakeARegisteredSchedulerName()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartzHttpClient("Remote", _ => testClient);
+
+        var act = () => services.AddQuartzHttpClient("Remote", _ => testClient);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Remote*")
+            .WithMessage("*3387*", "the fleet model is where fronting several schedulers under one name belongs");
+    }
+
+    [Test]
+    public void ARefusedDuplicateLeavesTheContainerAsItFoundIt()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartzHttpClient("Remote", _ => testClient);
+        int registered = services.Count;
+
+        var act = () => services.AddQuartzHttpClient("remote", _ => testClient);
+
+        act.Should().Throw<InvalidOperationException>("the name is matched the way the repository indexes it, ignoring case");
+        services.Count.Should().Be(registered,
+            "the refusal happens before anything is registered, so a caught exception does not leave a half-registered scheduler behind");
+    }
+
+    [Test]
+    public async Task ARemoteSchedulerIsListedAsRemote()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartzHttpClient("Remote", _ => testClient);
+
+        await using var serviceProvider = services.BuildServiceProvider();
+
+        // Resolving is what binds it into the repository, which is what the registry reads.
+        serviceProvider.GetRequiredKeyedService<IScheduler>("Remote").Should().BeOfType<HttpScheduler>();
+
+        List<SchedulerRegistration> registrations = await serviceProvider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
+
+        registrations.Should().ContainSingle(x => x.Name == "Remote")
+            .Which.Origin.Should().Be(SchedulerOrigin.Remote,
+                "an HttpScheduler stands for a scheduler in another process, and nothing in this one runs it");
+    }
+
     [Test]
     public async Task EachContainerShouldGetItsOwnSchedulerRepository()
     {

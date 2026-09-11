@@ -55,19 +55,29 @@ internal sealed class HttpSchedulerRegistry
     }
 
     /// <summary>
-    /// Records a remote scheduler's name, ignoring a name already recorded.
+    /// Records a remote scheduler's name, refusing one already recorded.
     /// </summary>
     /// <remarks>
-    /// Registering the same name twice replaces the earlier registration rather than adding a second
-    /// scheduler, so the binder should still bind it once.
+    /// A scheduler's name is its key: the keyed <see cref="IScheduler" /> registration is appended, so a
+    /// second <c>AddQuartzHttpClient("X", …)</c> was last-wins and the first target simply disappeared —
+    /// silently, and with the repository holding one entry under the name either way. Two processes
+    /// fronted under one name is a fleet, which is what
+    /// <see href="https://github.com/quartznet/quartznet/issues/3387" /> is for; until it ships, saying
+    /// so is better than dropping one of them.
     /// </remarks>
+    /// <exception cref="InvalidOperationException">The name is already registered.</exception>
     public void Add(string name)
     {
         foreach (string registered in names)
         {
             if (string.Equals(registered, name, StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                throw new InvalidOperationException(
+                    $"A remote scheduler named '{name}' is already registered. AddQuartzHttpClient registers one "
+                    + "target per scheduler name, and a second registration under the same name would replace the "
+                    + "first rather than add to it. Give the targets different scheduler names; fronting several "
+                    + "schedulers that share a name is the fleet model of "
+                    + "https://github.com/quartznet/quartznet/issues/3387.");
             }
         }
 

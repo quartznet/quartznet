@@ -267,6 +267,45 @@ public sealed class SchedulerRegistryTest
         listed.SchedulerInstanceId.Should().BeNull();
     }
 
+    /// <summary>
+    /// One target that never answers does not make the others look unreachable.
+    /// </summary>
+    /// <remarks>
+    /// The budget belongs to the listing rather than to each scheduler, which is only safe because every
+    /// scheduler is asked before any answer is waited for. Asked in turn, the stalled one here — bound
+    /// first, and named so that it is read first — would spend the whole deadline, and the healthy one
+    /// after it would be asked with a token that was already cancelled and reported as unreachable
+    /// although it answered at once.
+    /// </remarks>
+    [Test]
+    public async Task AStalledProxyDoesNotSpendTheBudgetOfTheOnesBehindIt()
+    {
+        using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
+
+        IScheduler healthyTarget = A.Fake<IScheduler>();
+        A.CallTo(() => healthyTarget.SchedulerName).Returns("zz-healthy");
+        A.CallTo(() => healthyTarget.GetStatus(A<CancellationToken>._)).Returns(new ValueTask<SchedulerStatus>(SchedulerStatus.Running));
+        A.CallTo(() => healthyTarget.GetSchedulerInstanceId(A<CancellationToken>._)).Returns(new ValueTask<string>("zz-healthy-node-1"));
+
+        ISchedulerRepository repository = provider.GetRequiredService<ISchedulerRepository>();
+        repository.Bind(new StallingProxyScheduler("aa-stalled"), "aa-stalled");
+        repository.Bind(new TestProxyScheduler(healthyTarget), "zz-healthy");
+
+        long started = Stopwatch.GetTimestamp();
+        List<SchedulerRegistration> registrations = await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
+        TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
+
+        elapsed.Should().BeLessThan(ContainerSchedulerRegistry.StatusTimeout + TimeSpan.FromSeconds(5));
+
+        SchedulerRegistration healthy = registrations.Should().ContainSingle(x => x.Name == "zz-healthy").Subject;
+        healthy.Status.Should().Be(SchedulerStatus.Running,
+            "it answered immediately, and what another target did with the deadline is not its business");
+        healthy.SchedulerInstanceId.Should().Be("zz-healthy-node-1");
+
+        registrations.Should().ContainSingle(x => x.Name == "aa-stalled")
+            .Which.Status.Should().Be(SchedulerStatus.Unknown);
+    }
+
 
     [Test]
     public async Task ARuntimeTenantIsListedWithOriginRuntime()
