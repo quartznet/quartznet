@@ -6,6 +6,9 @@ using AwesomeAssertions.Execution;
 
 using FakeItEasy;
 
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -375,6 +378,32 @@ public class WireFormatSnapshotTest : WebApiTest
     public async Task UnknownSchedulerProblemDetailsBody()
     {
         string body = await Get("schedulers/no-such-scheduler", HttpStatusCode.NotFound);
+        await VerifyBody(body);
+    }
+
+    /// <summary>
+    /// What a mutating route answers while <see cref="QuartzHttpApiOptions.ReadOnly" /> is set: the
+    /// problem details of a refusal, with no exception type — nothing failed, a rule the operator
+    /// configured said no.
+    /// </summary>
+    /// <remarks>
+    /// Its own host, because read-only is a property of the API rather than of a request, and the one
+    /// every other snapshot here reads is the writable one. The scheduler is never looked up: the
+    /// refusal is decided by the route and the options alone.
+    /// </remarks>
+    [Test]
+    public async Task ReadOnlyRefusalProblemDetailsBody()
+    {
+        TestContentRoot.Apply();
+        await using WebApplicationFactory<Program> root = new();
+        await using WebApplicationFactory<Program> readOnly = root.WithWebHostBuilder(builder => builder.ConfigureServices(
+            services => services.AddQuartzHttpApi(options => options.ReadOnly = true)));
+
+        using HttpClient httpClient = readOnly.CreateClient();
+        using HttpResponseMessage response = await httpClient.PostAsync($"{SchedulerUrl}/pause-all", content: null);
+
+        string body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden, $"a read-only API refuses a mutation, body was {body}");
         await VerifyBody(body);
     }
 
