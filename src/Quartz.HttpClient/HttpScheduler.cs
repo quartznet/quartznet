@@ -22,6 +22,7 @@
 using System.Text.Json;
 
 using Quartz.HttpApiContract;
+using Quartz.Impl;
 using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
 using Quartz.Util;
@@ -50,8 +51,15 @@ namespace Quartz;
 /// itself. Both are physical limits rather than missing routes. <see cref="DisposeAsync" /> pointedly
 /// does not shut the remote scheduler down — see its own remarks.
 /// </para>
+/// <para>
+/// Quartz recognises this type as standing for a scheduler elsewhere, which is what keeps its two
+/// blocking properties off the paths that must not block: the scheduler repository never reads
+/// <see cref="Status" /> to decide whether an entry is dead, and a scheduler listing asks
+/// <see cref="GetStatus" /> and <see cref="GetSchedulerInstanceId" /> under a deadline of its own. A
+/// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
+/// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler
 {
     private readonly HttpClient httpClient;
     private readonly JsonSerializerOptions jsonSerializerOptions;

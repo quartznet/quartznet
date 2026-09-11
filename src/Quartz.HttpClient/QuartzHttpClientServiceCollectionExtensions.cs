@@ -50,6 +50,12 @@ namespace Quartz;
 /// to be discovered, since a container in which "the scheduler" turned out to be somebody else's process
 /// is not something anything downstream can notice.
 /// </para>
+/// <para>
+/// One registration is one target. A second call naming a scheduler name already registered is refused:
+/// the keyed registration is appended, so it would have replaced the first target without saying so, and
+/// two processes fronted under one name is a fleet — the model
+/// <see href="https://github.com/quartznet/quartznet/issues/3387" /> is for.
+/// </para>
 /// </remarks>
 public static class QuartzHttpClientServiceCollectionExtensions
 {
@@ -118,6 +124,10 @@ public static class QuartzHttpClientServiceCollectionExtensions
 
         HttpClientOptionsValidator.ThrowIfInvalid(options);
 
+        // Before anything is registered, so that a refused duplicate leaves the collection as it found
+        // it rather than half-registered under a name it will not answer for.
+        HttpSchedulerRegistry.For(services).Add(options.SchedulerName);
+
         // The repository the remote scheduler binds itself into is the container's, registered in exactly
         // one place. Creating one here would give a container that also calls AddQuartz two repositories,
         // and a scheduler registered in one would be invisible in the other.
@@ -157,7 +167,6 @@ public static class QuartzHttpClientServiceCollectionExtensions
         // Remote schedulers are otherwise built on first injection, which leaves them missing from the
         // repository - and so from LookupAll, the dashboard and the HTTP API - until something happens to
         // ask for one. A container with no host never runs this, and is exactly as lazy as it was.
-        HttpSchedulerRegistry.For(services).Add(options.SchedulerName);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, HttpSchedulerBinder>());
 
         return services;
