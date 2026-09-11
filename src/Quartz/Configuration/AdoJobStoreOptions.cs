@@ -111,6 +111,14 @@ public sealed class AdoJobStoreOptions
     /// <summary>
     /// How long to wait before retrying after a database failure.
     /// </summary>
+    /// <remarks>
+    /// The back-off after a failure that was not transient — a database that is down rather than busy.
+    /// The misfire handler sleeps for it between failing passes. The cluster check-in loop does so only
+    /// once a failed check-in has spent the window its peers give it
+    /// (<see cref="ClusteringOptions.CheckinInterval" /> plus
+    /// <see cref="ClusteringOptions.CheckinMisfireThreshold" />); inside that window it retries sooner,
+    /// and this value caps how long it may wait between those retries.
+    /// </remarks>
     public TimeSpan DbRetryInterval { get; set; } = TimeSpan.FromSeconds(15);
 
     /// <summary>

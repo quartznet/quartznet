@@ -353,14 +353,15 @@ JobStoreTX can be tuned with the following properties:
 | Property Name                                | Required | Type    | Default Value                                                                |
 |----------------------------------------------|----------|---------|------------------------------------------------------------------------------|
 | quartz.jobStore.commandTimeout               | no       | long    | 0 (the provider's own default)                                               |
-| quartz.jobStore.dbRetryInterval              | no       | long    | 15000   (15 seconds)                                                         |
+| quartz.jobStore.dbRetryInterval              | no       | long    | 15000 (15 seconds)                                                           |
 | quartz.jobStore.driverDelegateType           | yes      | string  | null                                                                         |
 | quartz.jobStore.dataSource                   | yes      | string  | null                                                                         |
 | quartz.jobStore.tablePrefix                  | no       | string  | "QRTZ_"                                                                      |
 | quartz.jobStore.useProperties                | no       | boolean | false                                                                        |
 | quartz.jobStore.misfireThreshold             | no       | int     | 60000                                                                        |
 | quartz.jobStore.clustered                    | no       | boolean | false                                                                        |
-| quartz.jobStore.clusterCheckinInterval       | no       | long    | 15000                                                                        |
+| quartz.jobStore.clusterCheckinInterval       | no       | long    | 7500 (7.5 seconds)                                                           |
+| quartz.jobStore.clusterCheckinMisfireThreshold | no     | long    | 7500 (7.5 seconds)                                                           |
 | quartz.jobStore.maxMisfiresToHandleAtATime   | no       | int     | 20                                                                           |
 | quartz.jobStore.selectWithLockSQL            | no       | string  | "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = {1} AND LOCK_NAME = ? FOR UPDATE" |
 | quartz.jobStore.txIsolationLevelSerializable | no       | boolean | false                                                                        |
@@ -383,6 +384,9 @@ See [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-h
 
 Is the amount of time in milliseconds that the scheduler will wait between re-tries when it has detected a loss of connectivity within the JobStore (e.g. to the database).
 This parameter is obviously not very meaningful when using RamJobStore.
+
+Since 3.22.0 the cluster check-in loop backs off by it only once a failed check-in has spent the window its peers give it (`clusterCheckinInterval` + `clusterCheckinMisfireThreshold`); inside that window it retries sooner, and this value only caps how long it may wait between those retries.
+Before that a single failed check-in slept the full `dbRetryInterval`, which on the defaults wrote the next row 22.5 seconds after the last one — 7.5 seconds after the peers had stopped trusting it — so one database blip during a check-in got a live node recovered by its peers.
 
 ### `quartz.jobStore.driverDelegateType`
 
@@ -428,6 +432,12 @@ See the configuration docs for clustering for more information.
 ### `quartz.jobStore.clusterCheckinInterval`
 
 Set the frequency (in milliseconds) at which this instance "checks-in"* with the other instances of the cluster. Affects the quickness of detecting failed instances.
+
+### `quartz.jobStore.clusterCheckinMisfireThreshold`
+
+Since 3.1. The time in milliseconds a check-in may be late before the other instances consider this instance failed and recover its work: a peer writes an instance off once its last check-in is older than the instance's check-in interval plus this threshold — 15 seconds on the defaults.
+Raise it past your environment's worst *pause* (a long garbage collection, a paused virtual machine, a database failover), at the cost of a genuinely failed instance's work waiting that much longer to be taken over.
+Since 3.22.0 it is also the window this instance's own check-in loop retries a failed check-in inside, so a database blip shorter than the threshold does not get the instance written off.
 
 ### `quartz.jobStore.maxMisfiresToHandleAtATime`
 

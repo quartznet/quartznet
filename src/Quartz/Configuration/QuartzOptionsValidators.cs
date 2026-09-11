@@ -478,8 +478,9 @@ internal sealed class AdoJobStoreOptionsValidator : IValidateOptions<AdoJobStore
                 nameof(AdoJobStoreOptions.DbRetryInterval),
                 options.DbRetryInterval,
                 TimerLimits.MaxDelay,
-                "The store waits it out after a database failure, and the misfire handler and the cluster "
-                + "manager both sleep for it while their last pass is failing."));
+                "The store waits it out after a database failure, the misfire handler sleeps for it while "
+                + "its last pass is failing, and the cluster manager does once a failing check-in has spent "
+                + "its window."));
         }
 
         if (options.TransientRetryInterval < TimeSpan.Zero)
@@ -556,6 +557,15 @@ internal sealed class ClusteringOptionsValidator : IValidateOptions<ClusteringOp
         if (options.CheckinMisfireThreshold < TimeSpan.Zero)
         {
             (failures ??= []).Add($"{nameof(ClusteringOptions.CheckinMisfireThreshold)} must not be negative.");
+        }
+        else if (options.CheckinMisfireThreshold > TimerLimits.MaxDelay)
+        {
+            (failures ??= []).Add(TimerLimits.TooLong(
+                nameof(ClusteringOptions.CheckinMisfireThreshold),
+                options.CheckinMisfireThreshold,
+                TimerLimits.MaxDelay,
+                "It is added to the check-in interval to bound how long the cluster manager keeps retrying "
+                + "a failed check-in."));
         }
 
         return QuartzSchedulerOptionsValidator.Result(failures);
