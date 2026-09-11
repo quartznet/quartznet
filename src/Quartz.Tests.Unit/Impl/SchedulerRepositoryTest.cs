@@ -310,11 +310,71 @@ public sealed class SchedulerRepositoryTest
         repository.Lookup("Remote").Should().BeSameAs(unreachable);
     }
 
+    /// <summary>
+    /// A proxy for a scheduler in another process is never asked whether it has shut down, because the
+    /// question is a request and the repository asks it with its lock held.
+    /// </summary>
+    /// <remarks>
+    /// The blocked getter stands for an unreachable target, whose <c>Status</c> takes as long as the
+    /// client's timeout to fail — 100 seconds by default. Reading it under <c>syncRoot</c> stops every
+    /// lookup in the process for that long, the HTTP API's own scheduler resolution included, so the
+    /// assertion is about the calls that have nothing to do with the proxy as much as about the sweep
+    /// that met it.
+    /// </remarks>
+    [Test]
+    public async Task AnUnreachableProxyBlocksNoLookup()
+    {
+        ManualResetEventSlim unreachable = new(initialState: false);
+        try
+        {
+            IScheduler target = A.Fake<IScheduler>();
+            A.CallTo(() => target.SchedulerName).Returns("Remote");
+            A.CallTo(() => target.Status).ReturnsLazily(() =>
+            {
+                unreachable.Wait();
+                return SchedulerStatus.Running;
+            });
+            IScheduler proxy = new BlockingProxyScheduler(target);
+
+            repository.Bind(proxy, "Remote");
+            repository.Bind(CreateFakeScheduler("Local", "local-1"));
+
+            Task<List<IScheduler>> sweep = Task.Run(() => repository.LookupAll());
+            Task<IScheduler> unrelated = Task.Run(() => repository.Lookup("Local"));
+
+            Task both = Task.WhenAll(sweep, unrelated);
+            Task finished = await Task.WhenAny(both, Task.Delay(TimeSpan.FromSeconds(1))).ConfigureAwait(false);
+
+            finished.Should().BeSameAs(both,
+                "reading a proxy's Status under the repository's lock stalls every lookup in the process for as long as the target takes to answer");
+
+            sweep.Result.Should().Contain(proxy, "unreachable is not shut down, so the entry stays");
+            unrelated.Result.Should().NotBeNull();
+        }
+        finally
+        {
+            // Releases the getter whether or not it was ever called, so a failing assertion leaves no
+            // thread parked on it.
+            unreachable.Set();
+        }
+    }
+
     private static IScheduler CreateFakeScheduler(string name, string instanceId)
     {
         IScheduler scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.SchedulerName).Returns(name);
         A.CallTo(() => scheduler.SchedulerInstanceId).Returns(instanceId);
         return scheduler;
+    }
+
+    /// <summary>
+    /// Stands for <c>HttpScheduler</c>: a scheduler whose every member is a request. The marker is what
+    /// the repository tests for, and the forwarding base is what keeps this two lines long.
+    /// </summary>
+    private sealed class BlockingProxyScheduler : DelegatingScheduler, IProxyScheduler
+    {
+        public BlockingProxyScheduler(IScheduler scheduler) : base(scheduler)
+        {
+        }
     }
 }

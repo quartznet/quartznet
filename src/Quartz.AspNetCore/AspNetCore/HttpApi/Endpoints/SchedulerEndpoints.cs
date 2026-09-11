@@ -64,7 +64,8 @@ internal static class SchedulerEndpoints
     /// The registrations rather than the repository: a repository holds the schedulers something has
     /// already built, so a tenant nobody has asked for was invisible here — and the caller could not tell
     /// that from "no such tenant". Such an entry is listed with a null status, and asking for it does not
-    /// build it. The repository is still read, for the instance id of the schedulers that do exist.
+    /// build it. The instance id of the schedulers that do exist comes off the registration, which asked
+    /// each of them once, asynchronously and under a deadline.
     /// </para>
     /// <para>
     /// This route names no scheduler, so the endpoint filter has nothing to check and the listing filters
@@ -78,7 +79,6 @@ internal static class SchedulerEndpoints
         HttpContext httpContext,
         IOptions<QuartzHttpApiOptions> apiOptions,
         ISchedulerRegistry schedulerRegistry,
-        ISchedulerRepository schedulerRepository,
         CancellationToken cancellationToken = default)
     {
         List<SchedulerRegistration> registrations = await schedulerRegistry.QuerySchedulers(cancellationToken).ConfigureAwait(false);
@@ -92,8 +92,7 @@ internal static class SchedulerEndpoints
                 continue;
             }
 
-            IScheduler? scheduler = registration.IsCreated ? schedulerRepository.Lookup(registration.Name) : null;
-            result.Add(SchedulerHeaderDto.Create(registration, scheduler));
+            result.Add(SchedulerHeaderDto.Create(registration));
         }
 
         return endpointHelper.JsonResponse(result.ToArray());
@@ -109,7 +108,7 @@ internal static class SchedulerEndpoints
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
-            var result = SchedulerDto.Create(scheduler, metadata);
+            var result = SchedulerDto.Create(metadata);
             return result;
         });
     }

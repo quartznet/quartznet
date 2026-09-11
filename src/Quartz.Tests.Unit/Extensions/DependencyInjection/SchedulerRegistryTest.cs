@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using FakeItEasy;
 
 using Microsoft.Extensions.Configuration;
@@ -201,17 +203,70 @@ public sealed class SchedulerRegistryTest
 
         IScheduler unreachable = A.Fake<IScheduler>();
         A.CallTo(() => unreachable.SchedulerName).Returns("far-away");
-        A.CallTo(() => unreachable.Status).Throws(new HttpRequestException("the remote scheduler is not answering"));
+        A.CallTo(() => unreachable.GetStatus(A<CancellationToken>._))
+            .Throws(new HttpRequestException("the remote scheduler is not answering"));
 
         provider.GetRequiredService<ISchedulerRepository>().Bind(unreachable, "remote");
 
         List<SchedulerRegistration> registrations = await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
 
-        registrations.Should().ContainSingle(x => x.Name == "far-away")
-            .Which.Status.Should().Be(SchedulerStatus.Unknown,
-                "unreachable is not the same as absent, and an inventory of tenants must not fail because one of "
-                + "them is behind a network that is down");
+        SchedulerRegistration listed = registrations.Should().ContainSingle(x => x.Name == "far-away").Subject;
+        listed.Status.Should().Be(SchedulerStatus.Unknown,
+            "unreachable is not the same as absent, and an inventory of tenants must not fail because one of "
+            + "them is behind a network that is down");
+        listed.SchedulerInstanceId.Should().BeNull("the scheduler that would have said which node it is could not be reached");
     }
+
+    [Test]
+    public async Task AProxyIsListedAsRemoteWithTheNodeItAnswered()
+    {
+        using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
+
+        IScheduler target = A.Fake<IScheduler>();
+        A.CallTo(() => target.SchedulerName).Returns("far-away");
+        A.CallTo(() => target.GetStatus(A<CancellationToken>._)).Returns(new ValueTask<SchedulerStatus>(SchedulerStatus.Running));
+        A.CallTo(() => target.GetSchedulerInstanceId(A<CancellationToken>._)).Returns(new ValueTask<string>("far-away-node-1"));
+
+        provider.GetRequiredService<ISchedulerRepository>().Bind(new TestProxyScheduler(target), "far-away");
+
+        List<SchedulerRegistration> registrations = await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
+
+        SchedulerRegistration listed = registrations.Should().ContainSingle(x => x.Name == "far-away").Subject;
+        listed.Origin.Should().Be(SchedulerOrigin.Remote,
+            "a scheduler reached through a proxy runs in somebody else's process, which is what a reader has to be told");
+        listed.Status.Should().Be(SchedulerStatus.Running);
+        listed.SchedulerInstanceId.Should().Be("far-away-node-1",
+            "the registration carries the node so that nothing downstream has to read the blocking property for it");
+    }
+
+    /// <summary>
+    /// A target that never answers costs the listing the deadline and nothing more.
+    /// </summary>
+    /// <remarks>
+    /// The two members are the ones an unreachable <c>HttpScheduler</c> leaves pending until its
+    /// <see cref="HttpClient.Timeout" /> — 100 seconds out of the box — which is what a page rendering
+    /// the schedulers of a process would otherwise wait for.
+    /// </remarks>
+    [Test]
+    public async Task AnUnreachableProxyCostsTheListingTheDeadlineAndNoMore()
+    {
+        using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
+
+        provider.GetRequiredService<ISchedulerRepository>().Bind(new StallingProxyScheduler("far-away"), "far-away");
+
+        long started = Stopwatch.GetTimestamp();
+        List<SchedulerRegistration> registrations = await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
+        TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
+
+        elapsed.Should().BeLessThan(ContainerSchedulerRegistry.StatusTimeout + TimeSpan.FromSeconds(5),
+            "the listing asks under a deadline of its own rather than under the client's timeout");
+
+        SchedulerRegistration listed = registrations.Should().ContainSingle(x => x.Name == "far-away").Subject;
+        listed.Origin.Should().Be(SchedulerOrigin.Remote);
+        listed.Status.Should().Be(SchedulerStatus.Unknown, "the target never said, and saying nothing is what Unknown is for");
+        listed.SchedulerInstanceId.Should().BeNull();
+    }
+
 
     [Test]
     public async Task ARuntimeTenantIsListedWithOriginRuntime()
@@ -247,5 +302,41 @@ public sealed class SchedulerRegistryTest
         services.AddLogging();
         configure(services);
         return services.BuildServiceProvider();
+    }
+
+    /// <summary>
+    /// Stands in for <c>HttpScheduler</c>: the marker is what the registry reads, and the forwarding
+    /// base is what keeps a stand-in from having to implement every member of <see cref="IScheduler" />.
+    /// </summary>
+    private sealed class TestProxyScheduler : DelegatingScheduler, IProxyScheduler
+    {
+        public TestProxyScheduler(IScheduler scheduler) : base(scheduler)
+        {
+        }
+    }
+
+    /// <summary>
+    /// A proxy whose target never answers, which is what an unreachable one looks like from here.
+    /// </summary>
+    private sealed class StallingProxyScheduler : DelegatingScheduler, IProxyScheduler
+    {
+        public StallingProxyScheduler(string schedulerName) : base(A.Fake<IScheduler>())
+        {
+            SchedulerName = schedulerName;
+        }
+
+        public override string SchedulerName { get; }
+
+        public override async ValueTask<SchedulerStatus> GetStatus(CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            return SchedulerStatus.Running;
+        }
+
+        public override async ValueTask<string> GetSchedulerInstanceId(CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            return SchedulerName;
+        }
     }
 }

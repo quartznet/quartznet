@@ -32,16 +32,19 @@ internal record SchedulerDto(
     SchedulerStatisticsDto Statistics
 )
 {
-    public static SchedulerDto Create(IScheduler scheduler, SchedulerMetadata metadata)
+    /// <remarks>
+    /// The metadata answers all three of the scheduler's own fields, and answers them in the one call
+    /// that was already made: reading the properties instead cost a scheduler in another process two
+    /// further round trips, each of them blocking the request thread.
+    /// </remarks>
+    public static SchedulerDto Create(SchedulerMetadata metadata)
     {
-        ArgumentNullException.ThrowIfNull(scheduler);
-
         ArgumentNullException.ThrowIfNull(metadata);
 
         return new SchedulerDto(
-            SchedulerInstanceId: scheduler.SchedulerInstanceId,
-            Name: scheduler.SchedulerName,
-            Status: scheduler.Status,
+            SchedulerInstanceId: metadata.SchedulerInstanceId,
+            Name: metadata.SchedulerName,
+            Status: metadata.Status,
             ThreadPool: SchedulerThreadPoolDto.Create(metadata),
             JobStore: SchedulerJobStoreDto.Create(metadata),
             Statistics: SchedulerStatisticsDto.Create(metadata)

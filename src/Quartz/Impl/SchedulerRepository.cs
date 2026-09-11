@@ -41,7 +41,8 @@ namespace Quartz.Impl;
 /// A scheduler that has shut down is dropped as soon as a read notices it. A scheduler unbinds itself
 /// from the repository its own container owns, and from no other, so one bound here by hand — the way a
 /// standalone scheduler is made visible to a dashboard or the HTTP API — would otherwise stay listed as a
-/// live scheduler for the rest of the process.
+/// live scheduler for the rest of the process. A scheduler in another process is exempt: noticing would
+/// mean a network request under the lock, and it is not this process's to notice.
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
@@ -53,24 +54,33 @@ public sealed class SchedulerRepository : ISchedulerRepository
     /// <inheritdoc />
     /// <remarks>
     /// Without an explicit instance ID this reads <see cref="IScheduler.SchedulerInstanceId"/>, which is
-    /// always available for a local scheduler. For a remote one (e.g., <c>HttpScheduler</c>) reading it may
-    /// cost a network call, so pass the instance ID instead. If it cannot be resolved at all, the scheduler
-    /// name is used as a fallback, preserving single-scheduler-per-name semantics.
+    /// always available for a local scheduler. A scheduler in another process is bound under the id its
+    /// registration gave it — <c>AddQuartzHttpClient</c> passes the scheduler's name — and is never asked
+    /// for one here: the property is a request, and a bind that had to wait for the target to answer it
+    /// would make an unreachable target an unstartable application. One registration is one remote
+    /// scheduler, so the name tells the entries apart on its own.
     /// </remarks>
     public void Bind(IScheduler scheduler, string? instanceId = null)
     {
         if (instanceId is null)
         {
-            try
+            if (scheduler is IProxyScheduler)
             {
-                instanceId = scheduler.SchedulerInstanceId;
-            }
-            catch
-            {
-                // Remote schedulers may not be reachable during bind.
-                // Fall back to scheduler name, preserving single-per-name semantics.
-                // Callers needing instance-aware operations should pass an instance ID.
                 instanceId = scheduler.SchedulerName;
+            }
+            else
+            {
+                try
+                {
+                    instanceId = scheduler.SchedulerInstanceId;
+                }
+                catch
+                {
+                    // A scheduler of somebody else's that cannot answer right now is still bound, under
+                    // the name, preserving single-per-name semantics. Callers needing instance-aware
+                    // operations should pass an instance ID.
+                    instanceId = scheduler.SchedulerName;
+                }
             }
         }
 
@@ -231,13 +241,27 @@ public sealed class SchedulerRepository : ISchedulerRepository
     /// Asks a scheduler whether it has shut down, treating an unanswerable question as "no".
     /// </summary>
     /// <remarks>
-    /// A local scheduler reads a field. A remote one answers over the network and may simply be
-    /// unreachable — and unreachable is not shut down, so the entry stays. Evicting a proxy because a
-    /// request failed would lose the only handle the caller has to a scheduler that is probably still
-    /// running.
+    /// <para>
+    /// A local scheduler reads a field, which is what makes asking it under the lock free. A scheduler
+    /// in another process is not asked at all: its <see cref="IScheduler.Status" /> is a round trip, and
+    /// every read of this repository is made with <c>syncRoot</c> held — so one unreachable target would
+    /// stall every lookup in the process for as long as its client's timeout, the HTTP API's own
+    /// scheduler resolution included.
+    /// </para>
+    /// <para>
+    /// Nothing is lost by not asking. Unreachable is not shut down, so a proxy that failed to answer
+    /// would have been kept anyway; a proxy that did answer <see cref="SchedulerStatus.Shutdown" />
+    /// names a scheduler this process never started and cannot restart, and the registration that
+    /// created it is what removes it. Eviction exists for the schedulers this container owns.
+    /// </para>
     /// </remarks>
     private static bool HasShutDown(IScheduler scheduler)
     {
+        if (scheduler is IProxyScheduler)
+        {
+            return false;
+        }
+
         try
         {
             return scheduler.Status == SchedulerStatus.Shutdown;

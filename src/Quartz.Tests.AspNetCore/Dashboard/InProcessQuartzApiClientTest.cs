@@ -795,8 +795,8 @@ public class InProcessQuartzApiClientTest
             SchedulerHeaderDto built = schedulers.Should().ContainSingle(x => x.SchedulerName == scheduler.SchedulerName).Subject;
             built.IsCreated.Should().BeTrue();
             built.SchedulerInstanceId.Should().Be(scheduler.SchedulerInstanceId,
-                "the registration does not carry an instance id, so the repository is asked for the one "
-                + "scheduler that has one");
+                "the registration carries the instance id of the scheduler behind it, asked for once and "
+                + "asynchronously rather than read off the scheduler here");
 
             SchedulerHeaderDto registered = schedulers.Should().ContainSingle(x => x.SchedulerName == "acme").Subject;
             registered.IsCreated.Should().BeFalse();
@@ -817,9 +817,9 @@ public class InProcessQuartzApiClientTest
     /// <remarks>
     /// Over a real container rather than the stub registry above, because what is under test is the
     /// whole path — <c>SchedulerRuntime</c> appending the tenant to the container's registrations, and
-    /// this client joining that against the repository for the instance id. The origin is the only thing
-    /// in the listing that distinguishes the two kinds, and an operator needs it: a container
-    /// registration comes back after a restart and this one does not.
+    /// the registry filling in the state and the node. The origin is the only thing in the listing that
+    /// distinguishes the two kinds, and an operator needs it: a container registration comes back after
+    /// a restart and this one does not.
     /// </remarks>
     [Test]
     public async Task TheListingCarriesASchedulerAddedAtRuntimeWithItsOrigin()
@@ -850,8 +850,8 @@ public class InProcessQuartzApiClientTest
                 "nothing in the container registered it, so nothing in the container will bring it back");
             header.Status.Should().Be(SchedulerStatus.Running);
             header.SchedulerInstanceId.Should().Be(tenant.SchedulerInstanceId,
-                "the registration carries no instance id, so the repository is asked for it - and the "
-                + "tenant is in the same repository every other scheduler is in");
+                "the registry asks the scheduler which node it is and puts the answer on the registration "
+                + "- and the tenant is in the same repository every other scheduler is in");
 
             schedulers.Should().ContainSingle(x => x.SchedulerName == "core")
                 .Which.Origin.Should().Be(SchedulerOrigin.Container);
@@ -1196,7 +1196,13 @@ public class InProcessQuartzApiClientTest
             List<SchedulerRegistration> registrations = [];
             foreach (IScheduler scheduler in repository.LookupAll())
             {
-                registrations.Add(new SchedulerRegistration(scheduler.SchedulerName, SchedulerOrigin.Container, scheduler.Status));
+                // The instance id travels on the registration, as the real registry puts it there: a
+                // listing must not read it off a scheduler, because for one in another process that is a
+                // blocking round trip.
+                registrations.Add(new SchedulerRegistration(scheduler.SchedulerName, SchedulerOrigin.Container, scheduler.Status)
+                {
+                    SchedulerInstanceId = scheduler.SchedulerInstanceId
+                });
             }
 
             foreach (string name in registeredButNotCreated)

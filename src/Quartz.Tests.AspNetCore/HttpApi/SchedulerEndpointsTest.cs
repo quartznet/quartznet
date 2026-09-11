@@ -33,6 +33,7 @@ public class SchedulerEndpointsTest : WebApiTest
         A.CallTo(() => secondFake.SchedulerName).Returns("SecondScheduler");
         A.CallTo(() => secondFake.SchedulerInstanceId).Returns("TEST_2_NON_CLUSTERED");
         A.CallTo(() => secondFake.Status).Returns(SchedulerStatus.Standby);
+        AnswerTheAsyncTwinsFromTheProperties(secondFake);
         WebApplicationFactory.Services.GetRequiredService<ISchedulerRepository>().Bind(secondFake);
 
         // This endpoint is not used by HttpScheduler, so the reader is built here - off the same wire

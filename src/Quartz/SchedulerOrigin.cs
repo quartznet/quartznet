@@ -35,8 +35,20 @@ public enum SchedulerOrigin
     /// <summary>
     /// Bound into the container's <see cref="Extensibility.ISchedulerRepository" /> rather than
     /// registered as a scheduler of this container: a scheduler built by
-    /// <c>QuartzSchedulerBuilder</c> and made visible by hand, or a remote scheduler registered with
-    /// <c>AddQuartzHttpClient</c>. Nothing in the container owns its lifetime.
+    /// <c>QuartzSchedulerBuilder</c> and made visible by hand. Nothing in the container owns its
+    /// lifetime.
     /// </summary>
-    Runtime = 1
+    Runtime = 1,
+
+    /// <summary>
+    /// Reached through a proxy — an <c>HttpScheduler</c> registered with <c>AddQuartzHttpClient</c>.
+    /// Nothing in this process runs it and <see cref="SchedulerMetadata.IsProxy" /> is true.
+    /// </summary>
+    /// <remarks>
+    /// What separates this from <see cref="Runtime" /> is where the scheduler is, not who registered
+    /// it: every member of it is a network request, so a reader — a dashboard page, an operator's
+    /// listing — can tell that pausing a trigger here lands in somebody else's process, that its
+    /// history is kept there, and that this process has no live event stream from it.
+    /// </remarks>
+    Remote = 2
 }
