@@ -200,6 +200,37 @@ public class JobsPageTest
     }
 
     /// <summary>
+    /// A read-only HTTP API's refusal reaches the reader as a message rather than as a mutation that
+    /// silently did nothing.
+    /// </summary>
+    /// <remarks>
+    /// A server with <c>QuartzHttpApiOptions.ReadOnly</c> set answers a mutating route with <c>403</c>
+    /// and problem details, which <c>HttpScheduler</c> surfaces as an
+    /// <see cref="HttpClientException" /> carrying the detail. The dashboard's own <c>ReadOnly</c> hides
+    /// the buttons; the API's binds a dashboard that has no idea it is fronting a read-only server, so
+    /// what it says has to survive the trip to the toast.
+    /// </remarks>
+    [Test]
+    public void ARefusalFromAReadOnlyApiIsShownToTheReader()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 1));
+        A.CallTo(() => context.Api.DeleteJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Throws(new HttpClientException(
+                "Received response with status code Forbidden, error details: The Quartz HTTP API is configured as read-only."));
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Delete").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Contain("read-only",
+                "the server said why it refused, and a dashboard that swallowed it would leave the reader clicking");
+        context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Succeeded.Should().BeFalse();
+    }
+
+    /// <summary>
     /// The group labels are read a page at a time, so a scheduler with more groups than one page holds
     /// still has every one of its listed jobs labelled.
     /// </summary>
