@@ -416,11 +416,15 @@ What each page does over it:
 
 Four things worth knowing before pointing one at production:
 
-- **One target is one process.** The client calls one `HttpClient`, so behind a load balancer a
-  node-local action — Currently Executing, interrupting a firing, the node's own check-in — lands on
-  whichever node the balancer chose, and two page renders may be two different nodes. Point it at a
-  node's own address, not at the fleet's, when that distinction matters. Fronting several processes as
-  one fleet is [#3387](https://github.com/quartznet/quartznet/issues/3387).
+- **One target is one process.** The client calls one `HttpClient`, so behind a load balancer whatever is
+  node-local lands on whichever node the balancer chose, and two page renders may be two different
+  nodes. What is node-local: **interrupting a firing** — it has to reach the node running it — **start,
+  stand-by and shutdown**, which act on the node that answers; **execution limits at node scope**; and
+  the node's own figures on the scheduler details — instance id, running since, jobs executed, jobs
+  executing here. The listings are not: with a persistent job store the jobs, the triggers and the
+  [firings in flight](#currently-executing) are the whole cluster's whichever node answers. Point the
+  client at a node's own address rather than at the fleet's when the distinction matters. Fronting
+  several processes as one fleet is [#3387](https://github.com/quartznet/quartznet/issues/3387).
 - **The credential is the `HttpClient`'s.** `QuartzDashboardOptions.AuthorizationPolicy` decides who may
   open the dashboard; what the dashboard presents to the target is whatever the named client was
   configured with — a header, a handler, a certificate. Nothing is forwarded from the signed-in user.

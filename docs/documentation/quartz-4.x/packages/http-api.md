@@ -119,7 +119,7 @@ validated against.
 
 ## Every endpoint
 
-Sixty-one routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
+Sixty-four routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
 `{name}` is the scheduler the request is for — every route but the first carries one, and every route
 that carries one is subject to
 [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when it is set.
