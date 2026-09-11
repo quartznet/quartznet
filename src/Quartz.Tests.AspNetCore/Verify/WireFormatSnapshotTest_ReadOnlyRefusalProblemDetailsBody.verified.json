@@ -1,0 +1,6 @@
+﻿{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "The Quartz HTTP API is configured as read-only."
+}

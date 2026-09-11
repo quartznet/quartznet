@@ -27,10 +27,12 @@ internal static class CalendarEndpoints
             .WithQuartzDefaults(nameof(CheckCalendarExists), "Check calendar exists");
 
         yield return builder.MapPost(patternPrefix, AddCalendar)
-            .WithQuartzDefaults(nameof(AddCalendar), "Add new calendar");
+            .WithQuartzDefaults(nameof(AddCalendar), "Add new calendar")
+            .WithQuartzMutation(options);
 
         yield return builder.MapDelete(patternPrefix + "/{calendarName}", DeleteCalendar)
-            .WithQuartzDefaults(nameof(DeleteCalendar), "Delete calendar");
+            .WithQuartzDefaults(nameof(DeleteCalendar), "Delete calendar")
+            .WithQuartzMutation(options);
     }
 
     [ProducesResponseType(typeof(PagedResultDto<string>), StatusCodes.Status200OK)]

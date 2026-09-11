@@ -36,47 +36,60 @@ internal static class JobEndpoints
             .WithQuartzDefaults(nameof(QueryFireInstances), "Query fire instances");
 
         yield return builder.MapPost(patternPrefix + "/{jobGroup}/{jobName}/pause", PauseJob)
-            .WithQuartzDefaults(nameof(PauseJob), "Pause job");
+            .WithQuartzDefaults(nameof(PauseJob), "Pause job")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/pause", PauseJobs)
-            .WithQuartzDefaults(nameof(PauseJobs), "Pause jobs");
+            .WithQuartzDefaults(nameof(PauseJobs), "Pause jobs")
+            .WithQuartzMutation(options);
 
         // The key-set forms live under "keys" because the collection-level "pause" and "resume"
         // already belong to the group-matcher forms, which select by query string rather than body.
         yield return builder.MapPost(patternPrefix + "/keys/pause", PauseJobKeys)
-            .WithQuartzDefaults(nameof(PauseJobKeys), "Pause jobs by key");
+            .WithQuartzDefaults(nameof(PauseJobKeys), "Pause jobs by key")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{jobGroup}/{jobName}/resume", ResumeJob)
-            .WithQuartzDefaults(nameof(ResumeJob), "Resume job");
+            .WithQuartzDefaults(nameof(ResumeJob), "Resume job")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/resume", ResumeJobs)
-            .WithQuartzDefaults(nameof(ResumeJobs), "Resume jobs");
+            .WithQuartzDefaults(nameof(ResumeJobs), "Resume jobs")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/keys/resume", ResumeJobKeys)
-            .WithQuartzDefaults(nameof(ResumeJobKeys), "Resume jobs by key");
+            .WithQuartzDefaults(nameof(ResumeJobKeys), "Resume jobs by key")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{jobGroup}/{jobName}/trigger", TriggerJob)
-            .WithQuartzDefaults(nameof(TriggerJob), "Trigger job");
+            .WithQuartzDefaults(nameof(TriggerJob), "Trigger job")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{jobGroup}/{jobName}/interrupt", InterruptJob)
-            .WithQuartzDefaults(nameof(InterruptJob), "Interrupt job");
+            .WithQuartzDefaults(nameof(InterruptJob), "Interrupt job")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/interrupt/{fireInstanceId}", InterruptJobInstance)
-            .WithQuartzDefaults(nameof(InterruptJobInstance), "Interrupt job instance");
+            .WithQuartzDefaults(nameof(InterruptJobInstance), "Interrupt job instance")
+            .WithQuartzMutation(options);
 
         yield return builder.MapDelete(patternPrefix + "/{jobGroup}/{jobName}", DeleteJob)
-            .WithQuartzDefaults(nameof(DeleteJob), "Delete job");
+            .WithQuartzDefaults(nameof(DeleteJob), "Delete job")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/delete", DeleteJobs)
-            .WithQuartzDefaults(nameof(DeleteJobs), "Delete jobs");
+            .WithQuartzDefaults(nameof(DeleteJobs), "Delete jobs")
+            .WithQuartzMutation(options);
 
         // "delete" was taken by the key-set form before there was a group form, so the group form
         // says so in its path rather than taking the plain one away from an endpoint that has it.
         yield return builder.MapPost(patternPrefix + "/delete-by-group", DeleteJobsByGroup)
-            .WithQuartzDefaults(nameof(DeleteJobsByGroup), "Delete jobs by group");
+            .WithQuartzDefaults(nameof(DeleteJobsByGroup), "Delete jobs by group")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix, AddJob)
             .WithQuartzDefaults(nameof(AddJob), "Add job")
+            .WithQuartzMutation(options)
             .ProducesJobTypeRefusal(options);
 
         yield return builder.MapGet(patternPrefix + "/groups", QueryJobGroups)

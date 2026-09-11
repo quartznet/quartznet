@@ -26,22 +26,28 @@ internal static class SchedulerEndpoints
             .WithQuartzDefaults(nameof(GetSchedulerContext), "Get scheduler context");
 
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/start", Start)
-            .WithQuartzDefaults(nameof(Start), "Start scheduler");
+            .WithQuartzDefaults(nameof(Start), "Start scheduler")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/standby", Standby)
-            .WithQuartzDefaults(nameof(Standby), "Set scheduler in stand-by mode");
+            .WithQuartzDefaults(nameof(Standby), "Set scheduler in stand-by mode")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/shutdown", Shutdown)
-            .WithQuartzDefaults(nameof(Shutdown), "Shutdown the scheduler");
+            .WithQuartzDefaults(nameof(Shutdown), "Shutdown the scheduler")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/clear", Clear)
-            .WithQuartzDefaults(nameof(Clear), "Clear (delete!) all scheduling data");
+            .WithQuartzDefaults(nameof(Clear), "Clear (delete!) all scheduling data")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/pause-all", PauseAll)
-            .WithQuartzDefaults(nameof(PauseAll), "Pause all triggers");
+            .WithQuartzDefaults(nameof(PauseAll), "Pause all triggers")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/resume-all", ResumeAll)
-            .WithQuartzDefaults(nameof(ResumeAll), "Resume (un-pause) all triggers");
+            .WithQuartzDefaults(nameof(ResumeAll), "Resume (un-pause) all triggers")
+            .WithQuartzMutation(options);
 
         yield return builder.MapGet(patternPrefix + "/{schedulerName}/nodes", GetClusterNodes)
             .WithQuartzDefaults(nameof(GetClusterNodes), "Get the scheduler's cluster nodes");
@@ -50,10 +56,12 @@ internal static class SchedulerEndpoints
             .WithQuartzDefaults(nameof(GetExecutionLimits), "Get execution group limits");
 
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/execution-limits", SetExecutionLimits)
-            .WithQuartzDefaults(nameof(SetExecutionLimits), "Set execution group limits");
+            .WithQuartzDefaults(nameof(SetExecutionLimits), "Set execution group limits")
+            .WithQuartzMutation(options);
 
         yield return builder.MapDelete(patternPrefix + "/{schedulerName}/execution-limits", ClearExecutionLimits)
-            .WithQuartzDefaults(nameof(ClearExecutionLimits), "Clear execution group limits");
+            .WithQuartzDefaults(nameof(ClearExecutionLimits), "Clear execution group limits")
+            .WithQuartzMutation(options);
     }
 
     /// <summary>

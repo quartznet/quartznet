@@ -60,6 +60,33 @@ public sealed class QuartzHttpApiOptions
     public bool IncludeStackTraceInProblemDetails { get; set; }
 
     /// <summary>
+    /// Whether the API serves reads only. <see langword="false" /> by default, which is what every
+    /// earlier release did.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set it and every route that changes something answers <c>403</c> with problem details saying the
+    /// API is read-only, before the handler runs and therefore before a body is read or a scheduler is
+    /// looked up. It is the whole mutating surface in one switch: an operator serving a dashboard or a
+    /// monitoring tool out of a production process wants the reads and none of the writes, and getting
+    /// that from route-level authorization means naming thirty-odd routes and keeping the list current.
+    /// </para>
+    /// <para>
+    /// What counts as mutating is a property of the route rather than of its verb. The two bulk fetches —
+    /// <c>POST …/jobs/fetch</c> and <c>POST …/triggers/fetch</c> — are reads that take a body of keys, so
+    /// they are served; everything else that is not a <c>GET</c> is refused. Pausing, resuming,
+    /// interrupting and resetting a trigger from its error state all count: each of them changes what the
+    /// scheduler will do next.
+    /// </para>
+    /// <para>
+    /// It is a bound on this API and on nothing else. The scheduler in the process goes on firing jobs,
+    /// and a dashboard mapped beside it has its own <c>QuartzDashboardOptions.ReadOnly</c> — neither
+    /// setting binds the other surface.
+    /// </para>
+    /// </remarks>
+    public bool ReadOnly { get; set; }
+
+    /// <summary>
     /// The most items one paged request may return: 1000 by default, and <c>0</c> for no limit.
     /// A <c>take</c> naming a number above it is a <c>400</c>.
     /// </summary>

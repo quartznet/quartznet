@@ -33,30 +33,38 @@ internal static class TriggerEndpoints
             .WithQuartzDefaults(nameof(GetTriggerState), "Get the current state of the trigger");
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/reset-from-error-state", ResetTriggerFromErrorState)
-            .WithQuartzDefaults(nameof(ResetTriggerFromErrorState), "Resets trigger from error state");
+            .WithQuartzDefaults(nameof(ResetTriggerFromErrorState), "Resets trigger from error state")
+            .WithQuartzMutation(options);
 
         // The key-set forms live under "keys" because the collection-level "pause" and "resume"
         // already belong to the group-matcher forms, which select by query string rather than body.
         yield return builder.MapPost(patternPrefix + "/keys/reset-from-error-state", ResetTriggerKeysFromErrorState)
-            .WithQuartzDefaults(nameof(ResetTriggerKeysFromErrorState), "Resets triggers from error state by key");
+            .WithQuartzDefaults(nameof(ResetTriggerKeysFromErrorState), "Resets triggers from error state by key")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/pause", PauseTrigger)
-            .WithQuartzDefaults(nameof(PauseTrigger), "Pause trigger");
+            .WithQuartzDefaults(nameof(PauseTrigger), "Pause trigger")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/pause", PauseTriggers)
-            .WithQuartzDefaults(nameof(PauseTriggers), "Pause triggers");
+            .WithQuartzDefaults(nameof(PauseTriggers), "Pause triggers")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/keys/pause", PauseTriggerKeys)
-            .WithQuartzDefaults(nameof(PauseTriggerKeys), "Pause triggers by key");
+            .WithQuartzDefaults(nameof(PauseTriggerKeys), "Pause triggers by key")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/resume", ResumeTrigger)
-            .WithQuartzDefaults(nameof(ResumeTrigger), "Resume trigger");
+            .WithQuartzDefaults(nameof(ResumeTrigger), "Resume trigger")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/resume", ResumeTriggers)
-            .WithQuartzDefaults(nameof(ResumeTriggers), "Resume triggers");
+            .WithQuartzDefaults(nameof(ResumeTriggers), "Resume triggers")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/keys/resume", ResumeTriggerKeys)
-            .WithQuartzDefaults(nameof(ResumeTriggerKeys), "Resume triggers by key");
+            .WithQuartzDefaults(nameof(ResumeTriggerKeys), "Resume triggers by key")
+            .WithQuartzMutation(options);
 
         yield return builder.MapGet(patternPrefix + "/groups", QueryTriggerGroups)
             .WithQuartzDefaults(nameof(QueryTriggerGroups), "Query trigger groups");
@@ -66,28 +74,35 @@ internal static class TriggerEndpoints
 
         yield return builder.MapPost(patternPrefix + "/schedule", ScheduleJob)
             .WithQuartzDefaults(nameof(ScheduleJob), "Schedule job")
+            .WithQuartzMutation(options)
             .ProducesJobTypeRefusal(options);
 
         yield return builder.MapPost(patternPrefix + "/schedule-multiple", ScheduleJobs)
             .WithQuartzDefaults(nameof(ScheduleJobs), "Schedule jobs")
+            .WithQuartzMutation(options)
             .ProducesJobTypeRefusal(options);
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/unschedule", UnscheduleJob)
-            .WithQuartzDefaults(nameof(UnscheduleJob), "Unschedule job");
+            .WithQuartzDefaults(nameof(UnscheduleJob), "Unschedule job")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/unschedule", UnscheduleJobs)
-            .WithQuartzDefaults(nameof(UnscheduleJobs), "Unschedule jobs");
+            .WithQuartzDefaults(nameof(UnscheduleJobs), "Unschedule jobs")
+            .WithQuartzMutation(options);
 
         // "unschedule" was taken by the key-set form before there was a group form, so the group
         // form says so in its path rather than taking the plain one away from an endpoint that has it.
         yield return builder.MapPost(patternPrefix + "/unschedule-by-group", UnscheduleJobsByGroup)
-            .WithQuartzDefaults(nameof(UnscheduleJobsByGroup), "Unschedule jobs by group");
+            .WithQuartzDefaults(nameof(UnscheduleJobsByGroup), "Unschedule jobs by group")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/reschedule", RescheduleJob)
-            .WithQuartzDefaults(nameof(RescheduleJob), "Reschedule job");
+            .WithQuartzDefaults(nameof(RescheduleJob), "Reschedule job")
+            .WithQuartzMutation(options);
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/update-details", UpdateTriggerDetails)
-            .WithQuartzDefaults(nameof(UpdateTriggerDetails), "Update trigger details without rescheduling");
+            .WithQuartzDefaults(nameof(UpdateTriggerDetails), "Update trigger details without rescheduling")
+            .WithQuartzMutation(options);
     }
 
     [ProducesResponseType(typeof(PagedResultDto<TriggerHeaderDto>), StatusCodes.Status200OK)]
