@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -51,6 +53,15 @@ internal static class SchedulerEndpoints
 
         yield return builder.MapGet(patternPrefix + "/{schedulerName}/nodes", GetClusterNodes)
             .WithQuartzDefaults(nameof(GetClusterNodes), "Get the scheduler's cluster nodes");
+
+        yield return builder.MapGet(patternPrefix + "/{schedulerName}/history/executions", QueryExecutionHistory)
+            .WithQuartzDefaults(nameof(QueryExecutionHistory), "Query the scheduler's execution history");
+
+        yield return builder.MapGet(patternPrefix + "/{schedulerName}/history/misfires", QueryMisfireHistory)
+            .WithQuartzDefaults(nameof(QueryMisfireHistory), "Query the scheduler's misfires");
+
+        yield return builder.MapGet(patternPrefix + "/{schedulerName}/history/misfires/count", CountMisfires)
+            .WithQuartzDefaults(nameof(CountMisfires), "Count the scheduler's misfires since an instant");
 
         yield return builder.MapGet(patternPrefix + "/{schedulerName}/execution-limits", GetExecutionLimits)
             .WithQuartzDefaults(nameof(GetExecutionLimits), "Get execution group limits");
@@ -238,6 +249,146 @@ internal static class SchedulerEndpoints
             }
 
             return result;
+        });
+    }
+
+    /// <summary>
+    /// One page of what this scheduler has run, newest first.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The history is the process's rather than the scheduler's: a job store holds what is scheduled,
+    /// and what happened is kept by the container's <see cref="IExecutionHistoryStore" /> — in memory and
+    /// bounded unless the application registered a store of its own. The route names the scheduler
+    /// because that is what the rows are keyed by, and because it is what per-scheduler authorization
+    /// reads.
+    /// </para>
+    /// <para>
+    /// <c>schedulerInstanceId</c> narrows to one node of a cluster; <c>jobContains</c> and
+    /// <c>triggerContains</c> match a key's group, its name, or the two joined as <c>group.name</c>.
+    /// </para>
+    /// </remarks>
+    [ProducesResponseType(typeof(PagedResultDto<ExecutionHistoryEntryDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryExecutionHistory(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        string schedulerName,
+        int skip = 0,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
+        bool includeTotalCount = false,
+        string? schedulerInstanceId = null,
+        string? jobContains = null,
+        string? triggerContains = null,
+        CancellationToken cancellationToken = default)
+    {
+        int? takeItems = endpointHelper.ParsePaging(skip, take);
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            ExecutionHistoryQuery query = new()
+            {
+                // The scheduler's own spelling of its name, so a route that named it in another case
+                // still reads the rows it recorded.
+                SchedulerName = scheduler.SchedulerName,
+                SchedulerInstanceId = schedulerInstanceId,
+                JobContains = jobContains,
+                TriggerContains = triggerContains,
+                Skip = skip,
+                IncludeTotalCount = includeTotalCount
+            };
+
+            // a request that names no take gets the query record's own default page size
+            if (takeItems.HasValue)
+            {
+                query = query with { Take = takeItems.Value };
+            }
+
+            PagedResult<ExecutionHistoryEntry> page = await historyStore.QueryExecutions(query, cancellationToken).ConfigureAwait(false);
+
+            ExecutionHistoryEntryDto[] items = new ExecutionHistoryEntryDto[page.Items.Count];
+            for (int i = 0; i < page.Items.Count; i++)
+            {
+                items[i] = ExecutionHistoryEntryDto.Create(page.Items[i]);
+            }
+
+            return new PagedResultDto<ExecutionHistoryEntryDto>(items, page.HasMore, page.TotalCount);
+        });
+    }
+
+    /// <summary>
+    /// One page of the firings this scheduler missed, newest first.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="QueryExecutionHistory" path="/remarks" />
+    /// </remarks>
+    [ProducesResponseType(typeof(PagedResultDto<MisfireHistoryEntryDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryMisfireHistory(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        string schedulerName,
+        int skip = 0,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
+        bool includeTotalCount = false,
+        string? schedulerInstanceId = null,
+        string? triggerContains = null,
+        CancellationToken cancellationToken = default)
+    {
+        int? takeItems = endpointHelper.ParsePaging(skip, take);
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            MisfireHistoryQuery query = new()
+            {
+                SchedulerName = scheduler.SchedulerName,
+                SchedulerInstanceId = schedulerInstanceId,
+                TriggerContains = triggerContains,
+                Skip = skip,
+                IncludeTotalCount = includeTotalCount
+            };
+
+            if (takeItems.HasValue)
+            {
+                query = query with { Take = takeItems.Value };
+            }
+
+            PagedResult<MisfireHistoryEntry> page = await historyStore.QueryMisfires(query, cancellationToken).ConfigureAwait(false);
+
+            MisfireHistoryEntryDto[] items = new MisfireHistoryEntryDto[page.Items.Count];
+            for (int i = 0; i < page.Items.Count; i++)
+            {
+                items[i] = MisfireHistoryEntryDto.Create(page.Items[i]);
+            }
+
+            return new PagedResultDto<MisfireHistoryEntryDto>(items, page.HasMore, page.TotalCount);
+        });
+    }
+
+    /// <summary>
+    /// How many firings this scheduler has missed since <c>since</c> — <c>?since=2026-09-11T12:00:00Z</c>.
+    /// </summary>
+    /// <remarks>
+    /// A count rather than a page, because a summary tile asks "how bad is it right now" and a store
+    /// that keeps history in a database answers that with one <c>COUNT(*)</c> instead of sending rows the
+    /// caller would throw away.
+    /// </remarks>
+    [ProducesResponseType(typeof(MisfireCountResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> CountMisfires(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        string schedulerName,
+        DateTimeOffset? since = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (since is null)
+        {
+            throw new BadHttpRequestException("since is required: a count with no window is a count of everything the store still holds");
+        }
+
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            int count = await historyStore.CountMisfires(scheduler.SchedulerName, since.Value, cancellationToken).ConfigureAwait(false);
+            return new MisfireCountResponse(count);
         });
     }
 

@@ -1,0 +1,17 @@
+﻿{
+  "items": [
+    {
+      "schedulerInstanceId": "TEST_NON_CLUSTERED",
+      "triggerGroup": "DummyTriggerGroup",
+      "triggerName": "at-midnight",
+      "jobKey": {
+        "name": "nightly",
+        "group": "DummyGroup"
+      },
+      "misfiredAtUtc": "2026-08-26T12:00:00+00:00",
+      "scheduledFireTimeUtc": "2026-08-26T11:55:00+00:00"
+    }
+  ],
+  "hasMore": false,
+  "totalCount": 1
+}

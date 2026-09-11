@@ -52,6 +52,13 @@ public static class QuartzAspNetCoreConfigurationExtensions
         services.TryAddSingleton<ExceptionHandler>();
         services.TryAddSingleton<EndpointHelper>();
 
+        // The API serves the history of what its schedulers have run, so something has to record it.
+        // In memory and bounded, as the dashboard's has always been: a worker that maps the API answers
+        // the history routes rather than answering them empty with nothing to say why. Idempotent, so an
+        // application that also calls it - or that maps the dashboard - still records each execution
+        // once. Set ExecutionHistoryOptions.MaxEntriesPerScheduler to 0 to record nothing.
+        services.AddQuartzExecutionHistory();
+
         // Refuses to start an application whose mapped API nothing authorizes. Registered here rather
         // than at the map site, because a hosted service added to a built application is too late.
         services.TryAddSingleton<QuartzMappedEndpoints>();

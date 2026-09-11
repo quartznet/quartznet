@@ -9,6 +9,7 @@ using FakeItEasy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -382,6 +383,99 @@ public class WireFormatSnapshotTest : WebApiTest
     }
 
     /// <summary>
+    /// One page of execution history.
+    /// </summary>
+    /// <remarks>
+    /// The scheduler's own name is not on the rows — the route named it — while the node's id is on
+    /// every one of them, because a cluster's history is several nodes' and a reader has to be able to
+    /// tell them apart. The duration goes out as a <see cref="TimeSpan" />, like every other duration on
+    /// this wire.
+    /// </remarks>
+    [Test]
+    public async Task ExecutionHistoryBody()
+    {
+        string body = await GetWithHistory(
+            $"{SchedulerUrl}/history/executions?includeTotalCount=true",
+            history => history.AddExecution(new ExecutionHistoryEntry(
+                SchedulerName: TestData.SchedulerName,
+                SchedulerInstanceId: "TEST_NON_CLUSTERED",
+                JobGroup: "DummyGroup",
+                JobName: "nightly",
+                TriggerGroup: "DummyTriggerGroup",
+                TriggerName: "at-midnight",
+                FiredAtUtc: HistoryInstant,
+                Duration: TimeSpan.FromMilliseconds(1500),
+                Succeeded: false,
+                ExceptionMessage: "the job threw")));
+
+        await VerifyBody(body);
+    }
+
+    [Test]
+    public async Task MisfireHistoryBody()
+    {
+        string body = await GetWithHistory(
+            $"{SchedulerUrl}/history/misfires?includeTotalCount=true",
+            history => history.AddMisfire(new MisfireHistoryEntry(
+                SchedulerName: TestData.SchedulerName,
+                SchedulerInstanceId: "TEST_NON_CLUSTERED",
+                TriggerGroup: "DummyTriggerGroup",
+                TriggerName: "at-midnight",
+                JobKey: new JobKey("nightly", "DummyGroup"),
+                MisfiredAtUtc: HistoryInstant,
+                ScheduledFireTimeUtc: HistoryInstant.AddMinutes(-5))));
+
+        await VerifyBody(body);
+    }
+
+    [Test]
+    public async Task MisfireCountBody()
+    {
+        string body = await GetWithHistory(
+            $"{SchedulerUrl}/history/misfires/count?since=2026-01-01T00:00:00Z",
+            history => history.AddMisfire(new MisfireHistoryEntry(
+                SchedulerName: TestData.SchedulerName,
+                SchedulerInstanceId: "TEST_NON_CLUSTERED",
+                TriggerGroup: "DummyTriggerGroup",
+                TriggerName: "at-midnight",
+                JobKey: null,
+                MisfiredAtUtc: HistoryInstant,
+                ScheduledFireTimeUtc: null)));
+
+        await VerifyBody(body);
+    }
+
+    /// <summary>
+    /// The instant the history bodies are pinned at, fixed like every other instant in these snapshots.
+    /// </summary>
+    private static readonly DateTimeOffset HistoryInstant = new(2026, 8, 26, 12, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// Seeds the history of a host of its own and reads one of the history routes off it.
+    /// </summary>
+    /// <remarks>
+    /// Its own host because of the retention window: the shipped store forgets what is older than a day,
+    /// measured against the wall clock, and the instants in these snapshots are fixed — a shared host
+    /// would answer with the row today and with an empty page tomorrow.
+    /// </remarks>
+    private async Task<string> GetWithHistory(string url, Func<IExecutionHistoryStore, ValueTask> seed)
+    {
+        TestContentRoot.Apply();
+        await using WebApplicationFactory<Program> root = new();
+        await using WebApplicationFactory<Program> host = root.WithWebHostBuilder(builder => builder.ConfigureServices(
+            services => services.AddQuartzExecutionHistory(options => options.Retention = TimeSpan.FromDays(36_500))));
+
+        using HttpClient httpClient = host.CreateClient();
+        host.Services.GetRequiredService<ISchedulerRepository>().Bind(FakeScheduler);
+        await seed(host.Services.GetRequiredService<IExecutionHistoryStore>());
+
+        using HttpResponseMessage response = await httpClient.GetAsync(url);
+        string body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, $"GET {url} answers 200, body was {body}");
+        return body;
+    }
+
+    /// <summary>
     /// What a mutating route answers while <see cref="QuartzHttpApiOptions.ReadOnly" /> is set: the
     /// problem details of a refusal, with no exception type — nothing failed, a rule the operator
     /// configured said no.
@@ -481,8 +575,20 @@ public class WireFormatSnapshotTest : WebApiTest
             await Row(HttpMethod.Get, $"{SchedulerUrl}/calendars/existing", HttpStatusCode.OK);
             await Row(HttpMethod.Get, $"{SchedulerUrl}/calendars/missing", HttpStatusCode.NotFound);
 
+            // the history reads: a scheduler that has run nothing answers an empty page rather than a
+            // 404, because the scheduler exists and its history is empty — and a count with no window
+            // is a 400 rather than a count of whatever the store still holds
+            // the in-process history counts its rows whether or not includeTotalCount was asked for: it
+            // holds them in a list, so the count is free where a job store would pay a second query
+            await Row(HttpMethod.Get, $"{SchedulerUrl}/history/executions", HttpStatusCode.OK,
+                expectedBody: """{"items":[],"hasMore":false,"totalCount":0}""");
+            await Row(HttpMethod.Get, $"{SchedulerUrl}/history/misfires/count?since=2026-01-01T00:00:00Z", HttpStatusCode.OK,
+                expectedBody: """{"count":0}""");
+            await Row(HttpMethod.Get, $"{SchedulerUrl}/history/misfires/count", HttpStatusCode.BadRequest);
+
             // an unknown scheduler is a 404 whatever the operation was
             await Row(HttpMethod.Get, "schedulers/no-such-scheduler", HttpStatusCode.NotFound);
+            await Row(HttpMethod.Get, "schedulers/no-such-scheduler/history/executions", HttpStatusCode.NotFound);
             await Row(HttpMethod.Get, "schedulers/no-such-scheduler/jobs/group/existing", HttpStatusCode.NotFound);
             await Row(HttpMethod.Post, "schedulers/no-such-scheduler/jobs/group/existing/pause", HttpStatusCode.NotFound);
 
