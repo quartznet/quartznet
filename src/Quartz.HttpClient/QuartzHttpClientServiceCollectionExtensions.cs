@@ -136,11 +136,17 @@ public static class QuartzHttpClientServiceCollectionExtensions
         // a custom serializer there to be able to read custom types from the remote scheduler.
         services.AddQuartzSharedServices();
 
-        services.AddKeyedSingleton<IScheduler>(options.SchedulerName, (serviceProvider, _) =>
-        {
-            var httpClient = options.CreateHttpClient is not null
+        // One client per registration, resolved by everything that talks to this target: the scheduler
+        // and the reader of its execution history. Built here rather than in each of them, so that the
+        // caller's factory still runs once, as its documentation says.
+        services.AddKeyedSingleton(options.SchedulerName, (IServiceProvider serviceProvider, object? _) =>
+            new HttpSchedulerTarget(options.CreateHttpClient is not null
                 ? options.CreateHttpClient(serviceProvider)
-                : serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(options.HttpClientName!);
+                : serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(options.HttpClientName!)));
+
+        services.AddKeyedSingleton<IScheduler>(options.SchedulerName, (serviceProvider, key) =>
+        {
+            HttpClient httpClient = serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client;
             IScheduler scheduler = new HttpScheduler(
                 options.SchedulerName,
                 httpClient,
@@ -153,6 +159,15 @@ public static class QuartzHttpClientServiceCollectionExtensions
             serviceProvider.GetRequiredService<ISchedulerRepository>().Bind(scheduler, options.SchedulerName);
             return scheduler;
         });
+
+        // The target's own history, keyed by the scheduler's name so that a dashboard rendering several
+        // schedulers asks the process each one runs in. Keyed only: a history store is not "the"
+        // history store of a container that also holds local schedulers, whose history is recorded here.
+        services.AddKeyedSingleton<IExecutionHistoryStore>(options.SchedulerName, (serviceProvider, key) =>
+            new HttpExecutionHistoryStore(
+                options.SchedulerName,
+                serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
+                options.JsonSerializerOptions));
 
         // Keyed by name like any other scheduler, and unkeyed as well so that a container holding one
         // remote scheduler and nothing else answers GetRequiredService<IScheduler>() with it. TryAdd,

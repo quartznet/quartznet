@@ -271,6 +271,48 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
                 "an HttpScheduler stands for a scheduler in another process, and nothing in this one runs it");
     }
 
+    /// <summary>
+    /// A target's execution history is registered beside it, under the same key.
+    /// </summary>
+    /// <remarks>
+    /// Keyed only, and deliberately: history is recorded where a scheduler runs, so "the" history store
+    /// of a container that also holds local schedulers is the one recording them — not this reader of
+    /// somebody else's.
+    /// </remarks>
+    [Test]
+    public async Task ARemoteSchedulersHistoryIsRegisteredUnderItsName()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartzHttpClient("Remote", _ => testClient);
+
+        await using var serviceProvider = services.BuildServiceProvider();
+
+        serviceProvider.GetRequiredKeyedService<IExecutionHistoryStore>("Remote").Should().NotBeNull(
+            "the dashboard asks the process a scheduler runs in for that scheduler's history");
+        serviceProvider.GetService<IExecutionHistoryStore>().Should().BeNull(
+            "a reader of another process's history is not what this container records into");
+    }
+
+    [Test]
+    public async Task OneClientIsBuiltForOneTarget()
+    {
+        int built = 0;
+        var services = new ServiceCollection();
+        services.AddQuartzHttpClient("Remote", _ =>
+        {
+            built++;
+            return testClient;
+        });
+
+        await using var serviceProvider = services.BuildServiceProvider();
+
+        serviceProvider.GetRequiredKeyedService<IScheduler>("Remote").Should().NotBeNull();
+        serviceProvider.GetRequiredKeyedService<IExecutionHistoryStore>("Remote").Should().NotBeNull();
+
+        built.Should().Be(1,
+            "the factory runs once per registration, as its documentation says - the scheduler and its history share the client");
+    }
+
     [Test]
     public async Task EachContainerShouldGetItsOwnSchedulerRepository()
     {
