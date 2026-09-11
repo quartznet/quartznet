@@ -1,0 +1,17 @@
+﻿{
+  "items": [
+    {
+      "schedulerInstanceId": "TEST_NON_CLUSTERED",
+      "jobGroup": "DummyGroup",
+      "jobName": "nightly",
+      "triggerGroup": "DummyTriggerGroup",
+      "triggerName": "at-midnight",
+      "firedAtUtc": "2026-08-26T12:00:00+00:00",
+      "duration": "00:00:01.5000000",
+      "succeeded": false,
+      "exceptionMessage": "the job threw"
+    }
+  ],
+  "hasMore": false,
+  "totalCount": 1
+}
