@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 
 using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz.Configuration;
 
@@ -37,7 +38,18 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
         this.schedulerOptions = schedulerOptions;
     }
 
-    public ValueTask<List<SchedulerRegistration>> QuerySchedulers(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// How long the whole listing may spend asking schedulers what state they are in.
+    /// </summary>
+    /// <remarks>
+    /// One budget for the query rather than one per scheduler: a listing is a page render, and a
+    /// process fronting five unreachable targets must not take five times as long to say so. A local
+    /// scheduler spends none of it — its default interface members answer the properties, which are
+    /// fields.
+    /// </remarks>
+    internal static readonly TimeSpan StatusTimeout = TimeSpan.FromSeconds(2);
+
+    public async ValueTask<List<SchedulerRegistration>> QuerySchedulers(CancellationToken cancellationToken = default)
     {
         // Names are matched the way the repository indexes them, so a registration and the scheduler
         // built from it are never reported as two schedulers because their spelling differs in case.
@@ -49,6 +61,9 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
             live.TryAdd(scheduler.SchedulerName, scheduler);
         }
 
+        using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(StatusTimeout);
+
         List<SchedulerRegistration> registrations = [];
         HashSet<string> reported = new(StringComparer.OrdinalIgnoreCase);
 
@@ -59,7 +74,14 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
                 continue;
             }
 
-            registrations.Add(new SchedulerRegistration(name, SchedulerOrigin.Container, StatusOf(live, name)));
+            LiveState state = live.TryGetValue(name, out IScheduler? registered)
+                ? await Ask(registered, deadline.Token, cancellationToken).ConfigureAwait(false)
+                : default;
+
+            registrations.Add(new SchedulerRegistration(name, SchedulerOrigin.Container, state.Status)
+            {
+                SchedulerInstanceId = state.SchedulerInstanceId
+            });
         }
 
         foreach (IScheduler scheduler in live.Values)
@@ -69,16 +91,21 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
                 continue;
             }
 
+            LiveState state = await Ask(scheduler, deadline.Token, cancellationToken).ConfigureAwait(false);
+
             registrations.Add(new SchedulerRegistration(
                 scheduler.SchedulerName,
-                SchedulerOrigin.Runtime,
-                Status(scheduler)));
+                scheduler is IProxyScheduler ? SchedulerOrigin.Remote : SchedulerOrigin.Runtime,
+                state.Status)
+            {
+                SchedulerInstanceId = state.SchedulerInstanceId
+            });
         }
 
         // Deterministic order, ordinal, as the paged queries over a job store are.
         registrations.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));
 
-        return new ValueTask<List<SchedulerRegistration>>(registrations);
+        return registrations;
     }
 
     /// <summary>
@@ -102,30 +129,53 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
         }
     }
 
-    private static SchedulerStatus? StatusOf(Dictionary<string, IScheduler> live, string name)
-    {
-        return live.TryGetValue(name, out IScheduler? scheduler) ? Status(scheduler) : null;
-    }
-
     /// <summary>
-    /// Asks a scheduler what state it is in, treating an unanswerable question as
-    /// <see cref="SchedulerStatus.Unknown" />.
+    /// Asks a scheduler what state it is in and which node it is, treating an unanswerable question as
+    /// <see cref="SchedulerStatus.Unknown" /> and no id.
     /// </summary>
     /// <remarks>
-    /// A local scheduler reads a field. A remote one answers over the network and may simply be
-    /// unreachable — and a listing of tenants is exactly the call that must not fail because one of them
-    /// is. <see cref="SchedulerStatus.Unknown" /> already means "state could not be determined", so it is
-    /// reported rather than the registration being dropped or the exception escaping.
+    /// <para>
+    /// Asked through <see cref="IScheduler.GetStatus" /> and
+    /// <see cref="IScheduler.GetSchedulerInstanceId" /> rather than through the properties those default
+    /// interface members answer: a local scheduler pays nothing either way, and for a scheduler in
+    /// another process the properties can only do it by blocking the calling thread until the client's
+    /// timeout — 100 seconds by default — expires. This is a listing, and a listing runs on a request
+    /// thread.
+    /// </para>
+    /// <para>
+    /// A listing of tenants is exactly the call that must not fail because one of them is unreachable.
+    /// <see cref="SchedulerStatus.Unknown" /> already means "state could not be determined", so it is
+    /// reported rather than the registration being dropped or the exception escaping. The caller's own
+    /// cancellation is not swallowed: only the deadline's is.
+    /// </para>
     /// </remarks>
-    private static SchedulerStatus Status(IScheduler scheduler)
+    private static async ValueTask<LiveState> Ask(
+        IScheduler scheduler,
+        CancellationToken deadline,
+        CancellationToken cancellationToken)
     {
         try
         {
-            return scheduler.Status;
+            SchedulerStatus status = await scheduler.GetStatus(deadline).ConfigureAwait(false);
+            string instanceId = await scheduler.GetSchedulerInstanceId(deadline).ConfigureAwait(false);
+            return new LiveState(status, instanceId);
         }
-        catch
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return SchedulerStatus.Unknown;
+            return new LiveState(SchedulerStatus.Unknown, SchedulerInstanceId: null);
+        }
+        catch (SchedulerException)
+        {
+            return new LiveState(SchedulerStatus.Unknown, SchedulerInstanceId: null);
+        }
+        catch (HttpRequestException)
+        {
+            return new LiveState(SchedulerStatus.Unknown, SchedulerInstanceId: null);
         }
     }
+
+    /// <summary>
+    /// What one live scheduler answered, or nothing at all when there is no scheduler to ask.
+    /// </summary>
+    private readonly record struct LiveState(SchedulerStatus? Status, string? SchedulerInstanceId);
 }

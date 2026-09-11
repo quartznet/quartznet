@@ -1559,6 +1559,7 @@ namespace Quartz
     {
         Container = 0,
         Runtime = 1,
+        Remote = 2,
     }
     public static class SchedulerQueryExtensions
     {
@@ -1579,6 +1580,7 @@ namespace Quartz
         public bool IsCreated { get; }
         public string Name { get; init; }
         public Quartz.SchedulerOrigin Origin { get; init; }
+        public string? SchedulerInstanceId { get; init; }
         public Quartz.SchedulerStatus? Status { get; init; }
     }
     public sealed class SchedulerRestartException : Quartz.SchedulerException

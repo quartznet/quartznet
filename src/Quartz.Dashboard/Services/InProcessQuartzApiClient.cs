@@ -64,10 +64,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     /// <remarks>
     /// The registrations, not the repository: a tenant nothing has built yet is still a tenant, and the
-    /// dashboard is where an operator goes to find out that it has not started. The repository is asked
-    /// only for the instance id of the schedulers that do exist, which a registration does not carry.
-    /// The listing is filtered here as well as by its callers, so that the count of tenants in a process
-    /// is not something this client will hand out.
+    /// dashboard is where an operator goes to find out that it has not started. The instance id of the
+    /// schedulers that do exist comes off the registration too, which asked each of them once and
+    /// asynchronously — reading the property off a scheduler in another process blocked this page render
+    /// on a round trip. The listing is filtered here as well as by its callers, so that the count of
+    /// tenants in a process is not something this client will hand out.
     /// </remarks>
     public async ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default)
     {
@@ -76,10 +77,9 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<SchedulerHeaderDto> result = new(registrations.Count);
         foreach (SchedulerRegistration registration in registrations)
         {
-            IScheduler? scheduler = registration.IsCreated ? schedulerRepository.Lookup(registration.Name) : null;
             result.Add(new SchedulerHeaderDto(
                 registration.Name,
-                scheduler?.SchedulerInstanceId,
+                registration.SchedulerInstanceId,
                 registration.Status,
                 registration.Origin));
         }
@@ -93,8 +93,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         SchedulerMetadata metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
 
         return new SchedulerDetailDto(
-            scheduler.SchedulerInstanceId,
-            scheduler.SchedulerName,
+            metadata.SchedulerInstanceId,
+            metadata.SchedulerName,
             metadata.Status,
             metadata.JobStoreClustered,
             metadata.JobStorePersistent,

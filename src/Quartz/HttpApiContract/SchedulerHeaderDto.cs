@@ -36,13 +36,18 @@ internal record SchedulerHeaderDto(
     SchedulerStatus? Status,
     SchedulerOrigin Origin)
 {
-    public static SchedulerHeaderDto Create(SchedulerRegistration registration, IScheduler? scheduler)
+    /// <remarks>
+    /// Everything comes off the registration, which asked the scheduler once and asynchronously.
+    /// Reading <see cref="IScheduler.SchedulerInstanceId" /> off the scheduler here is what used to make
+    /// this listing block on a round trip per remote scheduler.
+    /// </remarks>
+    public static SchedulerHeaderDto Create(SchedulerRegistration registration)
     {
         ArgumentNullException.ThrowIfNull(registration);
 
         return new SchedulerHeaderDto(
             registration.Name,
-            scheduler?.SchedulerInstanceId,
+            registration.SchedulerInstanceId,
             registration.Status,
             registration.Origin);
     }

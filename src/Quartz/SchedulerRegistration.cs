@@ -47,6 +47,18 @@ namespace Quartz;
 public sealed record SchedulerRegistration(string Name, SchedulerOrigin Origin, SchedulerStatus? Status)
 {
     /// <summary>
+    /// The instance id of the scheduler behind this registration, or <see langword="null" /> when
+    /// nothing has built one — or when the one that exists could not be asked.
+    /// </summary>
+    /// <remarks>
+    /// Carried by the registration rather than read back off the scheduler, because reading it off a
+    /// scheduler in another process is a round trip that blocks the thread doing it. This one was asked
+    /// for asynchronously, under the same deadline <see cref="Status" /> was, so a listing costs at most
+    /// one bounded wait however unreachable its targets are.
+    /// </remarks>
+    public string? SchedulerInstanceId { get; init; }
+
+    /// <summary>
     /// Whether a scheduler exists under this name. A registration nothing has resolved yet reports
     /// <see langword="false" />; <see cref="Status" /> says what state a scheduler that does exist is in.
     /// </summary>
