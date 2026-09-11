@@ -250,6 +250,15 @@ They are default interface members that answer the property, so a scheduler in t
 exactly what it did before and pays nothing for the indirection; only a proxy overrides them. The
 properties stay, and stay blocking — `IScheduler` declares them, and a property cannot be awaited.
 
+**Quartz itself no longer reads either property off a scheduler in another process.** Two places used
+to. `ISchedulerRepository` read `Status` under its lock on every lookup, to notice a scheduler that had
+shut down, so one unreachable target stalled every lookup in the process for as long as the client's
+timeout — including the HTTP API's own scheduler resolution. It skips a proxy now: unreachable is not
+shut down, and a proxy that had shut down names a scheduler this process cannot restart anyway. And the
+scheduler listing asks `GetStatus()` and `GetSchedulerInstanceId()` under a two-second deadline for the
+whole listing, reporting a target that does not answer as `SchedulerStatus.Unknown` with no instance id.
+Give the client a short `Timeout` regardless: every other read waits for it.
+
 `GetMetadata()` answers both and the rest of the scheduler's details in one request, so prefer it where
 more than the status is wanted:
 
@@ -262,6 +271,29 @@ SchedulerMetadata metadata = await scheduler.GetMetadata(cancellationToken);
 Its `IsProxy` is `true` for an HTTP scheduler, and the three type properties — `SchedulerTypeName`,
 `JobStoreTypeName`, `ThreadPoolTypeName` — are **strings**, not `System.Type`. That is what lets the
 metadata describe a remote scheduler whose types do not exist in this process.
+
+## History
+
+`AddQuartzHttpClient` registers one more thing beside the scheduler: an `IExecutionHistoryStore` keyed by
+the scheduler's name, which reads what the target has **run** and what it has **missed** through the
+API's [history routes](http-api.md#execution-history). That is a different question from anything a job
+store answers — a job store holds what is scheduled — and it is why a dashboard fronting a scheduler
+over HTTP has a History page at all.
+
+```csharp
+IExecutionHistoryStore history = provider.GetRequiredKeyedService<IExecutionHistoryStore>("QuartzScheduler");
+PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(new ExecutionHistoryQuery
+{
+    SchedulerName = "QuartzScheduler",
+    JobContains = "nightly"
+});
+```
+
+It reads and does not write: history is recorded where the jobs run, so `AddExecution` and `AddMisfire`
+raise `NotSupportedException`. So does every read when the target's API predates the history routes —
+it answers `404` for them, and "this target serves no history" is a fact a caller can render, where an
+exception about a missing route is not. The `404` that names an unknown scheduler is unaffected and
+still arrives as `HttpClientException`.
 
 ## Paging and bulk fetch over the wire
 
@@ -373,3 +405,4 @@ The API's own trust boundary is on the server side and is documented with it: se
 - [HTTP API](http-api.md) — the server half, and the full endpoint and wire-format reference
 - [Querying Jobs and Triggers](../tutorial/querying-jobs-and-triggers.md) — the query family these calls implement
 - [Multiple Schedulers](multiple-schedulers.md) — naming and keying schedulers in one container
+- [Dashboard](dashboard.md#fronting-a-scheduler-in-another-process-over-http) — a scheduler registered this way rendered and driven from a browser

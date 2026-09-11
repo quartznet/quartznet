@@ -153,10 +153,16 @@ working scheduler out of. A scheduler whose state cannot be read at all — a re
 rather than dropped from the listing or allowed to throw: an inventory of tenants is exactly the call
 that must not fail because one of them is down.
 
-`Origin` says where the scheduler came from: `Container` for one `AddQuartz` registered, `Runtime` for
-one that is in the repository without a registration behind it — a `QuartzSchedulerBuilder` scheduler
-bound by hand, or a remote scheduler from `AddQuartzHttpClient`. The default scheduler appears under its
-configured `InstanceName`.
+`Origin` says where the scheduler came from:
+
+| `Origin` | What it is |
+|---|---|
+| `Container` | One `AddQuartz` registered. The default scheduler appears under its configured `InstanceName` |
+| `Runtime` | One in the repository with no registration behind it — a `QuartzSchedulerBuilder` scheduler bound by hand, or one [added while the process was running](#adding-a-tenant-while-the-process-is-running) |
+| `Remote` | One reached through a proxy: an `HttpScheduler` from `AddQuartzHttpClient`. Nothing in this process runs it, its history is kept where it runs, and this process has no live event stream from it |
+
+`Remote` is what tells a reader that an action on that scheduler lands in somebody else's process. It
+was reported as `Runtime` before 4.1, which said only that no registration of this container owned it.
 
 Under `AddQuartzHostedService()` every registration is *built* while the host starts, so once the host is
 up the distinction matters less than it looks. It matters while the host is still starting, when you

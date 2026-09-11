@@ -104,6 +104,29 @@ public static class DashboardSamples
         #endregion
     }
 
+    public static void RemoteHttpTarget(string[] args)
+    {
+        #region sample_dashboard_remote_http
+
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+        // The credential and the timeout are the HttpClient's: the dashboard adds nothing of its own.
+        // A short timeout matters — every page reading this scheduler waits on it.
+        builder.Services.AddHttpClient("quartz", client =>
+        {
+            client.BaseAddress = new Uri("https://scheduler.internal/quartz-api/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.Add("X-Api-Key", "…");
+        });
+
+        // The scheduler's name has to be the one the target goes by: it is in every route.
+        builder.Services.AddQuartzHttpClient("QuartzScheduler", "quartz");
+
+        builder.Services.AddQuartzDashboard();
+
+        #endregion
+    }
+
     public static void JobTypeAllowList(IServiceCollection services)
     {
         #region sample_dashboard_job_type_allow_list

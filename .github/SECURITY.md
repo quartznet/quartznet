@@ -33,8 +33,9 @@ report of one will be closed with a link back to this section — so please save
   names, so an authorized caller scheduling it is the API working as designed. `Quartz.Plugins` depends
   on `Quartz.Jobs`, so that type can be on the probing path of an application whose project file never
   names it. A job stored by one node is likewise resolved and constructed on **every** node that reads
-  it, which is what a clustered scheduler is for. Four narrowings are on offer, and no more:
+  it, which is what a clustered scheduler is for. Five narrowings are on offer, and no more:
   `QuartzDashboardOptions.ReadOnly`, the two `SchedulerAuthorizationPolicy` settings, and — from 4.1 —
+  `QuartzHttpApiOptions.ReadOnly`, which refuses every mutating route of the HTTP API whoever asks, and
   `QuartzHttpApiOptions.IsJobTypeAllowed` and its dashboard twin, a predicate over the job type *name* a
   request carries, which is what turns "any `IJob` on the probing path" into a list an operator wrote.
   Authorize these surfaces the way you would authorize a shell —

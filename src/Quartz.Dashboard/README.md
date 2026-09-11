@@ -48,7 +48,7 @@ render unstyled and inert. A project with no `.razor` files of its own also need
 too. `app.UseAuthentication()` needs an authentication scheme the application registered — the
 dashboard authorizes, and something else authenticates.
 
-Execution history needs nothing installed: `AddQuartzDashboard()` registers the history plugin itself,
+Execution history needs nothing installed: `AddQuartzDashboard()` calls `AddQuartzExecutionHistory()`,
 and the History page fills as jobs run. The `q.UseJobHistoryLogging()` and `q.UseTriggerHistoryLogging()`
 plugins from [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) are a separate thing — they
 write the same events to your application's *log*, and the dashboard does not read them.
@@ -65,9 +65,9 @@ An application that publishes trimmed or native AOT therefore does so without th
 `Quartz.AspNetCore` and `Quartz.HttpClient` are trimmable, so a trimmed service can still be driven
 remotely over the HTTP API.
 
-Hosting the dashboard itself in another process is not something this package does today: the client it
-registers reads the schedulers in its own container. A supported remote dashboard is designed in
-[#3387](https://github.com/quartznet/quartznet/issues/3387).
+A scheduler in **another** process is rendered and driven all the same: register it with
+`AddQuartzHttpClient` and it joins the listing beside the local ones, history included. Live Logs is the
+one page that has nothing to show over HTTP, and it says so.
 
 ## Documentation
 
