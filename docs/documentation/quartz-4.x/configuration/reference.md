@@ -172,7 +172,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `MaxMisfiresToHandleAtATime` | int | `20` | How many misfired triggers are handled per pass. |
 | `CommandTimeout` | TimeSpan? | provider default | How long a statement may run before the provider cancels it, applied to every statement the store issues including the lock handler's. Unset leaves each provider's own default, usually 30 seconds. ADO.NET counts whole seconds, so the value is rounded **up** — `00:00:01.500` is applied as 2 seconds, because rounding down would turn a sub-second value into `0`, which means "no timeout". |
 | `LockWaitWarningThreshold` | TimeSpan? | `00:00:30` | How long one attempt to take a job store lock may go on before it is logged as slow — warning **3716**, once per acquisition, naming the lock and the wait so far. A blocked lock statement returns nothing and throws nothing, so nothing else reports a node that has stopped scheduling; this only reports, and `CommandTimeout` or a wait timeout in the lock statement is what ends the wait. `null` turns it off; zero is refused, because a warning on every lock is the same as no signal. See [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone). |
-| `DbRetryInterval` | TimeSpan | `00:00:15` | How long to wait before retrying after a database failure. |
+| `DbRetryInterval` | TimeSpan | `00:00:15` | How long the misfire loop waits before retrying after a database failure, and the check-in loop once a failed check-in has spent the window its peers give it (`CheckinInterval` + `CheckinMisfireThreshold`); inside that window it retries sooner and this only caps the wait. |
 | `MaxTransientRetries` | int | `3` | How many times a transient failure such as a deadlock is retried. Transient means the driver's own `DbException.IsTransient`, a SQLSTATE in class `40` — the standard's "transaction rollback", covering a serialization failure or a deadlock whichever provider reports it, with `40002` excepted because a deferred constraint violation fails identically on every retry — SQL Server's transient error numbers, SQLite's busy and locked codes, or a timeout. |
 | `TransientRetryInterval` | TimeSpan | `00:00:01` | Delay between transient retries. |
 | `RetryableActionErrorLogThreshold` | int | `4` | How many consecutive failures before they are logged as errors. |
@@ -524,7 +524,7 @@ configured: the job store reports whether it is clustered, it does not offer a s
 |---|---|---|---|
 | `Enabled` | bool | `false` | Takes part in a cluster sharing this database. `UseClustering()` sets it. |
 | `CheckinInterval` | TimeSpan | `00:00:07.5` | How often a node records that it is alive. |
-| `CheckinMisfireThreshold` | TimeSpan | `00:00:07.5` | Grace period before a node is treated as failed. |
+| `CheckinMisfireThreshold` | TimeSpan | `00:00:07.5` | Grace period before a node is treated as failed; also the window the node's own failed check-in is retried inside, so a database blip shorter than it does not get the node written off. |
 
 <!-- snippet: sample_reference_clustering -->
 ```csharp

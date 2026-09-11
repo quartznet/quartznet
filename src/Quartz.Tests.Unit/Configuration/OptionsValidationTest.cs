@@ -470,6 +470,29 @@ public class OptionsValidationTest
     }
 
     /// <summary>
+    /// The threshold never reached a timer of its own until the check-in loop started retrying a failed
+    /// check-in inside interval + threshold (#3777); a value past the ceiling would overflow that sum
+    /// in the loop, where nothing catches it, and it already broke every check-in through
+    /// <c>CalcFailedIfAfter</c>'s date arithmetic — so it is refused where the interval is.
+    /// </summary>
+    [Test]
+    public void ACheckinMisfireThresholdPastTheTimerCeilingFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.ConfigureStore(options => options.DataSource = "test");
+            store.UseClustering(clustering => clustering.CheckinMisfireThreshold = TimeSpan.FromDays(90));
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*CheckinMisfireThreshold*4294967294ms (49.7 days)*");
+    }
+
+    /// <summary>
     /// The idle wait is the one duration in the sweep that gets no ceiling. It is spent on a semaphore
     /// rather than a timer, so that a scheduling change can cut it short, and a semaphore takes a
     /// timeout of any length — so a wait past the timer ceiling is strange to configure but not a thing

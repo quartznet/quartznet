@@ -92,8 +92,12 @@ internal abstract partial class AdoJobStoreBase
     private bool firstCheckIn = true;
 
     /// <summary>
-    /// When this node last recorded that it is alive. Internal: it is bookkeeping the check-in loop
-    /// owns, and a subclass writing it would move the moment every other node decides this one died.
+    /// When this node last recorded that it is alive — or last failed to read the state table, which
+    /// stamps it too, so that <see cref="CalcFailedIfAfter" /> does not count this node's own outage
+    /// against its peers. That second writer is why <see cref="ClusterManager" /> keeps its own record
+    /// of the last check-in that reached the database and times its retries from that (#3777).
+    /// Internal: it is bookkeeping the check-in loop owns, and a subclass writing it would move the
+    /// moment every other node decides this one died.
     /// </summary>
     internal DateTimeOffset LastCheckin { get; set; }
 

@@ -408,6 +408,17 @@ self-protection: an observer that has itself been away from its check-in loop fo
 peer a minute of slack. So a database outage that stops the whole cluster checking in does not end with
 the first node back declaring all the others dead.
 
+The node being judged knows the same arithmetic. A check-in that fails is retried inside what is left of
+the window — half of it each time, never later than `DbRetryInterval`, so on the defaults at roughly
+11.25, 13.1, 14.1 and 14.5 seconds after the last row it wrote — and only once the window has closed
+does the loop back off `DbRetryInterval` between attempts. A database blip shorter than the threshold
+therefore costs a node a few error lines, not its row; before 4.1 a single failed check-in slept the
+full `DbRetryInterval` and wrote its next row 22.5 seconds after the last one, 7.5 seconds after its
+peers had stopped trusting it (#3777). The limit is that a check-in can only be retried inside the
+window if the failure *reports* inside it: a connection attempt that hangs for a 15-second connect
+timeout has spent the window by the time it fails, and no retry cadence can help — that is what the
+threshold is for.
+
 Everything else about it is the standard caution about failure detectors, and
 [Clocks in a cluster](../best-practices.md#clocks-in-a-cluster) has it: fifteen seconds is shorter than
 a long garbage-collection pause, shorter than the thirty seconds Azure documents for
@@ -644,8 +655,9 @@ q.UsePersistentStore(store =>
         options.MaxTransientRetries = 3;
         options.TransientRetryInterval = TimeSpan.FromSeconds(1);
 
-        // How long the check-in and misfire loops back off after a failure that was not
-        // transient — a database that is down rather than busy.
+        // How long the misfire loop backs off after a failure that was not transient — a
+        // database that is down rather than busy — and the check-in loop once a failed
+        // check-in has spent the window its peers give it.
         options.DbRetryInterval = TimeSpan.FromSeconds(15);
     });
 });
@@ -699,9 +711,12 @@ only add — answering `false` is the same as not having one, so it cannot switc
 already performs. The exception it is handed is the store's own, so reach the driver's with
 `GetBaseException()`.
 
-`DbRetryInterval` (default 15 seconds) is the different knob: it is how long the check-in and misfire
-loops back off after a failure that was *not* transient — a database that is down rather than busy —
-so that a cluster does not hammer a dead server every 7.5 seconds.
+`DbRetryInterval` (default 15 seconds) is the different knob: it is how long the misfire loop backs off
+after a failure that was *not* transient — a database that is down rather than busy — and how long the
+check-in loop backs off once a failed check-in has spent the window its peers give it, so that a cluster
+does not hammer a dead server every 7.5 seconds. Inside that window the check-in loop retries sooner,
+and `DbRetryInterval` only caps how long it may wait between those retries; see
+[When a peer takes over](#when-a-peer-takes-over).
 
 Retrying is not free of consequence in a cluster. A check-in that fails for longer than the failure
 boundary means the peers write this node off while it is still working, so a database outage long

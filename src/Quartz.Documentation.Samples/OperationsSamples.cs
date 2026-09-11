@@ -109,8 +109,9 @@ public static class OperationsSamples
                     options.MaxTransientRetries = 3;
                     options.TransientRetryInterval = TimeSpan.FromSeconds(1);
 
-                    // How long the check-in and misfire loops back off after a failure that was not
-                    // transient — a database that is down rather than busy.
+                    // How long the misfire loop backs off after a failure that was not transient — a
+                    // database that is down rather than busy — and the check-in loop once a failed
+                    // check-in has spent the window its peers give it.
                     options.DbRetryInterval = TimeSpan.FromSeconds(15);
                 });
             });

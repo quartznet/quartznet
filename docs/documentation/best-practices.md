@@ -545,10 +545,14 @@ This scheduler instance (…) is still active but was recovered by another insta
 The important part is that **a clock is not the only way to miss a check-in**. A node pinned at 100%
 CPU, a long garbage-collection pause, or a paused virtual machine misses check-ins with a perfect
 clock — and Azure documents its virtual machines being paused "for up to 30 seconds" during
-memory-preserving maintenance, which is twice the default detection window. This is the standard
-distributed-systems caution rather than a Quartz quirk; the literature on leases is unanimous that a
-missed heartbeat is a decision to act as if a node were dead, never evidence that it is, and that
-the safety margin has to cover the environment's worst *pause* rather than its worst clock error.
+memory-preserving maintenance, which is twice the default detection window. A refused database
+connection used to be another way: before 3.22 and 4.1 a single failed check-in backed off the full
+`DbRetryInterval` (15 seconds) and wrote its next row after the peers had stopped trusting it; since
+then the check-in loop retries inside the window, so a blip shorter than the threshold no longer costs
+the node its row. This is the standard distributed-systems caution rather than a Quartz quirk; the
+literature on leases is unanimous that a missed heartbeat is a decision to act as if a node were dead,
+never evidence that it is, and that the safety margin has to cover the environment's worst *pause*
+rather than its worst clock error.
 
 Three things to do about it, in order:
 

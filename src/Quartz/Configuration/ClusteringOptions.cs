@@ -40,5 +40,20 @@ public sealed class ClusteringOptions
     /// How long past a missed check-in another scheduler waits before treating this one as dead and
     /// recovering its triggers.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It is also the window this scheduler's own check-in loop retries a failed check-in inside: a
+    /// check-in that fails is attempted again with half of what is left of the interval plus this
+    /// threshold, never later than <see cref="AdoJobStoreOptions.DbRetryInterval" />, so a database
+    /// blip shorter than the threshold does not get the node written off. Only once the window has
+    /// closed does the loop back off <see cref="AdoJobStoreOptions.DbRetryInterval" /> between attempts.
+    /// </para>
+    /// <para>
+    /// Raise it past the environment's worst <em>pause</em> — a garbage collection, a virtual machine
+    /// migration, a database failover — rather than its worst clock error: a genuinely dead node's work
+    /// waits interval plus threshold to be taken over, and a live node that misses that window is
+    /// recovered while it is still working.
+    /// </para>
+    /// </remarks>
     public TimeSpan CheckinMisfireThreshold { get; set; } = TimeSpan.FromMilliseconds(7500);
 }
