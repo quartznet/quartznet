@@ -302,6 +302,31 @@ public class HistoryPageTest
             "the overview's tile links to quartz/history#misfires, so this id is what makes that link land");
     }
 
+    /// <summary>
+    /// A scheduler in another process whose API serves no history is told apart from one that has run
+    /// nothing.
+    /// </summary>
+    /// <remarks>
+    /// "No execution history yet. Run a job to populate history." would be a statement about a scheduler
+    /// that may have been running jobs all day, and an error with a retry button would invite a reader
+    /// to ask again for something that will not arrive.
+    /// </remarks>
+    [Test]
+    public void ATargetThatServesNoHistorySaysSoRatherThanShowingAnEmptyPage()
+    {
+        A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._))
+            .Throws(new NotSupportedException("the target does not serve history"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.Markup.Should().Contain("history-unavailable");
+        page.Markup.Should().Contain("runs in another process");
+        page.Markup.Should().NotContain("No execution history yet",
+            "a scheduler that keeps a history this page cannot read has not been shown to have run nothing");
+        page.Markup.Should().NotContain("qz-alert-error",
+            "nothing failed: the target answered, and what it said is that it has no history route");
+    }
+
     private static DashboardHistoryEntry Entry(
         int durationMilliseconds,
         bool succeeded = true,

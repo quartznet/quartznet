@@ -416,17 +416,28 @@
 
         try
         {
-            // The group filter matches groups that contain it, so the exact group is selected here.
-            PagedResult<TriggerHeaderDto> groupPage = await Api.QueryTriggers(
-                schedulerName,
-                new DashboardTriggerQuery { GroupContains = group, Take = int.MaxValue });
+            // The group filter matches groups that contain it, so the exact group is selected here. A
+            // page at a time, because a group with more triggers in it than the server's MaxPageSize is
+            // a group an unbounded Take could not read at all over HTTP.
             List<TriggerHeaderDto> triggersInGroup = [];
-            foreach (TriggerHeaderDto trigger in groupPage.Items)
+            DashboardTriggerQuery groupQuery = new() { GroupContains = group, Take = PagedQuery.DefaultTake };
+            while (true)
             {
-                if (string.Equals(trigger.Group, group, StringComparison.Ordinal))
+                PagedResult<TriggerHeaderDto> groupPage = await Api.QueryTriggers(schedulerName, groupQuery);
+                foreach (TriggerHeaderDto trigger in groupPage.Items)
                 {
-                    triggersInGroup.Add(trigger);
+                    if (string.Equals(trigger.Group, group, StringComparison.Ordinal))
+                    {
+                        triggersInGroup.Add(trigger);
+                    }
                 }
+
+                if (!groupPage.HasMore || groupPage.Items.Count == 0)
+                {
+                    break;
+                }
+
+                groupQuery = groupQuery with { Skip = groupQuery.Skip + groupPage.Items.Count };
             }
 
             int appliedCount = 0;

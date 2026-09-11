@@ -325,6 +325,28 @@ public class DashboardPageTest
     }
 
     /// <summary>
+    /// A scheduler whose history is kept somewhere this dashboard cannot read leaves the tile at its
+    /// dash rather than reporting zero misfires.
+    /// </summary>
+    /// <remarks>
+    /// A scheduler in another process whose Quartz HTTP API predates the history routes answers
+    /// <see cref="NotSupportedException" />. "0" would be a number nobody gave, and an operator would
+    /// read it as "nothing is wrong".
+    /// </remarks>
+    [Test]
+    public void ATileOverATargetThatServesNoHistorySaysSoRatherThanReportingZero()
+    {
+        A.CallTo(() => context.Api.CountMisfires(A<string>._, A<DateTimeOffset>._, A<CancellationToken>._))
+            .Throws(new NotSupportedException("the target does not serve history"));
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        page.StatCardValue("Misfires (last 24 h)").Should().Be("—");
+        page.Markup.Should().NotContain("qz-alert-error",
+            "the rest of the overview is answerable, so one tile that is not must not take the page down with it");
+    }
+
+    /// <summary>
     /// The misfire tile is a link to the History page's misfires section, the way the Nodes tile is a
     /// link to the Cluster page.
     /// </summary>

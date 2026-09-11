@@ -174,6 +174,40 @@ public class LiveLogsPageTest
         ], "a connection still in the old group keeps streaming the scheduler the reader navigated away from");
     }
 
+    /// <summary>
+    /// A scheduler in another process has no live feed here, and the page says so.
+    /// </summary>
+    /// <remarks>
+    /// The events are broadcast onto the hub of the process the scheduler runs in, and this one has no
+    /// reader for that. An empty page reads as a broken feed; naming it — with the issue where the work
+    /// is tracked — reads as a feature that is not there yet.
+    /// </remarks>
+    [Test]
+    public void ASchedulerInAnotherProcessSaysWhyItHasNoEvents()
+    {
+        using DashboardComponentContext remote = new();
+        remote.WithScheduler(origin: SchedulerOrigin.Remote);
+        remote.Navigate("/quartz/live");
+
+        // What the layout's scheduler picker has already done by the time a page renders: the listing
+        // is what says where each scheduler is, and this page reads the active one out of it.
+        remote.SchedulerState.AvailableSchedulers = [TestData.Dashboard.SchedulerHeader(origin: SchedulerOrigin.Remote)];
+
+        IRenderedComponent<LiveLogs> page = remote.Render<LiveLogs>();
+
+        page.Markup.Should().Contain("runs in another process");
+        page.Markup.Should().Contain("3387", "the notice points at where the work is tracked");
+    }
+
+    [Test]
+    public void ALocalSchedulerIsNotToldItsEventsAreSomewhereElse()
+    {
+        IRenderedComponent<LiveLogs> page = context.Render<LiveLogs>();
+
+        page.Markup.Should().NotContain("runs in another process",
+            "the notice is for a scheduler this process does not run, and every other page would be noise with it");
+    }
+
     [Test]
     public void ADroppedConnectionThatComesBackRejoinsTheScheduler()
     {

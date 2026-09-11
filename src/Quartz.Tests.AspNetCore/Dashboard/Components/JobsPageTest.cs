@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using AngleSharp.Dom;
 
 using Bunit;
@@ -195,6 +197,43 @@ public class JobsPageTest
         page.Markup.Should().Contain("the scheduler is not answering",
             "the reader can act on what went wrong; an empty listing looks like a scheduler with no jobs");
         page.HasButton("Retry").Should().BeTrue();
+    }
+
+    /// <summary>
+    /// The group labels are read a page at a time, so a scheduler with more groups than one page holds
+    /// still has every one of its listed jobs labelled.
+    /// </summary>
+    /// <remarks>
+    /// It used to ask for every group in one call with <c>Take = int.MaxValue</c>. Over HTTP that
+    /// travels as <c>take=all</c>, which a server with <c>QuartzHttpApiOptions.MaxPageSize</c> set
+    /// answers with that many rows and a <c>hasMore</c> — and <c>HttpScheduler</c> refuses to hand a
+    /// truncated page back as everything, so the page threw rather than labelling anything.
+    /// </remarks>
+    [Test]
+    public void TheGroupLabelsAreReadAPageAtATime()
+    {
+        List<JobGroupDto> groups = [];
+        for (int index = 0; index < PagedQuery.DefaultTake + 3; index++)
+        {
+            groups.Add(new JobGroupDto("group" + index.ToString("D4", CultureInfo.InvariantCulture), index == PagedQuery.DefaultTake + 2));
+        }
+
+        A.CallTo(() => context.Api.QueryJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, DashboardGroupQuery query, CancellationToken _) =>
+            {
+                query.Take.Should().Be(PagedQuery.DefaultTake, "a page is asked for by its size, never with an unbounded take");
+                return TestData.Dashboard.Page<JobGroupDto>(
+                    groups.Skip(query.Skip).Take(query.Take).ToList(),
+                    groups.Count);
+            });
+
+        string lastGroup = groups[^1].Name;
+        GivenJobs([new JobKeyDto(lastGroup, "nightly")]);
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.Markup.Should().Contain("Paused",
+            "the job on screen belongs to the last group of the last page, and its state is what the label says");
     }
 
     private void GivenJobs(IReadOnlyList<JobKeyDto> jobs)
