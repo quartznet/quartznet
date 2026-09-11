@@ -9,6 +9,7 @@ using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
@@ -39,7 +40,7 @@ public class DashboardPluginRegistrationTest
 
         DashboardPlugins(provider, schedulerKey: null).Should().BeEquivalentTo(
             [("quartzDashboardLiveEvents", typeof(DashboardLiveEventsPlugin)),
-             ("quartzDashboardHistory", typeof(DashboardHistoryPlugin))]);
+             ("quartzExecutionHistory", typeof(ExecutionHistoryPlugin))]);
     }
 
     [Test]
@@ -53,7 +54,7 @@ public class DashboardPluginRegistrationTest
 
         DashboardPlugins(provider, "acme").Should().BeEquivalentTo(
             [("quartzDashboardLiveEvents", typeof(DashboardLiveEventsPlugin)),
-             ("quartzDashboardHistory", typeof(DashboardHistoryPlugin))],
+             ("quartzExecutionHistory", typeof(ExecutionHistoryPlugin))],
             "a named scheduler resolves its plugins by service key, so plugins registered unkeyed never "
             + "reached it and its live view and history were silently always empty");
     }
@@ -69,7 +70,7 @@ public class DashboardPluginRegistrationTest
 
         DashboardPlugins(provider, "acme").Should().BeEquivalentTo(
             [("quartzDashboardLiveEvents", typeof(DashboardLiveEventsPlugin)),
-             ("quartzDashboardHistory", typeof(DashboardHistoryPlugin))],
+             ("quartzExecutionHistory", typeof(ExecutionHistoryPlugin))],
             "an application is free to register its schedulers on either side of AddQuartzDashboard");
     }
 
@@ -96,43 +97,71 @@ public class DashboardPluginRegistrationTest
     }
 
     /// <summary>
-    /// The history plugin a named scheduler's container builds records to that container's store.
+    /// The recorder a named scheduler's container builds records into the
+    /// <see cref="IDashboardHistoryStore" /> the application registered.
     /// </summary>
     /// <remarks>
-    /// Two things at once, because they fail in the same place. The plugin takes the container by
-    /// constructor now — it used to read it back out of
-    /// <c>scheduler.Context["Quartz.ServiceProvider"]</c> — and a constructor the container cannot
-    /// satisfy shows up nowhere until the first <c>GetScheduler()</c>, which no registration test
-    /// reaches. For a named scheduler the parameter is resolved through the scheduler-scoped provider
-    /// rather than the container itself, so this is also what says that wrapper answers a request for
-    /// <see cref="IServiceProvider" />.
+    /// <para>
+    /// The 4.0 recipe, unchanged: register a history store of your own before
+    /// <c>AddQuartzDashboard()</c> and what the schedulers run lands in it. What changed underneath is
+    /// which recorder writes — Quartz's own now, against an adapter over that store — and this is what
+    /// says the recipe still works.
+    /// </para>
+    /// <para>
+    /// Two things at once, because they fail in the same place. The recorder takes the container by
+    /// constructor, and a constructor the container cannot satisfy shows up nowhere until the first
+    /// <c>GetScheduler()</c>, which no registration test reaches. For a named scheduler the parameter is
+    /// resolved through the scheduler-scoped provider rather than the container itself, so this is also
+    /// what says that wrapper answers a request for <see cref="IServiceProvider" />.
+    /// </para>
     /// </remarks>
     [Test]
-    public async Task TheHistoryPluginBuiltForANamedSchedulerRecordsToThatContainersStore()
+    public async Task TheRecorderBuiltForANamedSchedulerRecordsToTheApplicationsOwnStore()
     {
         // the execution below is recorded at a constant fire time, so the store needs a clock standing
         // beside it rather than the wall's — it forgets by age as well as by count
-        DashboardHistoryStore store = TestData.Dashboard.HistoryStore(
+        IDashboardHistoryStore store = TestData.Dashboard.HistoryStore(
             new FakeTimeProvider(new DateTimeOffset(2025, 1, 1, 0, 0, 30, TimeSpan.Zero)));
 
         ServiceCollection services = new();
-        // registered before the dashboard, whose own store registration is a TryAdd, so this is the
-        // store the plugin has to find
+        // registered before the dashboard, which is the documented order: the dashboard then makes
+        // Quartz's history store an adapter over this one rather than replacing it
         services.AddSingleton<IDashboardHistoryStore>(store);
         services.AddQuartzDashboard();
         services.AddQuartz("acme");
 
         await using ServiceProvider provider = services.BuildServiceProvider();
 
-        DashboardHistoryPlugin plugin = Plugins(provider, "acme").OfType<DashboardHistoryPlugin>().Single();
+        ExecutionHistoryPlugin plugin = Plugins(provider, "acme").OfType<ExecutionHistoryPlugin>().Single();
         IScheduler scheduler = FakeScheduler("acme");
 
-        await plugin.Initialize("quartzDashboardHistory", scheduler);
+        await plugin.Initialize("quartzExecutionHistory", scheduler);
         await plugin.JobWasExecuted(ExecutionContext(scheduler), jobException: null);
 
         PagedResult<DashboardHistoryEntry> page = await store.QueryExecutions(new DashboardHistoryQuery { SchedulerName = "acme" });
-        page.Items.Should().ContainSingle("the plugin resolves its store from the container it was built with")
+        page.Items.Should().ContainSingle("the recorder resolves its store from the container it was built with")
             .Which.JobName.Should().Be("DummyJob");
+    }
+
+    /// <summary>
+    /// The dashboard's own history plugin is not registered any more, so nothing records twice.
+    /// </summary>
+    /// <remarks>
+    /// Two recorders writing the same events would double every row, and a history that counts one run
+    /// as two is worse than no history. The type stays public and functional for an application that
+    /// registered it by name.
+    /// </remarks>
+    [Test]
+    public void TheDashboardsOwnHistoryPluginIsNoLongerRegistered()
+    {
+        ServiceCollection services = new();
+        services.AddQuartzDashboard();
+        services.AddQuartz();
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        Plugins(provider, schedulerKey: null).OfType<DashboardHistoryPlugin>().Should().BeEmpty(
+            "Quartz's own recorder writes the rows the dashboard reads, and a second one would write them again");
     }
 
     /// <summary>

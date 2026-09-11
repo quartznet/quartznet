@@ -29,13 +29,13 @@ public class DashboardDurationTest
     /// </summary>
     private static readonly DateTimeOffset TestTime = new(2025, 1, 1, 0, 0, 30, TimeSpan.Zero);
 
-    private static DashboardHistoryStore StoreAtTestTime() =>
+    private static IDashboardHistoryStore StoreAtTestTime() =>
         TestData.Dashboard.HistoryStore(new FakeTimeProvider(TestTime));
 
     [Test]
     public async Task HistoryPluginRecordsTheRunTimeItWasGiven()
     {
-        DashboardHistoryStore store = StoreAtTestTime();
+        IDashboardHistoryStore store = StoreAtTestTime();
         IScheduler scheduler = FakeScheduler();
 
         DashboardHistoryPlugin plugin = new(ProviderWith(store), TimeProvider.System);
@@ -55,7 +55,7 @@ public class DashboardDurationTest
     [Test]
     public async Task HistoryPluginRecordsTheFailureAndItsMessage()
     {
-        DashboardHistoryStore store = StoreAtTestTime();
+        IDashboardHistoryStore store = StoreAtTestTime();
         IScheduler scheduler = FakeScheduler();
 
         DashboardHistoryPlugin plugin = new(ProviderWith(store), TimeProvider.System);
@@ -111,7 +111,7 @@ public class DashboardDurationTest
     [Test]
     public async Task HistoryPageIsNewestFirstAndCountsTheWholeMatch()
     {
-        DashboardHistoryStore store = StoreAtTestTime();
+        IDashboardHistoryStore store = StoreAtTestTime();
         for (int i = 0; i < 5; i++)
         {
             await store.AddExecution(EntryAt(new DateTimeOffset(2025, 1, 1, 0, 0, i, TimeSpan.Zero), "job" + i));

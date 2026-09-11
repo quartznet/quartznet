@@ -50,7 +50,7 @@
         </div>
     </div>
 
-    @if (!_isLoading && string.IsNullOrWhiteSpace(_error))
+    @if (!_isLoading && string.IsNullOrWhiteSpace(_error) && !_historyUnavailable)
     {
         <p class="qz-muted">Page @_page / @_totalPages · Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>
         <p class="qz-muted">@BuildFilterSummary()</p>
@@ -59,6 +59,16 @@
     @if (_isLoading)
     {
         <LoadingSpinner />
+    }
+    else if (_historyUnavailable)
+    {
+        @* Not an error: the scheduler is answering, and what it is saying is that it keeps no history a
+           reader here can ask for. A retry button would invite a reader to try again for something that
+           will not arrive. *@
+        <p class="qz-muted" data-testid="history-unavailable">
+            This scheduler runs in another process and its Quartz HTTP API does not serve execution
+            history. Upgrade that host to read what it has run here.
+        </p>
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -186,6 +196,17 @@
     private bool _misfiresUnavailable;
 
     /// <summary>
+    /// Whether this scheduler's history is somewhere this page cannot read — a scheduler in another
+    /// process whose Quartz HTTP API predates the history routes.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from an empty history and from an error: a page that said "no execution history yet" of
+    /// a scheduler that has been running jobs all day would be stating something untrue, and one that
+    /// showed a retry button would invite a reader to ask again for something that will not arrive.
+    /// </remarks>
+    private bool _historyUnavailable;
+
+    /// <summary>
     /// The nodes the filter offers: the scheduler's cluster nodes, so a node that has stopped producing
     /// history is still selectable.
     /// </summary>
@@ -308,6 +329,7 @@
         // back — no scheduler selected, a read that threw — leaves the section out rather than rendering
         // "no misfires" over an answer nobody gave.
         _misfiresUnavailable = true;
+        _historyUnavailable = false;
         _error = null;
         _entries.Clear();
         _misfires.Clear();
@@ -349,6 +371,13 @@
             _misfires.AddRange(misfires.Items);
 
             ComputeAnalytics();
+        }
+        catch (NotSupportedException)
+        {
+            // The scheduler runs in another process and its API serves no history. That is a fact about
+            // the target rather than a failure of this read, so the page says it instead of showing an
+            // error with a retry button.
+            _historyUnavailable = true;
         }
         catch (Exception ex)
         {

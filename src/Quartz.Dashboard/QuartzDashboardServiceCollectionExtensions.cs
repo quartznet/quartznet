@@ -28,6 +28,7 @@ using Quartz.AspNetCore;
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz;
 
@@ -38,14 +39,23 @@ public static class QuartzDashboardServiceCollectionExtensions
 {
     /// <summary>
     /// Registers everything the dashboard renders with — its Blazor components, its SignalR hub, the
-    /// history store and the <see cref="IQuartzApiClient" /> the pages read — and adds its two plugins
-    /// to every scheduler in the container.
+    /// execution history and the <see cref="IQuartzApiClient" /> the pages read — and adds its
+    /// live-events plugin to every scheduler in the container.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// No option points the dashboard at a scheduler: it renders the schedulers this application
-    /// registered. The client is registered with <c>TryAdd</c>, so an application that registers its own
+    /// registered — one registered with <c>AddQuartzHttpClient</c> included, which runs in another
+    /// process. The client is registered with <c>TryAdd</c>, so an application that registers its own
     /// <see cref="IQuartzApiClient" /> first is the one the pages read. Call
     /// <c>MapQuartzDashboard()</c> on the built application to map the endpoints.
+    /// </para>
+    /// <para>
+    /// The history is Quartz's: this calls <c>AddQuartzExecutionHistory()</c>, whose recorder writes what
+    /// every scheduler in the container runs and misses. <see cref="IDashboardHistoryStore" /> is still
+    /// the dashboard's seam and still works — <see cref="AddHistory" /> says which way the pair is
+    /// joined.
+    /// </para>
     /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Configures the dashboard, including the path it is served under.</param>
@@ -104,40 +114,107 @@ public static class QuartzDashboardServiceCollectionExtensions
             provider.GetRequiredService<ISchedulerRepository>(),
             provider.GetRequiredService<ISchedulerRegistry>(),
             provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
-            provider.GetRequiredService<IDashboardHistoryStore>(),
+            provider.GetRequiredService<IExecutionHistoryStore>(),
+            provider,
             provider.GetRequiredService<SchedulerAuthorization>()));
         services.TryAddScoped<ToastService>();
         services.TryAddSingleton<IDashboardLiveConnectionFactory, SignalRDashboardLiveConnectionFactory>();
-        // The store measures its retention window on the scheduler's clock, and falls back to the system
-        // one only when the dashboard is registered without Quartz — which AddQuartz would otherwise have
-        // put in the container.
-        services.TryAddSingleton<IDashboardHistoryStore>(static provider => new DashboardHistoryStore(
-            provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
-            provider.GetService<TimeProvider>() ?? TimeProvider.System));
+        AddHistory(services);
         services.TryAddSingleton<DashboardActionLogService>();
 
         // Scoped over the singleton store: the entries are the process's, and who made one is the
         // circuit's. Pages talk to this, which writes both the page's own log and the application's.
         services.TryAddScoped<DashboardActionLog>();
 
-        // The dashboard's own plugins, registered rather than named by a quartz.plugin.*.type key. A type
+        // The dashboard's own plugin, registered rather than named by a quartz.plugin.*.type key. A type
         // name in a property bag is how a plugin is configured from a file; a package that knows its own
         // plugin types has no reason to spell them as strings and have them loaded back by reflection.
         //
         // Added to every scheduler in the container rather than to the default one. The dashboard renders
         // whatever schedulers the container holds, so a plugin that only reached the unkeyed registration
-        // left a scheduler registered with AddQuartz(name, …) rendering pages whose live view and history
-        // were always empty, with nothing to say why. Each scheduler gets its own instance, initialized
-        // with its own name, which is what the plugins broadcast and record under. The names are the short
-        // ones these plugins have always been configured with: a plugin is told its name when it is
-        // initialized, and one told a different name would key its history rows differently.
+        // left a scheduler registered with AddQuartz(name, …) rendering pages whose live view was always
+        // empty, with nothing to say why. Each scheduler gets its own instance, initialized with its own
+        // name, which is what the plugin broadcasts under. The name is the short one it has always been
+        // configured with: a plugin is told its name when it is initialized.
+        //
+        // The history recorder is no longer among them: AddQuartzExecutionHistory() installs Quartz's own
+        // against every scheduler, and the dashboard reads what that records.
         services.ConfigureAllQuartzSchedulers(static quartz =>
         {
             quartz.AddPlugin<DashboardLiveEventsPlugin>("quartzDashboardLiveEvents");
-            quartz.AddPlugin<DashboardHistoryPlugin>("quartzDashboardHistory");
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// Joins the dashboard's history seam to the one Quartz keeps history behind, in whichever direction
+    /// this application's registrations call for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two cases, and the difference between them is what the application registered before this call.
+    /// An application that registered an <see cref="IDashboardHistoryStore" /> of its own — the
+    /// documented 4.0 recipe, a history kept in a database — keeps it, and Quartz's history store becomes
+    /// an adapter over it, so the recorder writes into it and the HTTP API's history routes answer out of
+    /// it. Core's own default is the only descriptor replaced to do that: a store the application
+    /// registered against <see cref="IExecutionHistoryStore" /> is what it said it wanted and is left
+    /// alone.
+    /// </para>
+    /// <para>
+    /// Otherwise the pair goes the other way: Quartz's store is the one, and
+    /// <see cref="IDashboardHistoryStore" /> resolves to an adapter over it, so the 4.0 type still
+    /// resolves and still answers.
+    /// </para>
+    /// <para>
+    /// <see cref="QuartzDashboardOptions.HistoryRetention" /> and
+    /// <see cref="QuartzDashboardOptions.HistoryMaxEntriesPerScheduler" /> stay the knobs while the
+    /// dashboard is registered: they are written onto <see cref="ExecutionHistoryOptions" /> afterwards,
+    /// so a deployment that configured the dashboard's two settings gets the history it asked for
+    /// wherever it is read from.
+    /// </para>
+    /// </remarks>
+    private static void AddHistory(IServiceCollection services)
+    {
+        services.AddQuartzExecutionHistory();
+
+        services.AddOptions<ExecutionHistoryOptions>()
+            .PostConfigure<IOptions<QuartzDashboardOptions>>(static (history, dashboard) =>
+            {
+                history.Retention = dashboard.Value.HistoryRetention;
+                history.MaxEntriesPerScheduler = dashboard.Value.HistoryMaxEntriesPerScheduler;
+            });
+
+        if (!ApplicationRegisteredItsOwnDashboardStore(services))
+        {
+            services.TryAddSingleton<IDashboardHistoryStore>(static provider =>
+                new DashboardHistoryStoreOverExecutionHistory(provider.GetRequiredService<IExecutionHistoryStore>()));
+            return;
+        }
+
+        for (int i = 0; i < services.Count; i++)
+        {
+            ServiceDescriptor descriptor = services[i];
+            if (descriptor.ServiceType == typeof(IExecutionHistoryStore)
+                && descriptor.ImplementationType == typeof(InMemoryExecutionHistoryStore))
+            {
+                services[i] = ServiceDescriptor.Singleton<IExecutionHistoryStore>(static provider =>
+                    new ExecutionHistoryStoreOverDashboardStore(provider.GetRequiredService<IDashboardHistoryStore>()));
+            }
+        }
+    }
+
+    private static bool ApplicationRegisteredItsOwnDashboardStore(IServiceCollection services)
+    {
+        foreach (ServiceDescriptor descriptor in services)
+        {
+            if (descriptor.ServiceType == typeof(IDashboardHistoryStore))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static readonly char[] InvalidDashboardPathChars = ['{', '}', '?', '#'];

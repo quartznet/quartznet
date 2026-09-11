@@ -313,9 +313,19 @@
 
             // The store's own retention window, so the tile counts over exactly what the store still
             // remembers rather than over a day it may already have forgotten.
-            _misfires = await Api.CountMisfires(
-                schedulerName,
-                DateTimeOffset.UtcNow - Options.Value.HistoryRetention);
+            try
+            {
+                _misfires = await Api.CountMisfires(
+                    schedulerName,
+                    DateTimeOffset.UtcNow - Options.Value.HistoryRetention);
+            }
+            catch (NotSupportedException)
+            {
+                // A scheduler in another process whose API does not serve history. The tile shows its
+                // dash rather than a zero: "none" and "nobody said" are different answers, and only one
+                // of them means there is nothing to look into.
+                _misfires = null;
+            }
 
             List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(schedulerName);
 
