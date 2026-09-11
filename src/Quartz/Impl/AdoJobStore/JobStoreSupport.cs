@@ -202,6 +202,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// other scheduler instances in a cluster can consider a "misfired" scheduler
     /// instance as failed or dead.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It is also the window this instance's own check-in loop retries a failed check-in inside: a
+    /// check-in that fails is attempted again with half of what is left of the interval plus this
+    /// threshold, never later than <see cref="DbRetryInterval" />, so a database blip shorter than the
+    /// threshold does not get the instance written off. Only once the window has closed does the loop
+    /// back off <see cref="DbRetryInterval" /> between attempts.
+    /// </para>
+    /// <para>
+    /// Raise it past the environment's worst <em>pause</em> — a garbage collection, a virtual machine
+    /// migration, a database failover — rather than its worst clock error: a genuinely dead instance's
+    /// work waits interval plus threshold to be taken over, and a live instance that misses that window
+    /// is recovered while it is still working.
+    /// </para>
+    /// </remarks>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
     public TimeSpan ClusterCheckinMisfireThreshold { get; set; }
 
@@ -216,6 +231,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// Gets or sets the database retry interval.
     /// </summary>
     /// <value>The db retry interval.</value>
+    /// <remarks>
+    /// The back-off after a failure that was not transient — a database that is down rather than busy.
+    /// The misfire handler sleeps for it between failing passes. The cluster check-in loop does so only
+    /// once a failed check-in has spent the window its peers give it (<see cref="ClusterCheckinInterval" />
+    /// plus <see cref="ClusterCheckinMisfireThreshold" />); inside that window it retries sooner, and this
+    /// value caps how long it may wait between those retries.
+    /// </remarks>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
     public TimeSpan DbRetryInterval
     {
@@ -223,8 +245,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         set
         {
             TimerLimits.EnsureWaitable(value, nameof(DbRetryInterval),
-                "The store waits it out after a database failure, and the misfire handler and the cluster "
-                + "manager both sleep for it while their last pass is failing.");
+                "The store waits it out after a database failure, the misfire handler sleeps for it while "
+                + "its last pass is failing, and the cluster manager does once a failing check-in has spent "
+                + "its window.");
             dbRetryInterval = value;
         }
     }
@@ -4998,6 +5021,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
     protected bool firstCheckIn = true;
 
+    /// <summary>
+    /// When this node last recorded that it is alive — or last failed to read the state table, which
+    /// stamps it too, so that <see cref="CalcFailedIfAfter" /> does not count this node's own outage
+    /// against its peers. That second writer is why <see cref="ClusterManager" /> keeps its own record
+    /// of the last check-in that reached the database and times its retries from that (#3777).
+    /// </summary>
     protected internal DateTimeOffset LastCheckin { get; set; } = SystemTime.UtcNow();
 
     protected internal virtual async Task<bool> DoCheckin(
