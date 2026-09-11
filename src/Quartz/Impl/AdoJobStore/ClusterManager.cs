@@ -24,13 +24,33 @@ internal sealed class ClusterManager
     // This prevents hanging if the scheduler was disposed before it could schedule the task.
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// The least the loop sleeps: what an overdue check-in waits before it is attempted, and the floor
+    /// under a retry that has almost no window left to land in.
+    /// </summary>
+    private static readonly TimeSpan ShortPause = TimeSpan.FromMilliseconds(100);
+
     private int numFails;
+
+    /// <summary>
+    /// When this node last wrote a check-in that reached the database — the timestamp its peers read.
+    /// </summary>
+    /// <remarks>
+    /// Kept here rather than read off <see cref="JobStoreSupport.LastCheckin" />, which has a second
+    /// writer: a check-in that fails to <em>read</em> the state table stamps it too, so that
+    /// <c>CalcFailedIfAfter</c> does not count this node's own outage against its peers. The scan runs
+    /// before the write, so that is the stamp a database blip leaves, and a retry timed from it would
+    /// believe it had a whole window left when the peers' clock says otherwise (#3777). Starts at
+    /// construction, as the store's own does.
+    /// </remarks>
+    private DateTimeOffset lastSuccessfulCheckIn;
 
     internal ClusterManager(JobStoreSupport jobStoreSupport)
     {
         this.jobStoreSupport = jobStoreSupport;
         cancellationTokenSource = new CancellationTokenSource();
         log = LogProvider.GetLogger(typeof(ClusterManager));
+        lastSuccessfulCheckIn = SystemTime.UtcNow();
     }
 
     public async Task Initialize()
@@ -82,6 +102,9 @@ internal sealed class ClusterManager
         {
             res = await jobStoreSupport.DoCheckin(requestorId).ConfigureAwait(false);
 
+            // The write's own timestamp, not the clock: a check-in that recovered a peer returns later
+            // than it wrote, and the peers measure from what it wrote.
+            lastSuccessfulCheckIn = jobStoreSupport.LastCheckin;
             numFails = 0;
             log.Debug("Check-in complete.");
         }
@@ -104,9 +127,10 @@ internal sealed class ClusterManager
 
             TimeSpan timeToSleep = ComputeTimeToSleep(
                 jobStoreSupport.ClusterCheckinInterval,
-                SystemTime.UtcNow() - jobStoreSupport.LastCheckin,
+                SystemTime.UtcNow() - lastSuccessfulCheckIn,
                 jobStoreSupport.DbRetryInterval,
-                numFails);
+                numFails,
+                jobStoreSupport.ClusterCheckinMisfireThreshold);
 
             await Task.Delay(timeToSleep, token).ConfigureAwait(false);
 
@@ -124,19 +148,24 @@ internal sealed class ClusterManager
     /// Determines how long to sleep before the next cluster check-in.
     /// </summary>
     /// <param name="clusterCheckinInterval">The configured check-in interval.</param>
-    /// <param name="transpiredTime">Wall clock time elapsed since the last successful check-in.</param>
+    /// <param name="transpiredTime">Wall clock time elapsed since the last check-in that reached the database.</param>
     /// <param name="dbRetryInterval">The configured retry interval used when the last check-ins have failed.</param>
     /// <param name="numFails">Number of consecutive failed check-ins.</param>
+    /// <param name="clusterCheckinMisfireThreshold">
+    /// The slack the peers add to the interval before they write this node off. Together with the
+    /// interval it is the window a failed check-in has to be retried in.
+    /// </param>
     internal static TimeSpan ComputeTimeToSleep(
         TimeSpan clusterCheckinInterval,
         TimeSpan transpiredTime,
         TimeSpan dbRetryInterval,
-        int numFails)
+        int numFails,
+        TimeSpan clusterCheckinMisfireThreshold)
     {
         TimeSpan timeToSleep = clusterCheckinInterval - transpiredTime;
         if (timeToSleep <= TimeSpan.Zero)
         {
-            timeToSleep = TimeSpan.FromMilliseconds(100);
+            timeToSleep = ShortPause;
         }
         else if (timeToSleep > clusterCheckinInterval)
         {
@@ -146,9 +175,37 @@ internal sealed class ClusterManager
             timeToSleep = clusterCheckinInterval;
         }
 
-        if (numFails > 0 && dbRetryInterval > timeToSleep)
+        if (numFails > 0)
         {
-            timeToSleep = dbRetryInterval;
+            // The peers write this node off once interval + threshold has passed since the row it
+            // last wrote. A retry that lands after that arrives convicted, so while the window is
+            // still open the retry is spent inside it — half of what is left each time, never longer
+            // than DbRetryInterval, never shorter than the short pause — and only once it has closed
+            // does the ordinary back-off apply. Java's ClusterManager sleeps
+            // max(dbRetryInterval, timeToSleep) here; with the defaults that is a retry 22.5 s after
+            // a row the peers stop trusting at 15 s, which is what #3777 reports, and this branch
+            // departs from it on purpose.
+            TimeSpan elapsed = transpiredTime < TimeSpan.Zero ? TimeSpan.Zero : transpiredTime; // a backward jump must not widen the window
+            TimeSpan windowLeft = clusterCheckinInterval + clusterCheckinMisfireThreshold - elapsed;
+            if (windowLeft > TimeSpan.Zero)
+            {
+                TimeSpan retry = TimeSpan.FromTicks(windowLeft.Ticks / 2); // TimeSpan / int does not exist on net462/net472/netstandard2.0
+                if (retry > dbRetryInterval)
+                {
+                    retry = dbRetryInterval;
+                }
+
+                if (retry < ShortPause)
+                {
+                    retry = ShortPause;
+                }
+
+                timeToSleep = retry;
+            }
+            else if (dbRetryInterval > timeToSleep)
+            {
+                timeToSleep = dbRetryInterval;
+            }
         }
 
         return timeToSleep;
