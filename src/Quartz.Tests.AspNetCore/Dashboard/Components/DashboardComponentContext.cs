@@ -145,14 +145,20 @@ internal sealed class DashboardComponentContext : BunitContext
     /// Points the pages at a scheduler that exists and is running, which is what all but the
     /// no-scheduler-selected tests want.
     /// </summary>
+    /// <param name="origin">
+    /// Where the scheduler is. <see cref="SchedulerOrigin.Remote" /> is one in another process, which
+    /// several pages say something about: its live events are not streamed here, and its history is kept
+    /// where it runs.
+    /// </param>
     public DashboardComponentContext WithScheduler(
         string schedulerName = TestData.SchedulerName,
         SchedulerStatus status = SchedulerStatus.Running,
         bool clustered = false,
-        bool persistent = false)
+        bool persistent = false,
+        SchedulerOrigin origin = SchedulerOrigin.Container)
     {
         A.CallTo(() => Api.GetSchedulers(A<CancellationToken>._))
-            .Returns(new List<SchedulerHeaderDto> { TestData.Dashboard.SchedulerHeader(schedulerName, status) });
+            .Returns(new List<SchedulerHeaderDto> { TestData.Dashboard.SchedulerHeader(schedulerName, status, origin) });
         A.CallTo(() => Api.GetScheduler(schedulerName, A<CancellationToken>._))
             .Returns(TestData.Dashboard.SchedulerDetail(status, schedulerName, clustered, persistent));
 

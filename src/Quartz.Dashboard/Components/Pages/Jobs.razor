@@ -176,11 +176,24 @@
             _totalJobs = totalCount;
 
             // Every group, because the page labels each of the ones its current page shows, and it
-            // cannot know which those are before it has them.
-            PagedResult<JobGroupDto> groups = await Api.QueryJobGroups(schedulerName, new DashboardGroupQuery { Take = int.MaxValue });
-            foreach (JobGroupDto group in groups.Items)
+            // cannot know which those are before it has them. Read a page at a time rather than with one
+            // unbounded Take: over HTTP that travels as take=all, which a server with MaxPageSize set
+            // answers with that many rows and a hasMore the client refuses to hand back as everything.
+            DashboardGroupQuery groupQuery = new() { Take = PagedQuery.DefaultTake };
+            while (true)
             {
-                _groupStates[group.Name] = group.Paused ? "Paused" : "Normal";
+                PagedResult<JobGroupDto> groups = await Api.QueryJobGroups(schedulerName, groupQuery);
+                foreach (JobGroupDto group in groups.Items)
+                {
+                    _groupStates[group.Name] = group.Paused ? "Paused" : "Normal";
+                }
+
+                if (!groups.HasMore || groups.Items.Count == 0)
+                {
+                    break;
+                }
+
+                groupQuery = groupQuery with { Skip = groupQuery.Skip + groups.Items.Count };
             }
         }
         catch (Exception ex)
@@ -421,17 +434,28 @@
 
         try
         {
-            // The group filter matches groups that contain it, so the exact group is selected here.
-            PagedResult<JobKeyDto> groupPage = await Api.QueryJobs(
-                schedulerName,
-                new DashboardJobQuery { GroupContains = group, Take = int.MaxValue });
+            // The group filter matches groups that contain it, so the exact group is selected here. A
+            // page at a time, because a group with more jobs in it than the server's MaxPageSize is a
+            // group an unbounded Take could not read at all over HTTP.
             List<JobKeyDto> jobsInGroup = [];
-            foreach (JobKeyDto job in groupPage.Items)
+            DashboardJobQuery groupQuery = new() { GroupContains = group, Take = PagedQuery.DefaultTake };
+            while (true)
             {
-                if (string.Equals(job.Group, group, StringComparison.Ordinal))
+                PagedResult<JobKeyDto> groupPage = await Api.QueryJobs(schedulerName, groupQuery);
+                foreach (JobKeyDto job in groupPage.Items)
                 {
-                    jobsInGroup.Add(job);
+                    if (string.Equals(job.Group, group, StringComparison.Ordinal))
+                    {
+                        jobsInGroup.Add(job);
+                    }
                 }
+
+                if (!groupPage.HasMore || groupPage.Items.Count == 0)
+                {
+                    break;
+                }
+
+                groupQuery = groupQuery with { Skip = groupQuery.Skip + groupPage.Items.Count };
             }
 
             int appliedCount = 0;

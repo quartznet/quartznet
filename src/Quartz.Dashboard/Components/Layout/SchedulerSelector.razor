@@ -19,9 +19,13 @@
             {
                 @* A registration nothing has built is offered and greyed out rather than omitted: it is a
                    tenant the container knows about, and leaving it out of the picker is what made it look
-                   as though it had never been registered. There is nothing behind it to select. *@
+                   as though it had never been registered. There is nothing behind it to select.
+
+                   A scheduler in another process is selectable and says so, because every page about it
+                   is about somebody else's process: what an action there does, where its history is kept,
+                   and what its live feed cannot show all follow from it. *@
                 <option value="@scheduler.SchedulerName" disabled="@(!scheduler.IsCreated)">
-                    @(scheduler.IsCreated ? scheduler.SchedulerName : scheduler.SchedulerName + " (not created)")
+                    @SchedulerLabel(scheduler)
                 </option>
             }
         }
@@ -49,6 +53,21 @@
     private string _statusLabel = "Loading…";
 
     private SchedulerStatus? _schedulerStatus;
+
+    /// <summary>
+    /// What one entry of the picker reads: the scheduler's name, and what is true of it beyond that.
+    /// </summary>
+    private static string SchedulerLabel(Quartz.Dashboard.Services.SchedulerHeaderDto scheduler)
+    {
+        if (!scheduler.IsCreated)
+        {
+            return scheduler.SchedulerName + " (not created)";
+        }
+
+        return scheduler.Origin == SchedulerOrigin.Remote
+            ? scheduler.SchedulerName + " (remote)"
+            : scheduler.SchedulerName;
+    }
 
     protected override async Task OnInitializedAsync()
     {

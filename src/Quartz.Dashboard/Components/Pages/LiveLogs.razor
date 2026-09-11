@@ -64,6 +64,16 @@
         <ErrorAlert Message="@_error" OnRetry="ReconnectAsync" />
     }
 
+    @if (ActiveSchedulerIsRemote)
+    {
+        @* The events are broadcast from inside the scheduler's own process, onto that process's hub.
+           This one has no reader for it, and an empty page with no explanation reads as a fault. *@
+        <p class="qz-muted" data-testid="live-events-remote">
+            This scheduler runs in another process; its live events are not streamed over HTTP yet
+            (<a href="https://github.com/quartznet/quartznet/issues/3387">#3387</a>).
+        </p>
+    }
+
     @if (_events.Count == 0)
     {
         <p class="qz-muted">No events yet. Events will appear when jobs execute, triggers fire, or scheduler state changes.</p>
@@ -116,6 +126,18 @@
     /// read. The toolbar names it so that an event from a peer is distinguishable from a local one.
     /// </summary>
     private string? _thisNode;
+
+    /// <summary>
+    /// Whether the scheduler on screen runs in another process.
+    /// </summary>
+    /// <remarks>
+    /// The live feed is broadcast onto the hub of the process the scheduler runs in, so a scheduler
+    /// reached over HTTP has no events to show here — and an empty page with nothing to say why reads as
+    /// a broken feed rather than as a feature that is not there yet.
+    /// </remarks>
+    private bool ActiveSchedulerIsRemote =>
+        Scheduler.Find(Scheduler.ActiveSchedulerName) is { Origin: SchedulerOrigin.Remote };
+
     private bool _isConnecting;
     private PeriodicTimer? _connectionMonitorTimer;
     private CancellationTokenSource? _connectionMonitorCancellation;
