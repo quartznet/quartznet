@@ -340,6 +340,34 @@ namespace Quartz
         public override string ToString() { }
         public static Quartz.ExecutionGroupScope Named(string name) { }
     }
+    public sealed record ExecutionHistoryEntry : System.IEquatable<Quartz.ExecutionHistoryEntry>
+    {
+        public ExecutionHistoryEntry(string SchedulerName, string SchedulerInstanceId, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
+        public System.TimeSpan Duration { get; init; }
+        public string? ExceptionMessage { get; init; }
+        public System.DateTimeOffset FiredAtUtc { get; init; }
+        public string JobGroup { get; init; }
+        public string JobName { get; init; }
+        public string SchedulerInstanceId { get; init; }
+        public string SchedulerName { get; init; }
+        public bool Succeeded { get; init; }
+        public string TriggerGroup { get; init; }
+        public string TriggerName { get; init; }
+    }
+    public sealed class ExecutionHistoryOptions
+    {
+        public ExecutionHistoryOptions() { }
+        public int MaxEntriesPerScheduler { get; set; }
+        public System.TimeSpan Retention { get; set; }
+    }
+    public sealed record ExecutionHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.ExecutionHistoryQuery>
+    {
+        public ExecutionHistoryQuery() { }
+        public string? JobContains { get; init; }
+        public string? SchedulerInstanceId { get; init; }
+        public required string SchedulerName { get; init; }
+        public string? TriggerContains { get; init; }
+    }
     public enum ExecutionLimitScope
     {
         Node = 0,
@@ -1088,6 +1116,24 @@ namespace Quartz
         public static Quartz.OrMatcher<TKey> Or<TKey>(this Quartz.IMatcher<TKey> matcher, Quartz.IMatcher<TKey> other)
             where TKey : Quartz.Key<TKey> { }
     }
+    public sealed record MisfireHistoryEntry : System.IEquatable<Quartz.MisfireHistoryEntry>
+    {
+        public MisfireHistoryEntry(string SchedulerName, string SchedulerInstanceId, string TriggerGroup, string TriggerName, Quartz.JobKey? JobKey, System.DateTimeOffset MisfiredAtUtc, System.DateTimeOffset? ScheduledFireTimeUtc) { }
+        public Quartz.JobKey? JobKey { get; init; }
+        public System.DateTimeOffset MisfiredAtUtc { get; init; }
+        public System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
+        public string SchedulerInstanceId { get; init; }
+        public string SchedulerName { get; init; }
+        public string TriggerGroup { get; init; }
+        public string TriggerName { get; init; }
+    }
+    public sealed record MisfireHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.MisfireHistoryQuery>
+    {
+        public MisfireHistoryQuery() { }
+        public string? SchedulerInstanceId { get; init; }
+        public required string SchedulerName { get; init; }
+        public string? TriggerContains { get; init; }
+    }
     public readonly record struct MonthDay : System.IComparable<Quartz.MonthDay>, System.IEquatable<Quartz.MonthDay>, System.IFormattable, System.IParsable<Quartz.MonthDay>, System.ISpanFormattable, System.ISpanParsable<Quartz.MonthDay>, System.IUtf8SpanFormattable
     {
         public MonthDay(int month, int day) { }
@@ -1382,6 +1428,7 @@ namespace Quartz
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>> properties, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Collections.Specialized.NameValueCollection properties, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzExecutionHistory(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.ExecutionHistoryOptions>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string schedulerName, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null)
@@ -1986,6 +2033,14 @@ namespace Quartz.Diagnostics
 }
 namespace Quartz.Extensibility
 {
+    public interface IExecutionHistoryStore
+    {
+        System.Threading.Tasks.ValueTask AddExecution(Quartz.ExecutionHistoryEntry entry, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddMisfire(Quartz.MisfireHistoryEntry entry, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> CountMisfires(string schedulerName, System.DateTimeOffset since, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.ExecutionHistoryEntry>> QueryExecutions(Quartz.ExecutionHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.MisfireHistoryEntry>> QueryMisfires(Quartz.MisfireHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
+    }
     public interface IInstanceIdGenerator
     {
         System.Threading.Tasks.ValueTask<string> GenerateInstanceId(System.Threading.CancellationToken cancellationToken = default);
