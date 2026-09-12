@@ -125,8 +125,34 @@ public class DashboardPageTest
 
         A.CallTo(() => context.Api.Standby(TestData.SchedulerName, A<CancellationToken>._)).MustHaveHappened();
         context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().Be("Scheduler is in standby.");
-        context.ActionLog.GetLatest(1).Should().ContainSingle()
-            .Which.Action.Should().Be("StandbyScheduler");
+
+        DashboardActionLogEntry entry = context.ActionLog.GetLatest(1).Should().ContainSingle().Which;
+        entry.Action.Should().Be("StandbyScheduler");
+        entry.NodeLocal.Should().BeTrue(
+            "standing down acts on the node that answered, not on the scheduling data every node shares");
+    }
+
+    /// <summary>
+    /// An action that failed is recorded as one, and is still marked node-local.
+    /// </summary>
+    /// <remarks>
+    /// A shutdown that was refused is the entry an operator most wants afterwards: it says the attempt
+    /// reached that one node and what it answered.
+    /// </remarks>
+    [Test]
+    public void ASchedulerActionThatFailedIsRecordedWithItsReason()
+    {
+        A.CallTo(() => context.Api.Standby(A<string>._, A<CancellationToken>._))
+            .Throws(new SchedulerException("the scheduler has been shut down"));
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Standby").Click();
+
+        DashboardActionLogEntry entry = context.ActionLog.GetLatest(1).Should().ContainSingle().Which;
+        entry.Succeeded.Should().BeFalse();
+        entry.Message.Should().Be("the scheduler has been shut down");
+        entry.NodeLocal.Should().BeTrue();
     }
 
     [Test]
