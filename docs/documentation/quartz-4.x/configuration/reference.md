@@ -903,7 +903,7 @@ implementation left to choose between.
 
 ### Unknown job store keys
 
-A key under `quartz.jobStore` that nothing reads is refused by name, when a persistent store resolves its
+A key under `quartz.jobStore` that nothing reads is refused by name when a persistent store resolves its
 settings — the startup validation `UsePersistentStore` declares, or the build that constructs the store:
 
 ```text
@@ -913,9 +913,9 @@ Quartz does not read.
 ```
 
 3.x wrote every key under this prefix onto the store object by name and failed startup on one the store
-had no property for. 4.0 read the keys it knew into typed options and did nothing with the rest, so a typo
-— or a key a newer 3.x line had added and 4.x had not translated yet — started the scheduler with the
-default in force and said nothing about it.
+had no property for. 4.0 read the keys it knew into typed options and did nothing with the rest, so a
+typo — or a key a newer 3.x line had added and 4.x had not translated yet — started the scheduler with
+the default in force and said nothing about it.
 
 What counts as read: every flat key in the tables above, every property of `AdoJobStoreOptions` and of its
 `Clustering` sub-section spelled the way the options type spells it, every `quartz.jobStore.lockHandler.*`
