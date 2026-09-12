@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Net.ServerSentEvents;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -53,6 +54,9 @@ internal static class SchedulerEndpoints
 
         yield return builder.MapGet(patternPrefix + "/{schedulerName}/nodes", GetClusterNodes)
             .WithQuartzDefaults(nameof(GetClusterNodes), "Get the scheduler's cluster nodes");
+
+        yield return builder.MapGet(patternPrefix + "/{schedulerName}/events", StreamEvents)
+            .WithQuartzDefaults(nameof(StreamEvents), "Stream the scheduler's events as they happen");
 
         yield return builder.MapGet(patternPrefix + "/{schedulerName}/history/executions", QueryExecutionHistory)
             .WithQuartzDefaults(nameof(QueryExecutionHistory), "Query the scheduler's execution history");
@@ -249,6 +253,60 @@ internal static class SchedulerEndpoints
             }
 
             return result;
+        });
+    }
+
+    /// <summary>
+    /// This scheduler's events as they happen, as a server-sent event stream.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One frame per event, its <c>event:</c> type the event's kind and its <c>data:</c> the event as
+    /// JSON — the same JSON every other body on this API is written as, because the result resolves the
+    /// application's <see cref="Microsoft.AspNetCore.Http.Json.JsonOptions" /> that
+    /// <see cref="QuartzJsonOptionsSetup" /> taught the wire contract. A stream with nothing to say emits
+    /// a <c>Heartbeat</c> every
+    /// <see cref="QuartzHttpApiOptions.EventStreamHeartbeatInterval" />.
+    /// </para>
+    /// <para>
+    /// The scheduler is looked up before the stream opens, so an unknown name is the same <c>404</c> it is
+    /// on every other route rather than an empty stream — and per-scheduler authorization runs in front of
+    /// the handler, as it does for every route naming <c>{schedulerName}</c>, so a caller who may not see
+    /// this scheduler is refused before a single frame is written.
+    /// </para>
+    /// <para>
+    /// The events are this process's: they come from the broker the schedulers here publish into, which is
+    /// where <c>AddQuartzSchedulerEvents()</c> points them. The route is <em>not</em> a proxy for a
+    /// scheduler somewhere else, for the reason the history routes are not one either.
+    /// </para>
+    /// <para>
+    /// There is no replay and no <c>Last-Event-ID</c> handling: a subscription carries what happens after
+    /// it is made. What a scheduler <em>has</em> done is
+    /// <see cref="QueryExecutionHistory" />'s question.
+    /// </para>
+    /// </remarks>
+    [ProducesResponseType(typeof(SchedulerEvent), StatusCodes.Status200OK, "text/event-stream")]
+    private static Task<IResult> StreamEvents(
+        ISchedulerRepository schedulerRepository,
+        ISchedulerEventSource eventSource,
+        IOptions<QuartzHttpApiOptions> apiOptions,
+        TimeProvider timeProvider,
+        HttpContext httpContext,
+        string schedulerName,
+        CancellationToken cancellationToken = default)
+    {
+        return EndpointHelper.ExecuteWithScheduler(schedulerName, schedulerRepository, scheduler =>
+        {
+            // The scheduler's own spelling of its name, so a route that named it in another case still
+            // subscribes to the events it publishes.
+            IAsyncEnumerable<SseItem<SchedulerEvent>> frames = SchedulerEventStream.Read(
+                eventSource,
+                scheduler.SchedulerName,
+                apiOptions.Value.EventStreamHeartbeatInterval,
+                timeProvider,
+                httpContext.RequestAborted);
+
+            return Task.FromResult<IResult>(TypedResults.ServerSentEvents(frames));
         });
     }
 

@@ -33,9 +33,10 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// <c>LogEventCatalogTest</c> in <c>Quartz.Tests.AspNetCore</c> makes a change to one a reviewed diff.
 /// </para>
 /// <para>
-/// All six are raised while turning an exception into the problem details a request is answered with,
-/// and the level says who has to act: a request the caller got wrong is Debug, a scheduler or a
-/// configured rule that refused is Warning, and anything else is a server fault at Error.
+/// Six of the seven are raised while turning an exception into the problem details a request is answered
+/// with, and the level says who has to act: a request the caller got wrong is Debug, a scheduler or a
+/// configured rule that refused is Warning, and anything else is a server fault at Error. The seventh
+/// answers no request at all — there is nobody left to answer.
 /// </para>
 /// </remarks>
 internal static partial class HttpApiLog
@@ -63,4 +64,14 @@ internal static partial class HttpApiLog
     /// </remarks>
     [LoggerMessage(EventId = 9005, Level = LogLevel.Warning, Message = "Api request refused: {Reason}")]
     public static partial void Forbidden(this ILogger logger, string reason);
+
+    /// <remarks>
+    /// Debug, and no exception: a caller that went away is the ordinary end of a request rather than a
+    /// fault anybody has to act on, and it is how an event stream ends every time a page is closed or
+    /// reloaded. It is logged at all because a stream that keeps ending is worth being able to see while
+    /// looking into one — and because the alternative, swallowing it, leaves nothing to say the request
+    /// ended rather than hung.
+    /// </remarks>
+    [LoggerMessage(EventId = 9006, Level = LogLevel.Debug, Message = "Api request abandoned by the caller: {Url}")]
+    public static partial void RequestAbandoned(this ILogger logger, string url);
 }

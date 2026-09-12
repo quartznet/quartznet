@@ -18,9 +18,10 @@
       it at compile time instead, and ASP.NET Core ships it for exactly this reason - baselining those 114
       would have recorded a warning the framework already has a fix for.
 
-      It intercepts all 57 Map* calls in Endpoints/: 4 in CalendarEndpoints, 20 in JobEndpoints, 13 in
-      SchedulerEndpoints and 20 in TriggerEndpoints, counted out of GeneratedRouteBuilderExtensions.g.cs
-      with EmitCompilerGeneratedFiles on and matched against the call sites in the source. Turning it off
+      It intercepts all 65 Map* calls in Endpoints/: 5 in CalendarEndpoints, 21 in JobEndpoints, 17 in
+      SchedulerEndpoints and 22 in TriggerEndpoints. RequestDelegatesAreSourceGeneratedTest counts them
+      per file out of the generated route builder's interception metadata and fails when a route is added
+      without this number moving with it, which is what keeps the two in step. Turning the generator off
       is not quiet: with nothing suppressing them, the 114 come back as errors.
     -->
     <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>

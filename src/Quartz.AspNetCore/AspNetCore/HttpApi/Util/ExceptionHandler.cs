@@ -90,6 +90,21 @@ internal sealed class ExceptionHandler
     }
 
     /// <summary>
+    /// Records that the caller of <paramref name="context" /> went away before the request finished.
+    /// </summary>
+    /// <remarks>
+    /// Here rather than in the wrapper that catches it, so that everything the API logs about a request
+    /// goes through one logger under one category. Nothing is written to the response: its headers are
+    /// long gone by the time a stream is abandoned, and there is nobody to read a body either way.
+    /// </remarks>
+    public void HandleAbandonedRequest(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        logger.RequestAbandoned(context.Request.GetDisplayUrl());
+    }
+
+    /// <summary>
     /// What a <c>500</c> says instead of the exception's message.
     /// </summary>
     /// <remarks>

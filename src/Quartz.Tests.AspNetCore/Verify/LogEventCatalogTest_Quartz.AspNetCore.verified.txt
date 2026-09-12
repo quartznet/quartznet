@@ -10,3 +10,5 @@
     "Exception thrown when handling api request to url {Url}"
 9005  Warning  HttpApiLog.Forbidden
     "Api request refused: {Reason}"
+9006  Debug  HttpApiLog.RequestAbandoned
+    "Api request abandoned by the caller: {Url}"

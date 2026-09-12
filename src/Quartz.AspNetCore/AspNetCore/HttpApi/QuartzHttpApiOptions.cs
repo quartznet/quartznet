@@ -23,6 +23,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.AspNetCore.HttpApi.Util;
+
 namespace Quartz;
 
 /// <summary>
@@ -174,6 +176,17 @@ public sealed class QuartzHttpApiOptions
     /// </para>
     /// </remarks>
     public Func<string, bool>? IsJobTypeAllowed { get; set; }
+
+    /// <summary>
+    /// How long the event stream may say nothing before it emits a <c>Heartbeat</c> frame — fifteen
+    /// seconds.
+    /// </summary>
+    /// <remarks>
+    /// Internal in 4.1, which is what the whole event surface is. The value is here rather than in a
+    /// constant so that a test can shorten it for one host: a mutable static would be one interval shared
+    /// by every host in the process, which is exactly what a test suite has several of.
+    /// </remarks>
+    internal TimeSpan EventStreamHeartbeatInterval { get; set; } = SchedulerEventStream.DefaultHeartbeatInterval;
 
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
 

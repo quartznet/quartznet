@@ -59,6 +59,12 @@ public static class QuartzAspNetCoreConfigurationExtensions
         // once. Set ExecutionHistoryOptions.MaxEntriesPerScheduler to 0 to record nothing.
         services.AddQuartzExecutionHistory();
 
+        // The API serves its schedulers' events as they happen, so something has to publish them. One
+        // publisher into one broker, installed into every scheduler in the container and idempotent, so a
+        // process that maps the dashboard beside this does not put every event on the stream twice. It
+        // costs a process nobody is watching nothing: no subscriber means no event is built at all.
+        services.AddQuartzSchedulerEvents();
+
         // Refuses to start an application whose mapped API nothing authorizes. Registered here rather
         // than at the map site, because a hosted service added to a built application is too late.
         services.TryAddSingleton<QuartzMappedEndpoints>();
