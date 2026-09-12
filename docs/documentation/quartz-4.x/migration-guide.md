@@ -69,7 +69,7 @@ newly possible, that change, and the two cron expressions 4.1 reads differently.
 | `QuartzHttpApiOptions.EventStreamHeartbeatInterval` | How long the event stream may say nothing before it sends a `Heartbeat` frame; fifteen seconds by default, and validated at startup. It is a setting because the thing it has to stay under is not Quartz's: a reverse proxy closes an idle connection after its own read timeout — nginx's is 60 seconds, Azure's front doors 90 — and a deployment is free to configure less |
 | `QuartzHttpApiOptions.ReadOnly` | `false` by default, which is what every earlier release did. Set it and every route that changes something answers `403` with problem details saying the API is read-only — before the handler runs, so no body is read and no scheduler is looked up. Mutation is per route rather than per verb: the two bulk fetches, `POST …/jobs/fetch` and `POST …/triggers/fetch`, are reads and are served. It binds this API only; a dashboard mapped beside it has its own `QuartzDashboardOptions.ReadOnly`. See [Serving reads only](packages/http-api.md#serving-reads-only) |
 
-Eleven behaviours changed without a signature changing:
+Twelve behaviours changed without a signature changing:
 
 * **`Shutdown(waitForJobsToComplete: false)` no longer drops a firing, and settles what it can.** It
   stops the scheduler's own firing loop and waits for it before closing the thread pool, so an
@@ -126,6 +126,16 @@ Eleven behaviours changed without a signature changing:
   needs to forward `{DashboardPath}/hub` only for clients of your own** — the hub is still served and still
   fed, from the same stream, in the payload records `IQuartzDashboardHubClient` has always declared. The
   plugin is still public and still works; registering it beside the publisher would push every event twice.
+* **The HTTP API logs the mutations that succeed, not only the requests that fail.** Every route that
+  changes something writes one `Information` line when it does — event `9007`,
+  `"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"`, under the
+  `Quartz.HttpApi` category the API's other events are written under. The events it raised before this
+  were failures only, so a `POST …/shutdown` that worked was recorded nowhere at all. The user is
+  `HttpContext.User.Identity.Name` or `(anonymous)`, which for an API mapped with `AllowAnonymous()` is
+  every line; the line is written after the handler and only for an answer in the `2xx` range, so a
+  refusal and a failure are still the `9005` and the `9003`/`9004` they were. A deployment that ships the
+  API's logs somewhere with a volume budget is the one to know about it. See
+  [Production hardening](packages/http-api.md#production-hardening).
 * **`AddQuartzHttpApi()` streams its schedulers' events.** It calls `AddQuartzSchedulerEvents()` for the
   route above, which costs a process nobody is watching nothing: no subscriber means no event is built at
   all. A worker that maps the API is therefore watchable without anything further being written.

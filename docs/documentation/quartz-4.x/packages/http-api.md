@@ -998,6 +998,16 @@ that remains is over the payload rather than over the contract.
   trusted with the whole API**, down to reading every job's data map. `SchedulerAuthorizationPolicy`
   narrows *which schedulers* a caller reaches and `IsJobTypeAllowed` narrows *which job types* they may
   name; anything finer than those two belongs in the policy or in a gateway in front of this
+- **Every successful mutation is logged**, at `Information`, as event `9007`
+  (`"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"`) — the caller's
+  `HttpContext.User.Identity.Name`, or `(anonymous)` where nothing authenticated, the endpoint's name, the
+  scheduler and the request's path, which is where a route's target key is spelled. One line per request,
+  written after the handler and only for an answer in the `2xx` range: a refusal is the `9005` beside it
+  and a failure is a `9003` or a `9004`, so what is in this line is what actually changed. It is the
+  record of who did what — authenticate the API if the name is to say anything — and it is *this*
+  process's log: an action taken through the API is not in the [dashboard](dashboard.md#action-log)'s
+  Action Log, and the dashboard's own actions are not here. All of them are in
+  [Log Events](../log-events.md)
 - Set `ReadOnly` where nothing should write through this API at all — a process that maps it to feed a
   dashboard, a monitoring tool or a report. It refuses every mutating route in one setting, whoever
   asks; see [Serving reads only](#serving-reads-only)

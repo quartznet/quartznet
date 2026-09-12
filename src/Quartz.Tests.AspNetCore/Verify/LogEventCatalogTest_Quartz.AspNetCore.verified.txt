@@ -12,3 +12,5 @@
     "Api request refused: {Reason}"
 9006  Debug  HttpApiLog.RequestAbandoned
     "Api request abandoned by the caller: {Url}"
+9007  Information  HttpApiLog.MutationPerformed
+    "Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"

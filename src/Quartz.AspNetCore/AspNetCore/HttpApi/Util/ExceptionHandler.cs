@@ -15,7 +15,7 @@ internal sealed class ExceptionHandler
     public ExceptionHandler(IOptions<QuartzHttpApiOptions> options, ILoggerFactory loggerFactory)
     {
         includeStackTrace = options.Value.IncludeStackTraceInProblemDetails;
-        logger = loggerFactory.CreateLogger("Quartz.HttpApi");
+        logger = loggerFactory.CreateLogger(HttpApiLog.Category);
     }
 
     /// <summary>
