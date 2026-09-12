@@ -20,6 +20,7 @@
 #endregion
 
 using System.Collections.Specialized;
+using System.Reflection;
 
 using Quartz.Util;
 
@@ -73,6 +74,12 @@ internal static class LegacyPropertyKeys
     internal const string ThreadPoolType = "quartz.threadPool.type";
     internal const string TimeProviderType = "quartz.timeProvider.type";
     internal const string JobStorePrefix = "quartz.jobStore";
+
+    /// <summary>
+    /// The job store prefix with its separator, which is where a key under it starts.
+    /// </summary>
+    private const string JobStoreKeyPrefix = JobStorePrefix + ".";
+
     internal const string JobStoreType = "quartz.jobStore.type";
     internal const string JobStoreDbRetryInterval = "quartz.jobStore.dbRetryInterval";
 
@@ -270,5 +277,161 @@ internal static class LegacyPropertyKeys
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Every <c>quartz.jobStore.*</c> key some reader of the flat format consumes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One table rather than the reading order, because <see cref="ValidateJobStoreKeys" /> has to know
+    /// what was consumed and the readers are spread over four methods of
+    /// <see cref="QuartzPropertyBridge" /> — the ADO.NET store's options, the in-memory store's misfire
+    /// threshold, the clustering options and the registrations. A key added to one of them and not to
+    /// this table is refused although it works, which is why
+    /// <c>EveryJobStoreKeyTheReadersConsultIsAcceptedForAnAdoStore</c> compares the two mechanically.
+    /// </para>
+    /// <para>
+    /// Both spellings of a setting are keys: <c>clustered</c> and <c>clustering.enabled</c> say the same
+    /// thing, as do <c>performSchemaValidation</c> and <c>schemaProvisioning</c>.
+    /// </para>
+    /// </remarks>
+    private static readonly HashSet<string> jobStoreKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        JobStoreType,
+        JobStoreDbRetryInterval,
+        JobStoreCommandTimeout,
+        JobStorePrefix + ".dataSource",
+        JobStorePrefix + ".driverDelegateType",
+        JobStorePrefix + ".driverDelegateInitString",
+        JobStorePrefix + ".tablePrefix",
+        JobStorePrefix + ".useProperties",
+        JobStorePrefix + ".misfireThreshold",
+        JobStorePrefix + ".misfireHandlerFrequency",
+        JobStorePrefix + ".maxMisfiresToHandleAtATime",
+        JobStorePrefix + ".maxTransientRetries",
+        JobStorePrefix + ".transientRetryInterval",
+        JobStorePrefix + ".retryableActionErrorLogThreshold",
+        JobStorePrefix + ".makeThreadsDaemons",
+        JobStorePrefix + ".useDBLocks",
+        JobStorePrefix + ".lockOnInsert",
+        JobStorePrefix + ".acquireTriggersWithinLock",
+        JobStorePrefix + ".acceptEnlistedTransactions",
+        JobStorePrefix + ".openConnection",
+        JobStorePrefix + ".txIsolationLevelSerializable",
+        JobStorePrefix + ".doubleCheckLockMisfireHandler",
+        JobStorePrefix + ".performSchemaValidation",
+        JobStorePrefix + ".schemaProvisioning",
+        JobStorePrefix + ".selectWithLockSQL",
+        JobStorePrefix + ".clustered",
+        JobStorePrefix + ".clusterCheckinInterval",
+        JobStorePrefix + ".clusterCheckinMisfireThreshold",
+        JobStorePrefix + ".clustering.enabled",
+        JobStorePrefix + ".clustering.checkinInterval",
+        JobStorePrefix + ".clustering.checkinMisfireThreshold",
+    };
+
+    /// <summary>
+    /// The same keys under their typed spelling, read off the options types rather than listed.
+    /// </summary>
+    /// <remarks>
+    /// A hierarchical <c>JobStore</c> section binds onto <see cref="AdoJobStoreOptions" /> and is
+    /// flattened onto this prefix as well, so <c>JobStore:StoreJobDataAsStrings</c> arrives as
+    /// <c>quartz.jobStore.storeJobDataAsStrings</c> — a key the bridge never reads and the typed binder
+    /// always does. Taken from the options types so that a property added to either needs no entry here:
+    /// a new setting would otherwise be refused in the very spelling the options type gives it.
+    /// </remarks>
+    private static readonly HashSet<string> typedJobStoreKeys = TypedJobStoreKeys();
+
+    private static HashSet<string> TypedJobStoreKeys()
+    {
+        HashSet<string> keys = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (PropertyInfo property in typeof(AdoJobStoreOptions).GetProperties())
+        {
+            keys.Add(JobStoreKeyPrefix + property.Name);
+        }
+
+        // Clustering is a sub-section of the job store's, which flattens onto this prefix.
+        foreach (PropertyInfo property in typeof(ClusteringOptions).GetProperties())
+        {
+            keys.Add(JobStoreKeyPrefix + "clustering." + property.Name);
+        }
+
+        return keys;
+    }
+
+    /// <summary>
+    /// Rejects a <c>quartz.jobStore.*</c> key the ADO.NET job store does not read.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Validate" /> accepts any key under a supported <em>prefix</em>, and
+    /// <c>quartz.jobStore</c> is one, so a misspelling underneath it was accepted by the check and then
+    /// consulted by nobody: <c>quartz.jobStore.dbRetryIntreval</c> started the scheduler with the
+    /// default retry interval in force and said nothing about it. 3.x wrote every key under this prefix
+    /// onto the store object by name and failed startup on one the store had no property for, and a
+    /// store whose settings arrive as typed options has to give the same answer — a key a newer 3.x line
+    /// adds and 4.x has not bridged is dropped the same way a typo is, which is how
+    /// <see cref="JobStoreCommandTimeout" /> went missing.
+    /// </para>
+    /// <para>
+    /// Called from the ADO.NET store's own options mapping, so it runs when those options are resolved —
+    /// the startup validation a persistent store declares, or the scheduler build that constructs the
+    /// store — and not at all for a store that reads none of them. A third-party store's keys are
+    /// written onto the store object by name, which reports an unknown one itself, so the two kinds of
+    /// store agree in outcome without this being asked about either.
+    /// </para>
+    /// <para>
+    /// Two families under the prefix take their own route and are not refused here: every
+    /// <c>lockHandler.*</c> key is written onto the lock handler by name, and
+    /// <c>driverDelegateInitString</c> is parsed into trigger persistence delegate registrations. Both
+    /// report an unknown setting of their own.
+    /// </para>
+    /// </remarks>
+    internal static void ValidateJobStoreKeys(NameValueCollection properties)
+    {
+        var parser = new PropertiesParser(properties);
+        if (!parser.GetBooleanProperty(CheckConfiguration, defaultValue: true))
+        {
+            return;
+        }
+
+        foreach (var key in properties.AllKeys)
+        {
+            // Case-insensitively, because that is how the bag itself looks a key up: a reader asking for
+            // 'quartz.jobStore.tablePrefix' is answered by a key written 'quartz.jobstore.tableprefix',
+            // so refusing by exact spelling would refuse a key that configures the store.
+            if (key is null
+                || key.Length <= JobStoreKeyPrefix.Length
+                || !key.StartsWith(JobStoreKeyPrefix, StringComparison.OrdinalIgnoreCase)
+                || IsJobStoreKey(key))
+            {
+                continue;
+            }
+
+            Throw.SchedulerConfigException(
+                $"Unknown configuration property '{key}'. It is not a setting of the ADO.NET job store, "
+                + $"and no other reader consults it. Set '{CheckConfiguration}' to false to allow keys Quartz does not read.");
+        }
+    }
+
+    private static bool IsJobStoreKey(string key)
+    {
+        return IsUnderLockHandler(key) || jobStoreKeys.Contains(key) || typedJobStoreKeys.Contains(key);
+    }
+
+    /// <summary>
+    /// Whether the key is the lock handler's prefix or a key beneath it.
+    /// </summary>
+    /// <remarks>
+    /// The separator is required rather than matching the prefix alone, so that
+    /// <c>quartz.jobStore.lockHandlerType</c> — the dot left out — is the unknown key it is rather than
+    /// something a lock handler will be asked about later.
+    /// </remarks>
+    private static bool IsUnderLockHandler(string key)
+    {
+        return key.StartsWith(JobStoreLockHandlerPrefix, StringComparison.OrdinalIgnoreCase)
+               && (key.Length == JobStoreLockHandlerPrefix.Length || key[JobStoreLockHandlerPrefix.Length] == '.');
     }
 }

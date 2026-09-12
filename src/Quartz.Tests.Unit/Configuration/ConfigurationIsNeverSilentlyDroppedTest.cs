@@ -4,6 +4,8 @@ using System.Collections.Specialized;
 using System.Data.Common;
 using System.Text.Json;
 
+using FakeItEasy;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -846,6 +848,200 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             "bridging the zero literally would turn a working 3.x configuration into a startup failure");
     }
 
+    /// <summary>
+    /// The last silent drop under this prefix. <c>LegacyPropertyKeys.Validate</c> accepts any key under a
+    /// supported <em>prefix</em> and <c>quartz.jobStore</c> is one, so a misspelling underneath it was
+    /// accepted by the check and then consulted by nobody: the ADO.NET store reads the keys it knows into
+    /// its options and does nothing with the rest. 3.x wrote every key under the prefix onto the store by
+    /// name and failed startup on one the store had no property for.
+    /// </summary>
+    [Test]
+    public void AnUnknownJobStoreKeyIsRefusedByName()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.dataSource"] = "test",
+                ["quartz.jobStore.dbRetryIntreval"] = "20000",
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a key the store never reads leaves the default in force, and a retry interval that is "
+                + "silently not what the file says is indistinguishable from one that is")
+            .WithMessage("*quartz.jobStore.dbRetryIntreval*",
+                "the reader has to be told which key in their file is the problem")
+            .WithMessage("*quartz.checkConfiguration*",
+                "a configuration holding keys of its own has the same escape hatch the unknown-key check has");
+    }
+
+    /// <summary>
+    /// The refusal fires where a misconfiguration fails today — the options the store resolves as it is
+    /// built — rather than at the first statement that would have used the setting.
+    /// </summary>
+    [Test]
+    public void AnUnknownJobStoreKeyStopsTheStoreBeingBuilt()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection { ["quartz.jobStore.maxTransientRetires"] = "10" },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IJobStore>();
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a store built with a default nobody asked for runs for weeks before anyone notices")
+            .WithMessage("*quartz.jobStore.maxTransientRetires*");
+    }
+
+    [Test]
+    public void AnUnknownJobStoreKeyIsAllowedOnceTheCheckIsTurnedOff()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.checkConfiguration"] = "false",
+                ["quartz.jobStore.dataSource"] = "test",
+                ["quartz.jobStore.dbRetryIntreval"] = "20000",
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.DataSource.Should().Be("test",
+            "the flag is what a bag carrying keys of Quartz's is not documented to read exists for, and it "
+            + "has to cover this check as it covers the other one");
+    }
+
+    /// <summary>
+    /// A lock handler's settings sit under this prefix and are written onto the handler by name, which
+    /// reports an unknown one itself. Refusing them here would refuse every third-party lock handler.
+    /// </summary>
+    [Test]
+    public void ALockHandlerSettingIsNotTakenForAnUnknownJobStoreKey()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.dataSource"] = "test",
+                ["quartz.jobStore.lockHandler.type"] = typeof(MarkedLockHandler).AssemblyQualifiedName,
+                ["quartz.jobStore.lockHandler.marker"] = "configured",
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.DataSource.Should().Be("test");
+        provider.GetRequiredService<ILockHandler>().Should().BeOfType<MarkedLockHandler>()
+            .Which.Marker.Should().Be("configured");
+    }
+
+    /// <summary>
+    /// The init string is parsed into trigger persistence delegate registrations, and reports an unknown
+    /// setting of its own — see <see cref="AnUnknownInitStringSettingIsRejectedByName" />.
+    /// </summary>
+    [Test]
+    public void TheInitStringIsNotTakenForAnUnknownJobStoreKey()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.dataSource"] = "test",
+                ["quartz.jobStore.driverDelegateInitString"] =
+                    "triggerPersistenceDelegateTypes=" + typeof(MarkedTriggerPersistenceDelegate).AssemblyQualifiedName,
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.DataSource.Should().Be("test");
+        provider.GetServices<ITriggerPersistenceDelegate>().Should().ContainSingle(x => x is MarkedTriggerPersistenceDelegate);
+    }
+
+    /// <summary>
+    /// A hierarchical <c>JobStore</c> section binds onto the typed options <em>and</em> is flattened onto
+    /// the flat keys, so a setting the bridge has no legacy key for still arrives under this prefix.
+    /// <c>LockWaitWarningThreshold</c> is one: refusing it would refuse the spelling its own options type
+    /// gives it.
+    /// </summary>
+    [Test]
+    public void ASettingSpelledAsItsTypedPropertyIsNotRefused()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            Section(new Dictionary<string, string?>
+            {
+                ["JobStore:DataSource"] = "test",
+                ["JobStore:LockWaitWarningThreshold"] = "00:00:05",
+            }),
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.LockWaitWarningThreshold
+            .Should().Be(TimeSpan.FromSeconds(5),
+                "the typed binder is this key's reader, so the flat spelling of it is a key something reads");
+    }
+
+    /// <summary>
+    /// The other branch of the same decision, pinned so the two agree in outcome: a store with no typed
+    /// options has its leftover keys written onto it by name, and an unknown one has always failed there.
+    /// </summary>
+    [Test]
+    public void AnUnknownJobStoreKeyAgainstACustomStoreStillFailsWhereItAlwaysDid()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new NameValueCollection
+        {
+            ["quartz.jobStore.type"] = typeof(StoreWithNoTypedOptions).AssemblyQualifiedName,
+            ["quartz.jobStore.dbRetryIntreval"] = "20000",
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IJobStore>();
+
+        act.Should().Throw<SchedulerConfigException>(
+                "the reflection branch is what the ADO store's refusal was written to agree with, so a "
+                + "change to either must not leave one of them silent")
+            .WithMessage("*dbRetryIntreval*");
+    }
+
+    /// <summary>
+    /// The refusal belongs to the store whose settings the keys describe. An in-memory scheduler reads
+    /// one key under this prefix and none of the rest, and failing it here would refuse a configuration
+    /// 4.0 accepted — a 3.x file that still names a table prefix beside an in-memory store is a report of
+    /// its own, not this one.
+    /// </summary>
+    [Test]
+    public void AnAdoOnlyKeyDoesNotFailAnInMemoryStore()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.misfireThreshold"] = "30000",
+                ["quartz.jobStore.tablePrefix"] = "QRTZ2_",
+            },
+            q => q.UseInMemoryStore());
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<InMemoryJobStoreOptions>>().Value.MisfireThreshold
+            .Should().Be(TimeSpan.FromSeconds(30));
+        provider.GetRequiredService<IJobStore>().Should().BeOfType<RAMJobStore>();
+    }
+
     [Test]
     public async Task PluginSettingsInConfigurationFindAPluginAddedInCode()
     {
@@ -1223,6 +1419,22 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             => new(true);
 
         public ValueTask ReleaseLock(Guid requestorId, SchedulerLock lockKind, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// A store of somebody else's: neither the in-memory store nor an ADO.NET one, which is what sends
+    /// its leftover <c>quartz.jobStore.*</c> keys through the by-name binder.
+    /// </summary>
+    /// <remarks>
+    /// The bridge writes them onto whatever <c>JobStores.Unwrap</c> finds, so they land on the innermost
+    /// store — a fake here, because what is under test is the binder's answer to a name no property
+    /// carries, and spelling out <see cref="IJobStore"/>'s fifty members to say that would bury it.
+    /// </remarks>
+    private sealed class StoreWithNoTypedOptions : DelegatingJobStore
+    {
+        public StoreWithNoTypedOptions() : base(A.Fake<IJobStore>())
+        {
+        }
     }
 
     private sealed class RecordingPlugin : ISchedulerPlugin

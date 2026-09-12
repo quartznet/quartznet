@@ -233,6 +233,91 @@ public class LegacyPropertyKeyExhaustivenessTest
             + "to have at all");
     }
 
+    /// <summary>
+    /// The same completeness property, one prefix down.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An ADO.NET store refuses a <c>quartz.jobStore.*</c> key nothing reads, which is only a kindness
+    /// while the table it checks against covers every such key some reader consults — and those readers
+    /// are spread over four methods of the bridge, none of which the table is derived from. A key added
+    /// to one of them and not to the table is refused although it works, and it is refused for the
+    /// persistent configurations this check exists to protect.
+    /// </para>
+    /// <para>
+    /// Compared mechanically for that reason, against the same IL scan the whole-format test uses rather
+    /// than against a second transcription of the table.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void EveryJobStoreKeyTheReadersConsultIsAcceptedForAnAdoStore()
+    {
+        const string JobStorePrefix = "quartz.jobStore.";
+
+        List<string> jobStoreKeys = keysTheReadersConsult
+            .Where(key => key.Length > JobStorePrefix.Length
+                          && key.StartsWith(JobStorePrefix, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        jobStoreKeys.Should().HaveCountGreaterThan(20,
+            "the scan finding next to nothing under this prefix would make the assertion below vacuous");
+
+        List<string> refused = [];
+        foreach (string key in jobStoreKeys)
+        {
+            if (JobStoreRejection(key) is { } message)
+            {
+                refused.Add($"{key}: {message}");
+            }
+        }
+
+        refused.Should().BeEmpty(
+            "a key some reader consults is by definition not a misspelling, so refusing it would fail a "
+            + "persistent scheduler whose configuration is correct");
+    }
+
+    [Test]
+    public void EveryDocumentedJobStoreKeyIsAcceptedForAnAdoStore()
+    {
+        List<string> refused = documentedKeys
+            .Where(key => key.StartsWith("quartz.jobStore.", StringComparison.Ordinal))
+            .Where(key => JobStoreRejection(key) is not null)
+            .ToList();
+
+        refused.Should().BeEmpty(
+            "the documentation is the other half of the contract here too: a key it teaches and the store "
+            + "refuses fails a reader who did exactly what they were told");
+    }
+
+    [Test]
+    public void AMisspelledJobStoreKeyIsRefusedByName()
+    {
+        // Guards the guard above: a check that accepted everything would satisfy it silently.
+        JobStoreRejection("quartz.jobStore.dbRetryIntreval")
+            .Should().NotBeNull("this is the misspelling the whole check exists for")
+            .And.Contain("quartz.jobStore.dbRetryIntreval",
+                "the reader has to be told which key in their file is the problem");
+    }
+
+    /// <summary>
+    /// Runs the ADO.NET store's key check over a bag holding just this key, and returns the complaint or
+    /// <see langword="null" /> when the key is accepted.
+    /// </summary>
+    private static string? JobStoreRejection(string key)
+    {
+        NameValueCollection properties = new NameValueCollection { [key] = "value" };
+
+        try
+        {
+            LegacyPropertyKeys.ValidateJobStoreKeys(properties);
+            return null;
+        }
+        catch (SchedulerConfigException exception)
+        {
+            return exception.Message;
+        }
+    }
+
     [Test]
     public void NoKeyTheReadersConsultIsAlsoListedAsRemoved()
     {
