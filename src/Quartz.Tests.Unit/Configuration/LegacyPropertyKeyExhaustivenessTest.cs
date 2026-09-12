@@ -63,6 +63,7 @@ namespace Quartz.Tests.Unit.Configuration;
 public class LegacyPropertyKeyExhaustivenessTest
 {
     private const string Prefix = "quartz.";
+    private const string JobStorePrefix = "quartz.jobStore.";
     private const string ConfigurationNamespace = "Quartz.Configuration";
 
     private static readonly Assembly quartzAssembly = typeof(IScheduler).Assembly;
@@ -252,8 +253,6 @@ public class LegacyPropertyKeyExhaustivenessTest
     [Test]
     public void EveryJobStoreKeyTheReadersConsultIsAcceptedForAnAdoStore()
     {
-        const string JobStorePrefix = "quartz.jobStore.";
-
         List<string> jobStoreKeys = keysTheReadersConsult
             .Where(key => key.Length > JobStorePrefix.Length
                           && key.StartsWith(JobStorePrefix, StringComparison.OrdinalIgnoreCase))
@@ -280,7 +279,7 @@ public class LegacyPropertyKeyExhaustivenessTest
     public void EveryDocumentedJobStoreKeyIsAcceptedForAnAdoStore()
     {
         List<string> refused = documentedKeys
-            .Where(key => key.StartsWith("quartz.jobStore.", StringComparison.Ordinal))
+            .Where(key => key.StartsWith(JobStorePrefix, StringComparison.Ordinal))
             .Where(key => JobStoreRejection(key) is not null)
             .ToList();
 
