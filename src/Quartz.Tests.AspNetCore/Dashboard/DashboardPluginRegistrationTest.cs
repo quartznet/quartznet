@@ -1,14 +1,13 @@
 using FakeItEasy;
 
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Configuration;
-using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
+using Quartz.HttpApiContract;
 using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
 
@@ -39,7 +38,7 @@ public class DashboardPluginRegistrationTest
         using var provider = services.BuildServiceProvider();
 
         DashboardPlugins(provider, schedulerKey: null).Should().BeEquivalentTo(
-            [("quartzDashboardLiveEvents", typeof(DashboardLiveEventsPlugin)),
+            [("quartzSchedulerEvents", typeof(SchedulerEventPlugin)),
              ("quartzExecutionHistory", typeof(ExecutionHistoryPlugin))]);
     }
 
@@ -53,7 +52,7 @@ public class DashboardPluginRegistrationTest
         using var provider = services.BuildServiceProvider();
 
         DashboardPlugins(provider, "acme").Should().BeEquivalentTo(
-            [("quartzDashboardLiveEvents", typeof(DashboardLiveEventsPlugin)),
+            [("quartzSchedulerEvents", typeof(SchedulerEventPlugin)),
              ("quartzExecutionHistory", typeof(ExecutionHistoryPlugin))],
             "a named scheduler resolves its plugins by service key, so plugins registered unkeyed never "
             + "reached it and its live view and history were silently always empty");
@@ -69,7 +68,7 @@ public class DashboardPluginRegistrationTest
         using var provider = services.BuildServiceProvider();
 
         DashboardPlugins(provider, "acme").Should().BeEquivalentTo(
-            [("quartzDashboardLiveEvents", typeof(DashboardLiveEventsPlugin)),
+            [("quartzSchedulerEvents", typeof(SchedulerEventPlugin)),
              ("quartzExecutionHistory", typeof(ExecutionHistoryPlugin))],
             "an application is free to register its schedulers on either side of AddQuartzDashboard");
     }
@@ -85,15 +84,15 @@ public class DashboardPluginRegistrationTest
 
         using var provider = services.BuildServiceProvider();
 
-        List<ISchedulerPlugin> live =
+        List<ISchedulerPlugin> publishers =
         [
             .. new object?[] { null, "acme", "initech" }
-                .Select(key => Plugins(provider, key).OfType<DashboardLiveEventsPlugin>().Single())
+                .Select(key => Plugins(provider, key).OfType<SchedulerEventPlugin>().Single())
         ];
 
-        live.Distinct().Should().HaveCount(3,
+        publishers.Distinct().Should().HaveCount(3,
             "a plugin is told which scheduler it extends when it is initialized, so one instance shared "
-            + "between three schedulers would broadcast every scheduler's events under the last name");
+            + "between three schedulers would publish every scheduler's events under the last name");
     }
 
     /// <summary>
@@ -165,42 +164,96 @@ public class DashboardPluginRegistrationTest
     }
 
     /// <summary>
-    /// The live-events plugin a named scheduler's container builds broadcasts through that container's
-    /// hub.
+    /// The dashboard's own live-events plugin is not registered any more either, so nothing pushes twice.
     /// </summary>
     /// <remarks>
-    /// <inheritdoc cref="TheHistoryPluginBuiltForANamedSchedulerRecordsToThatContainersStore" path="/remarks" />
+    /// Quartz's publisher puts every event on a stream the dashboard's pages read directly and an internal
+    /// forwarder feeds the hub from, so a second publisher writing into the same hub would show every
+    /// browser each event twice. The type stays public and functional for an application that registered it
+    /// by name — <c>DashboardSchedulerStateEventsTest</c> is what says it still works.
     /// </remarks>
     [Test]
-    public async Task TheLiveEventsPluginBuiltForANamedSchedulerBroadcastsThroughThatContainersHub()
+    public void TheDashboardsOwnLiveEventsPluginIsNoLongerRegistered()
     {
-        List<SchedulerStateDto> pushed = [];
-
-        IQuartzDashboardHubClient client = A.Fake<IQuartzDashboardHubClient>();
-        A.CallTo(() => client.SchedulerStateChanged(A<SchedulerStateDto>._))
-            .Invokes((SchedulerStateDto state) => pushed.Add(state))
-            .Returns(Task.CompletedTask);
-
-        IHubClients<IQuartzDashboardHubClient> clients = A.Fake<IHubClients<IQuartzDashboardHubClient>>();
-        A.CallTo(() => clients.Group(A<string>._)).Returns(client);
-
         ServiceCollection services = new();
-        // an exact registration wins over the open generic AddSignalR registers, so the plugin's lazy
-        // hub lookup finds this one
-        services.AddSingleton<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>(new CapturingHubContext(clients));
+        services.AddQuartzDashboard();
+        services.AddQuartz();
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        Plugins(provider, schedulerKey: null).OfType<DashboardLiveEventsPlugin>().Should().BeEmpty(
+            "Quartz's own publisher puts the events on the stream the pages and the hub both read");
+    }
+
+    /// <summary>
+    /// The publisher a named scheduler's container builds publishes into that container's broker.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="TheRecorderBuiltForANamedSchedulerRecordsToTheApplicationsOwnStore" path="/remarks" />
+    /// </remarks>
+    [Test]
+    public async Task ThePublisherBuiltForANamedSchedulerPublishesIntoThatContainersBroker()
+    {
+        ServiceCollection services = new();
         services.AddQuartzDashboard();
         services.AddQuartz("acme");
 
         await using ServiceProvider provider = services.BuildServiceProvider();
 
-        DashboardLiveEventsPlugin plugin = Plugins(provider, "acme").OfType<DashboardLiveEventsPlugin>().Single();
+        SchedulerEventPlugin plugin = Plugins(provider, "acme").OfType<SchedulerEventPlugin>().Single();
+        SchedulerEventBroker broker = provider.GetRequiredService<SchedulerEventBroker>();
         IScheduler scheduler = FakeScheduler("acme");
 
-        await plugin.Initialize("quartzDashboardLiveEvents", scheduler);
+        await plugin.Initialize(SchedulerEventPlugin.PluginName, scheduler);
+
+        List<SchedulerEvent> published = [];
+        using CancellationTokenSource subscription = new();
+        Task reading = Task.Run(async () =>
+        {
+            await foreach (SchedulerEvent published_ in broker.Subscribe("acme", subscription.Token))
+            {
+                lock (published)
+                {
+                    published.Add(published_);
+                }
+            }
+        });
+
+        using CancellationTokenSource waiting = new(TimeSpan.FromSeconds(10));
+        while (!broker.HasSubscribers("acme"))
+        {
+            await Task.Delay(5, waiting.Token);
+        }
+
         await plugin.SchedulerStarted(scheduler);
 
-        pushed.Should().ContainSingle("the plugin resolves its hub from the container it was built with")
-            .Which.Should().BeEquivalentTo(new SchedulerStateDto("acme", "acme-node", SchedulerStatus.Running));
+        while (true)
+        {
+            lock (published)
+            {
+                if (published.Count > 0)
+                {
+                    break;
+                }
+            }
+
+            await Task.Delay(5, waiting.Token);
+        }
+
+        await subscription.CancelAsync();
+        await reading;
+
+        lock (published)
+        {
+            published.Should().ContainSingle("the publisher resolves its broker from the container it was built with")
+                .Which.Should().BeEquivalentTo(new
+                {
+                    Kind = SchedulerEventKind.SchedulerStateChanged,
+                    SchedulerName = "acme",
+                    SchedulerInstanceId = "acme-node",
+                    Status = SchedulerStatus.Running
+                });
+        }
     }
 
     private static IScheduler FakeScheduler(string name)

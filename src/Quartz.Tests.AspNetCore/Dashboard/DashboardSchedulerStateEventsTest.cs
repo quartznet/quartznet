@@ -9,13 +9,20 @@ using Quartz.Dashboard.Plugins;
 namespace Quartz.Tests.AspNetCore.Dashboard;
 
 /// <summary>
-/// What the dashboard's live feed says a scheduler's state is.
+/// What <see cref="DashboardLiveEventsPlugin" /> says a scheduler's state is.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The payload used to be a phrase chosen at each call site, and a running scheduler was announced here
 /// as <c>"Started"</c> while the same state was called <c>"Running"</c> by the HTTP API and by the
 /// in-process client. It is a <see cref="SchedulerStatus" /> now, so there is one spelling and one
 /// vocabulary — and an event that is not a state has nothing to push.
+/// </para>
+/// <para>
+/// The plugin is superseded from 4.1 and no longer registered — <c>DashboardHubForwarderTest</c> holds the
+/// same claims for what feeds the hub now — but it is still public and still documented to work for an
+/// application that named it in a <c>quartz.plugin.*.type</c> key, which is what this keeps true.
+/// </para>
 /// </remarks>
 public class DashboardSchedulerStateEventsTest
 {

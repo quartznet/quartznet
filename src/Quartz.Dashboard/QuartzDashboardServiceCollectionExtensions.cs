@@ -25,7 +25,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 using Quartz.AspNetCore;
-using Quartz.Dashboard.Plugins;
+using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
 using Quartz.Impl;
@@ -39,8 +39,7 @@ public static class QuartzDashboardServiceCollectionExtensions
 {
     /// <summary>
     /// Registers everything the dashboard renders with — its Blazor components, its SignalR hub, the
-    /// execution history and the <see cref="IQuartzApiClient" /> the pages read — and adds its
-    /// live-events plugin to every scheduler in the container.
+    /// execution history, the live event stream and the <see cref="IQuartzApiClient" /> the pages read.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -55,6 +54,13 @@ public static class QuartzDashboardServiceCollectionExtensions
     /// every scheduler in the container runs and misses. <see cref="IDashboardHistoryStore" /> is still
     /// the dashboard's seam and still works — <see cref="AddHistory" /> says which way the pair is
     /// joined.
+    /// </para>
+    /// <para>
+    /// So are the live events: this calls <c>AddQuartzSchedulerEvents()</c>, and the Live Logs page reads
+    /// the stream that installs — in this process for a local scheduler, and over the HTTP API's event
+    /// route for one registered with <c>AddQuartzHttpClient</c>. The page needs no connection back to the
+    /// dashboard's own hub, which is what used to fail behind a reverse proxy; the hub is still served and
+    /// still fed, for clients of your own.
     /// </para>
     /// </remarks>
     /// <param name="services">The service collection.</param>
@@ -118,7 +124,18 @@ public static class QuartzDashboardServiceCollectionExtensions
             provider,
             provider.GetRequiredService<SchedulerAuthorization>()));
         services.TryAddScoped<ToastService>();
-        services.TryAddSingleton<IDashboardLiveConnectionFactory, SignalRDashboardLiveConnectionFactory>();
+
+        // The live events are Quartz's: this registers the broker every scheduler in the container
+        // publishes into, which is what the Live Logs page reads — in process for a local scheduler, and
+        // through the target's own reader for one registered with AddQuartzHttpClient. Idempotent, so a
+        // process that also maps the HTTP API streams each event once.
+        services.AddQuartzSchedulerEvents();
+
+        // And the adapter that feeds the dashboard's hub from that stream, for clients of an application's
+        // own. It subscribes when the first connection joins a scheduler, so a hub nobody has connected to
+        // costs the schedulers nothing.
+        services.TryAddSingleton<DashboardHubForwarder>();
+
         AddHistory(services);
         services.TryAddSingleton<DashboardActionLogService>();
 
@@ -126,23 +143,12 @@ public static class QuartzDashboardServiceCollectionExtensions
         // circuit's. Pages talk to this, which writes both the page's own log and the application's.
         services.TryAddScoped<DashboardActionLog>();
 
-        // The dashboard's own plugin, registered rather than named by a quartz.plugin.*.type key. A type
-        // name in a property bag is how a plugin is configured from a file; a package that knows its own
-        // plugin types has no reason to spell them as strings and have them loaded back by reflection.
-        //
-        // Added to every scheduler in the container rather than to the default one. The dashboard renders
-        // whatever schedulers the container holds, so a plugin that only reached the unkeyed registration
-        // left a scheduler registered with AddQuartz(name, …) rendering pages whose live view was always
-        // empty, with nothing to say why. Each scheduler gets its own instance, initialized with its own
-        // name, which is what the plugin broadcasts under. The name is the short one it has always been
-        // configured with: a plugin is told its name when it is initialized.
-        //
-        // The history recorder is no longer among them: AddQuartzExecutionHistory() installs Quartz's own
-        // against every scheduler, and the dashboard reads what that records.
-        services.ConfigureAllQuartzSchedulers(static quartz =>
-        {
-            quartz.AddPlugin<DashboardLiveEventsPlugin>("quartzDashboardLiveEvents");
-        });
+        // The dashboard installs no plugin of its own any more. Both of the ones it had are Quartz's now,
+        // installed into every scheduler in the container by the two calls above: the execution recorder
+        // whose rows the History page reads, and the event publisher whose stream the Live Logs page reads.
+        // DashboardLiveEventsPlugin and DashboardHistoryPlugin are still public and still work for an
+        // application that registers one by name; registering either beside the core pair would push every
+        // event twice and record every execution twice.
 
         return services;
     }
