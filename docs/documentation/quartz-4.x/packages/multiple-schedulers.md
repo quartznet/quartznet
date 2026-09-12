@@ -259,12 +259,12 @@ builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"))
 ```
 
 Individual flat keys that no typed option covers can still be set on the named options directly, through
-the `Properties` dictionary:
+the `Properties` dictionary — a plugin's own settings, say, which have no options type at all:
 
 <!-- snippet: sample_multiple_named_options -->
 ```csharp
 builder.Services.Configure<QuartzOptions>("DurableScheduler",
-    options => options.Properties["quartz.jobStore.someThirdPartySetting"] = "value");
+    options => options.Properties["quartz.plugin.myPlugin.someSetting"] = "value");
 ```
 <!-- endSnippet -->
 
