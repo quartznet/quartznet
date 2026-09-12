@@ -85,9 +85,9 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.Redis" Version="4.15.0" />
     <PackageVersion Include="Verify.NUnit" Version="32.0.0" />
-    <PackageVersion Include="WolverineFx" Version="6.35.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.35.0" />
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.35.0" />
+    <PackageVersion Include="WolverineFx" Version="6.36.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.36.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.36.0" />
   </ItemGroup>
 
   <!--
