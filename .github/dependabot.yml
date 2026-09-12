@@ -48,8 +48,6 @@ updates:
       #
       # Raise one of these by hand, for a security advisory, to the version that fixed it.
       # PackageDependencyTest fails a Microsoft.* floor that is not x.0.0 either way.
-      - dependency-name: "Microsoft.AspNetCore.SignalR.Client"
-        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "Microsoft.AspNetCore.Mvc.Testing"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "Microsoft.Extensions.Configuration.Binder"

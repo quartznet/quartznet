@@ -65,9 +65,11 @@ newly possible, that change, and the two cron expressions 4.1 reads differently.
 | `ExecutionHistoryOptions` | `Retention` (24 hours) and `MaxEntriesPerScheduler` (2000) — the bounds the shipped history is kept under. `0` records nothing, which is the opt-out for a process that does not want the history the HTTP API now turns on |
 | `services.AddQuartzExecutionHistory(configure)` | Records what every scheduler in the container runs and misses. Idempotent: `AddQuartzHttpApi()` and `AddQuartzDashboard()` both call it, so an application that maps both — or that calls it itself as well — still records each execution once. Order against `AddQuartz` does not matter |
 | Three history routes | `GET …/schedulers/{schedulerName}/history/executions` (`skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`), `GET …/history/misfires` (the same minus `jobContains`) and `GET …/history/misfires/count?since=…`. Per-scheduler authorization applies, because the routes name the scheduler. A 4.0 host has none of them, so a 4.1 client asking a 4.0 server gets `404` — which `HttpExecutionHistoryStore` reports as "this target serves no history" rather than as an error |
+| An event stream on the wire | `GET …/schedulers/{schedulerName}/events` serves what a scheduler is doing as [server-sent events](packages/http-api.md#the-event-stream): one frame per event, its `event:` name the event's kind and its `data:` the event as JSON. Fourteen kinds travel, eleven of which the dashboard's SignalR hub already carried; `JobInterrupted` — one firing of a job, named by its fire instance id — and `TriggerInError` are the two listener events that had no wire form, and `Heartbeat` is the route's own. Per-scheduler authorization applies and is evaluated before the stream opens, so a refused caller sees no frame; an unknown scheduler is the usual `404`. There is no replay and no `Last-Event-ID`. A 4.0 host has no such route, so a 4.1 client asking one gets `404` — reported as "this target serves no event stream" rather than as an error |
+| `QuartzHttpApiOptions.EventStreamHeartbeatInterval` | How long the event stream may say nothing before it sends a `Heartbeat` frame; fifteen seconds by default, and validated at startup. It is a setting because the thing it has to stay under is not Quartz's: a reverse proxy closes an idle connection after its own read timeout — nginx's is 60 seconds, Azure's front doors 90 — and a deployment is free to configure less |
 | `QuartzHttpApiOptions.ReadOnly` | `false` by default, which is what every earlier release did. Set it and every route that changes something answers `403` with problem details saying the API is read-only — before the handler runs, so no body is read and no scheduler is looked up. Mutation is per route rather than per verb: the two bulk fetches, `POST …/jobs/fetch` and `POST …/triggers/fetch`, are reads and are served. It binds this API only; a dashboard mapped beside it has its own `QuartzDashboardOptions.ReadOnly`. See [Serving reads only](packages/http-api.md#serving-reads-only) |
 
-Nine behaviours changed without a signature changing:
+Eleven behaviours changed without a signature changing:
 
 * **`Shutdown(waitForJobsToComplete: false)` no longer drops a firing, and settles what it can.** It
   stops the scheduler's own firing loop and waits for it before closing the thread pool, so an
@@ -113,6 +115,20 @@ Nine behaviours changed without a signature changing:
   twice. The type is still public and still works; do not register it beside the recorder.
   `IDashboardHistoryStore` is unchanged and still the dashboard's seam — a store registered against it
   is adapted onto `IExecutionHistoryStore` in both directions.
+* **`AddQuartzDashboard()` no longer registers `DashboardLiveEventsPlugin` either, and the dashboard's
+  pages no longer connect to its own hub.** It calls `AddQuartzSchedulerEvents()`, which installs one
+  publisher into every scheduler in the container, and the Live Logs page subscribes to that stream — in
+  process for a scheduler here, and over the API's event route for one registered with
+  `AddQuartzHttpClient`, which is how a scheduler in another process comes to have a live view at all. The
+  page used to open a SignalR *client* connection back to the dashboard's own public hub URL replaying the
+  browser's cookie, so the application had to be able to reach its own public address; that is what failed
+  behind a reverse proxy ([#3713](https://github.com/quartznet/quartznet/discussions/3713)). **A proxy now
+  needs to forward `{DashboardPath}/hub` only for clients of your own** — the hub is still served and still
+  fed, from the same stream, in the payload records `IQuartzDashboardHubClient` has always declared. The
+  plugin is still public and still works; registering it beside the publisher would push every event twice.
+* **`AddQuartzHttpApi()` streams its schedulers' events.** It calls `AddQuartzSchedulerEvents()` for the
+  route above, which costs a process nobody is watching nothing: no subscriber means no event is built at
+  all. A worker that maps the API is therefore watchable without anything further being written.
 * **Nothing in Quartz reads `Status` or `SchedulerInstanceId` off a scheduler in another process any
   more.** `ISchedulerRepository` read the first under its lock on every lookup, so one unreachable
   `HttpScheduler` stalled every lookup in the process for the client's timeout — the HTTP API's own

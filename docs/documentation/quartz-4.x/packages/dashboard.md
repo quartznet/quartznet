@@ -23,7 +23,10 @@ the dashboard fits:
   age as well as by count. It is in-memory and per-process unless you
   [give it a store of your own](#execution-history-and-misfires); for a scheduler in another process it
   is read from that process.
-- **A live event stream** over SignalR, fed by plugins installed into every scheduler in the container.
+- **A live event stream**, read from Quartz itself: in process for a scheduler here, and over the HTTP
+  API's event route for [one in another process](#fronting-a-scheduler-in-another-process-over-http). The
+  pages need no connection back to the dashboard's own hub — the hub is still served, and still fed, for
+  clients of your own.
 - **Authorization at three levels that compose** — who reaches the dashboard, which schedulers they see
   once they are in, and whether anyone may change anything. See
   [Production hardening](#production-hardening).
@@ -297,20 +300,30 @@ figures cover, and a misfires section beneath.
 
 ### Live Logs
 
-`/quartz/live` — the scheduler's events as they happen, over the SignalR hub, fed by a plugin `AddQuartzDashboard`
-installs into every scheduler in the container. Every event names the node that raised it, and the page
-says which node its own process is — which is how a clustered scheduler's stream is readable rather
-than an undifferentiated blur.
+`/quartz/live` — the scheduler's events as they happen, read from Quartz's own event stream:
+`AddQuartzDashboard()` calls `AddQuartzSchedulerEvents()`, which installs one publisher into every
+scheduler in the container, and the page subscribes to the stream for whichever scheduler is on screen.
+Every event names the node that raised it, and the page says which node its own process is — which is how
+a clustered scheduler's stream is readable rather than an undifferentiated blur.
 
-Events can be narrowed by type from the header, which is what makes a busy scheduler readable.
+**A scheduler in another process has a feed like any other.** Its events are read from its own target
+through the API's [event route](http-api.md#the-event-stream), and the page cannot tell that from a
+scheduler running here. A target whose API predates the route says so rather than looking idle.
+
+Each row says what the event was about, read from the event itself: which job, which trigger, which
+firing, how long it ran and how it ended. Fourteen kinds arrive and thirteen are shown — the fourteenth is
+the transport's heartbeat, which the reader consumes — and they can be narrowed by type from the header,
+which is what makes a busy scheduler readable. Two of them, an interrupted firing and a trigger parked in
+the error state, are new in 4.1.
 
 It is a live view, not a log: it starts when the page opens, holds the newest hundred events and drops
 the rest. Nothing here survives a reload, and nothing here is the record — see
 [Current limitations](#current-limitations).
 
-A scheduler in another process has no feed here and the page says so: the events are broadcast onto that
-process's own hub, which this one has no reader for. Every other page works over HTTP — see
-[Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http).
+The page opens no connection of its own, which is what makes it work behind a reverse proxy that forwards
+only the dashboard's path. The SignalR hub is still served and still fed from the same stream, for clients
+of your own: a proxy has to forward `{DashboardPath}/hub` for *those*, and for nothing the dashboard's own
+pages do.
 
 ### Action Log
 
@@ -364,12 +377,16 @@ in the file that set them.
 
 ## The schedulers the dashboard covers
 
-`AddQuartzDashboard()` installs its live event feed into **every** scheduler in the container and calls
-`AddQuartzExecutionHistory()`, which installs Quartz's execution recorder into every one of them too.
-The order of the calls does not matter. A scheduler registered with `AddQuartz("acme", …)` therefore has
-a populated Live Logs view and History page just like the default one; each scheduler gets its own
-instance of each, initialized with its own name, and history entries are attributed to the scheduler
-that produced them.
+`AddQuartzDashboard()` calls `AddQuartzExecutionHistory()` and `AddQuartzSchedulerEvents()`, which install
+Quartz's execution recorder and its event publisher into **every** scheduler in the container. The order of
+the calls does not matter. A scheduler registered with `AddQuartz("acme", …)` therefore has a populated
+Live Logs view and History page just like the default one; each scheduler gets its own instance of each,
+initialized with its own name, and both feeds are attributed to the scheduler that produced them.
+
+Neither is the dashboard's own any more. `DashboardHistoryPlugin` and `DashboardLiveEventsPlugin` are still
+public and still work for an application that named one in a `quartz.plugin.*.type` key, but they are not
+registered here — and registering one beside the pair above would record every execution twice and push
+every event twice.
 
 It does this with `ConfigureAllQuartzSchedulers`, so nothing extra is written at the call site. Which
 schedulers those are is what [the Schedulers page](#schedulers) lists — every registration in the
@@ -411,7 +428,7 @@ What each page does over it:
 | Overview, Jobs, Triggers, Calendars, Currently Executing, Cluster | Everything they show, read through the API's routes |
 | Every action — pause, resume, trigger now, reschedule, delete | Performed in the target's process, by the target's scheduler |
 | Execution History | The **target's own** history, read from the process that recorded it |
-| Live Logs | Nothing, and it says so — the events are broadcast onto the target process's hub, and this one has no reader for it |
+| Live Logs | The **target's own** events, streamed from the process that raises them — a target too old to serve the route says so |
 | Schedulers, and the header's picker | The scheduler is listed as `Remote`, because every page about it is about somebody else's process |
 
 Four things worth knowing before pointing one at production:
@@ -421,7 +438,10 @@ Four things worth knowing before pointing one at production:
   nodes. What is node-local: **interrupting a firing** — it has to reach the node running it — **start,
   stand-by and shutdown**, which act on the node that answers; **execution limits at node scope**; and
   the node's own figures on the scheduler details — instance id, running since, jobs executed, jobs
-  executing here. The listings are not: with a persistent job store the jobs, the triggers and the
+  executing here. **The live events are node-local too**: a stream is opened against whichever node the
+  balancer chose, and it carries that node's events — every one of them says which node raised it, so the
+  page is honest about what it is showing rather than complete. The listings are not node-local: with a
+  persistent job store the jobs, the triggers and the
   [firings in flight](#currently-executing) are the whole cluster's whichever node answers. Point the
   client at a node's own address rather than at the fleet's when the distinction matters. Fronting
   several processes as one fleet is [#3387](https://github.com/quartznet/quartznet/issues/3387).
@@ -467,7 +487,9 @@ If both are given, **the pattern passed to `MapQuartzDashboard` wins**; the para
 
 With a custom dashboard path the dashboard is fully self-contained under it. The pages, navigation links and SignalR hub as well as the Blazor plumbing — the interactive circuit (`{DashboardPath}/_blazor`), the framework script (`{DashboardPath}/_framework/blazor.web.js`) and the dashboard static assets (`{DashboardPath}/_content/Quartz.Dashboard/*`) — are all served under it, and the dashboard shell emits a `<base href>` rooted at the dashboard itself.
 
-This makes the dashboard work behind a reverse proxy that forwards only a path prefix to the application without setting a path base: configure `DashboardPath` with the externally visible path (for example `/my-api/quartz` when the proxy forwards `/my-api/*` verbatim) and make sure the proxy forwards WebSocket connections for `{DashboardPath}/_blazor` **and** `{DashboardPath}/hub` (the live-views hub). Note that the dashboard's server-side circuit connects to the live-events hub through the same externally visible URL the browser uses, so the application must be able to reach its own public address for the Live Logs view to work.
+This makes the dashboard work behind a reverse proxy that forwards only a path prefix to the application without setting a path base: configure `DashboardPath` with the externally visible path (for example `/my-api/quartz` when the proxy forwards `/my-api/*` verbatim) and make sure the proxy forwards WebSocket connections for `{DashboardPath}/_blazor` — the interactive circuit, which every page needs.
+
+`{DashboardPath}/hub` is the live-events hub, and from 4.1 **the dashboard's own pages do not use it**: they read Quartz's event stream in the process they are rendered by, so the application no longer has to be able to reach its own public address for the Live Logs view to work. Forward the hub for clients of your own — a browser or a service connecting to it directly — and not otherwise.
 
 Alternatively, when the whole application is rebased with `UsePathBase()` (or the proxy sets the request path base), the configured `DashboardPath` is interpreted relative to the path base — the default `/quartz` then works as-is under the prefix. With minimal hosting (`WebApplication`), call `app.UseRouting()` explicitly **after** `app.UsePathBase(...)` — otherwise the implicit routing step matches against the un-stripped path and every dashboard route returns 404:
 
@@ -832,11 +854,11 @@ So it is a *local* trap almost exclusively: an unpublished build started with
 
 ## Current limitations
 
-- **One target is one process.** A scheduler in another process is rendered and driven over HTTP — see
+- **One target is one process.** A scheduler in another process is rendered and driven over HTTP, its
+  history and its live events included — see
   [Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http)
-  — but one registration points at one address, and Live Logs has nothing to show over it. Fronting a
-  fleet of processes as one, with an event stream and per-target credentials of its own, is
-  [#3387](https://github.com/quartznet/quartznet/issues/3387).
+  — but one registration points at one address. Fronting a fleet of processes as one, with per-target
+  credentials of its own, is [#3387](https://github.com/quartznet/quartznet/issues/3387).
 - **Neither *page* is the record.** Live Logs is a live view that starts when the page opens and keeps a
   hundred events; the Action Log keeps 250 and only what this process's dashboard did. Neither survives
   a restart, and neither is lossless — use [metrics](opentelemetry-integration.md) for anything you need

@@ -119,7 +119,7 @@ validated against.
 
 ## Every endpoint
 
-Sixty-four routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
+Sixty-five routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
 `{name}` is the scheduler the request is for — every route but the first carries one, and every route
 that carries one is subject to
 [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when it is set.
@@ -130,7 +130,7 @@ one-flag form, `{ groups }` / `{ jobs }` / `{ triggers }` are the key-set and gr
 *paged* is the [paged envelope](#listing-endpoints-are-paged). An unknown scheduler is `404` on every
 one of them.
 
-### Schedulers — 16
+### Schedulers — 17
 
 | Method | Path | Answers |
 |---|---|---|
@@ -144,6 +144,7 @@ one of them.
 | `POST` | `{ApiPath}/schedulers/{name}/pause-all` | empty |
 | `POST` | `{ApiPath}/schedulers/{name}/resume-all` | empty |
 | `GET` | `{ApiPath}/schedulers/{name}/nodes` | The cluster's nodes — [see below](#cluster-nodes) |
+| `GET` | `{ApiPath}/schedulers/{name}/events` | The scheduler's events as they happen, as `text/event-stream` — [see below](#the-event-stream) |
 | `GET` | `{ApiPath}/schedulers/{name}/history/executions` | A page of what the scheduler has run — [see below](#execution-history) |
 | `GET` | `{ApiPath}/schedulers/{name}/history/misfires` | A page of the firings it missed |
 | `GET` | `{ApiPath}/schedulers/{name}/history/misfires/count` | `{ count }` since `?since=` — the one a summary tile asks for |
@@ -562,6 +563,76 @@ clocks two nodes can disagree. Join the listing to
 `GET {ApiPath}/schedulers/{name}/jobs/fire-instances` on `schedulerInstanceId` to see what each node is
 running.
 
+## The event stream
+
+`GET {ApiPath}/schedulers/{name}/events` is what the scheduler is doing, as it does it:
+[server-sent events](https://developer.mozilla.org/docs/Web/API/Server-sent_events), one frame per
+event, held open until the caller goes away. It is what makes a live view of a scheduler in another
+process possible — a dashboard, a terminal, an `EventSource` in a browser.
+
+```text
+event: JobExecuted
+data: {"kind":"JobExecuted","schedulerName":"QuartzScheduler","schedulerInstanceId":"web-01","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":"fire-1","fireTimeUtc":"2026-09-12T10:29:55+00:00","runTime":"00:00:01.5000000","vetoed":false,"exceptionMessage":"the job threw","status":null,"message":null,"cause":null}
+id: 7
+
+```
+
+The `event:` name is the event's **kind**, so a reader can subscribe to what it cares about without
+parsing a body — `EventSource.addEventListener("JobExecuted", …)`. The `data:` is one line of the same
+JSON every other body on this API is written as. The `id:` counts this stream's frames; it is **not** a
+cursor, because nothing is replayed.
+
+Fourteen kinds travel:
+
+| Kind | What happened | What it carries beyond the four below |
+|---|---|---|
+| `JobExecuting` | a job has begun running | `jobKey`, `triggerKey`, `fireTimeUtc`, `fireInstanceId` |
+| `JobExecuted` | a job finished, threw, or was vetoed before it ran | the same, plus `runTime`, `vetoed` and `exceptionMessage` |
+| `TriggerFired` | a trigger fired | `triggerKey`, `jobKey`, `fireTimeUtc`, `fireInstanceId` |
+| `TriggerCompleted` | its firing completed | the same |
+| `TriggerMisfired` | a firing was missed and the misfire instruction applied | `triggerKey`, `jobKey`; no `fireTimeUtc` — there was no firing to time |
+| `TriggerPaused`, `TriggerResumed` | a trigger was paused or resumed | `triggerKey` |
+| `JobPaused`, `JobResumed` | a job was paused or resumed, and with it every trigger that fires it | `jobKey` |
+| `JobInterrupted` | one firing of a job was interrupted | `jobKey`, `fireInstanceId` |
+| `TriggerInError` | a trigger was parked in the error state and will not fire until it is reset | `triggerKey` |
+| `SchedulerStateChanged` | one node's scheduler entered a new lifecycle state | `status` |
+| `SchedulerError` | the scheduler reported an error it handled itself | `message`, `cause`, and the `triggerKey` / `jobKey` it was about where it could say |
+| `Heartbeat` | nothing happened, and the connection is still open | nothing; see below |
+
+Every event carries four things: its `kind`, the `schedulerName` and `schedulerInstanceId` of the node
+that raised it, and `occurredAtUtc`. **The node matters**: a cluster is one scheduler running in several
+processes, each raising its own events, so without the id a reader cannot tell an event from the machine
+it is looking at from an event from a peer. Every member of the body is always present — the facets a
+kind does not carry are `null` — so a reader can read a field without checking whether it exists.
+
+**A heartbeat is not an event.** One goes out the moment the stream opens, and another whenever
+[`EventStreamHeartbeatInterval`](#configuration-options) — fifteen seconds — passes with nothing to send.
+The first is what sends the response's headers, since nothing reaches a caller until a body is written;
+the rest keep an idle connection from being closed by whatever is between the API and its reader, and let
+that reader tell a quiet scheduler from a socket that went away. A reader consumes them rather than
+showing them; `Quartz.HttpClient` does that for you.
+
+**Authorized once, when the stream opens.** The route names `{schedulerName}`, so
+[`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) is evaluated before the handler runs: a
+caller who fails it gets `403` with problem details and no frame at all, and an unknown scheduler is the
+same `404` it is on every other route. Neither answer is a stream. Once open, the stream is not
+re-authorized — close it and open another if the caller's rights have to be re-checked.
+
+**No replay, and no `Last-Event-ID`.** A subscription carries what happens after it is made. A reader
+that reconnects has a gap, and what fell into it is the [execution history](#execution-history)'s
+question rather than this route's.
+
+::: warning A reverse proxy must not buffer this
+A proxy that buffers responses will hold the frames until its buffer fills, which turns a live view into
+a view that arrives in bursts — or, with an idle timeout shorter than the heartbeat, into a connection
+that keeps being cut. nginx needs `proxy_buffering off;` and a `proxy_read_timeout` above the heartbeat
+interval for this route; the response already carries `Cache-Control: no-cache,no-store` and
+`Content-Encoding: identity`, which is what asks everything else politely.
+:::
+
+Reading it from .NET takes no code of your own: `AddQuartzHttpClient` registers a reader of this route
+which reconnects on its own — see [Events](http-client.md#events).
+
 ## Execution history
 
 A job store holds what is *scheduled*. What *happened* — what ran, how long it took, whether it threw,
@@ -764,6 +835,7 @@ next scheduling evaluation.
 | `ReadOnly` | `false` | Refuses every route that changes something with `403` — see [Serving reads only](#serving-reads-only) |
 | `SchedulerAuthorizationPolicy` | none | The policy every route that names a scheduler is held to, evaluated against that scheduler — see [Authorizing per scheduler](#authorizing-per-scheduler) |
 | `IsJobTypeAllowed` | none | A predicate over the job type *name* a request carries; a name it refuses is `403` — see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
+| `EventStreamHeartbeatInterval` | `00:00:15` | How long the [event stream](#the-event-stream) may say nothing before it sends a `Heartbeat` frame. Set it below the idle read timeout of whatever proxy is in front of the API — nginx's `proxy_read_timeout` is 60 seconds by default, Azure's front doors 90 — and a stream that would have been cut stays open |
 
 There is one set of these per process, not one per scheduler: `ApiPath` describes the endpoints, and
 every scheduler is reached under it. Calling `services.AddQuartzHttpApi(configure)` twice therefore
