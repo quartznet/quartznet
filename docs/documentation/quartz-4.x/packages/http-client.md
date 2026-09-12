@@ -220,6 +220,10 @@ missing route: both are things a process boundary makes impossible.
 Listeners are the important one: a `TriggerListener` registered on a client would never see anything,
 because nothing fires here. Register listeners where the scheduler actually runs.
 
+That is about *registering* one. **Reading what a scheduler's listeners report is supported**: the target
+streams its events and this client reads them — see [Events](#events) — so "tell me when this job runs"
+is answerable from here, while "run this code when it does" is not.
+
 Read scheduler-wide state from the endpoint (`GET {apiPath}/schedulers/{name}/context`) where you would
 have reached for `Context`.
 
@@ -259,6 +263,12 @@ scheduler listing asks `GetStatus()` and `GetSchedulerInstanceId()` under a two-
 whole listing, reporting a target that does not answer as `SchedulerStatus.Unknown` with no instance id.
 Give the client a short `Timeout` regardless: every other read waits for it.
 
+**The event stream is the one thing the timeout does not bound.** `HttpClient.Timeout` covers the
+request and the reading of a response the client reads to its end; the [event
+stream](#events) is opened with `HttpCompletionOption.ResponseHeadersRead`, so the timeout bounds getting
+the response and not the hours of frames that follow it. A ten-second `Timeout` and a stream open all
+afternoon are both fine, and neither costs the other anything.
+
 `GetMetadata()` answers both and the rest of the scheduler's details in one request, so prefer it where
 more than the status is wanted:
 
@@ -294,6 +304,45 @@ raise `NotSupportedException`. So does every read when the target's API predates
 it answers `404` for them, and "this target serves no history" is a fact a caller can render, where an
 exception about a missing route is not. The `404` that names an unknown scheduler is unaffected and
 still arrives as `HttpClientException`.
+
+## Events
+
+`AddQuartzHttpClient` registers one more thing beside those two: a reader of the target's [event
+stream](http-api.md#the-event-stream), keyed by the scheduler's name. It is how a live view of a scheduler
+in another process is possible at all — the dashboard's Live Logs page reads exactly this.
+
+```csharp
+ISchedulerEventSource events = provider.GetRequiredKeyedService<ISchedulerEventSource>("QuartzScheduler");
+
+await foreach (SchedulerEvent raised in events.Subscribe("QuartzScheduler", cancellationToken))
+{
+    Console.WriteLine($"{raised.OccurredAtUtc:u} {raised.Kind} on {raised.SchedulerInstanceId}");
+}
+```
+
+::: tip Internal in 4.1
+`ISchedulerEventSource`, `SchedulerEvent` and `SchedulerEventKind` are **internal** in 4.1: the sample
+above is what the dashboard does, not yet API you can call. The [wire
+format](http-api.md#the-event-stream) is public and stable, so a reader of your own reads the route
+directly — with `SseParser`, with an `EventSource` in a browser, or with anything else that speaks
+server-sent events. A public seam over the reader can be added later without moving any of it.
+:::
+
+One subscription is one enumeration, however many connections it takes. A stream that drops is reopened
+after a delay that doubles from a second to thirty, so a target that restarts is a gap rather than the end
+of the feed; a connection that delivers anything resets the wait. Nothing is replayed across a
+reconnection, because the route serves no history — what fell into the gap is the [history
+routes](http-api.md#execution-history)' question.
+
+The heartbeats the route sends are consumed here rather than handed on: they exist so that this reader can
+tell a quiet scheduler from a dead connection, which is its question rather than its caller's.
+
+Only the failures that say nothing about the request are retried — a refused connection, a socket that
+went away, a gateway in between, and the client's own timeout. The three that are answers rather than
+outages are reported and stop the enumeration: a target whose API predates the route answers `404` with no
+body, which arrives as `NotSupportedException` saying the target serves no event stream; an unknown
+scheduler arrives as `HttpClientException`; and a caller the target's policy refuses arrives as the `403`
+it is. Asking any of those again every thirty seconds for ever would be the wrong kind of patience.
 
 ## Paging and bulk fetch over the wire
 
