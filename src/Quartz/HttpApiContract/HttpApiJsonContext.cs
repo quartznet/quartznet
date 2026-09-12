@@ -93,6 +93,8 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(ScheduleJobResponse))]
 [JsonSerializable(typeof(SchedulerContextDto))]
 [JsonSerializable(typeof(SchedulerDto))]
+[JsonSerializable(typeof(SchedulerEvent))]
+[JsonSerializable(typeof(SchedulerEventKind))]
 [JsonSerializable(typeof(SchedulerHeaderDto[]))]
 [JsonSerializable(typeof(TriggerStateDto))]
 
