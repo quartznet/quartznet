@@ -25,7 +25,36 @@ internal sealed record DashboardActionLogEntry(
     string Action,
     string Target,
     bool Succeeded,
-    string? Message);
+    string? Message)
+{
+    /// <summary>
+    /// Where the scheduler the action was aimed at is, or <see langword="null" /> when the listing this
+    /// circuit last read said nothing about it.
+    /// </summary>
+    /// <remarks>
+    /// Nullable rather than defaulted to <see cref="SchedulerOrigin.Container" />: a page that acted
+    /// before anything listed the schedulers knows the name and nothing else, and an entry claiming the
+    /// scheduler is this container's would be inventing that.
+    /// </remarks>
+    public SchedulerOrigin? Origin { get; init; }
+
+    /// <summary>
+    /// Which node the action reached, or <see langword="null" /> when nothing has built the scheduler or
+    /// the listing could not ask it.
+    /// </summary>
+    public string? SchedulerInstanceId { get; init; }
+
+    /// <summary>
+    /// Whether the action landed on that one node rather than on the scheduling data every node shares.
+    /// </summary>
+    /// <remarks>
+    /// Said by the page that took the action, the way a mutating route says it mutates: interrupting a
+    /// firing has to reach the node running it, and starting, standing by and shutting down act on the
+    /// node that answered. Pausing a trigger does not — it writes the store, and every node in the
+    /// cluster is bound by it — so naming a node beside it would suggest the other nodes were unaffected.
+    /// </remarks>
+    public bool NodeLocal { get; init; }
+}
 
 internal sealed class DashboardActionLogService
 {
@@ -33,20 +62,17 @@ internal sealed class DashboardActionLogService
     private readonly Lock syncRoot = new();
     private readonly int maxEntries = 250;
 
-    public void Record(
-        string schedulerName,
-        string action,
-        string target,
-        bool succeeded,
-        string? message = null)
+    /// <summary>
+    /// Keeps one action, dropping the oldest once the bound is reached.
+    /// </summary>
+    /// <remarks>
+    /// The finished entry rather than its fields: who took the action and what the last listing said about
+    /// the scheduler are a circuit's, and this store is the process's. <see cref="DashboardActionLog" /> is
+    /// the scoped thing that knows both and builds one.
+    /// </remarks>
+    public void Record(DashboardActionLogEntry entry)
     {
-        DashboardActionLogEntry entry = new(
-            Timestamp: DateTimeOffset.UtcNow,
-            SchedulerName: schedulerName,
-            Action: action,
-            Target: target,
-            Succeeded: succeeded,
-            Message: message);
+        ArgumentNullException.ThrowIfNull(entry);
 
         lock (syncRoot)
         {

@@ -33,11 +33,22 @@ namespace Quartz.Dashboard.Services;
 /// </remarks>
 internal static partial class DashboardLog
 {
-    [LoggerMessage(EventId = 9100, Level = LogLevel.Information, Message = "Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome}")]
-    public static partial void ActionPerformed(this ILogger logger, string user, string action, string target, string schedulerName, string outcome);
+    /// <remarks>
+    /// <para>
+    /// <c>{Origin}</c> and <c>{Node}</c> were added in 4.1, at the end so that everything the line said
+    /// before still reads the same way and in the same order. Where the action landed is the part an
+    /// operator cannot reconstruct afterwards: a scheduler reached over HTTP was driven in somebody
+    /// else's process, and an action that is node-local — interrupt, start, stand-by, shutdown — reached
+    /// the one node named here and no other. Both are <c>(unknown)</c> when the circuit's last listing
+    /// said nothing about the scheduler.
+    /// </para>
+    /// </remarks>
+    [LoggerMessage(EventId = 9100, Level = LogLevel.Information, Message = "Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome} (origin {Origin}, node {Node})")]
+    public static partial void ActionPerformed(this ILogger logger, string user, string action, string target, string schedulerName, string outcome, string origin, string node);
 
-    [LoggerMessage(EventId = 9101, Level = LogLevel.Information, Message = "Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason}")]
-    public static partial void ActionFailed(this ILogger logger, string user, string action, string target, string schedulerName, string? reason);
+    /// <inheritdoc cref="ActionPerformed" />
+    [LoggerMessage(EventId = 9101, Level = LogLevel.Information, Message = "Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason} (origin {Origin}, node {Node})")]
+    public static partial void ActionFailed(this ILogger logger, string user, string action, string target, string schedulerName, string? reason, string origin, string node);
 
     [LoggerMessage(EventId = 9102, Level = LogLevel.Debug, Message = "Dashboard connection {ConnectionId} opened for user {User}")]
     public static partial void HubConnected(this ILogger logger, string connectionId, string user);

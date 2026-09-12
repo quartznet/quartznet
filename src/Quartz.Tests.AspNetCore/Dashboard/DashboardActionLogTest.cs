@@ -1,5 +1,8 @@
 using System.Security.Claims;
 
+using FakeItEasy;
+
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Dashboard.Services;
@@ -77,7 +80,79 @@ public class DashboardActionLogTest
             .Which.Action.Should().Be("ResumeTrigger", "the logging is in addition to the page, not instead of it");
     }
 
-    private static DashboardActionLog Create(ILogger<DashboardActionLog> logger, string? userName, DashboardActionLogService? store = null)
+    /// <summary>
+    /// Where the action landed is on the entry and at the end of the log line: the scheduler's origin, and
+    /// the node the listing said was behind it.
+    /// </summary>
+    /// <remarks>
+    /// An operator reading "PauseTrigger on acme" afterwards cannot tell from it whether the action ran in
+    /// this process or in the one a remote registration points at, and the dashboard is the only thing that
+    /// knows — the scheduler it drove is the one its picker last listed.
+    /// </remarks>
+    [Test]
+    public void AnEntrySaysWhereTheSchedulerIsAndWhichNodeAnswered()
+    {
+        RecordingLogger logger = new();
+        DashboardActionLogService store = new();
+        DashboardActionLog log = Create(logger, userName: "ops@example.com", store, SchedulerOrigin.Remote);
+
+        log.Record("acme", "PauseTrigger", "reports.nightly", succeeded: true);
+
+        DashboardActionLogEntry entry = store.GetLatest().Should().ContainSingle().Which;
+        entry.Origin.Should().Be(SchedulerOrigin.Remote);
+        entry.SchedulerInstanceId.Should().Be(Node);
+        entry.NodeLocal.Should().BeFalse("pausing a trigger writes the store, which binds every node");
+
+        logger.Entries.Should().ContainSingle().Which.Message.Should()
+            .Contain("origin Remote").And.Contain("node " + Node);
+    }
+
+    /// <summary>
+    /// An action the page says is node-local is marked as one, and only then.
+    /// </summary>
+    /// <remarks>
+    /// The distinction is what makes naming a node honest: an interrupt, a start, a stand-by and a shutdown
+    /// reach the one node that answered, while pausing a trigger is the whole cluster's.
+    /// </remarks>
+    [Test]
+    public void ANodeLocalActionIsMarkedAsOne()
+    {
+        DashboardActionLogService store = new();
+        DashboardActionLog log = Create(new RecordingLogger(), userName: "ops@example.com", store);
+
+        log.Record("acme", "InterruptFireInstance", "fire-1", succeeded: true, nodeLocal: true);
+
+        store.GetLatest().Should().ContainSingle().Which.NodeLocal.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// A scheduler this circuit has not listed is recorded as one nothing is known about, rather than as
+    /// one of this container's.
+    /// </summary>
+    [Test]
+    public void ASchedulerTheListingDoesNotCarryIsRecordedAsUnknown()
+    {
+        RecordingLogger logger = new();
+        DashboardActionLogService store = new();
+        DashboardActionLog log = Create(logger, userName: "ops@example.com", store, origin: null);
+
+        log.Record("acme", "PauseTrigger", "reports.nightly", succeeded: true);
+
+        DashboardActionLogEntry entry = store.GetLatest().Should().ContainSingle().Which;
+        entry.Origin.Should().BeNull("nothing said where this scheduler is, and an entry must not invent it");
+        entry.SchedulerInstanceId.Should().BeNull();
+
+        logger.Entries.Should().ContainSingle().Which.Message.Should()
+            .Contain("origin (unknown)").And.Contain("node (unknown)");
+    }
+
+    private const string Node = "acme-node-1";
+
+    private static DashboardActionLog Create(
+        ILogger<DashboardActionLog> logger,
+        string? userName,
+        DashboardActionLogService? store = null,
+        SchedulerOrigin? origin = SchedulerOrigin.Container)
     {
         TestAuthenticationStateProvider authentication = new();
         if (userName is not null)
@@ -85,7 +160,16 @@ public class DashboardActionLogTest
             authentication.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, userName)], "test"));
         }
 
-        return new DashboardActionLog(store ?? new DashboardActionLogService(), logger, authentication);
+        // What the scheduler picker last listed, which is where the dashboard's answer to "where is this
+        // scheduler" comes from. A state with no listing at all is a circuit that acted before anything
+        // read one.
+        SchedulerState schedulerState = new(A.Fake<IHttpContextAccessor>());
+        if (origin is { } listed)
+        {
+            schedulerState.AvailableSchedulers = [new SchedulerHeaderDto("acme", Node, SchedulerStatus.Running, listed)];
+        }
+
+        return new DashboardActionLog(store ?? new DashboardActionLogService(), logger, authentication, schedulerState);
     }
 
     private sealed record RecordedLog(LogLevel Level, EventId EventId, string Message);

@@ -28,9 +28,9 @@ namespace Quartz.Dashboard.Services;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Scoped, because the one thing the store cannot know is who did it — the visitor is a circuit's, and
-/// <see cref="DashboardActionLogService" /> is a singleton shared by every circuit in the process. So
-/// the pages talk to this, and it talks to both.
+/// Scoped, because the two things the store cannot know are a circuit's: who did it, and what the
+/// scheduler picker last listed about the scheduler it was done to. <see cref="DashboardActionLogService" />
+/// is a singleton shared by every circuit in the process. So the pages talk to this, and it talks to both.
 /// </para>
 /// <para>
 /// The Action Log alone was the whole record: 250 entries, in one process's memory, readable only from
@@ -41,40 +41,74 @@ namespace Quartz.Dashboard.Services;
 /// </remarks>
 internal sealed class DashboardActionLog
 {
+    /// <summary>
+    /// What an entry says about a scheduler the last listing did not carry, and about a node nothing has
+    /// named. The circuit knows the name it acted on and nothing else about it.
+    /// </summary>
+    private const string Unknown = "(unknown)";
+
     private readonly DashboardActionLogService store;
     private readonly ILogger<DashboardActionLog> logger;
     private readonly AuthenticationStateProvider authenticationStateProvider;
+    private readonly SchedulerState schedulerState;
 
     public DashboardActionLog(
         DashboardActionLogService store,
         ILogger<DashboardActionLog> logger,
-        AuthenticationStateProvider authenticationStateProvider)
+        AuthenticationStateProvider authenticationStateProvider,
+        SchedulerState schedulerState)
     {
         this.store = store;
         this.logger = logger;
         this.authenticationStateProvider = authenticationStateProvider;
+        this.schedulerState = schedulerState;
     }
 
     /// <summary>
     /// Records one mutating action, in the page's own log and in the application's.
     /// </summary>
+    /// <remarks>
+    /// <c>nodeLocal</c> says the action landed on one node rather than on the scheduling data every node
+    /// shares — interrupting a firing, or starting, standing by or shutting down the scheduler that
+    /// answered. It is the caller's to say, because only the caller knows which member it called.
+    /// </remarks>
     public void Record(
         string schedulerName,
         string action,
         string target,
         bool succeeded,
-        string? message = null)
+        string? message = null,
+        bool nodeLocal = false)
     {
-        store.Record(schedulerName, action, target, succeeded, message);
+        // What the picker last listed, which is where the dashboard's own answer to "where is this
+        // scheduler" comes from. Null for a name the listing does not carry, which the entry records as
+        // such rather than guessing.
+        SchedulerHeaderDto? header = schedulerState.Find(schedulerName);
+
+        store.Record(new DashboardActionLogEntry(
+            Timestamp: DateTimeOffset.UtcNow,
+            SchedulerName: schedulerName,
+            Action: action,
+            Target: target,
+            Succeeded: succeeded,
+            Message: message)
+        {
+            Origin = header?.Origin,
+            SchedulerInstanceId = header?.SchedulerInstanceId,
+            NodeLocal = nodeLocal
+        });
 
         string user = UserName();
+        string origin = header?.Origin.ToString() ?? Unknown;
+        string node = header?.SchedulerInstanceId ?? Unknown;
+
         if (succeeded)
         {
-            logger.ActionPerformed(user, action, target, schedulerName, message ?? "done");
+            logger.ActionPerformed(user, action, target, schedulerName, message ?? "done", origin, node);
         }
         else
         {
-            logger.ActionFailed(user, action, target, schedulerName, message);
+            logger.ActionFailed(user, action, target, schedulerName, message, origin, node);
         }
     }
 

@@ -69,7 +69,7 @@ newly possible, that change, and the two cron expressions 4.1 reads differently.
 | `QuartzHttpApiOptions.EventStreamHeartbeatInterval` | How long the event stream may say nothing before it sends a `Heartbeat` frame; fifteen seconds by default, and validated at startup. It is a setting because the thing it has to stay under is not Quartz's: a reverse proxy closes an idle connection after its own read timeout — nginx's is 60 seconds, Azure's front doors 90 — and a deployment is free to configure less |
 | `QuartzHttpApiOptions.ReadOnly` | `false` by default, which is what every earlier release did. Set it and every route that changes something answers `403` with problem details saying the API is read-only — before the handler runs, so no body is read and no scheduler is looked up. Mutation is per route rather than per verb: the two bulk fetches, `POST …/jobs/fetch` and `POST …/triggers/fetch`, are reads and are served. It binds this API only; a dashboard mapped beside it has its own `QuartzDashboardOptions.ReadOnly`. See [Serving reads only](packages/http-api.md#serving-reads-only) |
 
-Twelve behaviours changed without a signature changing:
+Thirteen behaviours changed without a signature changing:
 
 * **`Shutdown(waitForJobsToComplete: false)` no longer drops a firing, and settles what it can.** It
   stops the scheduler's own firing loop and waits for it before closing the thread pool, so an
@@ -126,6 +126,15 @@ Twelve behaviours changed without a signature changing:
   needs to forward `{DashboardPath}/hub` only for clients of your own** — the hub is still served and still
   fed, from the same stream, in the payload records `IQuartzDashboardHubClient` has always declared. The
   plugin is still public and still works; registering it beside the publisher would push every event twice.
+* **The dashboard's `9100` and `9101` say where the action landed, and the Action Log page shows it.**
+  Both templates gained two placeholders at the end —
+  `"… : {Outcome} (origin {Origin}, node {Node})"` and `"… and it failed: {Reason} (origin {Origin}, node
+  {Node})"` — naming the scheduler's `SchedulerOrigin` and the node behind it, or `(unknown)` where the
+  browser session had listed neither. The ids and everything before those placeholders are unchanged, so a
+  pipeline matching on the id or on a prefix is unaffected; one matching the whole rendered line is not.
+  The page carries the same two beside each row, and interrupting a firing from **Currently Executing** is
+  recorded there at all now — it was the one mutating action a page took without recording anything. See
+  [Action Log](packages/dashboard.md#action-log).
 * **The HTTP API logs the mutations that succeed, not only the requests that fail.** Every route that
   changes something writes one `Information` line when it does — event `9007`,
   `"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"`, under the

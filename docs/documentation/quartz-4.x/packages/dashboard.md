@@ -246,6 +246,8 @@ machine owns each firing rather than decoration.
 
 Interrupting from here interrupts *the one firing the row names*, not every firing of its job — the
 distinction matters for a job without `[DisallowConcurrentExecution]`, which can have several in flight.
+It is recorded in the [Action Log](#action-log), naming the fire instance and the node it reached, whether
+or not the firing was still running to be interrupted.
 
 A row that will not go away is worth reading
 [Fired triggers: backlog or leak](../operations.md#fired-triggers-backlog-or-leak) about: a firing whose
@@ -327,22 +329,32 @@ pages do.
 
 ### Action Log
 
-`/quartz/actions` — what was done *from this dashboard*: time, scheduler, action, target, whether it succeeded and any
-message, newest first. It is the audit trail for the buttons, and it answers "who paused this" for a
-value of "who" that is the dashboard rather than a user.
+`/quartz/actions` — what was done *from this dashboard*: time, scheduler, action, target, where it landed,
+whether it succeeded and any message, newest first. It is the audit trail for the buttons, and it answers
+"who paused this" for a value of "who" that is the dashboard rather than a user.
 
 The store behind it is in-memory and process-wide, holding the last 250 actions across every scheduler;
 the page takes the most recent 100 of those and shows the ones aimed at the scheduler you have selected,
 so switching schedulers re-filters it. That makes it a recent-activity view rather than an audit store —
-and it records only what *this process's dashboard* did. An action taken through the HTTP API, from
-another node, or by another operator's dashboard is not in it, and nothing in it survives a restart.
+and it records only what *this process's dashboard* did. An action taken through the HTTP API is logged
+where the API is mapped, as event `9007` in *that* process's log, and is not on this page; nor is an
+action from another node or another operator's dashboard, and nothing here survives a restart.
+
+**Where each action landed** is beside it, because the target alone does not say. The scheduler's
+[origin](#fronting-a-scheduler-in-another-process-over-http) is a tag on the row, and a `Remote` one adds
+*in another process* — the action was performed by somebody else's scheduler, and that is where the rest
+of the story about it is. An action that is **node-local** names the node it reached: interrupting a
+firing, and starting, standing by or shutting down. A cluster-wide action — pausing a trigger, deleting a
+job — names no node deliberately: it wrote the store, so every node is bound by it and naming the one that
+served the click would suggest the others were not. A scheduler this browser session never listed says
+nothing at all rather than claiming an origin.
 
 **Every entry is also logged**, at `Information`, through the application's own `ILogger` — event `9100`
 for an action that succeeded and `9101` for one that failed, each naming the visitor, the action, the
-target and the scheduler. That is the copy that survives a restart and reaches whatever your logs go to;
-the page above is the last 250 in this process's memory. A connection opening or closing is logged at
-`Debug` (`9102` and `9103`), which is diagnostic detail rather than a record of what was done. All four
-are in [Log Events](../log-events.md).
+target and the scheduler, and ending with `(origin …, node …)`. That is the copy that survives a restart
+and reaches whatever your logs go to; the page above is the last 250 in this process's memory. A
+connection opening or closing is logged at `Debug` (`9102` and `9103`), which is diagnostic detail rather
+than a record of what was done. All four are in [Log Events](../log-events.md).
 
 The visitor is `ClaimsPrincipal.Identity.Name` — `(anonymous)` where nothing authenticated, which for a
 dashboard mapped with `AllowAnonymous()` is every entry. Authorize the dashboard if the name is what you
