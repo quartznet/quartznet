@@ -97,6 +97,14 @@ internal static class EndpointConventionBuilderExtensions
             RefuseWhenReadOnly(context);
             await next(context).ConfigureAwait(false);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // The caller went away. Everything behind this wrapper abandons its work on
+            // HttpContext.RequestAborted, so this is the ordinary end of a request that was cancelled
+            // rather than a fault: a closed tab on the event stream would otherwise be logged as a server
+            // error and answered with a 500 written onto a response whose headers have already gone.
+            context.RequestServices.GetService<ExceptionHandler>()?.HandleAbandonedRequest(context);
+        }
         catch (Exception e)
         {
             var result = context.RequestServices.GetService<ExceptionHandler>()?.HandleException(e, context);

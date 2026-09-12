@@ -1,0 +1,52 @@
+﻿event: JobExecuting
+data: {"kind":"JobExecuting","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":"fire-1","fireTimeUtc":"2026-09-12T10:29:55+00:00","runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 2
+
+event: JobExecuted
+data: {"kind":"JobExecuted","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":"fire-1","fireTimeUtc":"2026-09-12T10:29:55+00:00","runTime":"00:00:01.5000000","vetoed":false,"exceptionMessage":"the job threw","status":null,"message":null,"cause":null}
+id: 3
+
+event: TriggerFired
+data: {"kind":"TriggerFired","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":"fire-1","fireTimeUtc":"2026-09-12T10:29:55+00:00","runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 4
+
+event: TriggerCompleted
+data: {"kind":"TriggerCompleted","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":"fire-1","fireTimeUtc":"2026-09-12T10:29:55+00:00","runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 5
+
+event: TriggerMisfired
+data: {"kind":"TriggerMisfired","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":null,"fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 6
+
+event: TriggerPaused
+data: {"kind":"TriggerPaused","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":null,"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":null,"fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 7
+
+event: TriggerResumed
+data: {"kind":"TriggerResumed","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":null,"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":null,"fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 8
+
+event: JobPaused
+data: {"kind":"JobPaused","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":null,"fireInstanceId":null,"fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 9
+
+event: JobResumed
+data: {"kind":"JobResumed","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":null,"fireInstanceId":null,"fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 10
+
+event: JobInterrupted
+data: {"kind":"JobInterrupted","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":null,"fireInstanceId":"fire-1","fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 11
+
+event: TriggerInError
+data: {"kind":"TriggerInError","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":null,"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":null,"fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":null,"cause":null}
+id: 12
+
+event: SchedulerStateChanged
+data: {"kind":"SchedulerStateChanged","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":null,"triggerKey":null,"fireInstanceId":null,"fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":"Standby","message":null,"cause":null}
+id: 13
+
+event: SchedulerError
+data: {"kind":"SchedulerError","schedulerName":"TestScheduler","schedulerInstanceId":"TEST_NON_CLUSTERED","occurredAtUtc":"2026-09-12T10:30:00+00:00","jobKey":{"name":"nightly","group":"reports"},"triggerKey":{"name":"at-midnight","group":"reports"},"fireInstanceId":"fire-1","fireTimeUtc":null,"runTime":null,"vetoed":null,"exceptionMessage":null,"status":null,"message":"the job could not be built","cause":"no such type"}
+id: 14
+
