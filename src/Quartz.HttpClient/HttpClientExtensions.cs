@@ -51,9 +51,41 @@ internal static class HttpClientExtensions
     /// either way.
     /// </para>
     /// </remarks>
-    private static JsonTypeInfo<T> WireFormatOf<T>(JsonSerializerOptions serializerOptions)
+    public static JsonTypeInfo<T> WireFormatOf<T>(JsonSerializerOptions serializerOptions)
     {
         return (JsonTypeInfo<T>) serializerOptions.GetTypeInfo(typeof(T));
+    }
+
+    /// <summary>
+    /// Opens a response whose body is read as it arrives rather than to its end, answering the response
+    /// itself so that the caller owns both it and the stream.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="HttpCompletionOption.ResponseHeadersRead" /> is what makes it a stream: every other
+    /// member here reads the whole body, which is the one thing that cannot be done with a body that has
+    /// no end. The status is checked the same way, which on anything but a success means the response is
+    /// disposed and the caller sees the exception rather than a stream that will never yield.
+    /// </remarks>
+    public static async ValueTask<HttpResponseMessage> GetStream(
+        this HttpClient client,
+        string requestUri,
+        JsonSerializerOptions serializerOptions,
+        CancellationToken cancellationToken)
+    {
+        HttpResponseMessage response = await client
+            .GetAsync(requestUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+
+        try
+        {
+            await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
+            return response;
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 
     public static async ValueTask<TResponse> Get<TResponse>(

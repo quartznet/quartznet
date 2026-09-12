@@ -169,6 +169,17 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
                 options.JsonSerializerOptions));
 
+        // The target's own events, keyed by the scheduler's name for the reason its history is: a reader
+        // asking for "this scheduler's events" is asking the process the scheduler runs in. Keyed only —
+        // this container's own schedulers publish into its broker, and a reader of somebody else's stream
+        // is not that.
+        services.AddKeyedSingleton<ISchedulerEventSource>(options.SchedulerName, (serviceProvider, key) =>
+            new HttpSchedulerEventReader(
+                options.SchedulerName,
+                serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
+                options.JsonSerializerOptions,
+                serviceProvider.GetService<TimeProvider>()));
+
         // Keyed by name like any other scheduler, and unkeyed as well so that a container holding one
         // remote scheduler and nothing else answers GetRequiredService<IScheduler>() with it. TryAdd,
         // because a second remote scheduler must not quietly take over what "the scheduler" means — nor
