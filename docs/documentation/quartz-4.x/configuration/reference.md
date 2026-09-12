@@ -779,9 +779,10 @@ migrates in, and the one the removed-key advice is written for. Keys that came o
 `IConfiguration` section are deliberately not checked, because there every key under `Quartz:` becomes
 a `quartz.*` key whether Quartz reads it or not, so a section holding your own settings would be
 rejected. A misspelled key in `appsettings.json` is therefore read by nobody and reported by nothing —
-`Quartz:Scheduler:IdelWaitTime` waits exactly as long as it did before and says so nowhere — so check a
-key you have just typed against the tables above. Casing is not the risk: configuration keys are matched
-case-insensitively, so `Quartz:Jobstore:TablePrefix` is the same key as `Quartz:JobStore:TablePrefix`.
+`Quartz:Scheduler:IdelWaitTime` leaves the scheduler idling for the default thirty seconds and says so
+nowhere — so check a key you have just typed against the tables above. Casing is not the risk:
+configuration keys are matched case-insensitively, so `Quartz:Jobstore:TablePrefix` is the same key as
+`Quartz:JobStore:TablePrefix`.
 
 **The job store is the exception, and it is checked either way.** A persistent store refuses a
 `quartz.jobStore.*` key that nothing reads — see [Unknown job store keys](#unknown-job-store-keys) —
