@@ -69,7 +69,7 @@ newly possible, that change, and the two cron expressions 4.1 reads differently.
 | `QuartzHttpApiOptions.EventStreamHeartbeatInterval` | How long the event stream may say nothing before it sends a `Heartbeat` frame; fifteen seconds by default, and validated at startup. It is a setting because the thing it has to stay under is not Quartz's: a reverse proxy closes an idle connection after its own read timeout — nginx's is 60 seconds, Azure's front doors 90 — and a deployment is free to configure less |
 | `QuartzHttpApiOptions.ReadOnly` | `false` by default, which is what every earlier release did. Set it and every route that changes something answers `403` with problem details saying the API is read-only — before the handler runs, so no body is read and no scheduler is looked up. Mutation is per route rather than per verb: the two bulk fetches, `POST …/jobs/fetch` and `POST …/triggers/fetch`, are reads and are served. It binds this API only; a dashboard mapped beside it has its own `QuartzDashboardOptions.ReadOnly`. See [Serving reads only](packages/http-api.md#serving-reads-only) |
 
-Thirteen behaviours changed without a signature changing:
+Fourteen behaviours changed without a signature changing:
 
 * **`Shutdown(waitForJobsToComplete: false)` no longer drops a firing, and settles what it can.** It
   stops the scheduler's own firing loop and waits for it before closing the thread pool, so an
@@ -104,6 +104,16 @@ Thirteen behaviours changed without a signature changing:
 * **A health check falls back to the repository** when the container holds no scheduler registration
   under the name it was given, so `AddHealthChecks().AddQuartz("acme")` written at build time reports on
   the tenant added under that name later. Its message when nothing is found names both places it looked.
+* **A misspelled `quartz.jobStore.*` key fails startup where 4.0 ignored it — which is what 3.x always
+  did.** The unknown-key check accepts any key under a supported *prefix*, and `quartz.jobStore` is one,
+  so `quartz.jobStore.dbRetryIntreval` was accepted and then read by nobody: the scheduler started with
+  the default retry interval in force and said nothing. An ADO.NET store now refuses a key under its
+  prefix that nothing reads, by name, when its options are resolved — the startup validation
+  `UsePersistentStore` declares, or the build that constructs the store. `lockHandler.*` and
+  `driverDelegateInitString` keep their own handling, a store with no options type of its own keeps
+  failing in the binder that writes its keys by name, and `quartz.checkConfiguration = false` allows
+  keys of your own as it always did. Unlike the check on a property bag, this one also sees a key that
+  came from an `appsettings.json` `JobStore` section, so `Quartz:JobStore:TabelPrefix` is reported too.
 * **`AddQuartzHttpApi()` records execution history.** It calls `AddQuartzExecutionHistory()`, so a
   worker that maps the API answers the new history routes rather than answering them empty. In memory
   and bounded — 24 hours, 2000 rows per scheduler per feed — as the dashboard's has always been. A

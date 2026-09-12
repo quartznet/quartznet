@@ -779,9 +779,15 @@ migrates in, and the one the removed-key advice is written for. Keys that came o
 `IConfiguration` section are deliberately not checked, because there every key under `Quartz:` becomes
 a `quartz.*` key whether Quartz reads it or not, so a section holding your own settings would be
 rejected. A misspelled key in `appsettings.json` is therefore read by nobody and reported by nothing —
-`Quartz:JobStore:TabelPrefix` configures no table prefix and says so nowhere — so check a key you have
-just typed against the tables above. Casing is not the risk: configuration keys are matched
+`Quartz:Scheduler:IdelWaitTime` waits exactly as long as it did before and says so nowhere — so check a
+key you have just typed against the tables above. Casing is not the risk: configuration keys are matched
 case-insensitively, so `Quartz:Jobstore:TablePrefix` is the same key as `Quartz:JobStore:TablePrefix`.
+
+**The job store is the exception, and it is checked either way.** A persistent store refuses a
+`quartz.jobStore.*` key that nothing reads — see [Unknown job store keys](#unknown-job-store-keys) —
+whether the key was written flat or as `Quartz:JobStore:TabelPrefix`, because the settings under that
+one prefix are known exhaustively: the store's own options, its clustering sub-section, its lock
+handler's keys, and the two keys that select a type.
 
 ## Legacy property keys
 
@@ -893,3 +899,30 @@ Removed in 4.x, with no replacement: `quartz.scheduler.proxy*` and `quartz.sched
 (remoting, which .NET no longer supports) — these two are rejected with an exception naming the
 replacement, rather than accepted and ignored — plus `quartz.threadExecutor*`, which had no
 implementation left to choose between.
+
+### Unknown job store keys
+
+A key under `quartz.jobStore` that nothing reads is refused by name, when a persistent store resolves its
+settings — the startup validation `UsePersistentStore` declares, or the build that constructs the store:
+
+```text
+Unknown configuration property 'quartz.jobStore.dbRetryIntreval'. It is not a setting of the ADO.NET
+job store, and no other reader consults it. Set 'quartz.checkConfiguration' to false to allow keys
+Quartz does not read.
+```
+
+3.x wrote every key under this prefix onto the store object by name and failed startup on one the store
+had no property for. 4.0 read the keys it knew into typed options and did nothing with the rest, so a typo
+— or a key a newer 3.x line had added and 4.x had not translated yet — started the scheduler with the
+default in force and said nothing about it.
+
+What counts as read: every flat key in the tables above, every property of `AdoJobStoreOptions` and of its
+`Clustering` sub-section spelled the way the options type spells it, every `quartz.jobStore.lockHandler.*`
+key — those are written onto the lock handler by name, which reports an unknown one itself — and
+`quartz.jobStore.driverDelegateInitString`, whose contents are checked as they are parsed. Case is not
+part of it: `quartz.jobstore.tableprefix` is the same key as `quartz.jobStore.tablePrefix`.
+
+Two things are deliberately outside it. A store with no options type of its own — one you wrote, or one
+from another package — still has its leftover keys under this prefix written onto it by name, so an
+unknown one fails there instead and says so in the same breath. And an in-memory store refuses nothing,
+because it reads one key under this prefix and the settings the others name are not its.
