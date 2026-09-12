@@ -7,6 +7,7 @@
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject ToastService Toasts
+@inject DashboardActionLog ActionLog
 @inject IOptions<QuartzDashboardOptions> Options
 
 <div class="qz-page">
@@ -208,6 +209,17 @@
             // The one execution the row shows, not every execution of its job: the fire instance id is
             // what tells them apart.
             bool interrupted = await Api.InterruptFireInstance(Scheduler.ActiveSchedulerName, fireInstanceId);
+
+            // Recorded whichever way it went, and recorded as node-local: an interrupt has to reach the
+            // node running the firing, so the record of it is only honest if it says which node that was.
+            ActionLog.Record(
+                Scheduler.ActiveSchedulerName,
+                "InterruptFireInstance",
+                fireInstanceId,
+                succeeded: interrupted,
+                interrupted ? null : "the firing is no longer running on this node",
+                nodeLocal: true);
+
             if (!interrupted)
             {
                 // The row is a snapshot of a list that moves: by the time the button is pressed the
@@ -221,6 +233,13 @@
         catch (Exception ex)
         {
             _error = ex.Message;
+            ActionLog.Record(
+                Scheduler.ActiveSchedulerName,
+                "InterruptFireInstance",
+                fireInstanceId,
+                succeeded: false,
+                ex.Message,
+                nodeLocal: true);
         }
     }
 

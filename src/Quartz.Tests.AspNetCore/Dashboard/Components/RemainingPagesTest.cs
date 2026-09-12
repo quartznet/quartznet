@@ -61,6 +61,48 @@ public class RemainingPagesTest
             "an empty table reads as a rendering fault");
     }
 
+    /// <summary>
+    /// The Action Log says where each action landed: the scheduler's origin, that a remote one ran
+    /// somewhere else, and — for an action that reached one node — which node that was.
+    /// </summary>
+    /// <remarks>
+    /// "Who paused this" was answerable from this page; "where did it land" was not, and for a scheduler
+    /// fronted over HTTP the answer is another process entirely.
+    /// </remarks>
+    [Test]
+    public void TheActionLogSaysWhereEachActionLanded()
+    {
+        context.SchedulerState.AvailableSchedulers =
+            [TestData.Dashboard.SchedulerHeader(origin: SchedulerOrigin.Remote)];
+
+        context.ActionLog.Record(TestData.SchedulerName, "PauseTrigger", "reports.nightly", succeeded: true);
+        context.ActionLog.Record(TestData.SchedulerName, "ShutdownScheduler", TestData.SchedulerName, succeeded: true, nodeLocal: true);
+
+        IRenderedComponent<ActionLog> page = context.Render<ActionLog>();
+
+        page.Markup.Should().Contain("Remote", "an action on a scheduler in another process says so");
+        page.Markup.Should().Contain("in another process");
+        page.Markup.Should().Contain("on node " + TestData.SchedulerInstanceId,
+            "a shutdown reached the node that answered, and nothing else in the cluster");
+        page.TextOfAll("tbody td").Should().NotContain(text => text.Contains("on node reports.nightly"));
+    }
+
+    /// <summary>
+    /// An action on a scheduler this circuit never listed says nothing about where it landed, rather than
+    /// claiming it was this container's.
+    /// </summary>
+    [Test]
+    public void TheActionLogClaimsNoOriginForASchedulerItNeverListed()
+    {
+        context.ActionLog.Record(TestData.SchedulerName, "PauseTrigger", "reports.nightly", succeeded: true);
+
+        IRenderedComponent<ActionLog> page = context.Render<ActionLog>();
+
+        page.Markup.Should().Contain("reports.nightly");
+        page.Markup.Should().NotContain("Container");
+        page.Markup.Should().NotContain("in another process");
+    }
+
     [Test]
     public void CurrentlyExecutingNamesTheNodeThatOwnsEachFiring()
     {
@@ -100,20 +142,7 @@ public class RemainingPagesTest
     [Test]
     public void InterruptingAFiringThatHasFinishedSaysSoRatherThanLookingLikeItWorked()
     {
-        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
-            .Returns(TestData.Dashboard.Page<FireInstanceDto>([
-                new FireInstanceDto(
-                    "fire-1",
-                    new TriggerKeyDto("nightly", "trigger-1"),
-                    new JobKeyDto("reports", "job-1"),
-                    "node-a",
-                    FireInstanceState.Executing,
-                    TestData.Dashboard.FiredAt,
-                    TestData.Dashboard.FiredAt,
-                    "batch")
-            ]));
-        A.CallTo(() => context.Api.InterruptFireInstance(A<string>._, "fire-1", A<CancellationToken>._))
-            .Returns(false);
+        GivenRunningFiring(interrupted: false);
 
         IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
         page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
@@ -128,6 +157,45 @@ public class RemainingPagesTest
     [Test]
     public void InterruptingARunningFiringSaysNothingBeyondRefreshingTheListing()
     {
+        GivenRunningFiring(interrupted: true);
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
+
+        A.CallTo(() => context.Api.InterruptFireInstance(TestData.SchedulerName, "fire-1", A<CancellationToken>._))
+            .MustHaveHappened();
+        context.Toasts.Messages.Should().BeEmpty(
+            "the interrupt was delivered, and the row leaving the listing is the whole of the news");
+    }
+
+    /// <summary>
+    /// An interrupt is recorded in the Action Log, and recorded as node-local.
+    /// </summary>
+    /// <remarks>
+    /// It was the one mutating action a page took without recording anything at all, so "who stopped that
+    /// job" had nowhere to be answered from. Node-local because an interrupt reaches the node running the
+    /// firing and no other, which is what the entry then says.
+    /// </remarks>
+    [Test]
+    public void InterruptingAFiringIsRecordedAsANodeLocalAction()
+    {
+        GivenRunningFiring(interrupted: true);
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
+
+        DashboardActionLogEntry entry = context.ActionLog.GetLatest(1).Should().ContainSingle().Which;
+        entry.Action.Should().Be("InterruptFireInstance");
+        entry.Target.Should().Be("fire-1", "the fire instance is what tells one execution of a job from another");
+        entry.Succeeded.Should().BeTrue();
+        entry.NodeLocal.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// A firing that is running, and what interrupting it answers.
+    /// </summary>
+    private void GivenRunningFiring(bool interrupted)
+    {
         A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<FireInstanceDto>([
                 new FireInstanceDto(
@@ -141,15 +209,7 @@ public class RemainingPagesTest
                     "batch")
             ]));
         A.CallTo(() => context.Api.InterruptFireInstance(A<string>._, "fire-1", A<CancellationToken>._))
-            .Returns(true);
-
-        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
-        page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
-
-        A.CallTo(() => context.Api.InterruptFireInstance(TestData.SchedulerName, "fire-1", A<CancellationToken>._))
-            .MustHaveHappened();
-        context.Toasts.Messages.Should().BeEmpty(
-            "the interrupt was delivered, and the row leaving the listing is the whole of the news");
+            .Returns(interrupted);
     }
 
     [Test]

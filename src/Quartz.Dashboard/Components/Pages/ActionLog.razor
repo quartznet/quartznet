@@ -29,9 +29,34 @@
                 {
                     <tr>
                         <td>@Scheduler.FormatInSelectedTimeZone(entry.Timestamp, "u")</td>
-                        <td>@entry.SchedulerName</td>
+                        <td>
+                            @entry.SchedulerName
+
+                            @* Where the scheduler was, as the listing had it when the action was taken.
+                               An action on a remote scheduler ran in another process, which is what
+                               decides where to look for the rest of the story about it. *@
+                            @if (entry.Origin is { } origin)
+                            {
+                                <span class="qz-tag">@origin.ToString()</span>
+                            }
+                        </td>
                         <td>@entry.Action</td>
-                        <td>@entry.Target</td>
+                        <td>
+                            @entry.Target
+
+                            @if (entry.Origin == SchedulerOrigin.Remote)
+                            {
+                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">in another process</div>
+                            }
+
+                            @* Only for an action that landed on one node: pausing a trigger writes the
+                               store and binds the whole cluster, so naming the node that served the click
+                               would suggest the other nodes were unaffected. *@
+                            @if (entry.NodeLocal)
+                            {
+                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on node @(entry.SchedulerInstanceId ?? "(unknown)")</div>
+                            }
+                        </td>
                         <td><StateIndicator State="@(entry.Succeeded ? "Complete" : "Error")" /></td>
                         <td>@(entry.Message ?? string.Empty)</td>
                     </tr>

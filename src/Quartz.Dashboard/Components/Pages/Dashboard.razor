@@ -429,7 +429,8 @@
         return ExecuteSchedulerActionAsync(
             schedulerName => Api.Start(schedulerName),
             "Started scheduler.",
-            actionName: "StartScheduler");
+            actionName: "StartScheduler",
+            nodeLocal: true);
     }
 
     private Task StandbySchedulerAsync()
@@ -437,7 +438,8 @@
         return ExecuteSchedulerActionAsync(
             schedulerName => Api.Standby(schedulerName),
             "Scheduler is in standby.",
-            actionName: "StandbyScheduler");
+            actionName: "StandbyScheduler",
+            nodeLocal: true);
     }
 
     private Task PauseAllAsync()
@@ -462,7 +464,8 @@
             schedulerName => Api.Shutdown(schedulerName),
             "Shutdown scheduler.",
             actionName: "ShutdownScheduler",
-            preferCurrentScheduler: false);
+            preferCurrentScheduler: false,
+            nodeLocal: true);
     }
 
     private Task PromptShutdown()
@@ -483,11 +486,17 @@
         return Task.CompletedTask;
     }
 
+    /// <remarks>
+    /// <paramref name="nodeLocal" /> is true for the three that act on the node that answers rather than
+    /// on the scheduling data every node shares - start, stand-by and shutdown. Pausing and resuming all
+    /// triggers writes the store, so it binds the whole cluster and names no node.
+    /// </remarks>
     private async Task ExecuteSchedulerActionAsync(
         Func<string, ValueTask> operation,
         string successMessage,
         string actionName,
-        bool preferCurrentScheduler = true)
+        bool preferCurrentScheduler = true,
+        bool nodeLocal = false)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
@@ -498,7 +507,7 @@
         try
         {
             await operation(schedulerName);
-            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: true);
+            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: true, nodeLocal: nodeLocal);
             Toasts.Success(successMessage);
             await RefreshSchedulersAsync(preferCurrentScheduler ? schedulerName : null);
             await LoadDataAsync();
@@ -507,7 +516,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: false, ex.Message);
+            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: false, ex.Message, nodeLocal);
             Toasts.Error(ex.Message);
         }
     }
