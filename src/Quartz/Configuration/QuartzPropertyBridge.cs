@@ -687,6 +687,12 @@ internal static class QuartzPropertyBridge
             value => options.SchemaProvisioning = value ? SchemaProvisioning.Validate : SchemaProvisioning.None);
         parser.Enum<SchemaProvisioning>("quartz.jobStore.schemaProvisioning", value => options.SchemaProvisioning = value);
         parser.String("quartz.jobStore.selectWithLockSQL", value => options.SelectWithLockSql = value);
+
+        // Everything under the prefix has now been read, so anything left is a key nothing reads: refused
+        // by name here rather than starting the store with the default in force and saying nothing. This
+        // runs when the store's options are resolved — the startup validation a persistent store declares,
+        // or the build that constructs the store — and never for a store that reads none of them.
+        LegacyPropertyKeys.ValidateJobStoreKeys(parser.Properties);
     }
 
     /// <summary>
@@ -950,6 +956,11 @@ internal static class QuartzPropertyBridge
         }
 
         private readonly ITypeLoader loader;
+
+        /// <summary>
+        /// The bag itself, for a reader that has to look at every key rather than at one it can name.
+        /// </summary>
+        public NameValueCollection Properties => properties;
 
         public string? String(string key)
         {
