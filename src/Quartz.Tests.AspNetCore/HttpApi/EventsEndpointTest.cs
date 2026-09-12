@@ -254,6 +254,11 @@ public sealed class EventsEndpointTest
             "a closed tab is the ordinary end of a live stream, not a server fault an operator has to look at");
         logs.Snapshot().Should().NotContain(entry => entry.Level == LogLevel.Error,
             "the subscription is completed when the request is aborted, so the stream ends rather than failing");
+
+        // A stream dropped mid-write says so at Debug and a stream dropped between frames says nothing at
+        // all - the subscription is completed either way, and which of the two happened is a race with the
+        // frames still in the response. Neither is an Error, which is the claim.
+        logs.Snapshot().Where(entry => entry.EventId == 9006).Should().OnlyContain(entry => entry.Level == LogLevel.Debug);
     }
 
     /// <summary>

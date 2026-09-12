@@ -63,6 +63,11 @@ internal static class SchedulerEventStream
 
         // Read before the first frame is written, so that an event raised while the response was opening
         // is queued rather than missed: the subscription exists from this call onwards.
+        //
+        // Each ValueTask is consumed exactly once, by the AsTask that turns it into the Task below; it is
+        // that Task which is waited on more than once, which is what it is for. S5034 reads the two waits
+        // as two consumptions of one ValueTask.
+#pragma warning disable S5034 // ValueTask should be consumed only once
         Task<bool>? pending = events.MoveNextAsync().AsTask();
 
         // And a frame straight away, before the scheduler has done anything. ASP.NET Core sends a
@@ -75,6 +80,7 @@ internal static class SchedulerEventStream
         while (true)
         {
             pending ??= events.MoveNextAsync().AsTask();
+#pragma warning restore S5034
 
             if (!pending.IsCompleted && await Silent(pending, heartbeatInterval, timeProvider).ConfigureAwait(false))
             {

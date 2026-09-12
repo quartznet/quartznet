@@ -90,8 +90,11 @@ internal sealed class DashboardHubForwarder : IAsyncDisposable
         }
 
         // Discarded rather than awaited: the pump runs for the life of the process, and what it ends with
-        // is either an ending it handles itself or the line below.
-        _ = forwarding.GetOrAdd(schedulerName, name => Task.Run(() => Pump(name, stopping.Token)));
+        // is either an ending it handles itself or the line Pump logs. The token is given to Task.Run as
+        // well as to the pump, so a join that raced disposal gets a cancelled task rather than a pump
+        // reading a source the container is tearing down — and its TaskCanceledException goes nowhere,
+        // because nothing awaits what is recorded here except DisposeAsync, which expects it.
+        _ = forwarding.GetOrAdd(schedulerName, name => Task.Run(() => Pump(name, stopping.Token), stopping.Token));
     }
 
     /// <summary>
@@ -121,12 +124,16 @@ internal sealed class DashboardHubForwarder : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
+            // The host is stopping, or this forwarder is being disposed. Both are endings.
         }
         catch (ObjectDisposedException)
         {
+            // The container is being torn down underneath the subscription, which is the same ending.
         }
         catch (NotSupportedException)
         {
+            // The target serves no event stream, so there is nothing here to forward from it. The page a
+            // visitor is looking at reads the same source and says so.
         }
         catch (Exception exception)
         {
@@ -244,7 +251,8 @@ internal sealed class DashboardHubForwarder : IAsyncDisposable
             }
             catch (Exception)
             {
-                // Every ending is an ending; see Pump.
+                // Every ending is an ending; see Pump. A pump that never started because the token was
+                // already cancelled ends here too, as a cancelled task.
             }
         }
 

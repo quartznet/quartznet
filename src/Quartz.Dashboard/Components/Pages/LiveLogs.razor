@@ -406,11 +406,29 @@
     private static string Error(SchedulerEvent schedulerEvent)
     {
         string message = schedulerEvent.Message ?? "";
-        string about = schedulerEvent.TriggerKey is not null
-            ? " · " + Key(schedulerEvent.TriggerKey)
-            : schedulerEvent.JobKey is not null ? " · " + Key(schedulerEvent.JobKey) : "";
+        string about = About(schedulerEvent);
 
         return schedulerEvent.Cause is null ? message + about : message + about + " · " + schedulerEvent.Cause;
+    }
+
+    /// <summary>
+    /// What an error was about, where the scheduler could say: the trigger by preference, the job when
+    /// there is no trigger, and nothing when it named neither — a store retrying a failed operation names
+    /// no key at all.
+    /// </summary>
+    private static string About(SchedulerEvent schedulerEvent)
+    {
+        if (schedulerEvent.TriggerKey is not null)
+        {
+            return " · " + Key(schedulerEvent.TriggerKey);
+        }
+
+        if (schedulerEvent.JobKey is not null)
+        {
+            return " · " + Key(schedulerEvent.JobKey);
+        }
+
+        return "";
     }
 
     private static string Key(KeyDto? key) => key is null ? "" : key.Group + "." + key.Name;
