@@ -872,8 +872,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var act = () => provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
 
         act.Should().Throw<SchedulerConfigException>(
-                "a key the store never reads leaves the default in force, and a retry interval that is "
-                + "silently not what the file says is indistinguishable from one that is")
+                "a key the store never reads leaves the default in force, and a retry interval that is not "
+                + "what the file says — with nothing said about it — is the failure this suite exists for")
             .WithMessage("*quartz.jobStore.dbRetryIntreval*",
                 "the reader has to be told which key in their file is the problem")
             .WithMessage("*quartz.checkConfiguration*",
