@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Extensions.DependencyInjection;
 
@@ -293,6 +294,26 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
             "a reader of another process's history is not what this container records into");
     }
 
+    /// <summary>
+    /// A target's event stream is registered beside it, under the same key.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="ARemoteSchedulersHistoryIsRegisteredUnderItsName" path="/remarks" />
+    /// </remarks>
+    [Test]
+    public async Task ARemoteSchedulersEventStreamIsRegisteredUnderItsName()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartzHttpClient("Remote", _ => testClient);
+
+        await using var serviceProvider = services.BuildServiceProvider();
+
+        serviceProvider.GetRequiredKeyedService<ISchedulerEventSource>("Remote").Should().BeOfType<HttpSchedulerEventReader>(
+            "a page watching a scheduler in another process reads that process's stream");
+        serviceProvider.GetService<ISchedulerEventSource>().Should().BeNull(
+            "the unkeyed source is the broker this container's own schedulers publish into, which this is not");
+    }
+
     [Test]
     public async Task OneClientIsBuiltForOneTarget()
     {
@@ -308,9 +329,10 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
 
         serviceProvider.GetRequiredKeyedService<IScheduler>("Remote").Should().NotBeNull();
         serviceProvider.GetRequiredKeyedService<IExecutionHistoryStore>("Remote").Should().NotBeNull();
+        serviceProvider.GetRequiredKeyedService<ISchedulerEventSource>("Remote").Should().NotBeNull();
 
         built.Should().Be(1,
-            "the factory runs once per registration, as its documentation says - the scheduler and its history share the client");
+            "the factory runs once per registration, as its documentation says - the scheduler, its history and its events share the client");
     }
 
     [Test]
