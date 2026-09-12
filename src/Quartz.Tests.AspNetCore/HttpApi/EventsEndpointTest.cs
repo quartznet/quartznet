@@ -8,7 +8,9 @@ using FakeItEasy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
+using Quartz.AspNetCore.HttpApi;
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
 using Quartz.Serialization.SystemTextJson;
@@ -311,6 +313,49 @@ public sealed class EventsEndpointTest
         reached.TrySetResult();
         await Task.Delay(Timeout.Infinite, cancellationToken);
         return TestData.Metadata;
+    }
+
+    /// <summary>
+    /// An interval a stream cannot be kept alive with is refused while the options are validated, rather
+    /// than when the first reader arrives.
+    /// </summary>
+    /// <remarks>
+    /// Both ends of it. Zero or less is a stream that writes heartbeats continuously and never gets as far
+    /// as an event; longer than a timer will wait is a value the BCL refuses, which without this arrives
+    /// as an <c>ArgumentOutOfRangeException</c> naming <c>delay</c> in the middle of somebody's request.
+    /// </remarks>
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void AHeartbeatIntervalThatIsNotPositiveIsRefused(int seconds)
+    {
+        ValidateOptionsResult result = new QuartzHttpApiOptionsValidator().Validate(
+            name: null,
+            new QuartzHttpApiOptions { EventStreamHeartbeatInterval = TimeSpan.FromSeconds(seconds) });
+
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain(nameof(QuartzHttpApiOptions.EventStreamHeartbeatInterval))
+            .And.Contain("must be positive");
+    }
+
+    /// <inheritdoc cref="AHeartbeatIntervalThatIsNotPositiveIsRefused" />
+    [Test]
+    public void AHeartbeatIntervalNoTimerWillWaitOutIsRefused()
+    {
+        ValidateOptionsResult result = new QuartzHttpApiOptionsValidator().Validate(
+            name: null,
+            new QuartzHttpApiOptions { EventStreamHeartbeatInterval = TimeSpan.FromDays(60) });
+
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain(nameof(QuartzHttpApiOptions.EventStreamHeartbeatInterval))
+            .And.Contain("days", "the ceiling is the BCL's and the report has to say what it is");
+    }
+
+    [Test]
+    public void TheDefaultHeartbeatIntervalIsFifteenSeconds()
+    {
+        new QuartzHttpApiOptions().EventStreamHeartbeatInterval.Should().Be(TimeSpan.FromSeconds(15),
+            "it has to sit below the idle read timeout of whatever proxy is in front of the API, and the "
+            + "defaults there are a minute and up");
     }
 
     private static string Url(IScheduler scheduler) => $"schedulers/{scheduler.SchedulerName}/events";

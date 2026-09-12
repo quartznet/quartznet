@@ -24,6 +24,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.AspNetCore.HttpApi.Util;
+using Quartz.Util;
 
 namespace Quartz;
 
@@ -178,15 +179,24 @@ public sealed class QuartzHttpApiOptions
     public Func<string, bool>? IsJobTypeAllowed { get; set; }
 
     /// <summary>
-    /// How long the event stream may say nothing before it emits a <c>Heartbeat</c> frame — fifteen
-    /// seconds.
+    /// How long <c>GET {ApiPath}/schedulers/{name}/events</c> may say nothing before it emits a
+    /// <c>Heartbeat</c> frame. Fifteen seconds by default.
     /// </summary>
     /// <remarks>
-    /// Internal in 4.1, which is what the whole event surface is. The value is here rather than in a
-    /// constant so that a test can shorten it for one host: a mutable static would be one interval shared
-    /// by every host in the process, which is exactly what a test suite has several of.
+    /// <para>
+    /// A heartbeat is what keeps a stream that has nothing to report alive, and it is a setting rather
+    /// than a constant because the thing it has to stay under is not Quartz's: a reverse proxy closes an
+    /// idle connection after its own read timeout — nginx's <c>proxy_read_timeout</c> is 60 seconds,
+    /// Azure's front doors 90, and a deployment is free to configure less. Set this below whatever sits
+    /// between the API and its readers, and a stream that would have been cut every minute stays open.
+    /// </para>
+    /// <para>
+    /// It bounds silence rather than spacing the frames: a scheduler that is producing events sends no
+    /// heartbeats at all, and the interval starts again after each frame. One goes out when the stream
+    /// opens whatever this says, because a response's headers are not sent until its body is written.
+    /// </para>
     /// </remarks>
-    internal TimeSpan EventStreamHeartbeatInterval { get; set; } = SchedulerEventStream.DefaultHeartbeatInterval;
+    public TimeSpan EventStreamHeartbeatInterval { get; set; } = SchedulerEventStream.DefaultHeartbeatInterval;
 
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
 
@@ -234,6 +244,24 @@ internal sealed class QuartzHttpApiOptionsValidator : IValidateOptions<QuartzHtt
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(QuartzHttpApiOptions.MaxPageSize)} must not be negative, was {options.MaxPageSize}. Use 0 to leave paged requests unbounded.");
+        }
+
+        if (options.EventStreamHeartbeatInterval <= TimeSpan.Zero)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(QuartzHttpApiOptions.EventStreamHeartbeatInterval)} must be positive, was "
+                + $"{options.EventStreamHeartbeatInterval}: zero or less is a stream that sends heartbeats "
+                + "continuously and never gets as far as an event.");
+        }
+
+        if (options.EventStreamHeartbeatInterval > TimerLimits.MaxDelay)
+        {
+            return ValidateOptionsResult.Fail(TimerLimits.TooLong(
+                nameof(QuartzHttpApiOptions.EventStreamHeartbeatInterval),
+                options.EventStreamHeartbeatInterval,
+                TimerLimits.MaxDelay,
+                "The event route waits it out between frames, and a wait longer than this is refused by the "
+                + "timer rather than by the route - which would fail the request rather than the startup."));
         }
 
         // A policy name with no IAuthorizationService behind it is a security setting that silently does
