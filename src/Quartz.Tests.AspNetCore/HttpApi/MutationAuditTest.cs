@@ -5,11 +5,16 @@ using AwesomeAssertions.Execution;
 
 using FakeItEasy;
 
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.Extensibility;
 using Quartz.Impl.Calendar;
 using Quartz.Tests.AspNetCore.Support;
@@ -219,6 +224,56 @@ public sealed class MutationAuditTest
             "everything the API logs about a request is filtered by one category, whichever type wrote it");
         entry.Level.Should().Be(LogLevel.Information);
         entry.Message.Should().Be($"Api user (anonymous) performed PauseAll on scheduler {TestData.SchedulerName}: /{SchedulerUrl}/pause-all");
+    }
+
+    /// <summary>
+    /// Every route that changes something is named, which is what the audit line records as the operation
+    /// — and the name comes from the same <c>WithQuartzDefaults</c> call that installs the wrapper writing
+    /// the line.
+    /// </summary>
+    /// <remarks>
+    /// The rows above drive one route per family; this covers the rest of them. A mutating route mapped
+    /// without <c>WithQuartzDefaults</c> would be audited by nothing and refused by nothing while the API
+    /// is read-only, and a mutating route mapped without a name would be audited as <c>(unknown)</c>.
+    /// </remarks>
+    [Test]
+    public async Task EveryMutatingRouteIsNamedByTheConventionThatAuditsIt()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddQuartz();
+        builder.Services.AddQuartzHttpApi();
+
+        await using WebApplication app = builder.Build();
+        app.MapQuartzHttpApi("/quartz-api");
+
+        List<string> unnamed = [];
+        List<string> mutating = [];
+
+        IEnumerable<RouteEndpoint> endpoints = ((IEndpointRouteBuilder) app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>();
+
+        foreach (RouteEndpoint endpoint in endpoints)
+        {
+            if (endpoint.Metadata.GetMetadata<QuartzMutationMetadata>() is null)
+            {
+                continue;
+            }
+
+            string route = $"{string.Join(",", endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? [])} {endpoint.RoutePattern.RawText}";
+            mutating.Add(route);
+
+            if (string.IsNullOrWhiteSpace(endpoint.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName))
+            {
+                unnamed.Add(route);
+            }
+        }
+
+        mutating.Should().HaveCountGreaterThan(30,
+            "the sweep has to find the mutating routes to say anything about them - a near-empty result "
+            + "means the endpoint source stopped answering rather than that the API stopped changing things");
+        unnamed.Should().BeEmpty("the audit line records the endpoint's name as the operation");
     }
 
     /// <summary>

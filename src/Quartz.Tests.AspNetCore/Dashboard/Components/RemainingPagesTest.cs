@@ -192,6 +192,25 @@ public class RemainingPagesTest
     }
 
     /// <summary>
+    /// An interrupt the target refused is recorded as the failure it was, node and reason included.
+    /// </summary>
+    [Test]
+    public void AnInterruptThatFailedIsRecordedWithItsReason()
+    {
+        GivenRunningFiring(interrupted: true);
+        A.CallTo(() => context.Api.InterruptFireInstance(A<string>._, "fire-1", A<CancellationToken>._))
+            .Throws(new SchedulerException("the target is unreachable"));
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
+
+        DashboardActionLogEntry entry = context.ActionLog.GetLatest(1).Should().ContainSingle().Which;
+        entry.Succeeded.Should().BeFalse();
+        entry.Message.Should().Be("the target is unreachable");
+        entry.NodeLocal.Should().BeTrue();
+    }
+
+    /// <summary>
     /// A firing that is running, and what interrupting it answers.
     /// </summary>
     private void GivenRunningFiring(bool interrupted)
