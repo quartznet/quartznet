@@ -33,14 +33,25 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// <c>LogEventCatalogTest</c> in <c>Quartz.Tests.AspNetCore</c> makes a change to one a reviewed diff.
 /// </para>
 /// <para>
-/// Six of the seven are raised while turning an exception into the problem details a request is answered
+/// Six of the eight are raised while turning an exception into the problem details a request is answered
 /// with, and the level says who has to act: a request the caller got wrong is Debug, a scheduler or a
 /// configured rule that refused is Warning, and anything else is a server fault at Error. The seventh
-/// answers no request at all — there is nobody left to answer.
+/// answers no request at all — there is nobody left to answer. The eighth is the only one a request that
+/// went right raises, and the only one at Information: it is the record of who changed what.
 /// </para>
 /// </remarks>
 internal static partial class HttpApiLog
 {
+    /// <summary>
+    /// The one category everything the API logs about a request is written under, whichever type wrote it.
+    /// </summary>
+    /// <remarks>
+    /// A category is what an operator filters by, so the API has one rather than one per collaborator:
+    /// the refusal, the fault and the audit line of a single request would otherwise arrive under three
+    /// names none of which is the API's.
+    /// </remarks>
+    internal const string Category = "Quartz.HttpApi";
+
     [LoggerMessage(EventId = 9000, Level = LogLevel.Debug, Message = "BadHttpRequestException thrown")]
     public static partial void BadHttpRequest(this ILogger logger, Exception exception);
 
@@ -74,4 +85,21 @@ internal static partial class HttpApiLog
     /// </remarks>
     [LoggerMessage(EventId = 9006, Level = LogLevel.Debug, Message = "Api request abandoned by the caller: {Url}")]
     public static partial void RequestAbandoned(this ILogger logger, string url);
+
+    /// <remarks>
+    /// <para>
+    /// Information, and the only line the API writes about a request that succeeded: after an outage the
+    /// first question is who changed this, and until 4.1 a <c>POST …/shutdown</c> that worked was recorded
+    /// nowhere at all. The dashboard's <c>9100</c> is the same event for the same reason, and this is its
+    /// shape for a caller that came over HTTP.
+    /// </para>
+    /// <para>
+    /// The user is <c>HttpContext.User.Identity.Name</c>, or <c>(anonymous)</c> where nothing
+    /// authenticated — which for an API mapped with <c>AllowAnonymous()</c> is every line, and is the
+    /// truth about it. The operation is the endpoint's name and the route is the request's path, which is
+    /// where the target key of every mutating route is spelled.
+    /// </para>
+    /// </remarks>
+    [LoggerMessage(EventId = 9007, Level = LogLevel.Information, Message = "Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}")]
+    public static partial void MutationPerformed(this ILogger logger, string user, string operation, string schedulerName, string route);
 }

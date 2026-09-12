@@ -92,10 +92,19 @@ internal static class EndpointConventionBuilderExtensions
 
     private static async Task ExceptionHandlingWrapper(HttpContext context, RequestDelegate next)
     {
+        // Asked once and used twice: a mutating route is the one read-only refuses, and the one whose
+        // success is audited. A read pays this one metadata lookup and nothing else.
+        bool mutation = context.GetEndpoint()?.Metadata.GetMetadata<QuartzMutationMetadata>() is not null;
+
         try
         {
-            RefuseWhenReadOnly(context);
+            RefuseWhenReadOnly(context, mutation);
             await next(context).ConfigureAwait(false);
+
+            if (mutation)
+            {
+                RecordMutation(context);
+            }
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
@@ -124,11 +133,10 @@ internal static class EndpointConventionBuilderExtensions
     /// Inside the wrapper that already turns a <see cref="ForbiddenException" /> into the <c>403</c>
     /// problem details and the <c>9005</c> log line, so a refusal here is the same answer a refused job
     /// type gives — and it is made before the handler, so no body is read and no scheduler is looked up.
-    /// A read pays one metadata lookup on an endpoint that has none of it.
     /// </remarks>
-    private static void RefuseWhenReadOnly(HttpContext context)
+    private static void RefuseWhenReadOnly(HttpContext context, bool mutation)
     {
-        if (context.GetEndpoint()?.Metadata.GetMetadata<QuartzMutationMetadata>() is null)
+        if (!mutation)
         {
             return;
         }
@@ -138,5 +146,30 @@ internal static class EndpointConventionBuilderExtensions
         {
             throw ForbiddenException.ForReadOnlyApi();
         }
+    }
+
+    /// <summary>
+    /// Logs the <c>9007</c> that says this request changed something, and who asked for it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// After the handler and only for an answer in the <c>2xx</c> range, so what is recorded is what the
+    /// scheduler did rather than what was asked of it: a refusal throws before this line is reached, and a
+    /// handler that answered <c>404</c> or <c>400</c> changed nothing. There is one line per request, not
+    /// one per route, so a mutation is counted once however many schedulers or keys it named.
+    /// </para>
+    /// <para>
+    /// In the wrapper rather than in each handler because the marker is already here: an endpoint that says
+    /// it mutates is audited by saying so, which is what keeps "somebody forgot" out of the audit trail.
+    /// </para>
+    /// </remarks>
+    private static void RecordMutation(HttpContext context)
+    {
+        if (context.Response.StatusCode is < StatusCodes.Status200OK or >= StatusCodes.Status300MultipleChoices)
+        {
+            return;
+        }
+
+        context.RequestServices.GetService<MutationAudit>()?.Record(context);
     }
 }

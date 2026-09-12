@@ -52,6 +52,11 @@ public static class QuartzAspNetCoreConfigurationExtensions
         services.TryAddSingleton<ExceptionHandler>();
         services.TryAddSingleton<EndpointHelper>();
 
+        // Who changed what. Every mutating route logs one Information line when it succeeds, which is the
+        // only record a deployment has of an action taken over HTTP - the dashboard's action log holds
+        // what its own buttons did and nothing else.
+        services.TryAddSingleton<MutationAudit>();
+
         // The API serves the history of what its schedulers have run, so something has to record it.
         // In memory and bounded, as the dashboard's has always been: a worker that maps the API answers
         // the history routes rather than answering them empty with nothing to say why. Idempotent, so an
