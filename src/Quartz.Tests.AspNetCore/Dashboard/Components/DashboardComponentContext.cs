@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Services;
+using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Dashboard.Support;
 using Quartz.Tests.AspNetCore.Support;
 
@@ -33,13 +34,27 @@ namespace Quartz.Tests.AspNetCore.Dashboard.Components;
 /// </remarks>
 internal sealed class DashboardComponentContext : BunitContext
 {
-    public DashboardComponentContext(Action<QuartzDashboardOptions>? configure = null)
+    /// <param name="configure">Configures the dashboard's options, as an application would.</param>
+    /// <param name="registerEventSource">
+    /// Whether the container holds an event stream at all. <see langword="false" /> is an application that
+    /// registered its own <see cref="IQuartzApiClient" /> without calling <c>AddQuartzDashboard()</c>, which
+    /// the Live Logs page has something to say about.
+    /// </param>
+    /// <param name="remoteEventSourceFor">
+    /// The scheduler whose events come from another process, keyed by its name the way
+    /// <c>AddQuartzHttpClient</c> registers its target's reader. Named here rather than added later because
+    /// bUnit freezes its services the first time one is resolved.
+    /// </param>
+    public DashboardComponentContext(
+        Action<QuartzDashboardOptions>? configure = null,
+        bool registerEventSource = true,
+        string? remoteEventSourceFor = null)
     {
         Options = new QuartzDashboardOptions();
         configure?.Invoke(Options);
 
         Api = A.Fake<IQuartzApiClient>();
-        LiveConnections = new FakeDashboardLiveConnectionFactory();
+        Events = new FakeSchedulerEventSource();
 
         // KeyBadge copies a key to the clipboard through JS interop, so a strict runtime would fail
         // every page that lists one for a call no test is about.
@@ -52,7 +67,21 @@ internal sealed class DashboardComponentContext : BunitContext
         AuthenticationState = new TestAuthenticationStateProvider();
 
         Services.AddSingleton(Api);
-        Services.AddSingleton<IDashboardLiveConnectionFactory>(LiveConnections);
+
+        // The process's event stream, which is what the Live Logs page reads for a scheduler this container
+        // runs. A context told of a scheduler somewhere else holds a keyed one beside it, which is what the
+        // page reads instead for that name.
+        if (registerEventSource)
+        {
+            Services.AddSingleton<ISchedulerEventSource>(Events);
+        }
+
+        if (remoteEventSourceFor is not null)
+        {
+            RemoteEvents = new FakeSchedulerEventSource();
+            Services.AddKeyedSingleton<ISchedulerEventSource>(remoteEventSourceFor, RemoteEvents);
+        }
+
         Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(Options));
         Services.AddSingleton(A.Fake<IHttpContextAccessor>());
         Services.AddSingleton<IAuthorizationService>(AuthorizationService);
@@ -94,7 +123,20 @@ internal sealed class DashboardComponentContext : BunitContext
 
     public TestAuthenticationStateProvider AuthenticationState { get; }
 
-    public FakeDashboardLiveConnectionFactory LiveConnections { get; }
+    /// <summary>
+    /// The stream this process's schedulers publish into, which a test pushes events onto.
+    /// </summary>
+    public FakeSchedulerEventSource Events { get; }
+
+    /// <summary>
+    /// The stream of the scheduler this context was told runs in another process, or <see langword="null" />
+    /// when it was told of none.
+    /// </summary>
+    /// <remarks>
+    /// Which source answers is the thing several tests are about: a page that read the process's own stream
+    /// for a remote scheduler would be showing another scheduler's events.
+    /// </remarks>
+    public FakeSchedulerEventSource? RemoteEvents { get; }
 
     public QuartzDashboardOptions Options { get; }
 

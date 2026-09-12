@@ -1,40 +1,34 @@
 @page "/quartz/live"
-@using Microsoft.AspNetCore.SignalR.Client
-@using Microsoft.Extensions.Options
+@using System.Globalization
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@using Quartz.Extensibility
+@using Quartz.HttpApiContract
 @implements IAsyncDisposable
-@inject NavigationManager Navigation
 @inject SchedulerState Scheduler
 @inject IQuartzApiClient Api
-@inject IOptions<QuartzDashboardOptions> Options
-@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
-@inject IDashboardLiveConnectionFactory LiveConnections
+@inject IServiceProvider Services
 
 <div class="qz-page">
     <h1>Live Logs</h1>
 
     <div class="qz-toolbar">
-        @if (_connection?.State == HubConnectionState.Connected)
+        @if (_streaming)
         {
-            <span class="qz-badge qz-badge-success">● Connected</span>
-        }
-        else if (_connection?.State == HubConnectionState.Connecting || _connection?.State == HubConnectionState.Reconnecting)
-        {
-            <span class="qz-badge qz-badge-warning">● Connecting…</span>
+            <span class="qz-badge qz-badge-success">● Streaming</span>
         }
         else
         {
-            <span class="qz-badge qz-badge-error">● Disconnected</span>
+            <span class="qz-badge qz-badge-error">● Not streaming</span>
         }
 
-        @if (!string.IsNullOrWhiteSpace(_joinedScheduler))
+        @if (!string.IsNullOrWhiteSpace(_watchedScheduler))
         {
-            @* The scheduler names the group; the node names the process this page is rendered by. In a
-               cluster that group is fed by every node running that scheduler, so a reader has to be able
+            @* The scheduler names the stream; the node names the process this page is rendered by. In a
+               cluster that stream is fed by every node running the scheduler, so a reader has to be able
                to tell an event from here apart from an event from a peer. *@
-            <span class="qz-muted">Listening to: @_joinedScheduler@(string.IsNullOrWhiteSpace(_thisNode) ? "" : " · this node is " + _thisNode)</span>
+            <span class="qz-muted">Listening to: @_watchedScheduler@(string.IsNullOrWhiteSpace(_thisNode) ? "" : " · this node is " + _thisNode)</span>
         }
     </div>
 
@@ -61,17 +55,7 @@
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <ErrorAlert Message="@_error" OnRetry="ReconnectAsync" />
-    }
-
-    @if (ActiveSchedulerIsRemote)
-    {
-        @* The events are broadcast from inside the scheduler's own process, onto that process's hub.
-           This one has no reader for it, and an empty page with no explanation reads as a fault. *@
-        <p class="qz-muted" data-testid="live-events-remote">
-            This scheduler runs in another process; its live events are not streamed over HTTP yet
-            (<a href="https://github.com/quartznet/quartznet/issues/3387">#3387</a>).
-        </p>
+        <ErrorAlert Message="@_error" OnRetry="RestartAsync" />
     }
 
     @if (_events.Count == 0)
@@ -90,7 +74,7 @@
                 <li class="qz-live-event qz-live-@liveEvent.Category">
                     <span class="qz-live-time"><TimeAgo Timestamp="@liveEvent.Timestamp" /></span>
                     <span class="qz-live-type">@liveEvent.EventType</span>
-                    <span class="qz-live-node" title="Node">@(liveEvent.SchedulerInstanceId ?? "—")</span>
+                    <span class="qz-live-node" title="Node">@(string.IsNullOrWhiteSpace(liveEvent.SchedulerInstanceId) ? "—" : liveEvent.SchedulerInstanceId)</span>
                     <span class="qz-live-description">@liveEvent.Description</span>
                 </li>
             }
@@ -99,27 +83,31 @@
 </div>
 
 @code {
+    /// <summary>
+    /// The event kinds a reader can narrow to, which is every kind a scheduler raises.
+    /// </summary>
+    /// <remarks>
+    /// Read off the enum rather than written out, so a kind added to the stream is filterable on the day it
+    /// arrives. <see cref="SchedulerEventKind.Heartbeat" /> is not one: it is the transport saying the
+    /// connection is alive, and the reader consumes it before the page ever sees it.
+    /// </remarks>
     private static readonly string[] EventTypes =
     [
-        "JobExecuting",
-        "JobExecuted",
-        "TriggerFired",
-        "TriggerCompleted",
-        "TriggerMisfired",
-        "TriggerPaused",
-        "TriggerResumed",
-        "JobPaused",
-        "JobResumed",
-        "SchedulerStateChanged",
-        "SchedulerError"
+        .. Enum.GetNames<SchedulerEventKind>().Where(kind => kind != nameof(SchedulerEventKind.Heartbeat))
     ];
+
+    /// <summary>
+    /// How many events the page keeps. It is a live view rather than a log: the oldest fall off the end.
+    /// </summary>
+    private const int Kept = 100;
 
     private readonly List<LiveEventItem> _events = [];
     private readonly List<LiveEventItem> _filteredEvents = [];
     private readonly HashSet<string> _selectedEventTypes = new(EventTypes, StringComparer.OrdinalIgnoreCase);
-    private IDashboardLiveConnection? _connection;
+
     private string? _error;
-    private string? _joinedScheduler;
+    private string? _watchedScheduler;
+    private bool _streaming;
 
     /// <summary>
     /// The instance id of the scheduler this page's own process is running, or null when it could not be
@@ -127,30 +115,15 @@
     /// </summary>
     private string? _thisNode;
 
-    /// <summary>
-    /// Whether the scheduler on screen runs in another process.
-    /// </summary>
-    /// <remarks>
-    /// The live feed is broadcast onto the hub of the process the scheduler runs in, so a scheduler
-    /// reached over HTTP has no events to show here — and an empty page with nothing to say why reads as
-    /// a broken feed rather than as a feature that is not there yet.
-    /// </remarks>
-    private bool ActiveSchedulerIsRemote =>
-        Scheduler.Find(Scheduler.ActiveSchedulerName) is { Origin: SchedulerOrigin.Remote };
-
-    private bool _isConnecting;
-    private PeriodicTimer? _connectionMonitorTimer;
-    private CancellationTokenSource? _connectionMonitorCancellation;
+    private CancellationTokenSource? _subscription;
+    private Task? _reading;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             Scheduler.OnSchedulerChanged += OnSchedulerChanged;
-            _connectionMonitorCancellation = new CancellationTokenSource();
-            _connectionMonitorTimer = new PeriodicTimer(TimeSpan.FromSeconds(3));
-            _ = RunConnectionMonitorAsync(_connectionMonitorCancellation.Token);
-            await ConnectAsync();
+            await WatchAsync(Scheduler.ActiveSchedulerName);
             StateHasChanged();
         }
     }
@@ -159,7 +132,7 @@
     {
         try
         {
-            await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
+            await WatchAsync(Scheduler.ActiveSchedulerName);
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
@@ -169,144 +142,115 @@
         }
     }
 
-    private async Task ConnectAsync()
-    {
-        if (_isConnecting)
-        {
-            return;
-        }
+    private Task RestartAsync() => WatchAsync(Scheduler.ActiveSchedulerName);
 
-        _isConnecting = true;
+    /// <summary>
+    /// Subscribes to one scheduler's events, leaving whichever was being watched before.
+    /// </summary>
+    /// <remarks>
+    /// The source is resolved per scheduler rather than injected: a scheduler in another process has a
+    /// reader of its own target's stream registered under its name, and one in this process is read from
+    /// the broker every scheduler here publishes into. The page cannot tell the two apart, which is the
+    /// point — its own events and a remote target's arrive the same way.
+    /// </remarks>
+    private async Task WatchAsync(string? schedulerName)
+    {
+        await StopAsync();
+
         _error = null;
+        _watchedScheduler = null;
+        _thisNode = null;
 
-        try
-        {
-            if (_connection is not null)
-            {
-                await _connection.DisposeAsync();
-            }
-
-            Uri hubUri = BuildHubUri();
-            string? cookieHeader = HttpContextAccessor.HttpContext?.Request.Headers.Cookie.ToString();
-
-            _connection = LiveConnections.Create(
-                hubUri,
-                cookieHeader,
-                stateChanged: () =>
-                {
-                    _ = InvokeAsync(StateHasChanged);
-                    return Task.CompletedTask;
-                },
-                reconnected: async () =>
-                {
-                    await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
-                    await InvokeAsync(StateHasChanged);
-                });
-
-            RegisterEventHandlers(_connection);
-
-            await _connection.Start();
-            await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
-            ApplyEventTypeFilter();
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-            await InvokeAsync(StateHasChanged);
-        }
-        finally
-        {
-            _isConnecting = false;
-        }
-    }
-
-    private Task ReconnectAsync()
-    {
-        return ConnectAsync();
-    }
-
-    private Uri BuildHubUri()
-    {
-        Uri currentUri = new(Navigation.Uri);
-        string currentPath = currentUri.AbsolutePath.TrimEnd('/');
-        int lastSlashIndex = currentPath.LastIndexOf('/');
-        if (lastSlashIndex > 0)
-        {
-            string liveRoot = currentPath.Substring(0, lastSlashIndex);
-            if (!string.IsNullOrWhiteSpace(liveRoot))
-            {
-                return Navigation.ToAbsoluteUri(liveRoot + "/hub");
-            }
-        }
-
-        // Base-relative so the URL honors both DashboardPath and any path base set by the host
-        return Navigation.ToAbsoluteUri(DashboardLink.To(Options.Value, "hub"));
-    }
-
-    private async Task RunConnectionMonitorAsync(CancellationToken cancellationToken)
-    {
-        if (_connectionMonitorTimer is null)
+        if (string.IsNullOrWhiteSpace(schedulerName))
         {
             return;
         }
 
+        ISchedulerEventSource? source = SchedulerEventSources.For(Services, schedulerName);
+        if (source is null)
+        {
+            _error = "This application registers no event stream, so there is nothing to watch. "
+                + "AddQuartzDashboard() registers one for the schedulers in this process.";
+            return;
+        }
+
+        _watchedScheduler = schedulerName;
+        _thisNode = await ReadThisNodeAsync(schedulerName);
+        _streaming = true;
+
+        _subscription = new CancellationTokenSource();
+        _reading = ReadAsync(source, schedulerName, _subscription.Token);
+    }
+
+    /// <summary>
+    /// Reads the stream until the page leaves it, which is what makes the view live.
+    /// </summary>
+    /// <remarks>
+    /// A stream that ends is the end of the view rather than an error: the reader behind a remote target
+    /// reconnects on its own, and the broker in this process only ends a subscription that was cancelled.
+    /// A stream that <em>fails</em> is shown — a target that serves no event stream at all says so through
+    /// <see cref="NotSupportedException" />, which is a fact about the target rather than a fault here.
+    /// </remarks>
+    private async Task ReadAsync(ISchedulerEventSource source, string schedulerName, CancellationToken cancellationToken)
+    {
         try
         {
-            while (await _connectionMonitorTimer.WaitForNextTickAsync(cancellationToken))
+            await foreach (SchedulerEvent schedulerEvent in source.Subscribe(schedulerName, cancellationToken))
             {
-                if (_connection is null || _connection.State == HubConnectionState.Disconnected)
-                {
-                    await ConnectAsync();
-                }
+                await AddAsync(schedulerEvent);
             }
         }
         catch (OperationCanceledException)
         {
         }
-        catch (ObjectDisposedException)
+        catch (Exception exception)
         {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _streaming = false;
+
+            try
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (ObjectDisposedException)
+            {
+                // The circuit went away while the stream was ending, which is the ordinary order of things
+                // when a reader navigates off the page.
+            }
         }
     }
 
-    private void RegisterEventHandlers(IDashboardLiveConnection connection)
+    private async Task StopAsync()
     {
-        connection.On("JobExecuting", payload => AddEventAsync("JobExecuting", "success", payload));
-        connection.On("JobExecuted", payload => AddEventAsync("JobExecuted", "success", payload));
-        connection.On("TriggerFired", payload => AddEventAsync("TriggerFired", "info", payload));
-        connection.On("TriggerCompleted", payload => AddEventAsync("TriggerCompleted", "success", payload));
-        connection.On("TriggerMisfired", payload => AddEventAsync("TriggerMisfired", "error", payload));
-        connection.On("TriggerPaused", payload => AddEventAsync("TriggerPaused", "info", payload));
-        connection.On("TriggerResumed", payload => AddEventAsync("TriggerResumed", "success", payload));
-        connection.On("JobPaused", payload => AddEventAsync("JobPaused", "info", payload));
-        connection.On("JobResumed", payload => AddEventAsync("JobResumed", "success", payload));
-        connection.On("SchedulerStateChanged", payload => AddEventAsync("SchedulerStateChanged", "info", payload));
-        connection.On("SchedulerError", payload => AddEventAsync("SchedulerError", "error", payload));
-    }
+        _streaming = false;
 
-    private async Task JoinSchedulerAsync(string? schedulerName)
-    {
-        if (_connection is null || _connection.State != HubConnectionState.Connected)
+        if (_subscription is not null)
         {
-            return;
+            await _subscription.CancelAsync();
+            _subscription.Dispose();
+            _subscription = null;
         }
 
-        if (!string.IsNullOrWhiteSpace(_joinedScheduler))
+        if (_reading is not null)
         {
-            await _connection.Invoke("LeaveScheduler", _joinedScheduler);
-            _joinedScheduler = null;
-        }
+            try
+            {
+                await _reading;
+            }
+            catch (Exception)
+            {
+                // Whatever it was, it was reported when it happened.
+            }
 
-        if (!string.IsNullOrWhiteSpace(schedulerName))
-        {
-            await _connection.Invoke("JoinScheduler", schedulerName);
-            _joinedScheduler = schedulerName;
-            _thisNode = await ReadThisNodeAsync(schedulerName);
+            _reading = null;
         }
     }
 
     /// <summary>
-    /// The instance id of the scheduler in this process, read the way every other page reads a
+    /// The instance id of the scheduler this page is watching, read the way every other page reads a
     /// scheduler's facts. A data source that cannot answer leaves the toolbar saying nothing about the
     /// node rather than failing the page.
     /// </summary>
@@ -323,13 +267,17 @@
         }
     }
 
-    private Task AddEventAsync(string eventType, string category, object? payload)
+    private Task AddAsync(SchedulerEvent schedulerEvent)
     {
-        string description = BuildDescription(eventType, payload);
-        LiveEventItem item = new(DateTimeOffset.UtcNow, eventType, category, ReadSchedulerInstanceId(payload), description);
+        LiveEventItem item = new(
+            schedulerEvent.OccurredAtUtc,
+            schedulerEvent.Kind.ToString(),
+            CategoryOf(schedulerEvent),
+            schedulerEvent.SchedulerInstanceId,
+            Describe(schedulerEvent));
 
         _events.Insert(0, item);
-        if (_events.Count > 100)
+        if (_events.Count > Kept)
         {
             _events.RemoveAt(_events.Count - 1);
         }
@@ -388,63 +336,108 @@
     }
 
     /// <summary>
-    /// The node an event came from, read out of the payload the hub serialized.
+    /// What the row says, built from the event's own fields.
     /// </summary>
     /// <remarks>
-    /// Every payload carries it, but the page receives them as JSON rather than as the records they were
-    /// sent as — deserializing eleven shapes to read one member of each would be the same answer at
-    /// eleven times the cost. Both spellings are tried because the member name is subject to whatever
-    /// naming policy the host's SignalR JSON protocol is configured with.
+    /// The page used to render whatever the hub's JSON stringified to, because that is all it had: the
+    /// payloads arrived as <c>JsonElement</c>s of eleven different shapes. It holds the record now, so each
+    /// kind says the thing a reader is looking for — which job, which trigger, which firing, and how it
+    /// went.
     /// </remarks>
-    private static string? ReadSchedulerInstanceId(object? payload)
+    private static string Describe(SchedulerEvent schedulerEvent)
     {
-        if (payload is not System.Text.Json.JsonElement element
-            || element.ValueKind != System.Text.Json.JsonValueKind.Object)
+        return schedulerEvent.Kind switch
         {
-            return null;
-        }
-
-        if (!element.TryGetProperty("schedulerInstanceId", out System.Text.Json.JsonElement node)
-            && !element.TryGetProperty("SchedulerInstanceId", out node))
-        {
-            return null;
-        }
-
-        return node.ValueKind == System.Text.Json.JsonValueKind.String ? node.GetString() : null;
+            SchedulerEventKind.JobExecuting => Job(schedulerEvent) + FiredBy(schedulerEvent),
+            SchedulerEventKind.JobExecuted => Job(schedulerEvent) + Outcome(schedulerEvent),
+            SchedulerEventKind.JobInterrupted => Job(schedulerEvent) + Firing(schedulerEvent),
+            SchedulerEventKind.JobPaused or SchedulerEventKind.JobResumed => Job(schedulerEvent),
+            SchedulerEventKind.TriggerFired or SchedulerEventKind.TriggerCompleted => Trigger(schedulerEvent) + Fires(schedulerEvent),
+            SchedulerEventKind.TriggerMisfired => Trigger(schedulerEvent) + Fires(schedulerEvent) + " · missed its firing",
+            SchedulerEventKind.TriggerInError => Trigger(schedulerEvent) + " · will not fire until it is reset",
+            SchedulerEventKind.TriggerPaused or SchedulerEventKind.TriggerResumed => Trigger(schedulerEvent),
+            SchedulerEventKind.SchedulerStateChanged => schedulerEvent.Status?.ToString() ?? "",
+            SchedulerEventKind.SchedulerError => Error(schedulerEvent),
+            _ => ""
+        };
     }
 
-    private static string BuildDescription(string eventType, object? payload)
+    /// <summary>
+    /// Which of the three colours the row is. There are three because a wall of events is read at a
+    /// glance: something finished, something happened, something went wrong.
+    /// </summary>
+    private static string CategoryOf(SchedulerEvent schedulerEvent)
     {
-        if (payload is null)
+        return schedulerEvent.Kind switch
         {
-            return eventType;
+            SchedulerEventKind.JobExecuted when schedulerEvent.ExceptionMessage is not null => "error",
+            SchedulerEventKind.JobExecuted when schedulerEvent.Vetoed == true => "info",
+            SchedulerEventKind.JobExecuting or SchedulerEventKind.JobExecuted => "success",
+            SchedulerEventKind.TriggerCompleted or SchedulerEventKind.TriggerResumed or SchedulerEventKind.JobResumed => "success",
+            SchedulerEventKind.TriggerMisfired or SchedulerEventKind.TriggerInError or SchedulerEventKind.SchedulerError => "error",
+            _ => "info"
+        };
+    }
+
+    private static string Job(SchedulerEvent schedulerEvent) => Key(schedulerEvent.JobKey);
+
+    private static string Trigger(SchedulerEvent schedulerEvent) => Key(schedulerEvent.TriggerKey);
+
+    private static string FiredBy(SchedulerEvent schedulerEvent) =>
+        schedulerEvent.TriggerKey is null ? "" : " · fired by " + Key(schedulerEvent.TriggerKey);
+
+    private static string Fires(SchedulerEvent schedulerEvent) =>
+        schedulerEvent.JobKey is null ? "" : " · fires " + Key(schedulerEvent.JobKey);
+
+    private static string Firing(SchedulerEvent schedulerEvent) =>
+        string.IsNullOrWhiteSpace(schedulerEvent.FireInstanceId) ? "" : " · firing " + schedulerEvent.FireInstanceId;
+
+    private static string Outcome(SchedulerEvent schedulerEvent)
+    {
+        if (schedulerEvent.Vetoed == true)
+        {
+            return " · vetoed before it ran";
         }
 
-        string payloadText = payload.ToString() ?? string.Empty;
-        if (payloadText.Length > 180)
+        string ran = schedulerEvent.RunTime is null ? "" : " · ran for " + Ran(schedulerEvent.RunTime.Value);
+        return schedulerEvent.ExceptionMessage is null ? ran : ran + " · failed: " + schedulerEvent.ExceptionMessage;
+    }
+
+    private static string Error(SchedulerEvent schedulerEvent)
+    {
+        string message = schedulerEvent.Message ?? "";
+        string about = schedulerEvent.TriggerKey is not null
+            ? " · " + Key(schedulerEvent.TriggerKey)
+            : schedulerEvent.JobKey is not null ? " · " + Key(schedulerEvent.JobKey) : "";
+
+        return schedulerEvent.Cause is null ? message + about : message + about + " · " + schedulerEvent.Cause;
+    }
+
+    private static string Key(KeyDto? key) => key is null ? "" : key.Group + "." + key.Name;
+
+    /// <summary>
+    /// How long a job ran, in the largest unit that keeps it readable — the way the History page shows the
+    /// same figure.
+    /// </summary>
+    private static string Ran(TimeSpan runTime)
+    {
+        if (runTime < TimeSpan.FromSeconds(1))
         {
-            payloadText = payloadText.Substring(0, 180) + "…";
+            return runTime.TotalMilliseconds.ToString("0.###", CultureInfo.InvariantCulture) + " ms";
         }
 
-        if (string.IsNullOrWhiteSpace(payloadText))
+        if (runTime < TimeSpan.FromMinutes(1))
         {
-            return eventType;
+            return runTime.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture) + " s";
         }
 
-        return eventType + ": " + payloadText;
+        return runTime.ToString("g", CultureInfo.InvariantCulture);
     }
 
     public async ValueTask DisposeAsync()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
-        _connectionMonitorCancellation?.Cancel();
-        _connectionMonitorCancellation?.Dispose();
-        _connectionMonitorTimer?.Dispose();
-
-        if (_connection is not null)
-        {
-            await _connection.DisposeAsync();
-        }
+        await StopAsync();
     }
 
     private sealed record LiveEventItem(

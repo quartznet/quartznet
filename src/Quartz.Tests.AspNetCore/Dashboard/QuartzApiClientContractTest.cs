@@ -3,7 +3,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
+
+// The wire's own names, aliased rather than imported: the dashboard's DTOs and the contract's share three
+// names, and this fixture is about the pair agreeing rather than about either of them.
+using KeyDto = Quartz.HttpApiContract.KeyDto;
+using SchedulerEvent = Quartz.HttpApiContract.SchedulerEvent;
+using SchedulerEventKind = Quartz.HttpApiContract.SchedulerEventKind;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
 
@@ -63,6 +70,12 @@ public sealed class QuartzApiClientContractTest
     private IQuartzApiClient client = null!;
     private IExecutionHistoryStore history = null!;
 
+    /// <summary>
+    /// The broker of the process the scheduler runs in, which is where its events are published. For the
+    /// HTTP carrier that is the host's, and the dashboard reads it through the target's reader.
+    /// </summary>
+    private SchedulerEventBroker broker = null!;
+
     public QuartzApiClientContractTest(Carrier carrier)
     {
         this.carrier = carrier;
@@ -98,6 +111,7 @@ public sealed class QuartzApiClientContractTest
         // Resolving the scheduler is what binds it into the repository the client looks names up in.
         scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
         history = provider.GetRequiredService<IExecutionHistoryStore>();
+        broker = provider.GetRequiredService<SchedulerEventBroker>();
     }
 
     private async Task SetUpHttp()
@@ -108,6 +122,7 @@ public sealed class QuartzApiClientContractTest
         // The test host maps the API but runs no hosted service, so nothing has built its scheduler yet.
         scheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
         history = host.Services.GetRequiredService<IExecutionHistoryStore>();
+        broker = host.Services.GetRequiredService<SchedulerEventBroker>();
 
         // A dashboard with no scheduler of its own: everything it renders is somebody else's process.
         ServiceCollection services = new();
@@ -308,6 +323,53 @@ public sealed class QuartzApiClientContractTest
 
         int recent = await client.CountMisfires(scheduler.SchedulerName, now.AddMinutes(-10));
         recent.Should().Be(1, "the overview's tile asks for a count over a window, not for a page");
+    }
+
+    /// <summary>
+    /// What a scheduler does is watchable from this container, from the process the scheduler runs in.
+    /// </summary>
+    /// <remarks>
+    /// The Live Logs page resolves its stream exactly this way, so running it over both carriers is what
+    /// stops the remote one drifting: for the HTTP carrier the event is raised on the host, written as a
+    /// frame by the event route and read back by the target's reader, and the page cannot tell that from an
+    /// event published into this process's broker.
+    /// </remarks>
+    [Test]
+    public async Task TheEventsAreWatchedFromTheProcessTheSchedulerRunsIn()
+    {
+        ISchedulerEventSource? source = SchedulerEventSources.For(provider, scheduler.SchedulerName);
+        source.Should().NotBeNull("a dashboard reads the events of whatever scheduler it renders");
+
+        using CancellationTokenSource subscription = new();
+        await using IAsyncEnumerator<SchedulerEvent> events = source!
+            .Subscribe(scheduler.SchedulerName, subscription.Token)
+            .GetAsyncEnumerator(CancellationToken.None);
+
+        Task<bool> reading = events.MoveNextAsync().AsTask();
+
+        // A stream carries what happens after a subscription is made, so nothing is raised until the
+        // scheduler's own process has one.
+        using CancellationTokenSource waiting = new(TimeSpan.FromSeconds(30));
+        while (!broker.HasSubscribers(scheduler.SchedulerName))
+        {
+            await Task.Delay(10, waiting.Token);
+        }
+
+        await scheduler.AddJob(
+            JobBuilder.Create<DummyJob>().WithIdentity("watched", "contract").StoreDurably().Build(),
+            new AddJobOptions { Replace = true });
+        (await scheduler.PauseJob(new JobKey("watched", "contract"))).Should().BeTrue();
+
+        (await reading.WaitAsync(TimeSpan.FromSeconds(30))).Should().BeTrue("the scheduler raised an event");
+
+        SchedulerEvent watched = events.Current;
+        watched.Kind.Should().Be(SchedulerEventKind.JobPaused);
+        watched.JobKey.Should().Be(new KeyDto("watched", "contract"));
+        watched.SchedulerName.Should().Be(scheduler.SchedulerName);
+        watched.SchedulerInstanceId.Should().Be(scheduler.SchedulerInstanceId,
+            "the node is the one that raised it, which for a remote target is somebody else's process");
+
+        await subscription.CancelAsync();
     }
 
     /// <summary>

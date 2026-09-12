@@ -30,11 +30,16 @@ namespace Quartz.Dashboard.Hubs;
 internal sealed class QuartzDashboardHub : Hub<IQuartzDashboardHubClient>
 {
     private readonly SchedulerAuthorization authorization;
+    private readonly DashboardHubForwarder forwarder;
     private readonly ILogger<QuartzDashboardHub> logger;
 
-    public QuartzDashboardHub(SchedulerAuthorization authorization, ILogger<QuartzDashboardHub> logger)
+    public QuartzDashboardHub(
+        SchedulerAuthorization authorization,
+        DashboardHubForwarder forwarder,
+        ILogger<QuartzDashboardHub> logger)
     {
         this.authorization = authorization;
+        this.forwarder = forwarder;
         this.logger = logger;
     }
 
@@ -66,10 +71,18 @@ internal sealed class QuartzDashboardHub : Hub<IQuartzDashboardHubClient>
     /// Subscribes this connection to one scheduler's live events.
     /// </summary>
     /// <remarks>
-    /// The group name is the scheduler's name — it is what the live-events plugin broadcasts to — so
-    /// joining a group is reaching a scheduler, and it is checked as one. Refusing is a
-    /// <see cref="HubException" /> rather than a silent no-op: a subscription that never delivers and
-    /// never says why is indistinguishable from a scheduler that is idle.
+    /// <para>
+    /// The group name is the scheduler's name — it is what the forwarder sends to — so joining a group is
+    /// reaching a scheduler, and it is checked as one. Refusing is a <see cref="HubException" /> rather
+    /// than a silent no-op: a subscription that never delivers and never says why is indistinguishable
+    /// from a scheduler that is idle.
+    /// </para>
+    /// <para>
+    /// The join is also what starts the forwarding. Quartz builds a scheduler's events only while
+    /// something is subscribed to them, so a hub nobody has connected to costs its schedulers nothing —
+    /// and the check above has already run, so nothing is subscribed to on behalf of a caller who may not
+    /// see it.
+    /// </para>
     /// </remarks>
     public async Task JoinScheduler(string schedulerName)
     {
@@ -78,6 +91,8 @@ internal sealed class QuartzDashboardHub : Hub<IQuartzDashboardHubClient>
         {
             throw new HubException($"Not authorized for scheduler {schedulerName}");
         }
+
+        forwarder.Forward(schedulerName);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, schedulerName, Context.ConnectionAborted).ConfigureAwait(false);
     }

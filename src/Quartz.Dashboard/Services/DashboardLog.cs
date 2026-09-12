@@ -44,4 +44,13 @@ internal static partial class DashboardLog
 
     [LoggerMessage(EventId = 9103, Level = LogLevel.Debug, Message = "Dashboard connection {ConnectionId} closed for user {User}")]
     public static partial void HubDisconnected(this ILogger logger, string connectionId, string user);
+
+    /// <remarks>
+    /// Warning, and it says which scheduler: the hub goes on serving whoever is connected to it and they
+    /// go on receiving nothing, which is the one shape of failure a live view cannot show for itself.
+    /// Reaching it needs something other than a scheduler going away or a target that streams no events —
+    /// the forwarder treats both of those as the endings they are.
+    /// </remarks>
+    [LoggerMessage(EventId = 9104, Level = LogLevel.Warning, Message = "Forwarding scheduler {SchedulerName} events to the dashboard hub stopped")]
+    public static partial void HubForwardingStopped(this ILogger logger, string schedulerName, Exception exception);
 }

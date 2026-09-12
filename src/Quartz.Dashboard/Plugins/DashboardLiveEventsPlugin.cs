@@ -27,15 +27,29 @@ using Quartz.Extensibility;
 namespace Quartz.Dashboard.Plugins;
 
 /// <summary>
-/// Pushes a scheduler's events to the browsers watching it, which is what makes the dashboard's live
-/// view live.
+/// Pushes a scheduler's events straight into the dashboard's SignalR hub.
 /// </summary>
 /// <remarks>
+/// <para>
+/// <strong>Superseded, and no longer registered.</strong> The live events are Quartz's own from 4.1:
+/// <c>AddQuartzSchedulerEvents()</c> — which <c>AddQuartzDashboard()</c> calls — installs one publisher
+/// into every scheduler in the container, the dashboard's pages read that stream directly, and an
+/// internal forwarder feeds this hub from it for clients of an application's own. <strong>Do not register
+/// this plugin beside that</strong>: both would push, and every browser watching the hub would see each
+/// event twice.
+/// </para>
+/// <para>
+/// It stays public and it still works, for an application that named it in a
+/// <c>quartz.plugin.*.type</c> key or added it in code and wants exactly what it did in 4.0: the events
+/// of one scheduler, in this process, on this process's hub. It reaches no further than that, which is
+/// why it was superseded — a scheduler in another process has no hub here to push to, and a page that
+/// read this one had to connect back to its own public URL to do it.
+/// </para>
+/// <para>
 /// It is all three listener kinds at once because the live view draws all three: a job starting and
-/// finishing, a trigger firing and misfiring, and the scheduler's own lifecycle. Registered by
-/// <c>AddQuartzDashboard</c> against every scheduler in the container rather than named by a
-/// <c>quartz.plugin.*.type</c> key, and told its own scheduler's name when it is initialized — which is
-/// the SignalR group it broadcasts to.
+/// finishing, a trigger firing and misfiring, and the scheduler's own lifecycle. It is told its own
+/// scheduler's name when it is initialized, which is the SignalR group it broadcasts to.
+/// </para>
 /// </remarks>
 public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, ITriggerListener, ISchedulerListener
 {

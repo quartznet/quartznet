@@ -342,6 +342,7 @@ matching on its text is not.
 | 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason}"` |
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
 | 9103 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} closed for user {User}"` |
+| 9104 | Warning | `Quartz.Dashboard` | `"Forwarding scheduler {SchedulerName} events to the dashboard hub stopped"` |
 
 <!-- endLogEvents -->
 
