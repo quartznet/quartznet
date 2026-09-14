@@ -27,6 +27,7 @@
         "ApiDoc",
         "Clean",
         "Compile",
+        "DraftRelease",
         "GenerateMigrations",
         "IntegrationTest",
         "Pack",
@@ -128,6 +129,15 @@
         },
         "FeedzApiKey": {
           "type": "string",
+          "default": "Secrets must be entered via 'fallout :secrets [profile]'"
+        },
+        "GitHubRepository": {
+          "type": "string",
+          "description": "Repository to draft the release in, as owner/name. Set by hand only, to rehearse DraftRelease against a scratch repository"
+        },
+        "GitHubToken": {
+          "type": "string",
+          "description": "GitHub token the release is drafted with — defaults to the publish workflow's GITHUB_TOKEN",
           "default": "Secrets must be entered via 'fallout :secrets [profile]'"
         },
         "Solution": {

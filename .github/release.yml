@@ -1,0 +1,32 @@
+# What GitHub's "Generate release notes" button produces, and what DraftRelease seeds a 3.x release
+# draft with.
+#
+# 3.x is the maintenance line: its releases are a list of fixes and the occasional backported feature,
+# so the generated list is the whole story and these categories are the shape it takes. A pull request
+# lands in the first category whose labels it carries, so the order matters — "breaking" wins over
+# everything and should never appear on this branch, which is exactly why it is listed first rather
+# than left out. "Other changes" is the catch-all.
+changelog:
+  exclude:
+    labels:
+      - dependencies
+      - dependabot
+  categories:
+    - title: Breaking changes
+      labels:
+        - breaking
+    - title: Features
+      labels:
+        - feature
+        - type:feature
+    - title: Fixes
+      labels:
+        - bug
+        - type:bug
+    - title: Documentation
+      labels:
+        - documentation
+        - type:docs
+    - title: Other changes
+      labels:
+        - "*"
