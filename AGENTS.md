@@ -391,8 +391,14 @@ Pluggable serialization for job store persistence:
   reporting.
 - **`docs/documentation/quartz-4.x/log-events.md` is generated** from the `LogEventCatalogTest_*` snapshots by `dotnet fallout DocsLogEvents`; `VerifyDocsLogEvents` runs on every docs pull request, and a rebase that merges two catalogues leaves the page stale until it is regenerated.
 - **Release notes live in GitHub releases, not in the repository.** There is no changelog file on
-  either branch; the tag's release is the record. Unreleased 4.x notes accumulate in the `v4.0.0`
-  draft release.
+  either branch; the tag's release is the record. Pushing a `v*` tag runs `publish.yml`, whose last
+  target, `DraftRelease` (`build/Build.Release.cs`, byte-identical on `3.x`), opens that release as a
+  **draft** with notes generated from `.github/release.yml` and attaches `Quartz.NET-<version>.zip`.
+  A draft that already carries notes keeps them and only gains the zip, so notes are written ahead
+  of the tag; re-running the workflow is the recovery path (`Publish` skips duplicates, the asset is
+  replaced). A human publishes the draft and decides "latest" — unticked for a 3.x release. To
+  rehearse: a `v0.0.0-rehearsal` tag on `HEAD`, never pushed, `dotnet fallout Pack DraftRelease
+  --github-token …`, then delete the draft and the tag.
 
 ## Porting changes between 3.x and main
 
