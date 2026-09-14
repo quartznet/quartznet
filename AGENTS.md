@@ -46,6 +46,14 @@ are already editing that code, and use AwesomeAssertions for anything new.
 
 There is no changelog file on either branch — the tag's GitHub release is the record.
 
+The tag build opens that release itself. `DraftRelease` (`build/Build.Release.cs`) runs after `Publish`
+has pushed the packages, drafts the release for the tag with the notes GitHub generates from
+`.github/release.yml`, and attaches the `Quartz.NET-<version>.zip` that `PackZip` built. It publishes
+nothing, so the last step is still a human editing the draft and pressing Publish — including the
+"Set as the latest release" checkbox, which stays **unticked** for a 3.x maintenance release while 4.x
+is the current line. An existing draft that already has a body is never overwritten, and re-running the
+publish workflow is safe, which makes it the recovery path for a release that broke halfway.
+
 ## Documentation
 
 The documentation website is built and published from the **`main`** branch only. The full Quartz 3.x docs live on `main` under `docs/documentation/quartz-3.x/`; this `3.x` branch deliberately does **not** contain the docs site.

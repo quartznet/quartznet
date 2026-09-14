@@ -46,17 +46,27 @@ using Quartz.Build;
 // Releases live in their own workflow file because a nuget.org trusted publishing policy is scoped by
 // workflow file name and offers no branch or tag filter — keeping this separate from 'build' is what
 // stops every ordinary CI run from being able to mint a nuget.org API key.
+//
+// DraftRelease is last, and it is why 'contents: write' sits next to 'id-token: write' here — the one
+// job that can mint a nuget.org API key can also write to the repository. That was weighed rather than
+// assumed: the archive it attaches is already on disk in this job, so a second workflow would have to
+// fetch it back across runs through workflow_run, which resolves against the default branch's workflow
+// file rather than the tag's. The job is reachable only by pushing a v-tag, it is gated by the 'nuget'
+// environment, and it already runs the tagged commit's own build code. DraftRelease is named here for
+// the reader even though Publish triggers it — the generated yml is what somebody reads when a release
+// goes wrong, and it should say what the release does.
 [GitHubActions(
     "publish",
     GitHubActionsImage.WindowsLatest,
     OnPushTags = ["v*.*.*"],
     PublishArtifacts = true,
-    InvokedTargets = [nameof(Compile), nameof(UnitTest), nameof(Pack), nameof(Publish)],
+    InvokedTargets = [nameof(Compile), nameof(UnitTest), nameof(Pack), nameof(Publish), nameof(DraftRelease)],
     CacheKeyFiles = [],
     TimeoutMinutes = 20,
     EnvironmentName = "nuget",
-    ReadPermissions = [GitHubActionsPermissions.Contents],
-    WritePermissions = [GitHubActionsPermissions.IdToken])
+    EnableGitHubToken = true,
+    // Contents is write here, so it is not repeated as a read: a permission key can only appear once.
+    WritePermissions = [GitHubActionsPermissions.IdToken, GitHubActionsPermissions.Contents])
 ]
 public partial class Build;
 

@@ -23,7 +23,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   windows-latest:
@@ -39,8 +39,10 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: Compile, UnitTest, Pack, Publish'
-        run: dotnet fallout Compile UnitTest Pack Publish
+      - name: 'Run: Compile, UnitTest, Pack, Publish, DraftRelease'
+        run: dotnet fallout Compile UnitTest Pack Publish DraftRelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Publish: artifacts'
         uses: actions/upload-artifact@v7
         with:
