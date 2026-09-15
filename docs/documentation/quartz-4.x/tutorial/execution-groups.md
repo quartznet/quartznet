@@ -123,6 +123,24 @@ services.AddQuartz(q =>
 `ForGroup`, `ForDefaultGroup` and `ForOtherGroups` all take an optional trailing
 `ExecutionLimitScope`, defaulting to `Node`.
 
+A limit that has to come from a service — per-tenant quotas the application configures, most often —
+uses the shape that is handed the container. The callback runs when the scheduler is built, so the
+options have been bound, post-configured and validated by then:
+
+<!-- snippet: sample_execution_groups_from_options -->
+```csharp
+services.AddQuartz(q => q.UseExecutionLimits((serviceProvider, limits) =>
+{
+    TenantQuotaOptions quotas = serviceProvider.GetRequiredService<IOptions<TenantQuotaOptions>>().Value;
+
+    foreach ((string tenant, int maxConcurrent) in quotas.PerTenant)
+    {
+        limits.ForGroup(tenant, maxConcurrent, ExecutionLimitScope.Cluster);
+    }
+}));
+```
+<!-- endSnippet -->
+
 ### Via scheduler API at runtime
 
 <!-- snippet: sample_execution_groups_set_at_runtime -->

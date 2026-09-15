@@ -31,8 +31,10 @@ namespace Quartz;
 /// the scheduler thread that reads it.
 /// </para>
 /// <para>
-/// <see cref="IQuartzBuilder.UseExecutionLimits"/> hands one of these to a callback, which is the
-/// usual way to configure limits.
+/// <see cref="IQuartzBuilder.UseExecutionLimits(Action{ExecutionLimitsBuilder})"/> hands one of these
+/// to a callback, which is the usual way to configure limits; its
+/// <see cref="QuartzBuilderExtensions.UseExecutionLimits(IQuartzBuilder, Action{IServiceProvider, ExecutionLimitsBuilder})"/>
+/// sibling does the same once the container exists, for a limit that comes from a service.
 /// </para>
 /// </remarks>
 /// <example>

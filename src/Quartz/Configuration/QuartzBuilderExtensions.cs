@@ -657,6 +657,41 @@ public static class QuartzBuilderExtensions
         return builder;
     }
 
+    /// <inheritdoc cref="IQuartzBuilder.UseExecutionLimits(Action{ExecutionLimitsBuilder})" path="/summary" />
+    /// <remarks>
+    /// <para>
+    /// The same thing as <see cref="IQuartzBuilder.UseExecutionLimits(Action{ExecutionLimitsBuilder})" />,
+    /// asked of the container: the callback runs when the scheduler is built rather than when the limits
+    /// are declared, and is handed this scheduler's view of it. That is what makes a limit read from
+    /// <c>IOptions&lt;T&gt;</c> the configured number — the options are resolved after the container
+    /// exists, so everything the application's <c>Configure</c>, <c>PostConfigure</c> and
+    /// <c>IValidateOptions</c> contribute has been applied by then, which reading configuration at
+    /// registration time cannot say.
+    /// </para>
+    /// <para>
+    /// Precedence is unchanged, and is the same for both shapes: the first declaration in code wins, and
+    /// limits declared in code beat the same limits spelled as <c>quartz.executionLimit.*</c> keys.
+    /// </para>
+    /// <para>
+    /// It is an extension rather than a member of <see cref="IQuartzBuilder" /> for the reason the other
+    /// shapes that take an <see cref="IServiceProvider" /> are — <c>AddJob</c>, <c>AddTrigger</c>,
+    /// <c>ScheduleJob</c>, <c>AddCalendar</c>: an implementation of the interface should not have to
+    /// reproduce it.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="configure">Configures the limits, given this scheduler's view of the container.</param>
+    public static IQuartzBuilder UseExecutionLimits(
+        this IQuartzBuilder builder,
+        Action<IServiceProvider, ExecutionLimitsBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        SchedulerExecutionLimits.Register(builder.Services, builder.SchedulerName, configure);
+        return builder;
+    }
+
     /// <summary>
     /// Bounds how long a firing may run: when its budget is spent the execution is interrupted, and the
     /// overrun is reported as the job's own failure.
@@ -716,5 +751,51 @@ public static class QuartzBuilderExtensions
         return builder.AddJobMiddleware(provider => new JobTimeoutMiddleware(
             defaultTimeout ?? TimeSpan.Zero,
             provider.GetService<TimeProvider>() ?? TimeProvider.System));
+    }
+
+    /// <inheritdoc cref="AddJobTimeout(IQuartzBuilder, TimeSpan?)" path="/summary" />
+    /// <remarks>
+    /// <para>
+    /// Where a budget is found, what a timeout does to the trigger and why a job that ignores its token
+    /// cannot be stopped are all as <see cref="AddJobTimeout(IQuartzBuilder, TimeSpan?)" /> describes.
+    /// </para>
+    /// <para>
+    /// What differs is <strong>when the budget is read</strong>: here it is read as the scheduler is
+    /// built rather than as the call is written, so it can come from a service — options the application
+    /// configured, most often. Everything <c>Configure</c>, <c>PostConfigure</c> and
+    /// <c>IValidateOptions</c> contribute has run by the time <c>IOptions&lt;T&gt;</c> answers here,
+    /// which reading configuration at registration time cannot say. Refusing a budget moves with it: a
+    /// zero or negative one is reported when the scheduler is built, not when this is called.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="defaultTimeout">
+    /// Answers how long a job that carries no <see cref="JobTimeoutAttribute" /> may run, given this
+    /// scheduler's view of the container. <see langword="null" /> bounds only the jobs that declare a
+    /// budget of their own.
+    /// </param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="defaultTimeout" /> answered zero or negative. A scheduler-wide default of nothing
+    /// is what answering <see langword="null" /> already says.
+    /// </exception>
+    public static IQuartzBuilder AddJobTimeout(this IQuartzBuilder builder, Func<IServiceProvider, TimeSpan?> defaultTimeout)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(defaultTimeout);
+
+        return builder.AddJobMiddleware(provider =>
+        {
+            TimeSpan? resolved = defaultTimeout(provider);
+            if (resolved is { } timeout && timeout <= TimeSpan.Zero)
+            {
+                Throw.ArgumentOutOfRangeException(
+                    nameof(defaultTimeout),
+                    "A scheduler-wide job timeout must be positive. Answer null to bound only the jobs that carry [JobTimeout].");
+            }
+
+            return new JobTimeoutMiddleware(
+                resolved ?? TimeSpan.Zero,
+                provider.GetService<TimeProvider>() ?? TimeProvider.System);
+        });
     }
 }

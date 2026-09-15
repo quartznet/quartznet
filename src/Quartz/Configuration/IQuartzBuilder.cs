@@ -464,5 +464,11 @@ public interface IQuartzBuilder
     /// Configures execution group limits, so resource-hungry jobs cannot saturate every thread. Each
     /// limit is counted on this node or across the cluster, as its <see cref="ExecutionLimitScope"/> says.
     /// </summary>
+    /// <remarks>
+    /// The callback runs while the service collection is still being described, so a limit that has to
+    /// come from a service is written with
+    /// <see cref="QuartzBuilderExtensions.UseExecutionLimits(IQuartzBuilder, Action{IServiceProvider, ExecutionLimitsBuilder})"/>
+    /// instead.
+    /// </remarks>
     IQuartzBuilder UseExecutionLimits(Action<ExecutionLimitsBuilder> configure);
 }

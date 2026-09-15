@@ -65,9 +65,21 @@ public sealed class SendReportsJob : IJob
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 }
 
+/// <summary>
+/// An application service the scheduler's own options are configured from.
+/// </summary>
+public interface ITablePrefixSource
+{
+    string TablePrefix { get; }
+}
+
 public sealed class SampleOptions
 {
     public string CronSchedule { get; set; } = "";
+
+    public int MaxConcurrent { get; set; } = 1;
+
+    public TimeSpan JobTimeout { get; set; } = TimeSpan.FromMinutes(5);
 }
 
 public sealed class NotificationJob : IJob

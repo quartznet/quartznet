@@ -281,4 +281,41 @@ public static class MicrosoftDiIntegrationSamples
 
         #endregion
     }
+
+    public static void ConfigurationThatDependsOnAService(IServiceCollection services, IConfiguration configuration)
+    {
+        #region sample_di_configuration_from_services
+
+        services.AddOptions<SampleOptions>()
+            .Bind(configuration.GetSection("Sample"))
+            .Validate(options => options.MaxConcurrent > 0, "Sample:MaxConcurrent must be positive")
+            .ValidateOnStart();
+
+        services.AddQuartz(q =>
+        {
+            // Read when the scheduler is built, so the options have been bound, post-configured and
+            // validated by the time the number is asked for.
+            q.UseExecutionLimits((serviceProvider, limits) => limits.ForGroup(
+                "reports",
+                serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.MaxConcurrent));
+
+            q.AddJobTimeout(serviceProvider =>
+                serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.JobTimeout);
+        });
+
+        #endregion
+    }
+
+    public static void AQuartzOptionFromAService(IServiceCollection services)
+    {
+        #region sample_di_quartz_option_from_service
+
+        services.AddQuartz("reporting", q => q.UsePersistentStore(store => store.UseSqlServer("...")));
+
+        // The scheduler's name is its options name, so a named scheduler is configured under it.
+        services.AddOptions<AdoJobStoreOptions>("reporting")
+            .Configure<ITablePrefixSource>((options, source) => options.TablePrefix = source.TablePrefix);
+
+        #endregion
+    }
 }
