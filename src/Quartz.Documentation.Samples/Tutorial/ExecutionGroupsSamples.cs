@@ -1,6 +1,15 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Quartz.Documentation.Samples.Tutorial;
+
+/// <summary>
+/// An application's own settings, which is where a per-tenant quota usually comes from.
+/// </summary>
+public sealed class TenantQuotaOptions
+{
+    public Dictionary<string, int> PerTenant { get; } = [];
+}
 
 /// <summary>
 /// Samples for docs/documentation/quartz-4.x/tutorial/execution-groups.md.
@@ -52,6 +61,23 @@ public static class ExecutionGroupsSamples
                 limits.ForOtherGroups(maxConcurrent: 5);
             });
         });
+
+        #endregion
+    }
+
+    public static void ConfigureLimitsFromOptions(IServiceCollection services)
+    {
+        #region sample_execution_groups_from_options
+
+        services.AddQuartz(q => q.UseExecutionLimits((serviceProvider, limits) =>
+        {
+            TenantQuotaOptions quotas = serviceProvider.GetRequiredService<IOptions<TenantQuotaOptions>>().Value;
+
+            foreach ((string tenant, int maxConcurrent) in quotas.PerTenant)
+            {
+                limits.ForGroup(tenant, maxConcurrent, ExecutionLimitScope.Cluster);
+            }
+        }));
 
         #endregion
     }

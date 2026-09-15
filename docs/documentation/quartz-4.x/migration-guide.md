@@ -1395,7 +1395,7 @@ reads — so a scheduler name set through it was accepted and then silently igno
 | `SchedulerBuilder.UseDedicatedThreadPool()` | `UseDefaultThreadPool(…)`; `DedicatedThreadPool` is internal, because a dedicated-thread `TaskScheduler` is no longer how a thread pool is written — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
 | `SchedulerPluginConfigurationExtensions.UsePlugin<T>(name)` | `AddPlugin<T>(name)` on the builder — see [Plugins are registered like listeners](#plugins-are-registered-like-listeners) |
 | `SchedulerPluginConfigurationExtensions.TryRegisterSingleton<TService, TImplementation>()` | `builder.Services.TryAddSingleton<TService, TImplementation>()`; the builder no longer wraps the container's own verbs |
-| `AddQuartz(Action<configurator, IServiceProvider>)` | see below |
+| `AddQuartz(Action<configurator, IServiceProvider>)` | see [Deferred configuration](#deferred-configuration) |
 | `quartz.config` file discovery, `StdSchedulerFactory.PropertiesFile` | `IConfiguration`, or properties passed to `QuartzSchedulerBuilder.UseProperties` |
 | `DbProvider.RegisterDbMetadata` | the metadata factory on `UseGenericDatabase` |
 | `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
@@ -1409,28 +1409,63 @@ reads — so a scheduler name set through it was accepted and then silently igno
 
 ### Deferred configuration
 
-The `AddQuartz` overloads taking an `IServiceProvider` are gone. They existed to reach services while
-configuring, which the options pattern already does:
+The `AddQuartz` overloads taking an `IServiceProvider` are gone. They ran the configuration callback
+against a second, throwaway container, because the real one does not exist while it is still being
+described. What replaces them is asking for the service **where the value is used**, at which point the
+application's own container is there to answer.
+
+**A value that depends on a service.** Configure the option from the service, through the options
+pattern:
 
 ```diff
-- services.AddQuartz((q, provider) =>
+- services.AddQuartz((q, provider) => q.UsePersistentStore(store =>
 - {
--     var connectionString = provider.GetRequiredService<IConfiguration>().GetConnectionString("Scheduler");
--     q.UsePersistentStore(store => store.UseSqlServer("default", connectionString));
-- });
-+ var connectionString = builder.Configuration.GetConnectionString("Scheduler");
+-     store.UseSqlServer(connectionString);
+-     store.TablePrefix = provider.GetRequiredService<IMyService>().TablePrefix;
+- }));
 + services.AddQuartz(q => q.UsePersistentStore(store => store.UseSqlServer(connectionString)));
++ services.AddOptions<AdoJobStoreOptions>()
++     .Configure<IMyService>((options, service) => options.TablePrefix = service.TablePrefix);
 ```
 
-For an option that genuinely depends on a service, use the options pattern directly:
+This is the general route, and it is the one to reach for: every option a scheduler reads is resolved
+after the container is built, so `Configure`, `PostConfigure` and `IValidateOptions` have all run by the
+time Quartz sees the value.
 
-```csharp
-services.AddOptions<AdoJobStoreOptions>()
-    .Configure<IMyService>((options, service) => options.TablePrefix = service.TablePrefix);
-```
+Two things about it are worth saying out loud, because getting either wrong is silent:
 
-Listeners and plugins do not need this at all: they are registered services, so the container injects
-their dependencies.
+* **A scheduler's options are its own named instance.** `AddQuartz(q => …)` configures the unnamed one
+  and `AddQuartz("reporting", q => …)` configures `"reporting"`, so a named scheduler is configured with
+  `services.AddOptions<AdoJobStoreOptions>("reporting")`. The unnamed instance reaches the default
+  scheduler and nothing else.
+* **Reading `IConfiguration` yourself is not the same thing.** `builder.Configuration.GetSection("…")
+  .Get<MyOptions>()` runs no `Configure<MyOptions>`, no `PostConfigure<MyOptions>` and no
+  `IValidateOptions<MyOptions>`; it is the raw section. It is a fine way to pass a value that is already
+  a literal in configuration, and the wrong way to pass one the application computes:
+
+  ```diff
+  - var settings = builder.Configuration.GetSection("Jobs").Get<JobOptions>()!;
+  - services.AddQuartz(q => q.UseExecutionLimits(l => l.ForGroup("reports", settings.MaxConcurrent)));
+  + services.AddQuartz(q => q.UseExecutionLimits((provider, l) => l.ForGroup(
+  +     "reports",
+  +     provider.GetRequiredService<IOptions<JobOptions>>().Value.MaxConcurrent)));
+  ```
+
+**A registration that depends on a service.** Every builder member that builds something takes a shape
+that is handed the container, so the service is asked for when the thing is built rather than when the
+call is written:
+
+| Member | The shape that is given a container |
+|---|---|
+| `AddJob`, `AddTrigger`, `ScheduleJob` | `q.AddTrigger((provider, t) => …)` |
+| `AddCalendar` | `q.AddCalendar("name", provider => …)` |
+| `UseJobStore` | `q.UseJobStore(provider => …)` |
+| `AddPlugin`, `AddSchedulerListener`, `AddJobListener`, `AddTriggerListener`, `AddJobMiddleware` | `q.AddPlugin(provider => …)` |
+| `UseExecutionLimits` | `q.UseExecutionLimits((provider, limits) => …)` |
+| `AddJobTimeout` | `q.AddJobTimeout(provider => …)` |
+
+Listeners, plugins and middleware seldom need any of it: they are registered services, so the container
+injects their dependencies through their constructors.
 
 ### SPI changes
 
@@ -2887,6 +2922,12 @@ exists:
 +         .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
 + });
 ```
+
+`AddJob`, `ScheduleJob`, `AddCalendar`, `UseJobStore`, `AddPlugin`, the three `Add*Listener` methods,
+`AddJobMiddleware`, `UseExecutionLimits` and `AddJobTimeout` all have such a shape; a value that is not
+built by any of them is configured through the options pattern instead. See
+[Deferred configuration](#deferred-configuration) for both routes, and for why reading `IConfiguration`
+at registration time is not a substitute for either.
 
 `AddCalendar` takes the same `AddCalendarOptions` record that `IScheduler.AddCalendar` does, instead of
 two adjacent bools whose order was impossible to remember, and its first parameter is `name` rather
@@ -11692,7 +11733,7 @@ cast taught a `Quartz.Extensibility` type to people who needed neither. Additive
 | `AddJob<T>` and `ScheduleJob<T>` register the job type | Scoped, with `TryAdd`, so an unresolvable job fails `ValidateOnBuild` instead of at fire time — see [`AddJob` registers the job with the container](#addjob-registers-the-job-with-the-container) |
 | A registered job's constructor may not take a scheduler's parts | `IScheduler`, `ISchedulerFactory`, `IJobStore`, `IThreadPool` and `IOptions<QuartzSchedulerOptions>` belong to one scheduler, and the container resolves them unkeyed, so a registered job taking one is refused when the host starts rather than handed the default scheduler's. Read the scheduler from `IJobExecutionContext.Scheduler`, or register the job with `AddJobType<T>(factory)` and resolve the part by key there — see [`AddJob` registers the job with the container](#addjob-registers-the-job-with-the-container) |
 | The `JobKey`-taking `AddJob` overloads removed | Identity is set inside the configurator with `WithIdentity` — see [One shape per registration method](#one-shape-per-registration-method) |
-| `IServiceCollectionQuartzConfigurator` is `IQuartzBuilder` | And the `AddQuartz` overloads taking an `(configurator, IServiceProvider)` callback are gone; use the `(IServiceProvider, configurator)` shape of `AddJob` / `AddTrigger` / `ScheduleJob` |
+| `IServiceCollectionQuartzConfigurator` is `IQuartzBuilder` | And the `AddQuartz` overloads taking an `(configurator, IServiceProvider)` callback are gone; use the shape that is given a container — `AddJob` / `AddTrigger` / `ScheduleJob` / `UseExecutionLimits` / `AddJobTimeout` and the rest — or the options pattern; see [Deferred configuration](#deferred-configuration) |
 | DI `AddCalendar` takes `AddCalendarOptions` | The two adjacent bools are gone, and `calendarName` is `name` |
 | `AddPlugin` shapes aligned to the listener trio | The name is an optional trailing argument on all three — see [Plugins are registered like listeners](#plugins-are-registered-like-listeners) |
 | `AddQuartzSchedulers(IConfiguration, …)` added | `AddQuartz(configuration)` no longer fans out over a `Schedulers` section; it throws and points here |

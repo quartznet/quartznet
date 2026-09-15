@@ -20,6 +20,7 @@
 #nullable enable
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -131,6 +132,52 @@ public sealed class JobTimeoutMiddlewareTest
         recorder.CancellationSeenByJob.Should().BeFalse(
             "[JobTimeout(\"00:00:00\")] exempts a job from the scheduler's default rather than being overruled by it");
         recorder.JobException.Should().BeNull();
+    }
+
+    /// <summary>
+    /// The scheduler-wide budget can be a number only the container knows, and it is read when the
+    /// scheduler is built rather than when the call is written.
+    /// </summary>
+    /// <remarks>
+    /// The budget here exists only because <c>PostConfigure</c> ran, so a firing that reports it proves
+    /// the whole options pipeline was walked. Reading the configuration at registration time — the shape
+    /// #3794 reported the migration guide as teaching — would have used the pre-configured value.
+    /// </remarks>
+    [Test]
+    public async Task TheSchedulerWideBudgetCanBeReadFromTheContainer()
+    {
+        Recorder recorder = new(expectedFirings: 1);
+
+        await RunScheduler(recorder, typeof(HangingJob), quartz =>
+        {
+            quartz.Services.Configure<BudgetOptions>(options => options.Timeout = TimeSpan.FromMilliseconds(400));
+            quartz.Services.PostConfigure<BudgetOptions>(options => options.Timeout /= 2);
+            quartz.AddJobTimeout(provider => provider.GetRequiredService<IOptions<BudgetOptions>>().Value.Timeout);
+        });
+
+        recorder.JobException.Should().NotBeNull();
+        recorder.JobException!.Message.Should().Contain("00:00:00.2000000",
+            "the budget the firing was held to is the post-configured one, not the 400 ms the section said");
+    }
+
+    /// <summary>
+    /// A budget the container answers with is still a budget, so the rule that it must be positive holds
+    /// — it is just reported when the scheduler is built rather than when the call is written.
+    /// </summary>
+    [Test]
+    public async Task ABudgetAnsweredAsNonPositiveIsRefusedWhenTheSchedulerIsBuilt()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(quartz => quartz.AddJobTimeout(_ => TimeSpan.Zero));
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        Func<Task> act = async () => await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>()
+            .WithMessage("*must be positive*",
+                "answering null is how a caller says only the jobs carrying [JobTimeout] are bounded, so zero "
+                + "cannot mean the same thing silently");
     }
 
     /// <summary>
@@ -792,5 +839,13 @@ public sealed class JobTimeoutMiddlewareTest
             recorder.TriggerComplete(triggerInstructionCode);
             return default;
         }
+    }
+
+    /// <summary>
+    /// An application's own settings, which is where a scheduler-wide budget usually comes from.
+    /// </summary>
+    private sealed class BudgetOptions
+    {
+        public TimeSpan Timeout { get; set; }
     }
 }

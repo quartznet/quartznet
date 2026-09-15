@@ -638,7 +638,45 @@ internal sealed class QuartzBuilder : IQuartzBuilder
 /// Registered per scheduler like every other component, so the scheduler it belongs to is the service
 /// key rather than a field to be filtered on afterwards.
 /// </remarks>
-internal sealed record SchedulerExecutionLimits(ExecutionLimits Limits);
+internal sealed record SchedulerExecutionLimits(ExecutionLimits Limits)
+{
+    /// <summary>
+    /// Registers limits a callback builds from the container, under a scheduler's key.
+    /// </summary>
+    /// <remarks>
+    /// The callback runs when the limits are resolved rather than when they are registered, so a limit
+    /// read from <c>IOptions&lt;T&gt;</c> is the configured value and not the default one. TryAdd, like
+    /// the eager shape and like the property-derived registration, so the first declaration wins.
+    /// </remarks>
+    public static void Register(
+        IServiceCollection services,
+        string? schedulerName,
+        Action<IServiceProvider, ExecutionLimitsBuilder> configure)
+    {
+        if (string.IsNullOrEmpty(schedulerName))
+        {
+            services.TryAddSingleton(provider => Build(provider, configure));
+        }
+        else
+        {
+            services.TryAddKeyedSingleton(
+                schedulerName,
+                (provider, key) => Build(SchedulerScopedServiceProvider.For(provider, key), configure));
+        }
+    }
+
+    /// <summary>
+    /// Runs the callback against a built container and freezes what it configured.
+    /// </summary>
+    private static SchedulerExecutionLimits Build(
+        IServiceProvider provider,
+        Action<IServiceProvider, ExecutionLimitsBuilder> configure)
+    {
+        ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create();
+        configure(provider, builder);
+        return new SchedulerExecutionLimits(builder.Build());
+    }
+}
 
 /// <summary>
 /// The name a plugin registered in code should be known by.

@@ -447,3 +447,48 @@ services.AddQuartz(q =>
 });
 ```
 <!-- endSnippet -->
+
+**Configuration that depends on a service.** The builder's callback runs while the service collection is
+still being described, so there is no container to ask yet. Every member that *builds* something takes a
+shape that is handed one when the scheduler is built instead — `AddJob`, `AddTrigger`, `ScheduleJob`,
+`AddCalendar`, `UseJobStore`, `AddPlugin`, the three `Add*Listener` methods, `AddJobMiddleware`,
+`UseExecutionLimits` and `AddJobTimeout`:
+
+<!-- snippet: sample_di_configuration_from_services -->
+```csharp
+services.AddOptions<SampleOptions>()
+    .Bind(configuration.GetSection("Sample"))
+    .Validate(options => options.MaxConcurrent > 0, "Sample:MaxConcurrent must be positive")
+    .ValidateOnStart();
+
+services.AddQuartz(q =>
+{
+    // Read when the scheduler is built, so the options have been bound, post-configured and
+    // validated by the time the number is asked for.
+    q.UseExecutionLimits((serviceProvider, limits) => limits.ForGroup(
+        "reports",
+        serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.MaxConcurrent));
+
+    q.AddJobTimeout(serviceProvider =>
+        serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.JobTimeout);
+});
+```
+<!-- endSnippet -->
+
+Reading the configuration section yourself instead — `configuration.GetSection("Sample").Get<SampleOptions>()`
+— would have skipped every `Configure`, `PostConfigure` and validation registered against those options,
+and handed the scheduler the raw section.
+
+A setting that is not built by any of those members is configured through the options pattern, from
+whatever service it depends on. A scheduler's options are its own named instance, and the scheduler's
+name is that instance's name:
+
+<!-- snippet: sample_di_quartz_option_from_service -->
+```csharp
+services.AddQuartz("reporting", q => q.UsePersistentStore(store => store.UseSqlServer("...")));
+
+// The scheduler's name is its options name, so a named scheduler is configured under it.
+services.AddOptions<AdoJobStoreOptions>("reporting")
+    .Configure<ITablePrefixSource>((options, source) => options.TablePrefix = source.TablePrefix);
+```
+<!-- endSnippet -->

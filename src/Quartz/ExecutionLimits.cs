@@ -43,7 +43,7 @@ namespace Quartz;
 /// one caps a tenant across the cluster, and one deployment can want both.</para>
 /// <para>Use <see cref="OtherGroups"/> as a catch-all default for groups not explicitly listed.</para>
 /// <para>Build one with <see cref="ExecutionLimitsBuilder"/>, either directly or through
-/// <see cref="IQuartzBuilder.UseExecutionLimits"/>; hand it to
+/// <see cref="IQuartzBuilder.UseExecutionLimits(Action{ExecutionLimitsBuilder})"/>; hand it to
 /// <see cref="IScheduler.SetExecutionLimits"/> to apply it.</para>
 /// </remarks>
 public sealed class ExecutionLimits
