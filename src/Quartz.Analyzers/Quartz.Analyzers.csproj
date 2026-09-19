@@ -1,4 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<!--
+  TreatAsLocalProperty: the trimming canary is published with PublishAot=true and the worker example
+  with PublishTrimmed=true as global properties, and a global property reaches every project in the
+  restore and build graph, this one included, where it is NETSDK1207 on netstandard2.0. Declaring the
+  two local lets the PropertyGroup below turn them off for this project alone; the analyzer is built
+  by those publishes and never published.
+-->
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot;PublishTrimmed">
 
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET analyzers</AssemblyTitle>
@@ -9,6 +16,8 @@
       target every one of those can load, which is why Roslyn itself still ships on it.
     -->
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PublishAot>false</PublishAot>
+    <PublishTrimmed>false</PublishTrimmed>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <!--
