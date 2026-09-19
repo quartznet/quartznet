@@ -22,7 +22,8 @@
 namespace Quartz.Core;
 
 /// <summary>
-/// Carries the execution context of the firing the current asynchronous flow belongs to, which is what
+/// Carries what the current asynchronous flow's operation is: the identity it takes locks under, and
+/// the execution context of the firing it belongs to — which is what
 /// <see cref="IJobExecutionContextAccessor" /> reads.
 /// </summary>
 /// <remarks>
@@ -44,6 +45,13 @@ namespace Quartz.Core;
 /// Static rather than one instance per container, because a logical flow is inside at most one firing
 /// however many containers the process holds: two schedulers cannot be executing a job on one flow.
 /// </para>
+/// <para>
+/// The caller id rides on the same holder, which is why there is one <see cref="AsyncLocal{T}" /> here
+/// and not two. Writing an <see cref="AsyncLocal{T}" /> copies the execution context, so a firing that
+/// announced its caller id and then its context paid for two copies and boxed a <c>Guid?</c> between
+/// them (#3802). Both are written at the points they always were: the id when the run shell starts,
+/// the context once the job exists.
+/// </para>
 /// </remarks>
 internal static class AmbientJobExecution
 {
@@ -55,27 +63,50 @@ internal static class AmbientJobExecution
     internal static IJobExecutionContext? Current => current.Value?.Context;
 
     /// <summary>
-    /// Makes the given execution context the current flow's until the returned scope is disposed.
+    /// The identity the current flow's operation takes job-store locks under, or
+    /// <see langword="null" /> when the flow belongs to no operation of Quartz's.
+    /// </summary>
+    internal static Guid? CurrentCallerId => current.Value?.CallerId;
+
+    /// <summary>
+    /// Begins an operation on this flow under an identity of its own, and hands back the holder its
+    /// execution context is published on once there is one.
     /// </summary>
     /// <remarks>
-    /// A fresh holder every time, so a firing can never be handed the holder of one that has ended —
-    /// there is nothing to restore and nothing to nest.
+    /// A fresh holder every time, so an operation can never be handed the holder of one that has
+    /// ended — there is nothing to restore and nothing to nest.
     /// </remarks>
-    internal static IDisposable Enter(IJobExecutionContext context)
+    internal static Holder Begin(Guid callerId)
     {
-        Holder holder = new(context);
+        Holder holder = new(callerId);
         current.Value = holder;
-        return new Scope(holder);
+        return holder;
     }
 
-    private sealed class Holder
+    internal sealed class Holder
     {
-        internal Holder(IJobExecutionContext context)
+        internal Holder(Guid callerId)
         {
-            Context = context;
+            CallerId = callerId;
         }
 
+        /// <summary>
+        /// The identity every job-store lock this operation takes is taken under, which is what makes
+        /// a nested acquisition recognisable as the same caller's.
+        /// </summary>
+        internal Guid CallerId { get; }
+
         internal IJobExecutionContext? Context { get; set; }
+
+        /// <summary>
+        /// Makes the given execution context the current flow's until the returned scope is disposed.
+        /// Costs no execution context copy: this holder is already the flow's.
+        /// </summary>
+        internal IDisposable Enter(IJobExecutionContext context)
+        {
+            Context = context;
+            return new Scope(this);
+        }
     }
 
     private sealed class Scope : IDisposable
