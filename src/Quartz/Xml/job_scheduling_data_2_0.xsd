@@ -146,13 +146,17 @@
       <xs:documentation>
         Common Trigger definitions.
 
-        execution-group, retry-policy and preferred-node were added in Quartz.NET 4.1 and are optional,
-        so the schema's version stays 2.0 and its namespace stays
+        execution-group, retry-policy and preferred-node were added in Quartz.NET 4.1, and
+        continues-after and continuation-condition in 4.2. All five are optional, so the schema's
+        version stays 2.0 and its namespace stays
         http://quartznet.sourceforge.net/JobSchedulingData: a file written against 2.0 declares none of
         them and validates unchanged, and a version is what a reader has to understand rather than a
-        record of when the schema was last touched. The three elements sit between calendar-name and
+        record of when the schema was last touched. The five elements sit between calendar-name and
         job-data-map, which is where a sequence can take new optional members without moving any
         existing one.
+
+        A continuation is a setting rather than a kind of trigger: any of the three trigger kinds below
+        can carry one, and it composes with that kind's schedule instead of replacing it.
       </xs:documentation>
     </xs:annotation>
     <xs:sequence>
@@ -176,6 +180,22 @@
       <xs:element name="preferred-node" type="xs:string" minOccurs="0">
         <xs:annotation>
           <xs:documentation>The cluster node the trigger prefers: a scheduler instance id, or * to pin it to whichever node fires it first.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="continues-after" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>The trigger whose firing this one waits for. The trigger is stored in the AWAITING state and is not acquired until that firing ends; an outcome continuation-condition names releases it and any other outcome discards it. The parent is named rather than resolved, so it may be declared later in this file or be in the store already.</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="name" type="xs:string" />
+            <xs:element name="group" type="xs:string" minOccurs="0" />
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="continuation-condition" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>Which outcomes of that firing release the wait: OnSuccess, OnFailure, OnCancellation, OnVeto or OnAnyOutcome, joined with | for more than one - for example OnFailure|OnCancellation. Defaults to OnSuccess. Only meaningful beside continues-after.</xs:documentation>
         </xs:annotation>
       </xs:element>
       <xs:element name="job-data-map" type="job-data-mapType" minOccurs="0" />

@@ -177,6 +177,12 @@ internal static class JsonSchedulingHelper
             var executionGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ExecutionGroup)]);
             var retryPolicy = ParseRetryPolicy(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.RetryPolicy)]), name);
             PreferredNode preferredNode = SchedulingFileValues.ReadPreferredNode(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.PreferredNode)]), $"JSON trigger '{name}'");
+            IConfigurationSection continuesAfterSection = triggerSection.GetSection(nameof(JsonTriggerDefinition.ContinuesAfter));
+            Continuation continuation = SchedulingFileValues.ReadContinuation(
+                NormalizeEmpty(continuesAfterSection[nameof(JsonTriggerKey.Name)]),
+                NormalizeEmpty(continuesAfterSection[nameof(JsonTriggerKey.Group)]),
+                NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ContinuationCondition)]),
+                $"JSON trigger '{name}'");
             var priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             var startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             var startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
@@ -242,6 +248,11 @@ internal static class JsonSchedulingHelper
             else
             {
                 triggerBuilder.ForJob(jobName!);
+            }
+
+            if (continuation.Parent is { } continuationParent)
+            {
+                triggerBuilder.StartAfter(continuationParent, continuation.When);
             }
 
             var trigger = (IMutableTrigger) triggerBuilder

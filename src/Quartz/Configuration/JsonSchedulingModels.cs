@@ -36,6 +36,20 @@ internal sealed class JsonTriggerDefinition
     /// </summary>
     public string? PreferredNode { get; set; }
 
+    /// <summary>
+    /// The trigger whose firing this one waits for, or absent when it waits for nothing. Named rather
+    /// than resolved, so the parent may be declared later in the same document or be in the store
+    /// already.
+    /// </summary>
+    public JsonTriggerKey? ContinuesAfter { get; set; }
+
+    /// <summary>
+    /// Which outcomes of that firing release the wait: <c>OnSuccess</c>, <c>OnFailure</c>,
+    /// <c>OnCancellation</c>, <c>OnVeto</c> or <c>OnAnyOutcome</c>, joined with <c>|</c> for more than
+    /// one. Absent means <c>OnSuccess</c>.
+    /// </summary>
+    public string? ContinuationCondition { get; set; }
+
     public DateTimeOffset? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public DateTimeOffset? EndTime { get; set; }
@@ -46,6 +60,16 @@ internal sealed class JsonTriggerDefinition
     public JsonCalendarIntervalSchedule? CalendarInterval { get; set; }
     public JsonDailyTimeIntervalSchedule? DailyTimeInterval { get; set; }
     public JsonRecurrenceSchedule? Recurrence { get; set; }
+}
+
+/// <summary>
+/// Another trigger, named by key. The same two members a delete command names one by, because that is
+/// how this format has always referred to something it is not defining.
+/// </summary>
+internal sealed class JsonTriggerKey
+{
+    public string Name { get; set; } = "";
+    public string? Group { get; set; }
 }
 
 internal sealed class JsonSimpleSchedule

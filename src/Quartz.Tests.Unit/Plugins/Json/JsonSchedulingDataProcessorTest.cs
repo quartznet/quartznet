@@ -380,6 +380,98 @@ public class JsonSchedulingDataProcessorTest
     }
 
     [Test]
+    public void ParsesContinuation()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
+                "Triggers": [
+                    {
+                        "Name": "testTrigger", "JobName": "testJob",
+                        "ContinuesAfter": { "Name": "import", "Group": "nightly" },
+                        "ContinuationCondition": "OnFailure|OnCancellation",
+                        "Cron": { "Expression": "0 0 12 * * ?" }
+                    }
+                ]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        ITrigger trigger = processor.ParsedTriggers[0];
+        trigger.Continuation.Parent.Should().Be(new TriggerKey("import", "nightly"),
+            "a parent is named by key, the two members this file has always named something it does not "
+            + "define by");
+        trigger.Continuation.When.Should().Be(ContinuationCondition.OnFailure | ContinuationCondition.OnCancellation);
+        ((ICronTrigger) trigger).CronExpressionString.Should().Be("0 0 12 * * ?",
+            "a continuation is a setting rather than a kind, so it composes with the trigger's schedule");
+    }
+
+    [Test]
+    public void AContinuationWithNoConditionWaitsForSuccess()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
+                "Triggers": [{ "Name": "testTrigger", "JobName": "testJob", "ContinuesAfter": { "Name": "import" }, "Cron": { "Expression": "0 0 12 * * ?" } }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        processor.ParsedTriggers[0].Continuation.Should().Be(
+            Continuation.After(new TriggerKey("import", "DEFAULT"), ContinuationCondition.OnSuccess),
+            "an omitted group is the default group and an omitted condition is 'only if it worked'");
+    }
+
+    [Test]
+    public void ATriggerThatNamesNoParentWaitsForNothing()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
+                "Triggers": [{ "Name": "testTrigger", "JobName": "testJob", "Cron": { "Expression": "0 0 12 * * ?" } }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        processor.ParsedTriggers[0].Continuation.IsNone.Should().BeTrue(
+            "the field is optional, and a file that says nothing about continuations declares an "
+            + "ordinary trigger");
+    }
+
+    [Test]
+    public void AnOutcomeThatIsNotOneIsRefused()
+    {
+        var json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
+                "Triggers": [{ "Name": "testTrigger", "JobName": "testJob", "ContinuesAfter": { "Name": "import" }, "ContinuationCondition": "WheneverItFeelsLikeIt", "Cron": { "Expression": "0 0 12 * * ?" } }]
+            }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        var act = () => processor.ProcessJsonContent(json);
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a condition nothing satisfies discards the trigger whatever its parent did, so the file "
+                + "is where it is refused")
+            .WithMessage("*is not a continuation condition*");
+    }
+
+    [Test]
     public void MissingJobName_Throws()
     {
         var json = """{ "Schedule": { "Jobs": [{ "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }] } }""";

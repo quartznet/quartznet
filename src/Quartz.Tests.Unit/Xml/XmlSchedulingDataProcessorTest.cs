@@ -1850,6 +1850,161 @@ public class XmlSchedulingDataProcessorTest
             .WithMessage("*is not a preferred node*");
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Continuations: a setting on any of the three trigger kinds, not a kind of its own
+    // ---------------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task AContinuationIsReadAsAParentKeyAndACondition()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <preferred-node>production-node-1</preferred-node>
+                  <continues-after>
+                    <name>import</name>
+                    <group>nightly</group>
+                  </continues-after>
+                  <continuation-condition>OnFailure|OnCancellation</continuation-condition>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        ITrigger trigger = processor.SingleTrigger;
+        trigger.Continuation.Parent.Should().Be(new TriggerKey("import", "nightly"));
+        trigger.Continuation.When.Should().Be(ContinuationCondition.OnFailure | ContinuationCondition.OnCancellation,
+            "the outcomes are named and joined with '|', because a file is written by a person and the "
+            + "integer the column holds is not something to type");
+        trigger.PreferredNode.Node.Should().Be("production-node-1",
+            "the two new elements sit between preferred-node and job-data-map, so the elements around "
+            + "them still read");
+        ((ICronTrigger) trigger).CronExpressionString.Should().Be("0 0 12 * * ?",
+            "a continuation is a setting rather than a kind, so it composes with the trigger's schedule");
+    }
+
+    [Test]
+    public async Task AContinuationWithNoConditionWaitsForSuccess()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <continues-after>
+                    <name>import</name>
+                  </continues-after>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        processor.SingleTrigger.Continuation.Should().Be(
+            Continuation.After(new TriggerKey("import", "DEFAULT"), ContinuationCondition.OnSuccess),
+            "an omitted group is the default group, as it is everywhere else in this document, and an "
+            + "omitted condition is what Continuation.After assumes");
+    }
+
+    /// <summary>
+    /// The parent is a key rather than a reference resolved as the document is read, so declaring it
+    /// after the trigger that waits for it is not an ordering a file has to know about.
+    /// </summary>
+    [Test]
+    public async Task AParentDeclaredLaterInTheFileIsStillWaitedFor()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>second</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <continues-after>
+                    <name>first</name>
+                    <group>group1</group>
+                  </continues-after>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+              <trigger>
+                <cron>
+                  <name>first</name>
+                  <group>group1</group>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <cron-expression>0 0 2 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        processor.Triggers.Should().HaveCount(2);
+        processor.Triggers[0].Continuation.Parent.Should().Be(new TriggerKey("first", "group1"));
+        processor.Triggers[1].Continuation.IsNone.Should().BeTrue("the parent waits for nothing itself");
+    }
+
+    [Test]
+    public async Task AnOutcomeThatIsNotOneIsRefusedAsTheFileIsRead()
+    {
+        Func<Task> act = async () => await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <continues-after>
+                    <name>import</name>
+                  </continues-after>
+                  <continuation-condition>OnSucess</continuation-condition>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        await act.Should().ThrowAsync<SchedulerConfigException>(
+                "a misspelled outcome would silently become a condition nothing satisfies, and a trigger "
+                + "discarded whatever its parent did is not what anyone meant to write")
+            .WithMessage("*is not a continuation condition*");
+    }
+
+    [Test]
+    public async Task AConditionWithNothingToWaitForIsRefused()
+    {
+        Func<Task> act = async () => await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>trigger1</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <continuation-condition>OnAnyOutcome</continuation-condition>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        await act.Should().ThrowAsync<SchedulerConfigException>(
+                "a condition names how a wait ends, so one with no continues-after beside it is a "
+                + "document whose author expected a wait that is not there")
+            .WithMessage("*names the trigger whose firing it waits for*");
+    }
+
     /// <summary>
     /// The schema puts the three in one place, so a document stating them somewhere else is rejected
     /// rather than silently ignored.
