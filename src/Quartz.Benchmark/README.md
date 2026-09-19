@@ -850,14 +850,25 @@ the clearest single time reading in the series, because `JobRunShellBenchmark` r
 
 ### Before and after
 
+Taken twice: against the base the cuts were written on, and again after rebasing onto
+`738cf092da`, which is main with conditional continuations in it - a firing there carries the
+outcome plumbing and costs about sixty bytes more, so the second pair of rows is what a reader of
+this branch gets.
+
 | | `MaxConcurrency` | Median (5 pairs) | Allocated | Fires/second |
 |---|---|---:|---:|---:|
 | `637efaed4c` | 10 | 2.174 us | 2.57 KB | 460,000 |
-| after | 10 | **1.609 us** | **1.76 KB** | 622,000 |
+| after, on that base | 10 | 1.609 us | 1.76 KB | 622,000 |
 | `637efaed4c` | 50 | 1.897 us | 2.56 KB | 527,000 |
-| after | 50 | **1.326 us** | **1.77 KB** | 754,000 |
+| after, on that base | 50 | 1.326 us | 1.77 KB | 754,000 |
+| `738cf092da` | 10 | 1.927 us | 2.63 KB | 519,000 |
+| **after, on `738cf092da`** | 10 | **1.691 us** | **1.83 KB** | 591,000 |
+| `738cf092da` | 50 | 1.803 us | 2.63 KB | 555,000 |
+| **after, on `738cf092da`** | 50 | **1.544 us** | **1.84 KB** | 648,000 |
 
-**A firing allocates 31% less and takes 26-30% less time.** The other suites move with it:
+**A firing allocates 30% less either way** - 810 bytes on the second sitting, 800 on the first - and
+the time column reads 12-14% better on the second and 26-30% on the first, which is the spread of
+this measurement rather than a difference between the two bases. The other suites move with it:
 
 | Suite | Before | After |
 |---|---|---|
@@ -868,7 +879,8 @@ the clearest single time reading in the series, because `JobRunShellBenchmark` r
 | `ScheduleJobBenchmark.ScheduleJob_CronTrigger` | 4.47 KB | 4.33 KB |
 
 **The time target was met and the allocation target was not.** #3802 asked for ≤ 1.5 KB and
-1.4-1.6 us; this is 1.76 KB and 1.61 us at pool 10, and 1.77 KB and 1.33 us at 50. The time is the
+1.4-1.6 us; on the base the cuts were written on this is 1.76 KB and 1.61 us at pool 10, and 1.77 KB
+and 1.33 us at 50, and on `738cf092da` it is 1.83 KB and 1.69 us at pool 10. The time is the
 surprise: D1 predicted "treat ~1.4-1.6 us as the result of cut 12, not of cuts 1-11", and cuts 1-9
 reached it without touching contention at all - because two of them, the task machinery and the
 thread-pool accounting, remove thread hand-offs as well as bytes.
