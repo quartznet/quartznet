@@ -179,6 +179,36 @@ CREATE TABLE IF NOT EXISTS {0}locks (
   primary key (sched_name,lock_name)
 );
 --;;
+-- {0}EXECUTION_HISTORY
+CREATE TABLE IF NOT EXISTS {0}execution_history (
+  sched_name text not null,
+  entry_id text not null,
+  instance_name text not null,
+  job_name text not null,
+  job_group text not null,
+  trigger_name text not null,
+  trigger_group text not null,
+  fired_time bigint not null,
+  run_time bigint not null,
+  succeeded bool not null,
+  error_message text null,
+  primary key (sched_name,entry_id)
+);
+--;;
+-- {0}MISFIRE_HISTORY
+CREATE TABLE IF NOT EXISTS {0}misfire_history (
+  sched_name text not null,
+  entry_id text not null,
+  instance_name text not null,
+  trigger_name text not null,
+  trigger_group text not null,
+  job_name text null,
+  job_group text null,
+  misfire_time bigint not null,
+  sched_time bigint null,
+  primary key (sched_name,entry_id)
+);
+--;;
 -- IDX_{1}J_G_N
 CREATE INDEX IF NOT EXISTS idx_{1}j_g_n ON {0}job_details (sched_name, job_group, job_name);
 --;;
@@ -202,3 +232,15 @@ CREATE INDEX IF NOT EXISTS idx_{1}ft_j_g ON {0}fired_triggers (sched_name, job_n
 --;;
 -- IDX_{1}FT_T_G
 CREATE INDEX IF NOT EXISTS idx_{1}ft_t_g ON {0}fired_triggers (sched_name, trigger_name, trigger_group);
+--;;
+-- IDX_{1}EH_FIRED_TIME
+CREATE INDEX IF NOT EXISTS idx_{1}eh_fired_time ON {0}execution_history (sched_name, fired_time);
+--;;
+-- IDX_{1}EH_INST
+CREATE INDEX IF NOT EXISTS idx_{1}eh_inst ON {0}execution_history (sched_name, instance_name);
+--;;
+-- IDX_{1}MH_MISFIRE_TIME
+CREATE INDEX IF NOT EXISTS idx_{1}mh_misfire_time ON {0}misfire_history (sched_name, misfire_time);
+--;;
+-- IDX_{1}MH_INST
+CREATE INDEX IF NOT EXISTS idx_{1}mh_inst ON {0}misfire_history (sched_name, instance_name);

@@ -832,6 +832,7 @@ Two differences are worth knowing:
 | `quartz.jobStore.driverDelegateType` | `JobStore:DriverDelegateType`; the `UseSqlServer()` family sets it for you |
 | `quartz.jobStore.schemaProvisioning` | `JobStore:SchemaProvisioning` — `None`, `Validate` or `Create` |
 | `quartz.jobStore.performSchemaValidation` | `JobStore:SchemaProvisioning` — `true` means `Validate`, `false` means `None`; the key above says all three |
+| `quartz.jobStore.executionHistory` | `UseExecutionHistory()` — keeps the execution history in this scheduler's database rather than in the process that ran each job. Needs the two tables `database/migrations/4.2/add_execution_history_<db>.sql` creates, and the store refuses to start without them |
 | `quartz.jobStore.useDBLocks` | `JobStore:UseDbLocks` |
 | `quartz.jobStore.lockOnInsert` | `JobStore:LockOnInsert` |
 | `quartz.jobStore.acquireTriggersWithinLock` | `JobStore:AcquireTriggersWithinLock` |

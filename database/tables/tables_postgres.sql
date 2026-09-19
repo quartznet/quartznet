@@ -21,6 +21,8 @@ BEGIN
     DROP TABLE IF EXISTS qrtz_triggers;
     DROP TABLE IF EXISTS qrtz_job_details;
     DROP TABLE IF EXISTS qrtz_calendars;
+    DROP TABLE IF EXISTS qrtz_execution_history;
+    DROP TABLE IF EXISTS qrtz_misfire_history;
     SET client_min_messages = NOTICE;
   END IF;
 END $$;
@@ -191,6 +193,39 @@ CREATE TABLE qrtz_locks
     PRIMARY KEY (sched_name, lock_name)
 );
 
+-- The two execution history tables. Optional: only a store configured with
+-- UsePersistentStore(s => s.UseExecutionHistory()) reads or writes them, and nothing else in
+-- this schema references them.
+CREATE TABLE qrtz_execution_history
+  (
+    sched_name TEXT NOT NULL,
+    entry_id TEXT NOT NULL,
+    instance_name TEXT NOT NULL,
+    job_name TEXT NOT NULL,
+    job_group TEXT NOT NULL,
+    trigger_name TEXT NOT NULL,
+    trigger_group TEXT NOT NULL,
+    fired_time BIGINT NOT NULL,
+    run_time BIGINT NOT NULL,
+    succeeded BOOL NOT NULL,
+    error_message TEXT NULL,
+    PRIMARY KEY (sched_name, entry_id)
+);
+
+CREATE TABLE qrtz_misfire_history
+  (
+    sched_name TEXT NOT NULL,
+    entry_id TEXT NOT NULL,
+    instance_name TEXT NOT NULL,
+    trigger_name TEXT NOT NULL,
+    trigger_group TEXT NOT NULL,
+    job_name TEXT NULL,
+    job_group TEXT NULL,
+    misfire_time BIGINT NOT NULL,
+    sched_time BIGINT NULL,
+    PRIMARY KEY (sched_name, entry_id)
+);
+
 CREATE INDEX idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
 CREATE INDEX idx_qrtz_t_j ON qrtz_triggers (sched_name, job_name, job_group);
 CREATE INDEX idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
@@ -199,3 +234,7 @@ CREATE INDEX idx_qrtz_t_nft_st ON qrtz_triggers (sched_name, trigger_state, next
 CREATE INDEX idx_qrtz_ft_inst_job_req_rcvry ON qrtz_fired_triggers (sched_name, instance_name, requests_recovery);
 CREATE INDEX idx_qrtz_ft_j_g ON qrtz_fired_triggers (sched_name, job_name, job_group);
 CREATE INDEX idx_qrtz_ft_t_g ON qrtz_fired_triggers (sched_name, trigger_name, trigger_group);
+CREATE INDEX idx_qrtz_eh_fired_time ON qrtz_execution_history (sched_name, fired_time);
+CREATE INDEX idx_qrtz_eh_inst ON qrtz_execution_history (sched_name, instance_name);
+CREATE INDEX idx_qrtz_mh_misfire_time ON qrtz_misfire_history (sched_name, misfire_time);
+CREATE INDEX idx_qrtz_mh_inst ON qrtz_misfire_history (sched_name, instance_name);

@@ -281,6 +281,12 @@ public class SchemaProvisioningTest
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.2", "add_continuations", dialect, UnmigratedPrefix), dialect);
 
+        // Not needed by the store this case starts, which keeps no history — but the remedy the message
+        // names is "every migration this database has not had", and a chain that stopped short of one
+        // would leave this schema unlike a fresh install.
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.2", "add_execution_history", dialect, UnmigratedPrefix), dialect);
+
         await StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}_migrated");
 
         SchemaSnapshot afterMigration = await SchemaSnapshot.ReadAsync(connection, dialect, UnmigratedPrefix);

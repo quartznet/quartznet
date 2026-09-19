@@ -349,9 +349,14 @@ would go stale the moment that moved. The links above are already the right ones
 
 ## Version 4.2
 
-**Mandatory** for 4.2 and later. The first schema change since 4.0.
+Two scripts, and only the first is mandatory.
 
-- Script: [`migrations/4.2/add_continuations_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.2) — all databases
+- [`migrations/4.2/add_continuations_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.2) — **mandatory** for 4.2 and later, all databases
+- [`migrations/4.2/add_execution_history_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.2) — **optional**, needed only by a store configured with `UseExecutionHistory()`
+
+### The continuation columns
+
+**Mandatory** for 4.2 and later. The first schema change since 4.0.
 
 Three nullable columns on `QRTZ_TRIGGERS`, which carry a *conditional continuation* — a trigger that
 waits, in the store, for another trigger's firing to end
@@ -397,6 +402,41 @@ which script.
 
 `ProvisionSchema()` does not help here: it creates missing tables and never adds a column to a table
 that already exists. Run the script.
+
+### The execution history tables
+
+**Optional.** `add_execution_history_<db>.sql` creates two tables that nothing but
+`UsePersistentStore(store => store.UseExecutionHistory())` reads or writes
+([#3771](https://github.com/quartznet/quartznet/issues/3771)):
+
+| Table | What it holds |
+|---|---|
+| `QRTZ_EXECUTION_HISTORY` | One row per execution that finished: the node that ran it, the job and trigger, when it fired, how long it took in ticks, whether it threw, and what it said. |
+| `QRTZ_MISFIRE_HISTORY` | One row per firing that was missed: the trigger, the node that noticed, when it was noticed and the firing that was missed. Nothing ran, so there is no duration and no outcome — which is why it is a second table rather than a kind column that would leave half of every row null. |
+
+Both are keyed by `(SCHED_NAME, ENTRY_ID)`, where `ENTRY_ID` is a value the store writes exactly as
+`QRTZ_FIRED_TRIGGERS.ENTRY_ID` is: no two dialects spell an identity column the same way, and nothing
+reads the number. Neither table has a foreign key — a history row outlives the trigger and the job it
+names, which is the point of keeping one — and no other statement in the schema mentions them.
+
+Two indexes on each: `(SCHED_NAME, <time>)` for the age query and the retention sweep, and
+`(SCHED_NAME, INSTANCE_NAME)` for the dashboard's node filter. A search by job or trigger name is a
+scan, deliberately: it lowercases the key to match the way the in-memory history matches, which no
+index can serve, and the feed a search runs over is bounded by the retention window.
+
+Run it, or do not: a scheduler that keeps no history never probes for these tables, so a database
+created by 4.0 or 4.1 goes on working untouched. A store that *is* configured for one refuses to start
+without them, naming this script. A fresh install from `database/tables/` creates them either way, and
+so does `ProvisionSchema()` — this is the one 4.2 script provisioning can stand in for, because what
+is missing is whole tables rather than columns of an existing one.
+
+Safe under a mixed cluster in both directions. A 4.0 or 4.1 node cannot see these tables at all, and a
+4.2 node that does not ask for a history neither writes nor reads them; the nodes that do ask share one
+history, and every row carries the instance id that produced it.
+
+The store keeps both tables trimmed itself, to `ExecutionHistoryOptions.Retention` (24 hours by
+default) and `MaxEntriesPerScheduler` (2,000) — see
+[the persistent store's execution history](../quartz-4.x/tutorial/job-stores.md#execution-history-in-the-database).
 
 ## See also
 

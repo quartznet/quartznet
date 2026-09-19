@@ -1,0 +1,677 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
+#nullable enable
+
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
+
+using Quartz.Extensibility;
+using Quartz.Impl;
+using Quartz.Impl.AdoJobStore;
+
+namespace Quartz.Tests.Unit.Impl;
+
+/// <summary>
+/// What every <see cref="IExecutionHistoryStore" /> answers, whichever of them is asked.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The in-memory store and the database-backed one are read by the same dashboard, the same HTTP API
+/// and the same summary, so "what the store returns" is a contract rather than each implementation's
+/// own business. Written once here and run against both, which is what makes the ADO store a
+/// replacement rather than a second thing that nearly agrees.
+/// </para>
+/// <para>
+/// Two differences are deliberate and are not asserted. A node filter is compared case-insensitively
+/// in memory and by the database's collation in SQL — an instance id is generated rather than typed,
+/// and comparing it as written is what lets the node index answer the filter with a seek. And the
+/// count bound is applied on read in memory but by the sweep in the database, because a count over a
+/// whole cluster's feed is not a property of one page; <see cref="ApplyBounds" /> is where a store
+/// that sweeps gets to.
+/// </para>
+/// </remarks>
+public abstract class ExecutionHistoryStoreContractTest
+{
+    protected const string SchedulerName = "ContractScheduler";
+    protected const string JobGroup = "reports";
+    protected const string TriggerGroup = "nightly";
+
+    protected static readonly DateTimeOffset Start = new(2026, 9, 19, 12, 0, 0, TimeSpan.Zero);
+
+    protected FakeTimeProvider Clock { get; private set; } = null!;
+
+    [SetUp]
+    public void StartTheClock()
+    {
+        Clock = new FakeTimeProvider(Start);
+    }
+
+    /// <summary>Builds the store under test, bounded as the case asks.</summary>
+    protected abstract ValueTask<IExecutionHistoryStore> CreateStore(TimeSpan retention, int maxEntriesPerScheduler);
+
+    /// <summary>
+    /// Lets a store that keeps its bounds by sweeping do so, so that a count-bound case asserts the
+    /// same thing about both implementations.
+    /// </summary>
+    protected virtual ValueTask ApplyBounds(IExecutionHistoryStore store) => default;
+
+    private ValueTask<IExecutionHistoryStore> CreateStore() => CreateStore(TimeSpan.FromHours(24), 2000);
+
+    [Test]
+    public async Task AnExecutionIsReadBackWholeAfterItIsRecorded()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(new ExecutionHistoryEntry(
+            SchedulerName: SchedulerName,
+            SchedulerInstanceId: "node-a",
+            JobGroup: JobGroup,
+            JobName: "nightly-report",
+            TriggerGroup: TriggerGroup,
+            TriggerName: "at-midnight",
+            FiredAtUtc: Start.AddMinutes(-3),
+            Duration: TimeSpan.FromMilliseconds(1234.5678),
+            Succeeded: false,
+            ExceptionMessage: "the report source refused the connection"));
+
+        ExecutionHistoryEntry entry = (await Executions(store)).Items.Should().ContainSingle().Subject;
+
+        entry.SchedulerName.Should().Be(SchedulerName);
+        entry.SchedulerInstanceId.Should().Be("node-a");
+        entry.JobGroup.Should().Be(JobGroup);
+        entry.JobName.Should().Be("nightly-report");
+        entry.TriggerGroup.Should().Be(TriggerGroup);
+        entry.TriggerName.Should().Be("at-midnight");
+        entry.FiredAtUtc.Should().Be(Start.AddMinutes(-3));
+        entry.Succeeded.Should().BeFalse();
+        entry.ExceptionMessage.Should().Be("the report source refused the connection",
+            "what a job threw is the one thing a reader of a failed execution came for");
+        entry.Duration.Should().Be(TimeSpan.FromMilliseconds(1234.5678),
+            "a job's run time is whatever the clock measured, and a store that rounded it would report "
+            + "a duration nobody observed");
+    }
+
+    [Test]
+    public async Task ExecutionsAreReadNewestFirst()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        foreach (int index in Enumerable.Range(0, 4))
+        {
+            await store.AddExecution(Execution(Start.AddMinutes(-index), "job" + index));
+        }
+
+        (await Executions(store)).Items.Select(entry => entry.JobName).Should()
+            .Equal(["job0", "job1", "job2", "job3"],
+                "a history page is read newest first, which is the one ordering it is ever read in");
+    }
+
+    [Test]
+    public async Task ExecutionsCanBeReadForOneNode()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Execution(Start, "on-a", node: "node-a"));
+        await store.AddExecution(Execution(Start, "on-b", node: "node-b"));
+
+        (await Executions(store)).Items.Should().HaveCount(2, "an unfiltered query is every node's");
+
+        (await Executions(store, node: "node-b")).Items.Should().ContainSingle()
+            .Which.JobName.Should().Be("on-b",
+                "a cluster's history is unreadable until it can be narrowed to one machine");
+    }
+
+    [Test]
+    public async Task ExecutionsCanBeNarrowedByJobAndByTrigger()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Execution(Start, "nightly-report"));
+        await store.AddExecution(Execution(Start.AddMinutes(-1), "hourly-sweep"));
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            JobContains = "nightly"
+        })).Items.Should().ContainSingle().Which.JobName.Should().Be("nightly-report");
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            JobContains = JobGroup + ".hourly"
+        })).Items.Should().ContainSingle().Which.JobName.Should().Be("hourly-sweep",
+            "group.name is how a key is written, so it is how a reader searches for one");
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            JobContains = "NIGHTLY-REPORT"
+        })).Items.Should().ContainSingle(
+            "a search box is case-insensitive, and an operator who typed a name in capitals is searching "
+            + "for the same job");
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            TriggerContains = "no-such-trigger"
+        })).Items.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A filter is matched literally, wildcards and all.
+    /// </summary>
+    /// <remarks>
+    /// A database store writes the filter into a <c>LIKE</c> pattern, where <c>%</c> and <c>_</c> are
+    /// the engine's own and <c>[</c> is T-SQL's. An unescaped one would answer a search for a job
+    /// called <c>a_b</c> with every three-letter job there is.
+    /// </remarks>
+    [Test]
+    public async Task AFilterWithWildcardsInItMatchesThemLiterally()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Execution(Start, "a_b"));
+        await store.AddExecution(Execution(Start.AddMinutes(-1), "axb"));
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            JobContains = "a_b"
+        })).Items.Should().ContainSingle().Which.JobName.Should().Be("a_b",
+            "the underscore is part of the name the reader typed, not a wildcard they meant");
+    }
+
+    [Test]
+    public async Task AHistoryIsReadAPageAtATime()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        foreach (int index in Enumerable.Range(0, 5))
+        {
+            await store.AddExecution(Execution(Start.AddSeconds(index), "job" + index));
+        }
+
+        PagedResult<ExecutionHistoryEntry> first = await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Take = 2,
+            IncludeTotalCount = true
+        });
+
+        first.Items.Select(entry => entry.JobName).Should().Equal(["job4", "job3"]);
+        first.HasMore.Should().BeTrue();
+        first.TotalCount.Should().Be(5);
+
+        PagedResult<ExecutionHistoryEntry> last = await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Skip = 4,
+            Take = 2
+        });
+
+        last.Items.Select(entry => entry.JobName).Should().Equal(["job0"]);
+        last.HasMore.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// The count idiom: a take of nothing with the total asked for, which every paged read here
+    /// answers without loading a page it would throw away.
+    /// </summary>
+    [Test]
+    public async Task TheCountIdiomAnswersWithNoPage()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        foreach (int index in Enumerable.Range(0, 3))
+        {
+            await store.AddExecution(Execution(Start.AddSeconds(index), "job" + index));
+        }
+
+        PagedResult<ExecutionHistoryEntry> count = await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Take = 0,
+            IncludeTotalCount = true
+        });
+
+        count.Items.Should().BeEmpty();
+        count.TotalCount.Should().Be(3);
+        count.HasMore.Should().BeTrue("three rows were left unread");
+    }
+
+    [Test]
+    public async Task AnExecutionOlderThanTheRetentionWindowIsForgotten()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), maxEntriesPerScheduler: 2000);
+
+        await store.AddExecution(Execution(Start, "nightly"));
+
+        Clock.Advance(TimeSpan.FromMinutes(59));
+        (await Executions(store)).Items.Should().ContainSingle(
+            "the window has not closed yet, and an execution inside it is what the page is for");
+
+        Clock.Advance(TimeSpan.FromMinutes(2));
+        await ApplyBounds(store);
+
+        (await Executions(store)).Items.Should().BeEmpty(
+            "an hour was the whole window, and reading has to apply it too — a scheduler that has "
+            + "stopped running jobs never writes again, and it is that one whose page would otherwise "
+            + "keep showing days-old executions");
+    }
+
+    [Test]
+    public async Task OnlyTheNewestExecutionsSurviveTheCountBound()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(24), maxEntriesPerScheduler: 3);
+
+        foreach (int index in Enumerable.Range(0, 5))
+        {
+            await store.AddExecution(Execution(Start.AddSeconds(index), "job" + index));
+        }
+
+        await ApplyBounds(store);
+
+        (await Executions(store)).Items.Select(entry => entry.JobName).Should()
+            .Equal(["job4", "job3", "job2"], "the cap drops the oldest and the page reads newest first");
+    }
+
+    [Test]
+    public async Task AMisfireIsRecordedBesideTheExecutionsAndReadBack()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Execution(Start, "ran"));
+        await store.AddMisfire(Misfire(Start, "at-midnight"));
+
+        (await Executions(store)).Items.Should().ContainSingle(
+            "a misfire is not an execution — nothing ran — so it must not appear in the history");
+
+        MisfireHistoryEntry misfire = (await Misfires(store)).Items.Should().ContainSingle().Subject;
+
+        misfire.SchedulerName.Should().Be(SchedulerName);
+        misfire.SchedulerInstanceId.Should().Be("node-a");
+        misfire.TriggerGroup.Should().Be(TriggerGroup);
+        misfire.TriggerName.Should().Be("at-midnight");
+        misfire.JobKey.Should().Be(new JobKey("nightly-report", JobGroup));
+        misfire.MisfiredAtUtc.Should().Be(Start);
+        misfire.ScheduledFireTimeUtc.Should().Be(Start.AddMinutes(-5),
+            "the missed firing is the point of the row: it says what did not happen and when");
+    }
+
+    [Test]
+    public async Task AMisfireOfATriggerThatNamesNoJobIsReadBackWithoutOne()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddMisfire(new MisfireHistoryEntry(
+            SchedulerName: SchedulerName,
+            SchedulerInstanceId: "node-a",
+            TriggerGroup: TriggerGroup,
+            TriggerName: "orphan",
+            JobKey: null,
+            MisfiredAtUtc: Start,
+            ScheduledFireTimeUtc: null));
+
+        MisfireHistoryEntry misfire = (await Misfires(store)).Items.Should().ContainSingle().Subject;
+
+        misfire.JobKey.Should().BeNull("a trigger need not name a job, and a row cannot invent one");
+        misfire.ScheduledFireTimeUtc.Should().BeNull(
+            "a trigger with no firing left to name has nothing to put here");
+    }
+
+    [Test]
+    public async Task MisfiresCanBeReadForOneNode()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddMisfire(Misfire(Start, "on-a", node: "node-a"));
+        await store.AddMisfire(Misfire(Start.AddMinutes(-1), "on-b", node: "node-b"));
+
+        (await Misfires(store, node: "node-a")).Items.Should().ContainSingle()
+            .Which.TriggerName.Should().Be("on-a");
+    }
+
+    [Test]
+    public async Task MisfiresAreCountedOverAWindow()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddMisfire(Misfire(Start.AddMinutes(-30), "old"));
+        await store.AddMisfire(Misfire(Start.AddMinutes(-5), "recent"));
+        await store.AddMisfire(Misfire(Start.AddMinutes(-1), "newest"));
+
+        (await store.CountMisfires(SchedulerName, Start.AddMinutes(-10))).Should().Be(2,
+            "a summary asks how bad it is right now, which is a count over a window rather than a page");
+    }
+
+    [Test]
+    public async Task MisfiresAreBoundedTheWayExecutionsAre()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), maxEntriesPerScheduler: 2);
+
+        await store.AddMisfire(Misfire(Start, "one"));
+        await store.AddMisfire(Misfire(Start.AddSeconds(1), "two"));
+        await store.AddMisfire(Misfire(Start.AddSeconds(2), "three"));
+
+        await ApplyBounds(store);
+
+        (await Misfires(store)).Items.Select(entry => entry.TriggerName).Should().Equal(["three", "two"],
+            "the cap is per feed, and the misfire feed is not exempt from it");
+
+        Clock.Advance(TimeSpan.FromHours(2));
+        await ApplyBounds(store);
+
+        (await Misfires(store)).Items.Should().BeEmpty("the retention window covers misfires too");
+    }
+
+    [Test]
+    public async Task OneSchedulersHistoryIsNotAnothersHistory()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Execution(Start, "ours"));
+        await store.AddExecution(Execution(Start, "theirs") with { SchedulerName = "OtherScheduler" });
+
+        (await Executions(store)).Items.Should().ContainSingle().Which.JobName.Should().Be("ours",
+            "a store keeps every scheduler's rows together and a query names the one it wants");
+
+        (await store.CountMisfires("OtherScheduler", Start.AddDays(-1))).Should().Be(0);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Building the entries
+    // ---------------------------------------------------------------------------------------------
+
+    protected static ExecutionHistoryEntry Execution(
+        DateTimeOffset firedAt,
+        string jobName,
+        string node = "node-a") => new(
+        SchedulerName: SchedulerName,
+        SchedulerInstanceId: node,
+        JobGroup: JobGroup,
+        JobName: jobName,
+        TriggerGroup: TriggerGroup,
+        TriggerName: "at-midnight",
+        FiredAtUtc: firedAt,
+        Duration: TimeSpan.FromMilliseconds(5),
+        Succeeded: true,
+        ExceptionMessage: null);
+
+    protected static MisfireHistoryEntry Misfire(
+        DateTimeOffset misfiredAt,
+        string triggerName,
+        string node = "node-a") => new(
+        SchedulerName: SchedulerName,
+        SchedulerInstanceId: node,
+        TriggerGroup: TriggerGroup,
+        TriggerName: triggerName,
+        JobKey: new JobKey("nightly-report", JobGroup),
+        MisfiredAtUtc: misfiredAt,
+        ScheduledFireTimeUtc: misfiredAt.AddMinutes(-5));
+
+    protected static ValueTask<PagedResult<ExecutionHistoryEntry>> Executions(
+        IExecutionHistoryStore store,
+        string? node = null)
+    {
+        return store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            SchedulerInstanceId = node,
+            IncludeTotalCount = true
+        });
+    }
+
+    protected static ValueTask<PagedResult<MisfireHistoryEntry>> Misfires(
+        IExecutionHistoryStore store,
+        string? node = null)
+    {
+        return store.QueryMisfires(new MisfireHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            SchedulerInstanceId = node,
+            IncludeTotalCount = true
+        });
+    }
+}
+
+/// <summary>The contract, against the store Quartz keeps when nothing else is registered.</summary>
+public sealed class InMemoryExecutionHistoryStoreContractTest : ExecutionHistoryStoreContractTest
+{
+    protected override ValueTask<IExecutionHistoryStore> CreateStore(TimeSpan retention, int maxEntriesPerScheduler)
+    {
+        ExecutionHistoryOptions options = new()
+        {
+            Retention = retention,
+            MaxEntriesPerScheduler = maxEntriesPerScheduler
+        };
+
+        return new ValueTask<IExecutionHistoryStore>(
+            new InMemoryExecutionHistoryStore(Options.Create(options), Clock));
+    }
+}
+
+/// <summary>
+/// The same contract, against the history kept in a database.
+/// </summary>
+/// <remarks>
+/// On a SQLite file, which is a whole empty database for the price of a temporary path: the schema is
+/// the one <c>ProvisionSchema()</c> creates, the statements are the ones every dialect runs, and the
+/// store is the one <c>UseExecutionHistory()</c> registers. The other five dialects are the
+/// integration legs' business; what is here is everything that does not need a container.
+/// </remarks>
+public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStoreContractTest
+{
+    private SqliteTestDatabase database = null!;
+    private ServiceProvider? container;
+
+    [SetUp]
+    public void CreateEmptyDatabase()
+    {
+        database = new SqliteTestDatabase("history-contract");
+    }
+
+    [TearDown]
+    public async Task DisposeTheContainer()
+    {
+        if (container is not null)
+        {
+            await container.DisposeAsync();
+            container = null;
+        }
+
+        database.Dispose();
+    }
+
+    protected override async ValueTask<IExecutionHistoryStore> CreateStore(TimeSpan retention, int maxEntriesPerScheduler)
+    {
+        ServiceCollection services = new();
+
+        services.AddSingleton<TimeProvider>(Clock);
+        services.AddQuartzExecutionHistory(options =>
+        {
+            options.Retention = retention;
+            options.MaxEntriesPerScheduler = maxEntriesPerScheduler;
+        });
+
+        services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options =>
+            {
+                options.InstanceName = SchedulerName;
+                options.InstanceId = "node-a";
+            });
+
+            quartz.UsePersistentStore(store =>
+            {
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
+                store.ProvisionSchema();
+                store.UseExecutionHistory();
+            });
+        });
+
+        container = services.BuildServiceProvider();
+
+        // The scheduler is what initializes the job store, which is what tells the driver delegate its
+        // table prefix. Built and not started: nothing here fires a trigger.
+        await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        return container.GetRequiredService<IExecutionHistoryStore>();
+    }
+
+    protected override ValueTask ApplyBounds(IExecutionHistoryStore store)
+    {
+        return ((AdoExecutionHistoryStore) store).Sweep();
+    }
+
+    /// <summary>
+    /// <c>UseExecutionHistory()</c> is what puts the ADO store in the slot the in-memory one holds.
+    /// </summary>
+    [Test]
+    public async Task TheRegisteredStoreIsTheDatabaseBackedOne()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), 10);
+
+        store.Should().BeOfType<AdoExecutionHistoryStore>(
+            "UseExecutionHistory() replaces the shipped in-memory default, and the recorder, the "
+            + "dashboard and the HTTP API all resolve the store without a key");
+    }
+
+    /// <summary>
+    /// A write that cannot reach the database is a lost row, never a failed firing.
+    /// </summary>
+    /// <remarks>
+    /// The execution has already happened by the time the recorder is told about it, so there is
+    /// nothing to undo and nobody to report it to. The table is dropped under the store, which is the
+    /// bluntest version of every way a write can fail.
+    /// </remarks>
+    [Test]
+    public async Task AWriteThatFailsDoesNotFailTheFiring()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), 10);
+
+        await using (SqliteConnection connection = new(database.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using SqliteCommand drop = connection.CreateCommand();
+            drop.CommandText = "DROP TABLE QRTZ_EXECUTION_HISTORY";
+            await drop.ExecuteNonQueryAsync();
+        }
+
+        Func<Task> act = async () => await store.AddExecution(Execution(Start, "nightly"));
+
+        await act.Should().NotThrowAsync(
+            "the job ran; only the record of it was lost, and an observability feature that can fail a "
+            + "firing is worse than no observability at all");
+    }
+
+    /// <summary>
+    /// The misfire feed's writer is as forgiving, for the same reason.
+    /// </summary>
+    /// <remarks>
+    /// A misfire is reported from inside the scheduler's misfire sweep, so a write that threw would
+    /// fail the pass that was recovering the backlog — the worst possible moment to stop.
+    /// </remarks>
+    [Test]
+    public async Task AMisfireWriteThatFailsDoesNotFailTheSweepThatReportedIt()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), 10);
+
+        await using (SqliteConnection connection = new(database.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using SqliteCommand drop = connection.CreateCommand();
+            drop.CommandText = "DROP TABLE QRTZ_MISFIRE_HISTORY";
+            await drop.ExecuteNonQueryAsync();
+        }
+
+        Func<Task> act = async () => await store.AddMisfire(Misfire(Start, "at-midnight"));
+
+        await act.Should().NotThrowAsync();
+    }
+
+    /// <summary>
+    /// The sweep really deletes, rather than the read merely hiding what is past its bounds.
+    /// </summary>
+    /// <remarks>
+    /// The read applies the age bound too, so a page alone cannot tell a swept table from an unswept
+    /// one — and an unswept table is a table that grows for ever. This one counts the rows.
+    /// </remarks>
+    [Test]
+    public async Task TheSweepDeletesTheRowsThePageStopsShowing()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), maxEntriesPerScheduler: 5);
+
+        foreach (int index in Enumerable.Range(0, 12))
+        {
+            await store.AddExecution(Execution(Start.AddSeconds(index), "job" + index));
+        }
+
+        await ((AdoExecutionHistoryStore) store).Sweep();
+
+        (await RowCount()).Should().Be(5, "the count bound is what the sweep leaves in the table");
+
+        Clock.Advance(TimeSpan.FromHours(2));
+        await ((AdoExecutionHistoryStore) store).Sweep();
+
+        (await RowCount()).Should().Be(0, "and the age bound takes the rest of them");
+    }
+
+    /// <summary>
+    /// A batch of rows that share one instant does not stall the sweep.
+    /// </summary>
+    /// <remarks>
+    /// A sweep batch is bounded by an instant rather than by a row limit — <c>DELETE … LIMIT</c> is
+    /// spelled six different ways — and a batch whose boundary row shares its instant with the oldest
+    /// row would delete nothing at all if the boundary were exclusive. It is inclusive, so the tie
+    /// group goes as a whole: this leaves fewer rows than the count bound rather than more, and the
+    /// sweep always makes progress. A batch firing is what produces the tie.
+    /// </remarks>
+    [Test]
+    public async Task RowsSharingAnInstantDoNotStallTheSweep()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), maxEntriesPerScheduler: 5);
+
+        foreach (int index in Enumerable.Range(0, 12))
+        {
+            await store.AddExecution(Execution(Start, "job" + index));
+        }
+
+        await ((AdoExecutionHistoryStore) store).Sweep();
+
+        (await RowCount()).Should().Be(0,
+            "twelve rows on one instant cannot be cut to five, so the whole tie group goes — never "
+            + "fewer than the bound asked to be removed, and never a sweep that removes nothing");
+    }
+
+    private async Task<long> RowCount()
+    {
+        await using SqliteConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM QRTZ_EXECUTION_HISTORY";
+
+        return Convert.ToInt64(await command.ExecuteScalarAsync());
+    }
+}

@@ -48,6 +48,15 @@ public class SqlServerDelegate : StdAdoDelegate
     /// </summary>
     protected override string AdditionalLikeWildcards => "[";
 
+    /// <summary>
+    /// T-SQL joins strings with <c>+</c>; <c>||</c> is a syntax error unless the connection asks for
+    /// ANSI string concatenation, which nothing here does.
+    /// </summary>
+    internal override string HistoryKeyExpression(string groupColumn, string nameColumn)
+    {
+        return "LOWER(" + groupColumn + " + '.' + " + nameColumn + ")";
+    }
+
     /// <inheritdoc />
     public override void AddCommandParameter(
         DbCommand cmd,

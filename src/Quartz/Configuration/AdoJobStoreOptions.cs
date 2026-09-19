@@ -257,6 +257,26 @@ public sealed class AdoJobStoreOptions
     public SchemaProvisioning SchemaProvisioning { get; set; } = SchemaProvisioning.Validate;
 
     /// <summary>
+    /// Whether this scheduler keeps its execution history in the database rather than in the process
+    /// that ran each job.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set by <c>UsePersistentStore(store =&gt; store.UseExecutionHistory())</c>, which also registers
+    /// the store that reads and writes it. Setting it here alone changes only what the schema check
+    /// covers, which is why the builder method is the way to ask for this.
+    /// </para>
+    /// <para>
+    /// It is on this options type because it is a statement about the <em>schema</em>: the two tables
+    /// <c>database/migrations/4.2/add_execution_history_&lt;dialect&gt;.sql</c> creates are optional, so
+    /// startup probes for them only when this says they are in use — and names that script when they
+    /// are missing. A database created by 4.0 or 4.1, or by a 4.2 fresh install with the history off,
+    /// goes on working untouched.
+    /// </para>
+    /// </remarks>
+    public bool ExecutionHistory { get; set; }
+
+    /// <summary>
     /// Overrides the SQL statement used to acquire the row lock. Defaulted for SQL Server to its
     /// <c>WITH (UPDLOCK,ROWLOCK)</c> form.
     /// </summary>

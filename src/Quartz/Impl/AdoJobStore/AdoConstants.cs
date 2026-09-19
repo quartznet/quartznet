@@ -68,10 +68,40 @@ public static class AdoConstants
     internal const string Migration40 = "4.0/schema_30_to_40_upgrade_{0}.sql";
 
     /// <summary>
+    /// The tables only a feature that is off by default reads or writes, and the migration that
+    /// creates each of them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deliberately not in <see cref="AllTableNames" />: a table here is one a database may be missing
+    /// while every scheduler that does not use the feature runs unchanged, so probing for it at every
+    /// startup would turn an optional migration into a required one. The store probes these only when
+    /// the feature that needs them is turned on, and names the script when they are absent.
+    /// </para>
+    /// <para>
+    /// <c>SchemaScriptTest</c> holds the union of this and <see cref="AllTableNames" /> to what each
+    /// dialect's fresh-install script creates, so an optional table is still a table the scripts and
+    /// the provisioning model agree about — it is only the startup probe that is conditional.
+    /// </para>
+    /// </remarks>
+    internal static readonly (string Table, string Migration, string Feature)[] OptionalTableNames =
+    [
+        (TableExecutionHistory, Migration42History, "UsePersistentStore(store => store.UseExecutionHistory())"),
+        (TableMisfireHistory, Migration42History, "UsePersistentStore(store => store.UseExecutionHistory())")
+    ];
+
+    /// <summary>
     /// The migration folder whose scripts a 4.0 or 4.1 database needs, and the shape of their file
     /// names. The first schema move since 4.0.
     /// </summary>
     internal const string Migration42 = "4.2/add_continuations_{0}.sql";
+
+    /// <summary>
+    /// The migration that creates the two execution-history tables, and the shape of its file names.
+    /// Optional: it is needed by a store configured with <c>UseExecutionHistory()</c> and by nothing
+    /// else.
+    /// </summary>
+    internal const string Migration42History = "4.2/add_execution_history_{0}.sql";
 
     /// <summary>
     /// Every column 4.x requires on a table an earlier release already had, beside the migration
@@ -174,6 +204,16 @@ public static class AdoConstants
     /// The <c>SCHEDULER_STATE</c> table, without the table prefix.
     /// </summary>
     public const string TableSchedulerState = "SCHEDULER_STATE";
+
+    /// <summary>
+    /// The <c>EXECUTION_HISTORY</c> table, without the table prefix.
+    /// </summary>
+    public const string TableExecutionHistory = "EXECUTION_HISTORY";
+
+    /// <summary>
+    /// The <c>MISFIRE_HISTORY</c> table, without the table prefix.
+    /// </summary>
+    public const string TableMisfireHistory = "MISFIRE_HISTORY";
 
     // TableJobDetails columns names
     /// <summary>
@@ -415,6 +455,33 @@ public static class AdoConstants
     /// The <c>CHECKIN_INTERVAL</c> column of <see cref="TableSchedulerState" />.
     /// </summary>
     public const string ColumnCheckinInterval = "CHECKIN_INTERVAL";
+
+    // TableExecutionHistory and TableMisfireHistory columns names
+    /// <summary>
+    /// The <c>RUN_TIME</c> column of <see cref="TableExecutionHistory" />, in ticks.
+    /// </summary>
+    /// <remarks>
+    /// Ticks rather than the whole milliseconds every other duration here is kept as: a job's run
+    /// time is whatever the clock measured, and <see cref="IDbAccessor.GetDbTimeSpanValue" /> refuses
+    /// a value that would not survive that round trip.
+    /// </remarks>
+    public const string ColumnRunTime = "RUN_TIME";
+
+    /// <summary>
+    /// The <c>SUCCEEDED</c> column of <see cref="TableExecutionHistory" />.
+    /// </summary>
+    public const string ColumnSucceeded = "SUCCEEDED";
+
+    /// <summary>
+    /// The <c>ERROR_MESSAGE</c> column of <see cref="TableExecutionHistory" />.
+    /// </summary>
+    public const string ColumnErrorMessage = "ERROR_MESSAGE";
+
+    /// <summary>
+    /// The <c>MISFIRE_TIME</c> column of <see cref="TableMisfireHistory" />: when the misfire was
+    /// noticed, which is not a firing and so is not <see cref="ColumnFiredTime" />.
+    /// </summary>
+    public const string ColumnMisfireTime = "MISFIRE_TIME";
 
     // PARAMETER NAMES A DIALECT DELEGATE HAS TO AGREE WITH
 

@@ -216,6 +216,12 @@
     "Batched statement execution failed, retrying {StatementCount} statement(s) individually"
 3156  Debug  AdoJobStoreLog.SchemaAlreadyComplete
     "Schema under table prefix '{TablePrefix}' is complete with {SchemaObjectCount} objects, so nothing was created"
+3160  Warning  AdoJobStoreLog.ExecutionHistoryWriteFailed
+    "Could not record execution history for scheduler '{SchedulerName}'. The firing itself is unaffected; only the history row is lost."
+3161  Warning  AdoJobStoreLog.ExecutionHistorySweepFailed
+    "The execution history retention sweep failed. Rows past their bounds stay until the next sweep."
+3162  Debug  AdoJobStoreLog.ExecutionHistorySwept
+    "Execution history sweep removed {RowCount} row(s) for scheduler '{SchedulerName}'"
 3500  Warning  ClusterLog.TransientFailureInCheckIn
     "Transient exception on attempt {Attempt} of {TotalAttempts} of the cluster check-in, will retry after {RetryInterval}"
 3501  Warning  ClusterLog.RecoveredByAnotherInstance

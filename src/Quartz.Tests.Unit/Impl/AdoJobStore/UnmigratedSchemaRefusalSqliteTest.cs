@@ -300,9 +300,75 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         return Convert.ToInt64(command.ExecuteScalar()) > 0;
     }
 
-    private async Task<SchedulerException> StartAndCatch(string schedulerName, bool provision = false)
+    /// <summary>
+    /// A 4.2 database is missing the execution history's two tables until its own migration has run,
+    /// and only a store that was told to keep a history notices.
+    /// </summary>
+    /// <remarks>
+    /// That is what makes <c>4.2/add_execution_history_&lt;dialect&gt;.sql</c> optional: nothing else
+    /// reads those tables, so a deployment that never calls <c>UseExecutionHistory()</c> never has to
+    /// run it, and one that does is refused at startup rather than at the first firing.
+    /// </remarks>
+    [Test]
+    public async Task ASchemaWithoutTheHistoryTablesIsRefusedOnlyWhenTheHistoryIsOn()
     {
-        Func<Task> act = () => GetScheduler(schedulerName, provision);
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+
+        TableExists("QRTZ_EXECUTION_HISTORY").Should().BeFalse(
+            "the migrations run so far are the ones every 4.2 database needs, and the history's are not "
+            + "among them");
+
+        Func<Task> withoutHistory = async () => await (await GetScheduler(
+            nameof(ASchemaWithoutTheHistoryTablesIsRefusedOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
+
+        await withoutHistory.Should().NotThrowAsync(
+            "a scheduler that keeps no history never reads those tables, so their absence is not a "
+            + "reason to refuse it — which is the whole of what makes the migration optional");
+
+        await container!.DisposeAsync();
+        container = null;
+
+        SchedulerException failure = await StartAndCatch(
+            nameof(ASchemaWithoutTheHistoryTablesIsRefusedOnlyWhenTheHistoryIsOn) + "-on",
+            configure: store => store.UseExecutionHistory());
+
+        failure.Message.Should().Contain("database/migrations/4.2/add_execution_history_sqlite.sql",
+            "the reader turned the history on against a database that has never had its tables, and the "
+            + "script that creates them is the whole remedy");
+
+        MessagesOf(failure).Should().ContainMatch("*QRTZ_EXECUTION_HISTORY*",
+            "and the table that is missing is what says which feature they asked for");
+    }
+
+    /// <summary>
+    /// The control for the case above: the script it names is what makes that schema start.
+    /// </summary>
+    [Test]
+    public async Task TheHistoryMigrationIsWhatMakesAHistoryStoreStart()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.2", "add_execution_history_sqlite.sql");
+
+        Func<Task> act = async () => await (await GetScheduler(
+            nameof(TheHistoryMigrationIsWhatMakesAHistoryStoreStart),
+            provision: false,
+            configure: store => store.UseExecutionHistory())).Shutdown();
+
+        await act.Should().NotThrowAsync(
+            "running the script the refusal names is what the reader is being asked to do, so it has to "
+            + "be what turns the refusal into a scheduler that starts");
+    }
+
+    private async Task<SchedulerException> StartAndCatch(
+        string schedulerName,
+        bool provision = false,
+        Action<IPersistentStoreBuilder>? configure = null)
+    {
+        Func<Task> act = () => GetScheduler(schedulerName, provision, configure);
 
         return (await act.Should().ThrowAsync<SchedulerException>(
                 "a 4.x node against a schema it cannot use has to refuse to start, which is the one "
@@ -348,7 +414,10 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         return Convert.ToInt64(command.ExecuteScalar()) > 0;
     }
 
-    private async Task<IScheduler> GetScheduler(string schedulerName, bool provision)
+    private async Task<IScheduler> GetScheduler(
+        string schedulerName,
+        bool provision,
+        Action<IPersistentStoreBuilder>? configure = null)
     {
         ServiceCollection services = new();
         services.AddQuartz(q =>
@@ -362,6 +431,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
             q.UsePersistentStore(store =>
             {
                 store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
+                configure?.Invoke(store);
 
                 if (provision)
                 {

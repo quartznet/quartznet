@@ -29,6 +29,7 @@ namespace Quartz
         public string DataSource { get; set; }
         public System.TimeSpan DbRetryInterval { get; set; }
         public bool DoubleCheckLockMisfireHandler { get; set; }
+        public bool ExecutionHistory { get; set; }
         public System.Func<System.Exception, bool>? IsTransient { get; set; }
         public bool LockOnInsert { get; set; }
         public System.TimeSpan? LockWaitWarningThreshold { get; set; }
@@ -618,6 +619,7 @@ namespace Quartz
         Quartz.IPersistentStoreBuilder UseDriverDelegate(System.Func<System.IServiceProvider, Quartz.Impl.AdoJobStore.IDriverDelegate> factory);
         Quartz.IPersistentStoreBuilder UseDriverDelegate<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
             where T :  class, Quartz.Impl.AdoJobStore.IDriverDelegate;
+        Quartz.IPersistentStoreBuilder UseExecutionHistory(); // default implementation
         Quartz.IPersistentStoreBuilder UseLockHandler(System.Func<System.IServiceProvider, Quartz.Impl.AdoJobStore.ILockHandler> factory);
         Quartz.IPersistentStoreBuilder UseLockHandler<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
             where T :  class, Quartz.Impl.AdoJobStore.ILockHandler;
@@ -2350,6 +2352,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnEndTime = "END_TIME";
         public const string ColumnEntryId = "ENTRY_ID";
         public const string ColumnEntryState = "STATE";
+        public const string ColumnErrorMessage = "ERROR_MESSAGE";
         public const string ColumnExecutionGroup = "EXECUTION_GROUP";
         public const string ColumnFiredTime = "FIRED_TIME";
         public const string ColumnInstanceName = "INSTANCE_NAME";
@@ -2364,6 +2367,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnLockName = "LOCK_NAME";
         public const string ColumnMisfireInstruction = "MISFIRE_INSTR";
         public const string ColumnMisfireOriginalFireTime = "MISFIRE_ORIG_FIRE_TIME";
+        public const string ColumnMisfireTime = "MISFIRE_TIME";
         public const string ColumnNextFireTime = "NEXT_FIRE_TIME";
         public const string ColumnPreferredNode = "PREFERRED_NODE";
         public const string ColumnPreferredNodeAuto = "PREFERRED_NODE_AUTO";
@@ -2374,9 +2378,11 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";
         public const string ColumnRetryAttempt = "RETRY_ATTEMPT";
         public const string ColumnRetryPolicy = "RETRY_POLICY";
+        public const string ColumnRunTime = "RUN_TIME";
         public const string ColumnScheduledTime = "SCHED_TIME";
         public const string ColumnSchedulerName = "SCHED_NAME";
         public const string ColumnStartTime = "START_TIME";
+        public const string ColumnSucceeded = "SUCCEEDED";
         public const string ColumnTimeZoneId = "TIME_ZONE_ID";
         public const string ColumnTimesTriggered = "TIMES_TRIGGERED";
         public const string ColumnTriggerGroup = "TRIGGER_GROUP";
@@ -2399,9 +2405,11 @@ namespace Quartz.Impl.AdoJobStore
         public const string TableBlobTriggers = "BLOB_TRIGGERS";
         public const string TableCalendars = "CALENDARS";
         public const string TableCronTriggers = "CRON_TRIGGERS";
+        public const string TableExecutionHistory = "EXECUTION_HISTORY";
         public const string TableFiredTriggers = "FIRED_TRIGGERS";
         public const string TableJobDetails = "JOB_DETAILS";
         public const string TableLocks = "LOCKS";
+        public const string TableMisfireHistory = "MISFIRE_HISTORY";
         public const string TablePausedJobs = "PAUSED_JOB_GRPS";
         public const string TablePausedTriggers = "PAUSED_TRIGGER_GRPS";
         public const string TableSchedulerState = "SCHEDULER_STATE";
