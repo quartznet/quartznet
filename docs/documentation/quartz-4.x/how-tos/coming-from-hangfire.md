@@ -113,7 +113,7 @@ services.AddQuartz(q =>
 | `[LatencyTimeout(seconds)]` — delete a job that waited too long to start | the `DoNothing` [misfire instruction](../tutorial/more-about-triggers.md#misfire-instructions) | the trigger says what a late firing should do, and it skips that occurrence rather than deleting anything |
 | `GlobalJobFilters.Filters.Add(…)` | [job execution middleware](../tutorial/job-execution-middleware.md), or a [job listener](../tutorial/trigger-and-job-listeners.md) | middleware wraps the execution; a listener observes it |
 | `PerformContext` | `IJobExecutionContext` | |
-| a `CancellationToken` parameter | the `CancellationToken` parameter of `Execute` | Quartz hands it to the job directly; there is no watcher polling storage for a cancellation |
+| a `CancellationToken` parameter | the `CancellationToken` parameter of `Execute` | the same token as `IJobExecutionContext.CancellationToken`; `Interrupt` and `InterruptFireInstance` are what cancel it |
 
 ### Hosting and configuration
 
