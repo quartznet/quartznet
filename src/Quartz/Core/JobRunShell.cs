@@ -395,10 +395,15 @@ internal sealed class JobRunShell
         {
             try
             {
-                using Activity? activity = QuartzActivitySource.Instance.StartActivity(OperationName.Job.Veto);
-                activity?.EnrichFrom(ctx);
-
-                await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
+                StartedActivity activity = QuartzActivitySource.StartJobVeto(ctx);
+                try
+                {
+                    await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    activity.Stop();
+                }
             }
             catch (SchedulerException se)
             {

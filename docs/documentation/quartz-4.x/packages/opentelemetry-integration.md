@@ -59,6 +59,28 @@ added to it afterwards.
 Reads — `GetJob`, `Exists`, the `Query*` members — are deliberately not spans. A dashboard listing
 triggers would otherwise produce a span per page.
 
+### How the spans are shaped into traces
+
+**A firing is a trace of its own.** `Quartz.Job.Execute` and `Quartz.Job.Veto` are always trace roots:
+they never take the ambient `Activity` as a parent, whatever was current on the worker that ran them.
+Anything the job traces — an `HttpClient` call, an EF Core query, a span of your own — is a child of the
+firing, and that is the whole of the trace.
+
+**A store span belongs to whoever made the call.** `scheduler.ScheduleJob(…)` inside an HTTP request puts
+`Quartz.JobStore.ScheduleJob` in that request's trace, which is what you want: it is a round trip the
+request paid for. The store calls the scheduler's own loop makes — `AcquireNextTriggers`, `TriggersFired`,
+`TriggeredJobComplete` — are roots, because the loop belongs to no request. It runs for the life of the
+process, and a trace has to end.
+
+::: warning Fixed in 4.2.0
+Before 4.2.0 neither of those held. Every span the scheduler's loop opened became the parent of the next
+one, and each firing hung off whichever was current when it was dispatched, so a scheduler produced a
+single trace that grew for as long as the process lived — a day of a quiet staging pod arrived as one tree
+of several thousand spans, with the jobs' own `HttpClient` and EF Core spans buried in it
+([#3797](https://github.com/quartznet/quartznet/issues/3797)). Nothing has to be configured differently;
+upgrading is the fix.
+:::
+
 ::: tip Every store, not just the database one
 Store tracing is a decorator over `IJobStore`, applied to whatever store the scheduler was built with.
 The in-memory store, a community package's store and a store you wrote yourself all emit these spans;
@@ -85,8 +107,9 @@ and are constants on `Quartz.Diagnostics.ActivityTags`:
 A job runs minutes, hours or days after the call that scheduled it, quite possibly on another node. When
 that call was made inside an `Activity`, the scheduler records its W3C trace context on the trigger — under
 the reserved keys `SchedulerConstants.TraceParent` and `SchedulerConstants.TraceState` — and the firing's
-`Quartz.Job.Execute` span carries an `ActivityLink` back to it. Nothing needs configuring, and an HTTP API
-request gets it without asking, because the endpoint runs inside ASP.NET Core's server span.
+`Quartz.Job.Execute` span carries an `ActivityLink` back to it. A `Quartz.Job.Veto` span carries the same
+link, because a fire a listener refused is worth walking back from too. Nothing needs configuring, and an
+HTTP API request gets it without asking, because the endpoint runs inside ASP.NET Core's server span.
 
 It is a **link** rather than a parent on purpose: the firing is its own trace root, so a trace never has to
 stay open across the wait. That is the shape OpenTelemetry gives an asynchronous producer and the consumer
