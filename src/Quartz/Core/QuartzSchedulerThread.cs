@@ -21,6 +21,7 @@
 
 using System.Collections.Concurrent;
 using System.Data.Common;
+using System.Diagnostics;
 
 using Microsoft.Extensions.Logging;
 
@@ -266,6 +267,12 @@ internal sealed class QuartzSchedulerThread
     /// </summary>
     public async Task Run()
     {
+        // Nothing this loop does belongs to the call that started the scheduler, but the task it runs
+        // on captured that call's execution context and Activity.Current travels in it — so a loop
+        // that lives as long as the process would file every span below under one trace, forever
+        // (#3797). Cleared rather than flow-suppressed, which would take every other AsyncLocal with it.
+        Activity.Current = null;
+
         int acquiresFailed = 0;
         Context.CallerId.Value = Guid.NewGuid();
 

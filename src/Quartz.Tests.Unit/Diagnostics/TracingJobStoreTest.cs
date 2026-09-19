@@ -251,6 +251,82 @@ public sealed class TracingJobStoreTest
     }
 
     /// <summary>
+    /// #3797: a store call must leave the caller's ambient activity exactly as it found it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Activity.Current" /> is an <see cref="System.Threading.AsyncLocal{T}" />: starting a
+    /// span writes onto the execution context of whoever starts it, and stopping it puts the parent back
+    /// onto the context of whoever stops it. Those used to be two different contexts — the span was
+    /// started in the synchronous override and stopped in the asynchronous continuation — so as soon as
+    /// the store suspended, the stop landed on a context that was then discarded and the caller was left
+    /// with the span current for good.
+    /// </para>
+    /// <para>
+    /// A store that suspends is the whole of the reproduction, which is why this one yields. A store that
+    /// answers synchronously never left the one context and so never showed the bug, and a test written
+    /// against the in-memory store would have passed throughout.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task AStoreCall_LeavesTheCallersAmbientActivityAsItFoundIt()
+    {
+        IJobStore store = await Decorated(SuspendingStore());
+
+        using Activity caller = new Activity("caller").SetIdFormat(ActivityIdFormat.W3C).Start();
+
+        await store.PauseAll();
+
+        Activity.Current.Should().BeSameAs(caller,
+            "the store call is over, so the span it opened must no longer be current — left current, it "
+            + "becomes the parent of the next one, and a scheduler's loop is one flow that lives as long "
+            + "as the process");
+
+        await store.PauseAll();
+        await store.ResumeAll();
+
+        lock (stoppedActivities)
+        {
+            stoppedActivities.Should().HaveCount(3).And.AllSatisfy(a => a.ParentSpanId.Should().Be(caller.SpanId,
+                "each call was made by the caller, so each span is a sibling under it — they used to be a "
+                + "chain, each one parented onto the one before"));
+        }
+    }
+
+    /// <summary>
+    /// And the parent is still taken, so a store call made inside a request lands in that request's
+    /// trace rather than becoming a root of its own.
+    /// </summary>
+    [Test]
+    public async Task AStoreCall_IsStillAChildOfWhateverWasCurrentWhenItWasMade()
+    {
+        IJobStore store = await Decorated(SuspendingStore());
+
+        using Activity caller = new Activity("caller").SetIdFormat(ActivityIdFormat.W3C).Start();
+
+        await store.PauseAll();
+
+        Activity span = SpanFor(OperationName.JobStore.PauseAll);
+        span.ParentSpanId.Should().Be(caller.SpanId, "a store call belongs to whoever made it");
+        span.TraceId.Should().Be(caller.TraceId);
+    }
+
+    /// <summary>
+    /// With nothing current, a store call opens a trace of its own rather than inheriting one.
+    /// </summary>
+    [Test]
+    public async Task AStoreCallOutsideAnyActivity_OpensATraceOfItsOwn()
+    {
+        IJobStore store = await Decorated(SuspendingStore());
+
+        Activity.Current = null;
+        await store.PauseAll();
+
+        Activity.Current.Should().BeNull("there was nothing to put back");
+        SpanFor(OperationName.JobStore.PauseAll).ParentSpanId.Should().Be(default(ActivitySpanId));
+    }
+
+    /// <summary>
     /// The cost when nobody is watching, which is what makes wrapping every store affordable.
     /// </summary>
     [Test]
@@ -314,6 +390,22 @@ public sealed class TracingJobStoreTest
             + "and a bare type test on a wrapped store would refuse every enlistment there is");
 
         decorated.SupportsPersistence.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// A store whose calls actually suspend, which is what a database-backed one does and what the
+    /// execution-context leak needed to show itself.
+    /// </summary>
+    private static IJobStore SuspendingStore()
+    {
+        IJobStore store = StubStore();
+
+        A.CallTo(() => store.PauseAll(A<CancellationToken>.Ignored)).ReturnsLazily(() => Suspend());
+        A.CallTo(() => store.ResumeAll(A<CancellationToken>.Ignored)).ReturnsLazily(() => Suspend());
+
+        return store;
+
+        static async ValueTask Suspend() => await Task.Yield();
     }
 
     private static IJobStore StubStore()

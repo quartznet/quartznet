@@ -99,7 +99,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ScheduleJob(job, trigger, cancellationToken);
         }
 
-        operation.Job(job.Key).Trigger(trigger.Key).Start();
+        operation.Job(job.Key).Trigger(trigger.Key);
         return Complete(operation, (InnerJobStore, job, trigger, cancellationToken),
             static s => s.InnerJobStore.ScheduleJob(s.job, s.trigger, s.cancellationToken));
     }
@@ -112,7 +112,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.AddJob(job, options, cancellationToken);
         }
 
-        operation.Job(job.Key).Start();
+        operation.Job(job.Key);
         return Complete(operation, (InnerJobStore, job, options, cancellationToken),
             static s => s.InnerJobStore.AddJob(s.job, s.options, s.cancellationToken));
     }
@@ -125,7 +125,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ScheduleJobs(triggersAndJobs, options, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, triggersAndJobs, options, cancellationToken),
             static s => s.InnerJobStore.ScheduleJobs(s.triggersAndJobs, s.options, s.cancellationToken));
     }
@@ -138,7 +137,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.AddTrigger(trigger, options, cancellationToken);
         }
 
-        operation.Trigger(trigger.Key).Start();
+        operation.Trigger(trigger.Key);
         return Complete(operation, (InnerJobStore, trigger, options, cancellationToken),
             static s => s.InnerJobStore.AddTrigger(s.trigger, s.options, s.cancellationToken));
     }
@@ -151,7 +150,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.AddCalendar(calendarName, calendar, options, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, calendarName, calendar, options, cancellationToken),
             static s => s.InnerJobStore.AddCalendar(s.calendarName, s.calendar, s.options, s.cancellationToken));
     }
@@ -164,7 +162,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.Clear(cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, cancellationToken),
             static s => s.InnerJobStore.Clear(s.cancellationToken));
     }
@@ -177,7 +174,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.PauseAll(cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, cancellationToken),
             static s => s.InnerJobStore.PauseAll(s.cancellationToken));
     }
@@ -190,7 +186,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResumeAll(cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, cancellationToken),
             static s => s.InnerJobStore.ResumeAll(s.cancellationToken));
     }
@@ -203,7 +198,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ReleaseAcquiredTrigger(trigger, cancellationToken);
         }
 
-        operation.Trigger(trigger.Key).Start();
+        operation.Trigger(trigger.Key);
         return Complete(operation, (InnerJobStore, trigger, cancellationToken),
             static s => s.InnerJobStore.ReleaseAcquiredTrigger(s.trigger, s.cancellationToken));
     }
@@ -216,7 +211,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken);
         }
 
-        operation.Trigger(trigger.Key).Job(jobDetail.Key).Start();
+        operation.Trigger(trigger.Key).Job(jobDetail.Key);
         return Complete(operation, (InnerJobStore, trigger, jobDetail, triggerInstructionCode, cancellationToken),
             static s => s.InnerJobStore.TriggeredJobComplete(s.trigger, s.jobDetail, s.triggerInstructionCode, s.cancellationToken));
     }
@@ -229,7 +224,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.DeleteJob(jobKey, cancellationToken);
         }
 
-        operation.Job(jobKey).Start();
+        operation.Job(jobKey);
         return Complete(operation, (InnerJobStore, jobKey, cancellationToken),
             static s => s.InnerJobStore.DeleteJob(s.jobKey, s.cancellationToken));
     }
@@ -242,7 +237,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.DeleteJobs(jobKeys, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, jobKeys, cancellationToken),
             static s => s.InnerJobStore.DeleteJobs(s.jobKeys, s.cancellationToken));
     }
@@ -255,7 +249,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.DeleteJobs(matcher, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
             static s => s.InnerJobStore.DeleteJobs(s.matcher, s.cancellationToken));
     }
@@ -268,7 +261,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.DeleteTrigger(triggerKey, cancellationToken);
         }
 
-        operation.Trigger(triggerKey).Start();
+        operation.Trigger(triggerKey);
         return Complete(operation, (InnerJobStore, triggerKey, cancellationToken),
             static s => s.InnerJobStore.DeleteTrigger(s.triggerKey, s.cancellationToken));
     }
@@ -281,7 +274,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.DeleteTriggers(triggerKeys, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
             static s => s.InnerJobStore.DeleteTriggers(s.triggerKeys, s.cancellationToken));
     }
@@ -294,7 +286,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.DeleteTriggers(matcher, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
             static s => s.InnerJobStore.DeleteTriggers(s.matcher, s.cancellationToken));
     }
@@ -307,7 +298,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.DeleteCalendar(calendarName, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, calendarName, cancellationToken),
             static s => s.InnerJobStore.DeleteCalendar(s.calendarName, s.cancellationToken));
     }
@@ -320,7 +310,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ReplaceTrigger(triggerKey, trigger, cancellationToken);
         }
 
-        operation.Trigger(triggerKey).Start();
+        operation.Trigger(triggerKey);
         return Complete(operation, (InnerJobStore, triggerKey, trigger, cancellationToken),
             static s => s.InnerJobStore.ReplaceTrigger(s.triggerKey, s.trigger, s.cancellationToken));
     }
@@ -333,7 +323,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.UpdateTriggerDetails(triggerKey, update, cancellationToken);
         }
 
-        operation.Trigger(triggerKey).Start();
+        operation.Trigger(triggerKey);
         return Complete(operation, (InnerJobStore, triggerKey, update, cancellationToken),
             static s => s.InnerJobStore.UpdateTriggerDetails(s.triggerKey, s.update, s.cancellationToken));
     }
@@ -346,7 +336,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResetTriggerFromErrorState(triggerKey, cancellationToken);
         }
 
-        operation.Trigger(triggerKey).Start();
+        operation.Trigger(triggerKey);
         return Complete(operation, (InnerJobStore, triggerKey, cancellationToken),
             static s => s.InnerJobStore.ResetTriggerFromErrorState(s.triggerKey, s.cancellationToken));
     }
@@ -359,7 +349,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResetTriggersFromErrorState(triggerKeys, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
             static s => s.InnerJobStore.ResetTriggersFromErrorState(s.triggerKeys, s.cancellationToken));
     }
@@ -372,7 +361,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.PauseTrigger(triggerKey, cancellationToken);
         }
 
-        operation.Trigger(triggerKey).Start();
+        operation.Trigger(triggerKey);
         return Complete(operation, (InnerJobStore, triggerKey, cancellationToken),
             static s => s.InnerJobStore.PauseTrigger(s.triggerKey, s.cancellationToken));
     }
@@ -385,7 +374,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.PauseTriggerGroups(matcher, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
             static s => s.InnerJobStore.PauseTriggerGroups(s.matcher, s.cancellationToken));
     }
@@ -398,7 +386,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.PauseTriggers(triggerKeys, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
             static s => s.InnerJobStore.PauseTriggers(s.triggerKeys, s.cancellationToken));
     }
@@ -411,7 +398,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.PauseJob(jobKey, cancellationToken);
         }
 
-        operation.Job(jobKey).Start();
+        operation.Job(jobKey);
         return Complete(operation, (InnerJobStore, jobKey, cancellationToken),
             static s => s.InnerJobStore.PauseJob(s.jobKey, s.cancellationToken));
     }
@@ -424,7 +411,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.PauseJobGroups(matcher, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
             static s => s.InnerJobStore.PauseJobGroups(s.matcher, s.cancellationToken));
     }
@@ -437,7 +423,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.PauseJobs(jobKeys, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, jobKeys, cancellationToken),
             static s => s.InnerJobStore.PauseJobs(s.jobKeys, s.cancellationToken));
     }
@@ -450,7 +435,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResumeTrigger(triggerKey, cancellationToken);
         }
 
-        operation.Trigger(triggerKey).Start();
+        operation.Trigger(triggerKey);
         return Complete(operation, (InnerJobStore, triggerKey, cancellationToken),
             static s => s.InnerJobStore.ResumeTrigger(s.triggerKey, s.cancellationToken));
     }
@@ -463,7 +448,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResumeTriggerGroups(matcher, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
             static s => s.InnerJobStore.ResumeTriggerGroups(s.matcher, s.cancellationToken));
     }
@@ -476,7 +460,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResumeTriggers(triggerKeys, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
             static s => s.InnerJobStore.ResumeTriggers(s.triggerKeys, s.cancellationToken));
     }
@@ -489,7 +472,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResumeJob(jobKey, cancellationToken);
         }
 
-        operation.Job(jobKey).Start();
+        operation.Job(jobKey);
         return Complete(operation, (InnerJobStore, jobKey, cancellationToken),
             static s => s.InnerJobStore.ResumeJob(s.jobKey, s.cancellationToken));
     }
@@ -502,7 +485,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResumeJobGroups(matcher, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
             static s => s.InnerJobStore.ResumeJobGroups(s.matcher, s.cancellationToken));
     }
@@ -515,7 +497,6 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.ResumeJobs(jobKeys, cancellationToken);
         }
 
-        operation.Start();
         return Complete(operation, (InnerJobStore, jobKeys, cancellationToken),
             static s => s.InnerJobStore.ResumeJobs(s.jobKeys, s.cancellationToken));
     }
@@ -528,7 +509,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.AcquireNextTriggers(request, cancellationToken);
         }
 
-        operation.Tag(ActivityTags.BatchSize, request.MaxCount).Start();
+        operation.Tag(ActivityTags.BatchSize, request.MaxCount);
         return CompleteAcquisition(operation, (InnerJobStore, request, cancellationToken),
             static s => s.InnerJobStore.AcquireNextTriggers(s.request, s.cancellationToken));
     }
@@ -541,7 +522,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return InnerJobStore.TriggersFired(triggers, cancellationToken);
         }
 
-        operation.Tag(ActivityTags.TriggerCount, triggers.Count).Start();
+        operation.Tag(ActivityTags.TriggerCount, triggers.Count);
         return Complete(operation, (InnerJobStore, triggers, cancellationToken),
             static s => s.InnerJobStore.TriggersFired(s.triggers, s.cancellationToken));
     }
@@ -575,15 +556,28 @@ internal sealed class TracingJobStore : DelegatingJobStore
     }
 
     /// <summary>
-    /// Runs the store call and closes the operation, whichever way the call ends.
+    /// Starts the span, runs the store call, and closes the operation whichever way the call ends.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Starting the span <em>here</em>, rather than in the override that built the operation, is what
+    /// keeps the caller's trace out of it — #3797. <see cref="Activity.Current" /> is an
+    /// <see cref="System.Threading.AsyncLocal{T}" />, so <see cref="Activity.Start" /> writes onto the
+    /// execution context of whoever calls it and <see cref="Activity.Stop" /> puts the parent back onto
+    /// the context of whoever calls <em>that</em>. Started in the synchronous override, those are two
+    /// different contexts as soon as the store call suspends: the stop lands on the continuation's
+    /// context, which is discarded, and the caller is left with the span current forever. The scheduler's
+    /// loop is one asynchronous flow that lives as long as the process, so the next operation parented
+    /// onto the last, the firings dispatched from it parented onto whichever was current, and a day of
+    /// scheduling arrived at the backend as a single tree thousands of spans deep. Started inside this
+    /// method, both halves happen in the state machine's own context, and the async method builder
+    /// restores the caller's when it returns.
+    /// </para>
     /// <para>
     /// The call is deferred rather than invoked as an argument because a store is allowed to throw
     /// before it returns a <see cref="ValueTask" /> — <c>AcquireNextTriggers</c> validates its request in
     /// a synchronous prologue, and any store may. An argument-position call would let that throw past
-    /// the <see langword="finally" /> below, leaving an activity started, never stopped, and installed
-    /// as <see cref="Activity.Current" /> for the rest of the asynchronous flow.
+    /// the <see langword="finally" /> below, leaving an activity started and never stopped.
     /// </para>
     /// <para>
     /// The delegate is <see langword="static" /> and the arguments travel beside it as a value tuple,
@@ -595,6 +589,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
     /// </remarks>
     private static async ValueTask Complete<TState>(StoreOperation operation, TState state, Func<TState, ValueTask> call)
     {
+        operation.Start();
+
         Exception? failure = null;
         try
         {
@@ -614,6 +610,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
     /// <inheritdoc cref="Complete{TState}(StoreOperation, TState, Func{TState, ValueTask})" />
     private static async ValueTask<TResult> Complete<TState, TResult>(StoreOperation operation, TState state, Func<TState, ValueTask<TResult>> call)
     {
+        operation.Start();
+
         Exception? failure = null;
         try
         {
@@ -638,6 +636,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         TState state,
         Func<TState, ValueTask<List<IOperableTrigger>>> call)
     {
+        operation.Start();
+
         Exception? failure = null;
         try
         {
@@ -718,6 +718,11 @@ internal sealed class TracingJobStore : DelegatingJobStore
             return this;
         }
 
+        /// <summary>
+        /// Called from the asynchronous completer and nowhere else, so that the span is started and
+        /// stopped on one execution context. See the remarks on
+        /// <see cref="Complete{TState}(StoreOperation, TState, Func{TState, ValueTask})" />.
+        /// </summary>
         internal void Start()
         {
             activity?.Start();

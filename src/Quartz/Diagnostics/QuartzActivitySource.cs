@@ -8,20 +8,81 @@ internal static class QuartzActivitySource
 {
     internal static readonly ActivitySource Instance = new(QuartzInstrumentation.ActivitySourceName, QuartzInstrumentation.Version);
 
+    /// <summary>
+    /// Opens the span a firing is traced on.
+    /// </summary>
     public static StartedActivity StartJobExecute(JobExecutionContextImpl context, DateTimeOffset startTime)
     {
-        Activity? activity = Instance.CreateActivity(OperationName.Job.Execute, ActivityKind.Internal);
-        if (activity == null)
+        return StartFiring(OperationName.Job.Execute, context, startTime);
+    }
+
+    /// <summary>
+    /// Opens the span a refused firing is traced on.
+    /// </summary>
+    /// <remarks>
+    /// The same shape as an execution, for the same reasons: a veto is a firing that a trigger listener
+    /// turned down, and it is worth walking back to the call that scheduled it exactly as an execution is.
+    /// </remarks>
+    public static StartedActivity StartJobVeto(JobExecutionContextImpl context)
+    {
+        return StartFiring(OperationName.Job.Veto, context, startTime: null);
+    }
+
+    /// <summary>
+    /// Starts a firing's span as a trace root, linked back to whatever scheduled it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A root, and deliberately so. The worker that runs a firing inherits the execution context of the
+    /// scheduler's loop, which in turn inherited the context of whoever called <c>Start()</c> — so a
+    /// firing left to take the ambient activity as its parent lands in the trace of the request that
+    /// started the scheduler, weeks ago, and stays there for the life of the process. That is #3797; the
+    /// report had 1,499 executions arrive as two traces. Nothing above a firing belongs in its trace,
+    /// and the connection back to the call that scheduled it is a <see cref="ActivityLink" /> instead.
+    /// </para>
+    /// <para>
+    /// Rooting it takes both halves below, because they answer different questions.
+    /// <see cref="ActivitySource.CreateActivity(string, ActivityKind, ActivityContext, IEnumerable{KeyValuePair{string, object?}}?, IEnumerable{ActivityLink}?, ActivityIdFormat)" />
+    /// is given an empty parent context so the sampler is asked about a root — the usual sampler is
+    /// parent-based, and asking it about the ambient span would let a context we are about to discard
+    /// decide whether this firing is recorded. <see cref="Activity.Start" /> then reads
+    /// <see cref="Activity.Current" /> again and adopts it if there is one, whatever it was created with,
+    /// so the ambient activity is cleared around the call and put back afterwards.
+    /// </para>
+    /// </remarks>
+    private static StartedActivity StartFiring(string operationName, JobExecutionContextImpl context, DateTimeOffset? startTime)
+    {
+        // Asked first so that nothing below — not the data-map lookup the link needs, not the array it
+        // travels in — is paid for by a scheduler nobody is tracing.
+        if (!Instance.HasListeners())
         {
-            return new StartedActivity(activity: null);
+            return default;
         }
 
-        activity.SetStartTime(startTime.UtcDateTime);
+        Activity? activity = Instance.CreateActivity(
+            operationName,
+            ActivityKind.Internal,
+            parentContext: default,
+            tags: null,
+            links: LinkToScheduler(context));
+
+        if (activity is null)
+        {
+            return default;
+        }
+
+        if (startTime is { } start)
+        {
+            activity.SetStartTime(start.UtcDateTime);
+        }
+
         activity.EnrichFrom(context);
-        activity.LinkToScheduler(context);
+
+        Activity? ambient = Activity.Current;
+        Activity.Current = null;
         activity.Start();
 
-        return new StartedActivity(activity);
+        return new StartedActivity(activity, ambient);
     }
 
     /// <summary>
@@ -37,24 +98,28 @@ internal static class QuartzActivitySource
     /// you walk back to the request that asked for it.
     /// </para>
     /// <para>
-    /// Added before <see cref="Activity.Start" />, so the link is on the activity by the time a listener
-    /// is told about it — a sampler that reads links reads them at start.
+    /// Handed to <c>CreateActivity</c> rather than added afterwards, because a sampler is consulted while
+    /// the activity is being created and a link added after that is one it never saw. Sampling a
+    /// consumer span by the trace that produced it is a standard thing to want, and it needs the link to
+    /// be there at the decision.
     /// </para>
     /// </remarks>
-    private static void LinkToScheduler(this Activity activity, JobExecutionContextImpl context)
+    private static ActivityLink[]? LinkToScheduler(JobExecutionContextImpl context)
     {
         if (!context.MergedJobDataMap.TryGetValue(SchedulerConstants.TraceParent, out object? stored)
             || stored is not string traceParent)
         {
-            return;
+            return null;
         }
 
         context.MergedJobDataMap.TryGetValue(SchedulerConstants.TraceState, out object? state);
 
-        if (ActivityContext.TryParse(traceParent, state as string, isRemote: true, out ActivityContext scheduledBy))
+        if (!ActivityContext.TryParse(traceParent, state as string, isRemote: true, out ActivityContext scheduledBy))
         {
-            activity.AddLink(new ActivityLink(scheduledBy));
+            return null;
         }
+
+        return [new ActivityLink(scheduledBy)];
     }
 
     internal static void EnrichFrom(this Activity activity, IJobExecutionContext context)
@@ -88,33 +153,66 @@ internal static class QuartzActivitySource
     }
 }
 
+/// <summary>
+/// A firing's span, and the activity that was ambient when it was opened — which the span, being a root,
+/// cannot put back by itself.
+/// </summary>
+/// <remarks>
+/// <see langword="default" /> when nothing is listening, so a firing nobody is tracing pays one null check
+/// to start and one to stop.
+/// </remarks>
 internal readonly struct StartedActivity
 {
-    private readonly Activity? _activity;
+    private readonly Activity? activity;
+    private readonly Activity? ambient;
 
-    public StartedActivity(Activity? activity)
+    public StartedActivity(Activity? activity, Activity? ambient)
     {
-        this._activity = activity;
+        this.activity = activity;
+        this.ambient = ambient;
     }
 
-    public void Stop(DateTimeOffset endTime, JobExecutionException? jobExEx)
+    /// <summary>
+    /// Closes the span, timing it by the clock the rest of the firing is timed by.
+    /// </summary>
+    public void Stop(DateTimeOffset endTime, JobExecutionException? jobExEx) => StopCore(endTime, jobExEx);
+
+    /// <summary>
+    /// Closes the span, timing it by <see cref="Activity" />'s own clock.
+    /// </summary>
+    public void Stop() => StopCore(endTime: null, jobExEx: null);
+
+    private void StopCore(DateTimeOffset? endTime, JobExecutionException? jobExEx)
     {
-        if (_activity == null)
+        if (activity is null)
         {
             return;
         }
 
-        _activity.SetEndTime(endTime.UtcDateTime);
+        if (endTime is { } end)
+        {
+            activity.SetEndTime(end.UtcDateTime);
+        }
 
         if (jobExEx != null)
         {
-            _activity.SetStatus(ActivityStatusCode.Error, jobExEx.Message);
+            activity.SetStatus(ActivityStatusCode.Error, jobExEx.Message);
             // The same value the duration measurement is tagged with, so a failure can be found by the same
             // attribute in a trace and in a metric. The exception event below keeps the whole chain,
             // wrappers included, because that is where the stack traces are.
-            _activity.SetTag(ErrorType.TagName, ErrorType.Of(jobExEx));
-            _activity.AddException(jobExEx);
+            activity.SetTag(ErrorType.TagName, ErrorType.Of(jobExEx));
+            activity.AddException(jobExEx);
         }
-        _activity.Stop();
+
+        activity.Stop();
+
+        // Stopping a root puts nothing back, since a root has no parent — so the activity the caller was
+        // running under is restored by hand. The span's shape is this type's business; what the run shell
+        // does after the firing is not. A stopped activity is one Activity.Current refuses to be set to,
+        // and being refused costs a thrown and swallowed exception, so it is asked rather than attempted.
+        if (ambient is { IsStopped: false })
+        {
+            Activity.Current = ambient;
+        }
     }
 }
