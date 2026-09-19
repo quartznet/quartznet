@@ -77,7 +77,25 @@ public sealed class RAMJobStore : IJobStore
     private readonly Dictionary<string, Dictionary<TriggerKey, TriggerWrapper>> triggersByGroup = [];
     private readonly SortedSet<TriggerWrapper> timeTriggers = new(new TriggerWrapperComparator());
     private readonly ConcurrentDictionary<string, ICalendar> calendarsByName = [];
-    private readonly Dictionary<JobKey, List<TriggerWrapper>> triggersByJob = [];
+    /// <summary>
+    /// A job's triggers, keyed so that removing one is a hash lookup rather than a walk.
+    /// </summary>
+    /// <remarks>
+    /// It used to be a <see cref="List{T}" />, which made a store holding one durable job behind many
+    /// triggers quadratic: every completion of a one-shot trigger walked the whole list to remove it
+    /// and then built an array of the remaining keys to ask whether the job had any left. That is
+    /// exactly the shape <c>ScheduleJob&lt;TJob, TInput&gt;</c> produces - one durable job per job type
+    /// and a trigger per call - so it is the one-off API's steady state rather than an odd arrangement
+    /// (#3823). Keyed by <see cref="TriggerKey" /> like <c>triggersByGroup</c> beside it, so storing a
+    /// trigger over one of the same key replaces it here exactly as it does in the other indexes.
+    /// </remarks>
+    private readonly Dictionary<JobKey, Dictionary<TriggerKey, TriggerWrapper>> triggersByJob = [];
+
+    /// <summary>
+    /// What <see cref="GetTriggerWrappersForJobNoLock" /> answers for a job with no triggers. Never
+    /// written to; its callers only read.
+    /// </summary>
+    private static readonly Dictionary<TriggerKey, TriggerWrapper> noTriggersForJob = [];
     private readonly HashSet<string> pausedTriggerGroups = [];
     private readonly HashSet<string> pausedJobGroups = [];
     private readonly HashSet<JobKey> blockedJobs = [];
@@ -624,13 +642,13 @@ public sealed class RAMJobStore : IJobStore
         }
 
         // add to triggers by job
-        if (!triggersByJob.TryGetValue(tw.JobKey, out var jobList))
+        if (!triggersByJob.TryGetValue(tw.JobKey, out var jobTriggers))
         {
-            jobList = new List<TriggerWrapper>(1);
-            triggersByJob.Add(tw.JobKey, jobList);
+            jobTriggers = new Dictionary<TriggerKey, TriggerWrapper>(1);
+            triggersByJob.Add(tw.JobKey, jobTriggers);
         }
 
-        jobList.Add(tw);
+        jobTriggers[tw.TriggerKey] = tw;
 
         // add to triggers by group
         if (!triggersByGroup.TryGetValue(tw.TriggerKey.Group, out var grpMap))
@@ -747,9 +765,9 @@ public sealed class RAMJobStore : IJobStore
             }
 
             //remove from triggers by job
-            if (triggersByJob.TryGetValue(tw.JobKey, out var jobList))
+            if (triggersByJob.TryGetValue(tw.JobKey, out var jobTriggers))
             {
-                if (jobList.Remove(tw) && jobList.Count == 0)
+                if (jobTriggers.Remove(tw.TriggerKey) && jobTriggers.Count == 0)
                 {
                     triggersByJob.Remove(tw.JobKey);
                 }
@@ -760,8 +778,12 @@ public sealed class RAMJobStore : IJobStore
             if (removeOrphanedJob)
             {
                 JobWrapper jw = jobsByKey[tw.JobKey];
-                var triggerKeys = GetTriggerKeysForJobNoLock(tw.JobKey);
-                if (triggerKeys.Length == 0 && !jw.JobDetail.Durable && RemoveJobNoLock(jw.Key, ref pending))
+
+                // Whether the job has any triggers left, asked of the index rather than of an array of
+                // their keys: the entry above is dropped when its last trigger goes, so an absent entry
+                // is an orphaned job. Materialising the keys here cost an array of every other trigger
+                // of the job on every completion that deletes one (#3823).
+                if (!triggersByJob.ContainsKey(tw.JobKey) && !jw.JobDetail.Durable && RemoveJobNoLock(jw.Key, ref pending))
                 {
                     pending.RecordJobDeleted(jw.Key);
                 }
@@ -2026,12 +2048,12 @@ public sealed class RAMJobStore : IJobStore
     {
         lock (lockObject)
         {
-            if (triggersByJob.TryGetValue(jobKey, out List<TriggerWrapper>? jobList))
+            if (triggersByJob.TryGetValue(jobKey, out Dictionary<TriggerKey, TriggerWrapper>? jobTriggers))
             {
-                var trigList = new List<IOperableTrigger>(jobList.Count);
-                for (var i = 0; i < jobList.Count; i++)
+                var trigList = new List<IOperableTrigger>(jobTriggers.Count);
+                foreach (TriggerWrapper tw in jobTriggers.Values)
                 {
-                    trigList.Add((IOperableTrigger) jobList[i].Trigger.Clone());
+                    trigList.Add((IOperableTrigger) tw.Trigger.Clone());
                 }
                 return new ValueTask<List<IOperableTrigger>>(trigList);
             }
@@ -2040,15 +2062,21 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
+    /// <summary>
+    /// A snapshot of the keys of a job's triggers, for the callers that walk them while removing,
+    /// pausing or resuming each one - which would otherwise mutate what they are walking.
+    /// </summary>
+    /// <remarks>
+    /// A snapshot is what those callers need and none of them is on the fire path. The fire path asks
+    /// <see cref="triggersByJob" /> directly, because an array of keys built to be measured against
+    /// zero is an array of every trigger of the job (#3823).
+    /// </remarks>
     private TriggerKey[] GetTriggerKeysForJobNoLock(JobKey jobKey)
     {
-        if (triggersByJob.TryGetValue(jobKey, out List<TriggerWrapper>? jobList))
+        if (triggersByJob.TryGetValue(jobKey, out Dictionary<TriggerKey, TriggerWrapper>? jobTriggers))
         {
-            var trigList = new TriggerKey[jobList.Count];
-            for (var i = 0; i < jobList.Count; i++)
-            {
-                trigList[i] = jobList[i].Trigger.Key;
-            }
+            var trigList = new TriggerKey[jobTriggers.Count];
+            jobTriggers.Keys.CopyTo(trigList, 0);
             return trigList;
         }
 
@@ -2061,9 +2089,9 @@ public sealed class RAMJobStore : IJobStore
     /// <remarks>
     /// This method should only be executed while holding the instance level lock.
     /// </remarks>
-    private List<TriggerWrapper> GetTriggerWrappersForJobNoLock(JobKey jobKey)
+    private Dictionary<TriggerKey, TriggerWrapper> GetTriggerWrappersForJobNoLock(JobKey jobKey)
     {
-        return triggersByJob.TryGetValue(jobKey, out var jobList) ? jobList : [];
+        return triggersByJob.TryGetValue(jobKey, out var jobTriggers) ? jobTriggers : noTriggersForJob;
     }
 
     /// <summary>
@@ -3030,10 +3058,8 @@ public sealed class RAMJobStore : IJobStore
                 {
                     var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(job.Key);
 
-                    for (var i = 0; i < triggerWrappersForJob.Count; i++)
+                    foreach (TriggerWrapper ttw in triggerWrappersForJob.Values)
                     {
-                        var ttw = triggerWrappersForJob[i];
-
                         if (ttw.state == StoredTriggerState.Waiting)
                         {
                             ttw.state = StoredTriggerState.Blocked;
@@ -3144,10 +3170,8 @@ public sealed class RAMJobStore : IJobStore
                     // mutates the very list being walked, so they are collected and removed afterwards.
                     List<TriggerKey>? finalized = null;
 
-                    for (var i = 0; i < triggerWrappersForJob.Count; i++)
+                    foreach (TriggerWrapper ttw in triggerWrappersForJob.Values)
                     {
-                        var ttw = triggerWrappersForJob[i];
-
                         if (ttw.state == StoredTriggerState.Blocked)
                         {
                             ttw.state = StoredTriggerState.Waiting;
@@ -3343,10 +3367,8 @@ public sealed class RAMJobStore : IJobStore
     {
         var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(jobKey);
 
-        for (var i = 0; i < triggerWrappersForJob.Count; i++)
+        foreach (TriggerWrapper tw in triggerWrappersForJob.Values)
         {
-            var tw = triggerWrappersForJob[i];
-
             tw.state = state;
             if (state != StoredTriggerState.Waiting)
             {
