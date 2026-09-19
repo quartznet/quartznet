@@ -1,6 +1,7 @@
 using System.Data.Common;
 
 using FakeItEasy;
+using FakeItEasy.Core;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -58,7 +59,7 @@ public sealed class QuartzSchedulerThreadLoopTest
 
         // Accepted but never run, so a dispatched firing stays in flight for the rest of the test and
         // the loop's bookkeeping can be read from the request it builds next.
-        A.CallTo(() => threadPool.TryRun(A<Func<ValueTask>>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => threadPool.TryRunWithState(A<Func<object, ValueTask>>.Ignored, A<object>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
 
         shellFactory = new ScriptedJobRunShellFactory();
@@ -232,7 +233,7 @@ public sealed class QuartzSchedulerThreadLoopTest
         scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create().ForGroup("batch", 2).Build());
         await GivenScheduledJobs(1, executionGroup: "batch");
 
-        A.CallTo(() => threadPool.TryRun(A<Func<ValueTask>>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => threadPool.TryRunWithState(A<Func<object, ValueTask>>.Ignored, A<object>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(false));
 
         StartLoop();
@@ -253,7 +254,7 @@ public sealed class QuartzSchedulerThreadLoopTest
     {
         await GivenScheduledJobs(1);
 
-        A.CallTo(() => threadPool.TryRun(A<Func<ValueTask>>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => threadPool.TryRunWithState(A<Func<object, ValueTask>>.Ignored, A<object>.Ignored, A<CancellationToken>.Ignored))
             .ReturnsLazily(() => HaltThenRefuse());
 
         StartLoop();
@@ -290,6 +291,40 @@ public sealed class QuartzSchedulerThreadLoopTest
 
         LimitFor(store.Acquisitions.Entries[1], "batch").Should().Be(1,
             "the firing dispatched from the first pass is still in flight and holds one of the group's two slots");
+    }
+
+    /// <summary>
+    /// The other half of the ledger: what is taken when a firing is dispatched has to come back when it
+    /// ends, and since #3802 it is the run shell's own outermost finally that returns it rather than a
+    /// lambda the loop wrapped around the call.
+    /// </summary>
+    [Test]
+    public async Task AFiringThatHasRunGivesItsExecutionGroupSlotBack()
+    {
+        scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create().ForGroup("batch", 2).Build());
+        await GivenScheduledJobs(1, executionGroup: "batch");
+
+        // Runs the work rather than merely accepting it, which is the difference from the test above:
+        // the shell reaches its finally before the loop asks for its next batch.
+        A.CallTo(() => threadPool.TryRunWithState(A<Func<object, ValueTask>>.Ignored, A<object>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily(RunTheWork);
+
+        StartLoop();
+
+        await ShouldObserve(store.Completions.Reaches(1),
+            "the run shell completes the firing it ran");
+        await ShouldObserve(store.Acquisitions.Reaches(2),
+            "the loop acquires again as soon as it has dispatched a batch");
+
+        LimitFor(store.Acquisitions.Entries[1], "batch").Should().Be(2,
+            "the firing finished before the next acquisition, so the slot it held is back - nothing else gives it back now that the loop no longer wraps the shell in a lambda");
+
+        static async ValueTask<bool> RunTheWork(IFakeObjectCall call)
+        {
+            Func<object, ValueTask> action = (Func<object, ValueTask>) call.Arguments[0];
+            await action(call.Arguments[1]).ConfigureAwait(false);
+            return true;
+        }
     }
 
     /// <summary>

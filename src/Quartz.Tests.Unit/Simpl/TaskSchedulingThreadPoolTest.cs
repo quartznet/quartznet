@@ -590,6 +590,67 @@ public class TaskSchedulingThreadPoolTest
             "the countdown a faulting work item took must be given back too, or the pool never drains");
     }
 
+    [Test]
+    public async Task TryRunWithStateHandsTheStateToTheWork()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new(TaskScheduler.Default, 1);
+        await threadPool.Initialize();
+
+        object expected = new();
+        object seen = null;
+        TaskCompletionSource ran = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        (await threadPool.TryRunWithState(
+            state =>
+            {
+                seen = state;
+                ran.TrySetResult();
+                return default;
+            },
+            expected)).Should().BeTrue();
+
+        await ran.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        seen.Should().BeSameAs(expected, "the state is what lets the caller dispatch through a static delegate");
+
+        await threadPool.Shutdown();
+    }
+
+    [Test]
+    public async Task APoolWithoutTryRunWithStateOfItsOwnRunsItThroughTryRun()
+    {
+        PoolWithoutADrainOfItsOwn pool = new();
+
+        // Through the interface, because that is where the default implementation lives: a pool that
+        // does not declare the member has only the interface's body to run.
+        IThreadPool threadPool = pool;
+        object expected = new();
+        object seen = null;
+
+        bool scheduled = await threadPool.TryRunWithState(
+            state =>
+            {
+                seen = state;
+                return default;
+            },
+            expected);
+
+        scheduled.Should().BeTrue();
+        pool.WorkAccepted.Should().Be(1,
+            "a pool written before this member existed has to keep working, so the default implementation closes over the pair and calls the TryRun it does implement");
+        seen.Should().BeSameAs(expected);
+    }
+
+    [Test]
+    public async Task APoolWithoutTryRunWithStateOfItsOwnRefusesNullWork()
+    {
+        PoolWithoutADrainOfItsOwn pool = new();
+        IThreadPool threadPool = pool;
+
+        (await threadPool.TryRunWithState(action: null, state: new object())).Should().BeFalse(
+            "the default implementation answers for a missing action itself rather than handing TryRun a closure that would throw when it ran");
+        pool.WorkAccepted.Should().Be(0);
+    }
+
     private sealed class CustomTaskSchedulingThreadPool : TaskSchedulingThreadPool
     {
         private readonly TaskScheduler taskScheduler;
@@ -607,8 +668,9 @@ public class TaskSchedulingThreadPoolTest
     }
 
     /// <summary>
-    /// A third-party pool as one was written before <see cref="IThreadPool.Drain" /> existed: it implements
-    /// the four original members and inherits the default drain.
+    /// A third-party pool as one was written before <see cref="IThreadPool.Drain" /> and
+    /// <see cref="IThreadPool.TryRunWithState" /> existed: it implements the four original members and
+    /// inherits both defaults.
     /// </summary>
     private sealed class PoolWithoutADrainOfItsOwn : IThreadPool
     {
@@ -616,13 +678,21 @@ public class TaskSchedulingThreadPoolTest
 
         public bool ShutdownTokenCouldBeCancelled { get; private set; }
 
+        /// <summary>How many times the pool's own <see cref="TryRun" /> was reached.</summary>
+        public int WorkAccepted { get; private set; }
+
         public int PoolSize => 1;
 
         public ValueTask Initialize(CancellationToken cancellationToken = default) => default;
 
         public ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default) => new ValueTask<int>(1);
 
-        public ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default) => new ValueTask<bool>(false);
+        public async ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
+        {
+            WorkAccepted++;
+            await action().ConfigureAwait(false);
+            return true;
+        }
 
         public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
         {

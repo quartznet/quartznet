@@ -57,6 +57,20 @@ internal sealed class JobRunShell
     private readonly TriggerFiredBundle firedTriggerBundle;
 
     /// <summary>
+    /// The loop that dispatched this firing, and the execution group it counted the firing against, so
+    /// that both are given back when the shell is done with it.
+    /// </summary>
+    /// <remarks>
+    /// The loop used to wrap the call to <see cref="Run" /> in a lambda whose finally did this, which
+    /// cost a closure, a delegate and a state machine on every firing (#3802). The shell's own outermost
+    /// finally is the same point in the same order, and costs none of them. Null when the shell was not
+    /// dispatched by a scheduler loop, which is how the tests run one.
+    /// </remarks>
+    private QuartzSchedulerThread? dispatcher;
+
+    private string? executionGroup;
+
+    /// <summary>
     /// Create a JobRunShell instance with the given settings.
     /// </summary>
     /// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
@@ -88,6 +102,16 @@ internal sealed class JobRunShell
     }
 
     /// <summary>
+    /// Records the loop that dispatched this firing and the execution group it was counted against, so
+    /// that <see cref="Run" /> hands both back when it ends however it ends.
+    /// </summary>
+    internal void DispatchedBy(QuartzSchedulerThread thread, string executionGroup)
+    {
+        dispatcher = thread;
+        this.executionGroup = executionGroup;
+    }
+
+    /// <summary>
     /// This method has to be implemented in order that starting of the thread causes the object's
     /// run method to be called in that separately executing thread.
     /// </summary>
@@ -114,56 +138,43 @@ internal sealed class JobRunShell
         // set during IJobFactory.CreateJob flow correctly to IJob.Execute (#1528)
         IJobDetail jobDetail = firedTriggerBundle.JobDetail;
 
-        // Read the factory once: the scope handed out by CreateJob must be returned to the same
-        // factory, even if QuartzScheduler.JobFactory is swapped while this job is in flight.
-        IJobFactory jobFactory = qs!.JobFactory;
-        JobScope jobScope;
         try
         {
-            jobScope = await jobFactory.CreateJob(firedTriggerBundle, scheduler, cancellationToken).ConfigureAwait(false);
-
-            if (jobScope.Job is null)
-            {
-                Throw.SchedulerException(
-                    $"Job factory {jobFactory.GetType().FullName} returned an empty JobScope for job '{jobDetail.Key}'. "
-                    + "A factory must build its result with the JobScope constructor rather than returning default.");
-            }
-        }
-        catch (SchedulerException se)
-        {
-            // The factory said what went wrong; the exception handed to listeners adds which trigger
-            // and which firing it went wrong for, which the message text alone never carried.
-            JobInstantiationException failure = new JobInstantiationException(se.Message, firedTriggerBundle, se);
-            await qs!.NotifySchedulerListenersError(
-                ErrorFor(firedTriggerBundle, $"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", failure),
-                cancellationToken).ConfigureAwait(false);
-
-            IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
-            SchedulerInstruction instruction = se.InnerException is ObjectDisposedException or OperationCanceledException
-                ? SchedulerInstruction.NoInstruction
-                : SchedulerInstruction.SetAllJobTriggersError;
-
-            // NotExecuted: the occurrence never happened, so nothing waiting on this trigger is
-            // settled by it. It keeps waiting for a firing that does.
-            await qs.NotifyJobStoreJobComplete(
-                CompletionContext(errorTrigger, jobDetail, instruction, ExecutionOutcome.NotExecuted, failure),
-                cancellationToken).ConfigureAwait(false);
-            return;
-        }
-        catch (Exception e)
-        {
-            await NotifyInstantiationFailed(e).ConfigureAwait(false);
-            return;
-        }
-
-        // Everything past this point runs inside the try/finally, so that a job the factory has
-        // already handed us is returned to it even if we never get as far as executing it.
-        IDisposable? ambient = null;
-        try
-        {
+            // Read the factory once: the scope handed out by CreateJob must be returned to the same
+            // factory, even if QuartzScheduler.JobFactory is swapped while this job is in flight.
+            IJobFactory jobFactory = qs!.JobFactory;
+            JobScope jobScope;
             try
             {
-                context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job, qs.resources.JobInputSerializer);
+                jobScope = await jobFactory.CreateJob(firedTriggerBundle, scheduler, cancellationToken).ConfigureAwait(false);
+
+                if (jobScope.Job is null)
+                {
+                    Throw.SchedulerException(
+                        $"Job factory {jobFactory.GetType().FullName} returned an empty JobScope for job '{jobDetail.Key}'. "
+                        + "A factory must build its result with the JobScope constructor rather than returning default.");
+                }
+            }
+            catch (SchedulerException se)
+            {
+                // The factory said what went wrong; the exception handed to listeners adds which trigger
+                // and which firing it went wrong for, which the message text alone never carried.
+                JobInstantiationException failure = new JobInstantiationException(se.Message, firedTriggerBundle, se);
+                await qs!.NotifySchedulerListenersError(
+                    ErrorFor(firedTriggerBundle, $"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", failure),
+                    cancellationToken).ConfigureAwait(false);
+
+                IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
+                SchedulerInstruction instruction = se.InnerException is ObjectDisposedException or OperationCanceledException
+                    ? SchedulerInstruction.NoInstruction
+                    : SchedulerInstruction.SetAllJobTriggersError;
+
+                // NotExecuted: the occurrence never happened, so nothing waiting on this trigger is
+                // settled by it. It keeps waiting for a firing that does.
+                await qs.NotifyJobStoreJobComplete(
+                    CompletionContext(errorTrigger, jobDetail, instruction, ExecutionOutcome.NotExecuted, failure),
+                    cancellationToken).ConfigureAwait(false);
+                return;
             }
             catch (Exception e)
             {
@@ -171,233 +182,257 @@ internal sealed class JobRunShell
                 return;
             }
 
-            // The firing becomes ambient here, which is the earliest it can: the execution context
-            // takes the job instance, so it does not exist while the job is being built. Set in this
-            // method rather than in a called one, because an async method restores the caller's
-            // execution context when it returns and would take the value with it (#1528). Everything
-            // from the listener notifications below to the job factory being handed the job back
-            // therefore reads it, and nothing outside this firing can.
-            ambient = ambientHolder.Enter(context);
-
-            IOperableTrigger trigger = (IOperableTrigger) context!.Trigger;
-            do
+            // Everything past this point runs inside the try/finally, so that a job the factory has
+            // already handed us is returned to it even if we never get as far as executing it.
+            IDisposable? ambient = null;
+            try
             {
-                JobExecutionException? jobExEx = null;
-
-                // Whether the job stopped because its firing was interrupted rather than because it
-                // finished. Without it an interrupted job is indistinguishable from one that returned:
-                // the OperationCanceledException is swallowed, so ExecutionComplete, the listeners and
-                // the store would all be told the occurrence succeeded.
-                bool cancelled = false;
-
-                // notify job & trigger listeners...
-                SchedulerInstruction instructionCode;
                 try
                 {
-                    if (!await NotifyListenersBeginning(context, cancellationToken).ConfigureAwait(false))
+                    context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job, qs.resources.JobInputSerializer);
+                }
+                catch (Exception e)
+                {
+                    await NotifyInstantiationFailed(e).ConfigureAwait(false);
+                    return;
+                }
+
+                // The firing becomes ambient here, which is the earliest it can: the execution context
+                // takes the job instance, so it does not exist while the job is being built. Set in this
+                // method rather than in a called one, because an async method restores the caller's
+                // execution context when it returns and would take the value with it (#1528). Everything
+                // from the listener notifications below to the job factory being handed the job back
+                // therefore reads it, and nothing outside this firing can.
+                ambient = ambientHolder.Enter(context);
+
+                IOperableTrigger trigger = (IOperableTrigger) context!.Trigger;
+                do
+                {
+                    JobExecutionException? jobExEx = null;
+
+                    // Whether the job stopped because its firing was interrupted rather than because it
+                    // finished. Without it an interrupted job is indistinguishable from one that returned:
+                    // the OperationCanceledException is swallowed, so ExecutionComplete, the listeners and
+                    // the store would all be told the occurrence succeeded.
+                    bool cancelled = false;
+
+                    // notify job & trigger listeners...
+                    SchedulerInstruction instructionCode;
+                    try
+                    {
+                        if (!await NotifyListenersBeginning(context, cancellationToken).ConfigureAwait(false))
+                        {
+                            await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
+
+                            // NotExecuted: a listener abandoned the firing before the job ran, so the
+                            // occurrence did not happen and settles nothing waiting on this trigger.
+                            await qs.NotifyJobStoreJobComplete(
+                                CompletionContext(trigger, jobDetail, SchedulerInstruction.NoInstruction, ExecutionOutcome.NotExecuted, exception: null),
+                                cancellationToken).ConfigureAwait(false);
+                            break;
+                        }
+                    }
+                    catch (VetoedException)
+                    {
+                        try
+                        {
+                            instructionCode = trigger.ExecutionComplete(context, result: null);
+                            await qs.NotifyJobStoreJobVetoed(
+                                CompletionContext(trigger, jobDetail, instructionCode, ExecutionOutcome.Vetoed, exception: null),
+                                cancellationToken).ConfigureAwait(false);
+
+                            // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
+                            if (!trigger.MayFireAgain)
+                            {
+                                await qs.NotifySchedulerListenersFinalized(context.Trigger, cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                        catch (SchedulerException se)
+                        {
+                            string msg = $"Error during veto of Job {context.JobDetail.Key}: couldn't finalize execution.";
+                            await qs.NotifySchedulerListenersError(ErrorFor(context, msg, se), cancellationToken).ConfigureAwait(false);
+                        }
+                        break;
+                    }
+
+                    if (logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.JobExecuting(jobDetail.Key);
+                    }
+
+                    TimeProvider timeProvider = qs.resources.TimeProvider;
+                    long startTimestamp = timeProvider.GetTimestamp();
+                    long endTimestamp;
+
+                    StartedActivity activity = QuartzActivitySource.StartJobExecute(context, timeProvider.GetUtcNow());
+                    Instrumentation instrumentation = qs.resources.Meters.StartJobExecute(context);
+
+
+                    // Execute the job, through this scheduler's middleware when it has any. Inside the
+                    // activity and the instrumentation above, so what a middleware costs is part of what the
+                    // firing cost, and outside the classification below, so an exception a middleware throws
+                    // is treated exactly as one the job threw.
+                    try
+                    {
+                        JobExecutionDelegate? pipeline = qs.resources.JobExecutionPipeline;
+                        ValueTask execution = pipeline is null
+                            ? jobScope.Job.Execute(context, context.CancellationToken)
+                            : pipeline(context, context.CancellationToken);
+
+                        await execution.ConfigureAwait(false);
+                        endTimestamp = timeProvider.GetTimestamp();
+                    }
+                    catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
+                    {
+                        endTimestamp = timeProvider.GetTimestamp();
+                        cancelled = true;
+                        logger.JobCancelled(jobDetail.Key);
+                    }
+                    catch (JobExecutionException jee)
+                    {
+                        endTimestamp = timeProvider.GetTimestamp();
+                        jee.JobDetail = jobDetail;
+                        jobExEx = jee;
+                        logger.JobThrewJobExecutionException(jobDetail.Key, jee);
+                    }
+                    catch (Exception e)
+                    {
+                        endTimestamp = timeProvider.GetTimestamp();
+                        logger.JobThrewUnhandledException(jobDetail.Key, e);
+                        SchedulerException se = new JobExecutionProcessException(context, e);
+                        await qs.NotifySchedulerListenersError(
+                            ErrorFor(context, $"Job {context.JobDetail.Key} threw an exception.", se),
+                            cancellationToken).ConfigureAwait(false);
+                        jobExEx = new JobExecutionException(se);
+                        jobExEx.JobDetail = jobDetail;
+                    }
+
+                    context.JobRunTime = timeProvider.GetElapsedTime(startTimestamp, endTimestamp);
+
+                    activity.Stop(timeProvider.GetUtcNow(), jobExEx);
+                    instrumentation.EndJobExecute(context.JobRunTime, jobExEx);
+
+                    instructionCode = SchedulerInstruction.NoInstruction;
+
+                    // update the trigger — must happen before listener notifications
+                    // so we know whether to refire (and skip notifications) or complete
+                    try
+                    {
+                        instructionCode = trigger.ExecutionComplete(context, jobExEx);
+                        if (logger.IsEnabled(LogLevel.Debug))
+                        {
+                            logger.TriggerInstructionDecided(instructionCode);
+                        }
+
+                        if (instructionCode == SchedulerInstruction.RetryTrigger)
+                        {
+                            // Reported at Information, unlike the instruction itself: a job that keeps
+                            // failing and retrying is the thing an operator wants in the log without
+                            // turning Debug on, and the retry instant is what tells them when to look.
+                            logger.TriggerRetryScheduled(
+                                trigger.Key,
+                                trigger.RetryAttempt,
+                                trigger.RetryPolicy?.MaxAttempts ?? 0,
+                                trigger.NextFireTimeUtc.GetValueOrDefault());
+
+                            qs.resources.Meters.TriggerRetryScheduled(qs.resources.Name, qs.resources.InstanceId, trigger);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // If this happens, there's a bug in the trigger...
+                        SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
+                        await qs.NotifySchedulerListenersError(
+                            ErrorFor(context, "Please report this error to the Quartz developers.", se),
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // re-Execute job — skip listener notifications so that listeners like
+                    // JobChainingJobListener don't see intermediate refire attempts as completions (#663)
+                    if (instructionCode == SchedulerInstruction.ReExecuteJob)
+                    {
+                        if (logger.IsEnabled(LogLevel.Debug))
+                        {
+                            logger.TriggerRefiring();
+                        }
+                        context.IncrementRefireCount();
+                        continue;
+                    }
+
+                    // How the firing ended, worked out once and used by every exit below. It says what
+                    // happened and nothing else: a job that ran and threw failed, whether or not the
+                    // trigger then asked for another attempt. Whether that failure is the occurrence's
+                    // last word is the instruction's to say, and SchedulerInstruction.RetryTrigger is
+                    // what says it is not — which is why every store skips settling continuations on
+                    // that instruction rather than on the outcome.
+                    ExecutionOutcome outcome = (cancelled, jobExEx) switch
+                    {
+                        (true, _) => ExecutionOutcome.Cancelled,
+                        (_, not null) => ExecutionOutcome.Failed,
+                        _ => ExecutionOutcome.Succeeded
+                    };
+
+                    // notify all job listeners
+                    if (!await NotifyJobListenersComplete(qs, context, jobExEx, cancellationToken).ConfigureAwait(false))
                     {
                         await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
-
-                        // NotExecuted: a listener abandoned the firing before the job ran, so the
-                        // occurrence did not happen and settles nothing waiting on this trigger.
                         await qs.NotifyJobStoreJobComplete(
-                            CompletionContext(trigger, jobDetail, SchedulerInstruction.NoInstruction, ExecutionOutcome.NotExecuted, exception: null),
+                            CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
                             cancellationToken).ConfigureAwait(false);
                         break;
                     }
-                }
-                catch (VetoedException)
-                {
-                    try
+
+                    // notify all trigger listeners
+                    if (!await NotifyTriggerListenersComplete(qs, context, instructionCode, cancellationToken).ConfigureAwait(false))
                     {
-                        instructionCode = trigger.ExecutionComplete(context, result: null);
-                        await qs.NotifyJobStoreJobVetoed(
-                            CompletionContext(trigger, jobDetail, instructionCode, ExecutionOutcome.Vetoed, exception: null),
+                        await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
+                        await qs.NotifyJobStoreJobComplete(
+                            CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
                             cancellationToken).ConfigureAwait(false);
-
-                        // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
-                        if (!trigger.MayFireAgain)
-                        {
-                            await qs.NotifySchedulerListenersFinalized(context.Trigger, cancellationToken).ConfigureAwait(false);
-                        }
-                    }
-                    catch (SchedulerException se)
-                    {
-                        string msg = $"Error during veto of Job {context.JobDetail.Key}: couldn't finalize execution.";
-                        await qs.NotifySchedulerListenersError(ErrorFor(context, msg, se), cancellationToken).ConfigureAwait(false);
-                    }
-                    break;
-                }
-
-                if (logger.IsEnabled(LogLevel.Debug))
-                {
-                    logger.JobExecuting(jobDetail.Key);
-                }
-
-                TimeProvider timeProvider = qs.resources.TimeProvider;
-                long startTimestamp = timeProvider.GetTimestamp();
-                long endTimestamp;
-
-                StartedActivity activity = QuartzActivitySource.StartJobExecute(context, timeProvider.GetUtcNow());
-                Instrumentation instrumentation = qs.resources.Meters.StartJobExecute(context);
-
-
-                // Execute the job, through this scheduler's middleware when it has any. Inside the
-                // activity and the instrumentation above, so what a middleware costs is part of what the
-                // firing cost, and outside the classification below, so an exception a middleware throws
-                // is treated exactly as one the job threw.
-                try
-                {
-                    JobExecutionDelegate? pipeline = qs.resources.JobExecutionPipeline;
-                    ValueTask execution = pipeline is null
-                        ? jobScope.Job.Execute(context, context.CancellationToken)
-                        : pipeline(context, context.CancellationToken);
-
-                    await execution.ConfigureAwait(false);
-                    endTimestamp = timeProvider.GetTimestamp();
-                }
-                catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
-                {
-                    endTimestamp = timeProvider.GetTimestamp();
-                    cancelled = true;
-                    logger.JobCancelled(jobDetail.Key);
-                }
-                catch (JobExecutionException jee)
-                {
-                    endTimestamp = timeProvider.GetTimestamp();
-                    jee.JobDetail = jobDetail;
-                    jobExEx = jee;
-                    logger.JobThrewJobExecutionException(jobDetail.Key, jee);
-                }
-                catch (Exception e)
-                {
-                    endTimestamp = timeProvider.GetTimestamp();
-                    logger.JobThrewUnhandledException(jobDetail.Key, e);
-                    SchedulerException se = new JobExecutionProcessException(context, e);
-                    await qs.NotifySchedulerListenersError(
-                        ErrorFor(context, $"Job {context.JobDetail.Key} threw an exception.", se),
-                        cancellationToken).ConfigureAwait(false);
-                    jobExEx = new JobExecutionException(se);
-                    jobExEx.JobDetail = jobDetail;
-                }
-
-                context.JobRunTime = timeProvider.GetElapsedTime(startTimestamp, endTimestamp);
-
-                activity.Stop(timeProvider.GetUtcNow(), jobExEx);
-                instrumentation.EndJobExecute(context.JobRunTime, jobExEx);
-
-                instructionCode = SchedulerInstruction.NoInstruction;
-
-                // update the trigger — must happen before listener notifications
-                // so we know whether to refire (and skip notifications) or complete
-                try
-                {
-                    instructionCode = trigger.ExecutionComplete(context, jobExEx);
-                    if (logger.IsEnabled(LogLevel.Debug))
-                    {
-                        logger.TriggerInstructionDecided(instructionCode);
+                        break;
                     }
 
-                    if (instructionCode == SchedulerInstruction.RetryTrigger)
-                    {
-                        // Reported at Information, unlike the instruction itself: a job that keeps
-                        // failing and retrying is the thing an operator wants in the log without
-                        // turning Debug on, and the retry instant is what tells them when to look.
-                        logger.TriggerRetryScheduled(
-                            trigger.Key,
-                            trigger.RetryAttempt,
-                            trigger.RetryPolicy?.MaxAttempts ?? 0,
-                            trigger.NextFireTimeUtc.GetValueOrDefault());
-
-                        qs.resources.Meters.TriggerRetryScheduled(qs.resources.Name, qs.resources.InstanceId, trigger);
-                    }
-                }
-                catch (Exception e)
-                {
-                    // If this happens, there's a bug in the trigger...
-                    SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
-                    await qs.NotifySchedulerListenersError(
-                        ErrorFor(context, "Please report this error to the Quartz developers.", se),
-                        cancellationToken).ConfigureAwait(false);
-                }
-
-                // re-Execute job — skip listener notifications so that listeners like
-                // JobChainingJobListener don't see intermediate refire attempts as completions (#663)
-                if (instructionCode == SchedulerInstruction.ReExecuteJob)
-                {
-                    if (logger.IsEnabled(LogLevel.Debug))
-                    {
-                        logger.TriggerRefiring();
-                    }
-                    context.IncrementRefireCount();
-                    continue;
-                }
-
-                // How the firing ended, worked out once and used by every exit below. It says what
-                // happened and nothing else: a job that ran and threw failed, whether or not the
-                // trigger then asked for another attempt. Whether that failure is the occurrence's
-                // last word is the instruction's to say, and SchedulerInstruction.RetryTrigger is
-                // what says it is not — which is why every store skips settling continuations on
-                // that instruction rather than on the outcome.
-                ExecutionOutcome outcome = (cancelled, jobExEx) switch
-                {
-                    (true, _) => ExecutionOutcome.Cancelled,
-                    (_, not null) => ExecutionOutcome.Failed,
-                    _ => ExecutionOutcome.Succeeded
-                };
-
-                // notify all job listeners
-                if (!await NotifyJobListenersComplete(qs, context, jobExEx, cancellationToken).ConfigureAwait(false))
-                {
-                    await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
                     await qs.NotifyJobStoreJobComplete(
                         CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
                         cancellationToken).ConfigureAwait(false);
+
                     break;
-                }
-
-                // notify all trigger listeners
-                if (!await NotifyTriggerListenersComplete(qs, context, instructionCode, cancellationToken).ConfigureAwait(false))
-                {
-                    await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
-                    await qs.NotifyJobStoreJobComplete(
-                        CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                }
-
-                await qs.NotifyJobStoreJobComplete(
-                    CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
-                    cancellationToken).ConfigureAwait(false);
-
-                break;
-            } while (true);
-        }
-        finally
-        {
-            try
-            {
-                await jobFactory.ReturnJob(jobScope, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                // Run is handed to the thread pool and nobody awaits it, so letting this escape would
-                // lose it entirely. Report it and carry on to the context disposal below.
-                await qs.NotifySchedulerListenersError(
-                    ErrorFor(
-                        firedTriggerBundle,
-                        $"An error occurred returning job to the job factory. job='{jobDetail.Key}'",
-                        new SchedulerException($"Problem returning job '{jobDetail.Key}' to the job factory: {e.Message}", e)),
-                    cancellationToken).ConfigureAwait(false);
+                } while (true);
             }
             finally
             {
-                // Cleared before the context is disposed, and cleared for every flow that captured it
-                // rather than only this one — so work a job left running reads nothing rather than a
-                // context whose scope has gone and whose cancellation handle is about to.
-                ambient?.Dispose();
-                context?.Dispose();
+                try
+                {
+                    await jobFactory.ReturnJob(jobScope, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    // Run is handed to the thread pool and nobody awaits it, so letting this escape would
+                    // lose it entirely. Report it and carry on to the context disposal below.
+                    await qs.NotifySchedulerListenersError(
+                        ErrorFor(
+                            firedTriggerBundle,
+                            $"An error occurred returning job to the job factory. job='{jobDetail.Key}'",
+                            new SchedulerException($"Problem returning job '{jobDetail.Key}' to the job factory: {e.Message}", e)),
+                        cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    // Cleared before the context is disposed, and cleared for every flow that captured it
+                    // rather than only this one — so work a job left running reads nothing rather than a
+                    // context whose scope has gone and whose cancellation handle is about to.
+                    ambient?.Dispose();
+                    context?.Dispose();
+                }
             }
+        }
+        finally
+        {
+            // The firing stops being in flight here, whichever way the shell ended - including the
+            // paths above that give up before the job is ever built. The loop that dispatched it
+            // counted it against its execution group and against the scheduler's in-flight tally
+            // before handing it over, and this is where both are given back.
+            dispatcher?.ExecutionFinished(executionGroup!);
         }
 
         async ValueTask NotifyInstantiationFailed(Exception e)
