@@ -165,7 +165,18 @@ public sealed class QuartzSchedulerBuilder
     /// </remarks>
     public StandaloneSchedulerFactory Build()
     {
-        ApplyProperties();
+        NameValueCollection configured = ApplyProperties();
+
+        // Phase 4, for everyone: the pass AddQuartz makes straight after a scheduler's own callback. That
+        // callback ran in the constructor, and what it registered through ConfigureAllQuartzSchedulers
+        // - the execution history recorder, the scheduler events plugin, whatever a library contributes -
+        // was recorded against a scheduler that did not exist yet, and nothing else carries it to this
+        // one. Before the property-named registrations, so that what code registered beats what a string
+        // named, as it does in the container.
+        SchedulerNameRegistry.For(services).ApplyConfigureAll(services, schedulerName: null);
+
+        // Phase 5: registration is first-wins, so the implementations named by keys go in after it.
+        QuartzPropertyBridge.ApplyRegistrations(services, configured);
 
         BridgeLoggingToLogProvider();
 
@@ -196,16 +207,18 @@ public sealed class QuartzSchedulerBuilder
     }
 
     /// <summary>
-    /// Applies the flat properties, ahead of the configuration written in code.
+    /// Applies the options half of the flat properties, ahead of the configuration written in code, and
+    /// returns the merged bag for <see cref="Build"/> to apply the registrations half of.
     /// </summary>
     /// <remarks>
     /// <para>
     /// The two halves go in at opposite ends because their precedence rules are opposites. Options are
     /// last-wins, so the property-derived ones are inserted at the front of the collection and anything
     /// configured in code is applied over them. Registrations are first-wins, so the implementations the
-    /// properties name are appended, and an implementation chosen in code beats one named by a string.
-    /// Applying them where <c>UseProperties</c> was called would instead make precedence depend
-    /// on the order the builder happened to be told things in.
+    /// properties name are appended - by <see cref="Build"/>, once the container-wide pass has run - and
+    /// an implementation chosen in code beats one named by a string. Applying them where
+    /// <c>UseProperties</c> was called would instead make precedence depend on the order the builder
+    /// happened to be told things in.
     /// </para>
     /// <para>
     /// This runs even when no properties were given, because keys can also arrive by configuring
@@ -213,10 +226,17 @@ public sealed class QuartzSchedulerBuilder
     /// readable once the container exists, and is what <c>ApplyFromQuartzOptions</c> is for.
     /// </para>
     /// </remarks>
-    private void ApplyProperties()
+    private NameValueCollection ApplyProperties()
     {
         NameValueCollection configured = [];
         ServiceCollection seed = [];
+
+        // The seed shares this container's registry, so a delegate the bridge records through
+        // ConfigureAllQuartzSchedulers - the legacy execution history key does - lands where Build reads
+        // them from, rather than in a registry of the seed's own that would sit in front of this one
+        // once inserted. The descriptor is dropped again before the insertion, because the instance is
+        // registered here already.
+        seed.AddSingleton(SchedulerNameRegistry.For(services));
 
         if (configuration is not null)
         {
@@ -254,12 +274,14 @@ public sealed class QuartzSchedulerBuilder
         QuartzPropertyBridge.ApplyOptions(seed, configured);
         QuartzPropertyBridge.ApplyFromQuartzOptions(seed);
 
+        seed.RemoveAll<SchedulerNameRegistry>();
+
         for (var i = 0; i < seed.Count; i++)
         {
             services.Insert(i, seed[i]);
         }
 
-        QuartzPropertyBridge.ApplyRegistrations(services, configured);
+        return configured;
     }
 
     /// <summary>
