@@ -19,6 +19,9 @@
 
 using System.Data.Common;
 using System.Text;
+using System.Text.RegularExpressions;
+
+using Oracle.ManagedDataAccess.Client;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
@@ -44,7 +47,9 @@ internal sealed record SchemaSnapshot(
 
         List<string> tables = await QueryAsync(connection, tableSql, prefix);
         List<string> columns = await QueryAsync(connection, columnSql, prefix);
-        List<string> indexes = await QueryAsync(connection, indexSql, prefix);
+        List<string> indexes = dialect == "oracle"
+            ? await ReadOracleIndexesAsync(connection, indexSql, prefix)
+            : await QueryAsync(connection, indexSql, prefix);
 
         return new SchemaSnapshot(tables, columns, indexes);
     }
@@ -53,29 +58,137 @@ internal sealed record SchemaSnapshot(
     {
         List<string> rows = [];
 
-        await using DbCommand command = connection.CreateCommand();
-        command.CommandText = sql;
-
-        await using DbDataReader reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        foreach (string[] cells in await QueryRowsAsync(connection, sql))
         {
-            StringBuilder row = new StringBuilder();
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                if (i > 0)
-                {
-                    row.Append('|');
-                }
-
-                row.Append(reader.IsDBNull(i) ? "" : Cell(reader.GetValue(i).ToString()));
-            }
-
-            // Strip the prefix so QRTZ_TRIGGERS and QRTZM_TRIGGERS compare equal.
-            rows.Add(row.ToString().Replace(prefix.ToUpperInvariant(), "", StringComparison.Ordinal));
+            rows.Add(Compose(cells, prefix));
         }
 
         rows.Sort(StringComparer.Ordinal);
         return rows;
+    }
+
+    /// <summary>
+    /// One query's rows, each already normalized cell by cell but not yet joined — for the readers
+    /// that have to look at a cell before deciding what the row says.
+    /// </summary>
+    private static async Task<List<string[]>> QueryRowsAsync(DbConnection connection, string sql)
+    {
+        List<string[]> rows = [];
+
+        await using DbCommand command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        // Oracle returns a LONG column as an empty string unless the command is told how much of it
+        // to fetch, and the index expressions this reader needs are LONGs. -1 is "all of it".
+        if (command is OracleCommand oracleCommand)
+        {
+            oracleCommand.InitialLONGFetchSize = -1;
+        }
+
+        await using DbDataReader reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            string[] cells = new string[reader.FieldCount];
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                cells[i] = reader.IsDBNull(i) ? "" : Cell(reader.GetValue(i).ToString());
+            }
+
+            rows.Add(cells);
+        }
+
+        return rows;
+    }
+
+    /// <summary>
+    /// Joins a row's cells and strips the table prefix, so QRTZ_TRIGGERS and QRTZM_TRIGGERS compare
+    /// equal.
+    /// </summary>
+    private static string Compose(IReadOnlyList<string> cells, string prefix)
+    {
+        StringBuilder row = new StringBuilder();
+        for (int i = 0; i < cells.Count; i++)
+        {
+            if (i > 0)
+            {
+                row.Append('|');
+            }
+
+            row.Append(cells[i]);
+        }
+
+        return row.ToString().Replace(prefix.ToUpperInvariant(), "", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The hidden virtual column Oracle puts behind a descending or function-based index, whose
+    /// generated name is <c>SYS_NC&lt;n&gt;$</c>.
+    /// </summary>
+    private static readonly Regex OracleHiddenColumn = new Regex(
+        @"^SYS_NC\d+\$$", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Oracle's index columns, with the hidden virtual column behind a descending index replaced by
+    /// the expression it stands for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>n</c> in <c>SYS_NC&lt;n&gt;$</c> is the hidden column's position in the table, so the same
+    /// index over the same expression gets a different name depending on how many columns the table
+    /// had when the index was created. A fresh install creates every column and then the index; a
+    /// migrated schema creates the index and then appends whatever later migrations add. Comparing
+    /// the generated names therefore reports a difference between two schemas that are identical —
+    /// which is what the Oracle legs hit once <c>4.2/add_continuations</c> landed after the 4.0 index
+    /// script (<c>SYS_NC00023$</c> against <c>SYS_NC00026$</c>).
+    /// </para>
+    /// <para>
+    /// So the snapshot says what the index indexes rather than what Oracle called it:
+    /// <c>USER_IND_EXPRESSIONS</c> holds the expression, keyed by index and column position. The
+    /// descending flag is folded into the name for every row, hidden or not, because it is part of
+    /// what the index is and the generated name used to carry it implicitly.
+    /// </para>
+    /// <para>
+    /// Two queries rather than a join: <c>COLUMN_EXPRESSION</c> is a <c>LONG</c>, and a LONG in the
+    /// select list of an outer join is the kind of thing Oracle refuses in some versions and not
+    /// others. On its own, in a single-table select, it is unambiguously allowed.
+    /// </para>
+    /// </remarks>
+    private static async Task<List<string>> ReadOracleIndexesAsync(DbConnection connection, string indexSql, string prefix)
+    {
+        Dictionary<(string Index, string Position), string> expressions = new();
+
+        foreach (string[] cells in await QueryRowsAsync(connection, OracleIndexExpressionSql(prefix)))
+        {
+            expressions[(cells[0], cells[1])] = cells[2];
+        }
+
+        List<string> rows = [];
+
+        // Cells: table, index, column, descend, position.
+        foreach (string[] cells in await QueryRowsAsync(connection, indexSql))
+        {
+            string name = OracleHiddenColumn.IsMatch(cells[2])
+                          && expressions.TryGetValue((cells[1], cells[4]), out string expression)
+                ? expression
+                : cells[2];
+
+            if (cells[3] == "DESC")
+            {
+                name += ":DESC";
+            }
+
+            rows.Add(Compose([cells[0], cells[1], name, cells[4]], prefix));
+        }
+
+        rows.Sort(StringComparer.Ordinal);
+        return rows;
+    }
+
+    private static string OracleIndexExpressionSql(string prefix)
+    {
+        string p = prefix.ToUpperInvariant().Replace("_", "!_", StringComparison.Ordinal);
+
+        return $"SELECT UPPER(index_name), column_position, column_expression FROM user_ind_expressions WHERE UPPER(table_name) LIKE '{p}%' ESCAPE '!'";
     }
 
     /// <summary>
@@ -150,11 +263,14 @@ internal sealed record SchemaSnapshot(
                 $"SELECT UPPER(TABLE_NAME), UPPER(COLUMN_NAME), UPPER(DATA_TYPE), IS_NULLABLE, IFNULL(CHARACTER_MAXIMUM_LENGTH, -1) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND UPPER(TABLE_NAME) LIKE '{p}%' ESCAPE '!'",
                 $"SELECT UPPER(TABLE_NAME), UPPER(INDEX_NAME), UPPER(COLUMN_NAME), SEQ_IN_INDEX FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND INDEX_NAME <> 'PRIMARY' AND NON_UNIQUE = 1 AND UPPER(TABLE_NAME) LIKE '{p}%' ESCAPE '!'"),
 
+            // The column list is table, index, column, descend, position — in that order, because
+            // ReadOracleIndexesAsync reads it by position and swaps the third cell for the index
+            // expression when Oracle put a hidden virtual column there.
             "oracle" => (
                 $"SELECT UPPER(table_name) FROM user_tables WHERE UPPER(table_name) LIKE '{p}%' ESCAPE '!'",
                 $"SELECT UPPER(table_name), UPPER(column_name), UPPER(data_type), nullable, NVL(data_length, -1) FROM user_tab_columns WHERE UPPER(table_name) LIKE '{p}%' ESCAPE '!'",
                 $"""
-                 SELECT UPPER(ic.table_name), UPPER(ic.index_name), UPPER(ic.column_name), ic.column_position
+                 SELECT UPPER(ic.table_name), UPPER(ic.index_name), UPPER(ic.column_name), UPPER(ic.descend), ic.column_position
                  FROM user_ind_columns ic
                  JOIN user_indexes i ON i.index_name = ic.index_name
                  WHERE i.uniqueness = 'NONUNIQUE' AND UPPER(ic.table_name) LIKE '{p}%' ESCAPE '!'
