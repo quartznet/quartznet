@@ -211,6 +211,50 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// Both listings carry what a waiting trigger is waiting for: the paged one out of the store's
+    /// header, and the per-job one out of the trigger it already loaded.
+    /// </summary>
+    [Test]
+    public async Task BothTriggerListingsCarryTheContinuation()
+    {
+        IScheduler scheduler = await CreateScheduler("ContinuationListingTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            TriggerKey parentKey = new("import", "group1");
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(),
+                TriggerBuilder.Create().WithIdentity(parentKey).ForJob(jobKey).WithCronSchedule("0 0 1 * * ?").Build());
+            await scheduler.ScheduleJob(
+                TriggerBuilder.Create().WithIdentity("reconcile", "group1").ForJob(jobKey)
+                    .StartAfter(parentKey, ContinuationCondition.OnAnyOutcome)
+                    .WithCronSchedule("0 0 2 * * ?")
+                    .Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            PagedResult<TriggerHeaderDto> page = await client.QueryTriggers(scheduler.SchedulerName, new DashboardTriggerQuery());
+            TriggerHeaderDto waiting = page.Items.Single(x => x.Name == "reconcile");
+            waiting.State.Should().Be(TriggerState.Awaiting);
+            waiting.ContinuesAfter.Should().Be(new TriggerKeyDto("group1", "import"),
+                "the store's header says what the trigger waits for, so the listing does not have to "
+                + "load a trigger per row to find out");
+            waiting.ContinuationCondition.Should().Be(ContinuationCondition.OnAnyOutcome);
+            page.Items.Single(x => x.Name == "import").ContinuesAfter.Should().BeNull(
+                "an ordinary trigger waits for nothing");
+
+            List<TriggerHeaderDto> ofJob = await client.GetTriggersOfJob(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
+            ofJob.Single(x => x.Name == "reconcile").ContinuesAfter.Should().Be(new TriggerKeyDto("group1", "import"),
+                "this listing loads the triggers themselves, and the two listings may not disagree");
+            ofJob.Single(x => x.Name == "import").ContinuationCondition.Should().BeNull();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     [Test]
     public async Task GetJobTriggersPopulatesTypeAndScheduleSummary()
     {

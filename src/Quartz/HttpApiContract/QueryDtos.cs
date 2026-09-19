@@ -71,6 +71,13 @@ internal sealed record JobHeaderDto(
     }
 }
 
+/// <remarks>
+/// The continuation is flattened into <see cref="ContinuesAfterTriggerName" /> and
+/// <see cref="ContinuesAfterTriggerGroup" />, spelled as the trigger body spells them: a listing and a
+/// trigger say the same thing about the same trigger, so they may not say it in different words. The
+/// condition goes out as its names — <c>"OnFailure, OnCancellation"</c> — rather than as the integer the
+/// column holds, for the reason every other enum on this wire does.
+/// </remarks>
 internal sealed record TriggerHeaderDto(
     string Name,
     string Group,
@@ -87,7 +94,10 @@ internal sealed record TriggerHeaderDto(
     int Priority,
     string? ExecutionGroup,
     string? RetryPolicy,
-    int RetryAttempt)
+    int RetryAttempt,
+    string? ContinuesAfterTriggerName = null,
+    string? ContinuesAfterTriggerGroup = null,
+    ContinuationCondition? ContinuationCondition = null)
 {
     public static TriggerHeaderDto Create(TriggerHeader header)
     {
@@ -109,7 +119,10 @@ internal sealed record TriggerHeaderDto(
             Priority: header.Priority,
             ExecutionGroup: header.ExecutionGroup,
             RetryPolicy: header.RetryPolicy,
-            RetryAttempt: header.RetryAttempt
+            RetryAttempt: header.RetryAttempt,
+            ContinuesAfterTriggerName: header.ContinuesAfter?.Name,
+            ContinuesAfterTriggerGroup: header.ContinuesAfter?.Group,
+            ContinuationCondition: header.ContinuationCondition
         );
     }
 
@@ -130,7 +143,15 @@ internal sealed record TriggerHeaderDto(
             ExecutionGroup,
             RetryPolicy,
             RetryAttempt
-        );
+        )
+        {
+            // A name with no group is a body that lost half of a key on the way here; a group with no
+            // name is the same, so the pair is read as a pair.
+            ContinuesAfter = ContinuesAfterTriggerName is not null && ContinuesAfterTriggerGroup is not null
+                ? new TriggerKey(ContinuesAfterTriggerName, ContinuesAfterTriggerGroup)
+                : null,
+            ContinuationCondition = ContinuationCondition
+        };
     }
 }
 

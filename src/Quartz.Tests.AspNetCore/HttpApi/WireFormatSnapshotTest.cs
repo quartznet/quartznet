@@ -118,9 +118,23 @@ public class WireFormatSnapshotTest : WebApiTest
     public async Task TriggerListingBody()
     {
         // the trigger listing is where the wire's enums live: a header carries the trigger's state, and
-        // it goes out as its name for the same reason the trigger body's repeatIntervalUnit does
+        // it goes out as its name for the same reason the trigger body's repeatIntervalUnit does.
+        // Two shapes in one page: an ordinary trigger, whose continuation members are nulls rather than
+        // missing properties, and one waiting on another trigger's firing - whose condition goes out as
+        // the outcomes it names rather than as the integer the column holds.
         A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
-            .Returns(new PagedResult<TriggerHeader>([TriggerHeaderFor(TestData.Wire.CronTrigger, TriggerState.Paused)], HasMore: false, TotalCount: null));
+            .Returns(new PagedResult<TriggerHeader>(
+                [
+                    TriggerHeaderFor(TestData.Wire.CronTrigger, TriggerState.Paused),
+                    TriggerHeaderFor(TestData.Wire.CronTrigger, TriggerState.Awaiting) with
+                    {
+                        Key = new TriggerKey("AwaitingTriggerKey", "CronTriggerGroup"),
+                        ContinuesAfter = new TriggerKey("CronTriggerKey", "CronTriggerGroup"),
+                        ContinuationCondition = ContinuationCondition.OnFailure | ContinuationCondition.OnCancellation
+                    }
+                ],
+                HasMore: false,
+                TotalCount: null));
 
         string body = await Get($"{SchedulerUrl}/triggers");
         await VerifyBody(body);

@@ -159,6 +159,66 @@ public class TriggersPageTest
     }
 
     [Test]
+    public void TheAwaitingFilterAsksForTheTriggersThatAreWaiting()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1, TriggerState.Awaiting));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Awaiting only").Click();
+
+        A.CallTo(() => context.Api.QueryTriggers(
+                TestData.SchedulerName,
+                A<DashboardTriggerQuery>.That.Matches(query => query.State == TriggerState.Awaiting && query.Skip == 0),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Awaiting only")
+            .ClassList.Should().Contain("qz-button-primary");
+        page.Markup.Should().NotContain("Showing Awaiting triggers only",
+            "the filter has a button of its own now, and the spelled-out line is for the states that "
+            + "have none");
+    }
+
+    /// <summary>
+    /// A listing narrowed to Awaiting is a page of triggers none of which will ever fire on their own,
+    /// so each row has to say what it is waiting for.
+    /// </summary>
+    [Test]
+    public void AWaitingTriggerNamesTheTriggerItIsWaitingFor()
+    {
+        GivenTriggers([
+            new TriggerHeaderDto("nightly", "reconcile", "Cron", null, TriggerState.Awaiting, null)
+            {
+                ContinuesAfter = new TriggerKeyDto("nightly", "import"),
+                ContinuationCondition = ContinuationCondition.OnFailure | ContinuationCondition.OnCancellation
+            }
+        ]);
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Markup.Should().Contain("after nightly.import",
+            "a row in Awaiting with no parent on it says only that the trigger is not running");
+        page.Find(".qz-continues-after").GetAttribute("title").Should().Be("Released on: Failure or cancellation",
+            "the condition is the other half of the answer, spelled out rather than shown as the flags "
+            + "value the enum prints");
+        page.TextOfAll("td.qz-col-state").Should().Equal(["Awaiting"]);
+        page.Find("td.qz-col-state .qz-state-indicator").ClassList.Should().Contain("qz-state-awaiting",
+            "waiting is its own colour: the fallback blue means 'a state the dashboard does not "
+            + "recognise', which is what Awaiting would have looked like");
+    }
+
+    [Test]
+    public void ATriggerThatWaitsForNothingShowsNoParent()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll(".qz-continues-after").Should().BeEmpty(
+            "an ordinary trigger fires on its own schedule, and a line saying it waits for nothing would "
+            + "be one more thing to read on every row of every listing");
+    }
+
+    [Test]
     public void ATriggerWithNoExecutionGroupSaysSoRatherThanShowingNothing()
     {
         GivenTriggers([new TriggerHeaderDto("nightly", "trigger-1", "Cron", "0/5 * * * * ?", TriggerState.Normal, null)]);
