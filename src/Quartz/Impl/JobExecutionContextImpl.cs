@@ -21,6 +21,7 @@
 
 using Quartz.Core;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Impl;
 
@@ -229,14 +230,26 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
                 // Merge into a local and publish the reference only once it is fully populated: the
                 // fast path above reads the field without the lock, so a reference stored first and
                 // filled afterwards would let a racing reader see a half-built map.
-                JobDataMap merged = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
-                foreach (var pair in jobDetail.JobDataMap)
+                // Read without creating either source map: both belong to copies made for this firing,
+                // and a map created to be found empty is three objects nobody reads (#3802).
+                JobDataMap? jobMap = JobDataMaps.OrNull(jobDetail);
+                JobDataMap? triggerMap = JobDataMaps.OrNull(trigger);
+
+                JobDataMap merged = new JobDataMap((jobMap?.Count ?? 0) + (triggerMap?.Count ?? 0));
+                if (jobMap is not null)
                 {
-                    merged[pair.Key] = pair.Value;
+                    foreach (var pair in jobMap)
+                    {
+                        merged[pair.Key] = pair.Value;
+                    }
                 }
-                foreach (var pair in trigger.JobDataMap)
+
+                if (triggerMap is not null)
                 {
-                    merged[pair.Key] = pair.Value;
+                    foreach (var pair in triggerMap)
+                    {
+                        merged[pair.Key] = pair.Value;
+                    }
                 }
 
                 jobDataMap = merged;

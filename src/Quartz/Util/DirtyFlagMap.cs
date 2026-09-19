@@ -33,22 +33,40 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
 #pragma warning restore CA1710
 {
     private bool dirty;
-    private readonly Dictionary<TKey, TValue?> map;
+
+    /// <summary>
+    /// The storage, created on the first write rather than in the constructor.
+    /// </summary>
+    /// <remarks>
+    /// A firing builds three of these maps and most of them stay empty for the life of the firing —
+    /// the merged map a job factory hands the job, and the two a clone of an empty job detail or
+    /// trigger lazily creates when something reads the property. A <see cref="Dictionary{TKey,TValue}" />
+    /// that is never written to is eighty bytes of nothing, so the map is not created until there is
+    /// something to put in it (#3802). Every reader below treats <see langword="null" /> as empty;
+    /// <see cref="Map" /> is what a reader that needs a real dictionary object goes through.
+    /// </remarks>
+    private Dictionary<TKey, TValue?>? map;
 
     /// <summary>
     /// Create an empty <see cref="DirtyFlagMap{TKey,TValue}" />.
     /// </summary>
     public DirtyFlagMap()
     {
-        map = new Dictionary<TKey, TValue?>();
     }
 
     /// <summary>
     /// Create a <see cref="DirtyFlagMap{TKey,TValue}" /> with the given initial capacity.
     /// </summary>
+    /// <remarks>
+    /// A capacity of zero says nothing about what the map will hold, so it is left uncreated; any
+    /// other capacity is a caller that knows how many entries are coming, and is honoured at once.
+    /// </remarks>
     public DirtyFlagMap(int initialCapacity)
     {
-        map = new Dictionary<TKey, TValue?>(initialCapacity);
+        if (initialCapacity > 0)
+        {
+            map = new Dictionary<TKey, TValue?>(initialCapacity);
+        }
     }
 
     /// <summary>
@@ -63,7 +81,7 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
 
     private DirtyFlagMap(DirtyFlagMap<TKey, TValue> other)
     {
-        map = new Dictionary<TKey, TValue?>(other.map);
+        map = other.map is { Count: > 0 } source ? new Dictionary<TKey, TValue?>(source) : null;
         dirty = other.dirty;
     }
 
@@ -73,15 +91,35 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     public bool Dirty => dirty;
 
     /// <summary>
+    /// The storage, created if it does not exist yet. For a reader that needs a dictionary object
+    /// rather than an answer about the entries.
+    /// </summary>
+    private Dictionary<TKey, TValue?> Map => map ??= new Dictionary<TKey, TValue?>();
+
+    /// <summary>
+    /// The null check a <see cref="Dictionary{TKey,TValue}" /> would have made. The lookups below
+    /// answer from the absence of storage rather than from the dictionary, so it is made here instead —
+    /// with the same parameter name the dictionary uses, because that is what a caller catches.
+    /// Compiled away entirely when <typeparamref name="TKey" /> is a value type.
+    /// </summary>
+    private static void ValidateKey(TKey key)
+    {
+        if (key is null)
+        {
+            Throw.ArgumentNullException("key");
+        }
+    }
+
+    /// <summary>
     /// Get a direct handle to the underlying Map.
     /// </summary>
-    internal Dictionary<TKey, TValue?> WrappedMap => map;
+    internal Dictionary<TKey, TValue?> WrappedMap => Map;
 
     /// <summary>
     /// Gets a value indicating whether this instance is empty.
     /// </summary>
     /// <value><c>true</c> if this instance is empty; otherwise, <c>false</c>.</value>
-    public bool IsEmpty => map.Count == 0;
+    public bool IsEmpty => map is null || map.Count == 0;
 
     /// <summary>
     /// Creates a new object that is a copy of the current instance.
@@ -107,6 +145,13 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
 #pragma warning restore CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
+        if (map is null)
+        {
+            ValidateKey(key);
+            value = default;
+            return false;
+        }
+
         return map.TryGetValue(key, out value);
     }
 
@@ -115,22 +160,29 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     /// </summary>
     public TValue? this[TKey key]
     {
-        get => map[key];
+        get => Map[key];
         set
         {
-            if (map.TryGetValue(key, out TValue? existing)
+            if (map is not null
+                && map.TryGetValue(key, out TValue? existing)
                 && EqualityComparer<TValue>.Default.Equals(existing, value))
             {
                 return;
             }
 
-            map[key] = value;
+            Map[key] = value;
             dirty = true;
         }
     }
 
     bool ICollection<KeyValuePair<TKey, TValue?>>.Remove(KeyValuePair<TKey, TValue?> item)
     {
+        if (map is null)
+        {
+            ValidateKey(item.Key);
+            return false;
+        }
+
         if (map.TryGetValue(item.Key, out TValue? existing)
             && EqualityComparer<TValue>.Default.Equals(existing, item.Value))
         {
@@ -145,18 +197,18 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     /// <summary>
     /// Gets the number of entries contained in the map.
     /// </summary>
-    public int Count => map.Count;
+    public int Count => map?.Count ?? 0;
 
     /// <inheritdoc/>
-    IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue?>.Keys => map.Keys.AsEnumerable<TKey>();
+    IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue?>.Keys => Map.Keys.AsEnumerable<TKey>();
 
     /// <inheritdoc/>
-    IEnumerable<TValue?> IReadOnlyDictionary<TKey, TValue?>.Values => map.Values.AsEnumerable<TValue?>();
+    IEnumerable<TValue?> IReadOnlyDictionary<TKey, TValue?>.Values => Map.Values.AsEnumerable<TValue?>();
 
     /// <summary>
     /// Gets a collection containing the values in the map.
     /// </summary>
-    public ICollection<TValue?> Values => map.Values;
+    public ICollection<TValue?> Values => Map.Values;
 
     void ICollection<KeyValuePair<TKey, TValue?>>.Add(KeyValuePair<TKey, TValue?> item)
     {
@@ -168,6 +220,11 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     /// </summary>
     public void Clear()
     {
+        if (map is null)
+        {
+            return;
+        }
+
         if (map.Count != 0)
         {
             dirty = true;
@@ -178,13 +235,19 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
 
     bool ICollection<KeyValuePair<TKey, TValue?>>.Contains(KeyValuePair<TKey, TValue?> item)
     {
+        if (map is null)
+        {
+            ValidateKey(item.Key);
+            return false;
+        }
+
         return map.TryGetValue(item.Key, out TValue? existing)
             && EqualityComparer<TValue>.Default.Equals(existing, item.Value);
     }
 
     public void CopyTo(KeyValuePair<TKey, TValue?>[] array, int arrayIndex)
     {
-        ((ICollection<KeyValuePair<TKey, TValue?>>) map).CopyTo(array, arrayIndex);
+        ((ICollection<KeyValuePair<TKey, TValue?>>) Map).CopyTo(array, arrayIndex);
     }
 
     /// <summary>
@@ -198,6 +261,12 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     /// 	<paramref name="key "/>is <see langword="null"/>.</exception>
     public bool ContainsKey(TKey key)
     {
+        if (map is null)
+        {
+            ValidateKey(key);
+            return false;
+        }
+
         return map.ContainsKey(key);
     }
 
@@ -209,6 +278,12 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     /// 	<paramref name="key "/> is <see langword="null"/>.</exception>
     public bool Remove(TKey key)
     {
+        if (map is null)
+        {
+            ValidateKey(key);
+            return false;
+        }
+
         bool remove = map.Remove(key);
         dirty |= remove;
         return remove;
@@ -216,12 +291,12 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
 
     public Dictionary<TKey, TValue?>.Enumerator GetEnumerator()
     {
-        return map.GetEnumerator();
+        return Map.GetEnumerator();
     }
 
     IEnumerator<KeyValuePair<TKey, TValue?>> IEnumerable<KeyValuePair<TKey, TValue?>>.GetEnumerator()
     {
-        return ((IEnumerable<KeyValuePair<TKey, TValue?>>) map).GetEnumerator();
+        return ((IEnumerable<KeyValuePair<TKey, TValue?>>) Map).GetEnumerator();
     }
 
     /// <summary>
@@ -235,14 +310,14 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     /// </exception>
     public void Add(TKey key, TValue? value)
     {
-        map.Add(key, value);
+        Map.Add(key, value);
         dirty = true;
     }
 
     /// <summary>
     /// Gets a collection containing the keys of the map.
     /// </summary>
-    public ICollection<TKey> Keys => map.Keys;
+    public ICollection<TKey> Keys => Map.Keys;
 
     /// <summary>
     /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> is read-only.
@@ -271,7 +346,7 @@ internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnl
     /// </returns>
     public bool ContainsValue(TValue obj)
     {
-        return map.ContainsValue(obj);
+        return map is not null && map.ContainsValue(obj);
     }
 
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()

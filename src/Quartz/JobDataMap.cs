@@ -526,6 +526,10 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
 
     internal JobDataMap Clone()
     {
-        return new JobDataMap(map.WrappedMap);
+        // An empty map has nothing to copy, and going through the dictionary constructor for one would
+        // materialise storage on both sides and box an enumerator to walk no entries. A firing clones
+        // two of these — the trigger's and the job detail's — and in most schedules both are empty.
+        // The result is the same either way: a fresh map that is not flagged dirty.
+        return map.IsEmpty ? new JobDataMap() : new JobDataMap(map.WrappedMap);
     }
 }

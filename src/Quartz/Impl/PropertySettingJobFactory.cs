@@ -191,21 +191,36 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// </remarks>
     protected virtual JobDataMap BuildJobDataMap(TriggerFiredBundle bundle, IScheduler scheduler)
     {
-        var capacity = bundle.JobDetail.JobDataMap.Count + bundle.Trigger.JobDataMap.Count;
+        // Asked without creating a map on either side: reading IJobDetail.JobDataMap creates and keeps
+        // one, and for a job and a trigger cloned for this firing alone that is three objects per firing
+        // that nothing ever reads (#3802). The empty map handed back is still a map of this firing's
+        // own, because an override is allowed to add to it.
+        JobDataMap? jobMap = JobDataMaps.OrNull(bundle.JobDetail);
+        JobDataMap? triggerMap = JobDataMaps.OrNull(bundle.Trigger);
+
+        int capacity = (jobMap?.Count ?? 0) + (triggerMap?.Count ?? 0);
         JobDataMap jobDataMap = new JobDataMap(capacity);
         if (capacity == 0)
         {
             return jobDataMap;
         }
 
-        foreach (var pair in bundle.JobDetail.JobDataMap)
+        if (jobMap is not null)
         {
-            jobDataMap[pair.Key] = pair.Value;
+            foreach (var pair in jobMap)
+            {
+                jobDataMap[pair.Key] = pair.Value;
+            }
         }
-        foreach (var pair in bundle.Trigger.JobDataMap)
+
+        if (triggerMap is not null)
         {
-            jobDataMap[pair.Key] = pair.Value;
+            foreach (var pair in triggerMap)
+            {
+                jobDataMap[pair.Key] = pair.Value;
+            }
         }
+
         return jobDataMap;
     }
 
