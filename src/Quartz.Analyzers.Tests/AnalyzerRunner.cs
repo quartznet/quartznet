@@ -24,11 +24,13 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Quartz.Analyzers.Tests;
 
 /// <summary>
-/// Compiles a snippet against the real <c>Quartz.dll</c> and runs one analyzer over it.
+/// Compiles a snippet against the real <c>Quartz.dll</c> and runs one analyzer — or one source
+/// generator — over it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -53,6 +55,8 @@ internal static class AnalyzerRunner
 
     private static readonly Lazy<ImmutableArray<MetadataReference>> references = new Lazy<ImmutableArray<MetadataReference>>(BuildReferences);
 
+    private static readonly CSharpParseOptions ParseOptions = new CSharpParseOptions(LanguageVersion.Latest);
+
     /// <summary>
     /// Every diagnostic <typeparamref name="TAnalyzer" /> reports over <paramref name="source" />,
     /// in source order.
@@ -60,16 +64,22 @@ internal static class AnalyzerRunner
     internal static async Task<IReadOnlyList<Diagnostic>> Run<TAnalyzer>(string source)
         where TAnalyzer : DiagnosticAnalyzer, new()
     {
-        CSharpCompilation compilation = CSharpCompilation.Create(
-            "Snippet",
-            [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest), path: "Snippet.cs")],
-            references.Value,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+        CSharpCompilation compilation = Compile(source);
 
         compilation.GetDiagnostics()
             .Where(x => x.Severity == DiagnosticSeverity.Error)
             .Should().BeEmpty("the snippet a test writes has to compile, or the analyzer is being asked about code the compiler never understood");
 
+        return await Analyze<TAnalyzer>(compilation);
+    }
+
+    /// <summary>
+    /// Every diagnostic <typeparamref name="TAnalyzer" /> reports over a compilation already built —
+    /// which is how a test asks the analyzer about source a generator contributed.
+    /// </summary>
+    internal static async Task<IReadOnlyList<Diagnostic>> Analyze<TAnalyzer>(Compilation compilation)
+        where TAnalyzer : DiagnosticAnalyzer, new()
+    {
         CompilationWithAnalyzers withAnalyzers = compilation.WithAnalyzers(
             [new TAnalyzer()],
             new CompilationWithAnalyzersOptions(
@@ -86,6 +96,95 @@ internal static class AnalyzerRunner
     }
 
     /// <summary>
+    /// Runs one incremental generator over a snippet and hands back what it said and what it wrote.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same compilation the analyzers are given — the references are this test process's own, so
+    /// the snippet is a net10.0 one written against the shipped <c>Quartz.dll</c>. What the generator
+    /// emits is therefore compiled against the real <c>AddJob&lt;T&gt;</c> and <c>AddTrigger&lt;T&gt;</c>
+    /// rather than against a stub, which is what makes "it compiles" worth asserting.
+    /// </para>
+    /// <para>
+    /// The snippet is <em>not</em> checked before the generator runs, unlike the analyzer path: a
+    /// snippet is allowed to call the extension method the generator is about to write. The output
+    /// compilation is checked instead, and that check covers both halves at once.
+    /// </para>
+    /// </remarks>
+    internal static GeneratorRun RunGenerator<TGenerator>(string source)
+        where TGenerator : IIncrementalGenerator, new()
+    {
+        CSharpCompilation compilation = Compile(source);
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            generators: [new TGenerator().AsSourceGenerator()],
+            parseOptions: ParseOptions);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation output, out ImmutableArray<Diagnostic> diagnostics);
+
+        foreach (GeneratorRunResult result in driver.GetRunResult().Results)
+        {
+            // A generator that throws is reported as CS8785 and the build carries on with the file
+            // missing, which reads as "it generated nothing" from here. Rethrowing is what makes it
+            // read as the crash it is.
+            if (result.Exception is not null)
+            {
+                throw result.Exception;
+            }
+        }
+
+        output.GetDiagnostics()
+            .Where(x => x.Severity == DiagnosticSeverity.Error)
+            .Should().BeEmpty("what a generator writes has to compile against the shipped Quartz, and so does the snippet that called it");
+
+        ImmutableArray<SyntaxTree> generated = [.. output.SyntaxTrees.Where(x => !ReferenceEquals(x, compilation.SyntaxTrees[0]))];
+
+        return new GeneratorRun(
+            source,
+            diagnostics.OrderBy(x => x.Location.SourceSpan.Start).ToList(),
+            generated.Length == 0 ? null : string.Join(Environment.NewLine, generated.Select(x => x.ToString())),
+            output);
+    }
+
+    /// <summary>
+    /// Runs a generator twice over the same source, the second time over a re-parsed copy of it, and
+    /// says why each output step ran.
+    /// </summary>
+    /// <remarks>
+    /// Replacing the tree with an identically parsed one is what makes this worth asking: the
+    /// compiler sees a tree it has not seen before, so the generator's transform runs again — and
+    /// everything downstream of it is only cached if what the transform produced compares equal to
+    /// what it produced the first time. That is the whole reason the generator's model is built out
+    /// of values rather than symbols.
+    /// </remarks>
+    internal static IReadOnlyList<IncrementalStepRunReason> RerunReasons<TGenerator>(string source)
+        where TGenerator : IIncrementalGenerator, new()
+    {
+        CSharpCompilation compilation = Compile(source);
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            generators: [new TGenerator().AsSourceGenerator()],
+            additionalTexts: [],
+            parseOptions: ParseOptions,
+            optionsProvider: null,
+            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
+
+        driver = driver.RunGenerators(compilation);
+
+        CSharpCompilation reparsed = compilation.ReplaceSyntaxTree(
+            compilation.SyntaxTrees[0],
+            CSharpSyntaxTree.ParseText(source, ParseOptions, path: "Snippet.cs"));
+
+        driver = driver.RunGenerators(reparsed);
+
+        return driver.GetRunResult().Results[0].TrackedOutputSteps
+            .SelectMany(x => x.Value)
+            .SelectMany(x => x.Outputs)
+            .Select(x => x.Reason)
+            .ToList();
+    }
+
+    /// <summary>
     /// The source text a diagnostic points at, which is how a test says "on the literal" without
     /// counting columns.
     /// </summary>
@@ -93,6 +192,15 @@ internal static class AnalyzerRunner
     {
         SyntaxTree tree = diagnostic.Location.SourceTree!;
         return tree.GetText().ToString(diagnostic.Location.SourceSpan);
+    }
+
+    private static CSharpCompilation Compile(string source)
+    {
+        return CSharpCompilation.Create(
+            "Snippet",
+            [CSharpSyntaxTree.ParseText(source, ParseOptions, path: "Snippet.cs")],
+            references.Value,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
     }
 
     private static ImmutableArray<MetadataReference> BuildReferences()
@@ -121,5 +229,36 @@ internal static class AnalyzerRunner
             "the snippets are written against the shipped Quartz, so its assembly has to be on the compiler's reference list");
 
         return [.. result];
+    }
+}
+
+/// <summary>
+/// What one run of a generator over a snippet produced.
+/// </summary>
+/// <param name="Snippet">The source the generator was run over.</param>
+/// <param name="Diagnostics">Everything the generator reported, in source order.</param>
+/// <param name="Generated">
+/// The source the generator added, or <see langword="null" /> when it added none — which is a thing
+/// this generator does deliberately, so it is a value rather than an empty string.
+/// </param>
+/// <param name="Output">
+/// The compilation the generator's own files are part of, so that a test can ask an analyzer what it
+/// makes of them.
+/// </param>
+internal sealed record GeneratorRun(string Snippet, IReadOnlyList<Diagnostic> Diagnostics, string? Generated, Compilation Output)
+{
+    /// <summary>
+    /// The snippet text a diagnostic points at, which is how a test says "on the attribute" without
+    /// counting columns.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AnalyzerRunner.SpanText" /> cannot answer this one: a generator reports through a
+    /// location rebuilt from a file path and a span rather than through one holding a syntax tree it
+    /// kept alive, so the text has to come from the snippet the test wrote.
+    /// </remarks>
+    internal string TextAt(Diagnostic diagnostic)
+    {
+        TextSpan span = diagnostic.Location.SourceSpan;
+        return Snippet.Substring(span.Start, span.Length);
     }
 }

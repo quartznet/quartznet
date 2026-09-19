@@ -31,6 +31,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="NUnit3TestAdapter" />
+    <!--
+      The generated registration is snapshotted rather than asserted on line by line: what matters
+      about it is the whole file, and a diff is how a reviewer reads a change to one. Same library,
+      same Verify/ folder convention and same *.verified.* byte-order-mark exemption as the two
+      larger test projects.
+    -->
+    <PackageReference Include="Verify.NUnit" />
   </ItemGroup>
 
   <ItemGroup>
