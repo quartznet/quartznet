@@ -272,9 +272,14 @@ public class SchemaProvisioningTest
             "the table 4.x added is the one thing CreateIfMissing could have made here, and making it "
             + "is what turned a startup failure into a silent outage");
 
-        // The remedy the message names, followed: the same store starts against the same database.
+        // The remedy the message names, followed: every migration this database has not had, and then
+        // the same store starts against the same database. A 3.x schema needs all of them — startup
+        // probes for every column any of them adds, so stopping at 4.0 is refused for the next one.
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_upgrade", dialect, UnmigratedPrefix), dialect);
+
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.2", "add_continuations", dialect, UnmigratedPrefix), dialect);
 
         await StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}_migrated");
 
@@ -282,8 +287,11 @@ public class SchemaProvisioningTest
 
         afterMigration.Tables.Should().Contain("PAUSED_JOB_GRPS");
         afterMigration.Columns.Should().Contain(column => column.Contains("RETRY_POLICY", StringComparison.Ordinal),
-            "the columns the migration adds are the ones startup now probes for, so the migrated schema "
+            "the columns the migrations add are the ones startup now probes for, so the migrated schema "
             + "has to carry them for the start above to have meant anything");
+        afterMigration.Columns.Should().Contain(column => column.Contains("CONTINUES_TRIGGER_NAME", StringComparison.Ordinal),
+            "and that includes the ones added after 4.0, which is what makes this the whole remedy "
+            + "rather than the first step of it");
     }
 
     /// <summary>

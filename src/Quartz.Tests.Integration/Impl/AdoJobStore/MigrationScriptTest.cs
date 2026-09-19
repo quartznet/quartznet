@@ -91,11 +91,20 @@ public class MigrationScriptTest
 
     /// <summary>Migrations that apply on top of the 3.16 baseline, in the order they must run.</summary>
     /// <remarks>
+    /// <para>
     /// The 4.0 upgrade is two files, and the order between them is the whole reason they are two:
     /// <c>schema_30_to_40_upgrade</c> is the mandatory half and is safe to run while 3.x nodes are up,
     /// and <c>schema_30_to_40_indexes</c> is the half that waits for the last of them to shut down.
     /// A chain that ran only the first would leave the index set on its 3.x shape, which is what the
     /// comparison with a fresh install then catches.
+    /// </para>
+    /// <para>
+    /// Every later version's migration is appended here as it lands, because what this fixture
+    /// compares against is a fresh install of the <em>current</em> schema — a chain that stops short
+    /// of the newest migration is a chain missing its columns, which is the failure rather than the
+    /// point. <c>MigratedColumnTest</c> is the unit-level guard that the constants and the scripts
+    /// name the same columns; this is the one that runs them.
+    /// </para>
     /// </remarks>
     private static readonly (string Version, string Name)[] SteppedChain =
     [
@@ -104,17 +113,20 @@ public class MigrationScriptTest
         ("3.19", "add_preferred_node"),
         ("3.20", "index_alignment"),
         ("4.0", "schema_30_to_40_upgrade"),
-        ("4.0", "schema_30_to_40_indexes")
+        ("4.0", "schema_30_to_40_indexes"),
+        ("4.2", "add_continuations")
     ];
 
     /// <summary>
-    /// The mandatory upgrade and its index half on their own. Their headers say they supersede the
-    /// four above, so a database that never ran any of them has to arrive at the same place.
+    /// The mandatory 4.0 upgrade and its index half on their own, plus every migration since. Their
+    /// headers say the 4.0 pair supersedes the four optional 3.x ones, so a database that never ran
+    /// any of those has to arrive at the same place.
     /// </summary>
     private static readonly (string Version, string Name)[] DirectChain =
     [
         ("4.0", "schema_30_to_40_upgrade"),
-        ("4.0", "schema_30_to_40_indexes")
+        ("4.0", "schema_30_to_40_indexes"),
+        ("4.2", "add_continuations")
     ];
 
     [Test]
