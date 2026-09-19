@@ -913,7 +913,7 @@ Setup for all of the above is on
 Prior art surveyed in August 2026. Quartz.NET's own behaviour is stated from the source in this
 repository rather than from any of these.
 
-- Quartz (Java), [Best Practices](https://www.quartz-scheduler.org/documentation/quartz-2.5.0/best-practices.html),
+- Quartz (Java), [Best Practices](https://www.quartz-scheduler.org/documentation/quartz-2.5.x/best-practices.html),
   [Configuration Reference](https://www.quartz-scheduler.org/documentation/quartz-2.3.0/configuration/ConfigMain.html),
   [JDBC-JobStore clustering](https://www.quartz-scheduler.org/documentation/quartz-2.3.0/configuration/ConfigJDBCJobStoreClustering.html)
   and [tutorial lessons 3–6](https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/tutorial-lesson-03.html)

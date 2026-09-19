@@ -3074,7 +3074,7 @@ call to the job, and on 3.x nothing could. `IJobListener` is notification-only â
 about to run and told what it did, with the execution happening between the two notifications rather
 than inside them â€” so the only place left was a job that wrapped another job. That adapter is what ABP,
 Elsa and Brighter each ship, and asking for the seam has been open since 2021
-([#988](https://github.com/quartznet/quartznet/discussions/988)).
+([#988](https://github.com/quartznet/quartznet/issues/988)).
 
 4.0 adds it:
 
