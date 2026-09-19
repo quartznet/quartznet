@@ -143,6 +143,16 @@ internal sealed class QuartzSchedulerThread
         this.qsRsrcs = qsRsrcs;
         idleWaitVariableness = (int) (qsRsrcs.IdleWaitTime.TotalMilliseconds * 0.2);
 
+        // The ungrouped bucket is where every trigger that names no execution group is counted, and in
+        // most schedules that is all of them. Removing its entry when it reaches zero and adding it
+        // back on the next firing is a ConcurrentDictionary node allocated and thrown away per firing
+        // for a key that is never absent for long, so it is resident instead (#3802). A resident zero
+        // is invisible: ExecutionLimits.SubtractInFlight subtracts nothing for a count of zero, which
+        // is why the entry can stay without changing a single acquisition's limits. The removal is
+        // what keeps a high-cardinality set of *named* groups from growing without bound, and named
+        // groups still get it.
+        runningExecutionGroupCounts[ExecutionLimits.DefaultGroupKey] = 0;
+
         // Construction does not start the loop; QuartzScheduler.Start does. Until then this object is
         // in the 'paused' state so that processing does not begin even once it is started.
         paused = true;
@@ -717,8 +727,10 @@ internal sealed class QuartzSchedulerThread
     private void DecrementExecutionGroupCount(string normalizedGroup)
     {
         int newCount = runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 0, (_, c) => Math.Max(c - 1, 0));
-        // Remove zero entries to prevent unbounded growth with high-cardinality group names
-        if (newCount <= 0)
+        // Remove zero entries to prevent unbounded growth with high-cardinality group names. Not the
+        // ungrouped bucket, which is resident: it is one key, it cannot grow, and most firings are
+        // counted against it.
+        if (newCount <= 0 && !string.Equals(normalizedGroup, ExecutionLimits.DefaultGroupKey, StringComparison.Ordinal))
         {
             runningExecutionGroupCounts.TryRemove(new KeyValuePair<string, int>(normalizedGroup, 0));
         }

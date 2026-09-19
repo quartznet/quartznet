@@ -328,6 +328,33 @@ public sealed class QuartzSchedulerThreadLoopTest
     }
 
     /// <summary>
+    /// The ungrouped bucket's ledger entry is resident rather than removed at zero, and a resident zero
+    /// has to be invisible to the limits every acquisition is given (#3802).
+    /// </summary>
+    [Test]
+    public async Task TheUngroupedBucketsResidentZeroChangesNoLimit()
+    {
+        scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
+            .ForDefaultGroup(2)
+            .ForGroup("batch", 2)
+            .Build());
+        await GivenScheduledJobs(1, executionGroup: "batch");
+
+        StartLoop();
+
+        await ShouldObserve(store.Acquisitions.Reaches(2),
+            "the loop acquires again as soon as it has dispatched a batch");
+
+        TriggerAcquisitionRequest second = store.Acquisitions.Entries[1];
+        second.ExecutionLimits.TryGetLimit(ExecutionGroupScope.Default, out int? ungrouped)
+            .Should().BeTrue("the default group is configured, so its limit travels with every request");
+        ungrouped.Should().Be(2,
+            "nothing ungrouped is in flight, so the whole quota is on offer - the resident entry the loop keeps for that bucket counts zero and must subtract nothing");
+        LimitFor(second, "batch").Should().Be(1,
+            "the named group's firing is in flight and is still subtracted");
+    }
+
+    /// <summary>
     /// The mirror image, and the bug a cluster-wide ceiling invites: a cluster-scoped limit must reach
     /// the store as configured.
     /// </summary>
