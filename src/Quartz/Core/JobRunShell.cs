@@ -329,14 +329,16 @@ internal sealed class JobRunShell
                     continue;
                 }
 
-                // How the occurrence ended, worked out once and used by every exit below. A failure the
-                // trigger answered with a retry is not an outcome at all: the occurrence is still in
-                // flight, and only the attempt that ends it is classified.
-                ExecutionOutcome outcome = (cancelled, jobExEx, instructionCode) switch
+                // How the firing ended, worked out once and used by every exit below. It says what
+                // happened and nothing else: a job that ran and threw failed, whether or not the
+                // trigger then asked for another attempt. Whether that failure is the occurrence's
+                // last word is the instruction's to say, and SchedulerInstruction.RetryTrigger is
+                // what says it is not — which is why every store skips settling continuations on
+                // that instruction rather than on the outcome.
+                ExecutionOutcome outcome = (cancelled, jobExEx) switch
                 {
-                    (true, _, _) => ExecutionOutcome.Cancelled,
-                    (_, not null, SchedulerInstruction.RetryTrigger) => ExecutionOutcome.NotExecuted,
-                    (_, not null, _) => ExecutionOutcome.Failed,
+                    (true, _) => ExecutionOutcome.Cancelled,
+                    (_, not null) => ExecutionOutcome.Failed,
                     _ => ExecutionOutcome.Succeeded
                 };
 

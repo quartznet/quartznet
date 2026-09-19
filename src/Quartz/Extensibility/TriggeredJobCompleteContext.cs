@@ -56,11 +56,18 @@ public sealed class TriggeredJobCompleteContext
     /// <summary>
     /// What the trigger asked the scheduler to do about itself once the firing was over.
     /// </summary>
+    /// <remarks>
+    /// This is what says whether the occurrence is finished, which <see cref="Outcome" /> does not:
+    /// <see cref="SchedulerInstruction.RetryTrigger" /> is a failed firing the trigger has an
+    /// attempt left for, and a store skips settling its continuations on that instruction rather
+    /// than on the outcome — which is <see cref="ExecutionOutcome.Failed" /> either way.
+    /// </remarks>
     public required SchedulerInstruction Instruction { get; init; }
 
     /// <summary>
-    /// How the firing ended. Defaults to <see cref="ExecutionOutcome.NotExecuted" />: an occurrence
-    /// that did not happen settles no continuation.
+    /// How the firing ended, which is what the job did rather than what the schedule makes of it.
+    /// Defaults to <see cref="ExecutionOutcome.NotExecuted" />: an occurrence that did not happen
+    /// settles no continuation.
     /// </summary>
     public ExecutionOutcome Outcome { get; init; } = ExecutionOutcome.NotExecuted;
 

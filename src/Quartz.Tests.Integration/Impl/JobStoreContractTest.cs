@@ -3021,16 +3021,23 @@ public abstract class JobStoreContractTest
     public async Task ARetryingParentLeavesItsContinuationsAwaiting()
     {
         IOperableTrigger parent = await GivenAFiredParent("retrying-parent");
-        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "still-waiting", ContinuationCondition.OnFailure);
+        IOperableTrigger onFailure = await GivenAContinuationOf(parent.Key, "still-waiting", ContinuationCondition.OnFailure);
+        IOperableTrigger onSuccess = await GivenAContinuationOf(parent.Key, "still-hoping", ContinuationCondition.OnSuccess);
 
-        // The occurrence failed and the trigger answered with another attempt, so how it ends is not
-        // known yet — the failure that reaches here is not the outcome, it is one attempt at it.
+        // The outcome a retrying firing carries is Failed — the job ran and it threw, which is what the
+        // run shell reports and what FiringOutcomeTest pins. What says the occurrence is not finished is
+        // the instruction, so this completion is the pair a store has to read together.
         parent.NextFireTimeUtc = DateTimeOffset.UtcNow.AddSeconds(30);
         await CompleteParent(parent, ExecutionOutcome.Failed, SchedulerInstruction.RetryTrigger);
 
-        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting,
-            "a retry settles nothing — the occurrence still has attempts left, and releasing or discarding now "
-            + "would act on a failure the trigger has not accepted");
+        (await Store.GetTriggerState(onFailure.Key)).Should().Be(TriggerState.Awaiting,
+            "a retry settles nothing — the occurrence still has attempts left, and releasing now would act "
+            + "on a failure the trigger has not accepted as final");
+
+        (await Store.GetTriggerState(onSuccess.Key)).Should().Be(TriggerState.Awaiting,
+            "and nothing is discarded either: a store gating on the outcome alone would see Failed and "
+            + "delete this one at the first hiccup, leaving the parent to succeed on its next attempt with "
+            + "nothing left to run afterwards");
     }
 
     [Test]

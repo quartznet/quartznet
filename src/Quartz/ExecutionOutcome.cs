@@ -29,9 +29,13 @@ namespace Quartz;
 /// release or discard the continuations waiting on that trigger.
 /// </para>
 /// <para>
-/// An occurrence being retried has no outcome yet: a failure the trigger's
-/// <see cref="ITrigger.RetryPolicy" /> answers with another attempt is still in flight, and only the
-/// attempt that ends it is classified.
+/// It says what the firing did, and nothing about what the schedule makes of it. A job that ran and
+/// threw is <see cref="Failed" /> whether or not the trigger's <see cref="ITrigger.RetryPolicy" />
+/// then asked for another attempt — that request is
+/// <see cref="SchedulerInstruction.RetryTrigger" />, on
+/// <see cref="Extensibility.TriggeredJobCompleteContext.Instruction" />, and it is what tells a store
+/// the occurrence is not finished. Settling continuations is skipped on that instruction rather than
+/// on the outcome, so a store reading the outcome alone never mistakes an attempt for a verdict.
 /// </para>
 /// </remarks>
 /// <seealso cref="ContinuationCondition" />
@@ -43,9 +47,14 @@ public enum ExecutionOutcome
     Succeeded,
 
     /// <summary>
-    /// The job threw, and the trigger had no retry left to take. Matches
-    /// <see cref="ContinuationCondition.OnFailure" />.
+    /// The job ran and threw. Matches <see cref="ContinuationCondition.OnFailure" />.
     /// </summary>
+    /// <remarks>
+    /// Reported for every failed run, the ones the trigger answers with a retry included: the job did
+    /// run and it did throw. What tells the two apart is
+    /// <see cref="Extensibility.TriggeredJobCompleteContext.Instruction" /> —
+    /// <see cref="SchedulerInstruction.RetryTrigger" /> when the occurrence has an attempt left.
+    /// </remarks>
     Failed,
 
     /// <summary>
