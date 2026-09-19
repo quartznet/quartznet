@@ -203,6 +203,22 @@ public class QueryEndpointsTest : WebApiTest
         error.Items.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// The cutoff has to reach the server, which is why the negative case is asserted first: a filter
+    /// dropped on the way across would answer with every trigger rather than with none.
+    /// </summary>
+    [Test]
+    public async Task QueryTriggersShouldFilterByNextFireTime()
+    {
+        PagedResult<TriggerHeader> none = await client.QueryTriggers(new TriggerQuery { NextFireTimeBefore = DateTimeOffset.UtcNow });
+        none.Items.Should().BeEmpty("every seeded trigger is due tomorrow, so none of them is overdue now");
+
+        PagedResult<TriggerHeader> all = await client.QueryTriggers(new TriggerQuery { NextFireTimeBefore = DateTimeOffset.UtcNow.AddDays(2) });
+        all.Items.Select(x => x.Key).Should().Equal(
+            [alphaTriggerOne, alphaTriggerTwo, alphaTriggerThree, alphaTriggerFour, betaTriggerOne, betaTriggerTwo],
+            "the instant crosses the wire round-tripped, so the server reads the moment the client meant");
+    }
+
     [Test]
     public async Task QueryTriggersShouldCombineFilters()
     {

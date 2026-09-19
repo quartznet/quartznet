@@ -91,6 +91,20 @@ public static class HostedServicesSamples
         #endregion
     }
 
+    public static void HealthCheckStaleFiring(IHostApplicationBuilder builder)
+    {
+        #region sample_hosted_health_check_stale_firing
+
+        builder.Services.AddHealthChecks().AddQuartz(options =>
+        {
+            // Degraded once a trigger is three misfire thresholds overdue, unhealthy at six.
+            // Off (null) by default: what counts as overdue is the application's to say.
+            options.StaleFiringTolerance = 3;
+        });
+
+        #endregion
+    }
+
     public static void NamedSchedulerHealthCheck(IHostApplicationBuilder builder)
     {
         #region sample_hosted_named_health_check

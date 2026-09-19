@@ -334,6 +334,12 @@ public partial class StdAdoDelegate
             parameters.Add(new KeyValuePair<string, object?>("calendarName", query.CalendarName));
         }
 
+        if (query.NextFireTimeBefore is { } nextFireBefore)
+        {
+            predicateBuilder.Append(StdAdoConstants.SqlTriggerNextFireBeforePredicate);
+            parameters.Add(new KeyValuePair<string, object?>(SqlParameters.NextFireBefore, GetDbDateTimeValue(nextFireBefore)));
+        }
+
         if (query.State is not null)
         {
             TriggerStateFilter filter = TriggerStateMapping.ToFilter(query.State.Value);

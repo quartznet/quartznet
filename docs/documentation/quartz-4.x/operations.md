@@ -912,7 +912,8 @@ The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`; it is opt-
 
 The check that ships with `Quartz` asserts three things: that the scheduler is in a state that can fire,
 that its job store answers a query, and — on a clustered scheduler — that this node is still checking
-in. It reports *healthy* for a running scheduler whose store
+in. A fourth, that nothing schedulable is badly overdue, is asked only when
+`StaleFiringTolerance` is set. It reports *healthy* for a running scheduler whose store
 responds, *degraded* for one in standby, and *unhealthy* for one that is shutting down, has shut down,
 or whose store threw. A scheduler still in `Created` depends on who was going to start it: *unhealthy*
 when the hosted service was going to and has not, and *degraded* when `AutoStart` is `false` and the
@@ -933,10 +934,17 @@ services.AddHealthChecks().AddQuartz(options => options.Tags.Add("ready"));
 
 Three limits are worth being deliberate about.
 
-**It does not assert that anything is firing.** A scheduler with an empty schedule, a paused group or a
-starved thread pool is healthy by this definition. Pair it with an alert on a job you expect to see
-regularly. `quartz.job.execution.duration` is the instrument to build it from — the alert is on its
-*count*, not its value, because a histogram that received no observations is the signal:
+**It does not assert that anything is firing, unless you ask it to.** A scheduler with an empty
+schedule, a paused group or a starved thread pool is healthy by this definition.
+`QuartzHealthCheckOptions.StaleFiringTolerance` — `null`, so off, unless set — narrows that: with it,
+a schedulable trigger overdue by more than that many of the store's own misfire thresholds is
+*degraded* and one twice as far behind is *unhealthy*, and the report names the trigger and the instant
+it was due. See
+[Saying that a scheduler has stopped firing](packages/hosted-services-integration.md#saying-that-a-scheduler-has-stopped-firing).
+It is a statement about the *queue*, not about a particular job, so pair it with an alert on a job you
+expect to see regularly. `quartz.job.execution.duration` is the instrument to build that from — the
+alert is on its *count*, not its value, because a histogram that received no observations is the
+signal:
 
 ```promql
 # no execution of the nightly close in the last 25 hours, on any node of the cluster
@@ -948,7 +956,9 @@ rather than in aggregate: a fleet that is busy hides one job that stopped. The i
 are in [Observability](packages/opentelemetry-integration.md#metrics) — including which of them are
 high-cardinality and should be dropped in a view before they reach the backend. Where the job is one
 whose *absence* is the incident rather than its lateness, the store is a second source: a trigger whose
-`NextFireTimeUtc` is far in the past, or one in `Error`, is a row you can query.
+`NextFireTimeUtc` is far in the past, or one in `Error`, is a row you can query —
+`new TriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff }` is that query, and it
+is the one the tolerance above issues.
 
 **It reports a node that has stopped checking in, and nothing else about the cluster.** A node whose
 cluster manager is wedged on the database while the rest of the process is fine still fires, still

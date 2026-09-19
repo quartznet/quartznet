@@ -1357,6 +1357,7 @@ namespace Quartz
         public double? ClusterCheckinTolerance { get; set; }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
         public string? Name { get; set; }
+        public double? StaleFiringTolerance { get; set; }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? StandbyStatus { get; set; }
         public System.Collections.Generic.List<string> Tags { get; }
     }
@@ -1926,6 +1927,7 @@ namespace Quartz
         public Quartz.GroupMatcher<Quartz.TriggerKey>? Group { get; init; }
         public Quartz.JobKey? Job { get; init; }
         public Quartz.NameMatcher<Quartz.TriggerKey>? Name { get; init; }
+        public System.DateTimeOffset? NextFireTimeBefore { get; init; }
         public Quartz.TriggerState? State { get; init; }
     }
     public enum TriggerState
