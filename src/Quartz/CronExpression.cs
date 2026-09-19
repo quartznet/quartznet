@@ -3115,6 +3115,46 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
     internal DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
     {
+        // The steady-state path is an integer walk over the field bitmasks at an offset read from a
+        // table, so it asks the time zone nothing. It answers only where it can prove the answer is
+        // the one below - inside a stretch of time the zone's offset is constant over and no
+        // transition comes within two days of - and leaves the result null everywhere else, so the
+        // body below is what every daylight-saving edge still runs. CronExpression.FastPath.cs
+        // carries that argument in full.
+        //
+        // The hook is an old-style partial method, whose call compiles away where no part implements
+        // it: Quartz.Analyzers links this file into a netstandard2.0 assembly so that a cron literal
+        // is read at build time by this parser rather than a second one, and links no fast path,
+        // because an analyzer computes no fire times.
+        DateTimeOffset? fast = null;
+        TryTimeAfterFast(afterTimeUtc, ref fast);
+        if (fast is not null)
+        {
+            return fast;
+        }
+
+        return GetTimeAfterSlow(afterTimeUtc);
+    }
+
+    /// <summary>
+    /// Answers <see cref="GetTimeAfter" /> without consulting the time zone, or leaves
+    /// <paramref name="result" /> null for the search to run <see cref="GetTimeAfterSlow" />.
+    /// Implemented in <c>CronExpression.FastPath.cs</c>, which is not part of every assembly this
+    /// file is compiled into.
+    /// </summary>
+    /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
+    /// <param name="result">The next fire time, when the fast path could compute it.</param>
+    partial void TryTimeAfterFast(DateTimeOffset afterTimeUtc, ref DateTimeOffset? result);
+
+    /// <summary>
+    /// The zone-resolving next-fire-time search: a walk in wall clock, then a resolution of the wall
+    /// clock it lands on against the configured <see cref="TimeZone" />. Every daylight-saving rule
+    /// <see cref="GetTimeAfter" /> documents lives here, and the fast path in front of it answers
+    /// only where this would answer the same.
+    /// </summary>
+    /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
+    internal DateTimeOffset? GetTimeAfterSlow(DateTimeOffset afterTimeUtc)
+    {
         // move ahead one second, since we're computing the time *after* the
         // given time
         afterTimeUtc = afterTimeUtc.AddSeconds(1);
@@ -3588,9 +3628,9 @@ internal sealed class CronField : IEnumerable<int>
     }
 
     /// <summary>
-    /// Returns the day-of-month values (1-31) as a bitmask, where bit <c>i</c>
-    /// set means day <c>i</c> is allowed. Only meaningful for the day-of-month
-    /// field; the '*'/'?' markers are flags and never produce bits.
+    /// Returns the field's values as a bitmask, where bit <c>i</c> set means value <c>i</c> is
+    /// allowed. Meaningful for either day field - day-of-month 1-31 and day-of-week 1-7 both fit
+    /// in a <see cref="uint" /> - and the '*'/'?' markers are flags, so they never produce bits.
     /// </summary>
     internal uint GetDayBits()
     {
