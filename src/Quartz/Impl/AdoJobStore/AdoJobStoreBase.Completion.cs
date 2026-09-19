@@ -132,6 +132,11 @@ internal abstract partial class AdoJobStoreBase
         IJobDetail jobDetail = context.JobDetail;
         SchedulerInstruction triggerInstructionCode = context.Instruction;
 
+        // Whether the trigger's row went, which also says that its fired rows went with it:
+        // DeleteTriggerAndChildren sweeps QRTZ_FIRED_TRIGGERS by trigger key, and this firing's row
+        // is one of them. Read after the transaction body below, where the delete branches set it.
+        bool triggerDeleted = false;
+
         await Guarded(
             async () =>
             {
@@ -145,10 +150,11 @@ internal abstract partial class AdoJobStoreBase
                 // known yet. That is the instruction's claim, not the outcome's — a job that ran and
                 // threw Failed whether or not the trigger asked for another attempt, so the gate
                 // names the instruction.
-                // Whether the scan above happened, which is what makes a second one — the one the
-                // deletion below would otherwise make — a round trip whose answer is already known to
-                // be empty. Settling leaves no row AWAITING for this parent: the ones its outcome
-                // named are WAITING or PAUSED, the rest are gone.
+                //
+                // Whether the scan happened is kept, because it is what makes the second one — the
+                // one the deletion below would otherwise make — a round trip whose answer is already
+                // known to be empty. Settling leaves no row AWAITING for this parent: the ones its
+                // outcome named are WAITING or PAUSED, the rest are gone.
                 bool continuationsSettled = false;
                 if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
                 {
@@ -164,12 +170,12 @@ internal abstract partial class AdoJobStoreBase
                         var header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                         if (header is not null && !header.NextFireTimeUtc.HasValue)
                         {
-                            await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
+                            triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
                         }
                     }
                     else
                     {
-                        await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
+                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
                         conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                     }
                 }
@@ -232,7 +238,7 @@ internal abstract partial class AdoJobStoreBase
                         // Read back rather than trusted, exactly as the DeleteTrigger branch above does:
                         // the trigger may have been rescheduled while the firing was in flight, and a
                         // trigger with a fire time ahead of it is nobody's leftover.
-                        await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
+                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -271,6 +277,14 @@ internal abstract partial class AdoJobStoreBase
                 }
             },
             "update trigger state(s)").ConfigureAwait(false);
+
+        // A completion that deleted the trigger has already deleted this row: the deletion sweeps
+        // QRTZ_FIRED_TRIGGERS by trigger key, which is a superset of the one entry id, and it did it
+        // in this very transaction. Asking again by entry id is a statement that matches nothing.
+        if (triggerDeleted)
+        {
+            return;
+        }
 
         await Guarded(
             () => Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId!, cancellationToken),
