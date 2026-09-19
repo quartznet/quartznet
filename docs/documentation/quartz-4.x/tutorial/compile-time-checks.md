@@ -44,7 +44,8 @@ look.
 Reported at every call that takes a cron expression string: `CronScheduleBuilder.Create`,
 `WithCronSchedule`, the `CronExpression` constructors, `CronExpression.Parse`, `TryParse`,
 `ParseWithHash`, `TryParseWithHash` and `ResolveHash`, the `CronCalendar` constructors and
-`CronTriggerImpl`'s.
+`CronTriggerImpl`'s — and at the one entry point that is not a call, the
+[`[CronTrigger]`](declaring-jobs-with-attributes.md) attribute a job declares its schedule with.
 
 ```csharp
 // error QZ0001: '0 0 12 * *' is not a valid cron expression: ... has 5 fields, but 6 or 7 are
@@ -155,4 +156,6 @@ Some things look checkable and are not, and each is left out for a reason rather
 
 The analyzer half of the 4.2 compile-time work is this page. The other half — attributes that declare a
 job's schedule where the job is written, and a source generator that registers them — is
-[issue #3804](https://github.com/quartznet/quartznet/issues/3804), and ships in the same project.
+[Declaring Jobs with Attributes](declaring-jobs-with-attributes.md), and ships in the same assembly.
+Its three diagnostics are `QZ1001`, `QZ1002` and `QZ1003`; the cron expression an attribute carries is
+read by `QZ0001` above.

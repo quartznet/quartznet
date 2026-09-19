@@ -1,5 +1,10 @@
 namespace Quartz.Examples.Worker;
 
+// The job says when it runs, where the job is written. The generator turns these two attributes into
+// the AddJob<ExampleJob> and AddTrigger<ExampleJob> calls that Program.cs used to spell by hand, and
+// q.AddDeclaredJobs() is what runs them.
+[QuartzJob(Name = "ExampleJob", Description = "my awesome declared job")]
+[CronTrigger("0/10 * * * * ?", Description = "my awesome declared trigger")]
 public class ExampleJob : IJob, IDisposable
 {
     private readonly ILogger<ExampleJob> logger;

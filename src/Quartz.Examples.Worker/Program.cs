@@ -47,21 +47,10 @@ builder.AddQuartz(q =>
         .WithDescription("my awesome trigger configured for a job with single call")
     );
 
-    // configure jobs with code
-    var jobKey = new JobKey("awesome job", "awesome group");
-    q.AddJob<ExampleJob>(j => j
-        .StoreDurably()
-        .WithIdentity(jobKey)
-        .WithDescription("my awesome job")
-    );
-
-    q.AddTrigger(t => t
-        .WithIdentity("Simple Trigger")
-        .ForJob(jobKey)
-        .StartNow()
-        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
-        .WithDescription("my awesome simple trigger")
-    );
+    // ExampleJob carries [QuartzJob] and [CronTrigger], so the job and its schedule are declared on
+    // the class rather than here. This one call adds every job this assembly declares that way; the
+    // registration it runs is generated at build time and is in obj/ to read.
+    q.AddDeclaredJobs();
 
     q.AddTriggerListener<TestTriggerListener>();
     q.AddJobListener<TestJobListener>();
