@@ -327,6 +327,18 @@ partial class Build
                     oracle: "NUMBER(13) NULL",
                     sqlite: "INTEGER NULL",
                     firebird: "INTEGER DEFAULT NULL"),
+                // The continuation columns are the trigger key columns made nullable — what they hold
+                // is a trigger key, so a name TRIGGER_NAME accepts has to fit here too. PostgreSQL
+                // therefore says TEXT rather than the VARCHAR(200) of the three columns above.
+                Text("CONTINUES_TRIGGER_NAME", 150, 200, required: false),
+                Text("CONTINUES_TRIGGER_GROUP", 150, 200, required: false),
+                Column("CONTINUATION_CONDITION",
+                    sqlServer: "int NULL",
+                    postgres: "INTEGER NULL",
+                    mysql: "INTEGER NULL",
+                    oracle: "NUMBER(13) NULL",
+                    sqlite: "INTEGER NULL",
+                    firebird: "INTEGER DEFAULT NULL"),
                 Blob("JOB_DATA", required: false),
             ],
             new SchemaForeignKey(JobKey, "JOB_DETAILS", JobKey, Cascade: false, OracleName: "TRIGGER_TO_JOBS_FK")),
