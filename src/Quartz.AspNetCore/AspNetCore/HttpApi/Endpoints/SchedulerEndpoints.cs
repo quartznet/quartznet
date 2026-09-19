@@ -324,6 +324,8 @@ internal static class SchedulerEndpoints
     /// <para>
     /// <c>schedulerInstanceId</c> narrows to one node of a cluster; <c>jobContains</c> and
     /// <c>triggerContains</c> match a key's group, its name, or the two joined as <c>group.name</c>.
+    /// <c>failedFinally=true</c> narrows to the executions that failed and were not retried — the
+    /// occurrences that gave up — and <c>failedFinally=false</c> to everything else.
     /// </para>
     /// </remarks>
     [ProducesResponseType(typeof(PagedResultDto<ExecutionHistoryEntryDto>), StatusCodes.Status200OK)]
@@ -338,6 +340,7 @@ internal static class SchedulerEndpoints
         string? schedulerInstanceId = null,
         string? jobContains = null,
         string? triggerContains = null,
+        bool? failedFinally = null,
         CancellationToken cancellationToken = default)
     {
         int? takeItems = endpointHelper.ParsePaging(skip, take);
@@ -351,6 +354,7 @@ internal static class SchedulerEndpoints
                 SchedulerInstanceId = schedulerInstanceId,
                 JobContains = jobContains,
                 TriggerContains = triggerContains,
+                FailedFinally = failedFinally,
                 Skip = skip,
                 IncludeTotalCount = includeTotalCount
             };

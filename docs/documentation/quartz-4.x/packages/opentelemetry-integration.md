@@ -130,7 +130,7 @@ job cannot carry a `traceparent` forward into its next firing.
 
 ## Metrics
 
-Ten instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
+Eleven instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
 `quartz.scheduler.id`** — the name says which scheduler, the id says which node of it, and a cluster is
 several nodes sharing one name.
 
@@ -148,6 +148,7 @@ reading anything.
 | `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the same identity attributes, `quartz.execution.group`¹ | How many jobs are running right now. |
 | `quartz.trigger.misfire` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Firings that were owed and did not happen on time. |
 | `quartz.trigger.retry` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Retries the scheduler scheduled after a job failed — counted per retry scheduled, not per attempt configured, so a policy that is never used contributes nothing. |
+| `quartz.trigger.retries_exhausted` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Failed occurrences whose retry policy ran out — counted once per occurrence that gave up, never per attempt. The same attributes as `quartz.trigger.retry`, so the two divide. |
 | `quartz.trigger.acquisition.duration` | `Histogram<double>` | `s` | — | How long the scheduling loop waited on its store for the next batch. |
 | `quartz.trigger.acquired` | `Counter<long>` | `{trigger}` | — | How many triggers those rounds came back with. |
 | `quartz.cluster.checkin.duration` | `Histogram<double>` | `s` | `error.type`² | How long a cluster check-in took. Recorded per attempt, so a retried one is two measurements. |
@@ -171,7 +172,7 @@ warning that goes with it is event 3716 — [Log Events](../log-events.md) — a
 [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
 
 The two cluster instruments and the lock-wait histogram come from the ADO.NET store, which is the only
-clustered one. The other seven are store-agnostic.
+clustered one. The other eight are store-agnostic.
 
 ### Reading the numbers
 
@@ -236,7 +237,7 @@ and `AddMeter(QuartzInstrumentation.MeterName)`. There is no package to install:
 What is lost with the package is its `QuartzInstrumentationOptions.TracedOperations` filter. Subscribing
 directly records both `Quartz.Job.Execute` and `Quartz.Job.Veto`; drop one with an OpenTelemetry
 [processor or a sampler](https://opentelemetry.io/docs/languages/dotnet/) if a vetoed fire is not worth a
-span to you. What is gained is everything 4.0 added — the store spans and all ten instruments — none
+span to you. What is gained is everything 4.0 added — the store spans and all eleven instruments — none
 of which the package knows about.
 
 ## Older packages

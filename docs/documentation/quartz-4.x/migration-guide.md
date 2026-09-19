@@ -70,6 +70,13 @@ do rather than read: see [The 4.2 schema migration](#the-4-2-schema-migration) b
 | `IPersistentStoreBuilder.UseExecutionHistory()` | Keeps this scheduler's execution history in its own database, so a cluster has one history rather than one per node. A **default interface member** that registers the store, so an `IPersistentStoreBuilder` implemented outside this repository compiles unchanged. Needs two tables `4.2/add_execution_history_<db>.sql` creates — see [The execution history tables](#the-execution-history-tables) |
 | `AdoJobStoreOptions.ExecutionHistory` | `bool`, `false`. What `UseExecutionHistory()` sets, and the whole of what the schema check reads: the two history tables are probed at startup only when this says they are in use. The flat key is `quartz.jobStore.executionHistory` |
 | `AdoConstants.TableExecutionHistory`, `TableMisfireHistory`, `ColumnRunTime`, `ColumnSucceeded`, `ColumnErrorMessage`, `ColumnMisfireTime` | The names of the two tables and the four columns that are not shared with `QRTZ_FIRED_TRIGGERS`. `AdoConstants` is where every table and column name lives, whichever delegate writes to it |
+| `IJobExecutionContext.Outcome`, `IJobExecutionContext.RetryScheduled` | How the firing ended, and whether the trigger answered it with another attempt. Both **default interface members** — `ExecutionOutcome.Succeeded` and `false` — so a context implemented outside this repository compiles unchanged. The scheduler writes them before the completion notifications go out, so `JobWasExecuted` and `TriggerComplete` read what happened. `JobExecutionContextImpl` declares both |
+| `ITriggerListener.TriggerRetriesExhausted` | Raised once per failed occurrence whose retry policy has run out, between `JobWasExecuted` and `TriggerComplete`, with the last attempt's context and what it threw. A **default interface member** that does nothing, so a listener written against 4.0 or 4.1 compiles and behaves as it did. Never raised for a failure that is being retried, nor for a trigger with no policy |
+| `RetryPolicy.Exponential(maxAttempts, initialDelay, factor, maxDelay, jitter)`, `RetryPolicy.Jitter` | Jitter on an exponential backoff: each wait is multiplied by a value drawn uniformly from `[1 − jitter, 1 + jitter]`, bounded by `maxDelay` and never below zero. A **new overload with all five arguments required**, not a fifth optional parameter on the four-argument one, whose signature every 4.0 and 4.1 caller is compiled against. The stored form gains a `;j<value>` token **only when the jitter is not zero**, so a policy without it stores byte for byte what it always stored — and a trigger that does carry jitter cannot be read by a node older than 4.2. See [Retrying Failed Jobs](how-tos/retrying-failed-jobs.md#give-the-trigger-a-policy) |
+| `ExecutionHistoryEntry.RetryAttempt`, `ExecutionHistoryEntry.RetryScheduled` | Which attempt at the occurrence a recorded execution was, and whether another was scheduled. Non-positional `init` properties, so the record's constructor is unchanged. `DashboardHistoryEntry` gains the same two, and `ExecutionHistoryEntryDto` carries them over the wire |
+| `ExecutionHistoryQuery.FailedFinally`, `DashboardHistoryQuery.FailedFinally` | `bool?`, `null` — lists everything. `true` lists the executions that failed and were not retried, `false` everything else. A question `Succeeded` alone cannot ask: a job under a policy of three writes four failed rows for one bad night. The HTTP API takes it as `failedFinally` on `GET …/history/executions` and `HttpScheduler` sends it |
+| `QuartzInstrumentation.Instruments.TriggerRetriesExhausted` | `quartz.trigger.retries_exhausted`, a `Counter<long>` of `{trigger}` under the same attributes `quartz.trigger.retry` carries, so the two divide. The eleventh instrument |
+| `AdoConstants.ColumnRetryScheduled` | `RETRY_SCHEDULED`, on `QRTZ_EXECUTION_HISTORY` beside the `RETRY_ATTEMPT` the same table now carries. Both are part of the optional `4.2/add_execution_history_<db>.sql` — see [The execution history tables](#the-execution-history-tables) |
 | `IThreadPool.TryRunWithState` | Dispatches work with a piece of state to hand it — `TryRunWithState(Func<object?, ValueTask> action, object? state, CancellationToken)` — as a **default interface member**, so a pool implemented outside this repository compiles unchanged and behaves as it did. The default body closes over the pair and calls `TryRun`, which is what the scheduler's loop used to do itself; `TaskSchedulingThreadPool` overrides it, and the loop now dispatches through a static delegate with the run shell as state, so a firing allocates no closure, no delegate and no state machine for the wrapper. It is a new name rather than a `TryRun` overload because the public-API baseline marks a default implementation per member *name*, and a second `TryRun` would label the abstract one a default implementation |
 | `QuartzDashboardOptions.AttachStore(target, store, configure)` | Points the dashboard at a database, so that every scheduler found in it is shown as a **window**: a never-started scheduler over the same store, discovered rather than registered. `store` is the same `IPersistentStoreBuilder` callback `UsePersistentStore` takes and must be the cluster's own. See [Store-attached targets](packages/dashboard.md#store-attached-targets) |
 | `AttachStoreOptions` | What `AttachStore`'s third argument configures: `RediscoveryInterval`, a `TimeSpan?` defaulting to one minute, or `null` to ask once |
@@ -172,6 +179,35 @@ waiting on that firing exactly where they are. So the order is: run the migratio
 `ProvisionSchema()` does not help: it creates missing tables and never adds a column to one that
 exists. A fresh install from `database/tables/` already has the columns. See
 [Database Schema Changes](../database/schema-changes.md#version-4-2).
+
+### A retry policy that gives up says so
+
+Running out of attempts used to be silent: the trigger went back to its ordinary schedule, nothing was
+raised, and a listener could only work it out by comparing `TriggerComplete`'s instruction against
+`SchedulerInstruction.RetryTrigger` and knowing what the trigger's policy said. Four things now say it,
+and none of them changes what the scheduler does.
+
+* **The context says it.** `IJobExecutionContext.Outcome` and `IJobExecutionContext.RetryScheduled` are
+  written before the completion notifications, so a job listener can tell an attempt from a verdict.
+* **A trigger listener is told once.** `ITriggerListener.TriggerRetriesExhausted`, between
+  `JobWasExecuted` and `TriggerComplete`.
+* **The history records it.** Every row carries `RetryAttempt` and `RetryScheduled`, and
+  `ExecutionHistoryQuery.FailedFinally` selects the occurrences that gave up. The dashboard's History
+  page has the filter and a **Run again** button on each of those rows.
+* **A counter counts it.** `quartz.trigger.retries_exhausted`, under the attributes
+  `quartz.trigger.retry` carries.
+
+And a fifth thing is new on the way in rather than on the way out: `RetryPolicy.Exponential` takes a
+`jitter`, so triggers that failed together do not come back together.
+[Retrying Failed Jobs](how-tos/retrying-failed-jobs.md#when-the-policy-gives-up) is the reader-facing
+form of all of it.
+
+One behaviour changed to make this work, and it is a correction:
+`IJobExecutionContext.RetryAttempt` is now the attempt the job **just made**. It used to read the
+trigger's field live, and `ExecutionComplete` writes that field on its way out — advancing it on a
+firing being retried and zeroing it on one that has settled — so a listener reading it saw the attempt
+about to be made, or nothing at all. A job reading it inside `Execute` is unaffected: the value is the
+same one it always was.
 
 ### The execution history tables
 

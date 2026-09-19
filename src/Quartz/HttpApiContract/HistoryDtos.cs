@@ -40,6 +40,19 @@ internal sealed record ExecutionHistoryEntryDto(
     bool Succeeded,
     string? ExceptionMessage)
 {
+    /// <summary>
+    /// Which attempt at the occurrence this was, and whether another one was scheduled.
+    /// </summary>
+    /// <remarks>
+    /// Non-positional, so the constructor is unchanged: a host that predates them sends neither, and
+    /// they read back as <c>0</c> and <see langword="false" /> — which is what an execution with no
+    /// retry policy behind it is anyway.
+    /// </remarks>
+    public int RetryAttempt { get; init; }
+
+    /// <inheritdoc cref="RetryAttempt" />
+    public bool RetryScheduled { get; init; }
+
     public static ExecutionHistoryEntryDto Create(ExecutionHistoryEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -54,7 +67,11 @@ internal sealed record ExecutionHistoryEntryDto(
             Duration: entry.Duration,
             Succeeded: entry.Succeeded,
             ExceptionMessage: entry.ExceptionMessage
-        );
+        )
+        {
+            RetryAttempt = entry.RetryAttempt,
+            RetryScheduled = entry.RetryScheduled
+        };
     }
 
     /// <param name="schedulerName">
@@ -73,7 +90,11 @@ internal sealed record ExecutionHistoryEntryDto(
             Duration,
             Succeeded,
             ExceptionMessage
-        );
+        )
+        {
+            RetryAttempt = RetryAttempt,
+            RetryScheduled = RetryScheduled
+        };
     }
 }
 

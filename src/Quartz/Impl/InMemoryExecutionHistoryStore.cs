@@ -93,6 +93,13 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
                 MatchesFilter(x.TriggerGroup, x.TriggerName, normalizedTriggerFilter));
         }
 
+        if (query.FailedFinally is { } failedFinally)
+        {
+            // A failure the trigger answered with another attempt is not a final one, so it belongs
+            // with the rest rather than with the occurrences that gave up.
+            filtered = filtered.Where(x => (!x.Succeeded && !x.RetryScheduled) == failedFinally);
+        }
+
         return new ValueTask<PagedResult<ExecutionHistoryEntry>>(
             Page(filtered.OrderByDescending(static entry => entry.FiredAtUtc).ToList(), query));
     }

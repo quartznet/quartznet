@@ -103,7 +103,14 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 FiredAtUtc: context.FireTimeUtc,
                 Duration: context.JobRunTime,
                 Succeeded: jobException is null,
-                ExceptionMessage: jobException?.Message);
+                ExceptionMessage: jobException?.Message)
+            {
+                // Both are the scheduler's own reading of the firing that has just ended, published on
+                // the context before this notification went out. Together they are what lets a reader
+                // tell one attempt of an occurrence from its last one.
+                RetryAttempt = context.RetryAttempt,
+                RetryScheduled = context.RetryScheduled
+            };
 
             return store.AddExecution(entry, cancellationToken);
         }

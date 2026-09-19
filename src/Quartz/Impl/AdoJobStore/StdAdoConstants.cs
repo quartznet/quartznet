@@ -1227,13 +1227,13 @@ internal static class StdAdoConstants
     // -----------------------------------------------------------------------------------------
 
     public static readonly string SqlInsertExecutionHistory =
-        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage})");
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage}, @{SqlParameters.HistoryRetryAttempt}, @{SqlParameters.HistoryRetryScheduled})");
 
     public static readonly string SqlInsertMisfireHistory =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableMisfireHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnMisfireTime}, {AdoConstants.ColumnScheduledTime}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.MisfireTime}, @{SqlParameters.ScheduledTime})");
 
     public static readonly string SqlSelectExecutionHistory =
-        Invariant($"SELECT {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+        Invariant($"SELECT {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
 
     public static readonly string SqlCountExecutionHistory =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
@@ -1250,6 +1250,28 @@ internal static class StdAdoConstants
 
     public static readonly string SqlHistoryNodePredicate =
         Invariant($" AND {AdoConstants.ColumnInstanceName} = @{SqlParameters.HistoryNode}");
+
+    /// <summary>
+    /// The executions that failed and were not retried — the occurrences that gave up.
+    /// </summary>
+    /// <remarks>
+    /// Both halves are compared against parameters rather than literals, because a dialect's
+    /// <see langword="false" /> is a <c>bit</c>, a <c>boolean</c>, a <c>NUMBER(1)</c> or a
+    /// <c>CHAR(1)</c> depending on who is asked, and <c>GetDbBooleanValue</c> is what knows which.
+    /// Two names rather than one bound twice, so a dialect that binds by position still gets one
+    /// parameter per placeholder.
+    /// </remarks>
+    public static readonly string SqlExecutionHistoryFailedFinally =
+        Invariant($" AND {AdoConstants.ColumnSucceeded} = @{SqlParameters.Succeeded} AND {AdoConstants.ColumnRetryScheduled} = @{SqlParameters.HistoryRetryScheduled}");
+
+    /// <summary>
+    /// Its complement: the successes, and the failures that are going to be tried again.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="SqlExecutionHistoryFailedFinally" path="/remarks" />
+    /// </remarks>
+    public static readonly string SqlExecutionHistoryNotFailedFinally =
+        Invariant($" AND ({AdoConstants.ColumnSucceeded} = @{SqlParameters.Succeeded} OR {AdoConstants.ColumnRetryScheduled} = @{SqlParameters.HistoryRetryScheduled})");
 
     /// <summary>
     /// The age bound, applied to a read as well as by the sweep — a scheduler that has stopped running

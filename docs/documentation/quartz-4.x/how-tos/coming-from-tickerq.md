@@ -166,6 +166,11 @@ retry with it, and any node can run the attempt. What you give up is that the ar
 trigger's next scheduled occurrence — a ten-minute wait on a five-minute schedule quietly does nothing.
 That rule and the rest are [Retrying Failed Jobs](retrying-failed-jobs.md).
 
+When the attempts run out, TickerQ records the ticker as failed and Quartz puts the trigger back on its
+ordinary schedule — but it says so first, through
+[`ITriggerListener.TriggerRetriesExhausted`, a log event, a counter and a history row marked as
+final](retrying-failed-jobs.md#when-the-policy-gives-up).
+
 ### Concurrency has two settings, and one of them can be the cluster's
 
 `MaxConcurrency` in `ConfigureScheduler` is how much this process runs at once; `maxConcurrency` on

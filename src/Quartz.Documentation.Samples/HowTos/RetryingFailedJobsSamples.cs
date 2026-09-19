@@ -133,6 +133,110 @@ public sealed class RetryingFailedJobsSamples
 
     #endregion
 
+    public static void AJitteredRetryPolicy(IHostApplicationBuilder builder)
+    {
+        #region sample_retry_jitter
+
+        builder.Services.AddQuartz(q =>
+        {
+            q.AddJob<ImportJob>(j => j.WithIdentity("import", "nightly"));
+            q.AddTrigger<ImportJob>(t => t
+                .ForJob("import", "nightly")
+                .WithCronSchedule("0 0 2 * * ?")
+                // The same backoff as above, spread by a fifth either way: the first retry lands
+                // between 24 and 36 seconds after the failure, the second between 48 and 72, and so
+                // on. A hundred triggers that failed on the same outage come back at a hundred
+                // different instants instead of all at once.
+                .WithRetryPolicy(RetryPolicy.Exponential(
+                    maxAttempts: 5,
+                    initialDelay: TimeSpan.FromSeconds(30),
+                    factor: 2,
+                    maxDelay: TimeSpan.FromMinutes(10),
+                    jitter: 0.2)));
+        });
+
+        #endregion
+    }
+
+    #region sample_retry_listener_gave_up
+
+    /// <summary>
+    /// Raises an alert when an occurrence has run out of retries, and says nothing while it is still
+    /// trying.
+    /// </summary>
+    public sealed class GaveUpListener : ITriggerListener
+    {
+        private readonly ILogger<GaveUpListener> logger;
+
+        public GaveUpListener(ILogger<GaveUpListener> logger)
+        {
+            this.logger = logger;
+        }
+
+        public ValueTask TriggerRetriesExhausted(
+            ITrigger trigger,
+            IJobExecutionContext context,
+            JobExecutionException exception,
+            CancellationToken cancellationToken = default)
+        {
+            // context.RetryAttempt is how many retries this occurrence spent before giving up, and
+            // context.RetryScheduled is false: there is no further attempt coming.
+            logger.LogError(
+                exception,
+                "{Job} gave up after {Attempts} retries; the occurrence scheduled for {Scheduled} never succeeded",
+                context.JobDetail.Key,
+                context.RetryAttempt,
+                context.ScheduledFireTimeUtc);
+
+            return default;
+        }
+    }
+
+    #endregion
+
+    public static void RegisteringTheListener(IHostApplicationBuilder builder)
+    {
+        #region sample_retry_listener_registration
+
+        builder.Services.AddQuartz(q =>
+        {
+            q.AddTriggerListener<GaveUpListener>(Matchers.AllTriggers());
+        });
+
+        #endregion
+    }
+
+    #region sample_retry_reading_the_outcome
+
+    /// <summary>
+    /// A job listener that tells an attempt from a verdict, which before 4.2 only a trigger listener
+    /// could do — and only by comparing an instruction against <c>RetryTrigger</c>.
+    /// </summary>
+    public sealed class OutcomeReadingListener : IJobListener
+    {
+        private readonly ILogger<OutcomeReadingListener> logger;
+
+        public OutcomeReadingListener(ILogger<OutcomeReadingListener> logger)
+        {
+            this.logger = logger;
+        }
+
+        public ValueTask JobWasExecuted(
+            IJobExecutionContext context,
+            JobExecutionException? jobException,
+            CancellationToken cancellationToken = default)
+        {
+            if (context.Outcome == ExecutionOutcome.Failed && !context.RetryScheduled)
+            {
+                logger.LogError("{Job} failed for the last time", context.JobDetail.Key);
+            }
+
+            return default;
+        }
+    }
+
+    #endregion
+
     public static async ValueTask ChangingThePolicyOfAStoredTrigger(IScheduler scheduler, CancellationToken cancellationToken)
     {
         #region sample_retry_update_stored_trigger

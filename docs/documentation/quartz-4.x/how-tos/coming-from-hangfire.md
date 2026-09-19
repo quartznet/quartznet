@@ -264,8 +264,11 @@ deserve the same patience. And a policy is a property of the stored trigger, so 
 and is visible to every node: a node that dies during a five-minute backoff does not take the retry
 with it, which is not true of an in-process wait.
 
-Quartz's waits are exactly what the policy says, with no jitter. Jitter, and a signal when a policy has
-given up, are [#3807](https://github.com/quartznet/quartznet/issues/3807) and are scheduled for 4.2.
+Quartz's waits are exactly what the policy says unless the policy asks for jitter, which `Exponential`
+takes as a fifth argument and which spreads each wait the way Hangfire's does. And when a policy runs
+out, Quartz says so: `ITriggerListener.TriggerRetriesExhausted`, a log event, a counter and a history
+row marked as final — with the dashboard's *Run again* button on it, which is Hangfire's requeue. See
+[When the policy gives up](retrying-failed-jobs.md#when-the-policy-gives-up).
 
 The rest of what a retry does and does not do — that it never displaces the trigger's own next
 occurrence, that running out of attempts is not an error, that it burns no repeat count — is

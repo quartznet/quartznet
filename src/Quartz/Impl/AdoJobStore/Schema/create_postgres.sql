@@ -192,6 +192,8 @@ CREATE TABLE IF NOT EXISTS {0}execution_history (
   run_time bigint not null,
   succeeded bool not null,
   error_message text null,
+  retry_attempt integer not null default 0,
+  retry_scheduled bool not null default false,
   primary key (sched_name,entry_id)
 );
 --;;

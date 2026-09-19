@@ -8,6 +8,8 @@
 @inject SchedulerState Scheduler
 @inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
 
 <div class="qz-page">
     <h1>Execution History</h1>
@@ -41,6 +43,17 @@
                     {
                         <option value="@node">@node</option>
                     }
+                </select>
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="history-outcome-filter">Outcome</label>
+                @* Applies on its own, as the node dropdown does. *@
+                <select id="history-outcome-filter"
+                        class="qz-select"
+                        value="@_appliedOutcomeFilter"
+                        @onchange="OnOutcomeFilterChangedAsync">
+                    <option value="">All outcomes</option>
+                    <option value="@FailedFinallyFilter">Failed after retries</option>
                 </select>
             </div>
         </div>
@@ -97,6 +110,10 @@
                     <th>Duration</th>
                     <th>Status</th>
                     <th>Error</th>
+                    @if (!IsReadOnly)
+                    {
+                        <th>Actions</th>
+                    }
                 </tr>
             </thead>
             <tbody>
@@ -108,8 +125,22 @@
                         <td class="qz-table-cell-mono qz-history-node">@NodeLabel(entry.SchedulerInstanceId)</td>
                         <td>@FormatFiredAt(entry.FiredAtUtc)</td>
                         <td>@FormatDurationValue(entry.Duration)</td>
-                        <td><StateIndicator State="@(entry.Succeeded ? "Complete" : "Error")" /></td>
+                        <td><StateIndicator State="@StatusLabel(entry)" /></td>
                         <td>@entry.ExceptionMessage</td>
+                        @if (!IsReadOnly)
+                        {
+                            <td>
+                                @* Only on a final failure. A row the trigger is going to retry already
+                                   has another attempt coming, and a button here would add a second one. *@
+                                @if (FailedFinally(entry))
+                                {
+                                    <button type="button"
+                                            class="qz-button qz-button-primary"
+                                            data-testid="history-run-again"
+                                            @onclick="() => RunAgainAsync(entry)">Run again</button>
+                                }
+                            </td>
+                        }
                     </tr>
                 }
             </tbody>
@@ -192,8 +223,18 @@
     private string _appliedJobFilter = string.Empty;
     private string _appliedTriggerFilter = string.Empty;
     private string _appliedNodeFilter = string.Empty;
+    private string _appliedOutcomeFilter = string.Empty;
     private readonly List<DashboardMisfireEntry> _misfires = [];
     private bool _misfiresUnavailable;
+
+    /// <summary>
+    /// The one outcome the dropdown and the <c>outcome</c> query parameter name.
+    /// </summary>
+    /// <remarks>
+    /// A word rather than a boolean in the URL, so the parameter can gain another value — "cancelled",
+    /// say — without the links already written meaning something different.
+    /// </remarks>
+    private const string FailedFinallyFilter = "failed";
 
     /// <summary>
     /// Whether this scheduler's history is somewhere this page cannot read — a scheduler in another
@@ -233,15 +274,24 @@
     public string? NodeFilterQuery { get; set; }
 
     [Parameter]
+    [SupplyParameterFromQuery(Name = "outcome")]
+    public string? OutcomeFilterQuery { get; set; }
+
+    [Parameter]
     [SupplyParameterFromQuery(Name = "page")]
     public int? PageQuery { get; set; }
 
     private bool HasFilters =>
         !string.IsNullOrWhiteSpace(_appliedJobFilter) ||
         !string.IsNullOrWhiteSpace(_appliedTriggerFilter) ||
-        HasNodeFilter;
+        HasNodeFilter ||
+        HasOutcomeFilter;
 
     private bool HasNodeFilter => !string.IsNullOrWhiteSpace(_appliedNodeFilter);
+
+    private bool HasOutcomeFilter => string.Equals(_appliedOutcomeFilter, FailedFinallyFilter, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
 
     protected override Task OnInitializedAsync()
     {
@@ -257,6 +307,7 @@
         string requestedJobFilter = (JobFilterQuery ?? string.Empty).Trim();
         string requestedTriggerFilter = (TriggerFilterQuery ?? string.Empty).Trim();
         string requestedNodeFilter = (NodeFilterQuery ?? string.Empty).Trim();
+        string requestedOutcomeFilter = NormalizeOutcome(OutcomeFilterQuery);
         int requestedPage = Math.Max(1, PageQuery ?? 1);
 
         _jobFilter = requestedJobFilter;
@@ -264,6 +315,7 @@
         _appliedJobFilter = requestedJobFilter;
         _appliedTriggerFilter = requestedTriggerFilter;
         _appliedNodeFilter = requestedNodeFilter;
+        _appliedOutcomeFilter = requestedOutcomeFilter;
         _page = requestedPage;
 
         await LoadDataAsync();
@@ -426,6 +478,9 @@
         SchedulerInstanceId = NormalizedNodeFilter(),
         JobFilter = _appliedJobFilter,
         TriggerFilter = _appliedTriggerFilter,
+        // Only ever true or absent: the dropdown offers the failures nobody is going to retry, and
+        // "everything but those" is not a page an operator opens this listing to read.
+        FailedFinally = HasOutcomeFilter ? true : null,
         Skip = Math.Max(0, page - 1) * _pageSize,
         Take = _pageSize,
         IncludeTotalCount = true
@@ -447,34 +502,40 @@
 
     private async Task OnPageChangedAsync(int page)
     {
-        await UpdateQueryStateAsync(page, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter);
+        await UpdateQueryStateAsync(page, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter);
     }
 
     private Task ApplyFiltersAsync()
     {
-        return UpdateQueryStateAsync(1, _jobFilter, _triggerFilter, _appliedNodeFilter);
+        return UpdateQueryStateAsync(1, _jobFilter, _triggerFilter, _appliedNodeFilter, _appliedOutcomeFilter);
     }
 
     private Task OnNodeFilterChangedAsync(ChangeEventArgs args)
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, args.Value?.ToString() ?? string.Empty);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, args.Value?.ToString() ?? string.Empty, _appliedOutcomeFilter);
+    }
+
+    private Task OnOutcomeFilterChangedAsync(ChangeEventArgs args)
+    {
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, args.Value?.ToString() ?? string.Empty);
     }
 
     private Task ClearFiltersAsync()
     {
         _jobFilter = string.Empty;
         _triggerFilter = string.Empty;
-        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty);
+        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty, string.Empty);
     }
 
-    private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter, string nodeFilter)
+    private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter, string nodeFilter, string outcomeFilter)
     {
         int normalizedPage = Math.Max(1, page);
         string normalizedJobFilter = jobFilter.Trim();
         string normalizedTriggerFilter = triggerFilter.Trim();
         string normalizedNodeFilter = nodeFilter.Trim();
+        string normalizedOutcomeFilter = NormalizeOutcome(outcomeFilter);
 
-        string updatedPath = BuildHistoryRelativeUri(normalizedPage, normalizedJobFilter, normalizedTriggerFilter, normalizedNodeFilter);
+        string updatedPath = BuildHistoryRelativeUri(normalizedPage, normalizedJobFilter, normalizedTriggerFilter, normalizedNodeFilter, normalizedOutcomeFilter);
 
         // Not Navigation.ToBaseRelativePath: it compares ordinally and throws when the browser URL
         // casing differs from the base URI casing (server-side route matching is case-insensitive,
@@ -486,6 +547,7 @@
             _appliedJobFilter = normalizedJobFilter;
             _appliedTriggerFilter = normalizedTriggerFilter;
             _appliedNodeFilter = normalizedNodeFilter;
+            _appliedOutcomeFilter = normalizedOutcomeFilter;
             return LoadDataAsync();
         }
 
@@ -509,7 +571,21 @@
             && leftQuery.SequenceEqual(rightQuery);
     }
 
-    private string BuildHistoryRelativeUri(int page, string jobFilter, string triggerFilter, string nodeFilter)
+    /// <summary>
+    /// The <c>outcome</c> parameter as the page holds it: the one value it knows, or nothing.
+    /// </summary>
+    /// <remarks>
+    /// A value nobody recognises reads as no filter rather than as an empty page, which is what a
+    /// hand-edited URL or a link from a future version would otherwise produce.
+    /// </remarks>
+    private static string NormalizeOutcome(string? value)
+    {
+        return string.Equals(value?.Trim(), FailedFinallyFilter, StringComparison.OrdinalIgnoreCase)
+            ? FailedFinallyFilter
+            : string.Empty;
+    }
+
+    private string BuildHistoryRelativeUri(int page, string jobFilter, string triggerFilter, string nodeFilter, string outcomeFilter)
     {
         List<string> queryParts = [];
         if (page > 1)
@@ -532,6 +608,11 @@
             queryParts.Add("node=" + Uri.EscapeDataString(nodeFilter));
         }
 
+        if (!string.IsNullOrWhiteSpace(outcomeFilter))
+        {
+            queryParts.Add("outcome=" + Uri.EscapeDataString(outcomeFilter));
+        }
+
         if (queryParts.Count == 0)
         {
             return DashboardLink.To(Options.Value, "history");
@@ -544,7 +625,67 @@
     {
         string jobPart = string.IsNullOrWhiteSpace(_appliedJobFilter) ? "Any job" : "Job: " + _appliedJobFilter;
         string triggerPart = string.IsNullOrWhiteSpace(_appliedTriggerFilter) ? "Any trigger" : "Trigger: " + _appliedTriggerFilter;
-        return jobPart + " · " + triggerPart + " · Node: " + NodeScopeLabel();
+        string outcomePart = HasOutcomeFilter ? "Failed after retries" : "Any outcome";
+        return jobPart + " · " + triggerPart + " · Node: " + NodeScopeLabel() + " · " + outcomePart;
+    }
+
+    /// <summary>
+    /// Whether the row is an occurrence's last word: it failed, and the trigger did not answer with
+    /// another attempt.
+    /// </summary>
+    private static bool FailedFinally(DashboardHistoryEntry entry) => !entry.Succeeded && !entry.RetryScheduled;
+
+    /// <summary>
+    /// What the status column says, which is three answers rather than two.
+    /// </summary>
+    /// <remarks>
+    /// A failure the trigger is going to retry is not the same event as one it has given up on, and a
+    /// page that called both "Error" made a job under a retry policy look three times as broken as it
+    /// was.
+    /// </remarks>
+    private static string StatusLabel(DashboardHistoryEntry entry)
+    {
+        if (entry.Succeeded)
+        {
+            return "Complete";
+        }
+
+        return entry.RetryScheduled ? "Failed (retrying)" : "Failed";
+    }
+
+    /// <summary>
+    /// Fires the row's job again, by hand.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IQuartzApiClient.TriggerJob" />, which is the same mutation the
+    /// jobs listing's <em>Trigger now</em> is — so it is recorded in the action log under the same
+    /// name, and refused in the same place when the dashboard is read-only. It carries no job data
+    /// map: a history row records that an execution happened, not the merged map it ran with, and
+    /// inventing one here would fire the job with data it was never given.
+    /// </remarks>
+    private async Task RunAgainAsync(DashboardHistoryEntry entry)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        string target = DisplayValueHelper.FormatKey(entry.JobGroup, entry.JobName);
+
+        try
+        {
+            await Api.TriggerJob(schedulerName, new JobKeyDto(entry.JobGroup, entry.JobName));
+            ActionLog.Record(schedulerName, "TriggerJob", target, succeeded: true);
+            Toasts.Success("Triggered job " + target + ".");
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, "TriggerJob", target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+        }
     }
 
     /// <summary>

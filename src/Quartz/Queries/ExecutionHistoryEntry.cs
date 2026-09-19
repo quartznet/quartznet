@@ -49,4 +49,28 @@ public sealed record ExecutionHistoryEntry(
     DateTimeOffset FiredAtUtc,
     TimeSpan Duration,
     bool Succeeded,
-    string? ExceptionMessage);
+    string? ExceptionMessage)
+{
+    /// <summary>
+    /// Which attempt at the occurrence this execution was: <c>0</c> on the regular fire, <c>n</c> on
+    /// the <c>n</c>-th retry under the trigger's <see cref="ITrigger.RetryPolicy" />.
+    /// </summary>
+    /// <remarks>
+    /// A non-positional <c>init</c> property, so the record's constructor is unchanged and a store
+    /// written against 4.1 still compiles. <c>0</c> for every execution of a trigger with no policy,
+    /// which is the default.
+    /// </remarks>
+    public int RetryAttempt { get; init; }
+
+    /// <summary>
+    /// Whether the trigger answered this failure with another attempt, so the occurrence was not
+    /// finished when this row was written.
+    /// </summary>
+    /// <remarks>
+    /// This is what tells a row that says "failed, and will be tried again" from one that says
+    /// "failed, and that was the last word". A row with <see cref="Succeeded" /> false and this false
+    /// is a <em>final</em> failure — which is what <see cref="ExecutionHistoryQuery.FailedFinally" /> selects
+    /// and what the dashboard offers to run again.
+    /// </remarks>
+    public bool RetryScheduled { get; init; }
+}
