@@ -50,8 +50,9 @@ namespace Quartz.Extensibility;
 /// does, not a spelling of a thing it already does.
 /// </para>
 /// <para>
-/// Only <see cref="Drain" /> has a default implementation, and that is because it arrived after the
-/// others: a pool written against the earlier interface is left correct rather than fast.
+/// Only <see cref="Drain" /> and <see cref="TryRunWithState" /> have default implementations, and that
+/// is because each arrived after the others: a pool written against the earlier interface is left
+/// correct rather than fast.
 /// </para>
 /// </remarks>
 /// <author>James House</author>
@@ -102,6 +103,44 @@ public interface IThreadPool
     /// <returns><see langword="true" /> if the work was scheduled; otherwise, <see langword="false" />
     /// (the pool has been shut down or was never initialized).</returns>
     ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Schedules the given work to run as soon as the pool's concurrency rules allow it, handing it
+    /// <paramref name="state" /> when it runs.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same thing <see cref="TryRun" /> does, for a caller that has something to give the work
+    /// item. The scheduler's loop is such a caller and dispatches through this: a closure over the
+    /// firing costs a display class, a delegate and the state machine of the lambda that awaits it on
+    /// every firing, which the #3802 profile put at 91 bytes of closure and 75 of delegate. A static
+    /// delegate and the firing as state cost neither.
+    /// </para>
+    /// <para>
+    /// The name is not an overload of <see cref="TryRun" /> on purpose: the public-API baseline marks
+    /// a default implementation per member <em>name</em>, so a second <c>TryRun</c> would label the
+    /// abstract one a default implementation and quietly weaken what the baseline promises.
+    /// </para>
+    /// <para>
+    /// The default implementation closes over the two arguments and calls <see cref="TryRun" />, which
+    /// is exactly what the caller used to do — so a pool written before this member existed is left
+    /// correct rather than fast. Override it to take the saving.
+    /// </para>
+    /// </remarks>
+    /// <param name="action">The work to run.</param>
+    /// <param name="state">What to hand the work when it runs.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns><see langword="true" /> if the work was scheduled; otherwise, <see langword="false" />
+    /// (the pool has been shut down or was never initialized).</returns>
+    ValueTask<bool> TryRunWithState(Func<object?, ValueTask> action, object? state, CancellationToken cancellationToken = default)
+    {
+        if (action is null)
+        {
+            return new ValueTask<bool>(false);
+        }
+
+        return TryRun(() => action(state), cancellationToken);
+    }
 
     /// <summary>
     /// Called by the QuartzScheduler to inform the thread pool

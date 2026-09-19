@@ -57,6 +57,13 @@ internal sealed class QuartzSchedulerThread
 
     private readonly ConcurrentDictionary<string, int> runningExecutionGroupCounts = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// What the thread pool is handed for every firing, with the run shell as its state. Static, so a
+    /// dispatch closes over nothing.
+    /// </summary>
+    private static readonly Func<object?, ValueTask> runJobRunShell =
+        static state => ((JobRunShell) state!).Run(CancellationToken.None);
+
     private readonly CancellationTokenSource cancellationTokenSource = new();
 
     /// <summary>
@@ -598,28 +605,21 @@ internal sealed class QuartzSchedulerThread
                             // a moment to land, because the store refuses a completion once it has closed.
                             qs.ExecutionDispatched();
 
-                            Func<ValueTask> jobRunner = async () =>
-                            {
-                                try
-                                {
-                                    await shell.Run(CancellationToken.None).ConfigureAwait(false);
-                                }
-                                finally
-                                {
-                                    DecrementExecutionGroupCount(normalizedGroup);
-                                    qs.ExecutionSettled();
-                                }
-                            };
+                            // The shell gives the two counts above back in its own finally, rather than
+                            // this loop wrapping the call to it in a lambda that does — which cost a
+                            // closure, a delegate and a state machine on every firing (#3802).
+                            shell.DispatchedBy(this, normalizedGroup);
 
                             // Deliberately not this thread's token: TriggersFired has already committed
                             // this firing to the job store and advanced the trigger, so refusing to dispatch
                             // now loses the occurrence entirely. Only the pool's own shutdown may say no —
                             // and a shutdown stops this loop before it closes the pool, so that a firing
                             // this thread has already committed is never one nobody runs (#3746).
-                            var threadPoolRunResult = await qsRsrcs.ThreadPool.TryRun(jobRunner, CancellationToken.None).ConfigureAwait(false);
+                            var threadPoolRunResult = await qsRsrcs.ThreadPool
+                                .TryRunWithState(runJobRunShell, shell, CancellationToken.None).ConfigureAwait(false);
                             if (!threadPoolRunResult)
                             {
-                                // The lambda never ran - decrement the counts we pre-incremented
+                                // The shell never ran - decrement the counts we pre-incremented
                                 DecrementExecutionGroupCount(normalizedGroup);
                                 qs.ExecutionSettled();
 
@@ -702,6 +702,16 @@ internal sealed class QuartzSchedulerThread
         }
 
         return delay;
+    }
+
+    /// <summary>
+    /// What a dispatched firing calls when it ends: the execution-group count and the scheduler's
+    /// in-flight tally this loop took before handing it over are both given back.
+    /// </summary>
+    internal void ExecutionFinished(string normalizedGroup)
+    {
+        DecrementExecutionGroupCount(normalizedGroup);
+        qs.ExecutionSettled();
     }
 
     private void DecrementExecutionGroupCount(string normalizedGroup)

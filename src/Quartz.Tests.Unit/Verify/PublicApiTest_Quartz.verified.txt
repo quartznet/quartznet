@@ -2252,6 +2252,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.ValueTask> action, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> TryRunWithState(System.Func<object?, System.Threading.Tasks.ValueTask> action, object? state, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default);
     }
     public interface ITypeLoader
@@ -3625,6 +3626,7 @@ namespace Quartz.Impl
         public virtual System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.ValueTask> action, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> TryRunWithState(System.Func<object?, System.Threading.Tasks.ValueTask> action, object? state, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ZeroSizeThreadPool : Quartz.Extensibility.IThreadPool

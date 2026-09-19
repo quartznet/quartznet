@@ -244,7 +244,20 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// <returns>
     /// <see langword="true"/> if the task was successfully scheduled; otherwise, <see langword="false"/>.
     /// </returns>
-    public async ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
+    public ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
+    {
+        if (action is null)
+        {
+            return new ValueTask<bool>(false);
+        }
+
+        // The delegate is static and the caller's own delegate is the state, so forwarding costs
+        // nothing beyond the call.
+        return TryRunWithState(static state => ((Func<ValueTask>) state!)(), action, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> TryRunWithState(Func<object?, ValueTask> action, object? state, CancellationToken cancellationToken = default)
     {
         if (action is null || !isInitialized || shutdownToken.IsCancellationRequested)
         {
@@ -285,13 +298,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // over it and a ContinueWith to do the accounting — 584 bytes a dispatch and two extra thread
         // hand-offs, which the #3802 profile put at the top of the fire path's allocation. The work
         // item awaits the action itself and does the same accounting in its own finally, so the
-        // scheduler is handed one task and the cached delegate above; the action is the state.
+        // scheduler is handed one task, the cached delegate above, and the pair below.
         try
         {
 #pragma warning disable MA0134
             // Nothing to observe: the work item catches everything the action can throw, so the task
             // this hands back cannot fault, and its completion is not what the pool waits on.
-            _ = Task.Factory.StartNew(runWorkItem, action, CancellationToken.None, TaskCreationOptions.None, Scheduler);
+            _ = Task.Factory.StartNew(runWorkItem, new WorkItem(action, state), CancellationToken.None, TaskCreationOptions.None, Scheduler);
 #pragma warning restore MA0134
         }
         catch (TaskSchedulerException e)
@@ -318,7 +331,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // precisely because it is discarded: one that completes synchronously is the cached completed
         // Task and costs nothing, and one that does not is the single state-machine box either shape
         // allocates.
-        _ = RunAndSignal((Func<ValueTask>) state!);
+        _ = RunAndSignal((WorkItem) state!);
 #pragma warning restore MA0134
     }
 
@@ -326,11 +339,11 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// Runs one work item and, whatever becomes of it, decrements the number of running tasks and
     /// releases the concurrency semaphore so that more tasks may begin running.
     /// </summary>
-    private async Task RunAndSignal(Func<ValueTask> action)
+    private async Task RunAndSignal(WorkItem item)
     {
         try
         {
-            await action().ConfigureAwait(false);
+            await item.Action(item.State).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -353,6 +366,23 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// Decrements the number of running tasks and releases the concurrency semaphore so that more
     /// tasks may begin running.
     /// </summary>
+    /// <summary>
+    /// One dispatch's work and what to hand it, which is all the task scheduler is given beyond the
+    /// pool's cached delegate.
+    /// </summary>
+    private sealed class WorkItem
+    {
+        internal WorkItem(Func<object?, ValueTask> action, object? state)
+        {
+            Action = action;
+            State = state;
+        }
+
+        internal Func<object?, ValueTask> Action { get; }
+
+        internal object? State { get; }
+    }
+
     private void SignalWorkItemComplete()
     {
         concurrencySemaphore.Release();
