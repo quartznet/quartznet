@@ -27,6 +27,76 @@ list, which is the property that makes the target worth having; see `Program.cs`
 Release is not optional. BenchmarkDotNet refuses a non-optimized assembly, and a smoke run of one
 would prove nothing.
 
+## Profiling
+
+A benchmark says what something costs; a profile says where the cost is. BenchmarkDotNet is the wrong
+thing to attach a sampling profiler to — a process per case, a pilot deciding how many invocations an
+iteration gets, and its own machinery in every stack — so the workloads worth profiling are also
+reachable as plain runs of this assembly, with the harness out of the way. `--help` lists them:
+
+| Switch | What it runs |
+|---|---|
+| `--profile-fire` | `FireThroughputBenchmark`'s workload at `MaxConcurrency` 10 on `RAMJobStore`, for ~25 s |
+| `--profile-cron` | `CronExpressionComparisonBenchmark.Next100`, for ~20 s |
+| `--profile-schedule` | `ScheduleJobBenchmark`'s simple arm, clearing the store every 50,000, for ~20 s |
+| `--latency` | The schedule-to-execute probe: one job scheduled for now on an idle scheduler, 200 times |
+
+Each is a whole run and takes no other arguments, as `--smoke` does. Each prints what it got through
+when it ends, so a capture can be checked against the rate the benchmark reports rather than assumed
+to have measured the same thing. Nothing in CI runs any of them.
+
+Build Release and profile the built exe rather than `dotnet run`, which would put MSBuild in the
+trace. This project sets `UseArtifactsOutput` to `false`, so the exe is where it has always been:
+
+```shell
+dotnet build -c Release src/Quartz.Benchmark/Quartz.Benchmark.csproj
+
+# ultra (xoofx/ultra), from an elevated shell — ETW needs it
+ultra profile -o fire --delay 3 -- src/Quartz.Benchmark/bin/Release/net10.0/Quartz.Benchmark.exe --profile-fire
+```
+
+`--delay 3` skips the startup and the first JIT, which for `--profile-fire` also skips the scheduler
+being built and the two thousand triggers being scheduled. The result is a Firefox Profiler capture,
+readable at <https://profiler.firefox.com> or through the UltraMcp tools.
+
+**Without an elevated shell ETW is not available at all**, and EventPipe is the fallback. It takes two
+captures rather than one, because the two providers answer different questions and each distorts the
+other:
+
+```shell
+# where the time goes
+dotnet-trace collect --providers "Microsoft-DotNETCore-SampleProfiler:::SampleProfilerIntervalInMs=1" \
+  -o fire-cpu.nettrace -- src/Quartz.Benchmark/bin/Release/net10.0/Quartz.Benchmark.exe --profile-fire
+dotnet-trace convert fire-cpu.nettrace --format speedscope
+
+# what it allocates, by type
+dotnet-trace collect --profile gc-verbose \
+  -o fire-gc.nettrace -- src/Quartz.Benchmark/bin/Release/net10.0/Quartz.Benchmark.exe --profile-fire
+```
+
+The speedscope conversion keeps sample events and nothing else, so it is for the first capture only;
+read the second as `.nettrace`, in PerfView's GC Heap Alloc view or through
+`Microsoft.Diagnostics.Tracing.TraceEvent`. `GCAllocationTick` fires once per ~100 KB and names the
+type that crossed the threshold, so a type's share of the ticks estimates its share of the bytes, and
+`[MemoryDiagnoser]`'s total is what turns that share into bytes per operation.
+
+Two corrections a capture needs before it is ranked, whichever profiler took it:
+
+- **The allocation-tick tax.** `ultra` enables the CLR GC keyword at Verbose, so every
+  `GCAllocationTick` fires an ETW event with a stack walk. At the fire path's rate that is a large
+  share of the trace and it distorts the category split as well as the function ranking: subtract the
+  `adjust_limit_clr` → `fire_etw_allocation_event` subtree first, then read `module_breakdown`.
+- **Parked threads and GC polls, on an EventPipe capture.** The sampler ticks every managed thread
+  whether it is running or waiting, so a raw sum makes an idle worker the hottest code in the process:
+  drop the intervals whose innermost real frame is a park primitive. It also catches a thread it
+  cannot walk past at `Thread.<PollGC>g__PollGCWorker`, which was 11 % of a `--profile-fire` capture
+  and 43 % of a `--profile-cron` one; drop those and renormalise, as #3802's report does.
+
+The measurements these switches were written for are on
+[#3802](https://github.com/quartznet/quartznet/issues/3802), which is where the profile per surface,
+the top frames and the per-firing allocation attribution live. Numbers belong there and in the pull
+requests that act on them rather than here, until a change lands that moves one of the tables below.
+
 ## Cron and RAMJobStore reference numbers (2026-08-30, AMD Ryzen 9 5950X)
 
 Taken on `a620fc632` to answer #3538. TickerQ publishes a comparison putting
@@ -107,6 +177,11 @@ store that started empty, each under a fresh identity, through a scheduler that 
 | ScheduleJob_CronTrigger   | 10.479 us | 0.7597 us |      5 KB |
 
 Against the published 3.14 table: simple 4.4 µs / 2.3 KB, cron 31 µs / 38.7 KB.
+
+**These two rows were taken with unequal fixtures**, which #3802 found and fixed: the cron arm put one
+entry in the job data map and the simple arm put none, so part of the gap between them was a
+dictionary rather than a schedule. Both arms carry the entry now, and the `ScheduleJob_SimpleTrigger`
+row above is therefore the older, lighter fixture. The cron row is unaffected.
 
 ### The repository's own cron suite
 

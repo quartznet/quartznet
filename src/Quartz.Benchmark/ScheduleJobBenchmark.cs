@@ -34,6 +34,13 @@ namespace Quartz.Benchmark;
 /// iteration lasts that long.
 /// </para>
 /// <para>
+/// <b>The two fixtures are equal apart from the schedule.</b> Both arms put the same one entry in the
+/// job data map; until #3802 the cron arm carried it and the simple arm did not, which put a
+/// dictionary's worth of allocation on one side of a pair whose difference is supposed to be the
+/// trigger. The rows taken before that are not comparable with the rows taken after on the simple
+/// side; <c>README.md</c> says which is which.
+/// </para>
+/// <para>
 /// The two cases that build a job and a trigger without storing either are in
 /// <see cref="JobAndTriggerBuilderBenchmark" />, because they are nanosecond-scale and do not want any
 /// of this.
@@ -52,7 +59,23 @@ public class ScheduleJobBenchmark
     /// hundred milliseconds rather than the microsecond BenchmarkDotNet warns about, and few enough
     /// that the store it fills stays a size a real scheduler reaches.
     /// </summary>
-    private const int SchedulesPerInvocation = 50_000;
+    /// <remarks>
+    /// Internal rather than private because <c>--profile-schedule</c> loops this same invocation and
+    /// reports the rate it got through, which it cannot do without knowing how many one invocation is.
+    /// </remarks>
+    internal const int SchedulesPerInvocation = 50_000;
+
+    /// <summary>
+    /// The one entry both arms put in their job data map.
+    /// </summary>
+    /// <remarks>
+    /// It is on both because the two rows are read as a pair and the only difference between them is
+    /// meant to be the schedule the trigger carries. The published comparison puts it on its cron case
+    /// alone, which this reproduced until #3802's profile had to attribute the gap: an entry in the map
+    /// is a dictionary allocated and filled in the builder, cloned into the store and cloned again on
+    /// every firing, so an arm that carries one is not measuring the same call as an arm that does not.
+    /// </remarks>
+    private static readonly (string Key, string Value) jobData = ("message", "hello");
 
     /// <summary>
     /// How far out the simple trigger's single fire is. Long enough that nothing fires while an
@@ -104,6 +127,7 @@ public class ScheduleJobBenchmark
 
             IJobDetail job = JobBuilder.Create<NoOpJob>()
                 .WithIdentity($"simple-job-{id}", Group)
+                .UsingJobData(jobData.Key, jobData.Value)
                 .Build();
 
             ITrigger trigger = TriggerBuilder.Create()
@@ -124,7 +148,7 @@ public class ScheduleJobBenchmark
 
             IJobDetail job = JobBuilder.Create<NoOpJob>()
                 .WithIdentity($"cron-job-{id}", Group)
-                .UsingJobData("message", "hello")
+                .UsingJobData(jobData.Key, jobData.Value)
                 .Build();
 
             ITrigger trigger = TriggerBuilder.Create()
