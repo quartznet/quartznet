@@ -79,6 +79,15 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
                 string? retryPolicy = rootElement.GetPropertyOrNull(options.GetPropertyName("RetryPolicy"))?.GetString();
                 abstractTrigger.RetryPolicy = RetryPolicy.TryParse(retryPolicy, out RetryPolicy? parsed) ? parsed : null;
                 abstractTrigger.RetryAttempt = rootElement.GetPropertyOrNull(options.GetPropertyName("RetryAttempt"))?.GetInt32() ?? 0;
+
+                // The triple the triggers table holds, and absent from payloads written before a
+                // trigger could wait for another one: no parent name reads back as Continuation.None,
+                // which is exactly a trigger that waits for nothing.
+                JsonElement? condition = rootElement.GetPropertyOrNull(options.GetPropertyName("ContinuationCondition"));
+                abstractTrigger.Continuation = Continuation.FromStored(
+                    rootElement.GetPropertyOrNull(options.GetPropertyName("ContinuesAfterTriggerName"))?.GetString(),
+                    rootElement.GetPropertyOrNull(options.GetPropertyName("ContinuesAfterTriggerGroup"))?.GetString(),
+                    condition is { ValueKind: JsonValueKind.Number } number ? number.GetInt32() : null);
             }
 
             triggerSerializer.DeserializeFields(trigger, rootElement, options);
@@ -121,6 +130,21 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
                 // out of a blob and one read out of the row carry the same value in the same shape.
                 writer.WriteString(options.GetPropertyName("RetryPolicy"), abstractTrigger.RetryPolicy?.ToStoredString());
                 writer.WriteNumber(options.GetPropertyName("RetryAttempt"), abstractTrigger.RetryAttempt);
+
+                // What the trigger waits for travels as the triple the triggers table holds, so a
+                // trigger read out of a blob and one read out of the row carry the same value in the
+                // same shape.
+                Continuation continuation = abstractTrigger.Continuation;
+                writer.WriteString(options.GetPropertyName("ContinuesAfterTriggerName"), continuation.Parent?.Name);
+                writer.WriteString(options.GetPropertyName("ContinuesAfterTriggerGroup"), continuation.Parent?.Group);
+                if (continuation.StoredCondition is { } condition)
+                {
+                    writer.WriteNumber(options.GetPropertyName("ContinuationCondition"), condition);
+                }
+                else
+                {
+                    writer.WriteNull(options.GetPropertyName("ContinuationCondition"));
+                }
             }
 
             // The pin travels as the pair the triggers table holds - the node name (or the auto-pin

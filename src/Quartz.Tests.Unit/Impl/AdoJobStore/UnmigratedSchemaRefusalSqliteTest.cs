@@ -196,21 +196,43 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     /// </summary>
     /// <remarks>
     /// Without it every case here would pass against a store that refused everything, and the migration
-    /// script is what the messages tell the reader to run — so this is also the claim that following
-    /// them works.
+    /// scripts are what the messages tell the reader to run — so this is also the claim that following
+    /// them works. Both of them: 4.2 added three columns, and the message names that script too.
     /// </remarks>
     [Test]
-    public async Task TheMigrationTheMessageNamesIsTheOneThatMakesTheSchemaStart()
+    public async Task TheMigrationsTheMessageNamesAreTheOnesThatMakeTheSchemaStart()
     {
         Install320Schema();
-        ApplyMigration();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
 
         Func<Task> act = async () => await (await GetScheduler(
-            nameof(TheMigrationTheMessageNamesIsTheOneThatMakesTheSchemaStart), provision: true)).Shutdown();
+            nameof(TheMigrationsTheMessageNamesAreTheOnesThatMakeTheSchemaStart), provision: true)).Shutdown();
 
         await act.Should().NotThrowAsync(
-            "the 4.0 migration is what turns a 3.20 database into one 4.x validates, which is the whole "
+            "the migrations are what turn a 3.20 database into one 4.x validates, which is the whole "
             + "of what the two messages above ask the reader to do");
+    }
+
+    /// <summary>
+    /// A database created by 4.0 or 4.1 is missing only what 4.2 added, and the refusal says so
+    /// without sending the reader through the 3.x upgrade they do not need.
+    /// </summary>
+    [Test]
+    public async Task A41SchemaIsRefusedForTheColumnsFourTwoAdded()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+
+        SchedulerException failure = await StartAndCatch(nameof(A41SchemaIsRefusedForTheColumnsFourTwoAdded));
+
+        MessagesOf(failure).Should().ContainMatch($"*{AdoConstants.ColumnContinuesTriggerName}*",
+            "every trigger 4.2 stores names all three columns, so a database without them fails on the "
+            + "first write rather than at startup unless startup probes for them");
+
+        failure.Message.Should().Contain("database/migrations/4.2/add_continuations_sqlite.sql",
+            "the reader of this message has a 4.0 or 4.1 database and needs one script, which the "
+            + "message names beside the one they have already run");
     }
 
     private void Install320Schema()
@@ -220,20 +242,20 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     }
 
     /// <summary>
-    /// Runs <c>database/migrations/4.0/schema_30_to_40_upgrade_sqlite.sql</c> the way its own header
-    /// tells a SQLite reader on a partly-migrated database to run it.
+    /// Runs one of the SQLite migration scripts the way its own header tells a reader on a
+    /// partly-migrated database to run it.
     /// </summary>
     /// <remarks>
-    /// SQLite has no conditional DDL for <c>ADD COLUMN</c>, so that script is the one dialect's that
-    /// says NOT IDEMPOTENT and tells a reader whose database took some of the optional 3.x migrations
-    /// to "check PRAGMA table_info(&lt;table&gt;) and apply only the sections whose columns are
-    /// absent". A 3.20 database took all of them, so this does exactly that check and nothing else —
-    /// the same shim <c>MigrationScriptTest</c> carries, for the same reason.
+    /// SQLite has no conditional DDL for <c>ADD COLUMN</c>, so its scripts are the ones that say NOT
+    /// IDEMPOTENT and tell a reader whose database took some of the optional 3.x migrations to "check
+    /// PRAGMA table_info(&lt;table&gt;) and apply only the sections whose columns are absent". A 3.20
+    /// database took all of them, so this does exactly that check and nothing else — the same shim
+    /// <c>MigrationScriptTest</c> carries, for the same reason.
     /// </remarks>
-    private void ApplyMigration()
+    private void ApplyMigration(string version, string fileName)
     {
         string script = File.ReadAllText(
-            RepositoryFile("database", "migrations", "4.0", "schema_30_to_40_upgrade_sqlite.sql"));
+            RepositoryFile("database", "migrations", version, fileName));
 
         // Comments first: they carry semicolons of their own, and splitting on those would cut a
         // sentence in half and hand the fragment to SQLite as a statement.

@@ -424,12 +424,17 @@ public partial class StdAdoDelegate
     /// </remarks>
     private TriggerHeader ReadTriggerHeader(DbDataReader rs)
     {
+        Continuation continuation = Continuation.FromStored(
+            rs.IsDBNull(16) ? null : rs.GetString(16),
+            rs.IsDBNull(17) ? null : rs.GetString(17),
+            rs.IsDBNull(18) ? null : Convert.ToInt32(rs.GetValue(18), CultureInfo.InvariantCulture));
+
         return new TriggerHeader(
             new TriggerKey(rs.GetString(0), rs.GetString(1)),
             new JobKey(rs.GetString(2), rs.GetString(3)),
             rs.IsDBNull(4) ? null : rs.GetString(4),
             rs.GetString(5),
-            TriggerStateMapping.ToTriggerState(rs.GetString(6), Convert.ToInt32(rs.GetValue(16), CultureInfo.InvariantCulture) != 0),
+            TriggerStateMapping.ToTriggerState(rs.GetString(6), Convert.ToInt32(rs.GetValue(19), CultureInfo.InvariantCulture) != 0),
             GetDateTimeFromDbValue(rs.GetValue(7)) ?? DateTimeOffset.MinValue,
             GetDateTimeFromDbValue(rs.GetValue(8)),
             GetDateTimeFromDbValue(rs.GetValue(9)),
@@ -438,7 +443,11 @@ public partial class StdAdoDelegate
             Convert.ToInt32(rs.GetValue(12), CultureInfo.InvariantCulture),
             rs.IsDBNull(13) ? null : rs.GetString(13),
             rs.IsDBNull(14) ? null : rs.GetString(14),
-            rs.IsDBNull(15) ? 0 : Convert.ToInt32(rs.GetValue(15), CultureInfo.InvariantCulture));
+            rs.IsDBNull(15) ? 0 : Convert.ToInt32(rs.GetValue(15), CultureInfo.InvariantCulture))
+        {
+            ContinuesAfter = continuation.Parent,
+            ContinuationCondition = continuation.IsNone ? null : continuation.When
+        };
     }
 
     /// <inheritdoc />

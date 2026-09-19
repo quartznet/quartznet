@@ -471,7 +471,8 @@ public class StdAdoDelegateGroupMatcherTest
             AdoConstants.StatePaused,
             AdoConstants.StatePausedBlocked,
             AdoConstants.StateError,
-            AdoConstants.StateDeleted
+            AdoConstants.StateDeleted,
+            AdoConstants.StateAwaiting
         ]);
     }
 
@@ -492,7 +493,8 @@ public class StdAdoDelegateGroupMatcherTest
             AdoConstants.StatePaused,
             AdoConstants.StatePausedBlocked,
             AdoConstants.StateError,
-            AdoConstants.StateDeleted
+            AdoConstants.StateDeleted,
+            AdoConstants.StateAwaiting
         ]);
     }
 
@@ -524,10 +526,12 @@ public class StdAdoDelegateGroupMatcherTest
         header.Key.Should().Be(new TriggerKey("trigger1", "group1"));
         header.State.Should().Be(expected);
 
-        // The retry columns sit between the execution group and the computed flag, so reading them
-        // from the wrong place is the same mistake as reading the flag from the wrong place.
+        // The retry and continuation columns sit between the execution group and the computed flag, so
+        // reading them from the wrong place is the same mistake as reading the flag from the wrong place.
         header.RetryPolicy.Should().Be("fixed;3;00:00:30");
         header.RetryAttempt.Should().Be(2);
+        header.ContinuesAfter.Should().Be(new TriggerKey("parent", "parentGroup"));
+        header.ContinuationCondition.Should().Be(ContinuationCondition.OnFailure);
     }
 
     [Test]
@@ -728,7 +732,9 @@ public class StdAdoDelegateGroupMatcherTest
             [6] = triggerState,
             [11] = "calendar",
             [13] = "executionGroup",
-            [14] = "fixed;3;00:00:30"
+            [14] = "fixed;3;00:00:30",
+            [16] = "parent",
+            [17] = "parentGroup"
         };
 
         DbDataReader reader = A.Fake<DbDataReader>();
@@ -747,7 +753,8 @@ public class StdAdoDelegateGroupMatcherTest
         {
             [12] = 5,
             [15] = 2,
-            [16] = executingFlag
+            [18] = (int) ContinuationCondition.OnFailure,
+            [19] = executingFlag
         };
 
         A.CallTo(() => reader.GetString(A<int>._)).ReturnsLazily((int i) => strings[i]);

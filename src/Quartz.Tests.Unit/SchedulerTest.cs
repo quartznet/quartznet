@@ -712,6 +712,59 @@ public class SchedulerTest
     }
 
     [Test]
+    public async Task TheOneLinerCanBeToldToWaitForAnotherFiringInsteadOfATime()
+    {
+        await using IScheduler scheduler = await NewScheduler(nameof(TheOneLinerCanBeToldToWaitForAnotherFiringInsteadOfATime));
+
+        ScheduledOneOffJob first = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
+
+        ScheduledOneOffJob next = await scheduler.ScheduleJob<ReminderJob, Reminder>(
+            new Reminder("second"),
+            Continuation.After(first.TriggerKey));
+
+        (await scheduler.GetTriggerState(next.TriggerKey)).Should().Be(TriggerState.Awaiting,
+            "there is no time argument because the time is the parent's completion, and until then the "
+            + "firing waits in the store");
+
+        ITrigger stored = await scheduler.GetTrigger(next.TriggerKey);
+        stored.Continuation.Should().Be(Continuation.After(first.TriggerKey));
+        stored.JobDataMap[SchedulerConstants.JobInput].Should().Be("""{"Note":"second"}""",
+            "a continuation carries its payload the way every other one-liner firing does");
+    }
+
+    [Test]
+    public async Task TheOneLinerCombinesAContinuationWithTheRestOfTheOptions()
+    {
+        await using IScheduler scheduler = await NewScheduler(nameof(TheOneLinerCombinesAContinuationWithTheRestOfTheOptions));
+
+        ScheduledOneOffJob first = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
+
+        ScheduledOneOffJob next = await scheduler.ScheduleJob<ReminderJob, Reminder>(
+            new Reminder("second"),
+            Continuation.After(first.TriggerKey, ContinuationCondition.OnFailure),
+            new OneOffJobOptions { Name = "cleanup", Group = "orders" });
+
+        next.TriggerKey.Should().Be(new TriggerKey("cleanup", "orders"),
+            "the overload takes the options as well, so a continuation needs no second call to be named");
+
+        (await scheduler.GetTrigger(next.TriggerKey)).Continuation.When
+            .Should().Be(ContinuationCondition.OnFailure);
+    }
+
+    [Test]
+    public async Task TheOneLinerRefusesAContinuationThatNamesNoParent()
+    {
+        await using IScheduler scheduler = await NewScheduler(nameof(TheOneLinerRefusesAContinuationThatNamesNoParent));
+
+        Func<Task> waitingForNothing = async () =>
+            await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), Continuation.None);
+
+        await waitingForNothing.Should().ThrowAsync<ArgumentException>(
+            "this overload exists to say what the firing waits for, and 'nothing' is what the overloads "
+            + "taking a time are for");
+    }
+
+    [Test]
     public async Task TheOneLinerRunsTheJobWithItsPayload()
     {
         ReminderJob.Reset();

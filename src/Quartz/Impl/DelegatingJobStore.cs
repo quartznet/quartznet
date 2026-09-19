@@ -416,6 +416,12 @@ public class DelegatingJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    public virtual ValueTask FiringComplete(TriggeredJobCompleteContext context, CancellationToken cancellationToken = default)
+    {
+        return jobStore.FiringComplete(context, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount)
     {
         return jobStore.GetAcquireRetryDelay(failureCount);

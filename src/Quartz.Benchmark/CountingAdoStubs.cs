@@ -327,6 +327,9 @@ internal static class TriggerRows
         AdoConstants.ColumnPreferredNodeAuto,
         AdoConstants.ColumnRetryPolicy,
         AdoConstants.ColumnRetryAttempt,
+        AdoConstants.ColumnContinuesTriggerName,
+        AdoConstants.ColumnContinuesTriggerGroup,
+        AdoConstants.ColumnContinuationCondition,
         AdoConstants.ColumnTriggerName,
         AdoConstants.ColumnTriggerGroup
     ];
@@ -368,6 +371,9 @@ internal static class TriggerRows
         DBNull.Value,
         DBNull.Value,
         0,
+        DBNull.Value,
+        DBNull.Value,
+        DBNull.Value,
         name,
         "g1"
     ];

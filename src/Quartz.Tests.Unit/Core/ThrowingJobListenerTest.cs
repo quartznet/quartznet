@@ -191,9 +191,9 @@ public sealed class ThrowingJobListenerTest
                 "the listener throws after the job, so the job has to have run for this test to prove anything");
 
             store.Completions.Entries.Should().Equal(
-                [new CompletedFiring(once.Key, job.Key, SchedulerInstruction.DeleteTrigger)],
+                [new CompletedFiring(once.Key, job.Key, SchedulerInstruction.DeleteTrigger, ExecutionOutcome.Succeeded)],
                 "the trigger decided it was finished before any listener was told, and that verdict is not "
-                + "the failed listener's to overturn");
+                + "the failed listener's to overturn — nor is the outcome, which is what the job did");
 
             (await scheduler.GetTriggerState(once.Key)).Should().Be(TriggerState.None,
                 "the trigger was deleted, and a trigger that is gone has no state");

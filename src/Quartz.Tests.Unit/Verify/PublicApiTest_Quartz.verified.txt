@@ -100,6 +100,25 @@ namespace Quartz
         public System.TimeSpan CheckinMisfireThreshold { get; set; }
         public bool Enabled { get; set; }
     }
+    public readonly record struct Continuation : System.IEquatable<Quartz.Continuation>
+    {
+        public Continuation(Quartz.TriggerKey? Parent, Quartz.ContinuationCondition When) { }
+        public bool IsNone { get; }
+        public Quartz.TriggerKey? Parent { get; init; }
+        public Quartz.ContinuationCondition When { get; init; }
+        public static Quartz.Continuation None { get; }
+        public override string ToString() { }
+        public static Quartz.Continuation After(Quartz.TriggerKey parent, Quartz.ContinuationCondition condition = 1) { }
+    }
+    [System.Flags]
+    public enum ContinuationCondition
+    {
+        OnSuccess = 1,
+        OnFailure = 2,
+        OnCancellation = 4,
+        OnVeto = 8,
+        OnAnyOutcome = 15,
+    }
     [System.Serializable]
     public sealed class CronExpression : System.IEquatable<Quartz.CronExpression>, System.IParsable<Quartz.CronExpression>, System.Runtime.Serialization.ISerializable
     {
@@ -405,6 +424,14 @@ namespace Quartz
         public Quartz.ExecutionLimitsBuilder Unlimited(string group) { }
         public Quartz.ExecutionLimitsBuilder UseTriggerGroupWhenUnset() { }
         public static Quartz.ExecutionLimitsBuilder Create() { }
+    }
+    public enum ExecutionOutcome
+    {
+        Succeeded = 0,
+        Failed = 1,
+        Cancelled = 2,
+        Vetoed = 3,
+        NotExecuted = 4,
     }
     public sealed class ExecutionSlots
     {
@@ -804,6 +831,7 @@ namespace Quartz
     public interface ITrigger
     {
         string? CalendarName { get; }
+        Quartz.Continuation Continuation { get; } // default implementation
         string? Description { get; }
         System.DateTimeOffset? EndTimeUtc { get; }
         string? ExecutionGroup { get; }
@@ -837,6 +865,7 @@ namespace Quartz
         Quartz.ITriggerConfigurator<TJob> ForJob(Quartz.JobKey jobKey);
         Quartz.ITriggerConfigurator<TJob> ForJob(string jobName);
         Quartz.ITriggerConfigurator<TJob> ForJob(string jobName, string jobGroup);
+        Quartz.ITriggerConfigurator<TJob> StartAfter(Quartz.TriggerKey parent, Quartz.ContinuationCondition condition = 1); // default implementation
         Quartz.ITriggerConfigurator<TJob> StartAt(System.DateTimeOffset startTimeUtc);
         Quartz.ITriggerConfigurator<TJob> StartNow();
         Quartz.ITriggerConfigurator<TJob> UsingJobData(Quartz.JobDataMap newJobDataMap);
@@ -1602,6 +1631,8 @@ namespace Quartz
     {
         public static System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(this Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Action<Quartz.IJobConfigurator<TJob>>? configure = null, System.Threading.CancellationToken cancellationToken = default)
             where TJob : Quartz.IJob { }
+        public static System.Threading.Tasks.ValueTask<Quartz.ScheduledOneOffJob> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, Quartz.Continuation after, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
+            where TJob : Quartz.IJob<TInput> { }
         public static System.Threading.Tasks.ValueTask<Quartz.ScheduledOneOffJob> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, System.DateTimeOffset at, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
             where TJob : Quartz.IJob<TInput> { }
         public static System.Threading.Tasks.ValueTask<Quartz.ScheduledOneOffJob> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, System.TimeSpan delay, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
@@ -1814,6 +1845,7 @@ namespace Quartz
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.ForJob(Quartz.JobKey)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.ForJob(string)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.ForJob(string, string)
+        // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.StartAfter(Quartz.TriggerKey, Quartz.ContinuationCondition)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.StartAt(System.DateTimeOffset)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.StartNow()
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.UsingJobData(Quartz.JobDataMap)
@@ -1836,6 +1868,7 @@ namespace Quartz
         public Quartz.TriggerBuilder<TJob> ForJob(Quartz.JobKey jobKey) { }
         public Quartz.TriggerBuilder<TJob> ForJob(string jobName) { }
         public Quartz.TriggerBuilder<TJob> ForJob(string jobName, string jobGroup) { }
+        public Quartz.TriggerBuilder<TJob> StartAfter(Quartz.TriggerKey parent, Quartz.ContinuationCondition condition = 1) { }
         public Quartz.TriggerBuilder<TJob> StartAt(System.DateTimeOffset startTimeUtc) { }
         public Quartz.TriggerBuilder<TJob> StartNow() { }
         public Quartz.TriggerBuilder<TJob> UsingJobData(Quartz.JobDataMap newJobDataMap) { }
@@ -1918,6 +1951,8 @@ namespace Quartz
     {
         public TriggerHeader(Quartz.TriggerKey Key, Quartz.JobKey JobKey, string? Description, string TriggerType, Quartz.TriggerState State, System.DateTimeOffset StartTimeUtc, System.DateTimeOffset? EndTimeUtc, System.DateTimeOffset? NextFireTimeUtc, System.DateTimeOffset? PreviousFireTimeUtc, string? CalendarName, int Priority, string? ExecutionGroup, string? RetryPolicy, int RetryAttempt) { }
         public string? CalendarName { get; init; }
+        public Quartz.ContinuationCondition? ContinuationCondition { get; init; }
+        public Quartz.TriggerKey? ContinuesAfter { get; init; }
         public string? Description { get; init; }
         public System.DateTimeOffset? EndTimeUtc { get; init; }
         public string? ExecutionGroup { get; init; }
@@ -1963,6 +1998,7 @@ namespace Quartz
         Blocked = 4,
         None = 5,
         Executing = 6,
+        Awaiting = 7,
     }
     public sealed class TypeLoaderOptions
     {
@@ -2103,6 +2139,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask<bool> Exists(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> Exists(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> Exists(string calendarName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask FiringComplete(Quartz.Extensibility.TriggeredJobCompleteContext context, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.TimeSpan GetAcquireRetryDelay(int failureCount);
         System.Threading.Tasks.ValueTask<Quartz.ICalendar?> GetCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
@@ -2242,6 +2279,7 @@ namespace Quartz.Extensibility
         Paused = 6,
         PausedBlocked = 7,
         Deleted = 8,
+        Awaiting = 9,
     }
     public sealed record TriggerAcquisitionRequest : System.IEquatable<Quartz.Extensibility.TriggerAcquisitionRequest>
     {
@@ -2285,6 +2323,15 @@ namespace Quartz.Extensibility
     {
         public static Quartz.TriggerState Resolve(Quartz.Extensibility.StoredTriggerState stored, bool isExecuting) { }
     }
+    public sealed class TriggeredJobCompleteContext
+    {
+        public TriggeredJobCompleteContext() { }
+        public System.Exception? Exception { get; init; }
+        public required Quartz.SchedulerInstruction Instruction { get; init; }
+        public required Quartz.IJobDetail JobDetail { get; init; }
+        public Quartz.ExecutionOutcome Outcome { get; init; }
+        public required Quartz.Extensibility.IOperableTrigger Trigger { get; init; }
+    }
 }
 namespace Quartz.Impl.AdoJobStore
 {
@@ -2295,6 +2342,9 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnCalendar = "CALENDAR";
         public const string ColumnCalendarName = "CALENDAR_NAME";
         public const string ColumnCheckinInterval = "CHECKIN_INTERVAL";
+        public const string ColumnContinuationCondition = "CONTINUATION_CONDITION";
+        public const string ColumnContinuesTriggerGroup = "CONTINUES_TRIGGER_GROUP";
+        public const string ColumnContinuesTriggerName = "CONTINUES_TRIGGER_NAME";
         public const string ColumnCronExpression = "CRON_EXPRESSION";
         public const string ColumnDescription = "DESCRIPTION";
         public const string ColumnEndTime = "END_TIME";
@@ -2337,6 +2387,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ParameterPageSkip = "pageSkip";
         public const string ParameterPageTake = "pageTake";
         public const string StateAcquired = "ACQUIRED";
+        public const string StateAwaiting = "AWAITING";
         public const string StateBlocked = "BLOCKED";
         public const string StateComplete = "COMPLETE";
         public const string StateDeleted = "DELETED";
@@ -2363,6 +2414,12 @@ namespace Quartz.Impl.AdoJobStore
         public const string TriggerTypeDailyTimeInterval = "DAILY_I";
         public const string TriggerTypeRecurrence = "RECUR";
         public const string TriggerTypeSimple = "SIMPLE";
+    }
+    public sealed record AwaitingContinuation : System.IEquatable<Quartz.Impl.AdoJobStore.AwaitingContinuation>
+    {
+        public AwaitingContinuation(Quartz.TriggerKey Key, Quartz.ContinuationCondition Condition) { }
+        public Quartz.ContinuationCondition Condition { get; init; }
+        public Quartz.TriggerKey Key { get; init; }
     }
     public sealed class CalendarIntervalTriggerPersistenceDelegate : Quartz.Impl.AdoJobStore.SimplePropertiesTriggerPersistenceDelegateBase
     {
@@ -2514,7 +2571,10 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> JobExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> ReleaseContinuation(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.Extensibility.StoredTriggerState newState, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<int> RepinTriggersFromDeadNode(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string oldPreferredNode, string newPreferredNode, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> ResetContinuationFireTime(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.AwaitingContinuation>> SelectAwaitingContinuations(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey parent, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.ICalendar?> SelectCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> SelectCalendarNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ExecutionGroupInFlight>> SelectExecutionGroupsInFlight(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default);
@@ -2883,8 +2943,11 @@ namespace Quartz.Impl.AdoJobStore
             where T : Quartz.Key<T> { }
         public virtual System.Data.Common.DbCommand PrepareCommand(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder cth, string commandText) { }
         protected virtual System.Threading.Tasks.ValueTask<byte[]?> ReadBytesFromBlob(System.Data.Common.DbDataReader rs, int colIndex, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<int> ReleaseContinuation(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.Extensibility.StoredTriggerState newState, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> RepinTriggersFromDeadNode(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string oldPreferredNode, string newPreferredNode, System.Threading.CancellationToken cancellationToken = default) { }
         protected string ReplaceTablePrefix(string query) { }
+        public virtual System.Threading.Tasks.ValueTask<int> ResetContinuationFireTime(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.AwaitingContinuation>> SelectAwaitingContinuations(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey parent, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.ICalendar?> SelectCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> SelectCalendarNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ExecutionGroupInFlight>> SelectExecutionGroupsInFlight(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3261,6 +3324,7 @@ namespace Quartz.Impl
         public virtual System.Threading.Tasks.ValueTask<bool> Exists(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> Exists(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> Exists(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask FiringComplete(Quartz.Extensibility.TriggeredJobCompleteContext context, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.TimeSpan GetAcquireRetryDelay(int failureCount) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.ICalendar?> GetCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3461,6 +3525,7 @@ namespace Quartz.Impl
         public System.Threading.Tasks.ValueTask<bool> Exists(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> Exists(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> Exists(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask FiringComplete(Quartz.Extensibility.TriggeredJobCompleteContext context, System.Threading.CancellationToken cancellationToken = default) { }
         public System.TimeSpan GetAcquireRetryDelay(int failureCount) { }
         public System.Threading.Tasks.ValueTask<Quartz.ICalendar?> GetCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3706,6 +3771,7 @@ namespace Quartz.Impl.Triggers
     {
         protected TriggerBase(System.TimeProvider? timeProvider = null) { }
         public virtual string? CalendarName { get; set; }
+        public Quartz.Continuation Continuation { get; set; }
         public virtual string? Description { get; set; }
         public virtual System.DateTimeOffset? EndTimeUtc { get; set; }
         public string? ExecutionGroup { get; set; }
@@ -3750,7 +3816,9 @@ namespace Quartz.Listeners
         public JobChainingJobListener(string name) { }
         public string Name { get; }
         public void AddJobChainLink(Quartz.JobKey firstJob, Quartz.JobKey secondJob) { }
+        public void AddJobChainLink(Quartz.JobKey firstJob, Quartz.JobKey secondJob, Quartz.ContinuationCondition condition) { }
         public void AddJobChainLinks(Quartz.JobKey firstJob, System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> followUpJobs) { }
+        public System.Threading.Tasks.ValueTask JobExecutionVetoed(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }

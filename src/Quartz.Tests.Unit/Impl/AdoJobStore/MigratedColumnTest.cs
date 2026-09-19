@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 using Quartz.Impl.AdoJobStore;
@@ -33,9 +34,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// <see cref="AdoConstants.MigratedColumnNames" /> is what a 4.x store checks is there before it
 /// starts, and a column missing from that list is a column a 3.x database can be missing while the
 /// scheduler starts, reports itself validated and then fails every acquisition for ever. The list that
-/// makes the check complete already exists, in
-/// <c>database/migrations/4.0/schema_30_to_40_upgrade_&lt;dialect&gt;.sql</c> — so it is read out of
-/// those six scripts here rather than written down twice and kept in step by hand.
+/// makes the check complete already exists, in the migrations under <c>database/migrations/</c> that
+/// add a column to a table an earlier release already had — so it is read out of those scripts here
+/// rather than written down twice and kept in step by hand.
 /// </para>
 /// <para>
 /// The scripts are generated from <c>build/Build.DatabaseMigrations.Scripts.cs</c> and
@@ -74,12 +75,12 @@ public sealed class MigratedColumnTest
             HashSet<(string Table, string Column)> added = ColumnsAddedBy(dialect);
 
             added.Should().HaveCountGreaterThan(4,
-                $"the {dialect} 4.0 migration adds several columns, so a parse that found almost none "
-                + "is a parse that stopped matching rather than a migration that shrank");
+                $"the {dialect} migrations add several columns between them, so a parse that found almost "
+                + "none is a parse that stopped matching rather than a migration that shrank");
 
             added.Should().BeEquivalentTo(declared,
-                $"AdoConstants.MigratedColumnNames is what startup probes for, and the {dialect} 4.0 "
-                + "migration is what an upgraded database has — a column in one and not the other is "
+                $"AdoConstants.MigratedColumnNames is what startup probes for, and the {dialect} "
+                + "migrations are what an upgraded database has — a column in one and not the other is "
                 + "either a check with a hole in it or a probe for a column nothing creates");
         }
     }
@@ -101,11 +102,29 @@ public sealed class MigratedColumnTest
         }
     }
 
+    /// <summary>
+    /// The migrations whose column additions are probed, as the folder and the file-name shape each
+    /// of them ships per dialect.
+    /// </summary>
+    /// <remarks>
+    /// Two of them since 4.2: a database created by 3.x needs both, one created by 4.0 or 4.1 needs
+    /// the second, and what startup probes is the union — which is why the union is what this
+    /// compares against.
+    /// </remarks>
+    private static readonly (string Folder, string FileFormat)[] Migrations =
+    [
+        ("4.0", "schema_30_to_40_upgrade_{0}.sql"),
+        ("4.2", "add_continuations_{0}.sql")
+    ];
+
     private static HashSet<(string Table, string Column)> ColumnsAddedBy(string dialect)
     {
-        string script = File.ReadAllText(Path.Combine(
-            RepositoryRoot.Find().FullName,
-            "database", "migrations", "4.0", $"schema_30_to_40_upgrade_{dialect}.sql"));
+        string script = string.Join(
+            Environment.NewLine,
+            Migrations.Select(migration => File.ReadAllText(Path.Combine(
+                RepositoryRoot.Find().FullName,
+                "database", "migrations", migration.Folder,
+                string.Format(CultureInfo.InvariantCulture, migration.FileFormat, dialect)))));
 
         HashSet<(string, string)> added = [];
 

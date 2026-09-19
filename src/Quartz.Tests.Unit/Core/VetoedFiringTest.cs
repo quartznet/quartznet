@@ -114,8 +114,10 @@ public sealed class VetoedFiringTest
                 "committing a firing of a job that forbids concurrent execution blocks the job's other triggers");
 
             store.Completions.Entries.Should().Equal(
-                [new CompletedFiring(vetoed.Key, job.Key, SchedulerInstruction.NoInstruction)],
-                "a veto settles nothing about the schedule, so the firing is completed with no instruction");
+                [new CompletedFiring(vetoed.Key, job.Key, SchedulerInstruction.NoInstruction, ExecutionOutcome.Vetoed)],
+                "a veto settles nothing about the schedule, so the firing is completed with no instruction — "
+                + "and the outcome says which of the ways it ended in, which is what a continuation waiting "
+                + "on a veto is waiting for");
 
             store.Releases.Entries.Should().BeEmpty(
                 "a committed firing is handed back through TriggeredJobComplete and never through "
@@ -186,7 +188,7 @@ public sealed class VetoedFiringTest
                 "the vetoed firing has to reach the store before there is anything to assert about it");
 
             store.Completions.Entries.Should().Equal(
-                [new CompletedFiring(once.Key, job.Key, SchedulerInstruction.DeleteTrigger)],
+                [new CompletedFiring(once.Key, job.Key, SchedulerInstruction.DeleteTrigger, ExecutionOutcome.Vetoed)],
                 "a trigger with nothing left to fire is finished, veto or no veto");
 
             await ShouldObserve(finalized.Finalized.Reaches(1),

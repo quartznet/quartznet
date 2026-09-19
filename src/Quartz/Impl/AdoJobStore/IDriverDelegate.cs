@@ -1358,6 +1358,79 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The triggers waiting, in <see cref="StoredTriggerState.Awaiting" />, for one trigger's firing
+    /// — and the condition each of them waits on.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.2: a delegate written against an earlier 4.x reports
+    /// nothing rather than failing every completion, which is the truth for it — a delegate that
+    /// does not write the continuation columns never has a row to find. The default is the reason
+    /// the other two members below can afford to refuse.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="parent">The trigger whose firing the returned triggers are waiting for.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<AwaitingContinuation>> SelectAwaitingContinuations(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey parent,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<List<AwaitingContinuation>>([]);
+    }
+
+    /// <summary>
+    /// Moves one awaiting trigger into the ordinary schedule, firing at the later of
+    /// <paramref name="now" /> and the trigger's own start time.
+    /// </summary>
+    /// <remarks>
+    /// Only a row still in <see cref="StoredTriggerState.Awaiting" /> is written, which is what makes
+    /// settlement one-shot. A default interface member for the reason
+    /// <see cref="SelectAwaitingContinuations" /> is one, but this default refuses: it is only ever
+    /// reached for a continuation that member found, so a delegate that answers that one and not this
+    /// one is half-implemented rather than merely old.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="triggerKey">The awaiting trigger to release.</param>
+    /// <param name="newState">The state to release it into — waiting, or paused if its group is.</param>
+    /// <param name="now">The scheduler's reading of "now", which the fire time is floored at.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>How many rows were updated.</returns>
+    ValueTask<int> ReleaseContinuation(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        StoredTriggerState newState,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        Throw.NotSupportedException(
+            $"{GetType().FullName} reports awaiting continuations but does not implement {nameof(ReleaseContinuation)}, which was added to {nameof(IDriverDelegate)} in Quartz.NET 4.2.");
+        return default;
+    }
+
+    /// <summary>
+    /// Gives a continuation that has just been reset out of the error state a fire time, the same way
+    /// <see cref="ReleaseContinuation" /> does.
+    /// </summary>
+    /// <remarks>
+    /// Touches only a row that names a parent, so an ordinary trigger's reset costs a statement that
+    /// matches nothing. A default interface member that does nothing: a delegate with no continuation
+    /// columns has no such row to fix.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="triggerKey">The trigger that was just reset.</param>
+    /// <param name="now">The scheduler's reading of "now", which the fire time is floored at.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>How many rows were updated.</returns>
+    ValueTask<int> ResetContinuationFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<int>(0);
+    }
+
+    /// <summary>
     /// Selects the misfired triggers to recover as fully populated triggers, rather than as keys that the
     /// caller then has to read back one at a time. Same predicate and ordering as
     /// <see cref="CountMisfiredTriggersInState" />.

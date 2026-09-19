@@ -323,17 +323,17 @@ public class ShutdownDrainTest
             releaseStoreUpdate.TrySetResult();
         }
 
-        public override async ValueTask TriggeredJobComplete(
-            IOperableTrigger trigger,
-            IJobDetail jobDetail,
-            SchedulerInstruction triggerInstructionCode,
+        // The member the scheduler calls. Declared here rather than left to the interface default,
+        // which would run on this decorator and reach the inner store by another member entirely.
+        public override async ValueTask FiringComplete(
+            TriggeredJobCompleteContext context,
             CancellationToken cancellationToken = default)
         {
             Record(StoreUpdateStarted);
             storeUpdateEntered.TrySetResult();
 
             await releaseStoreUpdate.Task.ConfigureAwait(false);
-            await base.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken).ConfigureAwait(false);
+            await base.FiringComplete(context, cancellationToken).ConfigureAwait(false);
 
             Record(StoreUpdateFinished);
         }

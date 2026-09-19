@@ -108,5 +108,26 @@ public enum TriggerState
     /// still running.
     /// </para>
     /// </remarks>
-    Executing = 6
+    Executing = 6,
+
+    /// <summary>
+    /// Indicates that the <see cref="ITrigger" /> is waiting, in the store, for another trigger's
+    /// firing to end.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A trigger arrives here by carrying a <see cref="Quartz.Continuation" />. It is never acquired
+    /// while it is awaiting, and no misfire accrues: it has no fire time to miss until the firing it
+    /// waits for has ended. The parent's completion is what moves it on, inside the parent's own
+    /// lock and transaction — to <see cref="Normal" /> (or <see cref="Paused" />, if its group is)
+    /// when the outcome matches the condition, and out of the store altogether when it does not.
+    /// </para>
+    /// <para>
+    /// <see cref="IScheduler.PauseTrigger" /> refuses an awaiting trigger: there is nothing to hold
+    /// back that is not already held back, and a pause would have to be undone before the parent
+    /// could release it.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="Quartz.Continuation" />
+    Awaiting = 7
 }

@@ -2218,25 +2218,28 @@ internal sealed class QuartzScheduler
 
     public IListenerManager ListenerManager => listenerManager;
 
+    /// <summary>
+    /// Notifies the job store that a vetoed firing is over.
+    /// </summary>
+    /// <remarks>
+    /// The same store call as <see cref="NotifyJobStoreJobComplete" />, kept apart because the two
+    /// say different things about the firing: this one ran no job at all.
+    /// </remarks>
     public ValueTask NotifyJobStoreJobVetoed(
-        IOperableTrigger trigger,
-        IJobDetail detail,
-        SchedulerInstruction instructionCode,
+        TriggeredJobCompleteContext context,
         CancellationToken cancellationToken = default)
     {
-        return resources.JobStore.TriggeredJobComplete(trigger, detail, instructionCode, cancellationToken);
+        return resources.JobStore.FiringComplete(context, cancellationToken);
     }
 
     /// <summary>
     /// Notifies the job store job complete.
     /// </summary>
     public ValueTask NotifyJobStoreJobComplete(
-        IOperableTrigger trigger,
-        IJobDetail detail,
-        SchedulerInstruction instructionCode,
+        TriggeredJobCompleteContext context,
         CancellationToken cancellationToken = default)
     {
-        return resources.JobStore.TriggeredJobComplete(trigger, detail, instructionCode, cancellationToken);
+        return resources.JobStore.FiringComplete(context, cancellationToken);
     }
 
     /// <summary>

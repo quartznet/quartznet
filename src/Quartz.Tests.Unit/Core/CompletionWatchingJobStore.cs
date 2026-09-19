@@ -72,13 +72,33 @@ public sealed class CompletionWatchingJobStore : DelegatingJobStore
         SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default)
     {
-        Func<ValueTask> before = BeforeCompletion;
-        if (before is not null)
-        {
-            await before().ConfigureAwait(false);
-        }
+        await RunBeforeCompletion().ConfigureAwait(false);
 
         await base.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken).ConfigureAwait(false);
         Completions.Record(new CompletedFiring(trigger.Key, jobDetail.Key, triggerInstructionCode));
+    }
+
+    /// <summary>
+    /// The member the scheduler actually calls, and the one that carries how the firing ended.
+    /// </summary>
+    /// <remarks>
+    /// Declared as well as the one above rather than instead of it: a decorator that leaves an
+    /// interface member to its default body runs that body on the decorator, which asks the inner
+    /// store a different question — <c>DelegatingForwardingTest</c> is the sweep for it.
+    /// </remarks>
+    public override async ValueTask FiringComplete(
+        TriggeredJobCompleteContext context,
+        CancellationToken cancellationToken = default)
+    {
+        await RunBeforeCompletion().ConfigureAwait(false);
+
+        await base.FiringComplete(context, cancellationToken).ConfigureAwait(false);
+        Completions.Record(new CompletedFiring(context.Trigger.Key, context.JobDetail.Key, context.Instruction, context.Outcome));
+    }
+
+    private ValueTask RunBeforeCompletion()
+    {
+        Func<ValueTask> before = BeforeCompletion;
+        return before is null ? default : before();
     }
 }

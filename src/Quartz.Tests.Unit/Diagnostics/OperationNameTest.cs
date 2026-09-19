@@ -68,12 +68,18 @@ public class OperationNameTest
     private static readonly SortedSet<string> spansBegun = ScanForStoreSpanNames();
 
     /// <summary>
-    /// The members of <see cref="IJobStore" /> that are deliberately not traced, and why. This list is
-    /// the rule <see cref="OperationName.JobStore" /> states, in a form the build can check: anything
-    /// not on it is a mutating operation and must have a constant.
+    /// The members of <see cref="IJobStore" /> that have no operation name of their own, and why. This
+    /// list is the rule <see cref="OperationName.JobStore" /> states, in a form the build can check:
+    /// anything not on it is a mutating operation and must have a constant.
     /// </summary>
     private static readonly string[] membersDeliberatelyNotTraced =
     [
+        // Traced, but not under a name of its own. FiringComplete is TriggeredJobComplete with the
+        // firing's outcome attached, and it begins that span: one operation, one name. A second
+        // constant would split completions across two names in everyone's telemetry, and the name an
+        // operator already filters on is the one that was there first.
+        "FiringComplete",
+
         // Lifecycle. Each happens once, outside any request, so its span would be a root of its own
         // with nothing to be a child of — and Initialize runs before the store knows its identity,
         // which is the tag every other span here carries.

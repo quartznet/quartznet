@@ -61,4 +61,24 @@ public sealed record TriggerHeader(
     int Priority,
     string? ExecutionGroup,
     string? RetryPolicy,
-    int RetryAttempt);
+    int RetryAttempt)
+{
+    /// <summary>
+    /// The trigger whose firing this one is waiting for, or <see langword="null" /> when it waits for
+    /// nothing. Set exactly when <see cref="State" /> is <see cref="TriggerState.Awaiting" />, and
+    /// kept afterwards — a released continuation still says what it waited for.
+    /// </summary>
+    /// <remarks>
+    /// An <c>init</c> property rather than a positional parameter, and the same goes for
+    /// <see cref="ContinuationCondition" />: the record's constructor is a public signature that 4.0
+    /// promised not to change, so 4.2 adds beside it rather than to it.
+    /// </remarks>
+    /// <seealso cref="ITrigger.Continuation" />
+    public TriggerKey? ContinuesAfter { get; init; }
+
+    /// <summary>
+    /// The outcomes of that firing which release the wait, or <see langword="null" /> when the
+    /// trigger waits for nothing.
+    /// </summary>
+    public ContinuationCondition? ContinuationCondition { get; init; }
+}

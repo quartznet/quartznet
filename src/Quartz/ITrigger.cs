@@ -155,6 +155,25 @@ public interface ITrigger
     int RetryAttempt { get; }
 
     /// <summary>
+    /// Which trigger's firing this one waits for before it may fire itself, or
+    /// <see cref="Quartz.Continuation.None" /> — the default — when it waits for nothing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A trigger with a continuation is held by the job store in <see cref="TriggerState.Awaiting" />
+    /// and is never acquired while it is there. The parent's completion settles it inside the
+    /// parent's own lock and transaction: an outcome the condition names releases the trigger into
+    /// the ordinary schedule, and any other outcome deletes it.
+    /// </para>
+    /// <para>
+    /// <see cref="StartTimeUtc" /> stays a floor rather than a schedule — a released continuation
+    /// fires at the later of "now" and its start time.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="Quartz.Continuation" />
+    Continuation Continuation => Quartz.Continuation.None;
+
+    /// <summary>
     /// Get or set  the <see cref="ICalendar" /> with the given name with
     /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
     /// </summary>

@@ -216,6 +216,21 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.TriggeredJobComplete(s.trigger, s.jobDetail, s.triggerInstructionCode, s.cancellationToken));
     }
 
+    public override ValueTask FiringComplete(TriggeredJobCompleteContext context, CancellationToken cancellationToken = default)
+    {
+        // The same span name as the call above: it is the same store operation, said with more of what
+        // the firing was, and an operator watching one of them is watching completions.
+        StoreOperation operation = Begin(OperationName.JobStore.TriggeredJobComplete);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.FiringComplete(context, cancellationToken);
+        }
+
+        operation.Trigger(context.Trigger.Key).Job(context.JobDetail.Key);
+        return Complete(operation, (InnerJobStore, context, cancellationToken),
+            static s => s.InnerJobStore.FiringComplete(s.context, s.cancellationToken));
+    }
+
     public override ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.DeleteJob);

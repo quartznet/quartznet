@@ -57,6 +57,7 @@ public static class StoredTriggerStates
             case StoredTriggerState.Paused: return AdoConstants.StatePaused;
             case StoredTriggerState.PausedBlocked: return AdoConstants.StatePausedBlocked;
             case StoredTriggerState.Deleted: return AdoConstants.StateDeleted;
+            case StoredTriggerState.Awaiting: return AdoConstants.StateAwaiting;
             default:
                 Throw.ArgumentOutOfRangeException(nameof(state), "Unknown stored trigger state: " + state);
                 return default;
@@ -89,6 +90,7 @@ public static class StoredTriggerStates
             AdoConstants.StatePaused => StoredTriggerState.Paused,
             AdoConstants.StatePausedBlocked => StoredTriggerState.PausedBlocked,
             AdoConstants.StateDeleted => StoredTriggerState.Deleted,
+            AdoConstants.StateAwaiting => StoredTriggerState.Awaiting,
             _ => StoredTriggerState.Waiting
         };
     }

@@ -102,8 +102,9 @@ public class RetryColumnStatementsTest
         placeholders[policyIndex].Should().Be("@" + SqlParameters.TriggerRetryPolicy);
         placeholders[attemptIndex].Should().Be("@" + SqlParameters.TriggerRetryAttempt);
 
-        columns[^1].Should().Be(AdoConstants.ColumnRetryAttempt,
-            "the retry columns are the newest, and appending is what keeps every other position unchanged");
+        columns[^1].Should().Be(AdoConstants.ColumnContinuationCondition,
+            "columns are appended, which is what keeps every other position unchanged — the continuation "
+            + "columns are the newest, so the last of them is last");
     }
 
     /// <summary>

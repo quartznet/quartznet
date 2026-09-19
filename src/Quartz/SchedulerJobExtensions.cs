@@ -157,6 +157,56 @@ public static class SchedulerJobExtensions
         return Schedule<TJob, TInput>(scheduler, input, scheduler.TimeProvider.GetUtcNow() + delay, options, cancellationToken);
     }
 
+    /// <inheritdoc cref="ScheduleJob{TJob, TInput}(IScheduler, TInput, DateTimeOffset, OneOffJobOptions, CancellationToken)" path="/summary|/typeparam|/returns" />
+    /// <param name="scheduler">The scheduler to schedule on.</param>
+    /// <param name="input">The payload the firing carries, put on the trigger.</param>
+    /// <param name="after">
+    /// The trigger whose firing this one waits for, and the outcomes of it that release the wait.
+    /// <see cref="Continuation.After" /> builds one; <see cref="ScheduledOneOffJob.TriggerKey" /> is
+    /// the handle an earlier call answered with.
+    /// </param>
+    /// <param name="options">The trigger's identity and the rest of what can be said about one firing.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// <para>
+    /// The firing is stored in <see cref="TriggerState.Awaiting" /> and never acquired until the
+    /// parent's completion settles it, inside the parent's own lock and transaction. An outcome the
+    /// condition names releases it; any other outcome deletes it.
+    /// </para>
+    /// <para>
+    /// There is no time argument, because the time is the parent's completion. Give
+    /// <see cref="OneOffJobOptions" /> nothing else and the firing happens as soon as it is released;
+    /// a floor — "and never before nine" — is a <c>StartAfter</c> trigger built by hand.
+    /// </para>
+    /// </remarks>
+    /// <returns>The trigger that was stored, and the time it would first fire were it released now.</returns>
+    public static ValueTask<ScheduledOneOffJob> ScheduleJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
+        this IScheduler scheduler,
+        TInput input,
+        Continuation after,
+        OneOffJobOptions options = default,
+        CancellationToken cancellationToken = default) where TJob : IJob<TInput>
+    {
+        ArgumentNullException.ThrowIfNull(scheduler);
+
+        if (after.IsNone)
+        {
+            throw new ArgumentException(
+                $"A continuation names the trigger it waits for; {nameof(Quartz.Continuation)}.{nameof(Quartz.Continuation.None)} names none. "
+                + $"Use {nameof(Quartz.Continuation)}.{nameof(Quartz.Continuation.After)} to build one, or one of the overloads taking a time.",
+                nameof(after));
+        }
+
+        // "Now" as the start time, so that a released continuation fires at once rather than at an
+        // instant that has already gone: the release floors the fire time at the trigger's start time.
+        return Schedule<TJob, TInput>(
+            scheduler,
+            input,
+            scheduler.TimeProvider.GetUtcNow(),
+            options with { Continuation = after },
+            cancellationToken);
+    }
+
     private static async ValueTask<ScheduledOneOffJob> Schedule<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
         IScheduler scheduler,
         TInput input,
@@ -259,6 +309,11 @@ public static class SchedulerJobExtensions
         {
             // The schedule is otherwise left at its default, which is a simple trigger that fires once.
             builder = builder.WithSimpleSchedule(schedule => schedule.WithMisfireInstruction(misfireInstruction));
+        }
+
+        if (options.Continuation.Parent is { } parent)
+        {
+            builder = builder.StartAfter(parent, options.Continuation.When);
         }
 
         return builder.Build();

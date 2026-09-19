@@ -866,6 +866,12 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     ];
 
     /// <summary>
+    /// Every migration whose columns are probed, once each and in the order they are listed.
+    /// </summary>
+    private static readonly string[] MigrationTemplates =
+        [.. AdoConstants.MigratedColumnNames.Select(c => c.Migration).Distinct()];
+
+    /// <summary>
     /// Which columns 4.x needs are missing from a table that is already there, as
     /// <c>TABLE.COLUMN</c> pairs. Empty for a database with no Quartz tables at all, and for one whose
     /// tables 4.x created.
@@ -929,9 +935,11 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// </summary>
     private string UpgradeAdvice()
     {
-        return $"If this schema was created by Quartz 3.x, run {MigrationScriptName()} first —"
-               + " ProvisionSchema() creates missing tables and never adds a column to a table that"
-               + " exists.";
+        return $"If this schema was created by an earlier Quartz.NET, run the migrations it has not had —"
+               + $" {string.Join(", then ", MigrationTemplates.Select(MigrationScriptName))} —"
+               + " because ProvisionSchema() creates missing tables and never adds a column to a table"
+               + " that exists. A schema created by 3.x needs all of them; one created by 4.0 or 4.1"
+               + " needs only the last.";
     }
 
     /// <summary>
@@ -975,26 +983,33 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     }
 
     /// <summary>
-    /// The 3.x-to-4.0 migration for the database this store is talking to, chosen the same way and
-    /// for the same reason as <see cref="SchemaScriptName" />.
+    /// One migration's script for the database this store is talking to, chosen the same way and for
+    /// the same reason as <see cref="SchemaScriptName" />.
     /// </summary>
     /// <remarks>
-    /// Named in the two failures a 3.x schema reaches, because nothing else Quartz says at run time
-    /// points at <c>database/migrations/</c> at all — which is how a reader who met the validation
-    /// failure without the migration guide ended up running the two things that make it worse.
+    /// Named in the two failures an out-of-date schema reaches, because nothing else Quartz says at
+    /// run time points at <c>database/migrations/</c> at all — which is how a reader who met the
+    /// validation failure without the migration guide ended up running the two things that make it
+    /// worse.
     /// </remarks>
-    private string MigrationScriptName()
+    /// <param name="migration">
+    /// The file-name template from <see cref="AdoConstants.MigratedColumnNames" />, whose one
+    /// placeholder is the dialect token.
+    /// </param>
+    private string MigrationScriptName(string migration)
     {
-        return Delegate switch
+        string dialect = Delegate switch
         {
-            SqlServerDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_sqlServer.sql",
-            PostgreSQLDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_postgres.sql",
-            MySQLDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_mysql_innodb.sql",
-            OracleDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_oracle.sql",
-            SQLiteDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_sqlite.sql",
-            FirebirdDelegate => "database/migrations/4.0/schema_30_to_40_upgrade_firebird.sql",
-            _ => "the 3.x-to-4.0 script for your database under database/migrations/4.0/",
+            SqlServerDelegate => "sqlServer",
+            PostgreSQLDelegate => "postgres",
+            MySQLDelegate => "mysql_innodb",
+            OracleDelegate => "oracle",
+            SQLiteDelegate => "sqlite",
+            FirebirdDelegate => "firebird",
+            _ => "<the file for your database>",
         };
+
+        return "database/migrations/" + string.Format(System.Globalization.CultureInfo.InvariantCulture, migration, dialect);
     }
 
     /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />

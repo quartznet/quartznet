@@ -194,6 +194,78 @@ public sealed class JobChainingJobListenerTest
         addLinks.Should().Throw<ArgumentException>().WithMessage("*cannot be null*");
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Conditional links
+    //
+    // The recurring, non-persisted half of what a Continuation does: a link fires on every
+    // completion that matches, where a continuation settles once and lives in the store.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AnUnconditionalLinkFiresWhateverTheJobDid()
+    {
+        JobChainingJobListener listener = new JobChainingJobListener("chain");
+        listener.AddJobChainLink(parent, childOne);
+
+        List<JobKey> triggered = new List<JobKey>();
+
+        await listener.JobWasExecuted(CreateContext(parent, triggered), jobException: null);
+        await listener.JobWasExecuted(CreateContext(parent, triggered), new JobExecutionException("it failed"));
+
+        triggered.Should().Equal([childOne, childOne],
+            "the two-argument overload is what this listener has always done, which is to chain on every "
+            + "completion, exception or not");
+    }
+
+    [Test]
+    public async Task ALinkConditionedOnFailureIgnoresASuccess()
+    {
+        JobChainingJobListener listener = new JobChainingJobListener("chain");
+        listener.AddJobChainLink(parent, childOne, ContinuationCondition.OnFailure);
+
+        List<JobKey> triggered = new List<JobKey>();
+
+        await listener.JobWasExecuted(CreateContext(parent, triggered), jobException: null);
+        triggered.Should().BeEmpty("the job succeeded, and this link is the cleanup for when it does not");
+
+        await listener.JobWasExecuted(CreateContext(parent, triggered), new JobExecutionException("it failed"));
+        triggered.Should().Equal([childOne]);
+    }
+
+    [Test]
+    public async Task ALinkConditionedOnSuccessIgnoresAFailure()
+    {
+        JobChainingJobListener listener = new JobChainingJobListener("chain");
+        listener.AddJobChainLink(parent, childOne, ContinuationCondition.OnSuccess);
+
+        List<JobKey> triggered = new List<JobKey>();
+
+        await listener.JobWasExecuted(CreateContext(parent, triggered), new JobExecutionException("it failed"));
+        triggered.Should().BeEmpty();
+
+        await listener.JobWasExecuted(CreateContext(parent, triggered), jobException: null);
+        triggered.Should().Equal([childOne]);
+    }
+
+    /// <summary>
+    /// A vetoed firing never reaches <see cref="IJobListener.JobWasExecuted" />, so a link waiting on a
+    /// veto would never fire if this notification were left to the interface default.
+    /// </summary>
+    [Test]
+    public async Task ALinkConditionedOnAVetoFiresWhenTheFiringIsVetoed()
+    {
+        JobChainingJobListener listener = new JobChainingJobListener("chain");
+        listener.AddJobChainLink(parent, childOne, ContinuationCondition.OnVeto);
+        listener.AddJobChainLink(parent, childTwo, ContinuationCondition.OnSuccess);
+
+        List<JobKey> triggered = new List<JobKey>();
+
+        await listener.JobExecutionVetoed(CreateContext(parent, triggered));
+
+        triggered.Should().Equal([childOne],
+            "the veto is the outcome, and the link waiting on a successful run is not it");
+    }
+
     /// <summary>
     /// A context whose completed job is <paramref name="completedJob" />, over a scheduler that records
     /// the key of every <see cref="IScheduler.TriggerJob" /> it is asked for and fails the one named by
