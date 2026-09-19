@@ -115,4 +115,47 @@ public class JobExecutionContextTest
             "once the scheduler has measured the completed run, that measurement is the answer and the "
             + "wall-clock estimate is not consulted again");
     }
+
+    /// <summary>
+    /// The two values a context builds on demand are published with an interlocked compare-and-exchange
+    /// rather than under a lock of its own (#3802), so what has to hold is that racing readers all get
+    /// the same one: a value a middleware puts into the merged map has to reach the job, and a token
+    /// handed to one caller has to be the token Interrupt cancels.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public void RacingReadersOfTheLazyValuesAllSeeTheSameOne(bool readTheMap)
+    {
+        const int Racers = 32;
+        TriggerFiredBundle bundle = TestUtil.NewMinimalTriggerFiredBundle();
+        JobExecutionContextImpl ctx = new(null, bundle, null);
+
+        object[] seen = new object[Racers];
+        using Barrier start = new(Racers);
+
+        Parallel.For(0, Racers, i =>
+        {
+            start.SignalAndWait();
+            seen[i] = readTheMap ? ctx.MergedJobDataMap : ctx.CancellationToken.WaitHandle;
+        });
+
+        seen.Should().AllSatisfy(value => value.Should().BeSameAs(seen[0]),
+            "the first writer wins and every loser drops what it built, so the context has exactly one of each");
+    }
+
+    /// <summary>
+    /// A guard rather than a behaviour: the lock that used to guard those two fields was an object per
+    /// firing, and the compare-and-exchange above is what replaced it.
+    /// </summary>
+    [Test]
+    public void TheContextCarriesNoLockOfItsOwn()
+    {
+        System.Reflection.FieldInfo[] fields = typeof(JobExecutionContextImpl)
+            .GetFields(System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.NonPublic
+                | System.Reflection.BindingFlags.Public);
+
+        fields.Should().NotContain(field => field.FieldType == typeof(Lock),
+            "a firing allocates one of these, and the two fields the lock guarded are written at most once each - which is what an interlocked compare-and-exchange is for");
+    }
 }
