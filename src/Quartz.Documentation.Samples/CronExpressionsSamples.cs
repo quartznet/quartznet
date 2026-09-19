@@ -124,4 +124,31 @@ public static class CronExpressionsSamples
 
         #endregion
     }
+
+    public static void CheckingAnExpression()
+    {
+        #region sample_cron_expressions_preview
+
+        // does Quartz.NET accept it?
+        if (!CronExpression.TryParse("0 0/15 8-17 ? * MON-FRI", out CronExpression? expression))
+        {
+            throw new ArgumentException("Quartz.NET cannot read that expression");
+        }
+
+        // what does it mean? - the next five times it fires, in the expression's own time zone
+        DateTimeOffset after = DateTimeOffset.UtcNow;
+        for (int i = 0; i < 5; i++)
+        {
+            DateTimeOffset? fireTime = expression.GetNextValidTimeAfter(after);
+            if (fireTime is null)
+            {
+                break;
+            }
+
+            Console.WriteLine(TimeZoneInfo.ConvertTime(fireTime.Value, expression.TimeZone));
+            after = fireTime.Value;
+        }
+
+        #endregion
+    }
 }
