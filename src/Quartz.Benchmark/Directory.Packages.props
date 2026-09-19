@@ -1,0 +1,27 @@
+<Project>
+
+  <Import Project="..\..\Directory.Packages.props" />
+
+  <!--
+    Every version this project uses is the repository's; the one thing it does differently is not pin
+    its transitive ones.
+
+    Central transitive pinning holds Microsoft.Extensions.Logging.Abstractions at the 10.0.0 floor
+    Quartz ships, and the database drivers this project references pull a Microsoft.Extensions.Caching.Memory
+    that demands a higher patch, so restore refuses the graph with NU1109. A VersionOverride answers that
+    for this project and breaks every measured run instead: BenchmarkDotNet generates a project per job
+    beside the built exe, copies the package references into it and builds it — the in-process smoke run
+    is the only run that skips this — and the generated project gets the centrally defined version while
+    this one asks for the override, which is a downgrade either way round. The generated project sits
+    under bin/, so a file here is what reaches both.
+
+    Raising the floor instead is not on the table: it is a demand every consumer of every shipped package
+    inherits, which is what the comment on those ids in the repository's own Directory.Packages.props says
+    and what PackageDependencyTest holds. This project ships to nobody, so its transitive versions are its
+    own business.
+  -->
+  <PropertyGroup>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+</Project>
