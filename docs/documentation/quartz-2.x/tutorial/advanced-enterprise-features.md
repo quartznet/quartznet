@@ -14,7 +14,7 @@ Different thread pool size, and different value for the "quartz.scheduler.instan
 Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing "AUTO" as the value of this property.
 
 Never run clustering on separate machines, unless their clocks are synchronized using some form of time-sync service (daemon) that runs very regularly
-(the clocks must be within a second of each other). See <a href="http://www.boulder.nist.gov/timefreq/service/its.htm">http://www.boulder.nist.gov/timefreq/service/its.htm</a>
+(the clocks must be within a second of each other). See <a href="https://www.nist.gov/pml/time-and-frequency-division/services/internet-time-service-its">https://www.nist.gov/pml/time-and-frequency-division/services/internet-time-service-its</a>
 if you are unfamiliar with how to do this.
 
 Never fire-up a non-clustered instance against the same set of tables that any other instance is running against.

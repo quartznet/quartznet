@@ -94,7 +94,7 @@ lives in one of the sibling tables — `QRTZ_CRON_TRIGGERS`, `QRTZ_SIMPLE_TRIGGE
 ### Trigger states
 
 The string in `TRIGGER_STATE` is not the enum an application sees. The stored vocabulary is
-[`StoredTriggerState`](https://github.com/quartznet/quartznet/blob/main/src/Quartz/Impl/AdoJobStore/StoredTriggerState.cs),
+[`StoredTriggerState`](https://github.com/quartznet/quartznet/blob/main/src/Quartz/Extensibility/StoredTriggerState.cs),
 in `Quartz.Extensibility`:
 
 | `TRIGGER_STATE` | Meaning |
