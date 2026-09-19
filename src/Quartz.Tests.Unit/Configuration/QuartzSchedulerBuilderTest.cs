@@ -1,5 +1,7 @@
 using System.Collections.Specialized;
 
+using FakeItEasy;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -334,5 +336,89 @@ public class QuartzSchedulerBuilderTest
         public ExcludedDays(params MonthDay[] days) => Days = days;
 
         public MonthDay[] Days { get; }
+    }
+
+    /// <summary>
+    /// What <c>ConfigureAllQuartzSchedulers</c> said reaches a standalone-built scheduler too. It is the
+    /// pass <c>AddQuartzExecutionHistory()</c> and <c>AddQuartzSchedulerEvents()</c> install their plugin
+    /// through, and before 4.2.0 <see cref="QuartzSchedulerBuilder.Build"/> skipped it: a standalone
+    /// scheduler with the history turned on registered the store, recorded nothing and said nothing.
+    /// </summary>
+    [Test]
+    public async Task ContainerWideConfigurationReachesTheStandaloneScheduler()
+    {
+        (IExecutionHistoryStore store, Task<ExecutionHistoryEntry> recorded) = RecordingHistoryStore();
+
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q =>
+            {
+                q.ConfigureScheduler(options => options.InstanceName = "standalone-configure-all")
+                    .UseDefaultThreadPool(maxConcurrency: 2)
+                    .UseInMemoryStore();
+
+                // Registered first, so the in-memory default the recorder would otherwise get is never
+                // added and every execution lands here.
+                q.Services.AddSingleton(store);
+                q.Services.AddQuartzExecutionHistory();
+            })
+            .BuildScheduler();
+
+        await AssertAnExecutionIsRecorded(scheduler, recorded);
+    }
+
+    /// <summary>
+    /// The same recorder, asked for through the legacy key. The bridge registers it while the
+    /// property-derived options are being built in a collection of their own, so this is the route that
+    /// needs that collection to share the builder's registry rather than grow one of its own.
+    /// </summary>
+    [Test]
+    public async Task ContainerWideConfigurationFromTheLegacyKeyReachesTheStandaloneScheduler()
+    {
+        (IExecutionHistoryStore store, Task<ExecutionHistoryEntry> recorded) = RecordingHistoryStore();
+
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q =>
+            {
+                q.ConfigureScheduler(options => options.InstanceName = "standalone-configure-all-key")
+                    .UseDefaultThreadPool(maxConcurrency: 2)
+                    .UseInMemoryStore();
+                q.Services.AddSingleton(store);
+            })
+            .UseProperties(new NameValueCollection { ["quartz.jobStore.executionHistory"] = "true" })
+            .BuildScheduler();
+
+        await AssertAnExecutionIsRecorded(scheduler, recorded);
+    }
+
+    private static async Task AssertAnExecutionIsRecorded(IScheduler scheduler, Task<ExecutionHistoryEntry> recorded)
+    {
+        try
+        {
+            await scheduler.Start();
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<SignallingJob>().WithIdentity("recorded").Build(),
+                TriggerBuilder.Create().WithIdentity("recorded").StartNow().Build());
+
+            Task completed = await Task.WhenAny(recorded, Task.Delay(TimeSpan.FromSeconds(20)));
+            completed.Should().BeSameAs(recorded,
+                "the recorder ConfigureAllQuartzSchedulers installs has to reach a scheduler the standalone builder built");
+            (await recorded).JobName.Should().Be("recorded");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// A history store that says when the first execution reaches it, which is the whole question here.
+    /// </summary>
+    private static (IExecutionHistoryStore Store, Task<ExecutionHistoryEntry> Recorded) RecordingHistoryStore()
+    {
+        TaskCompletionSource<ExecutionHistoryEntry> recorded = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        IExecutionHistoryStore store = A.Fake<IExecutionHistoryStore>();
+        A.CallTo(() => store.AddExecution(A<ExecutionHistoryEntry>._, A<CancellationToken>._))
+            .Invokes(call => recorded.TrySetResult(call.GetArgument<ExecutionHistoryEntry>(0)!));
+        return (store, recorded.Task);
     }
 }
