@@ -33,6 +33,8 @@ internal static class Descriptors
 
     private const string HelpLink = "https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/compile-time-checks.html";
 
+    private const string DeclaredJobsHelpLink = "https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html";
+
     /// <summary>
     /// A cron literal that the parser refuses.
     /// </summary>
@@ -96,4 +98,52 @@ internal static class Descriptors
         isEnabledByDefault: true,
         description: "The token this method is handed is the one the scheduler cancels on shutdown and on IScheduler.Interrupt. A body that awaits or loops without ever reading it - either the parameter or the identical IJobExecutionContext.CancellationToken - runs to completion whatever the scheduler asks of it.",
         helpLinkUri: HelpLink + "#qz0004-cancellationtokennotobserved");
+
+    /// <summary>
+    /// A <c>[QuartzJob]</c> class the generated registration could not name, or could not schedule.
+    /// </summary>
+    /// <remarks>
+    /// An error rather than a warning, because the alternative is silence: the generator would have
+    /// to skip the class, and an application that declared a job and got none would find out when
+    /// nothing fired.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor DeclaredJobTypeNotSchedulable = new DiagnosticDescriptor(
+        id: "QZ1001",
+        title: "Declared job cannot be scheduled",
+        messageFormat: "'{0}' carries [QuartzJob] but {1}, so no registration can be generated for it",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "[QuartzJob] declares a job for the generator to register with AddJob<T>, which takes a concrete, non-generic IJob the generated file can name. An IJob<TInput> implementer qualifies, since it is an IJob.",
+        helpLinkUri: DeclaredJobsHelpLink + "#qz1001-declaredjobtypenotschedulable");
+
+    /// <summary>
+    /// Two declarations that resolve to one key.
+    /// </summary>
+    /// <remarks>
+    /// An error, because a key is an identity: the second registration does not sit beside the first,
+    /// it replaces it, and whichever of the two loses was written for nothing.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor DuplicateDeclaredIdentity = new DiagnosticDescriptor(
+        id: "QZ1002",
+        title: "Two declarations resolve to the same key",
+        messageFormat: "More than one declared {0} resolves to the key '{1}'; give one of them a different Name or Group",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "A job key and a trigger key are identities within a scheduler. Two declarations resolving to one of them is one registration overwriting another, which is never what was meant. Keys are compared per scheduler, so the same key on two schedulers named by the Scheduler property is two jobs rather than a clash.",
+        helpLinkUri: DeclaredJobsHelpLink + "#qz1002-duplicatedeclaredidentity");
+
+    /// <summary>
+    /// A schedule declared on a class that declares no job.
+    /// </summary>
+    internal static readonly DiagnosticDescriptor CronTriggerWithoutQuartzJob = new DiagnosticDescriptor(
+        id: "QZ1003",
+        title: "Schedule declared on a class that is not a declared job",
+        messageFormat: "'{0}' carries [CronTrigger] without [QuartzJob], so the schedule declares a trigger for a job that is never registered",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "[CronTrigger] is read as part of the job [QuartzJob] declares. On a class carrying no [QuartzJob] it registers nothing, and a schedule that silently registers nothing is worse than a build error.",
+        helpLinkUri: DeclaredJobsHelpLink + "#qz1003-crontriggerwithoutquartzjob");
 }

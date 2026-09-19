@@ -194,6 +194,19 @@ namespace Quartz
         public static Quartz.CronScheduleBuilder Create(string cronExpression) { }
         public static Quartz.CronScheduleBuilder Create(string cronExpression, Quartz.CronFormat format) { }
     }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public sealed class CronTriggerAttribute : System.Attribute
+    {
+        public CronTriggerAttribute(string cronExpression) { }
+        public string CronExpression { get; }
+        public string? Description { get; init; }
+        public string? ExecutionGroup { get; init; }
+        public string? Group { get; init; }
+        public Quartz.CronTriggerMisfireInstruction MisfireInstruction { get; init; }
+        public string? Name { get; init; }
+        public int Priority { get; init; }
+        public string? TimeZone { get; init; }
+    }
     public enum CronTriggerMisfireInstruction
     {
         SmartPolicy = 0,
@@ -1389,6 +1402,17 @@ namespace Quartz
         public bool AwaitApplicationStarted { get; set; }
         public System.TimeSpan? StartDelay { get; set; }
         public bool WaitForJobsToComplete { get; set; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, Inherited=false)]
+    public sealed class QuartzJobAttribute : System.Attribute
+    {
+        public QuartzJobAttribute() { }
+        public string? Description { get; init; }
+        public bool Durable { get; init; }
+        public string? Group { get; init; }
+        public string? Name { get; init; }
+        public bool RequestRecovery { get; init; }
+        public string? Scheduler { get; init; }
     }
     public sealed class QuartzOptions
     {

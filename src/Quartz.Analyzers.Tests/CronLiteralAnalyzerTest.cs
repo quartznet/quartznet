@@ -199,6 +199,43 @@ public class CronLiteralAnalyzerTest
         diagnostics.Should().BeEmpty("the entry points are matched by symbol, so a name is not enough to be one");
     }
 
+    /// <summary>
+    /// The entry point that is not a call: the attribute a job declares its schedule with.
+    /// </summary>
+    /// <remarks>
+    /// It resolves <c>H</c>, because the generator turns it into <c>WithCronSchedule</c>, which
+    /// resolves <c>H</c> against the trigger's key.
+    /// </remarks>
+    [Test]
+    public async Task CronTriggerAttributeIsAnEntryPoint()
+    {
+        IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CronLiteralAnalyzer>(JobSnippet("\"0 0 12 * *\""));
+
+        diagnostics.Should().ContainSingle("an attribute argument is a constant by definition, so there is always something to read")
+            .Which.SpanText().Should().Be("\"0 0 12 * *\"");
+
+        IReadOnlyList<Diagnostic> valid = await AnalyzerRunner.Run<CronLiteralAnalyzer>(JobSnippet("\"0 H 3 * * ?\""));
+
+        valid.Should().BeEmpty("the schedule this attribute declares is built with WithCronSchedule, which resolves H against the trigger key");
+    }
+
+    private static string JobSnippet(string expression)
+    {
+        return $$"""
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            [QuartzJob]
+            [CronTrigger({{expression}})]
+            public sealed class CleanupJob : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+            """;
+    }
+
     private static string SnippetFor(string template, string expression, string? extraMember = null)
     {
         return Snippet(string.Format(System.Globalization.CultureInfo.InvariantCulture, template, expression), extraMember);

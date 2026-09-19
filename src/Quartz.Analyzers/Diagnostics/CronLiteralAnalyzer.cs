@@ -71,6 +71,9 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
         ["Quartz.CronExpression.ParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
         ["Quartz.CronExpression.TryParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
         ["Quartz.CronExpression.ResolveHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
+        // The attribute a job declares its schedule with. It resolves H, because what the generator
+        // emits for it is WithCronSchedule, which resolves H against the trigger's key.
+        ["Quartz.CronTriggerAttribute..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: true),
         ["Quartz.Impl.Calendar.CronCalendar..ctor"] = new CronEntryPoint("expression", resolvesHash: false),
         ["Quartz.Impl.Triggers.CronTriggerImpl..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false),
     };
