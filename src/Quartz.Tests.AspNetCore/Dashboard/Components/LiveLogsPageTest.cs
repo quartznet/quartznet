@@ -180,13 +180,15 @@ public class LiveLogsPageTest
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "None").Click();
 
-        page.FindAll(".qz-live-event").Should().BeEmpty();
+        // Waited, as the first assertion is: a click re-renders on the renderer's dispatcher, and a
+        // synchronous read right after it raced that render on a slow runner.
+        page.WaitForAssertion(() => page.FindAll(".qz-live-event").Should().BeEmpty());
         page.Markup.Should().Contain("No events match the selected event types",
             "the events are still there, which is a different thing from having received none");
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "All").Click();
 
-        page.TextOfAll(".qz-live-type").Should().Equal(["JobExecuted"]);
+        page.WaitForAssertion(() => page.TextOfAll(".qz-live-type").Should().Equal(["JobExecuted"]));
     }
 
     [Test]
@@ -199,7 +201,7 @@ public class LiveLogsPageTest
 
         page.Find("#qz-live-filter-JobExecuted").Change(false);
 
-        page.TextOfAll(".qz-live-type").Should().Equal(["TriggerFired"]);
+        page.WaitForAssertion(() => page.TextOfAll(".qz-live-type").Should().Equal(["TriggerFired"]));
     }
 
     /// <summary>
