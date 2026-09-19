@@ -235,6 +235,9 @@ matching on its text is not.
 | 4023 | Information | `Quartz` | `"Scheduler '{SchedulerName}' with instanceId '{SchedulerInstanceId}' is being restarted; waiting for {JobsExecuting} executing job(s)"` |
 | 4024 | Information | `Quartz` | `"Scheduler '{SchedulerName}' was restarted; instanceId '{PreviousSchedulerInstanceId}' replaced by '{SchedulerInstanceId}'"` |
 | 4025 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' was shut down for a restart but {JobsStillExecuting} job(s) outlived the {DrainTimeout} drain, so no new scheduler was built; restart again once the work has finished"` |
+| 4026 | Information | `Quartz` | `"A window onto scheduler '{SchedulerName}' was opened over the store attached as '{Target}'"` |
+| 4027 | Warning | `Quartz` | `"The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but no window could be opened onto it: {Problem}"` |
+| 4028 | Warning | `Quartz` | `"The store attached as '{Target}' could not be read, so the schedulers in it are not shown; the next round will try again"` |
 | 5000 | Information | `Quartz` | `"Parsing XML file: {FileName} with systemId: {SystemId}"` |
 | 5001 | Information | `Quartz` | `"Parsing XML from stream with systemId: {SystemId}"` |
 | 5002 | Debug | `Quartz` | `"Found {JobGroupCount} delete job group commands."` |
