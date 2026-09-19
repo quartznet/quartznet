@@ -3198,9 +3198,11 @@ public sealed class RAMJobStore : IJobStore
             // settles by outcome first and then finds nothing left awaiting.
             //
             // A retry settles nothing: the occurrence has attempts left, so how it ends is not known
-            // yet. The outcome the run shell reports says the same thing, and this says it in the
-            // store too, for a caller that reaches TriggeredJobComplete another way.
-            if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
+            // yet. That is the instruction's claim, not the outcome's — a job that ran and threw
+            // Failed whether or not the trigger asked for another attempt, and a store reading the
+            // outcome alone would discard a continuation waiting on success at the first hiccup. So
+            // the gate names the instruction, exactly as the ADO store's does.
+            if (context.Instruction != SchedulerInstruction.RetryTrigger)
             {
                 SettleContinuationsNoLock(trigger.Key, context.Outcome, ref pending);
             }

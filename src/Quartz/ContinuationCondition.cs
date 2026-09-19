@@ -52,8 +52,10 @@ public enum ContinuationCondition
     /// </summary>
     /// <remarks>
     /// A failure the trigger's <see cref="ITrigger.RetryPolicy" /> answers with another attempt
-    /// settles nothing: the occurrence is still in flight, and the continuation keeps waiting until
-    /// the attempts are spent or one of them succeeds.
+    /// settles nothing, and the continuation keeps waiting until the attempts are spent or one of
+    /// them succeeds. The firing is still reported as <see cref="ExecutionOutcome.Failed" /> — it
+    /// ran and it threw — but it asks for <see cref="SchedulerInstruction.RetryTrigger" />, and that
+    /// is the instruction on which a store skips settling.
     /// </remarks>
     OnFailure = 2,
 

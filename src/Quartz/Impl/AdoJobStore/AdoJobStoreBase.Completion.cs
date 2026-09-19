@@ -142,8 +142,9 @@ internal abstract partial class AdoJobStoreBase
                 // deletion then finds nothing awaiting.
                 //
                 // A retry settles nothing: the occurrence has attempts left, so how it ends is not
-                // known yet. The outcome the run shell reports says the same thing; this says it in
-                // the store too, for a caller that reaches the completion another way.
+                // known yet. That is the instruction's claim, not the outcome's — a job that ran and
+                // threw Failed whether or not the trigger asked for another attempt, so the gate
+                // names the instruction.
                 if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
                 {
                     await SettleContinuations(conn, trigger.Key, context.Outcome, cancellationToken).ConfigureAwait(false);

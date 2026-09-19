@@ -79,11 +79,11 @@ public sealed class FiringOutcomeTest
     }
 
     /// <summary>
-    /// A failure the trigger answers with another attempt is not an outcome: the occurrence is still
-    /// in flight, and only the attempt that ends it is classified.
+    /// A failure the trigger answers with another attempt is still a failure. What says the
+    /// occurrence is not finished is the instruction, not the outcome.
     /// </summary>
     [Test]
-    public async Task AFailureTheTriggerRetriesIsNotAnOutcomeYet()
+    public async Task AFailureTheTriggerRetriesStillFailed()
     {
         CompletedFiring completion = await RunOnce<UnhandledExceptionJob>(
             "retrying",
@@ -91,11 +91,13 @@ public sealed class FiringOutcomeTest
             // fire time is dropped and the schedule wins, which is a different branch entirely.
             configureTrigger: builder => builder.WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(1))));
 
+        completion.Outcome.Should().Be(ExecutionOutcome.Failed,
+            "the job ran and it threw, which is what the outcome reports — anything else would tell a "
+            + "store, or an execution-history listener, that the firing did not happen");
+
         completion.Instruction.Should().Be(SchedulerInstruction.RetryTrigger,
-            "the trigger has attempts left, so it asked for one");
-        completion.Outcome.Should().Be(ExecutionOutcome.NotExecuted,
-            "settling a continuation on this failure would act on a verdict the trigger has not reached — "
-            + "the occurrence has another attempt coming");
+            "the trigger has attempts left, so it asked for one — and that, not the outcome, is what "
+            + "tells a store the occurrence is not finished and its continuations are not to be settled");
     }
 
     [Test]

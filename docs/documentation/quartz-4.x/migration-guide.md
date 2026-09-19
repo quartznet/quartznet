@@ -73,15 +73,15 @@ do rather than read: see [The 4.2 schema migration](#the-4-2-schema-migration) b
 A *conditional continuation* is a trigger that waits, in the store, for another trigger's firing to
 end, and is released or discarded by how it ended. The model in five sentences:
 
-- A continuation is an ordinary trigger carrying a `Continuation`, stored in the new state
+* A continuation is an ordinary trigger carrying a `Continuation`, stored in the new state
   `TriggerState.Awaiting` and never acquired while it is there.
-- The parent's completion settles it, inside the parent's own lock and transaction, so a crash cannot
+* The parent's completion settles it, inside the parent's own lock and transaction, so a crash cannot
   lose one and whichever node ran the parent is the node that promotes it.
-- An outcome the continuation's `ContinuationCondition` names **releases** it — into `Normal`, or
+* An outcome the continuation's `ContinuationCondition` names **releases** it — into `Normal`, or
   `Paused` if its group is, with its next fire time set to the later of now and its own start time.
-- Any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized,
+* Any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized,
   because the firing it was waiting for has been and gone.
-- Settlement is one-shot, because every statement that settles names `Awaiting` and a settled trigger
+* Settlement is one-shot, because every statement that settles names `Awaiting` and a settled trigger
   no longer holds it.
 
 The parent is a `TriggerKey` rather than a `JobKey`: a continuation waits for one *firing*, and a job
@@ -90,10 +90,17 @@ may be fired by several triggers.
 | Outcome of the parent's firing | Releases | Notes |
 |---|---|---|
 | `ExecutionOutcome.Succeeded` | `OnSuccess`, `OnAnyOutcome` | The job ran and returned |
-| `ExecutionOutcome.Failed` | `OnFailure`, `OnAnyOutcome` | Final only: a failure the trigger's `RetryPolicy` answers with another attempt settles nothing |
+| `ExecutionOutcome.Failed` | `OnFailure`, `OnAnyOutcome` | The job ran and threw |
 | `ExecutionOutcome.Cancelled` | `OnCancellation`, `OnAnyOutcome` | The firing's token was signalled and the job stopped rather than finished |
 | `ExecutionOutcome.Vetoed` | `OnVeto`, `OnAnyOutcome` | A trigger listener refused the firing, so the job never ran |
 | `ExecutionOutcome.NotExecuted` | nothing | The occurrence did not happen — a listener abandoned it, the job could not be built, the scheduler could not dispatch it. The continuation keeps waiting |
+
+The outcome says what the firing *did*, not what the schedule makes of it. A failure the trigger's
+`RetryPolicy` answers with another attempt is reported as `Failed` — the job did run and it did throw
+— and what says the occurrence is not finished is the *instruction*:
+`TriggeredJobCompleteContext.Instruction` is `SchedulerInstruction.RetryTrigger`, and every store
+skips settling on that instruction rather than on the outcome. A store gating on the outcome alone
+would discard a continuation waiting on success at the parent's first hiccup.
 
 A parent **deleted** while continuations await it is the one settlement with no outcome to match:
 `OnAnyOutcome` is released anyway, and anything narrower is parked in `TriggerState.Error` with
