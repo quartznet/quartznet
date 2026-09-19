@@ -53,7 +53,7 @@ and no second place the name can be wrong.
 | `new TimeTickerEntity { Function = "name", ExecutionTime = … }` | `scheduler.ScheduleJob<TJob, TInput>(input, at)` | |
 | `timeTicker.AddAsync<WelcomeJob>(executionTime)` | the same call | both are typed; Quartz's carries the payload type too |
 | `new CronTickerEntity { Expression = … }` | a cron trigger through `TriggerBuilder` | |
-| `RunCondition` on a child ticker | `JobChainingJobListener` | **no condition** — the follow-up runs whatever the parent did. See [Chaining](#chaining-has-no-condition-yet) |
+| `RunCondition` on a child ticker | `.StartAfter(parentTriggerKey, condition)` on the follow-up's trigger | the parent is a *trigger's firing* rather than a row, and there is no `InProgress`. See [Chaining](#chaining-and-its-condition) |
 | `Retries` + `RetryIntervals = [30, 120, 600]` | `RetryPolicy.Explicit(…)` on the trigger | the wait is held in the store rather than in the process |
 | `maxConcurrency` on `[TickerFunction]` | an [execution group](../tutorial/execution-groups.md) and a limit | the limit can be counted across the cluster, not only per process |
 | `TickerTaskPriority` | `Priority` on the trigger | TickerQ's orders dispatch per function; Quartz's breaks ties between triggers due at once |
@@ -207,17 +207,19 @@ site. `AddQuartzDashboard()` registers the services; `app.MapQuartzDashboard().R
 maps them. [Production hardening](../packages/dashboard.md#production-hardening) is the whole model,
 including read-only mode and an allow-list of the job types that may be named through it.
 
-### Chaining has no condition yet
+### Chaining and its condition
 
 `RunCondition` settles a child ticker on the parent's outcome — `OnSuccess`, `OnFailure`,
-`OnCancelled`, `OnFailureOrCancelled`, `OnAnyCompletedStatus` or `InProgress`. Quartz's
-`JobChainingJobListener` has no equivalent: it triggers the follow-up when the parent completes, and a
-parent that threw has completed. The links live in memory with the listener rather than in the store,
-so they are re-registered on every start and the follow-up runs on whichever node ran the parent.
+`OnCancelled`, `OnFailureOrCancelled`, `OnAnyCompletedStatus` or `InProgress`. Quartz's counterpart is
+[a continuation](job-continuations.md): `StartAfter(parentTriggerKey, condition)` on the follow-up's
+trigger, held by the **store** in `TriggerState.Awaiting` and settled by the parent's completion inside
+the parent's own transaction.
 
-If the chain must not run after a failure, check inside the follow-up job, or schedule it from the end
-of the parent. Store-owned continuations that settle on the outcome are
-[#3805](https://github.com/quartznet/quartznet/issues/3805), scheduled for 4.2.
+The conditions map one for one except at the ends. `OnSuccess`, `OnFailure` and `OnCancellation` are the
+same three, `ContinuationCondition` is flags so `OnFailureOrCancelled` is
+`OnFailure | OnCancellation`, `OnAnyCompletedStatus` is `OnAnyOutcome`, and Quartz adds `OnVeto` for a
+firing an `ITriggerListener` refused. There is nothing corresponding to `InProgress`: a continuation is
+released by an outcome, and a firing that has not ended does not have one.
 
 One thing does get better in the move: TickerQ's chaining is
 [`TimeTicker`-only](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/job-chaining.mdx),

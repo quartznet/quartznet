@@ -470,7 +470,7 @@ client therefore takes a string here; pass the number as its text.
 |---|---|---|
 | `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, `jobType` (the same assembly-qualified name the detail body carries), durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith`, and the four `name*` filters |
 | `GET {ApiPath}/schedulers/{name}/jobs/groups` | Job groups: `name`, `paused` | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith`, `paused` |
-| `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group | the four `group*` and four `name*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
+| `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group, retry policy and attempt, and [what the trigger is waiting for](#continuations) | the four `group*` and four `name*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
 | `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith`, `paused` |
 | `GET {ApiPath}/schedulers/{name}/calendars` | Calendar names | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith` |
 | `GET {ApiPath}/schedulers/{name}/jobs/fire-instances` | Fire instances: `fireInstanceId`, trigger key, job key (`null` while only reserved), `schedulerInstanceId`, `state`, `fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup` | the four `group*` and four `name*` filters (they match the *trigger*), plus `jobName` + `jobGroup` (give both or neither), `schedulerInstanceId`, `state` |
@@ -821,6 +821,54 @@ refused.
 The rest of these fields are metadata, but the calendar and the misfire instruction are not: they change
 when the trigger fires. Neither recomputes fire times when it is set — the new value takes effect at the
 next scheduling evaluation.
+:::
+
+A continuation is deliberately not among the members: what a trigger waits for is decided when it is
+scheduled, and moving a trigger from one parent's firing to another's after the fact is a reschedule.
+
+## Continuations
+
+A [continuation](../how-tos/job-continuations.md) is an ordinary trigger that waits for another trigger's
+firing, so it travels on every route a trigger travels: a trigger body carries it, the listing header
+reports it, and a trigger scheduled with `POST …/schedule-job` keeps it.
+
+On a trigger body — the shape `GET …/triggers/{group}/{name}` returns and `schedule-job` accepts — the
+three members sit beside `retryPolicy`:
+
+```json
+{
+  "continuesAfterTriggerName": "import",
+  "continuesAfterTriggerGroup": "nightly",
+  "continuationCondition": 6
+}
+```
+
+`continuationCondition` is the stored integer there, because a trigger body is the serialized trigger and
+the column holds an integer: `1` on success, `2` on failure, `4` on cancellation, `8` on veto, `15`
+however it ends. All three are `null` on a trigger that waits for nothing.
+
+A **listing header** says the same thing in the same words, except that the condition goes out as its
+names, like [every other enum](#enums-travel-as-names) in a body the API composes itself:
+
+```json
+{
+  "name": "reconcile", "group": "nightly",
+  "state": "Awaiting",
+  "continuesAfterTriggerName": "import",
+  "continuesAfterTriggerGroup": "nightly",
+  "continuationCondition": "OnFailure, OnCancellation"
+}
+```
+
+`?state=Awaiting` narrows the listing to what is waiting, and `GET …/triggers/{group}/{name}/state`
+answers `{ "state": "Awaiting" }` for one of them.
+
+::: warning `Awaiting` is a state a 4.1 client does not know
+`TriggerState` travels as its name, so a **4.1** client parsing a trigger listing or a trigger state from
+a **4.2** host meets `"Awaiting"` and throws — the same way a 4.0 client met
+`SchedulerOrigin.Remote` from a 4.1 host. It only arises once something schedules a continuation, so the
+order is the [rolling-upgrade order](../how-tos/job-continuations.md#upgrading-a-running-cluster)
+anyway: migrate, roll every node and every client, then start scheduling continuations.
 :::
 
 ## Configuration options

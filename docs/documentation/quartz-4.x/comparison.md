@@ -157,11 +157,13 @@ a node that dies during a five-minute backoff does not take the retry with it.
 | Where the link is kept | in memory with the listener, re-registered on every start; the follow-up is *fired* rather than scheduled, so there is no trigger to see | in the storage, with an `Awaiting` state in the dashboard | in the persistence provider, on the child row | in code | — |
 | On a recurring schedule | yes — the listener is about job keys | [recurring jobs enqueue ordinary jobs, which can be continued](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html) | [no — chaining is `TimeTicker` only](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/job-chaining.mdx) | yes | — |
 
-This is Quartz's weakest row and it is worth being blunt about it. `JobChainingJobListener` calls itself
-"a poor man's workflow" in its own documentation, and it is: the links are not persisted, the follow-up
-runs on whichever node ran the parent, and a parent that threw still triggers it. Store-owned
-continuations that settle on the outcome are
-[#3805](https://github.com/quartznet/quartznet/issues/3805), scheduled for 4.2.
+The table is the 4.1 state, and this was Quartz's weakest row in it: `JobChainingJobListener` calls
+itself "a poor man's workflow" in its own documentation, and it is — the links are not persisted, the
+follow-up runs on whichever node ran the parent, and a parent that threw still triggers it. **4.2
+answers it.** A trigger carrying `StartAfter(parentTriggerKey, condition)` waits in the job store, is
+settled by the parent's completion inside the parent's own transaction, and is released or discarded by
+the outcome it named; the listener remains as the *recurring* form and takes the same conditions. See
+[Job Continuations](how-tos/job-continuations.md).
 
 ## Persistence
 
@@ -247,9 +249,9 @@ expression assembled at run time is still read at run time, and for that
 [`CronExpressionBuilder` and the "when does this fire" helper](cron-expressions.md#checking-an-expression)
 are what Quartz offers.
 
-**Continuations are a listener, not a contract.** See
-[Continuations and chaining](#continuations-and-chaining) above.
-[#3805](https://github.com/quartznet/quartznet/issues/3805) is 4.2.
+**Continuations were a listener, not a contract, through 4.1.** 4.2 makes them a trigger the store
+holds: see [Continuations and chaining](#continuations-and-chaining) above and
+[Job Continuations](how-tos/job-continuations.md).
 
 **Retry is opt-in, and it does not jitter.** Hangfire retries every job by default and spreads the
 attempts. Quartz retries only the triggers you gave a policy to, and the waits are exactly what the

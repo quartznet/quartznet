@@ -112,6 +112,37 @@ A **recurring** conditional chain — "run the cleanup whenever the nightly job 
 continuation, which settles once. It is
 `JobChainingJobListener.AddJobChainLink(first, second, condition)`.
 
+[Job Continuations](how-tos/job-continuations.md) is the reader-facing form of all of this.
+
+### Continuations in files, in the dashboard and on the wire
+
+Nothing here is a change to something that existed; each is a place a continuation can now be stated or
+seen.
+
+* **The scheduling files take one.** A continuation is a *setting* rather than a kind of trigger, so
+  both formats take it on any trigger they can already declare. XML gains `<continues-after>` — a
+  `<name>` and an optional `<group>`, as `<delete-trigger>` names a trigger — and
+  `<continuation-condition>`, whose value is the outcomes joined with `|`, both optional elements
+  between `<preferred-node>` and `<job-data-map>`. The schema keeps its `2.0` version and its
+  namespace, and the [XML trigger kinds stay frozen](packages/quartz-plugins.md#the-xml-trigger-kinds-are-frozen).
+  JSON — a standalone `quartz_jobs.json` and the `Quartz:Schedule` section alike — gains
+  `ContinuesAfter` as a `Name`/`Group` object and `ContinuationCondition` as the same string.
+  The parent is named, never resolved, so a file may declare it after the trigger that waits for it.
+* **`TriggerHeaderDto` on the HTTP API carries `continuesAfterTriggerName`,
+  `continuesAfterTriggerGroup` and `continuationCondition`** — spelled as a trigger body spells them,
+  with the condition as its names rather than as the stored integer, because that is what
+  [every enum the API composes](packages/http-api.md#enums-travel-as-names) does. `?state=Awaiting`
+  narrows a listing to what is waiting. `TriggerDetailsUpdate` deliberately gains nothing: what a
+  trigger waits for is decided when it is scheduled, and moving it to another parent is a reschedule.
+* **A 4.1 client meets a state it does not know.** `TriggerState` travels as its name, so a 4.1 client
+  parsing a trigger listing or a trigger state from a 4.2 host throws on `"Awaiting"` — as a 4.0 client
+  did on `SchedulerOrigin.Remote` from a 4.1 host. It only arises once something schedules a
+  continuation, which the rolling-upgrade order below already puts last.
+* **The dashboard** has an **Awaiting only** filter on its trigger listing, a colour of its own for
+  waiting, the parent named under each waiting row, and *Continues after* and *When* on the trigger's
+  detail page. `Quartz.Dashboard`'s own `TriggerHeaderDto` gains `ContinuesAfter` and
+  `ContinuationCondition` as non-positional `init` properties, so its constructor is unchanged.
+
 ### The 4.2 schema migration
 
 `database/migrations/4.2/add_continuations_<db>.sql` adds three nullable columns to `QRTZ_TRIGGERS`:

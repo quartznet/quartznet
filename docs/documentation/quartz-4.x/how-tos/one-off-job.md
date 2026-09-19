@@ -243,6 +243,40 @@ first time one of the one-call overloads is used on that scheduler. A store refu
 missing, so a second path that can run *first* stores the durable job itself — `AddJob` under the same key,
 with `AddJobOptions.Replacing`, which is what the one-liner does and is idempotent between them.
 
+## A firing whose time is another firing's completion
+
+There is a third overload, and it takes no time at all — because the time is the parent's completion. Give it
+the `TriggerKey` an earlier call answered with and the second firing is stored as a
+[continuation](job-continuations.md): held in `TriggerState.Awaiting`, never acquired, and released by the
+first firing's outcome or discarded by it.
+
+<!-- snippet: sample_one_off_job_continuation -->
+```csharp
+public sealed class InvoiceRun
+{
+    public async ValueTask Send(IScheduler scheduler, ImportRequest request, CancellationToken cancellationToken)
+    {
+        ScheduledOneOffJob import = await scheduler.ScheduleJob<DataImportJob, ImportRequest>(
+            request,
+            TimeSpan.FromMinutes(5),
+            cancellationToken: cancellationToken);
+
+        // The second firing's time is the first firing's completion, so the overload takes a
+        // Continuation where the others take a DateTimeOffset or a TimeSpan.
+        await scheduler.ScheduleJob<ReconcileJob, ImportRequest>(
+            request,
+            Continuation.After(import.TriggerKey, ContinuationCondition.OnSuccess),
+            cancellationToken: cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+`Continuation.After(parent)` waits for success; the second argument is the
+[`ContinuationCondition`](job-continuations.md#declaring-one) when something else is wanted — `OnAnyOutcome`
+for a cleanup that runs whatever happened. There is no time argument to combine it with, so a floor under a
+released continuation — "and never before nine" — is a trigger built by hand with `StartAfter` and `StartAt`.
+
 ## Reading input written by an older schema
 
 `IJob<TInput>` fails a firing whose input is missing, by name, rather than running it with a default payload.

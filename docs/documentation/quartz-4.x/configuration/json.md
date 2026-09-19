@@ -259,6 +259,8 @@ All trigger types support these optional fields:
 | `ExecutionGroup` | The trigger's [execution group](../tutorial/execution-groups.md) |
 | `RetryPolicy` | The trigger's [retry policy](../how-tos/retrying-failed-jobs.md) in its stored form, for example `fixed;3;00:00:30` |
 | `PreferredNode` | The cluster node the trigger [prefers](../tutorial/node-affinity.md): a scheduler instance id, or `"*"` to pin it to whichever node fires it first. Omitted leaves it unpinned |
+| `ContinuesAfter` | The trigger whose firing this one waits for, as a `Name`/`Group` pair — a [continuation](../how-tos/job-continuations.md). Omitted, the trigger fires on its own schedule |
+| `ContinuationCondition` | Which outcomes of that firing release the wait: `OnSuccess`, `OnFailure`, `OnCancellation`, `OnVeto` or `OnAnyOutcome`, joined with `\|` for more than one. Omitted means `OnSuccess` |
 | `StartTime` | ISO 8601 start time (e.g., `"2024-01-01T00:00:00Z"`) |
 | `StartTimeSecondsInFuture` | Start time as seconds from now (mutually exclusive with StartTime) |
 | `EndTime` | ISO 8601 end time |
@@ -287,6 +289,30 @@ keeps it, and the pin is released if that node stops checking in.
 :::
 
 The same field is spelled `<preferred-node>` in the XML format.
+
+### Waiting for another trigger
+
+`ContinuesAfter` names a trigger the way a delete command names one — a `Name` and an optional `Group`,
+defaulting to `DEFAULT` — and the trigger declared with it is stored
+[waiting](../how-tos/job-continuations.md) rather than scheduled:
+
+```json
+{
+  "Name": "reconcile",
+  "Group": "nightly",
+  "JobName": "reconcileJob",
+  "ContinuesAfter": { "Name": "import", "Group": "nightly" },
+  "ContinuationCondition": "OnFailure|OnCancellation",
+  "Cron": { "Expression": "0 0 2 * * ?" }
+}
+```
+
+The parent is **named, never resolved**: nothing looks it up as the file is read, so it may be declared
+later in the same file or be in the store already. An outcome that is not one, and a
+`ContinuationCondition` with no `ContinuesAfter` beside it, are refused as the file is read, naming the
+trigger — a condition nothing satisfies would discard the trigger whatever its parent did.
+
+The same pair is spelled `<continues-after>` and `<continuation-condition>` in the XML format.
 
 ## Multiple Named Schedulers
 
