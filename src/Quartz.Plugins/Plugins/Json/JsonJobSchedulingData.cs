@@ -126,6 +126,19 @@ internal sealed class JsonFileTriggerDefinition
     /// </summary>
     public string? PreferredNode { get; set; }
 
+    /// <summary>
+    /// The trigger whose firing this one waits for, or absent when it waits for nothing. Named rather
+    /// than resolved, so the parent may be declared later in the same file or be in the store already.
+    /// </summary>
+    public JsonFileTriggerKey? ContinuesAfter { get; set; }
+
+    /// <summary>
+    /// Which outcomes of that firing release the wait: <c>OnSuccess</c>, <c>OnFailure</c>,
+    /// <c>OnCancellation</c>, <c>OnVeto</c> or <c>OnAnyOutcome</c>, joined with <c>|</c> for more than
+    /// one. Absent means <c>OnSuccess</c>.
+    /// </summary>
+    public string? ContinuationCondition { get; set; }
+
     public string? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public string? EndTime { get; set; }
@@ -136,6 +149,16 @@ internal sealed class JsonFileTriggerDefinition
     public JsonFileCalendarIntervalSchedule? CalendarInterval { get; set; }
     public JsonFileDailyTimeIntervalSchedule? DailyTimeInterval { get; set; }
     public JsonFileRecurrenceSchedule? Recurrence { get; set; }
+}
+
+/// <summary>
+/// Another trigger, named by key: the same two members <see cref="JsonDeleteTriggerCommand" /> names one
+/// by, because that is how this file has always referred to something it is not defining.
+/// </summary>
+internal sealed class JsonFileTriggerKey
+{
+    public string Name { get; set; } = "";
+    public string? Group { get; set; }
 }
 
 internal sealed class JsonFileSimpleSchedule

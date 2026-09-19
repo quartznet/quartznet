@@ -387,6 +387,11 @@ internal class XmlSchedulingDataProcessor
             string? triggerExecutionGroup = triggerNode.ExecutionGroup.TrimEmptyToNull();
             RetryPolicy? triggerRetryPolicy = SchedulingFileValues.ReadRetryPolicy(triggerNode.RetryPolicy.TrimEmptyToNull(), $"XML trigger '{triggerName}'");
             PreferredNode triggerPreferredNode = SchedulingFileValues.ReadPreferredNode(triggerNode.PreferredNode.TrimEmptyToNull(), $"XML trigger '{triggerName}'");
+            Continuation triggerContinuation = SchedulingFileValues.ReadContinuation(
+                triggerNode.ContinuesAfterName.TrimEmptyToNull(),
+                triggerNode.ContinuesAfterGroup.TrimEmptyToNull(),
+                triggerNode.ContinuationCondition.TrimEmptyToNull(),
+                $"XML trigger '{triggerName}'");
             string triggerJobName = triggerNode.JobName.TrimEmptyToNull()!;
             string triggerJobGroup = triggerNode.JobGroup.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
 
@@ -462,7 +467,7 @@ internal class XmlSchedulingDataProcessor
                 return;
             }
 
-            IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create(timeProvider)
+            TriggerBuilder<IJob> triggerBuilder = TriggerBuilder.Create(timeProvider)
                 .WithIdentity(triggerName, triggerGroup)
                 .WithDescription(triggerDescription)
                 .ForJob(triggerJobName, triggerJobGroup)
@@ -473,8 +478,16 @@ internal class XmlSchedulingDataProcessor
                 .WithExecutionGroup(triggerExecutionGroup)
                 .WithRetryPolicy(triggerRetryPolicy)
                 .WithPreferredNode(triggerPreferredNode)
-                .WithSchedule(scheduleBuilder)
-                .Build();
+                .WithSchedule(scheduleBuilder);
+
+            // StartAfter composes with the schedule rather than replacing it, and refuses a parent that
+            // is not there to name - so it is called only when the document declared one.
+            if (triggerContinuation.Parent is { } continuationParent)
+            {
+                triggerBuilder.StartAfter(continuationParent, triggerContinuation.When);
+            }
+
+            IMutableTrigger trigger = (IMutableTrigger) triggerBuilder.Build();
 
             foreach (JobDataMapEntry entry in triggerNode.JobDataMap)
             {

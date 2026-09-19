@@ -221,6 +221,14 @@ internal sealed class JobSchedulingData
         trigger.ExecutionGroup = Text(element, "execution-group");
         trigger.RetryPolicy = Text(element, "retry-policy");
         trigger.PreferredNode = Text(element, "preferred-node");
+        XElement? continuesAfter = element.Element(Namespace + "continues-after");
+        if (continuesAfter is not null)
+        {
+            trigger.ContinuesAfterName = Text(continuesAfter, "name");
+            trigger.ContinuesAfterGroup = Text(continuesAfter, "group");
+        }
+
+        trigger.ContinuationCondition = Text(element, "continuation-condition");
         trigger.MisfireInstruction = Text(element, "misfire-instruction");
         trigger.JobDataMap = ReadJobDataMap(element);
         trigger.StartTime = Timestamp(element, "start-time");
@@ -370,6 +378,23 @@ internal abstract class TriggerDefinition
     /// null when the document states no preference.
     /// </summary>
     public string? PreferredNode { get; set; }
+
+    /// <summary>
+    /// The <c>name</c> of the <c>continues-after</c> element: the trigger whose firing this one waits
+    /// for, or null when the document declares no continuation.
+    /// </summary>
+    public string? ContinuesAfterName { get; set; }
+
+    /// <summary>
+    /// The <c>group</c> of the <c>continues-after</c> element, or null for the default group.
+    /// </summary>
+    public string? ContinuesAfterGroup { get; set; }
+
+    /// <summary>
+    /// The <c>continuation-condition</c> element: the outcomes of that firing which release the wait,
+    /// joined with <c>|</c>, or null for <c>OnSuccess</c>.
+    /// </summary>
+    public string? ContinuationCondition { get; set; }
 
     public string? MisfireInstruction { get; set; }
 

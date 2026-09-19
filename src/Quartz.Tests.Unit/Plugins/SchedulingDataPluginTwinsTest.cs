@@ -182,7 +182,109 @@ public sealed class SchedulingDataPluginTwinsTest
             "and the settings they agree on are the ones the documents state");
     }
 
+    /// <summary>
+    /// The two formats declare a continuation in the same words, and produce the same waiting trigger
+    /// from them.
+    /// </summary>
+    /// <remarks>
+    /// Each format names the parent the way it has always named something it is not defining — a
+    /// <c>name</c>/<c>group</c> pair, as a <c>delete-trigger</c> command does — and each spells the
+    /// condition as the outcomes rather than as the integer the column holds. Two readers of one concept
+    /// stay honest only if something compares them.
+    /// </remarks>
+    [Test]
+    public async Task BothFormatsDeclareTheSameContinuation()
+    {
+        List<ITrigger> xml = await ReadXml($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+              <schedule>
+                <job>
+                  <name>job1</name>
+                  <job-type>{JobType}</job-type>
+                </job>
+                <trigger>
+                  <cron>
+                    <name>whenTheImportFails</name>
+                    <job-name>job1</job-name>
+                    <continues-after>
+                      <name>import</name>
+                      <group>nightly</group>
+                    </continues-after>
+                    <continuation-condition>OnFailure|OnCancellation</continuation-condition>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+                <trigger>
+                  <cron>
+                    <name>whenTheImportWorks</name>
+                    <job-name>job1</job-name>
+                    <continues-after>
+                      <name>import</name>
+                    </continues-after>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+                <trigger>
+                  <cron>
+                    <name>whenever</name>
+                    <job-name>job1</job-name>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+              </schedule>
+            </job-scheduling-data>
+            """);
+
+        List<ITrigger> json = ReadJson($$"""
+            {
+              "Schedule": {
+                "Jobs": [{ "Name": "job1", "JobType": "{{JobType}}" }],
+                "Triggers": [
+                  {
+                    "Name": "whenTheImportFails", "JobName": "job1",
+                    "ContinuesAfter": { "Name": "import", "Group": "nightly" },
+                    "ContinuationCondition": "OnFailure|OnCancellation",
+                    "Cron": { "Expression": "0 0 12 * * ?" }
+                  },
+                  {
+                    "Name": "whenTheImportWorks", "JobName": "job1",
+                    "ContinuesAfter": { "Name": "import" },
+                    "Cron": { "Expression": "0 0 12 * * ?" }
+                  },
+                  {
+                    "Name": "whenever", "JobName": "job1",
+                    "Cron": { "Expression": "0 0 12 * * ?" }
+                  }
+                ]
+              }
+            }
+            """);
+
+        Continuations(xml).Should().Equal(Continuations(json),
+            "the two formats are one feature spelled twice, so a continuation declared the same way in "
+            + "each has to come out the same - including what an omitted group and an omitted condition "
+            + "mean");
+
+        Continuations(xml).Should().Equal(
+            [
+                "whenTheImportFails: after nightly.import, when OnFailure, OnCancellation",
+                "whenTheImportWorks: after DEFAULT.import, when OnSuccess",
+                "whenever: waits for nothing",
+            ],
+            "and the continuations they agree on are the ones the documents state");
+    }
+
     private const string JobType = "Quartz.Jobs.NoOpJob, Quartz.Jobs";
+
+    private static List<string> Continuations(List<ITrigger> triggers)
+    {
+        return triggers
+            .Select(x => x.Continuation.Parent is { } parent
+                ? $"{x.Key.Name}: after {parent.Group}.{parent.Name}, when {x.Continuation.When}"
+                : $"{x.Key.Name}: waits for nothing")
+            .ToList();
+    }
 
     private static List<string> Settings(List<ITrigger> triggers)
     {

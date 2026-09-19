@@ -457,6 +457,73 @@ public class JsonSchedulingTests
     }
 
     [Test]
+    public void AddQuartz_WithContinuationInJson_MakesTheTriggerWaitForTheParent()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "importJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "reconcile" },
+            { "Schedule:Triggers:0:JobName", "importJob" },
+            { "Schedule:Triggers:0:ContinuesAfter:Name", "import" },
+            { "Schedule:Triggers:0:ContinuesAfter:Group", "nightly" },
+            { "Schedule:Triggers:0:ContinuationCondition", "OnFailure|OnCancellation" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+            { "Schedule:Triggers:1:Name", "cleanup" },
+            { "Schedule:Triggers:1:JobName", "importJob" },
+            { "Schedule:Triggers:1:ContinuesAfter:Name", "import" },
+            { "Schedule:Triggers:1:Cron:Expression", "0 0 * * * ?" },
+            { "Schedule:Triggers:2:Name", "ordinary" },
+            { "Schedule:Triggers:2:JobName", "importJob" },
+            { "Schedule:Triggers:2:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using var provider = services.BuildServiceProvider();
+        var triggers = provider.ScheduledTriggers();
+
+        triggers.Should().HaveCount(3);
+        triggers.Single(x => x.Key.Name == "reconcile").Continuation.Should().Be(
+            Continuation.After(new TriggerKey("import", "nightly"), ContinuationCondition.OnFailure | ContinuationCondition.OnCancellation),
+            "the Schedule section and a standalone quartz_jobs.json are one format, so a field on one is "
+            + "a field on the other");
+        triggers.Single(x => x.Key.Name == "cleanup").Continuation.Should().Be(
+            Continuation.After(new TriggerKey("import", "DEFAULT"), ContinuationCondition.OnSuccess),
+            "an omitted group is the default group and an omitted condition is 'only if it worked'");
+        triggers.Single(x => x.Key.Name == "ordinary").Continuation.IsNone.Should().BeTrue();
+    }
+
+    [Test]
+    public void AddQuartz_WithAConditionAndNoParentInJson_IsRefused()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "importJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "reconcile" },
+            { "Schedule:Triggers:0:JobName", "importJob" },
+            { "Schedule:Triggers:0:ContinuationCondition", "OnAnyOutcome" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using var provider = services.BuildServiceProvider();
+        var act = () => provider.ScheduledTriggers();
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a condition says how a wait ends, and there is no wait here to end")
+            .WithMessage("*names the trigger whose firing it waits for*");
+    }
+
+    [Test]
     public void AddQuartz_StartTimeSecondsInFutureInJson_IsRelativeToTheSchedulersClock()
     {
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero));
