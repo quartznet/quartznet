@@ -55,9 +55,10 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private TaskCompletionSource runningTasksDrained = null!;
 
     /// <summary>
-    /// Cached delegate to mark a given task as complete.
+    /// Cached delegate the task scheduler is handed, so that a dispatch allocates the work item's own
+    /// task and nothing else.
     /// </summary>
-    private Action<Task> completeTask = null!;
+    private Action<object?> runWorkItem = null!;
 
     /// <summary>
     /// The semaphore used to limit concurrency and integers representing maximum
@@ -182,8 +183,8 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             runningTasksDrained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
-        // Reduce allocations by caching the delegate to mark a task as complete
-        completeTask = SignalTaskComplete;
+        // Reduce allocations by caching the delegate every dispatch hands the task scheduler
+        runWorkItem = RunWorkItem;
 
         // Thread pool is ready to go
         isInitialized = true;
@@ -265,13 +266,6 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             }
         }
 
-        // Wrap the action in a Task to start it asynchronously. AsTask costs nothing when the
-        // work completed synchronously and is the Task the machinery below needs otherwise.
-        var task = new Task<Task>(() => action().AsTask());
-
-        // Unrap the task so that we can work with the underlying task
-        var unwrappedTask = task.Unwrap();
-
         lock (runningTasksLock)
         {
             // Now that the lock is held, shutdown can't proceed,
@@ -282,28 +276,31 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
                 return false;
             }
 
-            // Record an extra running task. Interlocked because the completion continuation decrements
-            // without taking this lock; the lock is here to order the increment against shutdown.
+            // Record an extra running task. Interlocked because the work item decrements without
+            // taking this lock; the lock is here to order the increment against shutdown.
             Interlocked.Increment(ref runningTasks);
         }
 
-        // Register a callback to remove the task from the running list once it has completed
-#pragma warning disable MA0134
-        // Always runs: this is what releases the concurrency semaphore, so it must not be
-        // skipped because the caller's token fired.
-        _ = unwrappedTask.ContinueWith(completeTask, CancellationToken.None);
-#pragma warning restore MA0134
-
-        // Start the task using the task scheduler
+        // One task, not three. This used to be a Task<Task> wrapping the action, an Unwrap promise
+        // over it and a ContinueWith to do the accounting — 584 bytes a dispatch and two extra thread
+        // hand-offs, which the #3802 profile put at the top of the fire path's allocation. The work
+        // item awaits the action itself and does the same accounting in its own finally, so the
+        // scheduler is handed one task and the cached delegate above; the action is the state.
         try
         {
-            task.Start(Scheduler);
+#pragma warning disable MA0134
+            // Nothing to observe: the work item catches everything the action can throw, so the task
+            // this hands back cannot fault, and its completion is not what the pool waits on.
+            _ = Task.Factory.StartNew(runWorkItem, action, CancellationToken.None, TaskCreationOptions.None, Scheduler);
+#pragma warning restore MA0134
         }
-        catch (TaskSchedulerException)
+        catch (TaskSchedulerException e)
         {
             // Shutdown(waitForJobsToComplete: false) disposed the scheduler between the double-check
-            // above and Start. The task is faulted rather than lost, so the completion continuation
-            // still fires and releases the semaphore and countdown — do not release them here.
+            // above and the dispatch. The work item never ran, so nothing else is going to release
+            // the semaphore and the countdown this call took.
+            logger.ThreadPoolTaskFaulted(e);
+            SignalWorkItemComplete();
             return false;
         }
 
@@ -311,19 +308,53 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     }
 
     /// <summary>
-    /// Decrements the number of running tasks and releases the concurrency semaphore so that more
-    /// tasks may begin running.
+    /// The body the task scheduler runs: the action, and then the accounting, whatever the action did.
     /// </summary>
-    /// <param name="completedTask">The task which has completed.</param>
-    private void SignalTaskComplete(Task completedTask)
+    private void RunWorkItem(object? state)
     {
-        if (completedTask.Exception is not null)
+#pragma warning disable MA0134
+        // Fire and forget by design. Everything the work item can fail at is handled inside it, so
+        // there is no outcome to await and nothing here to observe. A Task rather than a ValueTask
+        // precisely because it is discarded: one that completes synchronously is the cached completed
+        // Task and costs nothing, and one that does not is the single state-machine box either shape
+        // allocates.
+        _ = RunAndSignal((Func<ValueTask>) state!);
+#pragma warning restore MA0134
+    }
+
+    /// <summary>
+    /// Runs one work item and, whatever becomes of it, decrements the number of running tasks and
+    /// releases the concurrency semaphore so that more tasks may begin running.
+    /// </summary>
+    private async Task RunAndSignal(Func<ValueTask> action)
+    {
+        try
+        {
+            await action().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // A work item that was cancelled rather than faulted. The completion this replaces read
+            // Task.Exception, which a cancelled task leaves null, so it logged nothing either.
+        }
+        catch (Exception e)
         {
             // Observing the fault here keeps it off the UnobservedTaskException path; a failure
             // can reach this point only by escaping the job run shell's own error handling.
-            logger.ThreadPoolTaskFaulted(completedTask.Exception);
+            logger.ThreadPoolTaskFaulted(e);
         }
+        finally
+        {
+            SignalWorkItemComplete();
+        }
+    }
 
+    /// <summary>
+    /// Decrements the number of running tasks and releases the concurrency semaphore so that more
+    /// tasks may begin running.
+    /// </summary>
+    private void SignalWorkItemComplete()
+    {
         concurrencySemaphore.Release();
 
         if (Interlocked.Decrement(ref runningTasks) == 0)

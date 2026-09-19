@@ -539,6 +539,57 @@ public class TaskSchedulingThreadPoolTest
             + "by throwing would fail a shutdown that has otherwise finished");
     }
 
+    [Test]
+    public async Task ADispatchCostsOneTaskRatherThanAChainOfThem()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new(TaskScheduler.Default, 16);
+        await threadPool.Initialize();
+
+        // The caller's own delegate is not what this counts, so it is allocated once and reused.
+        Func<ValueTask> action = static () => default;
+
+        // Warm: the JIT, the semaphore's first wait and whatever the task scheduler caches on its
+        // first use all land on the first few dispatches, and none of them is a dispatch's cost.
+        for (int i = 0; i < 16; i++)
+        {
+            (await threadPool.TryRun(action)).Should().BeTrue();
+        }
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        (await threadPool.TryRun(action)).Should().BeTrue();
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        allocated.Should().BeLessThan(200,
+            "a dispatch hands the task scheduler one task and the cached delegate beside it; it used to "
+            + "build a Task<Task>, an Unwrap promise over that and a ContinueWith to do the accounting, "
+            + "which is over four hundred bytes on this thread and two more thread hand-offs (#3802)");
+
+        await threadPool.Shutdown();
+    }
+
+    [Test]
+    public async Task AWorkItemThatThrowsStillFreesItsSlot()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new(TaskScheduler.Default, 1);
+        await threadPool.Initialize();
+
+        TaskCompletionSource secondRan = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        (await threadPool.TryRun(static () => throw new InvalidOperationException("a job that escaped its run shell")))
+            .Should().BeTrue();
+
+        (await threadPool.TryRun(() =>
+        {
+            secondRan.TrySetResult();
+            return default;
+        })).Should().BeTrue("the only slot must have been released by the work item that threw");
+
+        await secondRan.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        (await threadPool.Drain(CancellationToken.None)).Should().BeTrue(
+            "the countdown a faulting work item took must be given back too, or the pool never drains");
+    }
+
     private sealed class CustomTaskSchedulingThreadPool : TaskSchedulingThreadPool
     {
         private readonly TaskScheduler taskScheduler;
