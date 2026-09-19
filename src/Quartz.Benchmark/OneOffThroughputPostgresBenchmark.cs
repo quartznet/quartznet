@@ -53,8 +53,11 @@ public class OneOffThroughputPostgresBenchmark
     [Params(10)]
     public int MaxConcurrency { get; set; }
 
-    /// <summary>The shipped settings against the ones the repeating benchmark uses.</summary>
-    [Params(OneOffProfile.Defaults, OneOffProfile.Tuned)]
+    /// <summary>
+    /// The shipped settings, the same with <c>MaxBatchSize</c> raised to the pool, and the settings
+    /// the repeating benchmark uses. The middle one is the interesting arm: it fires nothing early.
+    /// </summary>
+    [Params(OneOffProfile.Defaults, OneOffProfile.BatchOnly, OneOffProfile.Tuned)]
     public OneOffProfile Profile { get; set; }
 
     private BenchmarkDatabase database = null!;
