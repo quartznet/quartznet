@@ -181,6 +181,11 @@ public class UpgradeRehearsalTest
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.2", "add_continuations", dialect, RehearsalPrefix), dialect);
 
+        // Optional in production — only a store configured with UseExecutionHistory() reads its two
+        // tables — but the comparison below is against a fresh install, which creates them.
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.2", "add_execution_history", dialect, RehearsalPrefix), dialect);
+
         await MigrationScriptTest.AssertSchemaMatchesAsync(connection, dialect, RehearsalPrefix);
 
         foreach (SeedManifest manifest in manifests)

@@ -204,6 +204,30 @@ internal static class SqlParameters
     public const string Boolean1 = "boolean1";
     public const string Boolean2 = "boolean2";
 
+    // EXECUTION_HISTORY and MISFIRE_HISTORY, which the ADO-backed execution history writes and reads.
+    // The key columns reuse the names above: a history row names a job and a trigger the same way a
+    // fired-trigger row does.
+
+    public const string RunTime = "runTime";
+    public const string Succeeded = "succeeded";
+    public const string ErrorMessage = "errorMessage";
+    public const string MisfireTime = "misfireTime";
+
+    /// <summary>The node a history page is narrowed to.</summary>
+    public const string HistoryNode = "historyNode";
+
+    /// <summary>The lowered pattern a job-key <c>Contains</c> filter matches.</summary>
+    public const string HistoryJobContains = "historyJobContains";
+
+    /// <summary>The lowered pattern a trigger-key <c>Contains</c> filter matches.</summary>
+    public const string HistoryTriggerContains = "historyTriggerContains";
+
+    /// <summary>The instant a misfire count counts from.</summary>
+    public const string HistorySince = "historySince";
+
+    /// <summary>The instant the retention sweep deletes below.</summary>
+    public const string HistoryCutoff = "historyCutoff";
+
     // Paging, for the dialects whose clause takes its bounds as parameters.
 
     public const string PageSkip = "pageSkip";

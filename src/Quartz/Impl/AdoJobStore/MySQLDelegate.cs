@@ -64,6 +64,15 @@ public class MySQLDelegate : StdAdoDelegate
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.AtStatementEnd("LIMIT", count);
 
     /// <summary>
+    /// MySQL reads <c>||</c> as a logical OR unless the server runs in <c>PIPES_AS_CONCAT</c> mode,
+    /// so strings are joined with <c>CONCAT</c>.
+    /// </summary>
+    internal override string HistoryKeyExpression(string groupColumn, string nameColumn)
+    {
+        return "LOWER(CONCAT(" + groupColumn + ", '.', " + nameColumn + "))";
+    }
+
+    /// <summary>
     /// The acquisition statement carries a FORCE INDEX hint pointing at IDX_*_T_NFT_ST.
     /// </summary>
     protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)

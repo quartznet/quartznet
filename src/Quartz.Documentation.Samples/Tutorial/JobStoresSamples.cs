@@ -111,6 +111,30 @@ public static class JobStoresSamples
         #endregion
     }
 
+    public static void ExecutionHistoryInTheDatabase(IHostApplicationBuilder builder, string connectionString)
+    {
+        #region sample_job_stores_execution_history
+
+        builder.Services.AddQuartz(q =>
+        {
+            q.UsePersistentStore(store =>
+            {
+                store.UsePostgres(connectionString);
+                store.UseExecutionHistory();
+            });
+        });
+
+        // The bounds the history is kept under, which the store applies itself. Optional: these are
+        // the defaults.
+        builder.Services.AddQuartzExecutionHistory(options =>
+        {
+            options.Retention = TimeSpan.FromHours(24);
+            options.MaxEntriesPerScheduler = 2000;
+        });
+
+        #endregion
+    }
+
     public static void AcceptEnlistedTransactions(IHostApplicationBuilder builder, string connectionString)
     {
         #region sample_job_stores_accept_enlisted_transactions

@@ -44,6 +44,8 @@ BEGIN
     DropQuartzTable('QRTZ_TRIGGERS');
     DropQuartzTable('QRTZ_JOB_DETAILS');
     DropQuartzTable('QRTZ_CALENDARS');
+    DropQuartzTable('QRTZ_EXECUTION_HISTORY');
+    DropQuartzTable('QRTZ_MISFIRE_HISTORY');
   END IF;
 END;
 /
@@ -200,6 +202,40 @@ CREATE TABLE qrtz_locks
     CONSTRAINT QRTZ_LOCKS_PK PRIMARY KEY (SCHED_NAME,LOCK_NAME)
 );
 
+-- The two execution history tables. Optional: only a store configured with
+-- UsePersistentStore(s => s.UseExecutionHistory()) reads or writes them, and nothing else in
+-- this schema references them. ERROR_MESSAGE is four times the width of the other dialects'
+-- because VARCHAR2 counts bytes: the store truncates the message at 1,000 characters, which is
+-- at most 4,000 bytes of UTF-8.
+CREATE TABLE qrtz_execution_history
+  (
+    SCHED_NAME VARCHAR2(120) NOT NULL,
+    ENTRY_ID VARCHAR2(140) NOT NULL,
+    INSTANCE_NAME VARCHAR2(200) NOT NULL,
+    JOB_NAME VARCHAR2(200) NOT NULL,
+    JOB_GROUP VARCHAR2(200) NOT NULL,
+    TRIGGER_NAME VARCHAR2(200) NOT NULL,
+    TRIGGER_GROUP VARCHAR2(200) NOT NULL,
+    FIRED_TIME NUMBER(19) NOT NULL,
+    RUN_TIME NUMBER(19) NOT NULL,
+    SUCCEEDED VARCHAR2(1) NOT NULL,
+    ERROR_MESSAGE VARCHAR2(4000) NULL,
+    CONSTRAINT QRTZ_EXEC_HISTORY_PK PRIMARY KEY (SCHED_NAME,ENTRY_ID)
+);
+CREATE TABLE qrtz_misfire_history
+  (
+    SCHED_NAME VARCHAR2(120) NOT NULL,
+    ENTRY_ID VARCHAR2(140) NOT NULL,
+    INSTANCE_NAME VARCHAR2(200) NOT NULL,
+    TRIGGER_NAME VARCHAR2(200) NOT NULL,
+    TRIGGER_GROUP VARCHAR2(200) NOT NULL,
+    JOB_NAME VARCHAR2(200) NULL,
+    JOB_GROUP VARCHAR2(200) NULL,
+    MISFIRE_TIME NUMBER(19) NOT NULL,
+    SCHED_TIME NUMBER(19) NULL,
+    CONSTRAINT QRTZ_MISFIRE_HISTORY_PK PRIMARY KEY (SCHED_NAME,ENTRY_ID)
+);
+
 create index idx_qrtz_j_g_n on qrtz_job_details(SCHED_NAME,JOB_GROUP,JOB_NAME);
 
 create index idx_qrtz_t_j on qrtz_triggers(SCHED_NAME,JOB_NAME,JOB_GROUP);
@@ -210,5 +246,10 @@ create index idx_qrtz_t_nft_st on qrtz_triggers(SCHED_NAME,TRIGGER_STATE,NEXT_FI
 create index idx_qrtz_ft_inst_job_req_rcvry on qrtz_fired_triggers(SCHED_NAME,INSTANCE_NAME,REQUESTS_RECOVERY);
 create index idx_qrtz_ft_j_g on qrtz_fired_triggers(SCHED_NAME,JOB_NAME,JOB_GROUP);
 create index idx_qrtz_ft_t_g on qrtz_fired_triggers(SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP);
+
+create index idx_qrtz_eh_fired_time on qrtz_execution_history(SCHED_NAME,FIRED_TIME);
+create index idx_qrtz_eh_inst on qrtz_execution_history(SCHED_NAME,INSTANCE_NAME);
+create index idx_qrtz_mh_misfire_time on qrtz_misfire_history(SCHED_NAME,MISFIRE_TIME);
+create index idx_qrtz_mh_inst on qrtz_misfire_history(SCHED_NAME,INSTANCE_NAME);
 
 

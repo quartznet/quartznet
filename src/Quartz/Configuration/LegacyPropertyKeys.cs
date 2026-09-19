@@ -322,6 +322,7 @@ internal static class LegacyPropertyKeys
         JobStorePrefix + ".doubleCheckLockMisfireHandler",
         JobStorePrefix + ".performSchemaValidation",
         JobStorePrefix + ".schemaProvisioning",
+        JobStorePrefix + ".executionHistory",
         JobStorePrefix + ".selectWithLockSQL",
         JobStorePrefix + ".clustered",
         JobStorePrefix + ".clusterCheckinInterval",

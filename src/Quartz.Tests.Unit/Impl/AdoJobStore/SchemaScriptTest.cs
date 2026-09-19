@@ -120,21 +120,60 @@ public class SchemaScriptTest
     /// The third file in the pair's conversation: the list the store probes at startup.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The two scripts agreeing with each other is not enough, because both can create a table the
     /// store never asks about. <c>AdoConstants.AllTableNames</c> is what
     /// <see cref="SchemaProvisioning.Validate" /> runs a <c>SELECT 1</c> against, so a table in the
     /// scripts and not in that list is one a database can be missing while startup reports the schema
     /// good — which is what #3564 was, about <c>QRTZ_SIMPROP_TRIGGERS</c>.
+    /// </para>
+    /// <para>
+    /// <c>AdoConstants.OptionalTableNames</c> is the other half of the answer, and it is the whole of
+    /// the exemption: a table there is probed when the feature that needs it is turned on and never
+    /// otherwise, which is what lets <c>4.2/add_execution_history_&lt;dialect&gt;.sql</c> be optional.
+    /// Every other table the scripts create still has to be one startup checks for unconditionally.
+    /// </para>
     /// </remarks>
     [TestCaseSource(nameof(Dialects))]
     public void EveryTableTheFreshInstallScriptCreatesIsOneTheStoreValidates(string dialect)
     {
         SqlObjects fresh = SqlObjects.Parse(FreshInstallScript(dialect));
 
-        fresh.Tables.Keys.Should().BeEquivalentTo(AdoConstants.AllTableNames,
-            $"database/tables/tables_{dialect}.sql and AdoConstants.AllTableNames describe the same "
-            + "schema — one creates it, the other is the whole of what startup checks is there");
+        fresh.Tables.Keys.Should().BeEquivalentTo(EveryTableTheStoreKnows,
+            $"database/tables/tables_{dialect}.sql, AdoConstants.AllTableNames and "
+            + "AdoConstants.OptionalTableNames describe the same schema — one creates it, the other two "
+            + "are the whole of what startup checks is there, unconditionally and on demand");
     }
+
+    /// <summary>
+    /// The optional tables are optional, and the required ones are not.
+    /// </summary>
+    /// <remarks>
+    /// The comparison above passes just as happily if a history table were moved into
+    /// <c>AllTableNames</c>, which would make the 4.2 migration mandatory for every 4.0 and 4.1
+    /// database — the one thing #3771 says it must not be. So the split itself is asserted.
+    /// </remarks>
+    [Test]
+    public void OnlyTheExecutionHistoryTablesAreOptional()
+    {
+        AdoConstants.OptionalTableNames.Select(t => t.Table).Should().BeEquivalentTo(
+            [AdoConstants.TableExecutionHistory, AdoConstants.TableMisfireHistory],
+            "the execution history is the one feature whose tables a database may be without, and "
+            + "every other table is one the store reads whatever it is configured to do");
+
+        AdoConstants.AllTableNames.Should().NotContain(AdoConstants.TableExecutionHistory)
+            .And.NotContain(AdoConstants.TableMisfireHistory,
+                "a history table in the unconditional probe would make 4.2/add_execution_history "
+                + "mandatory for every database created by 4.0 or 4.1");
+
+        AdoConstants.OptionalTableNames.Should().AllSatisfy(entry =>
+            entry.Migration.Should().Be(AdoConstants.Migration42History,
+                "the failure names the script the database in front of the reader is missing"));
+    }
+
+    /// <summary>Every table the store knows about, required and optional alike.</summary>
+    private static readonly string[] EveryTableTheStoreKnows =
+        [.. AdoConstants.AllTableNames, .. AdoConstants.OptionalTableNames.Select(t => t.Table)];
 
     [TestCaseSource(nameof(Dialects))]
     public void TheGeneratedScriptDeclaresTheColumnsTheFreshInstallScriptDeclares(string dialect)

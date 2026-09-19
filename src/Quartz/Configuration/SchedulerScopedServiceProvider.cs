@@ -246,6 +246,16 @@ internal sealed class SchedulerScopedServiceProvider
             return inner.GetKeyedService(serviceType, key) ?? inner.GetService(serviceType);
         }
 
+        // A scheduler's execution history is its own when UseExecutionHistory() gave it one, and the
+        // container's shared store otherwise - which is where the in-memory history keeps every
+        // scheduler's rows at once, told apart by the scheduler name each row carries. Not in the set
+        // above, for the reason TimeProvider is not: without the fallback, a named scheduler on the
+        // in-memory default would resolve nothing and record nothing.
+        if (serviceType == typeof(IExecutionHistoryStore))
+        {
+            return inner.GetKeyedService(serviceType, key) ?? inner.GetService(serviceType);
+        }
+
         // Quartz registers no ILoggerFactory, so a container that was never told where logging goes has
         // none to inject into a component that asks for one - a custom job store, a serializer, a
         // listener. The ambient bridge is the answer there, for the same reason a scheduler's own parts

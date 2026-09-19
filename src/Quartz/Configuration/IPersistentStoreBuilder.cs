@@ -205,6 +205,56 @@ public interface IPersistentStoreBuilder
     IPersistentStoreBuilder ProvisionSchema();
 
     /// <summary>
+    /// Keeps what this scheduler runs and misses in its own database, so that a cluster has one
+    /// execution history rather than one per node.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The history Quartz keeps without this is per process and in memory, which is why a dashboard
+    /// attached to a cluster through a shared store sees nothing: no node wrote what it is reading.
+    /// This puts both feeds — executions and misfires — in <c>QRTZ_EXECUTION_HISTORY</c> and
+    /// <c>QRTZ_MISFIRE_HISTORY</c>, where every node writes and any of them can read the lot.
+    /// </para>
+    /// <para>
+    /// <strong>The two tables have to be there.</strong> A fresh 4.2 install creates them and
+    /// <see cref="ProvisionSchema" /> creates them; a database created by 4.0 or 4.1 needs
+    /// <c>database/migrations/4.2/add_execution_history_&lt;dialect&gt;.sql</c>, and this store refuses
+    /// to start without them, naming that script. The migration is needed by nothing else, so a
+    /// deployment that leaves this uncalled never has to run it.
+    /// </para>
+    /// <para>
+    /// The store keeps itself trimmed to <see cref="ExecutionHistoryOptions" /> — 24 hours and 2,000
+    /// rows per scheduler by default — sweeping on a timer of its own and never inside a job's
+    /// transaction or under the trigger lock. A history write that fails is logged and dropped: the
+    /// execution it describes has already happened, and losing the record of it must not fail the
+    /// firing. Every node sweeps independently, which is safe because the deletes are idempotent.
+    /// </para>
+    /// <para>
+    /// It also calls <c>AddQuartzExecutionHistory()</c> if nothing has, so the recorder and the bounds
+    /// are in place. An application that registered an <see cref="Extensibility.IExecutionHistoryStore" />
+    /// of its own keeps it: this replaces the shipped in-memory default and only that.
+    /// </para>
+    /// <para>
+    /// In a mixed cluster nothing has to be co-ordinated. A 4.1 node cannot see these tables, and a 4.2
+    /// node that does not call this neither writes nor reads them; the nodes that do call it share one
+    /// history, and a page read from any of them shows every node's rows, told apart by
+    /// <see cref="ExecutionHistoryEntry.SchedulerInstanceId" />.
+    /// </para>
+    /// </remarks>
+    IPersistentStoreBuilder UseExecutionHistory()
+    {
+        // The schema check covers the two tables now, and only now: they are optional, so probing for
+        // them unconditionally would make 4.2's migration mandatory for every existing database.
+        ConfigureStore(static options => options.ExecutionHistory = true);
+
+        Configuration.ExecutionHistoryRegistration.Apply(
+            Services,
+            string.IsNullOrEmpty(SchedulerName) ? null : SchedulerName);
+
+        return this;
+    }
+
+    /// <summary>
     /// Uses a specific serializer for job data held in the database.
     /// </summary>
     IPersistentStoreBuilder UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()

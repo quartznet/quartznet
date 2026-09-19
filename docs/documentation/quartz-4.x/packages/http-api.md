@@ -679,9 +679,16 @@ bounded by age and by count, as the dashboard's has always been. To opt out, rec
 services.AddQuartzExecutionHistory(options => options.MaxEntriesPerScheduler = 0);
 ```
 
-To keep history somewhere that survives a restart, register an `IExecutionHistoryStore` of your own
-before `AddQuartzHttpApi()`; the shipped registration is a `TryAdd`. A dashboard in the same process
-reads the same store — see
+**A scheduler on a persistent store can keep it in the database instead.**
+[`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database)
+puts both feeds in `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY`, where they survive a restart
+and where a whole cluster writes into one history — so these three routes answer for every node rather
+than for the one that happens to serve the request. The routes themselves are unchanged: they resolve
+`IExecutionHistoryStore`, and which store that is was decided at registration.
+
+To keep history somewhere else again, register an `IExecutionHistoryStore` of your own before
+`AddQuartzHttpApi()`; the shipped registration is a `TryAdd`, and `UseExecutionHistory()` replaces only
+the in-memory default. A dashboard in the same process reads the same store — see
 [Execution history and misfires](dashboard.md#execution-history-and-misfires).
 
 ## Pause and resume report what they did

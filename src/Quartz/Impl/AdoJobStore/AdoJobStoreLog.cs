@@ -229,4 +229,13 @@ internal static partial class AdoJobStoreLog
 
     [LoggerMessage(EventId = 3155, Level = LogLevel.Warning, Message = "Batched statement execution failed, retrying {StatementCount} statement(s) individually")]
     public static partial void BatchedStatementExecutionFailed(this ILogger logger, int statementCount, Exception exception);
+
+    [LoggerMessage(EventId = 3160, Level = LogLevel.Warning, Message = "Could not record execution history for scheduler '{SchedulerName}'. The firing itself is unaffected; only the history row is lost.")]
+    public static partial void ExecutionHistoryWriteFailed(this ILogger logger, string schedulerName, Exception exception);
+
+    [LoggerMessage(EventId = 3161, Level = LogLevel.Warning, Message = "The execution history retention sweep failed. Rows past their bounds stay until the next sweep.")]
+    public static partial void ExecutionHistorySweepFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 3162, Level = LogLevel.Debug, Message = "Execution history sweep removed {RowCount} row(s) for scheduler '{SchedulerName}'")]
+    public static partial void ExecutionHistorySwept(this ILogger logger, string schedulerName, int rowCount);
 }

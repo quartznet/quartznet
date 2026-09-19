@@ -126,6 +126,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
         UseBackgroundThreads = options.UseBackgroundThreads;
         SchemaProvisioning = options.SchemaProvisioning;
+        ExecutionHistory = options.ExecutionHistory;
         SelectWithLockSql = options.SelectWithLockSql;
         CommandTimeout = options.CommandTimeout;
         LockWaitWarningThreshold = options.LockWaitWarningThreshold;
@@ -448,6 +449,12 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// </summary>
     internal SchemaProvisioning SchemaProvisioning { get; } = SchemaProvisioning.Validate;
 
+    /// <summary>
+    /// Whether this store's schema has to carry the two execution-history tables, which only
+    /// <c>UseExecutionHistory()</c> puts to use.
+    /// </summary>
+    internal bool ExecutionHistory { get; }
+
     public TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
     protected DbMetadata DbMetadata => DbProvider.Metadata;
@@ -677,7 +684,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         {
             try
             {
-                var objectCount = await ExecuteWithoutLock<int>(conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+                var objectCount = await ExecuteWithoutLock<int>(conn => ValidateSchemaWithOptionalTables(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
                 Logger.SchemaValidated(objectCount);
             }
             catch (Exception ex)
@@ -765,7 +772,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         try
         {
             int existingObjectCount = await ExecuteWithoutLock<int>(
-                conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+                conn => ValidateSchemaWithOptionalTables(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
             Logger.SchemaAlreadyComplete(TablePrefix, existingObjectCount);
             return;
         }
@@ -819,7 +826,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
 
             try
             {
-                await ExecuteWithoutLock<int>(conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+                await ExecuteWithoutLock<int>(conn => ValidateSchemaWithOptionalTables(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
                 Logger.SchemaCreatedByAnotherNode(TablePrefix, creationFailure);
                 return;
             }
@@ -843,6 +850,69 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             + " Why the creation failed is this exception's inner exception; why the schema is still"
             + $" unusable is: {validationFailure?.Message}",
             creationFailure);
+    }
+
+    /// <summary>
+    /// The schema check, plus the tables a feature that is off by default needs.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="IDriverDelegate.ValidateSchema" /> probes <see cref="AdoConstants.AllTableNames" />,
+    /// which every scheduler reads whatever it is configured to do. The two execution-history tables
+    /// are not among them and must not be: a database created by 4.0 or 4.1, or by 4.2 with the
+    /// history off, has never had them, and probing for them unconditionally would turn an optional
+    /// migration into a required one.
+    /// </para>
+    /// <para>
+    /// Deliberately here rather than on the delegate, for the reason
+    /// <see cref="MissingMigratedColumns" /> is: which optional features this store was configured
+    /// with is the store's own knowledge, and the probe takes nothing a delegate has to supply beyond
+    /// the connection and the statement.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<int> ValidateSchemaWithOptionalTables(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken)
+    {
+        int objectCount = await Delegate.ValidateSchema(conn, cancellationToken).ConfigureAwait(false);
+
+        if (!ExecutionHistory)
+        {
+            return objectCount;
+        }
+
+        foreach ((string table, string migration, string feature) in AdoConstants.OptionalTableNames)
+        {
+            string targetTable = $"{TablePrefix}{table}";
+
+            try
+            {
+                // On the unit of work's own connection, the way MissingMigratedColumns probes: the
+                // statement takes no parameters, so it needs nothing the delegate does to a command.
+                using DbCommand cmd = conn.Connection.CreateCommand();
+                conn.Attach(cmd);
+                cmd.CommandText = $"SELECT 1 FROM {targetTable} WHERE 1 = 0";
+
+                if (CommandTimeout.HasValue)
+                {
+                    cmd.CommandTimeout = (int) CommandTimeout.Value.TotalSeconds;
+                }
+
+                await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw new JobPersistenceException(
+                    $"Unable to query table {targetTable}, which {feature} reads and writes and which the"
+                    + $" schema migration database/migrations/{MigrationScriptName(migration)} creates."
+                    + " Run that script, or leave the execution history where it was — the migration is"
+                    + $" needed by nothing else. {ex.Message}", ex);
+            }
+
+            objectCount++;
+        }
+
+        return objectCount;
     }
 
     /// <summary>
@@ -935,11 +1005,22 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// </summary>
     private string UpgradeAdvice()
     {
-        return $"If this schema was created by an earlier Quartz.NET, run the migrations it has not had —"
-               + $" {string.Join(", then ", MigrationTemplates.Select(MigrationScriptName))} —"
-               + " because ProvisionSchema() creates missing tables and never adds a column to a table"
-               + " that exists. A schema created by 3.x needs all of them; one created by 4.0 or 4.1"
-               + " needs only the last.";
+        string advice = $"If this schema was created by an earlier Quartz.NET, run the migrations it has not had —"
+                        + $" {string.Join(", then ", MigrationTemplates.Select(MigrationScriptName))} —"
+                        + " because ProvisionSchema() creates missing tables and never adds a column to a table"
+                        + " that exists. A schema created by 3.x needs all of them; one created by 4.0 or 4.1"
+                        + " needs only the last.";
+
+        if (ExecutionHistory)
+        {
+            // Named only when it is needed. It is the one migration nothing else asks for, so a reader
+            // who never turned the history on must not be sent to run it.
+            advice += " This store keeps its execution history in the database, so it needs"
+                      + $" {MigrationScriptName(AdoConstants.Migration42History)} as well, which no other"
+                      + " configuration requires.";
+        }
+
+        return advice;
     }
 
     /// <summary>

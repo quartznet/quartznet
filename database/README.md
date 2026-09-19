@@ -114,7 +114,8 @@ in each SQLite file.
 | [`3.19`](migrations/3.19) | `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` on `QRTZ_TRIGGERS` (#3013, #3144) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.20`](migrations/3.20) | Index set realigned so every index leads with `SCHED_NAME`; prefix-redundant indexes dropped (#3203) | Optional, performance only | all | both |
 | [`4.0`](migrations/4.0) | **Two files.** `schema_30_to_40_upgrade_<db>.sql` folds in 3.17–3.19 and adds `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520) and the `QRTZ_PAUSED_JOB_GRPS` table (#3336). `schema_30_to_40_indexes_<db>.sql` supersedes 3.20 and lands the 4.x index shape, in which `IDX_QRTZ_T_NFT_ST` is dropped and recreated as `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` — Firebird excepted (#3510) — and `IDX_QRTZ_T_NFT_ST_MISFIRE` is dropped, since that reshape left it with no reader on any dialect (#3656) | Upgrade **mandatory for 4.x** and safe during a mixed window; indexes optional, and wait for the last 3.x node | all | `main` only |
-| [`4.2`](migrations/4.2) | `CONTINUES_TRIGGER_NAME`, `CONTINUES_TRIGGER_GROUP` and `CONTINUATION_CONDITION` on `QRTZ_TRIGGERS`, which carry a conditional continuation — a trigger that waits, in the store, for another trigger's firing to end (#3805) | **Required on 4.2+**, safe during a mixed 4.1/4.2 window | all | `main` only |
+| [`4.2`](migrations/4.2) | `add_continuations_<db>.sql`: `CONTINUES_TRIGGER_NAME`, `CONTINUES_TRIGGER_GROUP` and `CONTINUATION_CONDITION` on `QRTZ_TRIGGERS`, which carry a conditional continuation — a trigger that waits, in the store, for another trigger's firing to end (#3805) | **Required on 4.2+**, safe during a mixed 4.1/4.2 window | all | `main` only |
+| [`4.2`](migrations/4.2) | `add_execution_history_<db>.sql`: the `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY` tables, which keep what a cluster ran and missed where every node can read it (#3771) | **Optional**: needed only by a store configured with `UseExecutionHistory()`, and safe under a mixed cluster — a node without it neither writes nor reads these tables | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -165,6 +166,23 @@ triggers waiting on that firing exactly where they are. So the order is: run the
 every node to 4.2, and only then start scheduling continuations.
 
 A fresh install from [`tables/`](tables) already has the columns and needs nothing from this folder.
+
+### The execution history's tables are optional
+
+`add_execution_history_<db>.sql` in the same folder is the exception to everything above: it creates
+two tables — `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY` — that nothing but
+`UsePersistentStore(store => store.UseExecutionHistory())` reads or writes. Nothing else in the
+schema references them, no other statement names them, and a scheduler that keeps no history never
+probes for them. So it is needed by the deployments that want a cluster-wide execution history and by
+nobody else, and it can be run at any time or not at all.
+
+A store that *is* configured that way refuses to start without them, naming this script. A fresh
+install from [`tables/`](tables) creates them either way, as does `ProvisionSchema()`, so only a
+database created by 4.0 or 4.1 needs the file.
+
+Safe under a mixed cluster in both directions: a 4.0 or 4.1 node cannot see these tables at all, and
+a 4.2 node that does not ask for a history neither writes nor reads them. The nodes that do ask share
+one history, which is the point — every row carries the instance id that produced it.
 
 ## Where these files moved
 

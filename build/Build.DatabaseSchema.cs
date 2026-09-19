@@ -231,6 +231,115 @@ partial class Build
         new(TriggerKey, "TRIGGERS", TriggerKey, cascade, oracleName);
 
     /// <summary>
+    /// The two tables the ADO-backed execution history writes into, which no other part of the store
+    /// reads or writes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// They are here so that a fresh install and <see cref="Quartz.SchemaProvisioning.CreateIfMissing"/>
+    /// both produce them — a schema is one schema — but they are deliberately absent from
+    /// <c>AdoConstants.AllTableNames</c>: nothing but
+    /// <c>UsePersistentStore(s =&gt; s.UseExecutionHistory())</c> touches them, so a 4.0 or 4.1 database
+    /// that never ran <c>4.2/add_execution_history_&lt;dialect&gt;.sql</c> goes on running unchanged.
+    /// The store probes them at startup only when the history is turned on.
+    /// </para>
+    /// <para>
+    /// Two tables rather than one with a kind column: an execution carries a duration, an outcome and an
+    /// error message that a misfire has none of, and a misfire carries the firing it missed. One table
+    /// would leave half of every row null and make the misfire count read a discriminator it does not
+    /// need to.
+    /// </para>
+    /// <para>
+    /// The key is <c>ENTRY_ID</c>, a value the store writes, exactly as <c>QRTZ_FIRED_TRIGGERS</c> keys
+    /// its rows. An identity or a sequence would have to be spelled six different ways — and on MySQL
+    /// and SQLite the column would have to be the whole of the key — for a number nothing reads.
+    /// </para>
+    /// </remarks>
+    static readonly SchemaTable[] ExecutionHistoryTables =
+    [
+        new("EXECUTION_HISTORY",
+            ["SCHED_NAME", "ENTRY_ID"],
+            [
+                Text("SCHED_NAME", 120, 120, required: true),
+                Text("ENTRY_ID", 140, 140, required: true),
+                Text("INSTANCE_NAME", 200, 200, required: true),
+                Text("JOB_NAME", 150, 200, required: true),
+                Text("JOB_GROUP", 150, 200, required: true),
+                Text("TRIGGER_NAME", 150, 200, required: true),
+                Text("TRIGGER_GROUP", 150, 200, required: true),
+                Timestamp("FIRED_TIME", required: true),
+                // Ticks rather than the whole milliseconds every other duration in this schema is
+                // stored as: a job's run time is whatever the clock measured, and
+                // StdAdoDelegate.GetDbTimeSpanValue refuses a value that would not survive the
+                // round trip. An instant is already stored as ticks here, so this is the schema's
+                // own unit rather than a new one.
+                Column("RUN_TIME",
+                    sqlServer: "bigint NOT NULL",
+                    postgres: "BIGINT NOT NULL",
+                    mysql: "BIGINT NOT NULL",
+                    oracle: "NUMBER(19) NOT NULL",
+                    sqlite: "BIGINT NOT NULL",
+                    firebird: "BIGINT NOT NULL"),
+                Flag("SUCCEEDED", required: true),
+                // Oracle is declared four times as wide as the rest because its VARCHAR2 counts bytes
+                // and the others count characters: the store truncates the message at 1,000
+                // characters, which is at most 4,000 bytes of UTF-8 and so is the widest a
+                // non-extended VARCHAR2 can hold.
+                Column("ERROR_MESSAGE",
+                    sqlServer: "nvarchar(1000) NULL",
+                    postgres: "TEXT NULL",
+                    mysql: "VARCHAR(1000) NULL",
+                    oracle: "VARCHAR2(4000) NULL",
+                    sqlite: "NVARCHAR(1000) NULL",
+                    firebird: "VARCHAR(1000) DEFAULT NULL"),
+            ],
+            OracleStem: "EXEC_HISTORY"),
+
+        new("MISFIRE_HISTORY",
+            ["SCHED_NAME", "ENTRY_ID"],
+            [
+                Text("SCHED_NAME", 120, 120, required: true),
+                Text("ENTRY_ID", 140, 140, required: true),
+                Text("INSTANCE_NAME", 200, 200, required: true),
+                Text("TRIGGER_NAME", 150, 200, required: true),
+                Text("TRIGGER_GROUP", 150, 200, required: true),
+                // Nullable, because a trigger need not name a job.
+                Text("JOB_NAME", 150, 200, required: false),
+                Text("JOB_GROUP", 150, 200, required: false),
+                Timestamp("MISFIRE_TIME", required: true),
+                // The firing that was missed, which the scheduler reports before it applies the
+                // trigger's misfire instruction. Null when the trigger had no next firing left.
+                Timestamp("SCHED_TIME", required: false),
+            ],
+            OracleStem: "MISFIRE_HISTORY"),
+    ];
+
+    /// <summary>
+    /// The indexes the two history tables carry: the age query and the retention sweep read by
+    /// scheduler and time, the dashboard's node filter reads by scheduler and node. A name or group
+    /// search stays a scan, as <see href="https://github.com/quartznet/quartznet/issues/3771">#3771</see>
+    /// says it does.
+    /// </summary>
+    /// <remarks>
+    /// Kept out of <see cref="Target4XAll" /> because that set is what the 3.x-to-4.0 index migration
+    /// converges onto, and at 4.0 these tables do not exist. They are also absent from
+    /// <see cref="AllLegacyIndexes" />, so no convergence pass drops them.
+    /// </remarks>
+    static readonly IndexDef[] ExecutionHistoryIndexes =
+    [
+        new("IDX_QRTZ_EH_FIRED_TIME", TableExecutionHistory, "SCHED_NAME, FIRED_TIME"),
+        new("IDX_QRTZ_EH_INST", TableExecutionHistory, "SCHED_NAME, INSTANCE_NAME"),
+        new("IDX_QRTZ_MH_MISFIRE_TIME", TableMisfireHistory, "SCHED_NAME, MISFIRE_TIME"),
+        new("IDX_QRTZ_MH_INST", TableMisfireHistory, "SCHED_NAME, INSTANCE_NAME"),
+    ];
+
+    /// <summary>
+    /// Every index a provisioned or freshly installed schema carries: the 4.x set, plus the history
+    /// tables' own.
+    /// </summary>
+    static IndexDef[] AllSchemaIndexes(string dialect) => [.. Target4X(dialect), .. ExecutionHistoryIndexes];
+
+    /// <summary>
     /// Every table Quartz reads or writes, in an order that satisfies the foreign keys: a table is
     /// created after the one it references.
     /// </summary>
@@ -522,6 +631,8 @@ partial class Build
                 Text("SCHED_NAME", 120, 120, required: true),
                 Text("LOCK_NAME", 40, 40, required: true),
             ]),
+
+        .. ExecutionHistoryTables,
     ];
 
     static SchemaColumn SimpropInt(string name) => Column(name,
@@ -612,7 +723,7 @@ partial class Build
             yield break;
         }
 
-        foreach (IndexDef index in Target4X(dialect))
+        foreach (IndexDef index in AllSchemaIndexes(dialect))
         {
             yield return index;
         }
@@ -646,7 +757,7 @@ partial class Build
 
         if (dialect == "mysql_innodb")
         {
-            body.AddRange(Target4X(dialect)
+            body.AddRange(AllSchemaIndexes(dialect)
                 .Where(i => IndexTable(i) == table.Name)
                 .Select(i => $"KEY IDX_{{1}}{IndexSuffix(i)} ({TightColumns(i.Columns)})"));
         }

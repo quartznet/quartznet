@@ -1193,4 +1193,91 @@ internal static class StdAdoConstants
 
     public static readonly string SqlUpdateTriggerMisfireWithOrigFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime}, {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnRetryAttempt} = @{SqlParameters.TriggerRetryAttempt}, {AdoConstants.ColumnMisfireOriginalFireTime} = @{SqlParameters.TriggerMisfireOrigFireTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+
+    // -----------------------------------------------------------------------------------------
+    // EXECUTION_HISTORY and MISFIRE_HISTORY
+    //
+    // Read and written by AdoExecutionHistoryStore alone, on a connection of its own. Every
+    // statement here is scoped by SCHED_NAME, and the two reads order newest first, which is the one
+    // ordering a history page is read in. ENTRY_ID breaks a tie so that paging is stable when two
+    // rows share an instant - which a batch firing makes ordinary rather than rare.
+    // -----------------------------------------------------------------------------------------
+
+    public static readonly string SqlInsertExecutionHistory =
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage})");
+
+    public static readonly string SqlInsertMisfireHistory =
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableMisfireHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnMisfireTime}, {AdoConstants.ColumnScheduledTime}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.MisfireTime}, @{SqlParameters.ScheduledTime})");
+
+    public static readonly string SqlSelectExecutionHistory =
+        Invariant($"SELECT {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    public static readonly string SqlCountExecutionHistory =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    public static readonly string SqlSelectMisfireHistory =
+        Invariant($"SELECT {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnMisfireTime}, {AdoConstants.ColumnScheduledTime} FROM {TablePrefixSubst}{AdoConstants.TableMisfireHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    public static readonly string SqlCountMisfireHistory =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableMisfireHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    /// <summary>The <c>COUNT(*)</c> <c>CountMisfires</c> answers with, rather than a page it discards.</summary>
+    public static readonly string SqlCountMisfiresSince =
+        Invariant($"{SqlCountMisfireHistory} AND {AdoConstants.ColumnMisfireTime} >= @{SqlParameters.HistorySince}");
+
+    public static readonly string SqlHistoryNodePredicate =
+        Invariant($" AND {AdoConstants.ColumnInstanceName} = @{SqlParameters.HistoryNode}");
+
+    /// <summary>
+    /// The age bound, applied to a read as well as by the sweep — a scheduler that has stopped running
+    /// jobs never writes again, and it is that one whose page would otherwise go on showing days-old
+    /// executions until the next sweep.
+    /// </summary>
+    public static readonly string SqlExecutionHistoryNotBefore =
+        Invariant($" AND {AdoConstants.ColumnFiredTime} >= @{SqlParameters.HistoryCutoff}");
+
+    /// <inheritdoc cref="SqlExecutionHistoryNotBefore" />
+    public static readonly string SqlMisfireHistoryNotBefore =
+        Invariant($" AND {AdoConstants.ColumnMisfireTime} >= @{SqlParameters.HistoryCutoff}");
+
+    public static readonly string SqlOrderByExecutionHistory =
+        Invariant($" ORDER BY {AdoConstants.ColumnFiredTime} DESC, {AdoConstants.ColumnEntryId} DESC");
+
+    public static readonly string SqlOrderByMisfireHistory =
+        Invariant($" ORDER BY {AdoConstants.ColumnMisfireTime} DESC, {AdoConstants.ColumnEntryId} DESC");
+
+    /// <summary>
+    /// The retention sweep's delete. Bounded by whatever instant the caller works out, never by a
+    /// dialect-specific row limit: <c>DELETE ... LIMIT</c> is spelled six different ways and two of
+    /// them need a subquery, while an instant is a predicate every engine reads off the index.
+    /// </summary>
+    public static readonly string SqlDeleteExecutionHistoryBefore =
+        Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnFiredTime} < @{SqlParameters.HistoryCutoff}");
+
+    /// <inheritdoc cref="SqlDeleteExecutionHistoryBefore" />
+    public static readonly string SqlDeleteMisfireHistoryBefore =
+        Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableMisfireHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireTime} < @{SqlParameters.HistoryCutoff}");
+
+    /// <summary>
+    /// The instant the count bound falls on: the timestamp of the row one past the last one kept,
+    /// found by paging rather than by counting. Ordered newest first, so the rows skipped are the
+    /// rows that stay.
+    /// </summary>
+    public static readonly string SqlSelectExecutionHistoryCountBoundary =
+        Invariant($"SELECT {AdoConstants.ColumnFiredTime} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} ORDER BY {AdoConstants.ColumnFiredTime} DESC");
+
+    /// <inheritdoc cref="SqlSelectExecutionHistoryCountBoundary" />
+    public static readonly string SqlSelectMisfireHistoryCountBoundary =
+        Invariant($"SELECT {AdoConstants.ColumnMisfireTime} FROM {TablePrefixSubst}{AdoConstants.TableMisfireHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} ORDER BY {AdoConstants.ColumnMisfireTime} DESC");
+
+    /// <summary>
+    /// The instant one batch of expired rows ends at: oldest first, skipping the batch size. Absent
+    /// when fewer than a batch have expired, which is what tells the sweep it has finished.
+    /// </summary>
+    public static readonly string SqlSelectExecutionHistoryBatchBoundary =
+        Invariant($"SELECT {AdoConstants.ColumnFiredTime} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnFiredTime} < @{SqlParameters.HistoryCutoff} ORDER BY {AdoConstants.ColumnFiredTime}");
+
+    /// <inheritdoc cref="SqlSelectExecutionHistoryBatchBoundary" />
+    public static readonly string SqlSelectMisfireHistoryBatchBoundary =
+        Invariant($"SELECT {AdoConstants.ColumnMisfireTime} FROM {TablePrefixSubst}{AdoConstants.TableMisfireHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireTime} < @{SqlParameters.HistoryCutoff} ORDER BY {AdoConstants.ColumnMisfireTime}");
 }

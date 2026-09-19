@@ -114,7 +114,8 @@ public class MigrationScriptTest
         ("3.20", "index_alignment"),
         ("4.0", "schema_30_to_40_upgrade"),
         ("4.0", "schema_30_to_40_indexes"),
-        ("4.2", "add_continuations")
+        ("4.2", "add_continuations"),
+        ("4.2", "add_execution_history")
     ];
 
     /// <summary>
@@ -126,7 +127,8 @@ public class MigrationScriptTest
     [
         ("4.0", "schema_30_to_40_upgrade"),
         ("4.0", "schema_30_to_40_indexes"),
-        ("4.2", "add_continuations")
+        ("4.2", "add_continuations"),
+        ("4.2", "add_execution_history")
     ];
 
     [Test]

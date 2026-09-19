@@ -338,6 +338,69 @@ upgrade — see
 [Migrating from binary serialization](../packages/json-serialization.md#migrating-from-binary-serialization).
 :::
 
+### Execution history in the database
+
+A job store holds what is *scheduled*; it does not hold what *happened*. Quartz keeps that separately,
+and what it keeps by default is per process and in memory — which is why a dashboard attached to a
+cluster through a shared store shows an empty History page: nothing it reads was written by a node.
+
+`UseExecutionHistory()` moves both feeds into the scheduler's own database, so the cluster has one
+history and any node can read all of it:
+
+<!-- snippet: sample_job_stores_execution_history -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.UsePersistentStore(store =>
+    {
+        store.UsePostgres(connectionString);
+        store.UseExecutionHistory();
+    });
+});
+
+// The bounds the history is kept under, which the store applies itself. Optional: these are
+// the defaults.
+builder.Services.AddQuartzExecutionHistory(options =>
+{
+    options.Retention = TimeSpan.FromHours(24);
+    options.MaxEntriesPerScheduler = 2000;
+});
+```
+<!-- endSnippet -->
+
+The flat key for the same setting is `quartz.jobStore.executionHistory`.
+
+**The schema needs two tables.** `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY` are created by a
+fresh install from `database/tables/` and by `ProvisionSchema()`; a database created by 4.0 or 4.1
+needs [`database/migrations/4.2/add_execution_history_<db>.sql`](../../database/schema-changes.md#version-4-2).
+A store configured this way refuses to start without them, and says which script to run. The migration
+is needed by nothing else, so a deployment that leaves this uncalled never has to run it.
+
+**The store keeps itself trimmed.** Both bounds above are applied by a sweep the store runs on a timer
+of its own — every `Retention / 10`, and never less often than once a minute — and by a bounded batch
+per statement, so a store that has been down for a week does not lock the table while it catches up.
+Every node sweeps independently, which is safe because the deletes are idempotent: two nodes sweeping
+at once do the same work twice at worst.
+
+A history write never runs inside the job's transaction or under the trigger lock, and a write that
+fails is logged and dropped. The execution it describes has already happened; losing the record of it
+must not fail the firing.
+
+::: tip
+Nothing about a mixed cluster has to be co-ordinated. A 4.1 node cannot see these tables, and a 4.2
+node that does not call `UseExecutionHistory()` neither writes nor reads them — it keeps its own
+in-memory history as before. The nodes that do call it share one, and every row carries the instance id
+that produced it, which is what the dashboard's node filter reads.
+:::
+
+Two details differ from the in-memory history, deliberately. A node filter is compared as the database
+compares strings, rather than case-insensitively — an instance id is generated rather than typed, and
+comparing it as written is what lets the node index answer the filter with a seek. And the count bound
+is applied by the sweep rather than on every read, because "the newest 2,000 rows of a whole cluster's
+feed" is not a property of one page. The age bound *is* applied on read, as it is in memory: a
+scheduler that has stopped running jobs never writes again, and it is that one whose page would
+otherwise go on showing days-old executions.
+
 ### Joining an existing transaction
 
 Normally AdoJobStore opens a connection of its own and commits as soon as the scheduling operation is done. That means

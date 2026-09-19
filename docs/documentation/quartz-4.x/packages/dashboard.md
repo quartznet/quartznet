@@ -890,10 +890,15 @@ So it is a *local* trap almost exclusively: an unpublished build started with
   a restart, and neither is lossless — use [metrics](opentelemetry-integration.md) for anything you need
   to be able to go back to. Every Action Log entry is also written to your `ILogger`, and that copy does
   survive.
-- **The shipped history store is in-memory and per-process**, so history does not survive a restart and
-  one node cannot show another's unless you register a shared store. `IExecutionHistoryStore` is the
-  seam for a shared one — `IDashboardHistoryStore` still is too; Quartz ships no database-backed
-  implementation of either.
+- **The history is in-memory and per-process unless you ask for the database-backed one.** What Quartz
+  keeps by default does not survive a restart and one node cannot show another's, which is why a
+  dashboard attached to a cluster shows an empty History page. A scheduler on a persistent store fixes
+  that with
+  [`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database):
+  every node then writes into `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY`, the page shows the
+  whole cluster's, and the node filter tells them apart. `IExecutionHistoryStore` is still the seam for
+  a store of your own — `IDashboardHistoryStore` too — and a scheduler on the in-memory job store has
+  no database to keep a history in, so for that one the limitation stands.
 - **Read-only is one setting for the whole process**, not per scheduler and not per operation — "acme
   may look, globex may act" and "this tenant may pause but not delete" are not expressible. Which
   *schedulers* a visitor sees is expressible; see [One scheduler at a time](#one-scheduler-at-a-time).

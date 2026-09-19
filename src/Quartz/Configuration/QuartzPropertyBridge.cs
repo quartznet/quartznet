@@ -87,6 +87,35 @@ internal static class QuartzPropertyBridge
         services.Configure<ClusteringOptions>(name, options => MapClustering(options, parser));
 
         ApplyDataSourceOptions(services, parser);
+        RegisterExecutionHistory(services, parser, schedulerName);
+    }
+
+    /// <summary>
+    /// Turns <c>quartz.jobStore.executionHistory = true</c> into the registration
+    /// <c>UsePersistentStore(store =&gt; store.UseExecutionHistory())</c> produces.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Here rather than in <see cref="ApplyRegistrations" />, where every other registration this
+    /// bridge makes lives, because of when the two run.
+    /// <c>AddQuartzExecutionHistory()</c> installs the recorder through
+    /// <c>ConfigureAllQuartzSchedulers</c>, and a scheduler mid-registration is carried those delegates
+    /// by the pass that runs straight after its own configuration callback — before the registration
+    /// phase. Called from there, the recorder would reach every scheduler but this one.
+    /// </para>
+    /// <para>
+    /// The typed option is still set in <see cref="MapAdoJobStore" /> with the rest of them: this says
+    /// which store reads the history, that says whether the schema check covers its two tables.
+    /// </para>
+    /// </remarks>
+    private static void RegisterExecutionHistory(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        if (parser.String("quartz.jobStore.executionHistory") is { } value
+            && bool.TryParse(value, out bool enabled)
+            && enabled)
+        {
+            ExecutionHistoryRegistration.Apply(services, schedulerName);
+        }
     }
 
     /// <summary>
@@ -686,6 +715,9 @@ internal static class QuartzPropertyBridge
             "quartz.jobStore.performSchemaValidation",
             value => options.SchemaProvisioning = value ? SchemaProvisioning.Validate : SchemaProvisioning.None);
         parser.Enum<SchemaProvisioning>("quartz.jobStore.schemaProvisioning", value => options.SchemaProvisioning = value);
+        // Says the schema has to carry the two execution-history tables. What reads and writes them is
+        // registered by RegisterExecutionHistory, from the same key.
+        parser.Bool("quartz.jobStore.executionHistory", value => options.ExecutionHistory = value);
         parser.String("quartz.jobStore.selectWithLockSQL", value => options.SelectWithLockSql = value);
 
         // Everything under the prefix has now been read, so anything left is a key nothing reads: refused

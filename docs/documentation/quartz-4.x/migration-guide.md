@@ -67,6 +67,9 @@ do rather than read: see [The 4.2 schema migration](#the-4-2-schema-migration) b
 | `AwaitingContinuation` | What `SelectAwaitingContinuations` answers with: a `TriggerKey` and the condition it waits on |
 | `ScheduleJob<TJob, TInput>(input, Continuation after, options)` | The one-call overload for a firing whose time is another firing's completion. There is no time argument because the time is the parent's completion |
 | `JobChainingJobListener.AddJobChainLink(first, second, condition)` | The conditional link. The two-argument overload is unchanged and is `OnAnyOutcome`, which is what this listener has always done. `JobExecutionVetoed` is now declared, so a link conditioned on a veto fires |
+| `IPersistentStoreBuilder.UseExecutionHistory()` | Keeps this scheduler's execution history in its own database, so a cluster has one history rather than one per node. A **default interface member** that registers the store, so an `IPersistentStoreBuilder` implemented outside this repository compiles unchanged. Needs two tables `4.2/add_execution_history_<db>.sql` creates — see [The execution history tables](#the-execution-history-tables) |
+| `AdoJobStoreOptions.ExecutionHistory` | `bool`, `false`. What `UseExecutionHistory()` sets, and the whole of what the schema check reads: the two history tables are probed at startup only when this says they are in use. The flat key is `quartz.jobStore.executionHistory` |
+| `AdoConstants.TableExecutionHistory`, `TableMisfireHistory`, `ColumnRunTime`, `ColumnSucceeded`, `ColumnErrorMessage`, `ColumnMisfireTime` | The names of the two tables and the four columns that are not shared with `QRTZ_FIRED_TRIGGERS`. `AdoConstants` is where every table and column name lives, whichever delegate writes to it |
 
 ### Conditional continuations
 
@@ -132,6 +135,28 @@ waiting on that firing exactly where they are. So the order is: run the migratio
 `ProvisionSchema()` does not help: it creates missing tables and never adds a column to one that
 exists. A fresh install from `database/tables/` already has the columns. See
 [Database Schema Changes](../database/schema-changes.md#version-4-2).
+
+### The execution history tables
+
+The second 4.2 script, `database/migrations/4.2/add_execution_history_<db>.sql`, is **optional**. It
+creates `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY`, which nothing but
+[`UsePersistentStore(store => store.UseExecutionHistory())`](tutorial/job-stores.md#execution-history-in-the-database)
+reads or writes. Nothing else in the schema references them, no other statement names them, and a
+scheduler that keeps no history never probes for them — so an upgrade that does not want a
+database-backed history can ignore the file entirely.
+
+What it buys is the thing a dashboard attached to a cluster could not do before: the history Quartz
+keeps by default is per process and in memory, so a node rendering a History page sees only its own
+executions, and a store-attached dashboard sees none at all. With the two tables in place every node
+writes into one history, and every row carries the instance id that produced it.
+
+`ProvisionSchema()` *does* help here, unlike the continuation columns: what is missing is whole tables,
+which is exactly what provisioning creates. So is a fresh install from `database/tables/`, which
+creates them whether or not the history is turned on. Only a database created by 4.0 or 4.1 needs the
+script, and the store names it if it is asked for a history it cannot keep.
+
+Safe under a mixed cluster in both directions: a 4.1 node cannot see these tables, and a 4.2 node that
+does not call `UseExecutionHistory()` neither writes nor reads them.
 
 ## Upgrading from 4.0 to 4.1
 
