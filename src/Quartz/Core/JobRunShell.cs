@@ -264,7 +264,7 @@ internal sealed class JobRunShell
                     long startTimestamp = timeProvider.GetTimestamp();
                     long endTimestamp;
 
-                    StartedActivity activity = QuartzActivitySource.StartJobExecute(context, timeProvider.GetUtcNow());
+                    StartedActivity activity = QuartzActivitySource.StartJobExecute(context, timeProvider);
                     Instrumentation instrumentation = qs.resources.Meters.StartJobExecute(context);
 
 
@@ -309,7 +309,7 @@ internal sealed class JobRunShell
 
                     context.JobRunTime = timeProvider.GetElapsedTime(startTimestamp, endTimestamp);
 
-                    activity.Stop(timeProvider.GetUtcNow(), jobExEx);
+                    activity.Stop(timeProvider, jobExEx);
                     instrumentation.EndJobExecute(context.JobRunTime, jobExEx);
 
                     instructionCode = SchedulerInstruction.NoInstruction;

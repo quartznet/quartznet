@@ -2744,6 +2744,13 @@ public sealed class RAMJobStore : IJobStore
                 ? new HashSet<string>(names, StringComparer.Ordinal)
                 : null;
 
+            // One reading for the batch, stamped on every trigger it reserves. This is bookkeeping -
+            // what the execution listing reports for a reservation until the firing overwrites it with
+            // the execution's start - and the reservations really are one act of the store's, taken
+            // under one lock without yielding. A reading per trigger cost a clock read per firing to
+            // record instants a few hundred nanoseconds apart (#3802).
+            DateTimeOffset acquiredAtUtc = timeProvider.GetUtcNow();
+
             while (true)
             {
                 var tw = timeTriggers.Min;
@@ -2845,8 +2852,8 @@ public sealed class RAMJobStore : IJobStore
 
                 // The reservation's own timestamp, which is what the ADO store writes into FIRED_TIME
                 // when it inserts the ACQUIRED row; the execution listing reports it until the firing
-                // starts and overwrites it with the execution's start.
-                tw.acquiredAtUtc = timeProvider.GetUtcNow();
+                // starts and overwrites it with the execution's start. Taken once for the batch, above.
+                tw.acquiredAtUtc = acquiredAtUtc;
 
                 IOperableTrigger trig = (IOperableTrigger) tw.Trigger.Clone();
 

@@ -9,11 +9,16 @@ internal static class QuartzActivitySource
     internal static readonly ActivitySource Instance = new(QuartzInstrumentation.ActivitySourceName, QuartzInstrumentation.Version);
 
     /// <summary>
-    /// Opens the span a firing is traced on.
+    /// Opens the span a firing is traced on, timed by the clock the rest of the firing is timed by.
     /// </summary>
-    public static StartedActivity StartJobExecute(JobExecutionContextImpl context, DateTimeOffset startTime)
+    /// <remarks>
+    /// The <see cref="TimeProvider" /> rather than an instant, because the instant is only wanted once
+    /// there is a span to stamp with it: a scheduler nobody is tracing used to read the clock twice per
+    /// firing to hand both readings to a <see langword="default" /> struct (#3802).
+    /// </remarks>
+    public static StartedActivity StartJobExecute(JobExecutionContextImpl context, TimeProvider timeProvider)
     {
-        return StartFiring(OperationName.Job.Execute, context, startTime);
+        return StartFiring(OperationName.Job.Execute, context, timeProvider);
     }
 
     /// <summary>
@@ -25,7 +30,7 @@ internal static class QuartzActivitySource
     /// </remarks>
     public static StartedActivity StartJobVeto(JobExecutionContextImpl context)
     {
-        return StartFiring(OperationName.Job.Veto, context, startTime: null);
+        return StartFiring(OperationName.Job.Veto, context, timeProvider: null);
     }
 
     /// <summary>
@@ -50,7 +55,7 @@ internal static class QuartzActivitySource
     /// so the ambient activity is cleared around the call and put back afterwards.
     /// </para>
     /// </remarks>
-    private static StartedActivity StartFiring(string operationName, JobExecutionContextImpl context, DateTimeOffset? startTime)
+    private static StartedActivity StartFiring(string operationName, JobExecutionContextImpl context, TimeProvider? timeProvider)
     {
         // Asked first so that nothing below — not the data-map lookup the link needs, not the array it
         // travels in — is paid for by a scheduler nobody is tracing.
@@ -71,9 +76,11 @@ internal static class QuartzActivitySource
             return default;
         }
 
-        if (startTime is { } start)
+        if (timeProvider is not null)
         {
-            activity.SetStartTime(start.UtcDateTime);
+            // Read here rather than at the call, so that a firing nobody is tracing does not read the
+            // clock for a reading nothing keeps.
+            activity.SetStartTime(timeProvider.GetUtcNow().UtcDateTime);
         }
 
         activity.EnrichFrom(context);
@@ -175,23 +182,27 @@ internal readonly struct StartedActivity
     /// <summary>
     /// Closes the span, timing it by the clock the rest of the firing is timed by.
     /// </summary>
-    public void Stop(DateTimeOffset endTime, JobExecutionException? jobExEx) => StopCore(endTime, jobExEx);
+    /// <remarks>
+    /// The clock is read inside, and only when there is a span to stamp — see
+    /// <see cref="QuartzActivitySource.StartJobExecute" />.
+    /// </remarks>
+    public void Stop(TimeProvider timeProvider, JobExecutionException? jobExEx) => StopCore(timeProvider, jobExEx);
 
     /// <summary>
     /// Closes the span, timing it by <see cref="Activity" />'s own clock.
     /// </summary>
-    public void Stop() => StopCore(endTime: null, jobExEx: null);
+    public void Stop() => StopCore(timeProvider: null, jobExEx: null);
 
-    private void StopCore(DateTimeOffset? endTime, JobExecutionException? jobExEx)
+    private void StopCore(TimeProvider? timeProvider, JobExecutionException? jobExEx)
     {
         if (activity is null)
         {
             return;
         }
 
-        if (endTime is { } end)
+        if (timeProvider is not null)
         {
-            activity.SetEndTime(end.UtcDateTime);
+            activity.SetEndTime(timeProvider.GetUtcNow().UtcDateTime);
         }
 
         if (jobExEx != null)
