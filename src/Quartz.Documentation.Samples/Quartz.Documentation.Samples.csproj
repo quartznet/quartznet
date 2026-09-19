@@ -44,6 +44,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <!--
+      What a consumer gets from analyzers/dotnet/cs inside Quartz.nupkg; a ProjectReference does not
+      carry analyzers the way a PackageReference does, so the project is named. The declared-jobs page
+      shows a job declared with [QuartzJob] and the generated AddDeclaredJobs that registers it, and
+      neither sample would compile without the generator running here.
+    -->
+    <ProjectReference Include="..\Quartz.Analyzers\Quartz.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     <ProjectReference Include="..\Quartz.Aspire\Quartz.Aspire.csproj" />
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />

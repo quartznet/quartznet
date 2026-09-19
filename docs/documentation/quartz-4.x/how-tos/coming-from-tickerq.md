@@ -31,12 +31,13 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-What you give up in that move is the compile-time check: TickerQ's generator makes a cron expression
-that will not parse a build error (`TQ003`), and Quartz parses its cron at run time. Attributes and an
-analyzer that would close that gap are
-[#3804](https://github.com/quartznet/quartznet/issues/3804) and
-[#3803](https://github.com/quartznet/quartznet/issues/3803), scheduled for 4.2 and not shipped. Until
-they are, [`CronExpressionBuilder`](../cron-expressions.md#building-cron-expressions-programmatically)
+The compile-time check comes with you. TickerQ's generator makes a cron expression that will not parse
+a build error (`TQ003`); Quartz 4.2 does the same, with the parser that reads the expression at run
+time — see [Compile-Time Checks](../tutorial/compile-time-checks.md). The attribute shape comes too:
+[`[QuartzJob]` and `[CronTrigger]`](../tutorial/declaring-jobs-with-attributes.md) declare a job and its
+schedule on the class, and a source generator writes the registration above for you. An expression
+assembled at run time is still read at run time, and for that
+[`CronExpressionBuilder`](../cron-expressions.md#building-cron-expressions-programmatically)
 builds an expression without writing the string, and
 [asking the trigger when it fires](../cron-expressions.md#checking-an-expression) checks one you have.
 
@@ -47,8 +48,8 @@ and no second place the name can be wrong.
 
 | TickerQ | Quartz.NET | Where it differs |
 |---|---|---|
-| `[TickerFunction("name")]` on a method | a class implementing `IJob`, registered with `q.AddJob<T>(…)` | the class is what the schedule names |
-| `[TickerFunction("name", "*/5 * * * *")]` | `q.AddTrigger<T>(t => t.WithCronSchedule(…))` | the schedule is a trigger of its own, so one job can have several |
+| `[TickerFunction("name")]` on a method | a class implementing `IJob`, registered with `q.AddJob<T>(…)` or with [`[QuartzJob]`](../tutorial/declaring-jobs-with-attributes.md) on the class | the class is what the schedule names |
+| `[TickerFunction("name", "*/5 * * * *")]` | `q.AddTrigger<T>(t => t.WithCronSchedule(…))`, or [`[CronTrigger("0 0/5 * * * ?")]`](../tutorial/declaring-jobs-with-attributes.md) on the class | the schedule is a trigger of its own, so one job can have several |
 | `new TimeTickerEntity { Function = "name", ExecutionTime = … }` | `scheduler.ScheduleJob<TJob, TInput>(input, at)` | |
 | `timeTicker.AddAsync<WelcomeJob>(executionTime)` | the same call | both are typed; Quartz's carries the payload type too |
 | `new CronTickerEntity { Expression = … }` | a cron trigger through `TriggerBuilder` | |

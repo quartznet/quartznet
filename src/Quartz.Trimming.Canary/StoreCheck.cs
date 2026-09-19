@@ -64,6 +64,15 @@ internal static class StoreCheck
     private static readonly TaskCompletionSource<CanaryInput> typedInput = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
+    /// Signals that the job nothing registered by hand fired: <see cref="DeclaredCanaryJob" /> is
+    /// declared with <c>[QuartzJob]</c> and <c>[CronTrigger]</c> and reaches the store through the
+    /// registration the source generator wrote. Generated or not, that code calls the same
+    /// <c>AddJob&lt;T&gt;</c> the rest of this file calls, so a publish with no reflection left has to
+    /// be able to run it.
+    /// </summary>
+    private static readonly TaskCompletionSource declaredFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
     /// Runs the check, returning <see langword="null" /> when it passed and a message when it did not.
     /// </summary>
     public static async Task<string?> Run()
@@ -99,6 +108,10 @@ internal static class StoreCheck
                     store.UseSqlite(SqliteFactory.Instance, connectionString);
                     store.ConfigureStore(options => options.SchemaProvisioning = SchemaProvisioning.Validate);
                 });
+
+                // Every job this assembly declares with [QuartzJob], which is one: the call is
+                // generated from the attributes and is the only registration DeclaredCanaryJob gets.
+                q.AddDeclaredJobs();
             });
 
             ServiceProvider container = services.BuildServiceProvider();
@@ -151,6 +164,12 @@ internal static class StoreCheck
                 return "FAIL store: the typed-input job never fired within a minute.";
             }
 
+            Task declared = await Task.WhenAny(declaredFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            if (declared != declaredFired.Task)
+            {
+                return "FAIL store: the job declared with [QuartzJob] never fired within a minute, so the generated registration did not reach the scheduler.";
+            }
+
             CanaryInput received = await typedInput.Task.ConfigureAwait(false);
             CanaryInput expected = new("the typed input round-trips out of a trimmed publish", 7);
             if (received != expected)
@@ -182,7 +201,7 @@ internal static class StoreCheck
 
             await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
 
-            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input included.");
+            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input and a job declared with [QuartzJob] included.");
             return null;
         }
         catch (Exception e)
@@ -262,6 +281,21 @@ internal static class StoreCheck
         }
     }
 
+    /// <summary>
+    /// A job that says when it runs where it is written. Nothing registers it by hand: the source
+    /// generator reads the two attributes and writes the <c>AddJob</c> and <c>AddTrigger</c> calls
+    /// that <c>AddDeclaredJobs</c> above runs.
+    /// </summary>
+    [QuartzJob(Name = "declared", Group = "store", Description = "declared with an attribute rather than registered by hand")]
+    [CronTrigger("0/1 * * * * ?")]
+    public sealed class DeclaredCanaryJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            declaredFired.TrySetResult();
+            return default;
+        }
+    }
 }
 
 /// <summary>

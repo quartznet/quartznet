@@ -51,6 +51,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <!--
+      What a consumer gets from analyzers/dotnet/cs inside Quartz.nupkg; a ProjectReference does not
+      carry analyzers the way a PackageReference does, so the project is named. The canary declares
+      one of its jobs with [QuartzJob] and registers it with the generated AddDeclaredJobs, which is
+      how a trimmed and a natively compiled publish are held to the claim that generated registration
+      needs no reflection.
+    -->
+    <ProjectReference Include="..\Quartz.Analyzers\Quartz.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
 
 </Project>

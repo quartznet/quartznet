@@ -64,11 +64,13 @@ event dispatcher, all in memory, all in one small package.
 | What the compiler checks | the job type and, for `IJob<TInput>`, its payload type | [the method call, because it is an expression tree](https://docs.hangfire.io/en/latest/background-methods/calling-methods-in-background.html); the recurring id is a string | [the function name, its signature and its cron literal — `TQ003` is a build error for a cron that will not parse](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ.SourceGenerator/Validation/DiagnosticDescriptors.cs) | the message type; a bad cron throws [at the registration line](https://github.com/JasperFx/wolverine/blob/V6.35.0/src/Wolverine/CronSchedule.cs) rather than at start-up | the invocable type; [a cron string is parsed at run time](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/Src/Coravel/Scheduling/Schedule/Cron/CronExpression.cs) |
 | Where the schedule lives | in the job store — added, rescheduled and deleted while the host is up, by any node | [in the storage](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html), changed at run time | in the persistence provider, changed at run time or from the dashboard | in code, at `UseWolverine`; the set is whatever the process was compiled with | [in code, at `UseScheduler`](https://docs.coravel.net/Scheduler/); nothing is persisted |
 
-Quartz's cron is read at run time, so an expression that cannot parse is an exception rather than a
-build error. TickerQ's generator is the better answer today and the page says so;
-[#3803](https://github.com/quartznet/quartznet/issues/3803) and
-[#3804](https://github.com/quartznet/quartznet/issues/3804) are the 4.2 issues for an analyzer and a
-`[QuartzJob]`/`[CronTrigger]` pair, and neither has shipped.
+Through 4.1 Quartz read its cron at run time alone, so an expression that could not parse was an
+exception rather than a build error and TickerQ's generator won this outright. **4.2 closes it**: an
+analyzer inside `Quartz.nupkg` reads a cron literal or `const` with the very parser that reads it at
+run time and fails the build on one that does not parse
+([Compile-Time Checks](tutorial/compile-time-checks.md)), and
+[`[QuartzJob]` and `[CronTrigger]`](tutorial/declaring-jobs-with-attributes.md) declare a job and its
+schedule on the class for a source generator to register.
 
 ## Trigger kinds and cron grammar
 
@@ -237,11 +239,13 @@ dictionary insert. For thousands of short-lived one-off firings, that difference
 answer is [one durable job per job type with a trigger per firing](how-tos/one-off-job.md) rather than
 a pretence that the row is free.
 
-**A bad cron is a run-time exception, not a build error.** TickerQ's source generator wins this
-outright today. [#3803](https://github.com/quartznet/quartznet/issues/3803) and
-[#3804](https://github.com/quartznet/quartznet/issues/3804) are the 4.2 issues; until they ship,
+**A bad cron was a run-time exception rather than a build error, through 4.1.** TickerQ's source
+generator won this outright, and 4.2 is where Quartz answers it: a cron literal or `const` is read at
+build time ([Compile-Time Checks](tutorial/compile-time-checks.md)), and a job can declare its schedule
+on its class ([Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md)). An
+expression assembled at run time is still read at run time, and for that
 [`CronExpressionBuilder` and the "when does this fire" helper](cron-expressions.md#checking-an-expression)
-are what Quartz offers instead.
+are what Quartz offers.
 
 **Continuations are a listener, not a contract.** See
 [Continuations and chaining](#continuations-and-chaining) above.
