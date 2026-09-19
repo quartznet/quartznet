@@ -379,6 +379,12 @@ internal sealed class JobDetailImpl : IJobDetail
     }
 
     /// <summary>
+    /// The job's data map as it stands, without creating one for a job that has never had any data
+    /// put on it. <see cref="JobDataMaps" /> is what reads it, and says why.
+    /// </summary>
+    internal JobDataMap? JobDataMapOrNull => jobDataMap;
+
+    /// <summary>
     /// Set whether or not the <see cref="IScheduler" /> should re-Execute
     /// the <see cref="IJob" /> if a 'recovery' or 'fail-over' situation is
     /// encountered.

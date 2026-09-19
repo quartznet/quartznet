@@ -21,6 +21,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Impl.Triggers;
 
@@ -434,6 +435,12 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
 
         set => jobDataMap = value;
     }
+
+    /// <summary>
+    /// The trigger's data map as it stands, without creating one for a trigger that has never had
+    /// any data put on it. <see cref="JobDataMaps" /> is what reads it, and says why.
+    /// </summary>
+    internal JobDataMap? JobDataMapOrNull => jobDataMap;
 
     /// <summary>
     /// Returns the last UTC time at which the <see cref="ITrigger" /> will fire, if
