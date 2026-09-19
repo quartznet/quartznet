@@ -25,40 +25,35 @@ using Quartz.Util;
 
 namespace Quartz;
 
-/// <summary>
-/// The next-fire-time search that asks the time zone nothing.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <see cref="GetTimeAfterSlow" /> spends most of a call in <see cref="TimeZoneInfo" />: it converts
-/// the search floor into wall clock, walks the fields as <see cref="DateTimeOffset" />s, resolves the
-/// wall clock it lands on, and then asks again whether either end of the search fell in a repeated
-/// hour. Eight zone queries for one answer, and the BCL recomputes a year's transitions on every one
-/// of them.
-/// </para>
-/// <para>
-/// This file answers the same question with integers. The offset comes from a table rather than from
-/// the zone, the walk is over the same <see cref="CronField" /> bitmasks the slow path walks but in
-/// <see cref="int" />s rather than in <see cref="DateTimeOffset" />s, and the answer is composed once
-/// at the end. It refuses to answer at all unless it can prove the answer is the slow path's, and the
-/// proof is the <i>safe segment</i>: a stretch of time the zone's offset is constant over and that no
-/// transition comes within two days of. Inside one,
-/// </para>
-/// <list type="bullet">
-/// <item>the gap-rewind guard is false, because no wall clock in the segment fell in a gap;</item>
-/// <item><c>FirstInstantAtOrAfterLocal</c> is <c>new DateTimeOffset(wallClock, segmentOffset)</c>,
-/// because the wall clock is neither invalid nor ambiguous;</item>
-/// <item>the fall-back demotion is false, for the same reason;</item>
-/// <item>and the second ambiguous pass returns its candidate unchanged, because the search floor is
-/// not ambiguous either.</item>
-/// </list>
-/// <para>
-/// So every branch the slow path takes over a transition is inert, and what is left is the walk and
-/// one addition. Both ends are checked: the search floor must be inside a safe segment and so must
-/// the instant the walk arrives at, which is what keeps an answer that jumped a transition - a
-/// yearly expression, say - on the slow path.
-/// </para>
-/// </remarks>
+// The next-fire-time search that asks the time zone nothing.
+//
+// GetTimeAfterSlow spends most of a call in TimeZoneInfo: it converts the search floor into wall
+// clock, walks the fields as DateTimeOffsets, resolves the wall clock it lands on, and then asks
+// again whether either end of the search fell in a repeated hour. Eight zone queries for one answer,
+// and the BCL recomputes a year's transitions on every one of them.
+//
+// This file answers the same question with integers. The offset comes from a table rather than from
+// the zone, the walk is over the same CronField bitmasks the slow path walks but in ints rather than
+// in DateTimeOffsets, and the answer is composed once at the end. It refuses to answer at all unless
+// it can prove the answer is the slow path's, and the proof is the SAFE SEGMENT: a stretch of time
+// the zone's offset is constant over and that no transition comes within two days of. Inside one,
+//
+//   - the gap-rewind guard is false, because no wall clock in the segment fell in a gap;
+//   - FirstInstantAtOrAfterLocal is new DateTimeOffset(wallClock, segmentOffset), because the wall
+//     clock is neither invalid nor ambiguous;
+//   - the fall-back demotion is false, for the same reason;
+//   - and the second ambiguous pass returns its candidate unchanged, because the search floor is not
+//     ambiguous either.
+//
+// So every branch the slow path takes over a transition is inert, and what is left is the walk and
+// one subtraction. Both ends need a safe segment - the search floor, whose wall clock the walk starts
+// at, and the wall clock it arrives at, which is what the answer is resolved from - but not the same
+// one, because the slow path resolves the wall clock where it finds it and the offset the search
+// started with never enters the answer.
+//
+// None of this is XML documentation on purpose: CronExpression is a public type whose documentation
+// a consumer reads, the compiler concatenates the doc comments of every part of a partial type into
+// one, and how the search is made fast is not something a consumer has any use for.
 public sealed partial class CronExpression
 {
     /// <summary>
@@ -99,7 +94,13 @@ public sealed partial class CronExpression
     /// </summary>
     [NonSerialized] private ZoneBinding? zoneBinding;
 
-    /// <inheritdoc cref="TryTimeAfterFast" />
+    /// <summary>
+    /// The implementing half of the hook <c>CronExpression.cs</c> declares. It exists only to turn a
+    /// <c>Try</c> pattern into the <c>ref</c> parameter an old-style partial method is allowed to
+    /// take, which is what lets the call compile away in the assembly that links no fast path.
+    /// </summary>
+    /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
+    /// <param name="result">The next fire time, left null when the fast path declines.</param>
     partial void TryTimeAfterFast(DateTimeOffset afterTimeUtc, ref DateTimeOffset? result)
     {
         if (TryGetTimeAfterFast(afterTimeUtc, out DateTimeOffset found))

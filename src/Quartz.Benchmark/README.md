@@ -441,3 +441,102 @@ then divides by `repeatInterval.Ticks` and throws `DivideByZeroException` on the
 firing, which `AdoJobStoreBase` logs and swallows - leaving the row in `ACQUIRED` for good. Nothing
 surfaces it, and `RAMJobStore` keeps the interval, so the two stores disagree. Filed as #3673. The
 workload above uses a millisecond because that is the smallest interval both stores agree on.
+
+## What #3801 changed (2026-09-19, AMD Ryzen 9 5950X)
+
+`CronExpression.GetNextValidTimeAfter` now computes the steady-state answer without asking
+`TimeZoneInfo` anything: an integer walk over the field bitmasks, at an offset read from a per-zone
+table of *safe segments*, falling back to the unchanged search - renamed `GetTimeAfterSlow` - wherever
+the answer cannot be proved to be the same one. The profile behind it is on #3802: 44.6% of on-CPU in
+`Next100` was a `TimeZoneInfo` frame, and an A/B there priced a daylight-saving zone at 457 ns against
+157 ns for a zone that never moves its clocks.
+
+**Machine and runtime.** BenchmarkDotNet v0.15.8; Windows 11 (10.0.26200.9457/25H2); AMD Ryzen 9
+5950X 3.40 GHz, 1 CPU, 32 logical and 16 physical cores; .NET SDK 10.0.401; host and job .NET 10.0.12
+(10.0.1226.42308), X64 RyuJIT x86-64-v3; Workstation concurrent GC. `--job short --maxIterationCount
+20`. The machine's local time zone is **`FLE Standard Time`** (UTC+02:00, observes daylight saving),
+which is the zone every row below resolves against - `CronExpressionComparisonBenchmark` and
+`CronExpressionBenchmark` both leave the zone unset, so both get the local one, and it is the zone
+that decides whether the search pays for daylight saving at all. On a fixed-offset zone the before
+column would read about 160 ns rather than about 420.
+
+**Read the ranges, not the means.** Other work was on the machine throughout. The two
+`CronExpressionComparisonBenchmark` arms were run in one sitting as **five alternating pairs, the
+order reversed between them**, so the medians and ranges below are over five runs each; the other
+three suites are one run per arm and are directions rather than measurements.
+`TriggerTimeComparatorBenchmark` is the control - nothing in this change can touch it - and it reads
+59.8 ns against 59.9 ns, 159.7 against 159.8, 2.0 ns against 2.0 ns on the `CompareTo` cases.
+
+### The cross-library comparison
+
+`CronExpressionComparisonBenchmark`, medians of five runs per arm, with the five-run range beside
+them. The NCrontab column is from the after sitting and is its own control: it reads within a
+nanosecond of the before sitting's, so the two arms were measured on the same machine in the same mood.
+
+| Method            |               Before |                After |         NCrontab |
+|------------------ |---------------------:|---------------------:|-----------------:|
+| Next_Simple       |    420.7 (412-428) ns |    **36.5** (35-44) ns |          25.3 ns |
+| Next_Complex      |    472.0 (432-546) ns |    **46.2** (46-55) ns |          21.8 ns |
+| Next_SecondLevel  |    353.1 (348-368) ns |    **30.9** (30-36) ns |          40.6 ns |
+| Next100           | 43,132 (41,825-43,593) ns | **3,521** (3,379-3,640) ns |       2,671 ns |
+| Parse_Simple      |    212.2 ns / 496 B  |    218.6 ns / 504 B  | 328.6 ns / 1816 B |
+| Parse_Complex     |    295.4 ns / 648 B  |    291.4 ns / 656 B  | 365.6 ns / 1880 B |
+| Parse_SecondLevel |    233.5 ns / 608 B  |    219.6 ns / 616 B  | 375.9 ns / 2152 B |
+
+Every `Next*` row allocates nothing, before and after. **A next occurrence is 11.5x faster and a
+hundred of them 12.3x**, which puts Quartz at 1.44x NCrontab on the single call, 1.32x on the chain,
+and *faster* than it on the second-level expression - which is the one case where NCrontab has the
+same work to do and no bitmask to do it with.
+
+**Parsing costs eight bytes more and no measurable time.** The eight is the one field the fast path
+adds to `CronExpression`: the zone it last computed against, bound to that zone's offset tables. The
+parse times move by less than the five-run ranges of the rows themselves.
+
+### The repository's own cron suite
+
+`CronExpressionBenchmark`, all fourteen shapes, one run per arm. `NextOccurrence` from a fixed start
+in June 2005 - so these are single calls rather than chains, which is the shape the acceptance numbers
+are stated in. Every row's `Allocated` is `-` in both arms.
+
+| CronExpression           | NextOccurrence before | NextOccurrence after | NextOccurrences100 before | after |
+|------------------------- |---------------------:|--------------------:|-------------------------:|------:|
+| `0 0 12 * * ?`           |             431.9 ns |        **33.4 ns**  |              43,699 ns |  4,281 ns |
+| `0 0 8-18 ? * MON-FRI`   |             560.6 ns |        **43.0 ns**  |              51,510 ns |  4,691 ns |
+| `0 0-30 9-17 * * ?`      |             507.1 ns |        **33.6 ns**  |              41,310 ns |  3,496 ns |
+| `0 0,10,20,30,40,50 ...` |             477.6 ns |        **30.2 ns**  |              43,349 ns |  3,420 ns |
+| `0 0/5 * * * ?`          |             483.4 ns |        **34.2 ns**  |              43,304 ns |  3,436 ns |
+| `0 15 10 ? * 6#3 *`      |             779.0 ns |        **37.4 ns**  |             107,494 ns |  6,991 ns |
+| `0 15 10 ? * 6L`         |             796.2 ns |        **37.1 ns**  |             106,173 ns | 29,104 ns |
+| `0 15 10 * * ?`          |             527.3 ns |        **34.6 ns**  |              50,860 ns |  4,062 ns |
+| `0 15 10 * * ? 2005-2025`|             489.4 ns |        **43.7 ns**  |              49,987 ns | 10,362 ns |
+| `0 15 10 1,2,3,... * ?`  |             485.5 ns |        **36.7 ns**  |              71,728 ns |  7,632 ns |
+| `0 15 10 L * ?`          |             784.5 ns |        **36.0 ns**  |              79,998 ns | 17,460 ns |
+| `0 15 10 L-2 * ?`        |             792.4 ns |        **38.3 ns**  |             108,105 ns | 31,105 ns |
+| `0 15 10 LW * ?`         |             793.8 ns |        **37.6 ns**  |              91,326 ns | 19,195 ns |
+| `0/15 * * * * ?`         |             357.9 ns |        **31.4 ns**  |              38,321 ns |  3,154 ns |
+
+**The `L`, `W`, `#` and `nL` shapes are no longer the expensive ones.** They cost 779-796 ns before
+and 36-38 ns after, because the walk resolves them per month out of `CalculateDaysOfMonth` and a
+single bit, rather than through the `DateTimeOffset`-rebuilding day progressors.
+
+**The hundred-call rows say where the fast path stops, and it is not a defect.** A chain of a hundred
+fires of a *monthly* expression covers eight years, and eight years of a daylight-saving zone contains
+sixteen transitions, each of which costs four days of fast path and is answered by the search that was
+always there. `0 15 10 ? * 6L` is 3.6x rather than 12x for exactly that reason; `0 0/5 * * * ?`, whose
+hundred fires span eight hours, is 12.6x. A running trigger asks for one fire time at a time, near
+now, which is the `NextOccurrence` column.
+
+### Scheduling a job is unmoved
+
+`ScheduleJobBenchmark`, one run per arm, fixtures already equalised by #3802.
+
+| Method                    |  Before |   After |
+|-------------------------- |--------:|--------:|
+| ScheduleJob_SimpleTrigger | 5.86 µs / 3.81 KB | 6.29 µs / 3.81 KB |
+| ScheduleJob_CronTrigger   | 7.45 µs / 4.49 KB | 7.33 µs / 4.52 KB |
+
+The simple arm is the control here and it moved 0.4 µs between two runs, which is the size of this
+suite's noise on a loaded machine; the cron arm moved 0.1 µs the other way. The 30 bytes the cron arm
+gained are the same eight-byte field as above, rounded by the KB column. Scheduling is dominated by
+the store, the listener machinery and the scheduler-thread wake, none of which this touches - the
+cron work inside it is under a microsecond, which #3802 measured.
