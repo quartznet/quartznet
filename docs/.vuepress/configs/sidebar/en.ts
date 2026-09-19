@@ -43,6 +43,7 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/quartz-4.x/configuration/json",
       "/documentation/quartz-4.x/cron-expressions",
       "/documentation/quartz-4.x/multi-tenancy",
+      "/documentation/quartz-4.x/comparison",
       "/documentation/faq",
       "/documentation/best-practices",
       "/documentation/quartz-4.x/production-checklist",

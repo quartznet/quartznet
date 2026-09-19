@@ -13,6 +13,28 @@ namespace Quartz.Documentation.Samples;
 /// </remarks>
 public static class QuickStartSamples
 {
+    public static async ValueTask TheShortestThingThatWorks(string[] args)
+    {
+        #region sample_quick_start_shortest
+
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+        builder.AddQuartz();
+        builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        IHost host = builder.Build();
+        await host.StartAsync();
+
+        // Anything the container builds can do this — an endpoint, a consumer, a hosted service of
+        // your own. The job type and its payload type are both checked by the compiler.
+        IScheduler scheduler = host.Services.GetRequiredService<IScheduler>();
+        await scheduler.ScheduleJob<SendWelcomeEmail, string>("ada@example.com", TimeSpan.FromMinutes(5));
+
+        await host.WaitForShutdownAsync();
+
+        #endregion
+    }
+
     public static async ValueTask UnderAHost(string[] args)
     {
         #region sample_quick_start_host
@@ -143,6 +165,18 @@ public static class QuickStartSamples
         #endregion
     }
 }
+
+#region sample_quick_start_typed_job
+
+public sealed class SendWelcomeEmail : IJob<string>
+{
+    public async ValueTask Execute(IJobExecutionContext context, string emailAddress, CancellationToken cancellationToken = default)
+    {
+        await Console.Out.WriteLineAsync($"Welcome, {emailAddress}");
+    }
+}
+
+#endregion
 
 #region sample_quick_start_job
 

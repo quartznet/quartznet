@@ -383,6 +383,32 @@ public sealed class PublishReportJob : IJob
     }
 }
 
+/// <summary>Samples for the retry section of docs/documentation/best-practices.md.</summary>
+public static class BestPracticesRetrySamples
+{
+    public static void GiveTheTriggerAPolicy(IServiceCollection services)
+    {
+        #region sample_best_practices_retry_policy
+
+        services.AddQuartz(q =>
+        {
+            q.AddJob<PublishReportJob>(j => j.WithIdentity("report", "nightly"));
+            q.AddTrigger<PublishReportJob>(t => t
+                .ForJob("report", "nightly")
+                .WithCronSchedule("0 0 2 * * ?")
+                // 30s, 1m, 2m, 4m, 8m — never longer than ten minutes, and never past the trigger's
+                // own next occurrence.
+                .WithRetryPolicy(RetryPolicy.Exponential(
+                    maxAttempts: 5,
+                    initialDelay: TimeSpan.FromSeconds(30),
+                    factor: 2,
+                    maxDelay: TimeSpan.FromMinutes(10))));
+        });
+
+        #endregion
+    }
+}
+
 #region sample_best_practices_disallow_concurrent
 
 [DisallowConcurrentExecution]

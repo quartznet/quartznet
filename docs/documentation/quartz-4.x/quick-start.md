@@ -34,6 +34,58 @@ The optional packages, added the same way when you want them:
 | [Quartz.Aspire](packages/aspire.md) | a persistent store, its telemetry and its health check from an Aspire connection name |
 | [Quartz.Extensions.Redis](packages/redis.md) | Redis distributed locks for a cluster |
 
+## The shortest thing that works
+
+Two registration calls put a scheduler in the container and start it with the host. A third line
+schedules one firing of a job with a payload, and both types are the compiler's business rather than a
+string's:
+
+<!-- snippet: sample_quick_start_shortest -->
+```csharp
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+builder.AddQuartz();
+builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+IHost host = builder.Build();
+await host.StartAsync();
+
+// Anything the container builds can do this — an endpoint, a consumer, a hosted service of
+// your own. The job type and its payload type are both checked by the compiler.
+IScheduler scheduler = host.Services.GetRequiredService<IScheduler>();
+await scheduler.ScheduleJob<SendWelcomeEmail, string>("ada@example.com", TimeSpan.FromMinutes(5));
+
+await host.WaitForShutdownAsync();
+```
+<!-- endSnippet -->
+
+The job is an ordinary class with one method. `IJob<TInput>` is the typed form of `IJob`: the payload
+arrives as a parameter instead of being fished out of a `JobDataMap`, and the `ScheduleJob<TJob, TInput>`
+call above is what puts it there.
+
+<!-- snippet: sample_quick_start_typed_job -->
+```csharp
+public sealed class SendWelcomeEmail : IJob<string>
+{
+    public async ValueTask Execute(IJobExecutionContext context, string emailAddress, CancellationToken cancellationToken = default)
+    {
+        await Console.Out.WriteLineAsync($"Welcome, {emailAddress}");
+    }
+}
+```
+<!-- endSnippet -->
+
+`AddQuartz()` with nothing in it takes the defaults — the in-memory store, a thread pool of ten, and
+System.Text.Json for anything that has to be serialized — so there is nothing to configure until one of
+those is wrong for you. What gets stored is one durable job per job type plus one trigger per call, and
+the `ScheduledOneOffJob` the call answers with carries the `TriggerKey` to cancel or replace the firing
+by; [One-Off Job](how-tos/one-off-job.md) is the whole of it, including how to name and group a firing so
+a whole conversation can be called off at once.
+
+That form covers "run this once, soon". A recurring schedule, a database behind it, a misfire
+instruction, a calendar or a retry policy are things a trigger says, and saying them is the rest of this
+page.
+
 ## Configuration
 
 Quartz is configured with strongly typed options. An option has the same name in code and in
