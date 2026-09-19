@@ -27,6 +27,7 @@ next: false
 * [Lesson 18: Execution Groups](execution-groups.md)
 * [Lesson 19: Node Affinity (Preferred Node)](node-affinity.md)
 * [Lesson 20: Testing](testing.md)
+* [Lesson 21: Compile-Time Checks](compile-time-checks.md)
 
 The cron expression syntax the CronTriggers lesson builds on has its own page:
 [Cron Expression Reference](../cron-expressions.md).

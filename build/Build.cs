@@ -383,7 +383,11 @@ partial class Build : FalloutBuild, ICompile, IPack
         .Executes(() =>
         {
             var configuration = ((ICompile) this).Configuration;
-            var testRuns = GetTestRuns("Quartz.Tests.Unit", "Quartz.Tests.AspNetCore");
+            // Quartz.Analyzers.Tests is a unit project like the other two, and it is in this list
+            // rather than a leg of its own for the reason it matters: --coverage collects from what
+            // this target runs, and SonarCloud's new-code condition reads nothing else. An analyzer
+            // tested somewhere the coverage run cannot see is an analyzer with no coverage at all.
+            var testRuns = GetTestRuns("Quartz.Tests.Unit", "Quartz.Tests.AspNetCore", "Quartz.Analyzers.Tests");
 
             foreach (var (project, framework) in testRuns)
             {

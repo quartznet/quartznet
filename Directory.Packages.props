@@ -13,6 +13,26 @@
       (microsoft/aspire#15476); move these by hand, or let the `aspire` dependabot group do it.
     -->
     <AspireVersion>13.5.3</AspireVersion>
+    <!--
+      The compiler Quartz.Analyzers is written against, and therefore the oldest host that can load it.
+      4.12.0 is the .NET 9 SDK's Roslyn and Visual Studio 17.12's, which is as old as a host that can
+      build a net10.0 consumer gets — an analyzer compiled against a newer Microsoft.CodeAnalysis than
+      the host carries fails to load, and the compiler reports that as a warning nobody reads rather
+      than as the missing diagnostics it is. Raising this raises the floor on every consumer's IDE.
+
+      A property with a VersionOverride at each of the two call sites, rather than a PackageVersion row,
+      and this is the second place in the file where central management cannot express what is meant.
+      CentralPackageTransitivePinningEnabled turns a PackageVersion into a demand on every project that
+      resolves the id at all, and two already resolve Microsoft.CodeAnalysis above 4.12.0 for reasons of
+      their own: BenchmarkDotNet 0.15.8 asks Quartz.Benchmark for >= 4.14.0, and JasperFx.RuntimeCompiler
+      pulls Microsoft.CodeAnalysis 5.0.0 into Quartz.Examples.Wolverine, which pins
+      Microsoft.CodeAnalysis.Common at exactly 5.0.0. A central row at 4.12.0 is NU1109 for the first and
+      NU1107 for the second; a row high enough for both would raise the analyzer's compiler floor, which
+      is the one thing this version is chosen to keep low. So the version is written once, here, the two
+      analyzer projects name it, and no other project's restore graph moves. Nothing ships it: the
+      reference is PrivateAssets=all on both, and Quartz.Analyzers is not a package.
+    -->
+    <MicrosoftCodeAnalysisVersion>4.12.0</MicrosoftCodeAnalysisVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="$(AspireVersion)" />
@@ -68,6 +88,12 @@
     <PackageVersion Include="OpenTracing" Version="0.12.1" />
     <PackageVersion Include="Oracle.ManagedDataAccess" Version="23.26.100" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.301" />
+    <!--
+      The nullable attributes, IsByRefLikeAttribute and the rest of what a netstandard2.0 compilation
+      of the cron parser is missing. Source-only and PrivateAssets=all, so it reaches no nuspec — which
+      is what lets Quartz.Analyzers ride inside Quartz.nupkg without adding a dependency to it.
+    -->
+    <PackageVersion Include="PolySharp" Version="1.15.0" />
     <PackageVersion Include="PublicApiGenerator" Version="11.5.4" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />

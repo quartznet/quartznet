@@ -203,7 +203,15 @@ namespace Quartz;
 /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
+#if NET7_0_OR_GREATER
 public sealed partial class CronExpression : ISerializable, IEquatable<CronExpression>, IParsable<CronExpression>
+#else
+// Quartz.Analyzers links this file into a netstandard2.0 assembly so that the compiler reads a cron
+// literal with this parser rather than a second one. IParsable<T> is a static abstract interface
+// member and cannot exist there; nothing on the parse path implements it, so the linked copy simply
+// has one interface fewer. The net7.0-and-later branch above is what Quartz.dll compiles.
+public sealed partial class CronExpression : ISerializable, IEquatable<CronExpression>
+#endif
 {
     private const string DayOfWeekRangeMessage =
         "Day-of-Week values must be between 1 and 7, with 1 = Sunday and 7 = Saturday. "
@@ -254,8 +262,17 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     [NonSerialized] private List<LastDaySpec>? lastDaySpecs;
 
     //e.g. LW L-0W L-4 L-12W LW-4 (out-of-range offsets are rejected in the 'L' parse)
+#if NET7_0_OR_GREATER
     [GeneratedRegex("^L(-\\d+)?(W(-\\d+)?)?$", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 5000)]
     private static partial Regex LastDayExpression();
+#else
+    // The regex source generator declines a netstandard2.0 target, where Quartz.Analyzers links this
+    // file, so the same pattern is built once at run time instead. Same pattern, same options, same
+    // timeout - only the generator is missing.
+    private static readonly Regex lastDayExpression = new Regex("^L(-\\d+)?(W(-\\d+)?)?$", RegexOptions.ExplicitCapture, TimeSpan.FromMilliseconds(5000));
+
+    private static Regex LastDayExpression() => lastDayExpression;
+#endif
 
     // Field ranges for H (hash) token resolution: [min, max] indexed by field type (Second=0 through DayOfWeek=5)
     private static readonly int[] HashFieldMins = { 0, 0, 0, 1, 1, 1 };
@@ -954,6 +971,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         }
     }
 
+#if NET7_0_OR_GREATER
     static CronExpression IParsable<CronExpression>.Parse(string s, IFormatProvider? provider)
     {
         return Parse(s);
@@ -963,6 +981,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     {
         return TryParse(s, out result);
     }
+#endif
 
     /// <summary>
     /// Parses a cron expression string whose <c>H</c> (hash) tokens are resolved against the given
