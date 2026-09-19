@@ -359,6 +359,8 @@ namespace Quartz.Dashboard.Services
     public sealed record TriggerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.TriggerHeaderDto>
     {
         public TriggerHeaderDto(string Group, string Name, string? TriggerType, string? ScheduleSummary, Quartz.TriggerState? State, string? ExecutionGroup) { }
+        public Quartz.ContinuationCondition? ContinuationCondition { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto? ContinuesAfter { get; init; }
         public string? ExecutionGroup { get; init; }
         public string Group { get; init; }
         public string Name { get; init; }

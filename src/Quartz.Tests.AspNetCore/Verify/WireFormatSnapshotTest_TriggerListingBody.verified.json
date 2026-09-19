@@ -16,7 +16,31 @@
       "priority": 1,
       "executionGroup": null,
       "retryPolicy": "exp;3;00:00:10;2;00:05:00",
-      "retryAttempt": 2
+      "retryAttempt": 2,
+      "continuesAfterTriggerName": null,
+      "continuesAfterTriggerGroup": null,
+      "continuationCondition": null
+    },
+    {
+      "name": "AwaitingTriggerKey",
+      "group": "CronTriggerGroup",
+      "jobName": "CronJobKey",
+      "jobGroup": "CronJobGroup",
+      "description": "CronTrigger description",
+      "triggerType": "CRON",
+      "state": "Awaiting",
+      "startTimeUtc": "2024-07-01T12:00:00+00:00",
+      "endTimeUtc": "2025-07-01T12:00:00+00:00",
+      "nextFireTimeUtc": "2024-08-01T12:30:00+00:00",
+      "previousFireTimeUtc": "2024-08-01T06:30:00+00:00",
+      "calendarName": "SomeCalendar",
+      "priority": 1,
+      "executionGroup": null,
+      "retryPolicy": "exp;3;00:00:10;2;00:05:00",
+      "retryAttempt": 2,
+      "continuesAfterTriggerName": "CronTriggerKey",
+      "continuesAfterTriggerGroup": "CronTriggerGroup",
+      "continuationCondition": "OnFailure, OnCancellation"
     }
   ],
   "hasMore": false,

@@ -196,6 +196,69 @@ public class TriggerDetailPageTest
                 "the action log records what happened, and nothing happened");
     }
 
+    /// <summary>
+    /// A waiting trigger's two rows: the parent, as a link to the page that shows it, and the outcomes
+    /// that release the wait.
+    /// </summary>
+    [Test]
+    public void AWaitingTriggerLinksToTheTriggerItIsWaitingFor()
+    {
+        GivenTrigger(ContinuationTrigger(ContinuationCondition.OnFailure | ContinuationCondition.OnCancellation));
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, new TriggerKeyDto("nightly", "import"), A<CancellationToken>._))
+            .Returns(TriggerState.Normal);
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Markup.Should().Contain("Continues after");
+        page.Find("td a.qz-details-link[href*='triggers/nightly/import']").TextContent.Should().Be("nightly.import",
+            "the parent is a trigger with a page of its own, and 'what is this waiting for' is a "
+            + "question whose answer is one click away");
+        page.Markup.Should().Contain("Failure or cancellation",
+            "the condition is spelled out rather than shown as the flags value the enum prints");
+    }
+
+    /// <summary>
+    /// A parent somebody removed leaves the continuation naming a trigger that is not there, and parked
+    /// in <see cref="TriggerState.Error" />. The page says both rather than linking to a page that would
+    /// report the trigger as not found.
+    /// </summary>
+    [Test]
+    public void AWaitingTriggerWhoseParentIsGoneNamesItWithoutLinkingToIt()
+    {
+        GivenTrigger(ContinuationTrigger(ContinuationCondition.OnSuccess));
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, new TriggerKeyDto("nightly", "import"), A<CancellationToken>._))
+            .Returns(TriggerState.None);
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.FindAll("td a.qz-details-link[href*='triggers/nightly/import']").Should().BeEmpty();
+        page.Markup.Should().Contain("nightly.import");
+        page.Markup.Should().Contain("no longer scheduled",
+            "a key that resolves to nothing is what an operator has to know, and a dead link says it "
+            + "only to whoever clicks it");
+    }
+
+    [Test]
+    public void AnOrdinaryTriggerHasNoContinuationRows()
+    {
+        GivenTrigger(CronTrigger("0/25 * * * * ?"));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Markup.Should().NotContain("Continues after",
+            "a trigger that waits for nothing has nothing to say about waiting");
+    }
+
+    private static ITrigger ContinuationTrigger(ContinuationCondition condition)
+    {
+        return TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("CronJobKey", "CronJobGroup")
+            .StartAfter(new TriggerKey("import", "nightly"), condition)
+            .WithCronSchedule("0 0 12 * * ?")
+            .Build();
+    }
+
     private static ITrigger CronTrigger(string cronExpression)
     {
         return TriggerBuilder.Create()

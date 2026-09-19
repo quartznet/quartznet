@@ -579,7 +579,26 @@ public sealed record TriggerHeaderDto(
     string? TriggerType,
     string? ScheduleSummary,
     TriggerState? State,
-    string? ExecutionGroup);
+    string? ExecutionGroup)
+{
+    /// <summary>
+    /// The trigger whose firing this one is waiting for, or <see langword="null" /> when it waits for
+    /// nothing. Set exactly when <see cref="State" /> is <see cref="TriggerState.Awaiting" />, and kept
+    /// afterwards — a released continuation still says what it waited for.
+    /// </summary>
+    /// <remarks>
+    /// An <c>init</c> property rather than a positional parameter, and the same goes for
+    /// <see cref="ContinuationCondition" />: the record's constructor is a public signature, and a 4.0.x
+    /// patch adds beside one rather than to it.
+    /// </remarks>
+    public TriggerKeyDto? ContinuesAfter { get; init; }
+
+    /// <summary>
+    /// The outcomes of that firing which release the wait, or <see langword="null" /> when the trigger
+    /// waits for nothing.
+    /// </summary>
+    public ContinuationCondition? ContinuationCondition { get; init; }
+}
 
 /// <remarks>
 /// <para>

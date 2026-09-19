@@ -33,6 +33,13 @@
                 return "paused";
             }
 
+            // A trigger waiting for another trigger's firing. Its own class: it is not running, it is
+            // not held back by an operator, and it is not a fault, so none of the three above says it.
+            if (normalized.Contains("awaiting"))
+            {
+                return "awaiting";
+            }
+
             // Checked before "running", so that a state whose name contains both reads as executing.
             if (normalized.Contains("executing"))
             {

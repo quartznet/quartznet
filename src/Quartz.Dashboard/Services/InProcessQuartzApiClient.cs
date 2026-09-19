@@ -275,13 +275,18 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<TriggerHeaderDto> result = new(triggers.Count);
         foreach (ITrigger trigger in triggers)
         {
+            Continuation continuation = trigger.Continuation;
             result.Add(new TriggerHeaderDto(
                 Group: trigger.Key.Group,
                 Name: trigger.Key.Name,
                 TriggerType: TriggerDisplay.TypeName(trigger),
                 ScheduleSummary: TriggerDisplay.ScheduleSummary(trigger),
                 State: states.TryGetValue(trigger.Key, out TriggerState state) ? state : null,
-                ExecutionGroup: trigger.ExecutionGroup));
+                ExecutionGroup: trigger.ExecutionGroup)
+            {
+                ContinuesAfter = AsTriggerKeyDto(continuation.Parent),
+                ContinuationCondition = continuation.IsNone ? null : continuation.When
+            });
         }
 
         return result;
@@ -427,7 +432,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 TriggerType: null,
                 ScheduleSummary: null,
                 State: trigger.State,
-                ExecutionGroup: trigger.ExecutionGroup));
+                ExecutionGroup: trigger.ExecutionGroup)
+            {
+                // What the trigger is waiting for is in the header, so a listing narrowed to Awaiting
+                // can say why each row is there without loading a trigger per row.
+                ContinuesAfter = AsTriggerKeyDto(trigger.ContinuesAfter),
+                ContinuationCondition = trigger.ContinuationCondition
+            });
         }
 
         return new PagedResult<TriggerHeaderDto>(items, triggers.HasMore, triggers.TotalCount ?? items.Count);
@@ -642,6 +653,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         ArgumentNullException.ThrowIfNull(key);
         return new TriggerKey(key.Name, key.Group);
+    }
+
+    private static TriggerKeyDto? AsTriggerKeyDto(TriggerKey? key)
+    {
+        return key is null ? null : new TriggerKeyDto(key.Group, key.Name);
     }
 
     /// <summary>

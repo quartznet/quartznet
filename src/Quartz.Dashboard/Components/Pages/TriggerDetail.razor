@@ -54,6 +54,24 @@
                 <tr><th>Previous Fire</th><td>@FormatDate(_trigger.PreviousFireTimeUtc)</td></tr>
                 <tr><th>Retry Policy</th><td>@(_trigger.RetryPolicy is { } retryPolicy ? retryPolicy.ToStoredString() : "—")</td></tr>
                 <tr><th>Retry Attempt</th><td>@_trigger.RetryAttempt</td></tr>
+                @if (_trigger.Continuation.Parent is { } continuationParent)
+                {
+                    <tr>
+                        <th>Continues after</th>
+                        <td>
+                            @if (_continuationParentExists)
+                            {
+                                <a class="qz-details-link" href="@GetTriggerPath(continuationParent.Group, continuationParent.Name)">@DisplayValueHelper.FormatKey(continuationParent.Group, continuationParent.Name)</a>
+                            }
+                            else
+                            {
+                                @DisplayValueHelper.FormatKey(continuationParent.Group, continuationParent.Name)
+                                <span class="qz-muted">&mdash; no longer scheduled</span>
+                            }
+                        </td>
+                    </tr>
+                    <tr><th>When</th><td>@DisplayValueHelper.FormatContinuationCondition(_trigger.Continuation.When)</td></tr>
+                }
             </tbody>
         </table>
 
@@ -94,6 +112,7 @@
     private string? _error;
     private ITrigger? _trigger;
     private TriggerState _triggerState = TriggerState.None;
+    private bool _continuationParentExists;
     private bool _showUnscheduleConfirm;
     private string? _cronExpression;
     private string _editedCronExpression = string.Empty;
@@ -146,6 +165,12 @@
             _triggerState = await Api.GetTriggerState(schedulerName, TriggerKey);
             _cronExpression = (_trigger as ICronTrigger)?.CronExpressionString;
             _editedCronExpression = _cronExpression ?? string.Empty;
+
+            // A continuation keeps naming its parent after the parent is gone - a deleted parent parks
+            // the trigger in Error rather than erasing what it waited for - so the row links to a page
+            // only when there is one. TriggerState.None is what a key that resolves to nothing answers.
+            _continuationParentExists = _trigger.Continuation.Parent is { } continuationParent
+                && await Api.GetTriggerState(schedulerName, new TriggerKeyDto(continuationParent.Group, continuationParent.Name)) != TriggerState.None;
         }
         catch (Exception ex)
         {
@@ -170,6 +195,11 @@
     private string FormatDate(DateTimeOffset? value)
     {
         return Scheduler.FormatInSelectedTimeZone(value, "u");
+    }
+
+    private string GetTriggerPath(string group, string name)
+    {
+        return DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
     }
 
     private string GetHistoryPathForTrigger(string group, string name)

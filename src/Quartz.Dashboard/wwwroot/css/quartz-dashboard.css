@@ -40,6 +40,8 @@
     --qz-color-info-bg: #dbeafe;
     --qz-color-executing: #7c3aed;
     --qz-color-executing-bg: #ede9fe;
+    --qz-color-awaiting: #0d9488;
+    --qz-color-awaiting-bg: #ccfbf1;
 
     /* --- Spacing (4px increments) --- */
     --qz-space-xs: 4px;
@@ -122,6 +124,8 @@
         --qz-color-info-bg: #1e3a5f;
         --qz-color-executing: #a78bfa;
         --qz-color-executing-bg: #3b0764;
+        --qz-color-awaiting: #2dd4bf;
+        --qz-color-awaiting-bg: #042f2e;
 
         --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
         --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4),
@@ -166,6 +170,8 @@ body{
     --qz-color-info-bg: #dbeafe;
     --qz-color-executing: #7c3aed;
     --qz-color-executing-bg: #ede9fe;
+    --qz-color-awaiting: #0d9488;
+    --qz-color-awaiting-bg: #ccfbf1;
 
     --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
@@ -204,6 +210,8 @@ body{
     --qz-color-info-bg: #1e3a5f;
     --qz-color-executing: #a78bfa;
     --qz-color-executing-bg: #3b0764;
+    --qz-color-awaiting: #2dd4bf;
+    --qz-color-awaiting-bg: #042f2e;
 
     --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4),
@@ -810,6 +818,23 @@ body{
 .qz-state-indicator.qz-state-executing .qz-state-dot {
     background-color: var(--qz-color-executing);
     box-shadow: 0 0 0 3px var(--qz-color-executing-bg);
+}
+
+/*
+ * Teal, for the same reason executing is violet: a trigger waiting for another trigger's firing is
+ * neither healthy-and-scheduled, nor held back by an operator, nor faulted, and the blue fallback
+ * means "a state the dashboard does not recognise".
+ */
+.qz-state-dot.qz-state-awaiting,
+.qz-state-indicator.qz-state-awaiting .qz-state-dot {
+    background-color: var(--qz-color-awaiting);
+    box-shadow: 0 0 0 3px var(--qz-color-awaiting-bg);
+}
+
+/* The parent a waiting trigger names, under its key in the listing. */
+.qz-continues-after {
+    font-size: var(--qz-font-size-xs);
+    margin-top: 2px;
 }
 
 .qz-state-label {
