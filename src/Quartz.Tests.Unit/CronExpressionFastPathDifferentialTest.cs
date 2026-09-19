@@ -78,7 +78,15 @@ public class CronExpressionFastPathDifferentialTest
     public static IEnumerable<string> ZoneIds =>
     [
         UtcZoneId,
-        FixedOffsetZoneId
+        "Europe/Helsinki",
+        "America/Sao_Paulo",
+        "Australia/Lord_Howe",
+        "Europe/Dublin",
+        "Africa/Casablanca",
+        "Pacific/Apia",
+        "America/New_York",
+        FixedOffsetZoneId,
+        LocalZoneId
     ];
 
     private const string UtcZoneId = "<utc>";
@@ -95,7 +103,7 @@ public class CronExpressionFastPathDifferentialTest
     [TestCaseSource(nameof(ZoneIds))]
     public void FastPathAgreesWithSlowPath(string zoneId)
     {
-        TimeZoneInfo? zone = TryResolve(zoneId);
+        TimeZoneInfo? zone = TryResolveZone(zoneId);
         if (zone is null)
         {
             Assert.Ignore($"time zone {zoneId} is not available on this system");
@@ -163,6 +171,59 @@ public class CronExpressionFastPathDifferentialTest
     }
 
     /// <summary>
+    /// The 'L', 'W', '#' and 'nL' day forms, which resolve per month rather than out of a bitmask
+    /// fixed at parse time, over the same zones and the same instants.
+    /// </summary>
+    [TestCaseSource(nameof(ZoneIds))]
+    public void FastPathAgreesWithSlowPathOnPerMonthDayForms(string zoneId)
+    {
+        TimeZoneInfo? zone = TryResolveZone(zoneId);
+        if (zone is null)
+        {
+            Assert.Ignore($"time zone {zoneId} is not available on this system");
+            return;
+        }
+
+        List<DateTimeOffset> transitions = FindTransitions(zone);
+        Random random = new Random(3801);
+        List<DateTimeOffset> uniform = UniformInstants(random);
+        List<DateTimeOffset> nearTransitions = TransitionInstants(random, transitions);
+
+        int uniformSamples = 0;
+        int uniformFastPath = 0;
+
+        foreach (string text in PerMonthDayExpressions())
+        {
+            CronExpression cron = new CronExpression(text, zone);
+
+            foreach (DateTimeOffset after in uniform)
+            {
+                uniformSamples++;
+                if (AssertAgrees(cron, text, after, zone))
+                {
+                    uniformFastPath++;
+                }
+
+                // These fire monthly at most, so a chain of a dozen is more than a year of them.
+                Chain(cron, text, after, zone, steps: 12);
+            }
+
+            foreach (DateTimeOffset after in nearTransitions)
+            {
+                AssertAgrees(cron, text, after, zone);
+                Chain(cron, text, after, zone, steps: 12);
+            }
+        }
+
+        double ratio = uniformFastPath / (double) uniformSamples;
+        TestContext.Out.WriteLine($"{zoneId}: per-month day forms took the fast path {uniformFastPath}/{uniformSamples} uniform samples ({ratio:P2})");
+
+        ratio.Should().BeGreaterThanOrEqualTo(
+            0.80,
+            "the 'L'/'W'/'#' forms are walked rather than left behind - though a monthly expression is far more likely than a five-minute one to have its next fire land near a transition, so the share is lower than the headline figure");
+    }
+
+    /// <summary>
     /// The fast path must never answer where the slow path answers nothing: a chain that keeps
     /// producing fire times for an expression the slow path has run out of years for would schedule a
     /// trigger that should have stopped.
@@ -200,6 +261,21 @@ public class CronExpressionFastPathDifferentialTest
     private static bool AssertAgrees(CronExpression cron, string text, DateTimeOffset after, TimeZoneInfo zone)
     {
         return AssertAgreesCore(cron, text, after, zone, out _);
+    }
+
+    private static void Chain(CronExpression cron, string text, DateTimeOffset start, TimeZoneInfo zone, int steps)
+    {
+        DateTimeOffset cursor = start;
+        for (int step = 0; step < steps; step++)
+        {
+            DateTimeOffset? next = AssertAgreesAndGet(cron, text, cursor, zone);
+            if (next is null)
+            {
+                return;
+            }
+
+            cursor = next.Value;
+        }
     }
 
     private static DateTimeOffset? AssertAgreesAndGet(CronExpression cron, string text, DateTimeOffset after, TimeZoneInfo zone)
@@ -333,7 +409,7 @@ public class CronExpressionFastPathDifferentialTest
         return new DateTimeOffset(high.UtcTicks / TimeSpan.TicksPerSecond * TimeSpan.TicksPerSecond, TimeSpan.Zero);
     }
 
-    private static TimeZoneInfo? TryResolve(string zoneId)
+    internal static TimeZoneInfo? TryResolveZone(string zoneId)
     {
         if (zoneId == UtcZoneId)
         {
@@ -397,6 +473,38 @@ public class CronExpressionFastPathDifferentialTest
         }
 
         return expressions.ToArray();
+    }
+
+    /// <summary>
+    /// The day forms that have to be resolved against a particular month: the last day, the nearest
+    /// weekday to a day, the nth weekday of the month and the last one of a weekday - alone, mixed
+    /// with plain days, and in the months where they collide with a short February.
+    /// </summary>
+    private static string[] PerMonthDayExpressions()
+    {
+        return
+        [
+            "0 15 10 L * ?",
+            "0 15 10 L-2 * ?",
+            "0 15 10 L-5 * ?",
+            "0 15 10 LW * ?",
+            "0 15 10 LW-3 * ?",
+            "0 15 10 L-4W * ?",
+            "0 15 10 1W * ?",
+            "0 15 10 15W * ?",
+            "0 15 10 31W * ?",
+            "0 15 10 1W,15W,L * ?",
+            "0 15 10 ? * 6#3",
+            "0 15 10 ? * 1#5",
+            "0 15 10 ? * 7#1",
+            "0 15 10 ? * 6L",
+            "0 15 10 ? * 1L",
+            "0 0/30 * L * ?",
+            "0 0 0 L 2 ?",
+            "0 0 0 15W,20 3,6,9 ?",
+            "0 0 0 L-1W * ?",
+            "0 0 12 10,L * ?"
+        ];
     }
 
     private static string NextExpression(Random random)

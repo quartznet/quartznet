@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
+
 using Quartz.Util;
 
 namespace Quartz;
@@ -133,21 +135,35 @@ public sealed partial class CronExpression
         // same arithmetic with the rounding written out.
         long floorUtcTicks = afterUtcTicks / TimeSpan.TicksPerSecond * TimeSpan.TicksPerSecond + TimeSpan.TicksPerSecond;
 
-        if (!TryGetSafeSegment(floorUtcTicks, out long offsetTicks, out long segmentEndUtcTicks))
+        if (!TryGetOffsetTable(floorUtcTicks, out ZoneOffsetTable? table))
         {
             return false;
         }
 
-        if (!TryWalk(floorUtcTicks + offsetTicks, out long foundLocalTicks))
+        // The wall clock the walk starts at. Reading it is what the gap-rewind guard would otherwise
+        // have to be argued about, so the floor has to sit in a safe segment.
+        if (!table.TryGetOffsetAt(floorUtcTicks, out long floorOffsetTicks))
         {
             return false;
         }
 
-        long foundUtcTicks = foundLocalTicks - offsetTicks;
-        if (foundUtcTicks >= segmentEndUtcTicks)
+        if (!TryWalk(floorUtcTicks + floorOffsetTicks, out long foundLocalTicks))
         {
-            // The answer is outside the stretch of time the offset was read for, so this offset is
-            // not the one it resolves against. The slow path has the zone.
+            return false;
+        }
+
+        // And the wall clock it ends at, which the slow path resolves against the zone as it finds it
+        // - so this is the offset that goes into the answer, and it need not be the floor's.
+        if (!table.TryGetOffsetForWallClock(foundLocalTicks, out long foundOffsetTicks))
+        {
+            return false;
+        }
+
+        long foundUtcTicks = foundLocalTicks - foundOffsetTicks;
+        if (foundUtcTicks < floorUtcTicks)
+        {
+            // Unreachable while segments are days apart and offsets hours: a later wall clock in a
+            // later segment is a later instant. Cheap enough to state rather than to argue.
             return false;
         }
 
@@ -156,10 +172,9 @@ public sealed partial class CronExpression
     }
 
     /// <summary>
-    /// The zone's offset at <paramref name="utcTicks" />, and the end of the stretch of time that
-    /// offset is safe to assume over.
+    /// The offset table covering <paramref name="utcTicks" /> in this expression's time zone.
     /// </summary>
-    private bool TryGetSafeSegment(long utcTicks, out long offsetTicks, out long segmentEndUtcTicks)
+    private bool TryGetOffsetTable(long utcTicks, [NotNullWhen(true)] out ZoneOffsetTable? table)
     {
         TimeZoneInfo zone = TimeZone;
         ZoneBinding? binding = zoneBinding;
@@ -169,7 +184,7 @@ public sealed partial class CronExpression
             zoneBinding = binding;
         }
 
-        return binding.TryGetSafeSegment(utcTicks, out offsetTicks, out segmentEndUtcTicks);
+        return binding.TryGetTable(utcTicks, out table);
     }
 
     /// <summary>
@@ -186,19 +201,11 @@ public sealed partial class CronExpression
     /// </remarks>
     /// <param name="startLocalTicks">The first wall clock the search may answer with, as ticks.</param>
     /// <param name="foundLocalTicks">The wall clock found, as ticks.</param>
-    /// <returns><see langword="false" /> when this expression has a day form the walk does not read,
-    /// or when the search ran past the year the scheduler gives up in - in which case the slow path
-    /// runs and answers, as it always did.</returns>
+    /// <returns><see langword="false" /> when the search ran past the year the scheduler gives up in,
+    /// in which case the slow path runs and answers <see langword="null" />, as it always did.</returns>
     private bool TryWalk(long startLocalTicks, out long foundLocalTicks)
     {
         foundLocalTicks = 0;
-
-        // Stage one: the day forms that resolve per month - 'L', 'L-n', 'nW', 'nL', 'n#m' - are not
-        // walked here yet and are left to the slow path.
-        if (lastDaySpecs is not null || nearestWeekdays is not null || lastDayOfWeek || nthdayOfWeek != 0)
-        {
-            return false;
-        }
 
         long dayNumber = startLocalTicks / TimeSpan.TicksPerDay;
         int secondOfDay = (int) ((startLocalTicks - dayNumber * TimeSpan.TicksPerDay) / TimeSpan.TicksPerSecond);
@@ -384,7 +391,8 @@ public sealed partial class CronExpression
     /// <remarks>
     /// The rule is <c>DayOfMonthOrWeekMatches</c>' and <c>crontab(5)</c>'s: a day field written
     /// exactly '*' or '?' restricts nothing and defers to the other, and two fields that both name
-    /// days are unioned.
+    /// days are unioned. The 'L' and 'W' forms of the day-of-month field come out of
+    /// <see cref="CalculateDaysOfMonth" />, which is the same per-month resolution the slow path uses.
     /// </remarks>
     private uint DayMask(int year, int month, int lastDayOfMonth, bool dayOfMonthRestricted, bool dayOfWeekRestricted)
     {
@@ -398,12 +406,14 @@ public sealed partial class CronExpression
         uint mask = 0;
         if (dayOfMonthRestricted)
         {
-            mask |= daysOfMonth.GetDayBits();
+            mask |= lastDaySpecs is null && nearestWeekdays is null
+                ? daysOfMonth.GetDayBits()
+                : CalculateDaysOfMonth(year, month);
         }
 
         if (dayOfWeekRestricted)
         {
-            mask |= DayOfWeekMask(year, month);
+            mask |= DayOfWeekMask(year, month, lastDayOfMonth);
         }
 
         return mask & daysInMonth;
@@ -412,12 +422,31 @@ public sealed partial class CronExpression
     /// <summary>
     /// The days of one month that fall on a day of the week this expression names, as a day bitmask.
     /// </summary>
-    private uint DayOfWeekMask(int year, int month)
+    /// <remarks>
+    /// 'nL' and 'n#m' name one day of the month each - the last such weekday, and the mth one - so
+    /// they produce a single bit, or none at all when the month has fewer than <c>m</c> of that
+    /// weekday. That is the rule <c>DayOfWeekMatches</c> states and the one
+    /// <c>ProgressNextFireTimeDayOfWeek</c> walks.
+    /// </remarks>
+    private uint DayOfWeekMask(int year, int month, int lastDayOfMonth)
     {
+        int firstDayOfWeek = (DayNumberFromCivil(year, month, 1) + 1) % 7;
+
+        if (lastDayOfWeek)
+        {
+            int first = FirstDayOfWeekInMonth(daysOfWeek.Min, firstDayOfWeek);
+            return 1u << (first + (lastDayOfMonth - first) / 7 * 7);
+        }
+
+        if (nthdayOfWeek != 0)
+        {
+            int day = FirstDayOfWeekInMonth(daysOfWeek.Min, firstDayOfWeek) + (nthdayOfWeek - 1) * 7;
+            return day <= lastDayOfMonth ? 1u << day : 0u;
+        }
+
         // The field numbers the week 1 = Sunday through 7 = Saturday; shifting down by one puts it in
         // the BCL's numbering, where Sunday is zero.
         uint allowed = daysOfWeek.GetDayBits() >> 1;
-        int firstDayOfWeek = (DayNumberFromCivil(year, month, 1) + 1) % 7;
 
         uint mask = 0;
         while (allowed != 0)
@@ -435,6 +464,21 @@ public sealed partial class CronExpression
         }
 
         return mask;
+    }
+
+    /// <summary>
+    /// The first day of the month that falls on a given day of the week, from the cron field's
+    /// numbering of it.
+    /// </summary>
+    private static int FirstDayOfWeekInMonth(int cronDayOfWeek, int firstDayOfWeek)
+    {
+        int offset = cronDayOfWeek - 1 - firstDayOfWeek;
+        if (offset < 0)
+        {
+            offset += 7;
+        }
+
+        return 1 + offset;
     }
 
     /// <summary>
@@ -497,50 +541,22 @@ public sealed partial class CronExpression
     {
         internal readonly TimeZoneInfo Zone;
 
-        private readonly long fixedOffsetTicks;
-        private readonly bool hasFixedOffset;
+        private readonly ZoneClock clock;
 
-        private ZoneBinding(TimeZoneInfo zone, long fixedOffsetTicks, bool hasFixedOffset)
+        private ZoneBinding(TimeZoneInfo zone, ZoneClock clock)
         {
             Zone = zone;
-            this.fixedOffsetTicks = fixedOffsetTicks;
-            this.hasFixedOffset = hasFixedOffset;
+            this.clock = clock;
         }
 
         internal static ZoneBinding For(TimeZoneInfo zone)
         {
-            bool moves;
-            try
-            {
-                moves = zone.GetAdjustmentRules().Length > 0;
-            }
-            catch (Exception)
-            {
-                // A zone whose rules cannot be read is a zone nothing can be proved about.
-                moves = true;
-            }
-
-            return new ZoneBinding(zone, zone.BaseUtcOffset.Ticks, !moves);
+            return new ZoneBinding(zone, ZoneClock.For(zone));
         }
 
-        /// <summary>
-        /// A zone with no adjustment rule never changes its offset, so the whole of time is one safe
-        /// segment. A zone that does move its clocks needs the offset table.
-        /// </summary>
-        internal bool TryGetSafeSegment(long utcTicks, out long offsetTicks, out long segmentEndUtcTicks)
+        internal bool TryGetTable(long utcTicks, [NotNullWhen(true)] out ZoneOffsetTable? table)
         {
-            _ = utcTicks;
-
-            if (!hasFixedOffset)
-            {
-                offsetTicks = 0;
-                segmentEndUtcTicks = 0;
-                return false;
-            }
-
-            offsetTicks = fixedOffsetTicks;
-            segmentEndUtcTicks = maxSupportedUtcTicks;
-            return true;
+            return clock.TryGetTable(utcTicks, out table);
         }
     }
 }

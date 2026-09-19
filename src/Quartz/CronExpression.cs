@@ -781,7 +781,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             return daysOfMonth.Contains(date.Day);
         }
 
-        uint dayMask = CalculateDaysOfMonth(new DateTimeOffset(date.Year, date.Month, 1, 0, 0, 0, TimeSpan.Zero));
+        uint dayMask = CalculateDaysOfMonth(date.Year, date.Month);
         return (dayMask & (1u << date.Day)) != 0;
     }
 
@@ -2561,14 +2561,22 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         return new NextFireTimeCursor(false, d);
     }
 
-    private uint CalculateDaysOfMonth(DateTimeOffset currentDate)
+    /// <summary>
+    /// The days of one month this expression's day-of-month field names, as a bitmask where bit
+    /// <c>n</c> is day <c>n</c>, with the 'L' and 'W' modifiers resolved for that month.
+    /// </summary>
+    /// <remarks>
+    /// Takes a year and a month rather than a date because a month is all it reads, and because the
+    /// next-fire-time fast path has no date to hand it - only two integers it is walking.
+    /// </remarks>
+    private uint CalculateDaysOfMonth(int year, int month)
     {
         // Build the candidate days as a bitmask (days 1-31) instead of allocating
         // a SortedSet per call. 'L'/'LW'/'L-n'/'nW' add no concrete days to the
         // field, so the field bits start empty for those.
         var dayMask = daysOfMonth.GetDayBits();
 
-        int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
+        int endDayOfMonth = GetLastDayOfMonth(month, year);
 
         // Resolve each 'nW' to the weekday nearest its own day (not the smallest
         // day in the field).
@@ -2576,7 +2584,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         {
             foreach (var day in nearestWeekdays)
             {
-                dayMask = SetDayBit(dayMask, ResolveNearestWeekday(currentDate, day, endDayOfMonth));
+                dayMask = SetDayBit(dayMask, ResolveNearestWeekday(year, month, day, endDayOfMonth));
             }
         }
 
@@ -2586,7 +2594,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             {
                 int lastDayWithOffset = endDayOfMonth - spec.Offset;
                 int candidate = spec.NearestWeekday
-                    ? CalculateNearestWeekdayForLastDay(currentDate, lastDayWithOffset, spec.WeekdayOffset, endDayOfMonth)
+                    ? CalculateNearestWeekdayForLastDay(year, month, lastDayWithOffset, spec.WeekdayOffset, endDayOfMonth)
                     : lastDayWithOffset;
                 dayMask = SetDayBit(dayMask, candidate);
             }
@@ -2626,12 +2634,13 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// trailing weekday offset ('LW-n'), falling back to the 1st when it underflows
     /// the month.
     /// </summary>
-    /// <param name="currentDate">The current date.</param>
+    /// <param name="year">The year of the month being resolved.</param>
+    /// <param name="month">The month being resolved.</param>
     /// <param name="lastDayOfMonthWithOffset">The last day of the month with the offset applied.</param>
     /// <param name="weekdayOffset">Optional trailing offset applied after the weekday shift ('LW-n').</param>
     /// <param name="endDayOfMonth">The last day of the current month.</param>
     /// <returns>The calculated last day of the month, adjusted to the nearest weekday.</returns>
-    private static int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int lastDayOfMonthWithOffset, int weekdayOffset, int endDayOfMonth)
+    private static int CalculateNearestWeekdayForLastDay(int year, int month, int lastDayOfMonthWithOffset, int weekdayOffset, int endDayOfMonth)
     {
         // A non-positive base day (e.g. 'L-30W' in a short month) never matches;
         // return it unchanged so SetDayBit drops it.
@@ -2641,7 +2650,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         }
 
         // Day-of-week doesn't depend on time or offset, so a plain DateTime suffices.
-        var dayOfWeek = new DateTime(currentDate.Year, currentDate.Month, lastDayOfMonthWithOffset).DayOfWeek;
+        var dayOfWeek = new DateTime(year, month, lastDayOfMonthWithOffset).DayOfWeek;
         var calculatedDay = AdjustDayToNearestWeekday(lastDayOfMonthWithOffset, dayOfWeek, endDayOfMonth) - weekdayOffset;
 
         // If the trailing offset crossed to the prior month, fall back to the 1st.
@@ -2657,16 +2666,17 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// Resolves a single 'nW' day to the weekday nearest it, clamping a day past
     /// the end of the month to the last day first.
     /// </summary>
-    /// <param name="currentDate">The current date.</param>
+    /// <param name="year">The year of the month being resolved.</param>
+    /// <param name="month">The month being resolved.</param>
     /// <param name="day">The day the 'W' was attached to.</param>
     /// <param name="endDayOfMonth">The last day of the current month.</param>
     /// <returns>The weekday nearest <paramref name="day" />, clamped into the month.</returns>
-    private static int ResolveNearestWeekday(DateTimeOffset currentDate, int day, int endDayOfMonth)
+    private static int ResolveNearestWeekday(int year, int month, int day, int endDayOfMonth)
     {
         int baseDay = day > endDayOfMonth ? endDayOfMonth : day;
 
         // Day-of-week doesn't depend on time or offset, so a plain DateTime suffices.
-        DayOfWeek dayOfWeek = new DateTime(currentDate.Year, currentDate.Month, baseDay).DayOfWeek;
+        DayOfWeek dayOfWeek = new DateTime(year, month, baseDay).DayOfWeek;
 
         return AdjustDayToNearestWeekday(baseDay, dayOfWeek, endDayOfMonth);
     }
@@ -2737,7 +2747,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         {
             // 'L' / 'W' modifiers: build the per-month candidate day bitmask and
             // pick the smallest match >= the current day that fits the month.
-            var dayMask = CalculateDaysOfMonth(d);
+            var dayMask = CalculateDaysOfMonth(d.Year, d.Month);
             if (TryGetNextDay(dayMask, day, out var min) && min <= GetLastDayOfMonth(month, d.Year))
             {
                 t = day;
