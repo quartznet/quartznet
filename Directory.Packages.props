@@ -198,6 +198,29 @@
     <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
   </ItemGroup>
 
+  <!--
+    The other .NET schedulers Quartz is compared to, referenced by src/Quartz.Benchmark.Competitors and
+    by nothing else. That project is not in Quartz.slnx and packs nothing, so none of these ids reaches a
+    nuspec, a restore graph that ships, or Sonar — PackageDependencyTest walks packable projects, and
+    there is no packable project here to walk.
+
+    They are versions rather than a floating range for the reason every other row is: a published number
+    has to say which build of the other library produced it. They are declared here rather than in the
+    project's own Directory.Packages.props so that Dependabot moves them, which is what keeps the
+    comparison about the current TickerQ and the current Hangfire rather than about the two that happened
+    to be current the day the harness was written. A bump is a re-run, not a merge: the README's tables
+    name the versions they were taken on.
+  -->
+  <ItemGroup Label="Competitor benchmark rows">
+    <PackageVersion Include="Hangfire.Core" Version="1.8.25" />
+    <PackageVersion Include="Hangfire.InMemory" Version="1.0.0" />
+    <PackageVersion Include="Hangfire.PostgreSql" Version="1.21.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageVersion Include="TickerQ" Version="10.4.0" />
+    <PackageVersion Include="TickerQ.EntityFrameworkCore" Version="10.4.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.5" />
     <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.254" />
