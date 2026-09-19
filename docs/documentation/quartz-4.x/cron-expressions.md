@@ -33,13 +33,16 @@ So cron expressions can be as simple as this: `* * * * ? *`
 or more complex, like this: `0/5 14,18,3-39,52 * ? JAN,MAR,SEP MON-FRI 2002-2010`
 
 ::: tip
-For easy generation of cron intervals using UI you can use some of these services:
+You do not need an online generator to write one of these, and the library is the only thing that
+agrees with the library: build an expression with
+[`CronExpressionBuilder`](#building-cron-expressions-programmatically), and check one by
+[asking Quartz.NET when it fires](#checking-an-expression).
 
-- [Cron Expression Generator & Explainer](https://www.freeformatter.com/cron-expression-generator-quartz.html)
-- [CronMaker](http://www.cronmaker.com/)
-
-NOTE: There are many cron standards/implementations. The results from some generators may not always be correct for Quartz.NET.
-A generator that emits the five-field Unix form can be read as written - see [The Unix five-field form](#the-unix-five-field-form).
+There are many cron standards and implementations, and a generator you find online targets Java
+Quartz or plain Unix cron. It will not know [`H`](#h-hash-for-load-distribution) or
+[`MON/2`](#mon-2-is-a-step-through-the-week), so read what it gives you as a draft and confirm it
+here. A generator that emits the five-field Unix form can be read as written - see
+[The Unix five-field form](#the-unix-five-field-form).
 :::
 
 ## Special characters
@@ -196,6 +199,10 @@ ITrigger composed = TriggerBuilder.Create()
 <!-- endSnippet -->
 
 A time zone composes the same way: `CronExpression.Parse(s, CronFormat.Unix).WithTimeZone(tz)`.
+
+This is the one dialect an online tool describes reliably: [crontab.guru](https://crontab.guru/)
+explains a five-field expression field by field. Read what it tells you about the string, then hand
+the string to `CronFormat.Unix` rather than translating it by hand.
 
 | **Crontab**     | **Read as**          | **Meaning**                                           |
 |:----------------|:---------------------|:------------------------------------------------------|
@@ -458,6 +465,54 @@ A few rules to be aware of:
   fully validated `CronExpression`; use `ToString()` if you only need the expression string.
 - Days of the week are emitted using their textual names (`MON`, `FRI`, ...), so the produced
   expressions stay unambiguous across cron dialects that number weekdays differently.
+
+## Checking an expression
+
+An expression you were given - by a colleague, by an online generator, or by a configuration file
+written years ago - is worth putting through the parser before it reaches a scheduler.
+`CronExpression.TryParse` answers whether Quartz.NET can read it at all, and
+`GetNextValidTimeAfter` answers the more useful question of what it actually means:
+
+<!-- snippet: sample_cron_expressions_preview -->
+```csharp
+// does Quartz.NET accept it?
+if (!CronExpression.TryParse("0 0/15 8-17 ? * MON-FRI", out CronExpression? expression))
+{
+    throw new ArgumentException("Quartz.NET cannot read that expression");
+}
+
+// what does it mean? - the next five times it fires, in the expression's own time zone
+DateTimeOffset after = DateTimeOffset.UtcNow;
+for (int i = 0; i < 5; i++)
+{
+    DateTimeOffset? fireTime = expression.GetNextValidTimeAfter(after);
+    if (fireTime is null)
+    {
+        break;
+    }
+
+    Console.WriteLine(TimeZoneInfo.ConvertTime(fireTime.Value, expression.TimeZone));
+    after = fireTime.Value;
+}
+```
+<!-- endSnippet -->
+
+Printing the fire times is what catches a misread field, because a schedule that is off by a day or
+an hour looks perfectly plausible as a string and obvious as a list of dates. It is also the only
+check that covers this dialect in full: [`H`](#h-hash-for-load-distribution), a range that wraps
+(`22-2`, `FRI-MON`), [`MON/2`](#mon-2-is-a-step-through-the-week) and the way the two day fields
+combine are each a point where Quartz.NET parts company with Java Quartz, with Unix cron, or with
+both - and an external tool implements none of them.
+
+A few things to know about the loop above:
+
+- `GetNextValidTimeAfter` returns `null` when the expression has no further fire time - an
+  expression naming a year that has passed, for instance - so the loop stops rather than repeating.
+- The times come back as `DateTimeOffset`, and `TimeZone` is the zone the expression is read in
+  (the local zone unless you passed one). Converting before printing is what makes
+  [daylight saving time](#daylight-saving-time) visible.
+- `CronExpression.Parse` is the same thing for code that would rather throw than branch, and both
+  take a [`CronFormat`](#the-unix-five-field-form).
 
 ## Examples
 

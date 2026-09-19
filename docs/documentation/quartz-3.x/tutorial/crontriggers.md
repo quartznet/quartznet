@@ -30,10 +30,15 @@ Fields can contain any of the allowed values, along with various combinations of
 | Year         | NO        | empty, 1970-2099 | `, - * /`                    |
 
 ::: tip
-For easy generation of cron intervals using UI you can use some of these services:
+You do not need an online generator to write one of these. `CronExpressionBuilder` composes an
+expression from typed calls rather than string concatenation - see
+[Building cron expressions programmatically](crontrigger#building-cron-expressions-programmatically) -
+and `CronExpression` reads one back: `CronExpression.IsValidExpression` says whether Quartz.NET
+accepts the string, `GetExpressionSummary()` describes it field by field, and
+`GetNextValidTimeAfter` gives the times it will actually fire.
 
-- [Cron Expression Generator & Explainer](https://www.freeformatter.com/cron-expression-generator-quartz.html)
-- [CronMaker](http://www.cronmaker.com/)
+There are many cron standards and implementations, so a generator you find online may not agree
+with Quartz.NET - it will not know `H`, for one. Check anything it gives you against the library.
 :::
 
 An example of a complete cron-expression is the string `0 0 12 ? * WED` - which means "every Wednesday at 12:00 pm".
