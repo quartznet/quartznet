@@ -804,3 +804,128 @@ a function that was registered at compile time where Quartz writes a job detail 
 
 Both halves are on this page on purpose. The comparison this answers publishes only the half its
 author wins.
+
+## What #3802 D3 changed (2026-09-19, AMD Ryzen 9 5950X)
+
+The fire path, cut one measured change at a time, in the order #3802's D1 profile ranked them.
+Nothing here changes what a firing does: every listener sees what it saw, every store call happens in
+the same order under the same locks, and the one public addition is a default interface member.
+
+**Machine and runtime.** BenchmarkDotNet v0.15.8; Windows 11 (10.0.26200/25H2); AMD Ryzen 9 5950X
+3.40 GHz, 1 CPU, 32 logical and 16 physical cores; .NET SDK 10.0.401; .NET 10.0.12, X64 RyuJIT
+x86-64-v3, concurrent workstation GC. Base commit `637efaed4c`.
+
+**How these were taken.** Each cut was measured against the commit before it: five alternating pairs
+of `FireThroughputBenchmark` at `MaxConcurrency` 10 and 50, the order reversed between pairs, two
+built trees run one after the other in one sitting. The rows below are medians over the five, and the
+`Allocated` column - which is exact whatever the machine is doing - is the one to read. The box was
+not quiet; other agent sessions were building and testing throughout, which is why one sitting in
+five reads 30% high and why the time column is reported as medians rather than as means with errors.
+The runs are in process (`--inProcess`), which for this benchmark agrees with the out-of-process
+figures the D1 report took: 2.02 us and 2.57 KB at pool 10 on the base commit against D1's 1.747 us
+and 2.56 KB on a quieter box.
+
+**One caveat about `--inProcess`, learnt here.** A case whose `[GlobalSetup]` allocates far more than
+its workload - `OneOffTriggerChurnBenchmark` builds twenty thousand triggers - has that setup
+attributed to its operations when the run is in process, and reads 156 KB an operation where the
+out-of-process run reads 424 B. Measure a setup-heavy case out of process.
+
+### Cut by cut, at `MaxConcurrency` 10
+
+| # | Cut | B/firing after | Δ B | Time |
+|---|---|---:|---:|---|
+| — | base `637efaed4c` | 2,570 | — | 2.17 us |
+| 1 | an empty job data map costs nothing | 2,335 | −236 | no change |
+| 2 | one task per dispatch instead of three | 1,976 | −359 | −6% |
+| 4 | one ambient slot written per firing instead of two | 1,874 | −102 | no change |
+| 5 | the run shell is dispatched as state, not as a closure | 1,823 | −51 | no change |
+| 7 | the ungrouped execution bucket keeps its ledger entry | 1,823 | 0 | no change |
+| 9 | the execution context publishes its lazies without a lock | 1,782 | −41 | no change |
+| 6 | the clock is read for a span only when there is a span | 1,772 | −10 | **−75 ns** |
+| — | **total** | **1,772** | **−798** | **1.61 us** |
+
+"No change" means below this sitting's resolution, not zero: the five-pair spread on the time column
+is 0.4 us at pool 10, so only a cut worth more than that shows in it. Cut 6 is the exception and is
+the clearest single time reading in the series, because `JobRunShellBenchmark` resolves it directly.
+
+### Before and after
+
+| | `MaxConcurrency` | Median (5 pairs) | Allocated | Fires/second |
+|---|---|---:|---:|---:|
+| `637efaed4c` | 10 | 2.174 us | 2.57 KB | 460,000 |
+| after | 10 | **1.609 us** | **1.76 KB** | 622,000 |
+| `637efaed4c` | 50 | 1.897 us | 2.56 KB | 527,000 |
+| after | 50 | **1.326 us** | **1.77 KB** | 754,000 |
+
+**A firing allocates 31% less and takes 26-30% less time.** The other suites move with it:
+
+| Suite | Before | After |
+|---|---|---|
+| `JobRunShellBenchmark` | 468-475 ns / 784 B | 392-404 ns / 552 B |
+| `DefaultThreadPoolBenchmark.TryRun_CompletedTask_*` | 620-660 ns / 344 B | 535-560 ns / 64 B |
+| `DefaultThreadPoolBenchmark.TryRun_OneShot` | 1,627-1,919 ns / 1,015 B | 1,407-1,516 ns / 731 B |
+| `ScheduleJobBenchmark.ScheduleJob_SimpleTrigger` | 3.81 KB | 3.58 KB |
+| `ScheduleJobBenchmark.ScheduleJob_CronTrigger` | 4.47 KB | 4.33 KB |
+
+**The time target was met and the allocation target was not.** #3802 asked for ≤ 1.5 KB and
+1.4-1.6 us; this is 1.76 KB and 1.61 us at pool 10, and 1.77 KB and 1.33 us at 50. The time is the
+surprise: D1 predicted "treat ~1.4-1.6 us as the result of cut 12, not of cuts 1-11", and cuts 1-9
+reached it without touching contention at all - because two of them, the task machinery and the
+thread-pool accounting, remove thread hand-offs as well as bytes.
+
+The allocation shortfall is 270 bytes and it is accounted for. Of the estimates D1 published, three
+cuts delivered less than predicted: cut 5 delivered 51 B against 166 B (the state machine of the
+lambda it removed is replaced by one inside the pool), cut 7 delivered nothing at ten concurrent
+firings (the ledger entry it keeps resident was already resident at that concurrency; what it removes
+is the churn of a scheduler that fires occasionally), and cut 3 was not taken. What is left, by the
+D1 census: the trigger clone the store makes per acquisition (250 B), `TriggerFiredBundle` and
+`TriggerFiredResult` (217 B, frozen 4.0 shapes), `JobExecutionContextImpl` itself (190 B), the DI
+scope (161 B, cut 3), the job detail clone (71 B) and the per-firing `CancellationTokenSource` (44 B,
+cut 10, which #3802 rules a semantic hazard). Reaching 1.5 KB means taking cut 3 and one of the
+frozen shapes, and neither is a change this pass could make without changing behaviour.
+
+### One durable job behind many triggers
+
+`OneOffTriggerChurnBenchmark` is new, and is what #3823 turned into. One operation adds a trigger to a
+durable job that already has the stated number and removes it again, so the parameter really is "how
+many other triggers the job has". Out of process, `--job Short`:
+
+| Triggers behind the job | Before | After |
+|---|---:|---:|
+| 2,000 | 15.31 us / 16.06 KB | **346 ns / 424 B** |
+| 20,000 | 183.30 us / 156.77 KB | **434 ns / 424 B** |
+
+The store kept a job's triggers in a list, so removing one walked it and then built an array of the
+remaining keys to ask whether the job was orphaned - eight bytes per other trigger, on every
+completion that deletes one. That is the shape `ScheduleJob<TJob, TInput>` produces, one durable job
+per job type and a trigger per call, so it is the one-off API's steady state rather than an odd
+arrangement. The index is keyed now and the orphan question is asked of the index.
+
+`FireThroughputBenchmark` grew a `JobCount` parameter so the ordinary hundred-job schedule and the
+one-job shape are both measured. Both read 1.76-1.79 KB a firing at either pool size, before the fix
+and after it - that row is the guard rather than the fix, because the fire-throughput workload's
+triggers repeat forever and are never removed, so it never reaches the path #3823 is about.
+
+### What was measured and rejected
+
+- **Cut 3, skipping the dependency-injection scope**, was designed and not taken. It is 161 B, the
+  largest single cut left, and it is the only one of the eleven with behaviour a deployment can
+  observe: `ConfigureScope` is a documented hook and a derived factory may override it, so eliding
+  the scope has to be gated on the factory being exactly `MicrosoftDependencyInjectionJobFactory`
+  with no `ConfigureScope` delegate, and on the job type being one the container would build without
+  resolving anything. A job that keeps its scope keeps every byte of it, and the arithmetic above
+  says the cut does not reach 1.5 KB on its own either. Worth doing; worth doing on its own.
+- **Cut 10, reusing the `CancellationTokenSource`**, is out of scope by #3802's own ruling: a leaked
+  token could observe another firing's interrupt.
+- **Cut 11a, the spurious `SortedSet.Remove` in `TriggersFired`**, was traced and not taken. The
+  removal is reached only with `tw.state == Acquired`, and every site that adds to `timeTriggers`
+  either sets a different state first or runs before the state is set - so the removal really does
+  always miss. It allocates nothing, saves a tree walk of a few tens of nanoseconds, and rests on an
+  invariant that nothing in the suite pins; a change that silently corrupts the store if the
+  invariant ever stops holding is not worth that.
+- **A heap replacing the `SortedSet`** stays unsettled, exactly as D1 left it. Nothing here moved the
+  comparator's share and nothing here measured it.
+- **Cut 12, contention**, was not attempted. D1's finding stands: at pool 10 the fire path spends
+  more thread time blocked on the store's monitor than it spends on CPU. Cuts 2 and 5 remove two
+  thread hand-offs per firing, which is part of why the time target was met, but the store's lock is
+  untouched.
