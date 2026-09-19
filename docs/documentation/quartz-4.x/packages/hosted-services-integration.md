@@ -205,6 +205,46 @@ Serving the report over HTTP is `MapHealthChecks`, which is ASP.NET Core's —
 [ASP.NET Core Integration](aspnet-core-integration.md#health-checks) has that half, including what
 becomes of *degraded* at an HTTP probe.
 
+### Saying that a scheduler has stopped firing
+
+Everything above is about whether the scheduler is *reachable*. None of it is about whether work is
+leaving its queue — and a scheduler whose thread has wedged, whose thread pool has nothing free, or
+whose store lock nobody released reports `Running`, answers a store query and goes on checking in to
+its cluster while firing nothing at all. That is the silent stall, and it is the failure an operator
+hears about from somebody downstream rather than from a probe. `StaleFiringTolerance` is how to ask
+about it:
+
+<!-- snippet: sample_hosted_health_check_stale_firing -->
+```csharp
+builder.Services.AddHealthChecks().AddQuartz(options =>
+{
+    // Degraded once a trigger is three misfire thresholds overdue, unhealthy at six.
+    // Off (null) by default: what counts as overdue is the application's to say.
+    options.StaleFiringTolerance = 3;
+});
+```
+<!-- endSnippet -->
+
+Set, the check asks the store for a trigger that is schedulable and whose fire time has passed by more
+than that many of the store's own *misfire thresholds* — `AdoJobStoreOptions.MisfireThreshold` or
+`InMemoryJobStoreOptions.MisfireThreshold`, whichever this scheduler runs, and one minute for a store
+of your own that exposes neither. Finding one is *degraded*; finding one twice as far behind is
+*unhealthy*, because a backlog that keeps growing has stopped being a delay. The report's data carries
+`overdueTrigger`, `overdueSince` and `overdueBy`, so the probe says which trigger is waiting and since
+when rather than only that something is.
+
+The misfire threshold is the unit because it is the store's own definition of "late enough to matter",
+and on the database store it is also the default interval of the misfire handler's sweep. A trigger can
+be a threshold late before it counts as misfired and another sweep late before the handler reaches it,
+which is why the multiplier has to be more than one and why `3` is the value to start from — the same
+number, for the same reason, as `ClusterCheckinTolerance`.
+
+It is off by default, deliberately: what counts as overdue is the application's to say, and a scheduler
+running a backlog down after a maintenance window is behind and working. A scheduler in standby is not
+asked at all — that verdict is reached before the store is touched — and a scheduler whose triggers
+were all paused has nothing schedulable to be late, so pausing everything is not a stall. A scheduler
+that left the setting alone is not asked either, so the probe costs exactly what it used to.
+
 ## Shutdown has a budget
 
 The host gives `StopAsync` a token that fires after `HostOptions.ShutdownTimeout` — thirty seconds by

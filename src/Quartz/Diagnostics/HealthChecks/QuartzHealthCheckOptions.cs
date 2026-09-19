@@ -90,4 +90,46 @@ public sealed class QuartzHealthCheckOptions
     /// </para>
     /// </remarks>
     public double? ClusterCheckinTolerance { get; set; } = 3;
+
+    /// <summary>
+    /// How many of the store's own misfire thresholds a trigger may be overdue before the check reports
+    /// <see cref="HealthStatus.Degraded" />, and half of how many before it reports
+    /// <see cref="HealthStatus.Unhealthy" />. <see langword="null" /> by default, which turns the
+    /// reading off; <c>0</c> does the same. <c>3</c> is the value to start from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the silent stall: nothing has fired for a while although something should have. A
+    /// scheduler in that state passes everything else this check asks — it is
+    /// <see cref="SchedulerStatus.Running" />, its store answers, its cluster manager may well still be
+    /// checking in — because none of those questions is about work actually leaving the queue. A wedged
+    /// scheduler thread, a thread pool with nothing free, a lock nobody releases and a job store whose
+    /// acquisition query has begun timing out all look identical from outside and all look healthy.
+    /// </para>
+    /// <para>
+    /// So the check asks the store for a trigger that is schedulable
+    /// (<see cref="TriggerState.Normal" />) and whose next fire time has passed by more than this many
+    /// misfire thresholds. Finding one means the scheduler is late by more than lateness is defined to
+    /// be; finding one twice as late is reported as unhealthy, because a backlog that keeps growing is
+    /// no longer a delay. The overdue trigger's key and the instant it was due are in the report's data,
+    /// so an operator sees which trigger is waiting and since when.
+    /// </para>
+    /// <para>
+    /// The misfire threshold is the unit because it is the store's own definition of "late enough to
+    /// matter" — <see cref="AdoJobStoreOptions.MisfireThreshold" /> or
+    /// <see cref="InMemoryJobStoreOptions.MisfireThreshold" />, whichever this scheduler runs, and one
+    /// minute for a store that has neither. It is also, on the database store, the default sweep
+    /// interval of the misfire handler, which is why the multiplier has to be more than one: a trigger
+    /// can be a threshold late before it counts as misfired and another sweep late before the handler
+    /// reaches it, so anything under <c>3</c> can report ordinary recovery as a stall.
+    /// </para>
+    /// <para>
+    /// Off by default, unlike <see cref="ClusterCheckinTolerance" />, because what counts as overdue is
+    /// the application's to say: a scheduler whose triggers are deliberately paused-by-calendar, or one
+    /// that is meant to run a backlog down after a maintenance window, is not stalled. A standby or
+    /// paused scheduler is never read this way at all — those are deliberate, and the check reports them
+    /// as it always has.
+    /// </para>
+    /// </remarks>
+    public double? StaleFiringTolerance { get; set; }
 }

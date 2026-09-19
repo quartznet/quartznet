@@ -1384,6 +1384,17 @@ public sealed class RAMJobStore : IJobStore
                 continue;
             }
 
+            if (query.NextFireTimeBefore is { } before)
+            {
+                // A trigger with no next fire time is not "due before" anything, so it never matches -
+                // the same reading the ADO store's NEXT_FIRE_TIME < @before gives a null column.
+                DateTimeOffset? next = triggerWrapper.Trigger.NextFireTimeUtc;
+                if (next is null || next.Value >= before)
+                {
+                    continue;
+                }
+            }
+
             TriggerState state = ToTriggerStateNoLock(triggerWrapper);
             if (query.State is not null && state != query.State.Value)
             {

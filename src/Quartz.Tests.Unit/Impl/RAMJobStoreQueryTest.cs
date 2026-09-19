@@ -332,6 +332,58 @@ public class RAMJobStoreQueryTest
         result.Items.Select(x => x.Key.Name).Should().Equal(["t2"], "the job filter selects only the triggers of that job");
     }
 
+    /// <summary>
+    /// The filter behind the health check's stale-firing reading: with an instant in the past it is the
+    /// overdue set, and the boundary is exclusive so a trigger due exactly then is not yet late.
+    /// </summary>
+    [Test]
+    public async Task QueryTriggers_FiltersByNextFireTime()
+    {
+        IJobDetail job = await AddJob("job", "g");
+        IOperableTrigger trigger = await AddTrigger("due", "g", job.Key);
+        DateTimeOffset due = trigger.NextFireTimeUtc!.Value;
+
+        PagedResult<TriggerHeader> overdue = await store.QueryTriggers(new TriggerQuery { NextFireTimeBefore = due.AddMinutes(1) });
+        overdue.Items.Select(x => x.Key.Name).Should().Equal(["due"], "the trigger is due before the cutoff");
+
+        PagedResult<TriggerHeader> onTheBoundary = await store.QueryTriggers(new TriggerQuery { NextFireTimeBefore = due });
+        onTheBoundary.Items.Should().BeEmpty(
+            "the comparison is strictly before, so a trigger due at the instant the cutoff names is not yet late");
+
+        PagedResult<TriggerHeader> unfiltered = await store.QueryTriggers(new TriggerQuery());
+        unfiltered.Items.Should().HaveCount(1, "a null cutoff matches every trigger");
+    }
+
+    /// <summary>
+    /// A trigger with nothing left to fire is not "due before" anything, which is the reading
+    /// <c>NEXT_FIRE_TIME &lt; @cutoff</c> gives a null column on every dialect.
+    /// </summary>
+    [Test]
+    public async Task QueryTriggers_NextFireTimeFilterNeverMatchesATriggerWithNoNextFiring()
+    {
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("due", "g", job.Key);
+
+        CronTriggerImpl spent = (CronTriggerImpl) TriggerBuilder.Create()
+            .WithIdentity("spent", "g")
+            .ForJob(job.Key)
+            .StartAt(startTime)
+            .WithCronSchedule("0 0 12 * * ?")
+            .Build();
+        spent.NextFireTimeUtc = null;
+        await store.AddTrigger(spent);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery
+        {
+            NextFireTimeBefore = startTime.AddYears(100)
+        });
+
+        result.Items.Select(x => x.Key.Name).Should().Equal(
+            ["due"],
+            "asking for triggers that fire has to exclude the one that never will, or a health check would "
+            + "report a completed trigger as an overdue one");
+    }
+
     [Test]
     public async Task QueryTriggers_FiltersByCalendarName()
     {

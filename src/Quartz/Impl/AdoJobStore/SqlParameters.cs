@@ -94,6 +94,15 @@ internal static class SqlParameters
     public const string NewState = "newState";
     public const string OldState = "oldState";
     public const string NextFireTime = "nextFireTime";
+
+    /// <summary>
+    /// The cutoff a <see cref="TriggerQuery.NextFireTimeBefore" /> filter binds. Deliberately not
+    /// <see cref="NextFireTime" /> with a suffix: a name that another name in the same statement is a
+    /// prefix of produces more placeholders than bound parameters on providers that adapt named
+    /// parameters positionally.
+    /// </summary>
+    public const string NextFireBefore = "nextFireBefore";
+
     public const string NoLaterThan = "noLaterThan";
     public const string NoEarlierThan = "noEarlierThan";
     public const string MisfireOrigFireTime = "misfireOrigFireTime";

@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Globalization;
 using System.Text.Json;
 
 using Quartz.HttpApiContract;
@@ -760,6 +761,12 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         if (query.State is not null)
         {
             parameters.Add("state", query.State.Value.ToString());
+        }
+
+        if (query.NextFireTimeBefore is { } nextFireTimeBefore)
+        {
+            // Round-trip, so the offset survives the wire and the server reads the same instant.
+            parameters.Add("nextFireTimeBefore", nextFireTimeBefore.ToString("O", CultureInfo.InvariantCulture));
         }
 
         PagedResultDto<TriggerHeaderDto> result = await httpClient

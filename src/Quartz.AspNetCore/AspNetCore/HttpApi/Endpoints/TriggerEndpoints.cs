@@ -125,6 +125,8 @@ internal static class TriggerEndpoints
         string? jobGroup = null,
         string? calendarName = null,
         TriggerState? state = null,
+        [Description("Only triggers due to fire before this instant; a trigger with no next fire time never matches")]
+        DateTimeOffset? nextFireTimeBefore = null,
         CancellationToken cancellationToken = default)
     {
         int? takeItems = endpointHelper.ParsePaging(skip, take);
@@ -146,6 +148,7 @@ internal static class TriggerEndpoints
                 Job = hasJobName ? new JobKey(jobName!, jobGroup!) : null,
                 CalendarName = calendarName,
                 State = state,
+                NextFireTimeBefore = nextFireTimeBefore,
                 Skip = skip,
                 IncludeTotalCount = includeTotalCount
             };

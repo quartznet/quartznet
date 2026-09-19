@@ -2,6 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
+using Quartz.Extensibility;
+using Quartz.Impl;
+using Quartz.Impl.AdoJobStore;
+
 namespace Quartz;
 
 /// <summary>
@@ -15,6 +20,12 @@ internal sealed record SchedulerHealthCheckTarget(string? SchedulerName);
 
 internal sealed class QuartzHealthCheck : IHealthCheck
 {
+    /// <summary>
+    /// What a store that is neither of the two this repository ships is judged by. The database store's
+    /// default, and the more forgiving of the two defaults.
+    /// </summary>
+    private static readonly TimeSpan DefaultMisfireThreshold = TimeSpan.FromMinutes(1);
+
     private readonly IServiceProvider serviceProvider;
     private readonly SchedulerHealthCheckTarget target;
     private readonly IOptionsMonitor<QuartzHostedServiceOptions> hostedServiceOptions;
@@ -125,16 +136,28 @@ internal sealed class QuartzHealthCheck : IHealthCheck
             return HealthCheckResult.Unhealthy($"Quartz scheduler '{name}' cannot connect to the store");
         }
 
-        if (metadata.JobStoreClustered && CheckinTolerance() is { } tolerance)
+        HealthCheckResult? problem = null;
+
+        if (metadata.JobStoreClustered && Tolerance(static options => options.ClusterCheckinTolerance) is { } tolerance)
         {
-            HealthCheckResult? checkin = await CheckClusterCheckin(scheduler, name, tolerance, cancellationToken).ConfigureAwait(false);
-            if (checkin is { } degraded)
+            problem = await CheckClusterCheckin(scheduler, name, tolerance, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (Tolerance(static options => options.StaleFiringTolerance) is { } staleTolerance)
+        {
+            // Both readings are taken, and the worse verdict wins - HealthStatus counts down from
+            // Unhealthy, so the lower value is the graver one. A node whose check-in has stopped is
+            // degraded and one that has stopped firing altogether can be unhealthy, so returning the
+            // first finding would let the milder one hide the graver one, and a node kept in rotation by
+            // a downgraded verdict is the failure this check exists to prevent.
+            HealthCheckResult? stale = await CheckStaleFiring(scheduler, name, staleTolerance, cancellationToken).ConfigureAwait(false);
+            if (stale is { } found && (problem is not { } reported || found.Status < reported.Status))
             {
-                return degraded;
+                problem = found;
             }
         }
 
-        return HealthCheckResult.Healthy($"Quartz scheduler '{name}' is ready");
+        return problem ?? HealthCheckResult.Healthy($"Quartz scheduler '{name}' is ready");
     }
 
     /// <summary>
@@ -185,12 +208,141 @@ internal sealed class QuartzHealthCheck : IHealthCheck
     }
 
     /// <summary>
-    /// How many check-in intervals this scheduler may miss, or <see langword="null" /> when the reading
-    /// is turned off.
+    /// Whether this scheduler is still getting work out of its queue, or <see langword="null" /> when it
+    /// is.
     /// </summary>
-    private double? CheckinTolerance()
+    /// <remarks>
+    /// <para>
+    /// The silent stall. Everything above this — running, store answers, cluster manager alive — can be
+    /// true of a scheduler that has not fired anything for an hour, because none of those questions is
+    /// about work leaving the queue. So the store is asked for a trigger that is schedulable and whose
+    /// fire time has passed by more than <paramref name="tolerance" /> misfire thresholds, which is the
+    /// store's own unit for "late enough to matter".
+    /// </para>
+    /// <para>
+    /// Two bars, one question: past the first is degraded, past twice the first is unhealthy, because a
+    /// backlog that keeps growing has stopped being a delay. The second query only runs once the first
+    /// has found something, so a scheduler that is keeping up is asked exactly once — and it is a filter
+    /// rather than an ordering so that the database store answers each with a seek on the index it
+    /// already carries over trigger state and next fire time.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<HealthCheckResult?> CheckStaleFiring(
+        IScheduler scheduler,
+        string name,
+        double tolerance,
+        CancellationToken cancellationToken)
     {
-        double? tolerance = checkOptions.Get(target.SchedulerName ?? Options.DefaultName).ClusterCheckinTolerance;
+        TimeSpan threshold = MisfireThreshold();
+        TimeSpan allowed = threshold * tolerance;
+        DateTimeOffset now = scheduler.TimeProvider.GetUtcNow();
+        DateTimeOffset unhealthyCutoff = now - allowed - allowed;
+
+        TriggerHeader? overdue;
+        HealthStatus status = HealthStatus.Degraded;
+        double crossed = tolerance;
+
+        try
+        {
+            overdue = await Overdue(scheduler, now - allowed, cancellationToken).ConfigureAwait(false);
+            if (overdue is null)
+            {
+                // Nothing schedulable is late. A paused scheduler lands here too, and deliberately: a
+                // paused trigger is not in TriggerState.Normal, so pausing everything is not a stall.
+                return null;
+            }
+
+            if (overdue.NextFireTimeUtc < unhealthyCutoff)
+            {
+                status = HealthStatus.Unhealthy;
+                crossed = tolerance + tolerance;
+            }
+            else if (await Overdue(scheduler, unhealthyCutoff, cancellationToken).ConfigureAwait(false) is { } worse)
+            {
+                // The first answer is whichever overdue trigger the store listed first, so this is what
+                // establishes that none of the others is past the worse bar either.
+                overdue = worse;
+                status = HealthStatus.Unhealthy;
+                crossed = tolerance + tolerance;
+            }
+        }
+        catch (SchedulerException)
+        {
+            return HealthCheckResult.Unhealthy($"Quartz scheduler '{name}' cannot read the triggers it is due to fire");
+        }
+
+        DateTimeOffset due = overdue.NextFireTimeUtc.GetValueOrDefault();
+        TimeSpan late = now - due;
+
+        return new HealthCheckResult(
+            status,
+            $"Quartz scheduler '{name}' has not fired trigger '{overdue.Key}', which was due {late.TotalSeconds:F0}s "
+            + $"ago — more than {crossed:0.##} × its {threshold.TotalSeconds:F0}s misfire threshold. The scheduler "
+            + "reports itself as running and its store answers, so work is not leaving its queue.",
+            exception: null,
+            new Dictionary<string, object>
+            {
+                ["overdueTrigger"] = overdue.Key.ToString(),
+                ["overdueSince"] = due,
+                ["overdueBy"] = late,
+                ["misfireThreshold"] = threshold
+            });
+    }
+
+    /// <summary>
+    /// The first schedulable trigger whose fire time passed before <paramref name="cutoff" />, or
+    /// <see langword="null" /> when none has.
+    /// </summary>
+    /// <remarks>
+    /// The answer is re-read rather than trusted: a job store from outside this repository is free to
+    /// ignore a filter it has never heard of, and a stall reported from a trigger that is not overdue
+    /// would be worse than one not reported at all.
+    /// </remarks>
+    private static async ValueTask<TriggerHeader?> Overdue(
+        IScheduler scheduler,
+        DateTimeOffset cutoff,
+        CancellationToken cancellationToken)
+    {
+        PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(
+            new TriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff, Take = 1 },
+            cancellationToken).ConfigureAwait(false);
+
+        TriggerHeader? first = page.Items.Count > 0 ? page.Items[0] : null;
+        return first?.NextFireTimeUtc < cutoff ? first : null;
+    }
+
+    /// <summary>
+    /// What this scheduler's store calls "late": the misfire threshold it is actually applying.
+    /// </summary>
+    /// <remarks>
+    /// Read off the store the container holds for this scheduler — the same singleton the scheduler was
+    /// built from — rather than off <see cref="AdoJobStoreOptions" /> or
+    /// <see cref="InMemoryJobStoreOptions" />, so the number is the one in force however it was set. A
+    /// store of somebody else's has no threshold to read and gets one minute, the database store's
+    /// default and the more forgiving of the two.
+    /// </remarks>
+    private TimeSpan MisfireThreshold()
+    {
+        IJobStore? store = serviceProvider.GetSchedulerService<IJobStore>(target.SchedulerName);
+
+        return store is null ? DefaultMisfireThreshold : JobStores.Unwrap(store) switch
+        {
+            RAMJobStore inMemory => inMemory.MisfireThreshold,
+            AdoJobStoreBase ado => ado.MisfireThreshold,
+            _ => DefaultMisfireThreshold
+        };
+    }
+
+    /// <summary>
+    /// One of this check's tolerances, or <see langword="null" /> when that reading is turned off.
+    /// </summary>
+    /// <remarks>
+    /// Zero and <see langword="null" /> mean the same thing — do not ask — so a deployment can turn a
+    /// reading off by binding a number as well as by clearing the setting.
+    /// </remarks>
+    private double? Tolerance(Func<QuartzHealthCheckOptions, double?> select)
+    {
+        double? tolerance = select(checkOptions.Get(target.SchedulerName ?? Options.DefaultName));
         return tolerance is > 0 ? tolerance : null;
     }
 

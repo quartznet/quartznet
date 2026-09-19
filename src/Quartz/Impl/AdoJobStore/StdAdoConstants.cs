@@ -778,6 +778,14 @@ internal static class StdAdoConstants
     public static readonly string SqlTriggerCalendarPredicate = Invariant($" AND {AdoConstants.ColumnCalendarName} = @{SqlParameters.CalendarName}");
 
     /// <summary>
+    /// Narrows a listing to the triggers due to fire before an instant. A row whose NEXT_FIRE_TIME is
+    /// null fails the comparison on every dialect, which is the reading
+    /// <see cref="TriggerQuery.NextFireTimeBefore" /> documents; the value is bound through
+    /// <c>GetDbDateTimeValue</c>, so this compares the same ticks the store wrote.
+    /// </summary>
+    public static readonly string SqlTriggerNextFireBeforePredicate = Invariant($" AND {AdoConstants.ColumnNextFireTime} < @{SqlParameters.NextFireBefore}");
+
+    /// <summary>
     /// Opening of the trigger state filter; the caller appends <c>@state0[, @state1...])</c> for the
     /// internal states the requested <see cref="TriggerState" /> maps to.
     /// </summary>

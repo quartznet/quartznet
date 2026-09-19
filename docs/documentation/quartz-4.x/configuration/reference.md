@@ -681,6 +681,7 @@ here.
 | `FailureStatus` | HealthStatus? | `Unhealthy` | What a failed check reports. |
 | `StandbyStatus` | HealthStatus? | `Degraded` | What a scheduler in standby reports. Standby alone — a scheduler waiting for the application to press start keeps reporting degraded. |
 | `ClusterCheckinTolerance` | double? | `3` | How many of its own check-in intervals a **clustered** node may miss before the check reports degraded. `null` or `0` makes no such query. Nothing is read on an unclustered scheduler. |
+| `StaleFiringTolerance` | double? | `null` | How many of the store's own misfire thresholds a schedulable trigger may be overdue before the check reports degraded, and half of how many before it reports unhealthy. `null` or `0` makes no such query — the default, because what counts as overdue is the application's to say. `3` is the value to start from. Standby and paused schedulers report as they always did. |
 
 See [Health checks and probes](../operations.md#health-checks-and-probes) for what each verdict means to
 a probe, and what the check deliberately does not assert.
