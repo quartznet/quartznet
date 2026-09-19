@@ -2932,6 +2932,299 @@ public abstract class JobStoreContractTest
         return keys;
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Continuations
+    //
+    // A trigger carrying a Continuation waits, in the store, for another trigger's firing to end.
+    // The claims below are the whole of what a store has to do about one, and they are asserted
+    // against both stores because a continuation that settled differently in memory and in a
+    // database would be a workflow that ran differently on a developer's machine.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AContinuationIsStoredAwaitingAndIsNeverAcquired()
+    {
+        IOperableTrigger parent = await GivenAScheduledParent("never-acquired-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "never-acquired", ContinuationCondition.OnSuccess);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting,
+            "a trigger waiting for another one's firing is in a state of its own, so an operator can see why it is not running");
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        acquired.Should().NotContain(x => x.Key.Equals(continuation.Key),
+            "the continuation is due by its own schedule, and only its state is keeping it from being fired — "
+            + "an acquisition that took it would run the job before the one it waits for");
+    }
+
+    [Test]
+    public async Task AContinuationKeepsItsParentAndConditionAcrossAStoreRoundTrip()
+    {
+        IOperableTrigger parent = await GivenAScheduledParent("round-trip-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(
+            parent.Key,
+            "round-trip-continuation",
+            ContinuationCondition.OnFailure | ContinuationCondition.OnCancellation);
+
+        IOperableTrigger retrieved = await Store.GetTrigger(continuation.Key);
+
+        retrieved.Continuation.Should().Be(continuation.Continuation,
+            "the parent and the condition are what decides whether this trigger ever fires, so a store that "
+            + "lost either would settle it on the wrong outcome or not at all");
+    }
+
+    [Test]
+    public async Task AParentCompletingWithAMatchingOutcomeReleasesItsContinuationsInTheSameCompletion()
+    {
+        IOperableTrigger parent = await GivenAFiredParent("releasing-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "released", ContinuationCondition.OnSuccess);
+
+        await CompleteParent(parent, ExecutionOutcome.Succeeded);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal,
+            "the outcome matched the condition, so the wait is over and the trigger is on the ordinary schedule");
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        acquired.Should().Contain(x => x.Key.Equals(continuation.Key),
+            "a released continuation fires at the later of now and its own start time, and its start time has passed");
+    }
+
+    [Test]
+    public async Task AParentCompletingWithANonMatchingOutcomeDiscardsAndFinalizesTheContinuation()
+    {
+        IOperableTrigger parent = await GivenAFiredParent("discarding-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "discarded", ContinuationCondition.OnFailure);
+
+        await CompleteParent(parent, ExecutionOutcome.Succeeded);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.None,
+            "settlement is one-shot: the firing this trigger was waiting for has been and gone, and it did not "
+            + "end the way the trigger asked for, so there is nothing left for it to wait for");
+
+        (await Store.GetTrigger(continuation.Key)).Should().BeNull(
+            "a discarded continuation is deleted rather than parked, which is what keeps a chain from accumulating "
+            + "triggers nobody will ever fire");
+    }
+
+    [Test]
+    public async Task ARetryingParentLeavesItsContinuationsAwaiting()
+    {
+        IOperableTrigger parent = await GivenAFiredParent("retrying-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "still-waiting", ContinuationCondition.OnFailure);
+
+        // The occurrence failed and the trigger answered with another attempt, so how it ends is not
+        // known yet — the failure that reaches here is not the outcome, it is one attempt at it.
+        parent.NextFireTimeUtc = DateTimeOffset.UtcNow.AddSeconds(30);
+        await CompleteParent(parent, ExecutionOutcome.Failed, SchedulerInstruction.RetryTrigger);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting,
+            "a retry settles nothing — the occurrence still has attempts left, and releasing or discarding now "
+            + "would act on a failure the trigger has not accepted");
+    }
+
+    [Test]
+    public async Task AVetoedParentReleasesOnlyOnVetoAndOnAnyOutcome()
+    {
+        IOperableTrigger parent = await GivenAFiredParent("vetoed-parent");
+        IOperableTrigger onVeto = await GivenAContinuationOf(parent.Key, "on-veto", ContinuationCondition.OnVeto);
+        IOperableTrigger onAny = await GivenAContinuationOf(parent.Key, "on-any", ContinuationCondition.OnAnyOutcome);
+        IOperableTrigger onSuccess = await GivenAContinuationOf(parent.Key, "on-success", ContinuationCondition.OnSuccess);
+
+        await CompleteParent(parent, ExecutionOutcome.Vetoed);
+
+        (await Store.GetTriggerState(onVeto.Key)).Should().Be(TriggerState.Normal,
+            "a veto is an outcome like any other, and this trigger asked for exactly it");
+        (await Store.GetTriggerState(onAny.Key)).Should().Be(TriggerState.Normal,
+            "'however it ends' includes a firing a listener refused");
+        (await Store.GetTriggerState(onSuccess.Key)).Should().Be(TriggerState.None,
+            "the job never ran, so it certainly did not succeed");
+    }
+
+    [Test]
+    public async Task AContinuationReleasedIntoAPausedGroupIsPaused()
+    {
+        await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupB));
+
+        IOperableTrigger parent = await GivenAFiredParent("paused-group-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(
+            parent.Key, "released-into-pause", ContinuationCondition.OnSuccess, group: TriggerGroupB);
+
+        await CompleteParent(parent, ExecutionOutcome.Succeeded);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Paused,
+            "the wait ending is not somebody resuming the group — a release into a paused group leaves the "
+            + "trigger held by the pause, the way a retry and a newly stored trigger are");
+    }
+
+    [Test]
+    public async Task DeletingAParentParksItsContinuationsInErrorExceptOnAnyOutcome()
+    {
+        IOperableTrigger parent = await GivenAScheduledParent("deleted-parent");
+        IOperableTrigger onSuccess = await GivenAContinuationOf(parent.Key, "orphaned", ContinuationCondition.OnSuccess);
+        IOperableTrigger onAny = await GivenAContinuationOf(parent.Key, "indifferent", ContinuationCondition.OnAnyOutcome);
+
+        await Store.DeleteTrigger(parent.Key);
+
+        (await Store.GetTriggerState(onSuccess.Key)).Should().Be(TriggerState.Error,
+            "the firing it was waiting for is never going to happen, so the question it asked has no answer — "
+            + "which is an operator's to see and reset, not the store's to decide by deleting the trigger");
+        (await Store.GetTriggerState(onAny.Key)).Should().Be(TriggerState.Normal,
+            "'however it ends' did not care how it ended, and it has ended");
+    }
+
+    [Test]
+    public async Task ResettingAParkedContinuationMakesItFireNow()
+    {
+        IOperableTrigger parent = await GivenAScheduledParent("reset-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "parked", ContinuationCondition.OnSuccess);
+
+        await Store.DeleteTrigger(parent.Key);
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Error, "the parent is gone");
+
+        (await Store.ResetTriggerFromErrorState(continuation.Key)).Should().BeTrue();
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        acquired.Should().Contain(x => x.Key.Equals(continuation.Key),
+            "resetting a continuation means running it, and the fire time it had while it was waiting was never "
+            + "one the schedule chose — so the reset gives it the one a release would have");
+    }
+
+    [Test]
+    public async Task PausingAnAwaitingTriggerIsRefused()
+    {
+        IOperableTrigger parent = await GivenAScheduledParent("pause-refused-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "unpausable", ContinuationCondition.OnSuccess);
+
+        (await Store.PauseTrigger(continuation.Key)).Should().BeFalse(
+            "there is nothing to hold back that is not already held back, and a pause would have to be undone "
+            + "before the parent could release it");
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting,
+            "a refused pause changes nothing");
+    }
+
+    [Test]
+    public async Task QueryTriggersAndGetTriggerStateReportAwaiting()
+    {
+        IOperableTrigger parent = await GivenAScheduledParent("listed-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "listed", ContinuationCondition.OnFailure);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting);
+
+        PagedResult<TriggerHeader> awaiting = await Store.QueryTriggers(new TriggerQuery { State = TriggerState.Awaiting });
+
+        TriggerHeader header = awaiting.Items.Should().ContainSingle(x => x.Key.Equals(continuation.Key),
+            "a listing filtered by the new state is how an operator finds what is waiting on what").Subject;
+
+        header.State.Should().Be(TriggerState.Awaiting);
+        header.ContinuesAfter.Should().Be(parent.Key,
+            "the listing says which firing the trigger is waiting for, so 'why is this not running' is answerable "
+            + "without materializing the trigger");
+        header.ContinuationCondition.Should().Be(ContinuationCondition.OnFailure);
+
+        PagedResult<TriggerHeader> normal = await Store.QueryTriggers(new TriggerQuery { State = TriggerState.Normal });
+        normal.Items.Should().NotContain(x => x.Key.Equals(continuation.Key),
+            "an awaiting trigger is not a normal one, and a listing that said it was would report it as due to fire");
+    }
+
+    /// <summary>
+    /// A parent trigger that is scheduled and far from due, for the tests about a continuation that is
+    /// still waiting.
+    /// </summary>
+    private async Task<IOperableTrigger> GivenAScheduledParent(string name)
+    {
+        IJobDetail job = CreateJob(name, JobGroupA);
+        IOperableTrigger parent = CreateTrigger(name, TriggerGroupA, job.Key);
+        await Store.ScheduleJob(job, parent);
+        return parent;
+    }
+
+    /// <summary>
+    /// A parent trigger acquired and fired, so that the test can complete it with an outcome.
+    /// </summary>
+    private async Task<IOperableTrigger> GivenAFiredParent(string name)
+    {
+        IJobDetail job = CreateJob(name, JobGroupA);
+        IOperableTrigger parent = CreateTrigger(name, TriggerGroupA, job.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(job, parent);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 1
+        });
+
+        IOperableTrigger fired = acquired.Should().ContainSingle(x => x.Key.Equals(parent.Key),
+            "the parent is the only trigger due, since a continuation is never acquired").Subject;
+
+        (await Store.TriggersFired([fired])).Should().ContainSingle()
+            .Which.TriggerFiredBundle.Should().NotBeNull("the firing has to be committed before completing it says anything");
+
+        return fired;
+    }
+
+    /// <summary>
+    /// A continuation of <paramref name="parent" />, due by its own schedule so that only its state can
+    /// keep it from being acquired.
+    /// </summary>
+    private async Task<IOperableTrigger> GivenAContinuationOf(
+        TriggerKey parent,
+        string name,
+        ContinuationCondition condition,
+        string group = TriggerGroupA)
+    {
+        IJobDetail job = CreateJob(name, JobGroupA);
+
+        IOperableTrigger continuation = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(name, group)
+            .ForJob(job.Key)
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(-5))
+            .StartAfter(parent, condition)
+            .Build();
+
+        continuation.ComputeFirstFireTimeUtc(null);
+
+        await Store.ScheduleJob(job, continuation);
+        return continuation;
+    }
+
+    /// <summary>
+    /// Completes the parent's firing with the given outcome, which is what settles the continuations
+    /// waiting on it.
+    /// </summary>
+    private async Task CompleteParent(
+        IOperableTrigger parent,
+        ExecutionOutcome outcome,
+        SchedulerInstruction instruction = SchedulerInstruction.NoInstruction)
+    {
+        await Store.FiringComplete(new TriggeredJobCompleteContext
+        {
+            Trigger = parent,
+            JobDetail = await Store.GetJob(parent.JobKey),
+            Instruction = instruction,
+            Outcome = outcome
+        });
+    }
+
     private async Task<IOperableTrigger> ScheduleJobWithTrigger(string name, string jobGroup, string triggerGroup)
     {
         IJobDetail job = CreateJob(name, jobGroup);

@@ -61,8 +61,27 @@ internal abstract partial class AdoJobStoreBase
     /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
     /// is stateful.
     /// </summary>
-    public async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
+    public ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
+        // The whole of the completion is on the context form below. This one settles no continuation,
+        // which is right for the callers it has left: the scheduler thread's "could not dispatch"
+        // paths, and anything outside Quartz completing a firing it has no outcome for.
+        return FiringComplete(
+            new TriggeredJobCompleteContext
+            {
+                Trigger = trigger,
+                JobDetail = jobDetail,
+                Instruction = triggerInstructionCode
+            },
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask FiringComplete(TriggeredJobCompleteContext context, CancellationToken cancellationToken = default)
+    {
+        IOperableTrigger trigger = context.Trigger;
+        SchedulerInstruction triggerInstructionCode = context.Instruction;
+
         // Completion bookkeeping belongs to the scheduler, not to the job, and it retries a failing
         // JobPersistenceException until it succeeds. If a job body left an enlistment behind, this
         // would borrow a connection whose transaction is long gone and retry against it forever,
@@ -71,7 +90,7 @@ internal abstract partial class AdoJobStoreBase
 
         await RetryExecuteInLocalTransactionLock(
             SchedulerLock.TriggerAccess,
-            conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstructionCode, cancellationToken),
+            conn => TriggeredJobComplete(conn, context, cancellationToken),
             cancellationToken).ConfigureAwait(false);
 
         // Deliberately after the transaction, and only if it committed: these run listener code, which
@@ -86,16 +105,50 @@ internal abstract partial class AdoJobStoreBase
         }
     }
 
-    protected async ValueTask TriggeredJobComplete(
+    protected ValueTask TriggeredJobComplete(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         IJobDetail jobDetail,
         SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default)
     {
+        return TriggeredJobComplete(
+            conn,
+            new TriggeredJobCompleteContext
+            {
+                Trigger = trigger,
+                JobDetail = jobDetail,
+                Instruction = triggerInstructionCode
+            },
+            cancellationToken);
+    }
+
+    protected async ValueTask TriggeredJobComplete(
+        ConnectionAndTransactionHolder conn,
+        TriggeredJobCompleteContext context,
+        CancellationToken cancellationToken = default)
+    {
+        IOperableTrigger trigger = context.Trigger;
+        IJobDetail jobDetail = context.JobDetail;
+        SchedulerInstruction triggerInstructionCode = context.Instruction;
+
         await Guarded(
             async () =>
             {
+                // The continuations waiting on this trigger, settled inside the completion's own
+                // transaction: a crash cannot leave one half-settled, and whichever node completed
+                // the parent is the node that promotes them. Before the instruction is applied
+                // below, so a completion that deletes the trigger settles by outcome first and the
+                // deletion then finds nothing awaiting.
+                //
+                // A retry settles nothing: the occurrence has attempts left, so how it ends is not
+                // known yet. The outcome the run shell reports says the same thing; this says it in
+                // the store too, for a caller that reaches the completion another way.
+                if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
+                {
+                    await SettleContinuations(conn, trigger.Key, context.Outcome, cancellationToken).ConfigureAwait(false);
+                }
+
                 if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
                 {
                     if (!trigger.NextFireTimeUtc.HasValue)
@@ -216,6 +269,128 @@ internal abstract partial class AdoJobStoreBase
         await Guarded(
             () => Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId!, cancellationToken),
             "delete fired trigger").ConfigureAwait(false);
+    }
+
+    //---------------------------------------------------------------------------
+    // Continuations
+    //---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Settles every trigger awaiting <paramref name="parent" /> against the outcome its firing
+    /// reached: released when the outcome is one its condition names, deleted when it is not.
+    /// </summary>
+    /// <remarks>
+    /// Runs on the completion's connection, inside its lock and its transaction. Both statements name
+    /// AWAITING, so a row some other path has already moved on is left alone and settlement happens
+    /// exactly once.
+    /// </remarks>
+    private async ValueTask SettleContinuations(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey parent,
+        ExecutionOutcome outcome,
+        CancellationToken cancellationToken)
+    {
+        // NotExecuted satisfies nothing: the occurrence did not happen, so the triggers waiting on it
+        // are waiting for a firing that still has to come. No statement is issued at all, which is
+        // what keeps the ordinary "could not dispatch" completion as cheap as it was.
+        if (Continuation.ConditionFor(outcome) is not { } satisfied)
+        {
+            return;
+        }
+
+        List<AwaitingContinuation> awaiting = await Delegate.SelectAwaitingContinuations(conn, parent, cancellationToken).ConfigureAwait(false);
+        if (awaiting.Count == 0)
+        {
+            return;
+        }
+
+        foreach (AwaitingContinuation continuation in awaiting)
+        {
+            if (continuation.Condition.HasFlag(satisfied))
+            {
+                await ReleaseContinuation(conn, continuation.Key, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await DiscardContinuation(conn, continuation.Key, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Settles every trigger awaiting a parent that is being deleted.
+    /// </summary>
+    /// <remarks>
+    /// The firing they are waiting for is never going to happen, and no outcome can be reported for
+    /// it. A trigger that did not care how it ended is released anyway; anything narrower asked a
+    /// question that now has no answer, so it is parked in <see cref="StoredTriggerState.Error" /> for
+    /// an operator to see and reset rather than deleted behind their back.
+    /// </remarks>
+    private async ValueTask SettleContinuationsOfDeletedParent(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey parent,
+        CancellationToken cancellationToken)
+    {
+        List<AwaitingContinuation> awaiting = await Delegate.SelectAwaitingContinuations(conn, parent, cancellationToken).ConfigureAwait(false);
+
+        foreach (AwaitingContinuation continuation in awaiting)
+        {
+            if (continuation.Condition == ContinuationCondition.OnAnyOutcome)
+            {
+                await ReleaseContinuation(conn, continuation.Key, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                Logger.TriggerSetToError(continuation.Key);
+                await Delegate.UpdateTriggerState(conn, continuation.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+                await signaler.NotifySchedulerListenersTriggerInError(continuation.Key, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Moves one awaiting trigger into the ordinary schedule — or into the paused state, if its group
+    /// or its job's group is paused, because the wait ending is not somebody resuming the group.
+    /// </summary>
+    private async ValueTask ReleaseContinuation(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken)
+    {
+        StoredTriggerHeader? header = await Delegate.SelectTriggerHeader(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        if (header is null)
+        {
+            return;
+        }
+
+        StoredTriggerState released = await ApplyPausedGroupState(
+            conn,
+            triggerKey.Group,
+            header.JobKey.Group,
+            StoredTriggerState.Waiting,
+            cancellationToken).ConfigureAwait(false);
+
+        await Delegate.ReleaseContinuation(conn, triggerKey, released, timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+    }
+
+    /// <summary>
+    /// Deletes an awaiting trigger whose parent ended in a way its condition did not name, and tells
+    /// the scheduler listeners it is finalized — which it is: there is no firing left for it.
+    /// </summary>
+    private async ValueTask DiscardContinuation(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken)
+    {
+        IOperableTrigger? discarded = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+
+        await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+
+        if (discarded is not null)
+        {
+            await signaler.NotifySchedulerListenersFinalized(discarded, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

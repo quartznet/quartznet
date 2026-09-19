@@ -272,13 +272,13 @@ public sealed class UnwaitedShutdownTest
             }
         }
 
-        public override async ValueTask TriggeredJobComplete(
-            IOperableTrigger trigger,
-            IJobDetail jobDetail,
-            SchedulerInstruction triggerInstructionCode,
+        // The member the scheduler calls; leaving it to the interface default would run that default on
+        // this decorator and record nothing.
+        public override async ValueTask FiringComplete(
+            TriggeredJobCompleteContext context,
             CancellationToken cancellationToken = default)
         {
-            await base.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken).ConfigureAwait(false);
+            await base.FiringComplete(context, cancellationToken).ConfigureAwait(false);
             Record(CompletionRecorded);
         }
 

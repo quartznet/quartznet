@@ -36,9 +36,14 @@ The rest of this guide is written as one statement about 3.x and 4.0, with no bu
 
 **Already on 4.0 or 4.1?** Then this guide is not your upgrade —
 [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2) and
-[Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1) are, and both are short.
+[Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1) are, and both are short. The first of the
+two has a database migration in it, which is the first since 4.0.
 
 ## Upgrading from 4.1 to 4.2
+
+Nothing in the 4.1 public surface moved, so an application on 4.1 compiles on 4.2 unchanged. **The
+database schema did move**, for the first time since 4.0, and that is the one thing an upgrade has to
+do rather than read: see [The 4.2 schema migration](#the-4-2-schema-migration) below.
 
 | Added | What it is |
 |---|---|
@@ -47,6 +52,79 @@ The rest of this guide is written as one statement about 3.x and 4.0, with no bu
 | `Quartz.nupkg` carries an analyzer | Under `analyzers/dotnet/cs`, so referencing `Quartz` is all it takes. It reads a cron expression written as a literal or a `const` with the parser that would read it at run time and fails the build on one that cannot parse (`QZ0001`), reads a `[JobTimeout]` argument the way the attribute's constructor does (`QZ0002`), warns about a job that persists its data map and allows concurrent firings (`QZ0003`), and points out a job body that awaits or loops without ever reading its cancellation token (`QZ0004`). Nothing else in the package changed and no dependency was added. An existing application can see a new build error where it had a run-time exception waiting; `dotnet_diagnostic.QZ0001.severity` moves any one of the four, and `ExcludeAssets="analyzers"` on the package reference turns all four off. See [Compile-Time Checks](tutorial/compile-time-checks.md) |
 | `QuartzJobAttribute` | `[QuartzJob]` on a class declares it as a job to register, with `Name`, `Group`, `Description`, `Durable`, `RequestRecovery` and `Scheduler`. Nothing reads it at run time: the source generator in the same analyzer assembly turns it into the `AddJob<T>` call an application would have written, which `builder.AddDeclaredJobs()` runs. A declared job is therefore as trimmable and as native-AOT clean as a hand-written registration. `QZ1001` is a type the generated registration could not name or schedule, `QZ1002` two declarations resolving to one key. See [Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md) |
 | `CronTriggerAttribute` | `[CronTrigger("0 0 0/6 * * ?")]` beside `[QuartzJob]` declares one of that job's schedules, as many times as the job has schedules, with `Name`, `Group`, `TimeZone`, `MisfireInstruction`, `Priority`, `Description` and `ExecutionGroup`. The expression is read by `QZ0001` at build time, and `H` is accepted because the generated call is `WithCronSchedule`. On a class carrying no `[QuartzJob]` it is `QZ1003` |
+| `ContinuationCondition` | `[Flags]` — `OnSuccess = 1`, `OnFailure = 2`, `OnCancellation = 4`, `OnVeto = 8`, `OnAnyOutcome = 15`. Flags, so "whenever it did not succeed" needs no member of its own. Persisted as the integer |
+| `Continuation` | `readonly record struct Continuation(TriggerKey? Parent, ContinuationCondition When)`, with `Continuation.None`, `Continuation.After(parent, condition)` and `IsNone`. The `PreferredNode` shape |
+| `ExecutionOutcome` | How one firing ended: `Succeeded`, `Failed`, `Cancelled`, `Vetoed`, `NotExecuted` |
+| `ITrigger.Continuation` | What the trigger waits for, as a **default interface member** answering `Continuation.None` — so an `ITrigger` implemented outside this repository compiles unchanged and says it waits for nothing. `IMutableTrigger` is unchanged: `TriggerBase` carries the settable property |
+| `TriggerBuilder<TJob>.StartAfter(parent, condition)` | Beside `StartAt` and `StartNow`, and composing with a schedule rather than replacing one — `StartAfter` plus `WithCronSchedule` is "start this cron once the import has finished". `StartTimeUtc` stays a floor |
+| `ITriggerConfigurator<TJob>.StartAfter(parent, condition)` | The same member on the configurator, as a **default interface member** that throws `NotSupportedException` — so a configurator written against 4.0 or 4.1 compiles and says so rather than quietly building a trigger that waits for nothing |
+| `TriggerState.Awaiting = 7` | Appended, as every member of this enum is. The state a continuation is held in. The numeric values are persisted and the names travel over the HTTP API, so a **4.1** client parsing a trigger listing from a **4.2** host meets a name it does not know if a continuation is in the page |
+| `StoredTriggerState.Awaiting`, `AdoConstants.StateAwaiting` | Storage's own vocabulary for it, and the `"AWAITING"` string the `TRIGGER_STATE` column holds |
+| `TriggerHeader.ContinuesAfter`, `TriggerHeader.ContinuationCondition` | What a listing says about a waiting trigger, so "why is this not running" is answerable without materializing it. Non-positional `init` properties, so the record's constructor is unchanged |
+| `TriggeredJobCompleteContext` | `Quartz.Extensibility`: what a job store is told about a firing that is over. `required init` `Trigger`, `JobDetail` and `Instruction` — exactly what `IJobStore.TriggeredJobComplete` took — plus `Outcome` and `Exception` |
+| `IJobStore.FiringComplete` | The completion the scheduler calls, as a **default interface member** that drops the outcome and calls `TriggeredJobComplete` — so a store written against an earlier 4.x behaves exactly as it did. A new name rather than an overload of `TriggeredJobComplete` because `PublicApiGenerator` marks default implementations per method *name*, and an overload would make the API baseline claim the abstract member is a default too |
+| `IDriverDelegate.SelectAwaitingContinuations`, `ReleaseContinuation`, `ResetContinuationFireTime` | The three statements settlement issues, likewise **default interface members**. A delegate that does not write the continuation columns reports nothing awaiting and has no fire time to fix, both of which are true for it |
+| `AwaitingContinuation` | What `SelectAwaitingContinuations` answers with: a `TriggerKey` and the condition it waits on |
+| `ScheduleJob<TJob, TInput>(input, Continuation after, options)` | The one-call overload for a firing whose time is another firing's completion. There is no time argument because the time is the parent's completion |
+| `JobChainingJobListener.AddJobChainLink(first, second, condition)` | The conditional link. The two-argument overload is unchanged and is `OnAnyOutcome`, which is what this listener has always done. `JobExecutionVetoed` is now declared, so a link conditioned on a veto fires |
+
+### Conditional continuations
+
+A *conditional continuation* is a trigger that waits, in the store, for another trigger's firing to
+end, and is released or discarded by how it ended. The model in five sentences:
+
+- A continuation is an ordinary trigger carrying a `Continuation`, stored in the new state
+  `TriggerState.Awaiting` and never acquired while it is there.
+- The parent's completion settles it, inside the parent's own lock and transaction, so a crash cannot
+  lose one and whichever node ran the parent is the node that promotes it.
+- An outcome the continuation's `ContinuationCondition` names **releases** it — into `Normal`, or
+  `Paused` if its group is, with its next fire time set to the later of now and its own start time.
+- Any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized,
+  because the firing it was waiting for has been and gone.
+- Settlement is one-shot, because every statement that settles names `Awaiting` and a settled trigger
+  no longer holds it.
+
+The parent is a `TriggerKey` rather than a `JobKey`: a continuation waits for one *firing*, and a job
+may be fired by several triggers.
+
+| Outcome of the parent's firing | Releases | Notes |
+|---|---|---|
+| `ExecutionOutcome.Succeeded` | `OnSuccess`, `OnAnyOutcome` | The job ran and returned |
+| `ExecutionOutcome.Failed` | `OnFailure`, `OnAnyOutcome` | Final only: a failure the trigger's `RetryPolicy` answers with another attempt settles nothing |
+| `ExecutionOutcome.Cancelled` | `OnCancellation`, `OnAnyOutcome` | The firing's token was signalled and the job stopped rather than finished |
+| `ExecutionOutcome.Vetoed` | `OnVeto`, `OnAnyOutcome` | A trigger listener refused the firing, so the job never ran |
+| `ExecutionOutcome.NotExecuted` | nothing | The occurrence did not happen — a listener abandoned it, the job could not be built, the scheduler could not dispatch it. The continuation keeps waiting |
+
+A parent **deleted** while continuations await it is the one settlement with no outcome to match:
+`OnAnyOutcome` is released anyway, and anything narrower is parked in `TriggerState.Error` with
+`TriggerInError` for an operator to see. `ResetTriggerFromErrorState` on such a trigger gives it the
+fire time a release would have, so resetting it means running it. `PauseTrigger` on an awaiting
+trigger returns `false`: there is nothing to hold back that is not already held back.
+
+A **recurring** conditional chain — "run the cleanup whenever the nightly job fails" — is not a
+continuation, which settles once. It is
+`JobChainingJobListener.AddJobChainLink(first, second, condition)`.
+
+### The 4.2 schema migration
+
+`database/migrations/4.2/add_continuations_<db>.sql` adds three nullable columns to `QRTZ_TRIGGERS`:
+`CONTINUES_TRIGGER_NAME`, `CONTINUES_TRIGGER_GROUP` and `CONTINUATION_CONDITION`. A 4.2 node names
+all three in the statement it stores every trigger with, so it **refuses to start** against a database
+that has not taken it, and the startup failure names the column and the script.
+
+**Roll it while 4.1 nodes are still running.** The columns are nullable with no default, so every
+existing row is valid the moment they appear; a 4.1 node's `INSERT` names its own columns, its
+acquisition and misfire sweeps select `WAITING`, its cluster recovery touches `ACQUIRED` and
+`BLOCKED`, and a state string it does not recognise reads as waiting — so it never sees an `AWAITING`
+row as schedulable and merely *reports* one as `Normal`.
+
+What a 4.1 node cannot do is **settle** a continuation: a parent completing there leaves the triggers
+waiting on that firing exactly where they are. So the order is: run the migration, roll every node to
+4.2, and only then start scheduling continuations.
+
+`ProvisionSchema()` does not help: it creates missing tables and never adds a column to one that
+exists. A fresh install from `database/tables/` already has the columns. See
+[Database Schema Changes](../database/schema-changes.md#version-4-2).
 
 ## Upgrading from 4.0 to 4.1
 

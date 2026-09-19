@@ -63,8 +63,19 @@ public static class AdoConstants
     ];
 
     /// <summary>
-    /// Every column 4.x requires on a table 3.x already had — the columns
-    /// <c>database/migrations/4.0/schema_30_to_40_upgrade_&lt;dialect&gt;.sql</c> adds.
+    /// The migration folder whose scripts a 3.x database needs, and the shape of their file names.
+    /// </summary>
+    internal const string Migration40 = "4.0/schema_30_to_40_upgrade_{0}.sql";
+
+    /// <summary>
+    /// The migration folder whose scripts a 4.0 or 4.1 database needs, and the shape of their file
+    /// names. The first schema move since 4.0.
+    /// </summary>
+    internal const string Migration42 = "4.2/add_continuations_{0}.sql";
+
+    /// <summary>
+    /// Every column 4.x requires on a table an earlier release already had, beside the migration
+    /// under <c>database/migrations/</c> that adds it.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -77,22 +88,30 @@ public static class AdoConstants
     /// it can fire nothing.
     /// </para>
     /// <para>
-    /// The list is the 4.0 migration's column additions and nothing else: a column 3.x also had is
+    /// The list is the migrations' column additions and nothing else: a column every release had is
     /// present on any database that can be upgraded at all, and a whole table that is missing is
     /// <see cref="AllTableNames" />' business. <c>MigratedColumnTest</c> derives the same list from
-    /// the generated scripts and fails when the two disagree, so a column added to the migration
+    /// the generated scripts and fails when the two disagree, so a column added to a migration
     /// without being added here is a failing test rather than a silent hole in the check.
     /// </para>
+    /// <para>
+    /// Each entry names the migration that adds it, so the failure can point at the script the
+    /// database in front of the reader actually needs — the 3.x-to-4.0 upgrade, or 4.2's
+    /// continuation columns, which a database created by 4.0 or 4.1 is missing.
+    /// </para>
     /// </remarks>
-    internal static readonly (string Table, string Column)[] MigratedColumnNames =
+    internal static readonly (string Table, string Column, string Migration)[] MigratedColumnNames =
     [
-        (TableTriggers, ColumnMisfireOriginalFireTime),
-        (TableTriggers, ColumnExecutionGroup),
-        (TableFiredTriggers, ColumnExecutionGroup),
-        (TableTriggers, ColumnPreferredNode),
-        (TableTriggers, ColumnPreferredNodeAuto),
-        (TableTriggers, ColumnRetryPolicy),
-        (TableTriggers, ColumnRetryAttempt)
+        (TableTriggers, ColumnMisfireOriginalFireTime, Migration40),
+        (TableTriggers, ColumnExecutionGroup, Migration40),
+        (TableFiredTriggers, ColumnExecutionGroup, Migration40),
+        (TableTriggers, ColumnPreferredNode, Migration40),
+        (TableTriggers, ColumnPreferredNodeAuto, Migration40),
+        (TableTriggers, ColumnRetryPolicy, Migration40),
+        (TableTriggers, ColumnRetryAttempt, Migration40),
+        (TableTriggers, ColumnContinuesTriggerName, Migration42),
+        (TableTriggers, ColumnContinuesTriggerGroup, Migration42),
+        (TableTriggers, ColumnContinuationCondition, Migration42)
     ];
 
     // Table names
@@ -290,6 +309,26 @@ public static class AdoConstants
     /// </summary>
     public const string ColumnRetryAttempt = "RETRY_ATTEMPT";
 
+    // The continuation columns, added by the 4.2 schema migration. All three are nullable with no
+    // default, which is what lets a 4.1 node keep running against a migrated database (#3805).
+    /// <summary>
+    /// The <c>CONTINUES_TRIGGER_NAME</c> column of <see cref="TableTriggers" />: the name of the
+    /// trigger whose firing this one waits for.
+    /// </summary>
+    public const string ColumnContinuesTriggerName = "CONTINUES_TRIGGER_NAME";
+
+    /// <summary>
+    /// The <c>CONTINUES_TRIGGER_GROUP</c> column of <see cref="TableTriggers" />: the group of the
+    /// trigger whose firing this one waits for.
+    /// </summary>
+    public const string ColumnContinuesTriggerGroup = "CONTINUES_TRIGGER_GROUP";
+
+    /// <summary>
+    /// The <c>CONTINUATION_CONDITION</c> column of <see cref="TableTriggers" />: the integer of the
+    /// <see cref="Quartz.ContinuationCondition" /> flags that release the wait.
+    /// </summary>
+    public const string ColumnContinuationCondition = "CONTINUATION_CONDITION";
+
     // TableSimpleTriggers columns names
     /// <summary>
     /// The <c>REPEAT_COUNT</c> column of <see cref="TableSimpleTriggers" />.
@@ -457,6 +496,18 @@ public static class AdoConstants
     /// The stored state of a trigger deleted, which is a transient marker rather than a resting state.
     /// </summary>
     public const string StateDeleted = "DELETED";
+
+    /// <summary>
+    /// The stored state of a trigger waiting for another trigger's firing to end.
+    /// </summary>
+    /// <remarks>
+    /// No statement of the acquisition, misfire or cluster-recovery paths names it, which is what makes
+    /// an awaiting row invisible to a 4.1 node in a mixed cluster: those paths select WAITING, and
+    /// recovery touches ACQUIRED and BLOCKED. An unrecognised state string reads as
+    /// <see cref="Quartz.Extensibility.StoredTriggerState.Waiting" /> on such a node, so it merely
+    /// <em>reports</em> the trigger as normal. What it cannot do is settle one.
+    /// </remarks>
+    public const string StateAwaiting = "AWAITING";
 
     /// <summary>
     /// The group name a store records in the paused-groups table to mean that every group is paused,

@@ -39,7 +39,7 @@ namespace Quartz.Listeners;
 /// </para>
 /// <para>
 /// A job can be chained to more than one follow-up job, by calling
-/// <see cref="AddJobChainLink" /> once per follow-up or <see cref="AddJobChainLinks" />
+/// <see cref="AddJobChainLink(JobKey, JobKey)" /> once per follow-up or <see cref="AddJobChainLinks" />
 /// with all of them.  Each follow-up is triggered as its own firing, in the order the
 /// links were added, so the follow-ups run concurrently rather than one after another —
 /// as many at a time as the thread pool has threads to give them.  A follow-up that has to
@@ -63,7 +63,12 @@ namespace Quartz.Listeners;
 /// <author>Marko Lahma (.NET)</author>
 public sealed class JobChainingJobListener : IJobListener
 {
-    private readonly Dictionary<JobKey, List<JobKey>> chainLinks;
+    /// <summary>
+    /// One follow-up, and the outcomes of the first job's execution that trigger it.
+    /// </summary>
+    private readonly record struct ChainLink(JobKey FollowUpJob, ContinuationCondition When);
+
+    private readonly Dictionary<JobKey, List<ChainLink>> chainLinks;
     private readonly ILogger<JobChainingJobListener> logger;
 
     /// <summary>
@@ -77,7 +82,7 @@ public sealed class JobChainingJobListener : IJobListener
             Throw.ArgumentException("Listener name cannot be null!");
         }
         Name = name;
-        chainLinks = new Dictionary<JobKey, List<JobKey>>();
+        chainLinks = new Dictionary<JobKey, List<ChainLink>>();
         logger = LogProvider.CreateLogger<JobChainingJobListener>();
     }
 
@@ -102,20 +107,52 @@ public sealed class JobChainingJobListener : IJobListener
     /// </exception>
     public void AddJobChainLink(JobKey firstJob, JobKey secondJob)
     {
+        AddJobChainLink(firstJob, secondJob, ContinuationCondition.OnAnyOutcome);
+    }
+
+    /// <summary>
+    /// Add a chain mapping that fires the follow-up only when the first job's execution ended in one
+    /// of the named ways.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The conditional twin of <see cref="AddJobChainLink(JobKey, JobKey)" />, which is
+    /// <see cref="ContinuationCondition.OnAnyOutcome" /> — the behaviour this listener has always
+    /// had. This is how a <em>recurring</em> conditional chain is written: "run the cleanup whenever
+    /// the nightly job fails" is a link, not a <see cref="Quartz.Continuation" />, because a
+    /// continuation settles once and this fires on every completion.
+    /// </para>
+    /// <para>
+    /// It is the listener's reading of the outcome, not the store's: a link is a process-local
+    /// arrangement on the node that ran the first job. <see cref="ExecutionOutcome.NotExecuted" /> —
+    /// a firing a listener abandoned, or a job that could not be instantiated — reaches no
+    /// notification here, so it triggers no follow-up whatever the condition says.
+    /// </para>
+    /// </remarks>
+    /// <param name="firstJob">a JobKey with the name and group of the first job</param>
+    /// <param name="secondJob">a JobKey with the name and group of the follow-up job</param>
+    /// <param name="condition">the outcomes of the first job's execution that trigger the follow-up</param>
+    /// <exception cref="ArgumentException">
+    /// Either key is null or has a null name, or <paramref name="secondJob" /> is already
+    /// chained to <paramref name="firstJob" />.
+    /// </exception>
+    /// <seealso cref="ContinuationCondition" />
+    public void AddJobChainLink(JobKey firstJob, JobKey secondJob, ContinuationCondition condition)
+    {
         ValidateKey(firstJob, nameof(firstJob));
         ValidateKey(secondJob, nameof(secondJob));
 
-        if (!chainLinks.TryGetValue(firstJob, out List<JobKey>? followUpJobs))
+        if (!chainLinks.TryGetValue(firstJob, out List<ChainLink>? followUpJobs))
         {
-            followUpJobs = new List<JobKey>(capacity: 1);
+            followUpJobs = new List<ChainLink>(capacity: 1);
             chainLinks[firstJob] = followUpJobs;
         }
-        else if (followUpJobs.Contains(secondJob))
+        else if (followUpJobs.Exists(link => link.FollowUpJob.Equals(secondJob)))
         {
             ThrowAlreadyChained(firstJob, secondJob, nameof(secondJob));
         }
 
-        followUpJobs.Add(secondJob);
+        followUpJobs.Add(new ChainLink(secondJob, condition));
     }
 
     /// <summary>
@@ -123,7 +160,7 @@ public sealed class JobChainingJobListener : IJobListener
     /// completes, every one of the given follow-up jobs will be triggered.
     /// </summary>
     /// <remarks>
-    /// This is <see cref="AddJobChainLink" /> for the fan-out case, and appends to whatever
+    /// This is <see cref="AddJobChainLink(JobKey, JobKey)" /> for the fan-out case, and appends to whatever
     /// the first job is already chained to. The follow-ups are triggered in the order given,
     /// each as its own firing, so they run concurrently. Naming the same follow-up twice — in
     /// this collection or against a link added earlier — is a configuration mistake and is
@@ -151,19 +188,20 @@ public sealed class JobChainingJobListener : IJobListener
 
         // validate the whole collection before touching the links, so a rejected call leaves
         // the listener as it was rather than half-configured
-        chainLinks.TryGetValue(firstJob, out List<JobKey>? existing);
-        List<JobKey> added = new List<JobKey>(followUpJobs.Count);
+        chainLinks.TryGetValue(firstJob, out List<ChainLink>? existing);
+        List<ChainLink> added = new List<ChainLink>(followUpJobs.Count);
 
         foreach (JobKey followUpJob in followUpJobs)
         {
             ValidateKey(followUpJob, nameof(followUpJobs));
 
-            if (existing?.Contains(followUpJob) == true || added.Contains(followUpJob))
+            if (existing?.Exists(link => link.FollowUpJob.Equals(followUpJob)) == true
+                || added.Exists(link => link.FollowUpJob.Equals(followUpJob)))
             {
                 ThrowAlreadyChained(firstJob, followUpJob, nameof(followUpJobs));
             }
 
-            added.Add(followUpJob);
+            added.Add(new ChainLink(followUpJob, ContinuationCondition.OnAnyOutcome));
         }
 
         if (existing is null)
@@ -177,27 +215,56 @@ public sealed class JobChainingJobListener : IJobListener
     }
 
     /// <inheritdoc />
-    public async ValueTask JobWasExecuted(IJobExecutionContext context,
+    public ValueTask JobWasExecuted(IJobExecutionContext context,
         JobExecutionException? jobException,
         CancellationToken cancellationToken = default)
     {
-        if (!chainLinks.TryGetValue(context.JobDetail.Key, out List<JobKey>? followUpJobs))
+        // The three outcomes this notification can carry. A veto arrives at JobExecutionVetoed
+        // instead, and a firing that never happened arrives nowhere.
+        ContinuationCondition outcome = context.CancellationToken.IsCancellationRequested
+            ? ContinuationCondition.OnCancellation
+            : jobException is not null
+                ? ContinuationCondition.OnFailure
+                : ContinuationCondition.OnSuccess;
+
+        return TriggerFollowUps(context, outcome, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // Declared so that OnVeto means something here: a vetoed firing never reaches JobWasExecuted,
+        // so a link conditioned on it would otherwise never fire.
+        return TriggerFollowUps(context, ContinuationCondition.OnVeto, cancellationToken);
+    }
+
+    private async ValueTask TriggerFollowUps(
+        IJobExecutionContext context,
+        ContinuationCondition outcome,
+        CancellationToken cancellationToken)
+    {
+        if (!chainLinks.TryGetValue(context.JobDetail.Key, out List<ChainLink>? followUpJobs))
         {
             return;
         }
 
-        foreach (JobKey followUpJob in followUpJobs)
+        foreach (ChainLink link in followUpJobs)
         {
-            logger.ChainingToJob(context.JobDetail.Key, followUpJob);
+            if (!link.When.HasFlag(outcome))
+            {
+                continue;
+            }
+
+            logger.ChainingToJob(context.JobDetail.Key, link.FollowUpJob);
 
             try
             {
-                await context.Scheduler.TriggerJob(followUpJob, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await context.Scheduler.TriggerJob(link.FollowUpJob, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 // a follow-up that could not be triggered must not cost its siblings their firing
-                logger.ChainingToJobFailed(followUpJob, se);
+                logger.ChainingToJobFailed(link.FollowUpJob, se);
             }
         }
     }

@@ -381,6 +381,11 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.TriggerRetryPolicy, (object?) trigger.RetryPolicy?.ToStoredString() ?? DBNull.Value);
         AddCommandParameter(cmd, SqlParameters.TriggerRetryAttempt, trigger.RetryAttempt);
 
+        Continuation continuation = trigger.Continuation;
+        AddCommandParameter(cmd, SqlParameters.TriggerContinuesName, (object?) continuation.Parent?.Name ?? DBNull.Value);
+        AddCommandParameter(cmd, SqlParameters.TriggerContinuesGroup, (object?) continuation.Parent?.Group ?? DBNull.Value);
+        AddCommandParameter(cmd, SqlParameters.TriggerContinuationCondition, (object?) continuation.StoredCondition ?? DBNull.Value);
+
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         if (tDel is null)
@@ -533,6 +538,12 @@ public partial class StdAdoDelegate
         // every flavour of the UPDATE, so these two are added here whichever one was picked.
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerRetryPolicy, (object?) trigger.RetryPolicy?.ToStoredString() ?? DBNull.Value));
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerRetryAttempt, trigger.RetryAttempt));
+
+        // And the continuation, between the retry clause and the optional pin in every flavour.
+        Continuation continuation = trigger.Continuation;
+        parameters.Add(new SqlStatementParameter(SqlParameters.TriggerContinuesName, (object?) continuation.Parent?.Name ?? DBNull.Value));
+        parameters.Add(new SqlStatementParameter(SqlParameters.TriggerContinuesGroup, (object?) continuation.Parent?.Group ?? DBNull.Value));
+        parameters.Add(new SqlStatementParameter(SqlParameters.TriggerContinuationCondition, (object?) continuation.StoredCondition ?? DBNull.Value));
 
         if (writePreferredNode)
         {
@@ -1040,6 +1051,9 @@ public partial class StdAdoDelegate
         public bool PreferredNodeAuto;
         public string? RetryPolicy;
         public int RetryAttempt;
+        public string? ContinuesTriggerName;
+        public string? ContinuesTriggerGroup;
+        public int? ContinuationCondition;
 
         /// <summary>Populated from the joined row for SIMPLE and CRON triggers, <c>null</c> otherwise.</summary>
         public TriggerPropertyBundle? Props;
@@ -1084,6 +1098,9 @@ public partial class StdAdoDelegate
             PreferredNodeAuto = rs.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto);
             RetryPolicy = rs.GetOrdinal(AdoConstants.ColumnRetryPolicy);
             RetryAttempt = rs.GetOrdinal(AdoConstants.ColumnRetryAttempt);
+            ContinuesTriggerName = rs.GetOrdinal(AdoConstants.ColumnContinuesTriggerName);
+            ContinuesTriggerGroup = rs.GetOrdinal(AdoConstants.ColumnContinuesTriggerGroup);
+            ContinuationCondition = rs.GetOrdinal(AdoConstants.ColumnContinuationCondition);
         }
 
         public int TriggerName { get; }
@@ -1105,6 +1122,9 @@ public partial class StdAdoDelegate
         public int PreferredNodeAuto { get; }
         public int RetryPolicy { get; }
         public int RetryAttempt { get; }
+        public int ContinuesTriggerName { get; }
+        public int ContinuesTriggerGroup { get; }
+        public int ContinuationCondition { get; }
 
         public TriggerKey ReadKey(DbDataReader rs) => new(rs.GetString(TriggerName), rs.GetString(TriggerGroup));
     }
@@ -1151,6 +1171,14 @@ public partial class StdAdoDelegate
         // on every dialect - a row migrated from 3.x has never been written by anything that fills it.
         row.RetryAttempt = rs.IsDBNull(ordinals.RetryAttempt) ? 0 : Convert.ToInt32(rs.GetValue(ordinals.RetryAttempt), CultureInfo.InvariantCulture);
 
+        row.ContinuesTriggerName = ReadNullableString(rs, ordinals.ContinuesTriggerName);
+        row.ContinuesTriggerGroup = ReadNullableString(rs, ordinals.ContinuesTriggerGroup);
+        // Not GetInt32, for the reason the retry attempt is not: Oracle answers a NUMBER column with
+        // a decimal, and every row written before 4.2 has this column null.
+        row.ContinuationCondition = rs.IsDBNull(ordinals.ContinuationCondition)
+            ? null
+            : Convert.ToInt32(rs.GetValue(ordinals.ContinuationCondition), CultureInfo.InvariantCulture);
+
         return row;
     }
 
@@ -1189,7 +1217,11 @@ public partial class StdAdoDelegate
 
         // Populating from the trigger's own row — not a change, so it must not mark the pin
         // dirty (that would make the next store write it back and clobber concurrent re-pins).
-        (trigger as TriggerBase)?.SetPreferredNode(PreferredNode.FromStored(row.PreferredNode, row.PreferredNodeAuto), markDirty: false);
+        if (trigger is TriggerBase triggerBase)
+        {
+            triggerBase.SetPreferredNode(PreferredNode.FromStored(row.PreferredNode, row.PreferredNodeAuto), markDirty: false);
+            triggerBase.Continuation = Continuation.FromStored(row.ContinuesTriggerName, row.ContinuesTriggerGroup, row.ContinuationCondition);
+        }
     }
 
     /// <summary>
@@ -2219,6 +2251,82 @@ public partial class StdAdoDelegate
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlClearTriggerRetryAttempt));
 
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    //---------------------------------------------------------------------------
+    // continuations
+    //---------------------------------------------------------------------------
+
+    /// <inheritdoc />
+    public virtual async ValueTask<List<AwaitingContinuation>> SelectAwaitingContinuations(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey parent,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectAwaitingContinuations));
+
+        // Statement order.
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Awaiting));
+        AddCommandParameter(cmd, SqlParameters.TriggerContinuesName, parent.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerContinuesGroup, parent.Group);
+
+        List<AwaitingContinuation> awaiting = [];
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            int? condition = rs.IsDBNull(2) ? null : Convert.ToInt32(rs.GetValue(2), CultureInfo.InvariantCulture);
+
+            // Through Continuation, so the reading of an absent or unreadable condition is the one
+            // the rest of the store makes: "however it ends" rather than a row nothing can release.
+            Continuation continuation = Continuation.FromStored(rs.GetString(0), rs.GetString(1), condition);
+            awaiting.Add(new AwaitingContinuation(continuation.Parent!, continuation.When));
+        }
+
+        return awaiting;
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> ReleaseContinuation(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        StoredTriggerState newState,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlReleaseContinuation));
+
+        // Statement order. "Now" is named twice - the CASE compares it and then supplies it - so it is
+        // bound twice, which is what a provider that adapts placeholders positionally needs.
+        AddCommandParameter(cmd, SqlParameters.NewState, StoredTriggerStates.ToStoredValue(newState));
+        AddCommandParameter(cmd, SqlParameters.ReleaseTimeCompare, GetDbDateTimeValue(now));
+        AddCommandParameter(cmd, SqlParameters.ReleaseTime, GetDbDateTimeValue(now));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
+        AddCommandParameter(cmd, SqlParameters.OldState, StoredTriggerStates.ToStoredValue(StoredTriggerState.Awaiting));
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> ResetContinuationFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlResetContinuationFireTime));
+
+        // Statement order; "now" twice, as above.
+        AddCommandParameter(cmd, SqlParameters.ReleaseTimeCompare, GetDbDateTimeValue(now));
+        AddCommandParameter(cmd, SqlParameters.ReleaseTime, GetDbDateTimeValue(now));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
         AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);

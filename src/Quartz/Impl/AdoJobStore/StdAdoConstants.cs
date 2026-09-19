@@ -148,8 +148,8 @@ internal static class StdAdoConstants
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnRepeatCount}, {AdoConstants.ColumnRepeatInterval}, {AdoConstants.ColumnTimesTriggered})  VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.TriggerRepeatCount}, @{SqlParameters.TriggerRepeatInterval}, @{SqlParameters.TriggerTimesTriggered})");
 
     public static readonly string SqlInsertTrigger =
-        Invariant($@"INSERT INTO {TablePrefixSubst}{AdoConstants.TableTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnDescription}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnPreviousFireTime}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnTriggerType}, {AdoConstants.ColumnStartTime}, {AdoConstants.ColumnEndTime}, {AdoConstants.ColumnCalendarName}, {AdoConstants.ColumnMisfireInstruction}, {AdoConstants.ColumnJobDataMap}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnPreferredNode}, {AdoConstants.ColumnPreferredNodeAuto}, {AdoConstants.ColumnRetryPolicy}, {AdoConstants.ColumnRetryAttempt})
-                        VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.TriggerJobName}, @{SqlParameters.TriggerJobGroup}, @{SqlParameters.TriggerDescription}, @{SqlParameters.TriggerNextFireTime}, @{SqlParameters.TriggerPreviousFireTime}, @{SqlParameters.TriggerState}, @{SqlParameters.TriggerType}, @{SqlParameters.TriggerStartTime}, @{SqlParameters.TriggerEndTime}, @{SqlParameters.TriggerCalendarName}, @{SqlParameters.TriggerMisfireInstruction}, @{SqlParameters.TriggerJobJobDataMap}, @{SqlParameters.TriggerPriority}, @{SqlParameters.TriggerExecutionGroup}, @{SqlParameters.TriggerPreferredNode}, @{SqlParameters.TriggerPreferredNodeAuto}, @{SqlParameters.TriggerRetryPolicy}, @{SqlParameters.TriggerRetryAttempt})");
+        Invariant($@"INSERT INTO {TablePrefixSubst}{AdoConstants.TableTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnDescription}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnPreviousFireTime}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnTriggerType}, {AdoConstants.ColumnStartTime}, {AdoConstants.ColumnEndTime}, {AdoConstants.ColumnCalendarName}, {AdoConstants.ColumnMisfireInstruction}, {AdoConstants.ColumnJobDataMap}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnPreferredNode}, {AdoConstants.ColumnPreferredNodeAuto}, {AdoConstants.ColumnRetryPolicy}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnContinuesTriggerName}, {AdoConstants.ColumnContinuesTriggerGroup}, {AdoConstants.ColumnContinuationCondition})
+                        VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.TriggerJobName}, @{SqlParameters.TriggerJobGroup}, @{SqlParameters.TriggerDescription}, @{SqlParameters.TriggerNextFireTime}, @{SqlParameters.TriggerPreviousFireTime}, @{SqlParameters.TriggerState}, @{SqlParameters.TriggerType}, @{SqlParameters.TriggerStartTime}, @{SqlParameters.TriggerEndTime}, @{SqlParameters.TriggerCalendarName}, @{SqlParameters.TriggerMisfireInstruction}, @{SqlParameters.TriggerJobJobDataMap}, @{SqlParameters.TriggerPriority}, @{SqlParameters.TriggerExecutionGroup}, @{SqlParameters.TriggerPreferredNode}, @{SqlParameters.TriggerPreferredNodeAuto}, @{SqlParameters.TriggerRetryPolicy}, @{SqlParameters.TriggerRetryAttempt}, @{SqlParameters.TriggerContinuesName}, @{SqlParameters.TriggerContinuesGroup}, @{SqlParameters.TriggerContinuationCondition})");
 
     // SELECT
 
@@ -573,7 +573,10 @@ internal static class StdAdoConstants
                 t.{AdoConstants.ColumnPreferredNode},
                 t.{AdoConstants.ColumnPreferredNodeAuto},
                 t.{AdoConstants.ColumnRetryPolicy},
-                t.{AdoConstants.ColumnRetryAttempt}";
+                t.{AdoConstants.ColumnRetryAttempt},
+                t.{AdoConstants.ColumnContinuesTriggerName},
+                t.{AdoConstants.ColumnContinuesTriggerGroup},
+                t.{AdoConstants.ColumnContinuationCondition}";
 
     /// <summary>
     /// FROM clause that left-joins the SIMPLE and CRON type tables onto TRIGGERS, letting the two most
@@ -760,7 +763,7 @@ internal static class StdAdoConstants
     public static readonly string SqlOrderByJobGroupAndName = Invariant($" ORDER BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}");
 
     public static readonly string SqlSelectTriggerHeaders =
-        Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnDescription}, {AdoConstants.ColumnTriggerType}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnStartTime}, {AdoConstants.ColumnEndTime}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnPreviousFireTime}, {AdoConstants.ColumnCalendarName}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnRetryPolicy}, {AdoConstants.ColumnRetryAttempt}, CASE WHEN {SqlExecutingFiredTriggerExists} THEN 1 ELSE 0 END FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+        Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnDescription}, {AdoConstants.ColumnTriggerType}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnStartTime}, {AdoConstants.ColumnEndTime}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnPreviousFireTime}, {AdoConstants.ColumnCalendarName}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnRetryPolicy}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnContinuesTriggerName}, {AdoConstants.ColumnContinuesTriggerGroup}, {AdoConstants.ColumnContinuationCondition}, CASE WHEN {SqlExecutingFiredTriggerExists} THEN 1 ELSE 0 END FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
 
     public static readonly string SqlCountTriggerHeaders =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
@@ -1057,14 +1060,21 @@ internal static class StdAdoConstants
     private const string RetrySetClause =
         $", {AdoConstants.ColumnRetryPolicy} = @{SqlParameters.TriggerRetryPolicy}, {AdoConstants.ColumnRetryAttempt} = @{SqlParameters.TriggerRetryAttempt}";
 
+    // The continuation columns are written unconditionally too, and for the reason the retry columns
+    // are: what a trigger waits for is part of its definition, so a definition that names nothing
+    // clears a stored one. The clause sits between the retry clause and the optional pin in every
+    // flavour, so the binder adds its three parameters in the same place whichever was picked.
+    private const string ContinuationSetClause =
+        $", {AdoConstants.ColumnContinuesTriggerName} = @{SqlParameters.TriggerContinuesName}, {AdoConstants.ColumnContinuesTriggerGroup} = @{SqlParameters.TriggerContinuesGroup}, {AdoConstants.ColumnContinuationCondition} = @{SqlParameters.TriggerContinuationCondition}";
+
     public static readonly string SqlUpdateTrigger =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @{SqlParameters.TriggerJobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.TriggerJobGroup}, {AdoConstants.ColumnDescription} = @{SqlParameters.TriggerDescription}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime},
-                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.TriggerJobJobDataMap}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}
+                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.TriggerJobJobDataMap}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}
                         WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlUpdateTriggerWithPreferredNode =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @{SqlParameters.TriggerJobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.TriggerJobGroup}, {AdoConstants.ColumnDescription} = @{SqlParameters.TriggerDescription}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime},
-                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.TriggerJobJobDataMap}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{PreferredNodeSetClause}
+                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.TriggerJobJobDataMap}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{PreferredNodeSetClause}
                         WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlUpdateFiredTrigger = Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableFiredTriggers} SET {AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName}, {AdoConstants.ColumnFiredTime} = @{SqlParameters.FiredTime}, {AdoConstants.ColumnScheduledTime} = @{SqlParameters.ScheduledTime}, {AdoConstants.ColumnEntryState} = @{SqlParameters.EntryState}, {AdoConstants.ColumnJobName} = @{SqlParameters.JobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup}, {AdoConstants.ColumnIsNonConcurrent} = @{SqlParameters.IsNonConcurrent}, {AdoConstants.ColumnRequestsRecovery} = @{SqlParameters.RequestsRecover}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.ExecutionGroup} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId}");
@@ -1088,12 +1098,12 @@ internal static class StdAdoConstants
 
     public static readonly string SqlUpdateTriggerSkipData =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @{SqlParameters.TriggerJobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.TriggerJobGroup}, {AdoConstants.ColumnDescription} = @{SqlParameters.TriggerDescription}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime},
-                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}
+                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}
                     WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlUpdateTriggerSkipDataWithPreferredNode =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @{SqlParameters.TriggerJobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.TriggerJobGroup}, {AdoConstants.ColumnDescription} = @{SqlParameters.TriggerDescription}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime},
-                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{PreferredNodeSetClause}
+                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{PreferredNodeSetClause}
                     WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     // Compare-and-swap for the auto-pin claim/steal: only writes when the columns still hold the
@@ -1140,6 +1150,38 @@ internal static class StdAdoConstants
     // already made them.
     public static readonly string SqlClearTriggerRetryAttempt =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnRetryAttempt} = 0 WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+
+    // ---------------------------------------------------------------------------------------------
+    // Continuations. Every statement names AWAITING, which is what makes settlement one-shot: a row
+    // the parent has already released or parked is no longer in that state, so its next firing
+    // selects nothing. No index is added for the lookup - IDX_QRTZ_T_NFT_ST leads with SCHED_NAME and
+    // TRIGGER_STATE, and AWAITING is a small partition of a schedule that uses continuations at all.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The triggers waiting for one trigger's firing: their keys and the condition each of them
+    /// waits on, which is everything the completion needs to decide release from discard.
+    /// </summary>
+    public static readonly string SqlSelectAwaitingContinuations =
+        Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnContinuationCondition} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnContinuesTriggerName} = @{SqlParameters.TriggerContinuesName} AND {AdoConstants.ColumnContinuesTriggerGroup} = @{SqlParameters.TriggerContinuesGroup}");
+
+    /// <summary>
+    /// Releases one awaiting trigger into the ordinary schedule, firing at the later of now and its
+    /// own start time — which is what keeps START_TIME a floor rather than a schedule.
+    /// </summary>
+    /// <remarks>
+    /// The floor is a CASE rather than a second statement so that a release is one round trip, and
+    /// the old state is named so that a row somebody settled first is left alone.
+    /// </remarks>
+    public static readonly string SqlReleaseContinuation =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.NewState}, {AdoConstants.ColumnNextFireTime} = CASE WHEN {AdoConstants.ColumnStartTime} > @{SqlParameters.ReleaseTimeCompare} THEN {AdoConstants.ColumnStartTime} ELSE @{SqlParameters.ReleaseTime} END WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.OldState}");
+
+    /// <summary>
+    /// Gives a continuation reset out of the error state a fire time, the same way a release does.
+    /// Runs only against a row that names a parent, so an ordinary trigger's reset is untouched.
+    /// </summary>
+    public static readonly string SqlResetContinuationFireTime =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = CASE WHEN {AdoConstants.ColumnStartTime} > @{SqlParameters.ReleaseTimeCompare} THEN {AdoConstants.ColumnStartTime} ELSE @{SqlParameters.ReleaseTime} END WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnContinuesTriggerName} IS NOT NULL");
 
     public static readonly string SqlUpdateMisfireOrigFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnMisfireOriginalFireTime} = @{SqlParameters.MisfireOrigFireTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");

@@ -102,9 +102,18 @@ public sealed class CallLog<T>
 }
 
 /// <summary>
-/// One <see cref="IJobStore.TriggeredJobComplete" /> call, as the scheduler thread made it.
+/// One completion call, as the caller made it.
 /// </summary>
-public sealed record CompletedFiring(TriggerKey Trigger, JobKey Job, SchedulerInstruction Instruction);
+/// <remarks>
+/// The outcome defaults to <see cref="ExecutionOutcome.NotExecuted" />, which is what the
+/// <see cref="IJobStore.TriggeredJobComplete" /> shape carries: that overload says nothing about how
+/// the firing ended, and a store reached through it settles no continuation.
+/// </remarks>
+public sealed record CompletedFiring(
+    TriggerKey Trigger,
+    JobKey Job,
+    SchedulerInstruction Instruction,
+    ExecutionOutcome Outcome = ExecutionOutcome.NotExecuted);
 
 /// <summary>
 /// Scripts <see cref="IJobStore.AcquireNextTriggers" />: called with the 1-based number of the call,
@@ -213,6 +222,14 @@ public sealed class FaultInjectingJobStore : DelegatingJobStore
     {
         Completions.Record(new CompletedFiring(trigger.Key, jobDetail.Key, triggerInstructionCode));
         return base.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken);
+    }
+
+    // The member the scheduler calls. Declared as well as the one above, not instead of it: a decorator
+    // that leaves it to the interface default answers the inner store a different question.
+    public override ValueTask FiringComplete(TriggeredJobCompleteContext context, CancellationToken cancellationToken = default)
+    {
+        Completions.Record(new CompletedFiring(context.Trigger.Key, context.JobDetail.Key, context.Instruction, context.Outcome));
+        return base.FiringComplete(context, cancellationToken);
     }
 
     public override TimeSpan GetAcquireRetryDelay(int failureCount)

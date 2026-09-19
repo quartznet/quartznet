@@ -794,7 +794,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         // the column rather than leaving the reader to find it in the provider's own words. WHERE 1 = 0
         // is a syntax every dialect takes and a plan every one of them answers without reading a row:
         // what is being asked is whether the column resolves, not what is in it.
-        foreach ((string tableName, string columnName) in AdoConstants.MigratedColumnNames)
+        foreach ((string tableName, string columnName, string migration) in AdoConstants.MigratedColumnNames)
         {
             var targetTable = $"{tablePrefix}{tableName}";
             var sql = $"SELECT {columnName} FROM {targetTable} WHERE 1 = 0";
@@ -807,8 +807,9 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
             catch (Exception ex)
             {
                 throw new JobPersistenceException(
-                    $"Unable to query column {columnName} of table {targetTable}, which the 4.0 schema"
-                    + $" migration adds: {ex.Message}", ex);
+                    $"Unable to query column {columnName} of table {targetTable}, which the schema migration"
+                    + $" database/migrations/{string.Format(CultureInfo.InvariantCulture, migration, "<dialect>")}"
+                    + $" adds: {ex.Message}", ex);
             }
         }
 

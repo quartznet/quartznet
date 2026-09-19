@@ -1,0 +1,31 @@
+﻿{
+  "TriggerType": "SimpleTrigger",
+  "Key": {
+    "Name": "WaitingTriggerKey",
+    "Group": "WaitingTriggerGroup"
+  },
+  "JobKey": {
+    "Name": "WaitingJobKey",
+    "Group": "WaitingJobGroup"
+  },
+  "Description": "A trigger that waits for the import to finish",
+  "CalendarName": null,
+  "JobDataMap": {},
+  "MisfireInstruction": 0,
+  "StartTimeUtc": "2024-07-01T00:00:00.5+00:00",
+  "EndTimeUtc": null,
+  "Priority": 5,
+  "NextFireTimeUtc": null,
+  "PreviousFireTimeUtc": null,
+  "ExecutionGroup": null,
+  "RetryPolicy": null,
+  "RetryAttempt": 0,
+  "ContinuesAfterTriggerName": "ImportTriggerKey",
+  "ContinuesAfterTriggerGroup": "ImportTriggerGroup",
+  "ContinuationCondition": 6,
+  "PreferredNode": null,
+  "PreferredNodeAuto": false,
+  "RepeatCount": 1,
+  "RepeatIntervalTimeSpan": "00:15:00",
+  "TimesTriggered": 0
+}

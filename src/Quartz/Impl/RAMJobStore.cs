@@ -84,6 +84,18 @@ public sealed class RAMJobStore : IJobStore
     private readonly HashSet<JobKey> resumedJobsInPausedGroups = new HashSet<JobKey>();
 
     /// <summary>
+    /// The triggers awaiting each parent trigger's firing, so that settling a completion is a lookup
+    /// rather than a scan of every trigger in the store.
+    /// </summary>
+    /// <remarks>
+    /// The ADO store answers the same question with a statement predicated on TRIGGER_STATE and the
+    /// two CONTINUES_TRIGGER_ columns; this is the index that makes it cost the same here. A key with
+    /// no entry is a trigger nothing waits on, which is nearly all of them, so the map is empty in an
+    /// application that uses no continuations.
+    /// </remarks>
+    private readonly Dictionary<TriggerKey, List<TriggerWrapper>> continuationsByParent = [];
+
+    /// <summary>
     /// The executions each trigger has started that are still running, by fire instance id.
     /// </summary>
     /// <remarks>
@@ -262,7 +274,10 @@ public sealed class RAMJobStore : IJobStore
                 var keys = GetTriggerKeysNoLock(GroupMatcher<TriggerKey>.GroupEquals(group));
                 foreach (TriggerKey key in keys)
                 {
-                    RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending);
+                    // keepDependants, although this is a removal: everything awaiting anything is
+                    // about to be removed too, so settling each one would park triggers in error and
+                    // announce it, moments before deleting them.
+                    RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, keepDependants: true, ref pending);
                 }
             }
 
@@ -284,6 +299,7 @@ public sealed class RAMJobStore : IJobStore
 
             resumedJobsInPausedGroups.Clear();
             executingFireInstances.Clear();
+            continuationsByParent.Clear();
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -389,7 +405,7 @@ public sealed class RAMJobStore : IJobStore
         var triggersForJob = GetTriggerKeysForJobNoLock(jobKey);
         foreach (var key in triggersForJob)
         {
-            RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending);
+            RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending);
             found = true;
         }
 
@@ -469,7 +485,7 @@ public sealed class RAMJobStore : IJobStore
         {
             foreach (TriggerKey key in triggerKeys)
             {
-                if (RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending))
+                if (RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending))
                 {
                     deleted.Add(key);
                 }
@@ -494,7 +510,7 @@ public sealed class RAMJobStore : IJobStore
             deleted = new List<TriggerKey>(matching.Count);
             foreach (TriggerKey key in matching)
             {
-                if (RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending))
+                if (RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending))
                 {
                     deleted.Add(key);
                 }
@@ -599,7 +615,7 @@ public sealed class RAMJobStore : IJobStore
             }
 
             // don't delete orphaned job, this trigger has the job anyways
-            RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: false, keepExecutions: true, ref pending);
+            RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: false, keepExecutions: true, keepDependants: true, ref pending);
         }
 
         if (!jobsByKey.ContainsKey(tw.JobKey))
@@ -626,6 +642,16 @@ public sealed class RAMJobStore : IJobStore
         grpMap[tw.TriggerKey] = tw;
         // add to triggers by FQN map
         triggersByKey[tw.TriggerKey] = tw;
+
+        // A continuation waits, whatever else is true of it: a paused group and a blocked job are
+        // decided again when the parent releases it, and neither is a reason to make it schedulable
+        // now. It is kept out of timeTriggers, which is what makes acquisition unable to see it.
+        if (tw.Trigger.Continuation.Parent is { } parent)
+        {
+            tw.state = StoredTriggerState.Awaiting;
+            AddContinuationNoLock(parent, tw);
+            return;
+        }
 
         if (IsTriggerGroupPausedNoLock(tw))
         {
@@ -677,7 +703,7 @@ public sealed class RAMJobStore : IJobStore
 
         lock (lockObject)
         {
-            deleted = RemoveTriggerNoLock(key, removeOrphanedJob, keepExecutions: false, ref pending);
+            deleted = RemoveTriggerNoLock(key, removeOrphanedJob, keepExecutions: false, keepDependants: false, ref pending);
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -686,19 +712,31 @@ public sealed class RAMJobStore : IJobStore
 
     // keepExecutions: whether executions already started under this key survive. A trigger being replaced
     // keeps them, whether in place or through ReplaceTrigger, matching the ADO store, where a replacement
-    // leaves the trigger's fired-trigger rows alone and only a removal deletes them (#3759). There is no
-    // default: every caller says which.
-    private bool RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, ref PendingSignals pending)
+    // leaves the trigger's fired-trigger rows alone and only a removal deletes them (#3759).
+    //
+    // keepDependants: whether the triggers awaiting this one survive. A replacement keeps them for the
+    // same reason — the trigger still exists and will still fire — while a removal means the firing they
+    // are waiting for is never going to happen, so they are settled here instead.
+    //
+    // There is no default for either: every caller says which.
+    private bool RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, bool keepDependants, ref PendingSignals pending)
     {
         if (!keepExecutions)
         {
             executingFireInstances.Remove(key);
         }
 
+        if (!keepDependants)
+        {
+            SettleContinuationsOfDeletedParentNoLock(key, ref pending);
+        }
+
         // remove from triggers by FQN map
         var found = triggersByKey.TryRemove(key, out var tw);
         if (tw is not null)
         {
+            RemoveContinuationNoLock(tw);
+
             // remove from triggers by group
             if (triggersByGroup.TryGetValue(key.Group, out var grpMap))
             {
@@ -731,6 +769,158 @@ public sealed class RAMJobStore : IJobStore
         }
 
         return found;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Continuations
+    //
+    // A trigger carrying a Continuation is held in Awaiting and kept out of timeTriggers, so nothing
+    // acquires it and no misfire accrues. Its parent's completion settles it, under the same lock as
+    // the rest of that completion: a matching outcome releases it into the ordinary schedule and any
+    // other outcome deletes it. The ADO store does the same inside the completion's transaction.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// Records that <paramref name="tw" /> is waiting for <paramref name="parent" />'s firing.
+    /// </summary>
+    private void AddContinuationNoLock(TriggerKey parent, TriggerWrapper tw)
+    {
+        if (!continuationsByParent.TryGetValue(parent, out List<TriggerWrapper>? awaiting))
+        {
+            awaiting = new List<TriggerWrapper>(1);
+            continuationsByParent[parent] = awaiting;
+        }
+
+        awaiting.Add(tw);
+    }
+
+    /// <summary>
+    /// Records that <paramref name="tw" /> is no longer waiting for anything — because it was
+    /// released, discarded, parked or removed.
+    /// </summary>
+    /// <remarks>
+    /// This is what makes settlement one-shot: a trigger the parent has already settled is out of the
+    /// index, so the parent's next firing finds nothing. The ADO store gets the same guarantee from
+    /// its statements naming AWAITING, which a settled row no longer holds.
+    /// </remarks>
+    private void RemoveContinuationNoLock(TriggerWrapper tw)
+    {
+        if (tw.Trigger.Continuation.Parent is not { } parent
+            || !continuationsByParent.TryGetValue(parent, out List<TriggerWrapper>? awaiting))
+        {
+            return;
+        }
+
+        if (awaiting.Remove(tw) && awaiting.Count == 0)
+        {
+            continuationsByParent.Remove(parent);
+        }
+    }
+
+    /// <summary>
+    /// Settles every trigger awaiting <paramref name="parent" /> against the outcome its firing
+    /// reached.
+    /// </summary>
+    private void SettleContinuationsNoLock(TriggerKey parent, ExecutionOutcome outcome, ref PendingSignals pending)
+    {
+        // NotExecuted satisfies nothing: the occurrence did not happen, so the triggers waiting on it
+        // are waiting for a firing that still has to come.
+        if (Continuation.ConditionFor(outcome) is not { } satisfied
+            || !continuationsByParent.TryGetValue(parent, out List<TriggerWrapper>? awaiting))
+        {
+            return;
+        }
+
+        // Over a copy: both branches below write to the very list being walked.
+        foreach (TriggerWrapper tw in awaiting.ToArray())
+        {
+            if (tw.state != StoredTriggerState.Awaiting)
+            {
+                continue;
+            }
+
+            if (tw.Trigger.Continuation.When.HasFlag(satisfied))
+            {
+                ReleaseContinuationNoLock(tw, ref pending);
+            }
+            else
+            {
+                DiscardContinuationNoLock(tw, ref pending);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Settles every trigger awaiting a parent that has just been deleted.
+    /// </summary>
+    /// <remarks>
+    /// The firing they are waiting for is never going to happen, and no outcome can be reported for
+    /// it. A trigger that did not care how it ended — <see cref="ContinuationCondition.OnAnyOutcome" />
+    /// — is released anyway; anything narrower asked a question that now has no answer, so it is
+    /// parked in <see cref="StoredTriggerState.Error" /> for an operator to see and reset rather than
+    /// deleted behind their back.
+    /// </remarks>
+    private void SettleContinuationsOfDeletedParentNoLock(TriggerKey parent, ref PendingSignals pending)
+    {
+        if (!continuationsByParent.TryGetValue(parent, out List<TriggerWrapper>? awaiting))
+        {
+            return;
+        }
+
+        foreach (TriggerWrapper tw in awaiting.ToArray())
+        {
+            if (tw.state != StoredTriggerState.Awaiting)
+            {
+                continue;
+            }
+
+            if (tw.Trigger.Continuation.When == ContinuationCondition.OnAnyOutcome)
+            {
+                ReleaseContinuationNoLock(tw, ref pending);
+            }
+            else
+            {
+                RemoveContinuationNoLock(tw);
+                tw.state = StoredTriggerState.Error;
+                logger.TriggerSetToError(tw.TriggerKey);
+                pending.RecordTriggerInError(tw.TriggerKey);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Moves an awaiting trigger into the ordinary schedule, firing at the later of now and its start
+    /// time — which is what keeps <see cref="ITrigger.StartTimeUtc" /> a floor rather than a schedule.
+    /// </summary>
+    private void ReleaseContinuationNoLock(TriggerWrapper tw, ref PendingSignals pending)
+    {
+        RemoveContinuationNoLock(tw);
+
+        DateTimeOffset now = timeProvider.GetUtcNow();
+        tw.Trigger.NextFireTimeUtc = tw.Trigger.StartTimeUtc > now ? tw.Trigger.StartTimeUtc : now;
+
+        // A group that was paused while the trigger waited stays paused: the release says the wait is
+        // over, not that somebody resumed the group.
+        tw.state = IsTriggerGroupPausedNoLock(tw) ? StoredTriggerState.Paused : StoredTriggerState.Waiting;
+
+        if (tw.state == StoredTriggerState.Waiting)
+        {
+            timeTriggers.Add(tw);
+        }
+
+        pending.RecordSchedulingChange();
+    }
+
+    /// <summary>
+    /// Deletes an awaiting trigger whose parent ended in a way its condition did not name.
+    /// </summary>
+    private void DiscardContinuationNoLock(TriggerWrapper tw, ref PendingSignals pending)
+    {
+        RemoveContinuationNoLock(tw);
+
+        // Announced before the removal, so the listeners are handed a trigger the store still has.
+        pending.RecordFinalized(tw.Trigger);
+        RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending);
     }
 
     /// <summary>
@@ -768,7 +958,7 @@ public sealed class RAMJobStore : IJobStore
                 // running under it, as in the ADO store where a replacement leaves the fired-trigger rows
                 // for the execution's completion, or for recovery, to settle (#3759). Removing through the
                 // shared path means everything else kept per trigger is cleaned up here too.
-                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: true, ref pending);
+                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: true, keepDependants: true, ref pending);
 
                 try
                 {
@@ -1045,6 +1235,16 @@ public sealed class RAMJobStore : IJobStore
         if (tw.state != StoredTriggerState.Error)
         {
             return false;
+        }
+
+        // A continuation parked here is one whose parent was deleted, so it has no fire time worth
+        // keeping: the schedule it would have been released into never started. Resetting it means
+        // running it now, at the later of now and its start time — the same instant a release would
+        // have given it.
+        if (!tw.Trigger.Continuation.IsNone)
+        {
+            DateTimeOffset now = timeProvider.GetUtcNow();
+            tw.Trigger.NextFireTimeUtc = tw.Trigger.StartTimeUtc > now ? tw.Trigger.StartTimeUtc : now;
         }
 
         if (pausedTriggerGroups.Contains(triggerKey.Group))
@@ -1358,7 +1558,11 @@ public sealed class RAMJobStore : IJobStore
             match.Trigger.Priority,
             match.Trigger.ExecutionGroup,
             match.Trigger.RetryPolicy?.ToStoredString(),
-            match.Trigger.RetryAttempt)));
+            match.Trigger.RetryAttempt)
+        {
+            ContinuesAfter = match.Trigger.Continuation.Parent,
+            ContinuationCondition = match.Trigger.Continuation.IsNone ? null : match.Trigger.Continuation.When
+        }));
     }
 
     private void CollectMatchingTriggersNoLock(
@@ -2875,8 +3079,28 @@ public sealed class RAMJobStore : IJobStore
     /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
     /// is stateful.
     /// </summary>
-    public async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
+    public ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
+        // The whole of the completion is below, on the context form. This one settles no continuation,
+        // which is right for every caller it has left: the scheduler thread's "could not dispatch"
+        // paths, and anything outside Quartz that completes a firing it has no outcome for.
+        return FiringComplete(
+            new TriggeredJobCompleteContext
+            {
+                Trigger = trigger,
+                JobDetail = jobDetail,
+                Instruction = triggerInstructionCode
+            },
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask FiringComplete(TriggeredJobCompleteContext context, CancellationToken cancellationToken = default)
+    {
+        IOperableTrigger trigger = context.Trigger;
+        IJobDetail jobDetail = context.JobDetail;
+        SchedulerInstruction triggerInstructionCode = context.Instruction;
+
         PendingSignals pending = default;
 
         lock (lockObject)
@@ -2953,7 +3177,7 @@ public sealed class RAMJobStore : IJobStore
                     {
                         foreach (TriggerKey finalizedKey in finalized)
                         {
-                            RemoveTriggerNoLock(finalizedKey, removeOrphanedJob: true, keepExecutions: false, ref pending);
+                            RemoveTriggerNoLock(finalizedKey, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending);
                         }
                     }
 
@@ -2964,6 +3188,21 @@ public sealed class RAMJobStore : IJobStore
             {
                 // even if it was deleted, there may be cleanup to do
                 blockedJobs.Remove(jobDetail.Key);
+            }
+
+            // The continuations waiting on this trigger, settled under the same lock as the rest of
+            // the completion so that a crash cannot leave one half-settled — the ADO store does this
+            // inside the completion's transaction, for the same reason. After the unblock above, so a
+            // released continuation of the same job is evaluated against a job that is free again, and
+            // before the instruction is applied below, so a completion that deletes the trigger
+            // settles by outcome first and then finds nothing left awaiting.
+            //
+            // A retry settles nothing: the occurrence has attempts left, so how it ends is not known
+            // yet. The outcome the run shell reports says the same thing, and this says it in the
+            // store too, for a caller that reaches TriggeredJobComplete another way.
+            if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
+            {
+                SettleContinuationsNoLock(trigger.Key, context.Outcome, ref pending);
             }
 
             // Releases what TriggersFired recorded. Done before the trigger-deleted check below, and
@@ -2992,7 +3231,7 @@ public sealed class RAMJobStore : IJobStore
                         d = tw.Trigger.NextFireTimeUtc;
                         if (!d.HasValue)
                         {
-                            RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, ref pending);
+                            RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending);
                         }
                         else
                         {
@@ -3001,7 +3240,7 @@ public sealed class RAMJobStore : IJobStore
                     }
                     else
                     {
-                        RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, ref pending);
+                        RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending);
                         pending.RecordSchedulingChange();
                     }
                 }
@@ -3068,7 +3307,7 @@ public sealed class RAMJobStore : IJobStore
                     // finished however the last firing ended, so it goes the way DeleteTrigger sends it.
                     // The scheduler listeners have already been told the trigger is finalized, by the run
                     // shell (#3506), which is why the store says nothing here beyond removing it.
-                    RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, ref pending);
+                    RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending);
                 }
             }
         }

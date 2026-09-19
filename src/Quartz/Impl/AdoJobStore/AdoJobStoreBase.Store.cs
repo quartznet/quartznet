@@ -135,10 +135,20 @@ internal abstract partial class AdoJobStoreBase
             Throw.ObjectAlreadyExistsException(newTrigger);
         }
 
+        // A trigger that waits for another one's firing is stored awaiting, whatever else is true of
+        // it: a paused group and a blocked job are decided again when its parent releases it, and
+        // neither is a reason to make it schedulable now. Skipped when the caller forces a state,
+        // which is the calendar-update path writing back the state the row already holds.
+        bool awaiting = !forceState && !newTrigger.Continuation.IsNone;
+        if (awaiting)
+        {
+            state = StoredTriggerState.Awaiting;
+        }
+
         await Guarded(
             async () =>
             {
-                if (!forceState)
+                if (!forceState && !awaiting)
                 {
                     state = await ApplyPausedGroupState(conn, newTrigger.Key.Group, newTrigger.JobKey.Group, state, cancellationToken).ConfigureAwait(false);
                 }
@@ -151,7 +161,7 @@ internal abstract partial class AdoJobStoreBase
                 {
                     Throw.JobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
                 }
-                if (job.ConcurrentExecutionDisallowed && !recovering)
+                if (job.ConcurrentExecutionDisallowed && !recovering && !awaiting)
                 {
                     state = await CheckBlockedState(conn, job.Key, state, cancellationToken).ConfigureAwait(false);
                 }
@@ -397,6 +407,12 @@ internal abstract partial class AdoJobStoreBase
         TriggerKey key,
         CancellationToken cancellationToken)
     {
+        // The triggers waiting for this one's firing, before the row goes: it is never going to fire,
+        // so they are settled here rather than left waiting for ever. A replacement does not come
+        // through this method — ReplaceTrigger deletes the row itself, precisely because the trigger
+        // still exists afterwards — so a rescheduled parent keeps its dependants.
+        await SettleContinuationsOfDeletedParent(conn, key, cancellationToken).ConfigureAwait(false);
+
         bool deleted = await Delegate.DeleteTrigger(conn, key, cancellationToken).ConfigureAwait(false) > 0;
 
         if (deleted)

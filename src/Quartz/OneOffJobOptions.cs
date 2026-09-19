@@ -114,6 +114,20 @@ public readonly record struct OneOffJobOptions
     public int? Priority { get; init; }
 
     /// <summary>
+    /// Which trigger's firing this one waits for, and on which outcomes of it the wait ends.
+    /// Defaults to <see cref="Quartz.Continuation.None" />: a firing that waits for nothing.
+    /// </summary>
+    /// <remarks>
+    /// Internal, unlike every other member here, and the overload taking a
+    /// <see cref="Quartz.Continuation" /> is how a caller says it — which also combines with the rest
+    /// of this type, since that overload takes one. Public it would be an options member typed as a
+    /// Quartz value type, which <c>OptionsConventionTest</c> refuses: an options graph is reachable
+    /// from configuration and may name only other options types, enums, delegates and BCL types.
+    /// </remarks>
+    /// <seealso cref="ITrigger.Continuation" />
+    internal Continuation Continuation { get; init; }
+
+    /// <summary>
     /// The execution group the firing counts against, when execution limits are in use.
     /// </summary>
     /// <seealso cref="ITrigger.ExecutionGroup" />

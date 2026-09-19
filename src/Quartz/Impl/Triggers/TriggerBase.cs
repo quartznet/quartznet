@@ -93,6 +93,14 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     private string? retryPolicy;
     private int retryAttempt;
 
+    // The continuation is held as the triple the triggers table holds - the parent trigger's name and
+    // group and the condition as its integer - rather than as the value, for the reason the retry
+    // policy is: a [Serializable] trigger's blob then holds primitives, and a blob written before
+    // triggers could wait simply has no such fields and deserializes to Continuation.None.
+    private string? continuesAfterTriggerName;
+    private string? continuesAfterTriggerGroup;
+    private int? continuationCondition;
+
     // Whether ExecutionComplete has just cleared a non-zero attempt, so the stores know they have a
     // write to make on a completion that otherwise writes nothing. Not serialized: it says something
     // about this completion, not about the trigger.
@@ -205,7 +213,7 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
         // This trigger's own clock, so that rebuilding a trigger keeps the reading of "now" it was
         // computing against - the past-due clamp in ComputeFirstFireTimeUtc runs on whatever the
         // rebuilt trigger ends up holding.
-        return TriggerBuilder.Create(TimeProvider)
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create(TimeProvider)
             .ForJob(JobKey)
             .WithCalendarName(CalendarName)
             .UsingJobData(JobDataMap)
@@ -224,6 +232,16 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
             .WithPriority(Priority)
             .StartAt(StartTimeUtc)
             .WithSchedule(GetScheduleBuilder());
+
+        // Only when there is one: StartAfter takes the parent it waits for, and a trigger that waits
+        // for nothing has none to name. The builder writes Continuation.None over a rebuilt trigger
+        // otherwise, which is what it already holds.
+        if (Continuation.Parent is { } parent)
+        {
+            builder.StartAfter(parent, Continuation.When);
+        }
+
+        return builder;
     }
 
     /// <inheritdoc />
@@ -370,6 +388,28 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
             }
 
             retryAttempt = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets which trigger's firing this one waits for, and on which outcomes of it the wait
+    /// ends. <see cref="Quartz.Continuation.None" /> — the default — is a trigger that waits for
+    /// nothing.
+    /// </summary>
+    /// <remarks>
+    /// Settable here rather than on <see cref="IMutableTrigger" />, which 4.0 froze:
+    /// <see cref="TriggerBuilder{TJob}.Build" /> writes it through the same branch it hands the
+    /// trigger its clock through, and a job store assigns it when restoring a trigger from its row.
+    /// </remarks>
+    /// <seealso cref="Quartz.Continuation" />
+    public Continuation Continuation
+    {
+        get => Quartz.Continuation.FromStored(continuesAfterTriggerName, continuesAfterTriggerGroup, continuationCondition);
+        set
+        {
+            continuesAfterTriggerName = value.Parent?.Name;
+            continuesAfterTriggerGroup = value.Parent?.Group;
+            continuationCondition = value.StoredCondition;
         }
     }
 

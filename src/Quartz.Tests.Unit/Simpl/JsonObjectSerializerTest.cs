@@ -607,6 +607,42 @@ public class JsonObjectSerializerTest
         await VerifyCreatedJson(trigger);
     }
 
+    /// <summary>
+    /// A trigger that waits for another one's firing, in the blob both serializers write.
+    /// </summary>
+    /// <remarks>
+    /// Every other snapshot in this file shows the three continuation fields at their defaults, so
+    /// the blob a trigger that actually waits produces was described nowhere. A snapshot of its own
+    /// rather than a sixth field on the one above, so that adding it churns nothing already here.
+    /// </remarks>
+    [Test]
+    public async Task SerializeTriggerWithAContinuation()
+    {
+        FakeTimeProvider timeProvider = CreateFakeTimeProvider();
+
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(timeProvider)
+            .WithSimpleSchedule(builder => builder.WithInterval(TimeSpan.FromMinutes(15)).WithRepeatCount(1))
+            .WithIdentity("WaitingTriggerKey", "WaitingTriggerGroup")
+            .ForJob("WaitingJobKey", "WaitingJobGroup")
+            // No apostrophe: the snapshot is shared by both serializers, and they escape one differently.
+            .WithDescription("A trigger that waits for the import to finish")
+            .StartAfter(new TriggerKey("ImportTriggerKey", "ImportTriggerGroup"),
+                ContinuationCondition.OnFailure | ContinuationCondition.OnCancellation)
+            .StartAt(timeProvider.GetUtcNow())
+            .Build();
+
+        SetTimeProvider(timeProvider, trigger);
+
+        CompareSerialization<IOperableTrigger>(
+            trigger,
+            (deserialized, original) => deserialized.Continuation.Should().Be(original.Continuation,
+                "a continuation that came back different would wait for the wrong firing, or for the wrong "
+                + "way of ending it")
+        );
+
+        await VerifyCreatedJson(trigger);
+    }
+
     [Test]
     public void PinnedTriggerKeepsItsPin()
     {

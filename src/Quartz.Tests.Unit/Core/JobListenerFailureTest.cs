@@ -141,8 +141,8 @@ public sealed class JobListenerFailureTest
                 "the sibling was blocked by a firing that has now been completed, so it is free to fire");
 
             store.Completions.Entries[1].Should().Be(
-                new CompletedFiring(sibling.Key, job.Key, SchedulerInstruction.NoInstruction),
-                "the sibling's own firing is an ordinary one");
+                new CompletedFiring(sibling.Key, job.Key, SchedulerInstruction.NoInstruction, ExecutionOutcome.Succeeded),
+                "the sibling's own firing is an ordinary one, and it succeeded");
 
             runs.Entries.Should().Equal([sibling.Key],
                 "the job ran exactly once, for the trigger whose firing no listener stopped - which is what "

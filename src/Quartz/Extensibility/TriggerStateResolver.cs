@@ -31,13 +31,13 @@ public static class TriggerStateResolver
 {
     /// <summary>
     /// Resolves the reported state, applying the precedence
-    /// <c>None &gt; Error &gt; Paused &gt; Executing &gt; Blocked &gt; Complete &gt; Normal</c>.
+    /// <c>None &gt; Error &gt; Paused &gt; Awaiting &gt; Executing &gt; Blocked &gt; Complete &gt; Normal</c>.
     /// </summary>
     /// <remarks>
-    /// Paused and error outrank executing because they are the facts an operator has to act on, and both
-    /// remain true while a previously started execution finishes. Executing outranks blocked so that the
-    /// trigger which actually started the running job stays distinguishable from the siblings that are
-    /// merely gated behind it.
+    /// Paused, error and awaiting outrank executing because they are the facts an operator has to act on,
+    /// and all three remain true while a previously started execution finishes. Executing outranks blocked
+    /// so that the trigger which actually started the running job stays distinguishable from the siblings
+    /// that are merely gated behind it.
     /// </remarks>
     /// <param name="stored">
     /// The trigger's stored state. <see cref="StoredTriggerState.Deleted" /> reports
@@ -59,6 +59,13 @@ public static class TriggerStateResolver
         if (stored is StoredTriggerState.Paused or StoredTriggerState.PausedBlocked)
         {
             return TriggerState.Paused;
+        }
+
+        // Outranks executing for the reason paused does: it is the fact an operator acts on, and it
+        // survives an execution that a previous firing of the same trigger left in flight.
+        if (stored == StoredTriggerState.Awaiting)
+        {
+            return TriggerState.Awaiting;
         }
 
         if (isExecuting)

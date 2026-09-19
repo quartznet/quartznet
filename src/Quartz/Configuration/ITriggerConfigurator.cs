@@ -167,6 +167,38 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     ITriggerConfigurator<TJob> StartNow();
 
     /// <summary>
+    /// Hold the Trigger until the named trigger's firing has ended, and release it when that firing
+    /// ended in one of the named ways.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A default interface member, because 4.2 cannot add an abstract one: an implementation of this
+    /// interface written against 4.0 or 4.1 keeps compiling, and says so by throwing rather than by
+    /// silently building a trigger that waits for nothing. <see cref="TriggerBuilder{TJob}" />
+    /// overrides it.
+    /// </para>
+    /// <para>
+    /// <see cref="StartAt" /> stays a floor when both are given: a released continuation fires at the
+    /// later of "now" and the start time.
+    /// </para>
+    /// </remarks>
+    /// <param name="parent">the trigger whose firing to wait for</param>
+    /// <param name="condition">
+    /// the outcomes of that firing which release the wait; any other outcome discards this trigger
+    /// </param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <exception cref="NotSupportedException">
+    /// The implementation does not build continuations.
+    /// </exception>
+    /// <seealso cref="ITrigger.Continuation" />
+    ITriggerConfigurator<TJob> StartAfter(TriggerKey parent, ContinuationCondition condition = ContinuationCondition.OnSuccess)
+    {
+        Throw.NotSupportedException(
+            $"{GetType().FullName} does not support continuations; {nameof(StartAfter)} was added in Quartz.NET 4.2 and this configurator has not implemented it.");
+        return this;
+    }
+
+    /// <summary>
     /// Set the time at which the Trigger will no longer fire - even if it's
     /// schedule has remaining repeats.
     /// </summary>

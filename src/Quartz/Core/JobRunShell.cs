@@ -138,7 +138,12 @@ internal sealed class JobRunShell
             SchedulerInstruction instruction = se.InnerException is ObjectDisposedException or OperationCanceledException
                 ? SchedulerInstruction.NoInstruction
                 : SchedulerInstruction.SetAllJobTriggersError;
-            await qs.NotifyJobStoreJobComplete(errorTrigger, jobDetail, instruction, cancellationToken).ConfigureAwait(false);
+
+            // NotExecuted: the occurrence never happened, so nothing waiting on this trigger is
+            // settled by it. It keeps waiting for a firing that does.
+            await qs.NotifyJobStoreJobComplete(
+                CompletionContext(errorTrigger, jobDetail, instruction, ExecutionOutcome.NotExecuted, failure),
+                cancellationToken).ConfigureAwait(false);
             return;
         }
         catch (Exception e)
@@ -175,6 +180,12 @@ internal sealed class JobRunShell
             {
                 JobExecutionException? jobExEx = null;
 
+                // Whether the job stopped because its firing was interrupted rather than because it
+                // finished. Without it an interrupted job is indistinguishable from one that returned:
+                // the OperationCanceledException is swallowed, so ExecutionComplete, the listeners and
+                // the store would all be told the occurrence succeeded.
+                bool cancelled = false;
+
                 // notify job & trigger listeners...
                 SchedulerInstruction instructionCode;
                 try
@@ -182,7 +193,12 @@ internal sealed class JobRunShell
                     if (!await NotifyListenersBeginning(context, cancellationToken).ConfigureAwait(false))
                     {
                         await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
-                        await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
+
+                        // NotExecuted: a listener abandoned the firing before the job ran, so the
+                        // occurrence did not happen and settles nothing waiting on this trigger.
+                        await qs.NotifyJobStoreJobComplete(
+                            CompletionContext(trigger, jobDetail, SchedulerInstruction.NoInstruction, ExecutionOutcome.NotExecuted, exception: null),
+                            cancellationToken).ConfigureAwait(false);
                         break;
                     }
                 }
@@ -191,7 +207,9 @@ internal sealed class JobRunShell
                     try
                     {
                         instructionCode = trigger.ExecutionComplete(context, result: null);
-                        await qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
+                        await qs.NotifyJobStoreJobVetoed(
+                            CompletionContext(trigger, jobDetail, instructionCode, ExecutionOutcome.Vetoed, exception: null),
+                            cancellationToken).ConfigureAwait(false);
 
                         // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
                         if (!trigger.MayFireAgain)
@@ -237,6 +255,7 @@ internal sealed class JobRunShell
                 catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
                 {
                     endTimestamp = timeProvider.GetTimestamp();
+                    cancelled = true;
                     logger.JobCancelled(jobDetail.Key);
                 }
                 catch (JobExecutionException jee)
@@ -310,11 +329,24 @@ internal sealed class JobRunShell
                     continue;
                 }
 
+                // How the occurrence ended, worked out once and used by every exit below. A failure the
+                // trigger answered with a retry is not an outcome at all: the occurrence is still in
+                // flight, and only the attempt that ends it is classified.
+                ExecutionOutcome outcome = (cancelled, jobExEx, instructionCode) switch
+                {
+                    (true, _, _) => ExecutionOutcome.Cancelled,
+                    (_, not null, SchedulerInstruction.RetryTrigger) => ExecutionOutcome.NotExecuted,
+                    (_, not null, _) => ExecutionOutcome.Failed,
+                    _ => ExecutionOutcome.Succeeded
+                };
+
                 // notify all job listeners
                 if (!await NotifyJobListenersComplete(qs, context, jobExEx, cancellationToken).ConfigureAwait(false))
                 {
                     await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
-                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifyJobStoreJobComplete(
+                        CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
+                        cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
@@ -322,11 +354,15 @@ internal sealed class JobRunShell
                 if (!await NotifyTriggerListenersComplete(qs, context, instructionCode, cancellationToken).ConfigureAwait(false))
                 {
                     await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
-                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifyJobStoreJobComplete(
+                        CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
+                        cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
-                await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
+                await qs.NotifyJobStoreJobComplete(
+                    CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
+                    cancellationToken).ConfigureAwait(false);
 
                 break;
             } while (true);
@@ -369,8 +405,32 @@ internal sealed class JobRunShell
             SchedulerInstruction instruction = e is ObjectDisposedException or OperationCanceledException
                 ? SchedulerInstruction.NoInstruction
                 : SchedulerInstruction.SetAllJobTriggersError;
-            await qs.NotifyJobStoreJobComplete(errorTrigger, jobDetail, instruction, cancellationToken).ConfigureAwait(false);
+
+            // NotExecuted, as in the factory failure above: there was no occurrence to settle anything.
+            await qs.NotifyJobStoreJobComplete(
+                CompletionContext(errorTrigger, jobDetail, instruction, ExecutionOutcome.NotExecuted, se),
+                cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// What the job store is told about a firing that is over.
+    /// </summary>
+    private static TriggeredJobCompleteContext CompletionContext(
+        IOperableTrigger trigger,
+        IJobDetail jobDetail,
+        SchedulerInstruction instruction,
+        ExecutionOutcome outcome,
+        Exception? exception)
+    {
+        return new TriggeredJobCompleteContext
+        {
+            Trigger = trigger,
+            JobDetail = jobDetail,
+            Instruction = instruction,
+            Outcome = outcome,
+            Exception = exception
+        };
     }
 
     private async ValueTask<bool> NotifyListenersBeginning(

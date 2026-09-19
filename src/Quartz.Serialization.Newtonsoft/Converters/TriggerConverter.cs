@@ -67,6 +67,20 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
 
                 writer.WritePropertyName("RetryAttempt");
                 writer.WriteValue(abstractTrigger.RetryAttempt);
+
+                // What the trigger waits for travels as the triple the triggers table holds, so a
+                // trigger read out of a blob and one read out of the row carry the same value in the
+                // same shape.
+                Continuation continuation = abstractTrigger.Continuation;
+
+                writer.WritePropertyName("ContinuesAfterTriggerName");
+                writer.WriteValue(continuation.Parent?.Name);
+
+                writer.WritePropertyName("ContinuesAfterTriggerGroup");
+                writer.WriteValue(continuation.Parent?.Group);
+
+                writer.WritePropertyName("ContinuationCondition");
+                writer.WriteValue(continuation.StoredCondition);
             }
 
             // The pin travels as the pair the triggers table holds - the node name (or the auto-pin
@@ -165,6 +179,14 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
                 // reads back as no policy, and no attempt as an occurrence that has not been retried.
                 abstractTrigger.RetryPolicy = RetryPolicy.TryParse(source.Value<string>("RetryPolicy"), out RetryPolicy? retryPolicy) ? retryPolicy : null;
                 abstractTrigger.RetryAttempt = source.Value<int?>("RetryAttempt") ?? 0;
+
+                // The triple the triggers table holds, and absent from payloads written before a
+                // trigger could wait for another one: no parent name reads back as Continuation.None,
+                // which is exactly a trigger that waits for nothing.
+                abstractTrigger.Continuation = Continuation.FromStored(
+                    source.Value<string>("ContinuesAfterTriggerName"),
+                    source.Value<string>("ContinuesAfterTriggerGroup"),
+                    source.Value<int?>("ContinuationCondition"));
             }
 
             triggerSerializer.DeserializeFields(trigger, source);

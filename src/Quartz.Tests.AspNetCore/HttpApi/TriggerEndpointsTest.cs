@@ -189,6 +189,7 @@ public class TriggerEndpointsTest : WebApiTest
         ((int) TriggerState.Blocked).Should().Be(4);
         ((int) TriggerState.None).Should().Be(5);
         ((int) TriggerState.Executing).Should().Be(6);
+        ((int) TriggerState.Awaiting).Should().Be(7);
     }
 
     /// <summary>
@@ -198,7 +199,7 @@ public class TriggerEndpointsTest : WebApiTest
     public void TriggerStateNamesAreTheWireContract()
     {
         Enum.GetNames<TriggerState>().Should().Equal(
-            "Normal", "Paused", "Complete", "Error", "Blocked", "None", "Executing");
+            "Normal", "Paused", "Complete", "Error", "Blocked", "None", "Executing", "Awaiting");
     }
 
     [Test]

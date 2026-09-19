@@ -89,5 +89,16 @@ public enum StoredTriggerState
     /// <summary>
     /// The trigger does not exist. A sentinel a read reports rather than a value a store writes.
     /// </summary>
-    Deleted
+    Deleted,
+
+    /// <summary>
+    /// Waiting for another trigger's firing to end, because the trigger carries a
+    /// <see cref="Quartz.Continuation" />. Never acquired, never swept for misfires, and moved on
+    /// only by the completion of the firing it waits for.
+    /// </summary>
+    /// <remarks>
+    /// Appended rather than placed beside <see cref="Waiting" />: the members' order is the order
+    /// they were added in, and a store that persists the value numerically would renumber the rest.
+    /// </remarks>
+    Awaiting
 }

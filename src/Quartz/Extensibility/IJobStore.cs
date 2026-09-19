@@ -851,6 +851,31 @@ public interface IJobStore
     ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The same completion, with everything the run shell learned about the firing: how it ended, and
+    /// the exception it ended with. This is the member the scheduler calls.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The outcome is what settles the continuations waiting on the trigger — released when it
+    /// matches their condition, discarded when it does not — inside the same lock and transaction as
+    /// the rest of the completion, so a crash cannot leave one half-settled.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a store written against an earlier 4.x keeps working: the
+    /// default drops the outcome and calls <see cref="TriggeredJobComplete" />, which is exactly what
+    /// such a store already does. It is a new name rather than an overload of that one because
+    /// <c>PublicApiGenerator</c> marks default implementations per method name, and an overload would
+    /// make the API baseline claim the abstract member is a default too.
+    /// </para>
+    /// </remarks>
+    /// <param name="context">The firing that completed, and how it ended.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask FiringComplete(TriggeredJobCompleteContext context, CancellationToken cancellationToken = default)
+    {
+        return TriggeredJobComplete(context.Trigger, context.JobDetail, context.Instruction, cancellationToken);
+    }
+
+    /// <summary>
     /// Get the amount of time to wait when accessing this job store repeatedly fails.
     /// </summary>
     /// <remarks>

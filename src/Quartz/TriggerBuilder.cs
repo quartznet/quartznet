@@ -119,6 +119,7 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     private string? executionGroup;
     private PreferredNode preferredNode;
     private RetryPolicy? retryPolicy;
+    private Continuation continuation;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -187,6 +188,12 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
         if (trig is TriggerBase triggerBase)
         {
             triggerBase.TimeProvider = timeProvider;
+
+            // Assigned unconditionally, for the reason the pin and the retry policy are: a
+            // builder-built trigger fully defines what it waits for, so a definition without
+            // StartAfter clears a stored continuation when it replaces an existing trigger.
+            // IMutableTrigger is not the seam — 4.0 froze it — so this is written here.
+            triggerBase.Continuation = continuation;
         }
 
         trig.CalendarName = calendarName;
@@ -414,6 +421,42 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     }
 
     /// <summary>
+    /// Hold the Trigger until the named trigger's firing has ended, and release it when that firing
+    /// ended in one of the named ways.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The trigger is stored in <see cref="TriggerState.Awaiting" /> and is never acquired while it
+    /// is there. The parent's completion settles it inside the parent's own lock and transaction, so
+    /// whichever node ran the parent is the node that releases the continuation — nothing is lost if
+    /// the node that scheduled it goes away in between.
+    /// </para>
+    /// <para>
+    /// This composes with a schedule rather than replacing one: <c>StartAfter</c> plus
+    /// <c>WithCronSchedule</c> is "start this cron once the import has finished". It composes with
+    /// <see cref="StartAt" /> too, which stays a floor — a released continuation fires at the later
+    /// of "now" and the start time.
+    /// </para>
+    /// <para>
+    /// For a <em>recurring</em> conditional chain — "run the cleanup whenever the nightly job
+    /// fails" — use <see cref="Quartz.Listeners.JobChainingJobListener" /> instead: a continuation
+    /// settles once, on the firing it was waiting for.
+    /// </para>
+    /// </remarks>
+    /// <param name="parent">the trigger whose firing to wait for</param>
+    /// <param name="condition">
+    /// the outcomes of that firing which release the wait; any other outcome discards this trigger
+    /// </param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <seealso cref="ITrigger.Continuation" />
+    /// <seealso cref="Quartz.Continuation" />
+    public TriggerBuilder<TJob> StartAfter(TriggerKey parent, ContinuationCondition condition = ContinuationCondition.OnSuccess)
+    {
+        continuation = Continuation.After(parent, condition);
+        return this;
+    }
+
+    /// <summary>
     /// Set the time at which the Trigger will no longer fire - even if it's
     /// schedule has remaining repeats.
     /// </summary>
@@ -621,6 +664,8 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.StartAt(DateTimeOffset startTimeUtc) => StartAt(startTimeUtc);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.StartNow() => StartNow();
+
+    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.StartAfter(TriggerKey parent, ContinuationCondition condition) => StartAfter(parent, condition);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.EndAt(DateTimeOffset? endTimeUtc) => EndAt(endTimeUtc);
 

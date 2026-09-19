@@ -128,6 +128,23 @@ internal interface Trigger
     int RetryAttempt { get; }
 
     /// <summary>
+    /// The name of the trigger whose firing this one waits for, or null when it waits for nothing.
+    /// Read together with ContinuesAfterTriggerGroup and ContinuationCondition
+    /// </summary>
+    string? ContinuesAfterTriggerName { get; }
+
+    /// <summary>
+    /// The group of the trigger whose firing this one waits for, or null when it waits for nothing
+    /// </summary>
+    string? ContinuesAfterTriggerGroup { get; }
+
+    /// <summary>
+    /// Which outcomes of that firing release the wait, as flags: 1 on success, 2 on failure,
+    /// 4 on cancellation, 8 on veto, 15 however it ends. Null when the trigger waits for nothing
+    /// </summary>
+    int? ContinuationCondition { get; }
+
+    /// <summary>
     /// Should be present when TriggerType is CalendarIntervalTrigger, CronTrigger, DailyTimeIntervalTrigger or RecurrenceTrigger
     /// </summary>
     string? TimeZone { get; }

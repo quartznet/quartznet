@@ -128,6 +128,17 @@ internal static class SqlParameters
     public const string TriggerExecutionGroup = "triggerExecutionGroup";
     public const string TriggerRetryPolicy = "triggerRetryPolicy";
     public const string TriggerRetryAttempt = "triggerRetryAttempt";
+    public const string TriggerContinuesName = "triggerContinuesName";
+    public const string TriggerContinuesGroup = "triggerContinuesGroup";
+    public const string TriggerContinuationCondition = "triggerContinuationCondition";
+
+    // Releasing a continuation sets NEXT_FIRE_TIME to the later of now and the trigger's own start
+    // time, so one statement names "now" twice: once compared with START_TIME and once as the value.
+    // A provider that binds positionally adapts each placeholder in turn, so the two occurrences are
+    // two names bound to the same instant rather than one name mentioned twice - which AdoUtil's
+    // substitution could not have bound.
+    public const string ReleaseTimeCompare = "releaseTimeCompare";
+    public const string ReleaseTime = "releaseTime";
     public const string TriggerRepeatCount = "triggerRepeatCount";
     public const string TriggerRepeatInterval = "triggerRepeatInterval";
     public const string TriggerTimesTriggered = "triggerTimesTriggered";
