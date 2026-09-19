@@ -17,18 +17,105 @@
  */
 #endregion
 
+using Quartz.Configuration;
+
 namespace Quartz;
 
 /// <summary>
 /// How the dashboard is served and what it is allowed to do.
 /// </summary>
 /// <remarks>
-/// There is nothing here that points the dashboard at a scheduler: it renders the schedulers in its own
-/// process, through the <c>IQuartzApiClient</c> registered in the container.
+/// The dashboard renders the schedulers in its own process, through the <c>IQuartzApiClient</c>
+/// registered in the container. <see cref="AttachStore" /> is the one thing here that adds to that set:
+/// it points the dashboard at a database and every scheduler in it becomes a window.
 /// </remarks>
 public sealed class QuartzDashboardOptions
 {
     internal const string DefaultDashboardPath = "/quartz";
+
+    private readonly List<AttachedStoreDescriptor> attachedStores = [];
+
+    /// <summary>
+    /// The databases this dashboard has been pointed at, in the order they were attached.
+    /// </summary>
+    internal IReadOnlyList<AttachedStoreDescriptor> AttachedStores => attachedStores;
+
+    /// <summary>
+    /// Points the dashboard at a database, so that every scheduler in it is shown as a window.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nothing is asked of the processes that run those schedulers: no port towards them, no plugin in
+    /// them, no change to them at all. The dashboard discovers the <c>SCHED_NAME</c> values the database
+    /// holds and builds one never-started scheduler over the same store for each — a <em>window</em>,
+    /// <see cref="SchedulerOrigin.Window" /> in the listing, spelled <c>prod/reporting</c> wherever a
+    /// scheduler name is shown. This is the right answer for a cluster behind a load balancer, where
+    /// dialing one node reaches an arbitrary one of them.
+    /// </para>
+    /// <para>
+    /// <paramref name="store" /> is the same <c>IPersistentStoreBuilder</c> callback
+    /// <c>UsePersistentStore</c> takes, and it has to be <em>the cluster's own</em>: the dialect, the
+    /// table prefix, the serializer, and any <c>UseTriggerPersistenceDelegate</c> the nodes were given.
+    /// A window reads the blobs the nodes wrote, so a serializer that does not match is a page that
+    /// fails on the first trigger it cannot rebuild. Add <c>UseExecutionHistory()</c> when the cluster
+    /// keeps its history in the database, which is what puts executions on the window's History page;
+    /// without it a window has no history to show, because nothing it can read was written by a node.
+    /// </para>
+    /// <para>
+    /// What a window can do is what the store is: jobs, triggers and calendars are read, added, paused,
+    /// resumed, rescheduled, triggered and deleted, and whichever node picks the work up honours it.
+    /// What it cannot do is anything that belongs to one process — starting, standing down, shutting
+    /// down, interrupting a running job — and the pages hide those rather than offering a button that
+    /// would act on a scheduler this process built and never runs.
+    /// </para>
+    /// <para>
+    /// A scheduler name the database holds that this process already has a scheduler under is refused,
+    /// naming both, and the rest of the database is shown as usual.
+    /// </para>
+    /// </remarks>
+    /// <param name="target">
+    /// The name this database is known by, which is the first half of every window's identity. It may
+    /// not contain <c>/</c>, which is what separates it from the scheduler's name.
+    /// </param>
+    /// <param name="store">How to reach the database — the cluster's own store configuration.</param>
+    /// <param name="configure">How often the database is asked again which schedulers are in it.</param>
+    /// <returns>The same options, so calls can be chained.</returns>
+    /// <exception cref="ArgumentException"><paramref name="target" /> is empty or contains <c>/</c>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="store" /> is null.</exception>
+    /// <exception cref="InvalidOperationException">A store is already attached under that name.</exception>
+    public QuartzDashboardOptions AttachStore(
+        string target,
+        Action<IPersistentStoreBuilder> store,
+        Action<AttachStoreOptions>? configure = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(target);
+        ArgumentNullException.ThrowIfNull(store);
+
+        if (target.Contains('/', StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"'{target}' cannot be a target name: '/' is what separates a target from the scheduler name in "
+                + "a window's identity, so a target containing one would be unreadable wherever a window is shown.",
+                nameof(target));
+        }
+
+        foreach (AttachedStoreDescriptor existing in attachedStores)
+        {
+            if (string.Equals(existing.Target, target, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"A store is already attached as '{target}'. The name is half of every window's identity, so "
+                    + "two databases under one name would give two schedulers one spelling; attach the second one "
+                    + "under a name of its own.");
+            }
+        }
+
+        AttachStoreOptions options = new();
+        configure?.Invoke(options);
+
+        attachedStores.Add(new AttachedStoreDescriptor(target, store, options.RediscoveryInterval));
+        return this;
+    }
 
     /// <summary>
     /// The base path the dashboard UI is served from. Defaults to "/quartz".

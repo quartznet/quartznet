@@ -13,6 +13,10 @@ where the dashboard fits:
   Usually that means the schedulers this process runs, and there is nothing to configure. A scheduler
   in *another* process is registered like any other, with `AddQuartzHttpClient` — see
   [Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http).
+- **Or point it at a database and it shows every scheduler in it**, without the processes running them
+  being asked for anything at all. `AttachStore` discovers them and shows each as a window on the
+  shared store: the right answer for a cluster behind a load balancer. See
+  [Store-attached targets](#store-attached-targets).
 - **Every scheduler the container knows about**, not just the default one — including a registration
   nothing has built yet, which is shown as such rather than omitted. The header's picker switches
   between them and every page follows it.
@@ -501,6 +505,137 @@ A target running a Quartz HTTP API older than 4.1 has no history routes. The His
 scheduler runs in another process and its Quartz HTTP API does not serve execution history" — and the
 Overview's misfire tile keeps its dash rather than reporting zero misfires nobody counted.
 
+## Store-attached targets
+
+The other way to reach a scheduler you do not run: point the dashboard at **the database**, and every
+scheduler in it becomes a page. Nothing is asked of the processes doing the work — no port towards them,
+no plugin in them, no change to them at all — and one attachment covers however many schedulers and
+however many nodes that database holds.
+
+<!-- snippet: sample_dashboard_attach_store -->
+```csharp
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddQuartz();
+
+builder.Services.AddQuartzDashboard(options => options.AttachStore("prod", store =>
+{
+    // The cluster's own store configuration, not an approximation of it: the window reads
+    // the blobs the nodes wrote, so the dialect, the table prefix, the serializer and any
+    // custom trigger serializers all have to be the ones they were written with.
+    store.UseSqlServer(connectionString);
+
+    // The nodes keep their history in the database, so the window can read it. Leave this
+    // out and the window's History page has nothing to show: an in-memory history is the
+    // process's own, and no node's process is this one.
+    store.UseExecutionHistory();
+}));
+```
+<!-- endSnippet -->
+
+**This is the answer for a cluster behind a load balancer**, where an HTTP target reaches an arbitrary
+node and two page renders may be two different ones. A store-attached target has no node to choose,
+because it is not talking to a node.
+
+### What a window is
+
+A *window* is a scheduler this process builds over the same store, with
+[`ZeroSizeThreadPool`](../how-tos/external-leader.md) and never started. That topology is already a
+documented pattern — an admin process that writes a schedule for other processes to run — and this is
+that pattern with discovery and presentation on top.
+
+Discovery is a query for the distinct `SCHED_NAME` values in three tables: `QRTZ_SCHEDULER_STATE`,
+`QRTZ_TRIGGERS` and `QRTZ_JOB_DETAILS`. No one of them is enough — a scheduler that is not clustered
+writes no check-in row, and one whose jobs are durable and unscheduled has no triggers — so a name in
+any of them is a scheduler. It runs at start-up and then on `AttachStoreOptions.RediscoveryInterval`, a
+minute by default, so a scheduler that appears in the database appears in the dashboard:
+
+<!-- snippet: sample_dashboard_attach_store_rediscovery -->
+```csharp
+services.AddQuartzDashboard(options => options.AttachStore(
+    "prod",
+    store => store.UsePostgres(connectionString),
+
+    // Every five minutes rather than every minute, for a database whose set of schedulers
+    // changes rarely. null asks once, at start-up, and never again.
+    attach => attach.RediscoveryInterval = TimeSpan.FromMinutes(5)));
+```
+<!-- endSnippet -->
+
+Rediscovery only ever adds. A scheduler whose rows have been deleted keeps its window and shows an empty
+schedule, because taking a page away from an operator who is reading it is worse than a page saying
+there is nothing left.
+
+### Identity is `target/name`
+
+A window is shown as `prod/reporting`: the name the store was attached under, and the scheduler's own
+`SCHED_NAME`. A scheduler of *this* process keeps its bare name, so nothing that existed before reads
+differently. The target is a label rather than half of a key — everything that takes a scheduler name
+still takes the bare one — and a name that collides with a scheduler this process already has is
+**refused, naming both**, logged as `4027`, and the rest of the database is shown as usual. Two stores
+attached under one target name are refused too.
+
+### Status comes from the cluster, never from the window
+
+A window is never started, so its own `SchedulerStatus` is `Created` and always will be. What the
+Schedulers page, the picker and the Overview show instead is derived from `QRTZ_SCHEDULER_STATE`:
+
+| The check-in rows under that `SCHED_NAME` | Reported |
+|---|---|
+| At least one node still within its own check-in interval plus the threshold | `Running`, with the node count beside it |
+| Rows, but every one of them convicted | `Shutdown` — every node that ever checked in has stopped |
+| No rows at all | `Unknown` |
+
+The last row is the one to read twice. **A scheduler whose store is not clustered writes no check-in row
+at all**, so a window cannot tell it from one that was never started — and saying "stopped" there would
+be the false-dead reading that shared-storage consoles are known for. `Unknown` is the honest answer;
+if you want liveness for a non-clustered scheduler, reach it over
+[HTTP](#fronting-a-scheduler-in-another-process-over-http).
+
+The window is never one of the nodes it lists. It writes no check-in row, so listing itself would report
+a node that does not exist and can run nothing, and the Cluster page says whose rows it is showing.
+
+### What a window can and cannot do
+
+The rule is short: **the store is the contract.**
+
+| Available | Not available |
+|---|---|
+| Jobs, triggers, calendars, groups, paused groups — read, added, edited and deleted | `Start`, `Standby`, `Shutdown` |
+| Pause, resume, reschedule, unschedule, trigger now | Interrupting a running job or a firing |
+| Currently Executing, from `QRTZ_FIRED_TRIGGERS` | Live Logs and the live event stream |
+| Cluster, from the nodes' check-ins | The node's own figures — instance id, running since, jobs executed |
+| Execution History and the misfire tile, when the cluster keeps its history in the database | |
+
+Everything on the left is a write to the shared tables, and whichever node picks the work up honours
+it — that is what clustering already is, and a window is doing nothing a node would not. Everything on
+the right belongs to **one process**: nothing in a database carries an instruction to a node, so the
+pages do not offer it, and the client refuses it if something calls it anyway. The Overview says so in a
+sentence on the page. Reaching one node for those needs an
+[HTTP target](#fronting-a-scheduler-in-another-process-over-http) or the agent target of
+[#3773](https://github.com/quartznet/quartznet/issues/3773).
+
+### Three things to get right
+
+- **The store recipe has to be the cluster's.** The same dialect, the same
+  [table prefix](../configuration/reference.md#persistent-job-store), the same serializer, and the same
+  `UseTriggerPersistenceDelegate` registrations. A window reads the blobs the nodes wrote; a serializer
+  that does not match fails on the first trigger it cannot rebuild.
+- **`UseExecutionHistory()` on both sides.** The nodes have to keep their history in the database
+  ([`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database))
+  and the attached store has to say so too, so the window reads the same two tables. Without it the
+  History page says there is no history here rather than showing an empty one. The window never *writes*
+  history and never sweeps it: retention stays the nodes' own.
+- **The dashboard needs the database credentials.** That is the whole of the trust model for this reach:
+  whoever can open the dashboard can read and write the cluster's schedule through it, and the
+  connection string is as powerful as any node's. Keep [`ReadOnly`](#read-only-mode) and
+  [the authorization policies](#production-hardening) in mind, and do not attach a store across a trust
+  boundary — that is what the agent target exists for.
+
+Nothing about a window is handed to the [health check](hosted-services-integration.md#health-checks): it
+is not a scheduler this process runs, so `AddHealthChecks().AddQuartz("reporting")` in a dashboard
+process reports it unhealthy with a message saying to check the nodes instead.
+
 ## Hosting under a custom path
 
 When the dashboard hosts its own Blazor root, it can be served from a custom base path. Name it where the endpoints are mapped, the way the rest of ASP.NET Core reads (`MapHealthChecks("/health")`):
@@ -893,11 +1028,17 @@ So it is a *local* trap almost exclusively: an unpublished build started with
 
 ## Current limitations
 
-- **One target is one process.** A scheduler in another process is rendered and driven over HTTP, its
-  history and its live events included — see
+- **One HTTP target is one process.** A scheduler in another process is rendered and driven over HTTP,
+  its history and its live events included — see
   [Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http)
-  — but one registration points at one address. Fronting a fleet of processes as one, with per-target
-  credentials of its own, is [#3387](https://github.com/quartznet/quartznet/issues/3387).
+  — but one registration points at one address. A cluster behind a load balancer is what
+  [a store-attached target](#store-attached-targets) is for. Fronting a fleet of processes as one, with
+  per-target credentials of its own, is [#3387](https://github.com/quartznet/quartznet/issues/3387).
+- **A store-attached target cannot do anything node-local**, and its liveness is inferential. Starting,
+  standing down, shutting down and interrupting a firing belong to one process; a database carries no
+  live event stream; and a scheduler whose store is not clustered writes no check-in row, so its window
+  reports `Unknown` rather than guessing. See
+  [What a window can and cannot do](#what-a-window-can-and-cannot-do).
 - **Neither *page* is the record.** Live Logs is a live view that starts when the page opens and keeps a
   hundred events; the Action Log keeps 250 and only what this process's dashboard did. Neither survives
   a restart, and neither is lossless — use [metrics](opentelemetry-integration.md) for anything you need

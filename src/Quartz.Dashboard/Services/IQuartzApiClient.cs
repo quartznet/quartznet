@@ -494,6 +494,36 @@ public sealed record SchedulerHeaderDto(
     SchedulerOrigin Origin)
 {
     /// <summary>
+    /// The attached store this scheduler is a window onto, or <see langword="null" /> for a scheduler
+    /// of this process.
+    /// </summary>
+    /// <remarks>
+    /// Set for, and only for, <see cref="SchedulerOrigin.Window" />. With
+    /// <see cref="SchedulerName" /> it is what <see cref="DisplayName" /> spells.
+    /// </remarks>
+    public string? Target { get; init; }
+
+    /// <summary>
+    /// Whether this scheduler is a window onto an attached store rather than one of this process.
+    /// </summary>
+    public bool IsWindow => Origin == SchedulerOrigin.Window;
+
+    /// <summary>
+    /// What a page calls this scheduler: <c>prod/reporting</c> for a window, and the bare name for a
+    /// scheduler of this process.
+    /// </summary>
+    /// <remarks>
+    /// A label, not a key. Everything that takes a scheduler name — the picker's value, every client
+    /// member, the authorization resource — still takes <see cref="SchedulerName" />, which is the name
+    /// the database spells in <c>SCHED_NAME</c>; the target says which database the name was found in.
+    /// Two targets holding a scheduler of the same name are refused when the second one is attached,
+    /// so a bare name is unambiguous in this process whatever is shown beside it.
+    /// </remarks>
+    public string DisplayName => Target is { Length: > 0 } target
+        ? target + "/" + SchedulerName
+        : SchedulerName;
+
+    /// <summary>
     /// Whether a scheduler exists under this name, which is what decides whether the rest of the
     /// dashboard has anything to show for it.
     /// </summary>

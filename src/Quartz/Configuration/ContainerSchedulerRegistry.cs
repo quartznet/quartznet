@@ -27,15 +27,18 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
     private readonly SchedulerNameRegistry names;
     private readonly ISchedulerRepository repository;
     private readonly IOptionsMonitor<QuartzSchedulerOptions> schedulerOptions;
+    private readonly SchedulerWindowRegistry windows;
 
     public ContainerSchedulerRegistry(
         SchedulerNameRegistry names,
         ISchedulerRepository repository,
-        IOptionsMonitor<QuartzSchedulerOptions> schedulerOptions)
+        IOptionsMonitor<QuartzSchedulerOptions> schedulerOptions,
+        SchedulerWindowRegistry windows)
     {
         this.names = names;
         this.repository = repository;
         this.schedulerOptions = schedulerOptions;
+        this.windows = windows;
     }
 
     /// <summary>
@@ -73,7 +76,9 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
         Dictionary<string, Task<LiveState>> asked = new(StringComparer.OrdinalIgnoreCase);
         foreach (KeyValuePair<string, IScheduler> entry in live)
         {
-            asked[entry.Key] = Ask(entry.Value, deadline.Token, cancellationToken);
+            asked[entry.Key] = windows.TargetOf(entry.Key) is not null
+                ? AskWindow(entry.Value, deadline.Token, cancellationToken)
+                : Ask(entry.Value, deadline.Token, cancellationToken);
         }
 
         List<SchedulerRegistration> registrations = [];
@@ -105,12 +110,20 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
 
             LiveState state = await asked[scheduler.SchedulerName].ConfigureAwait(false);
 
+            // A window is a scheduler this container built and bound, so nothing about the object tells
+            // it from a runtime one. What it is, is a registration fact, and the window registry is
+            // where that fact is kept.
+            string? target = windows.TargetOf(scheduler.SchedulerName);
+
             registrations.Add(new SchedulerRegistration(
                 scheduler.SchedulerName,
-                scheduler is IProxyScheduler ? SchedulerOrigin.Remote : SchedulerOrigin.Runtime,
+                target is not null
+                    ? SchedulerOrigin.Window
+                    : scheduler is IProxyScheduler ? SchedulerOrigin.Remote : SchedulerOrigin.Runtime,
                 state.Status)
             {
-                SchedulerInstanceId = state.SchedulerInstanceId
+                SchedulerInstanceId = state.SchedulerInstanceId,
+                Target = target
             });
         }
 
@@ -181,6 +194,43 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
             return new LiveState(SchedulerStatus.Unknown, SchedulerInstanceId: null);
         }
         catch (HttpRequestException)
+        {
+            return new LiveState(SchedulerStatus.Unknown, SchedulerInstanceId: null);
+        }
+    }
+
+    /// <summary>
+    /// What a window reports: the cluster's liveness, and no instance id of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Asking a window <see cref="IScheduler.GetStatus" /> would answer <see cref="SchedulerStatus.Created" />
+    /// for as long as it exists, and an operator reading that would conclude the cluster had never
+    /// started. <see cref="WindowLiveness" /> asks the question that can be answered from a shared
+    /// store instead.
+    /// </para>
+    /// <para>
+    /// No instance id, because a window is not a node: the id its store carries is the one this process
+    /// invented so that the window's own row could never be mistaken for a worker's, and showing it
+    /// would put a node in the listing that does not exist. The nodes are on the Cluster page, which
+    /// reads them from the same rows.
+    /// </para>
+    /// </remarks>
+    private static async Task<LiveState> AskWindow(
+        IScheduler scheduler,
+        CancellationToken deadline,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            WindowLiveness liveness = await WindowLiveness.Read(scheduler, deadline).ConfigureAwait(false);
+            return new LiveState(liveness.Status, SchedulerInstanceId: null);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new LiveState(SchedulerStatus.Unknown, SchedulerInstanceId: null);
+        }
+        catch (SchedulerException)
         {
             return new LiveState(SchedulerStatus.Unknown, SchedulerInstanceId: null);
         }

@@ -54,6 +54,15 @@ internal static class SchedulerEventSources
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
+        // A window has none, and the container's own broker is emphatically not it: the events in it
+        // are this process's schedulers', and showing them under a window's name would attribute
+        // another cluster's firings to a scheduler that has never run anything here. A shared database
+        // carries no event feed — that is what an agent target is for.
+        if (serviceProvider.GetService<Configuration.AttachedStores>()?.IsWindow(schedulerName) == true)
+        {
+            return null;
+        }
+
         // A container that does not do keyed services holds no per-scheduler source either, so asking it
         // would only be a way to throw.
         if (!string.IsNullOrWhiteSpace(schedulerName) && serviceProvider is IKeyedServiceProvider keyed

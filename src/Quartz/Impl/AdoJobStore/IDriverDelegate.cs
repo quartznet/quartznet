@@ -1173,6 +1173,42 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Every scheduler name this database holds anything under, in no particular order.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The one member here that is not about the scheduler the delegate was initialized for: it answers
+    /// which schedulers there are, which is what a dashboard pointed at a database needs before it can
+    /// have a scheduler name to ask anything else with. A name is reported when the database holds a
+    /// check-in row, a trigger or a job detail under it — no one of those alone is enough, since a
+    /// scheduler that is not clustered writes no check-in row and one whose jobs are durable and
+    /// unscheduled has no triggers.
+    /// </para>
+    /// <para>
+    /// The default implementation refuses rather than answering, because there is nothing here it could
+    /// answer with: every other member of this interface is scoped to one scheduler's rows, so a
+    /// delegate that does not implement this has no cross-scheduler statement to borrow.
+    /// <see cref="StdAdoDelegate" /> implements it in dialect-neutral SQL, so a delegate derived from
+    /// it — which is every delegate Quartz ships and every one its documentation teaches — has it
+    /// already.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The distinct <c>SCHED_NAME</c> values in this database.</returns>
+    /// <exception cref="NotSupportedException">This delegate cannot discover scheduler names.</exception>
+    ValueTask<List<string>> SelectSchedulerNames(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            $"{GetType().FullName} cannot list the scheduler names in its database: every other statement it "
+            + "issues is scoped to one scheduler, so there is no default to fall back on. Derive the delegate "
+            + $"from {nameof(StdAdoDelegate)}, which implements this in dialect-neutral SQL, or implement "
+            + $"{nameof(SelectSchedulerNames)} on it.");
+    }
+
+    /// <summary>
     /// Selects the next triggers to fire, in ascending order of fire time and then descending by
     /// priority.
     /// </summary>

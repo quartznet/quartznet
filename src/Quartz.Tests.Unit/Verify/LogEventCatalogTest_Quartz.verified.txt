@@ -358,6 +358,12 @@
     "Scheduler '{SchedulerName}' was restarted; instanceId '{PreviousSchedulerInstanceId}' replaced by '{SchedulerInstanceId}'"
 4025  Warning  ConfigurationLog.SchedulerRestartAbandoned
     "Scheduler '{SchedulerName}' was shut down for a restart but {JobsStillExecuting} job(s) outlived the {DrainTimeout} drain, so no new scheduler was built; restart again once the work has finished"
+4026  Information  ConfigurationLog.AttachedStoreWindowOpened
+    "A window onto scheduler '{SchedulerName}' was opened over the store attached as '{Target}'"
+4027  Warning  ConfigurationLog.AttachedStoreWindowRefused
+    "The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but no window could be opened onto it: {Problem}"
+4028  Warning  ConfigurationLog.AttachedStoreDiscoveryFailed
+    "The store attached as '{Target}' could not be read, so the schedulers in it are not shown; the next round will try again"
 5000  Information  XmlSchedulingLog.ParsingFile
     "Parsing XML file: {FileName} with systemId: {SystemId}"
 5001  Information  XmlSchedulingLog.ParsingStream

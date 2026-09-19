@@ -20,6 +20,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Util;
@@ -49,11 +50,15 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     private readonly IExecutionHistoryStore historyStore;
     private readonly IServiceProvider serviceProvider;
     private readonly SchedulerAuthorization authorization;
+    private readonly AttachedStores attachedStores;
 
     /// <remarks>
     /// The container is taken as well as the history store, because a scheduler's history store is
     /// looked up by that scheduler's name: one in another process keeps its history there, and
-    /// <c>AddQuartzHttpClient</c> registers a reader of it keyed by the scheduler's name.
+    /// <c>AddQuartzHttpClient</c> registers a reader of it keyed by the scheduler's name. The attached
+    /// stores are the third case — a window's history is in the database it is a window onto, which is
+    /// a store no container registration could be keyed by, since the name was discovered rather than
+    /// registered.
     /// </remarks>
     public InProcessQuartzApiClient(
         ISchedulerRepository schedulerRepository,
@@ -61,7 +66,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         IOptions<QuartzDashboardOptions> options,
         IExecutionHistoryStore historyStore,
         IServiceProvider serviceProvider,
-        SchedulerAuthorization authorization)
+        SchedulerAuthorization authorization,
+        AttachedStores attachedStores)
     {
         this.schedulerRepository = schedulerRepository;
         this.schedulerRegistry = schedulerRegistry;
@@ -69,6 +75,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         this.historyStore = historyStore;
         this.serviceProvider = serviceProvider;
         this.authorization = authorization;
+        this.attachedStores = attachedStores;
     }
 
     /// <remarks>
@@ -90,21 +97,38 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 registration.Name,
                 registration.SchedulerInstanceId,
                 registration.Status,
-                registration.Origin));
+                registration.Origin)
+            {
+                Target = registration.Target
+            });
         }
 
         return await authorization.Filter(result, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// A window's status is the one thing here that does not come off its metadata. Its own is
+    /// <see cref="SchedulerStatus.Created" /> and will be forever — it is never started — so what is
+    /// reported instead is what its cluster's check-ins say, which is the same derivation the listing
+    /// makes and the only liveness a shared store carries. Everything else on the detail is honest as
+    /// it stands: the job store is the cluster's, and the thread pool and the jobs-executed count are
+    /// this window's, which is what makes "no threads, nothing run here" visible on the page.
+    /// </remarks>
     public async ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         SchedulerMetadata metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
 
+        SchedulerStatus status = metadata.Status;
+        if (attachedStores.IsWindow(schedulerName))
+        {
+            status = (await WindowLiveness.Read(scheduler, cancellationToken).ConfigureAwait(false)).Status;
+        }
+
         return new SchedulerDetailDto(
             metadata.SchedulerInstanceId,
             metadata.SchedulerName,
-            metadata.Status,
+            status,
             metadata.JobStoreClustered,
             metadata.JobStorePersistent,
             metadata.JobStoreTypeName,
@@ -118,6 +142,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask Start(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
+        EnsureNotAWindow(schedulerName, "start a scheduler");
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         await scheduler.Start(cancellationToken).ConfigureAwait(false);
     }
@@ -125,6 +150,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask Standby(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
+        EnsureNotAWindow(schedulerName, "stand a scheduler down");
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         await scheduler.Standby(cancellationToken).ConfigureAwait(false);
     }
@@ -132,6 +158,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask Shutdown(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
+        EnsureNotAWindow(schedulerName, "shut a scheduler down");
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         await scheduler.Shutdown(cancellationToken: cancellationToken).ConfigureAwait(false);
     }
@@ -368,6 +395,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<bool> Interrupt(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
+        EnsureNotAWindow(schedulerName, "interrupt a running job");
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         return await scheduler.Interrupt(AsJobKey(key), cancellationToken).ConfigureAwait(false);
     }
@@ -375,6 +403,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
+        EnsureNotAWindow(schedulerName, "interrupt a running job");
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         return await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
     }
@@ -628,6 +657,21 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// </remarks>
     private IExecutionHistoryStore HistoryFor(string schedulerName)
     {
+        // A window's history is in the database it is a window onto, and no container registration
+        // could be keyed by its name: the name was discovered rather than registered. A window whose
+        // cluster does not keep its history in the database has none here at all, and saying so is
+        // better than this process's own history, which would be an empty page that reads as a cluster
+        // that has run nothing.
+        if (attachedStores.IsWindow(schedulerName))
+        {
+            return attachedStores.HistoryFor(schedulerName)
+                ?? throw new NotSupportedException(
+                    $"The store '{schedulerName}' is a window onto keeps no execution history: it was attached "
+                    + "without UseExecutionHistory(), so nothing a node ran was written where this dashboard can "
+                    + "read it. Add store.UseExecutionHistory() to the nodes and to AttachStore, and run "
+                    + "database/migrations/4.2/add_execution_history_<dialect>.sql.");
+        }
+
         // A container that does not do keyed services holds no per-scheduler store either, so asking it
         // would only be a way to throw.
         if (string.IsNullOrWhiteSpace(schedulerName) || serviceProvider is not IKeyedServiceProvider keyed)
@@ -770,6 +814,37 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         if (options.Value.ReadOnly)
         {
             throw new InvalidOperationException("Quartz dashboard is configured as read-only.");
+        }
+    }
+
+    /// <summary>
+    /// Refuses the operations that are a property of a process rather than of a schedule, for a window
+    /// onto an attached store.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A window is a scheduler this process built over somebody else's database and never started, so
+    /// starting it, standing it down, shutting it down or interrupting a job on it would all act on
+    /// <em>this</em> object and reach nobody: the nodes doing the work would not notice, and an
+    /// operator would believe a cluster had been stood down. The pages hide these for a window, and
+    /// this is what makes hiding them safe — the same argument <see cref="EnsureWritable" /> makes
+    /// about <see cref="QuartzDashboardOptions.ReadOnly" />.
+    /// </para>
+    /// <para>
+    /// Everything the <em>store</em> is stays available: pausing, resuming, rescheduling, triggering
+    /// now, adding and deleting are writes to the shared tables, and whichever node picks the work up
+    /// honours them.
+    /// </para>
+    /// </remarks>
+    private void EnsureNotAWindow(string schedulerName, string what)
+    {
+        if (attachedStores.IsWindow(schedulerName))
+        {
+            throw new NotSupportedException(
+                $"Cannot {what} through a window: '{schedulerName}' is read through the store attached to this "
+                + "dashboard, not run by this process, and nothing in a shared database carries an instruction to a "
+                + "node. Reach the node itself — an HTTP API target, or an agent — for anything that belongs to one "
+                + "process.");
         }
     }
 

@@ -88,6 +88,11 @@ internal static class QuartzServiceRegistration
         // start them, so the two are read together rather than by building everything registered.
         services.TryAddSingleton<ContainerSchedulerRegistry>();
 
+        // Which of those schedulers are windows onto somebody else's store rather than schedulers this
+        // process runs. Empty in every container that attached none, and registered unconditionally
+        // because the listing and the health check both ask it on paths that exist either way.
+        services.TryAddSingleton<SchedulerWindowRegistry>();
+
         // And the schedulers the container was never told about, added after it was built. One object
         // answers both interfaces because they are one question asked twice: a listing that omitted the
         // runtime tenants would be wrong, and a second registry to be merged with the first at every

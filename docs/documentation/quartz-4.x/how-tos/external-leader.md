@@ -161,6 +161,11 @@ is why that type is public. It creates no worker threads, and the two members a 
 throw `NotSupportedException`, so such a scheduler is never started and says so if something starts it.
 Such a process need not reference the assemblies its job classes live in: the store reads, edits, pauses,
 reschedules, triggers and deletes on the stored type name alone.
+
+This is also what the dashboard builds a *window* out of:
+[`AttachStore`](../packages/dashboard.md#store-attached-targets) discovers the schedulers in a database
+and creates one of these per name, so a cluster can be watched and its schedule changed without anything
+being asked of the nodes running it.
 :::
 
 The health check follows the same distinction. It reports *degraded* — not *unhealthy* — both while a
@@ -354,6 +359,8 @@ None of it corrupts a job or a trigger definition; all of it double-fires and mi
   check and the shutdown budget
 * [Embedding Quartz in a Library](embedding-quartz-in-a-library.md) — the other half of this, for a package
   that must fit into an application it does not own
+* [Dashboard — Store-attached targets](../packages/dashboard.md#store-attached-targets) — the never-started
+  scheduler over a shared store, with discovery and a UI over it
 * [Quartz.NET with Wolverine](wolverine.md#letting-wolverine-start-the-scheduler) — one concrete election: a bus's
   leader-pinned agent pressing start on the scheduler
 * [Configuration Reference](../configuration/reference.md#persistent-job-store) — every setting named here,

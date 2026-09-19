@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
 using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
@@ -886,7 +887,8 @@ public class InProcessQuartzApiClientTest
                 options,
                 new ExecutionHistoryStoreOverDashboardStore(TestData.Dashboard.HistoryStore()),
                 NoKeyedServices.Instance,
-                new SchedulerAuthorization(options, new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()));
+                new SchedulerAuthorization(options, new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()),
+                new AttachedStores(new SchedulerWindowRegistry()));
 
             List<SchedulerHeaderDto> schedulers = await client.GetSchedulers();
 
@@ -1221,7 +1223,10 @@ public class InProcessQuartzApiClientTest
             // out of it, which is exactly what AddQuartzDashboard wires up.
             new ExecutionHistoryStoreOverDashboardStore(historyStore),
             NoKeyedServices.Instance,
-            new SchedulerAuthorization(options, authorizationService, new TestAuthenticationStateProvider()));
+            new SchedulerAuthorization(options, authorizationService, new TestAuthenticationStateProvider()),
+
+            // No store attached, which is what every scheduler in these cases is: one of this process's.
+            new AttachedStores(new SchedulerWindowRegistry()));
     }
 
     /// <summary>

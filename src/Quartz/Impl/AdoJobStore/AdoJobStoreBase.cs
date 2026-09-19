@@ -127,6 +127,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         UseBackgroundThreads = options.UseBackgroundThreads;
         SchemaProvisioning = options.SchemaProvisioning;
         ExecutionHistory = options.ExecutionHistory;
+        ClusterObserver = options.ClusterObserver;
         SelectWithLockSql = options.SelectWithLockSql;
         CommandTimeout = options.CommandTimeout;
         LockWaitWarningThreshold = options.LockWaitWarningThreshold;
@@ -454,6 +455,12 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// <c>UseExecutionHistory()</c> puts to use.
     /// </summary>
     internal bool ExecutionHistory { get; }
+
+    /// <summary>
+    /// Whether this store watches a cluster it is not a member of, which is what a dashboard's
+    /// store-attached window is. See <c>AdoJobStoreOptions.ClusterObserver</c>.
+    /// </summary>
+    internal bool ClusterObserver { get; }
 
     public TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 

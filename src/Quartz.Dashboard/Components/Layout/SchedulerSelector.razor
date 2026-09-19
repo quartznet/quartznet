@@ -35,6 +35,12 @@
         @if (_schedulerStatus is { } status)
         {
             <Quartz.Dashboard.Components.Shared.SchedulerStatusIndicator Status="status" Large="true" />
+            @if (_nodeCount is { } nodes)
+            {
+                @* A window's status is the cluster's, so the count of nodes it was read from belongs
+                   beside it: "Running" alone does not say how much of the cluster is. *@
+                <span class="qz-muted">&nbsp;(@nodes @(nodes == 1 ? "node" : "nodes"))</span>
+            }
         }
         else
         {
@@ -55,18 +61,30 @@
     private SchedulerStatus? _schedulerStatus;
 
     /// <summary>
+    /// How many nodes a window's status was read from, or null for a scheduler of this process, whose
+    /// status is its own and whose node count is on the Cluster page.
+    /// </summary>
+    private int? _nodeCount;
+
+    /// <summary>
     /// What one entry of the picker reads: the scheduler's name, and what is true of it beyond that.
     /// </summary>
     private static string SchedulerLabel(Quartz.Dashboard.Services.SchedulerHeaderDto scheduler)
     {
         if (!scheduler.IsCreated)
         {
-            return scheduler.SchedulerName + " (not created)";
+            return scheduler.DisplayName + " (not created)";
         }
 
-        return scheduler.Origin == SchedulerOrigin.Remote
-            ? scheduler.SchedulerName + " (remote)"
-            : scheduler.SchedulerName;
+        return scheduler.Origin switch
+        {
+            SchedulerOrigin.Remote => scheduler.DisplayName + " (remote)",
+
+            // Already spelled target/name, so the word says what the spelling cannot: nothing here
+            // runs it, and what it can be asked to do follows from that.
+            SchedulerOrigin.Window => scheduler.DisplayName + " (window)",
+            _ => scheduler.DisplayName
+        };
     }
 
     protected override async Task OnInitializedAsync()
@@ -112,6 +130,8 @@
 
     private async Task UpdateStatusAsync()
     {
+        _nodeCount = null;
+
         if (SchedulerState.ActiveSchedulerName is null)
         {
             return;
@@ -141,11 +161,19 @@
                 await ApiClient.GetScheduler(SchedulerState.ActiveSchedulerName);
 
             _schedulerStatus = detail.Status;
+
+            // A window's status was derived from the cluster's check-ins, so the header says how many
+            // nodes are behind it. One extra read, and only for a window.
+            if (SchedulerState.Find(SchedulerState.ActiveSchedulerName) is { IsWindow: true })
+            {
+                _nodeCount = (await ApiClient.QueryClusterNodes(SchedulerState.ActiveSchedulerName)).Count;
+            }
         }
         catch
         {
             _statusLabel = "Unknown";
             _schedulerStatus = null;
+            _nodeCount = null;
         }
     }
 

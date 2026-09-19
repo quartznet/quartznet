@@ -361,7 +361,7 @@ internal abstract partial class AdoJobStoreBase
     /// <inheritdoc />
     public ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
     {
-        if (!Clustered)
+        if (!Clustered && !ClusterObserver)
         {
             // A store that is not clustered never runs the check-in loop, so SCHEDULER_STATE holds
             // nothing of this scheduler's — reading it would answer with another cluster's rows or with
@@ -401,7 +401,10 @@ internal abstract partial class AdoJobStoreBase
 
         foreach (SchedulerStateRecord record in states)
         {
-            bool isCurrentNode = string.Equals(record.SchedulerInstanceId, InstanceId, StringComparison.Ordinal);
+            // An observer is none of these nodes, whatever instance id it was given, so no row is ever
+            // "this node" for it.
+            bool isCurrentNode = !ClusterObserver
+                && string.Equals(record.SchedulerInstanceId, InstanceId, StringComparison.Ordinal);
             ClusterNode node = new(
                 record.SchedulerInstanceId,
                 record.CheckinTimestamp,
@@ -421,6 +424,14 @@ internal abstract partial class AdoJobStoreBase
 
         nodes.Sort(static (left, right) => string.CompareOrdinal(left.InstanceId, right.InstanceId));
 
+        // An observer is not a node of the cluster it is reading, so it is not in the listing: it writes
+        // no check-in row, and inventing one would report a node that does not exist and can run
+        // nothing. Every row read above is somebody else's and is listed as it stands.
+        if (ClusterObserver)
+        {
+            return nodes;
+        }
+
         // The current node is listed whether or not its row exists yet: it has not written one before its
         // first check-in, and another node may have swept it away, but it is demonstrably running.
         currentNode ??= new ClusterNode(InstanceId, LastCheckInUtc: null, CheckInInterval: null, ClusterNodeState.Alive, IsCurrentNode: true);
@@ -431,12 +442,33 @@ internal abstract partial class AdoJobStoreBase
 
     private ClusterNodeState ClassifyClusterNode(SchedulerStateRecord record, DateTimeOffset now)
     {
-        if (CalcFailedIfAfter(record) < now)
+        if (FailedIfAfter(record) < now)
         {
             return ClusterNodeState.Failed;
         }
 
         return record.CheckinTimestamp + record.CheckinInterval < now ? ClusterNodeState.Overdue : ClusterNodeState.Alive;
+    }
+
+    /// <summary>
+    /// When a node's silence becomes a conviction, judged as the cluster judges it — except for an
+    /// observer, which is not one of them.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CalcFailedIfAfter" /> widens the window by however long <em>this</em> node has been
+    /// out of touch with the database, so that a node coming back from an outage does not convict
+    /// peers it simply could not see. An observer has no check-in loop to have been out of: its
+    /// <c>LastCheckin</c> is stamped once, when its store is initialized, and never again — so that
+    /// term is the whole age of the process and would grow until no node could ever be convicted. A
+    /// dashboard that had been up an hour would show a node that died fifty minutes ago as merely
+    /// overdue, which is the false-alive reading a window exists to avoid. So an observer judges by
+    /// the row alone: the check-in it wrote, the interval it promised, and the threshold.
+    /// </remarks>
+    private DateTimeOffset FailedIfAfter(SchedulerStateRecord record)
+    {
+        return ClusterObserver
+            ? record.CheckinTimestamp + record.CheckinInterval + ClusterCheckinMisfireThreshold
+            : CalcFailedIfAfter(record);
     }
 
     /// <inheritdoc />

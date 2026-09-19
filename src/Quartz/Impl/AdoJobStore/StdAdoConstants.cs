@@ -533,6 +533,29 @@ internal static class StdAdoConstants
         Invariant($"SELECT {SchedulerStateSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
 
     /// <summary>
+    /// Every scheduler name this database holds anything under, whichever of the three ways a scheduler
+    /// leaves a trace: a check-in row, a trigger, or a job.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The only statement in this file that names no scheduler, because the question is which
+    /// schedulers there are. It is what an attached store is discovered with.
+    /// </para>
+    /// <para>
+    /// Three tables rather than one, because no one of them is enough: a scheduler that is not
+    /// clustered writes no check-in row, one whose jobs are all durable and unscheduled has no
+    /// triggers, and one that only ever ran volatile work has no job details either. <c>UNION</c>
+    /// rather than <c>UNION ALL</c> — it is what de-duplicates, so no <c>DISTINCT</c> is needed — and
+    /// no <c>ORDER BY</c>, because the dialects disagree about ordering a union and the caller sorts
+    /// a handful of strings for nothing.
+    /// </para>
+    /// </remarks>
+    public static readonly string SqlSelectSchedulerNames =
+        Invariant($"SELECT {AdoConstants.ColumnSchedulerName} FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState}")
+        + Invariant($" UNION SELECT {AdoConstants.ColumnSchedulerName} FROM {TablePrefixSubst}{AdoConstants.TableTriggers}")
+        + Invariant($" UNION SELECT {AdoConstants.ColumnSchedulerName} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails}");
+
+    /// <summary>
     /// Every column <c>SimpleTriggerPersistenceDelegate.ReadTriggerPropertyBundle</c> reads, and only
     /// those. Shared by the single-key and batch lookups so the two cannot drift apart.
     /// </summary>

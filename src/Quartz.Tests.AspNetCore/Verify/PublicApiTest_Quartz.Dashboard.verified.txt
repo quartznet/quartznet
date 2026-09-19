@@ -1,4 +1,34 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public sealed class AttachStoreOptions
+    {
+        public AttachStoreOptions() { }
+        public System.TimeSpan? RediscoveryInterval { get; set; }
+    }
+    public static class QuartzDashboardEndpointRouteBuilderExtensions
+    {
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder existingComponents) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, string pattern) { }
+    }
+    public sealed class QuartzDashboardOptions
+    {
+        public QuartzDashboardOptions() { }
+        public string? AuthorizationPolicy { get; set; }
+        public string DashboardPath { get; set; }
+        public int HistoryMaxEntriesPerScheduler { get; set; }
+        public System.TimeSpan HistoryRetention { get; set; }
+        public System.Func<string, bool>? IsJobTypeAllowed { get; set; }
+        public bool ReadOnly { get; set; }
+        public string? SchedulerAuthorizationPolicy { get; set; }
+        public Quartz.QuartzDashboardOptions AttachStore(string target, System.Action<Quartz.IPersistentStoreBuilder> store, System.Action<Quartz.AttachStoreOptions>? configure = null) { }
+    }
+    public static class QuartzDashboardServiceCollectionExtensions
+    {
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzDashboard(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzDashboardOptions>? configure = null) { }
+    }
+}
 namespace Quartz.Dashboard.Hubs
 {
     public interface IQuartzDashboardHubClient
@@ -344,11 +374,14 @@ namespace Quartz.Dashboard.Services
     public sealed record SchedulerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerHeaderDto>
     {
         public SchedulerHeaderDto(string SchedulerName, string? SchedulerInstanceId, Quartz.SchedulerStatus? Status, Quartz.SchedulerOrigin Origin) { }
+        public string DisplayName { get; }
         public bool IsCreated { get; }
+        public bool IsWindow { get; }
         public Quartz.SchedulerOrigin Origin { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
         public Quartz.SchedulerStatus? Status { get; init; }
+        public string? Target { get; init; }
     }
     public sealed record TriggerGroupDto : System.IEquatable<Quartz.Dashboard.Services.TriggerGroupDto>
     {
@@ -373,29 +406,5 @@ namespace Quartz.Dashboard.Services
         public TriggerKeyDto(string Group, string Name) { }
         public string Group { get; init; }
         public string Name { get; init; }
-    }
-}
-namespace Quartz
-{
-    public static class QuartzDashboardEndpointRouteBuilderExtensions
-    {
-        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
-        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder existingComponents) { }
-        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, string pattern) { }
-    }
-    public sealed class QuartzDashboardOptions
-    {
-        public QuartzDashboardOptions() { }
-        public string? AuthorizationPolicy { get; set; }
-        public string DashboardPath { get; set; }
-        public int HistoryMaxEntriesPerScheduler { get; set; }
-        public System.TimeSpan HistoryRetention { get; set; }
-        public System.Func<string, bool>? IsJobTypeAllowed { get; set; }
-        public bool ReadOnly { get; set; }
-        public string? SchedulerAuthorizationPolicy { get; set; }
-    }
-    public static class QuartzDashboardServiceCollectionExtensions
-    {
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzDashboard(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzDashboardOptions>? configure = null) { }
     }
 }

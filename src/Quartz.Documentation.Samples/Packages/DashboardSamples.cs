@@ -127,6 +127,45 @@ public static class DashboardSamples
         #endregion
     }
 
+    public static void AttachedStoreTarget(string[] args, string connectionString)
+    {
+        #region sample_dashboard_attach_store
+
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+        builder.Services.AddQuartz();
+
+        builder.Services.AddQuartzDashboard(options => options.AttachStore("prod", store =>
+        {
+            // The cluster's own store configuration, not an approximation of it: the window reads
+            // the blobs the nodes wrote, so the dialect, the table prefix, the serializer and any
+            // custom trigger serializers all have to be the ones they were written with.
+            store.UseSqlServer(connectionString);
+
+            // The nodes keep their history in the database, so the window can read it. Leave this
+            // out and the window's History page has nothing to show: an in-memory history is the
+            // process's own, and no node's process is this one.
+            store.UseExecutionHistory();
+        }));
+
+        #endregion
+    }
+
+    public static void AttachedStoreRediscovery(IServiceCollection services, string connectionString)
+    {
+        #region sample_dashboard_attach_store_rediscovery
+
+        services.AddQuartzDashboard(options => options.AttachStore(
+            "prod",
+            store => store.UsePostgres(connectionString),
+
+            // Every five minutes rather than every minute, for a database whose set of schedulers
+            // changes rarely. null asks once, at start-up, and never again.
+            attach => attach.RediscoveryInterval = TimeSpan.FromMinutes(5)));
+
+        #endregion
+    }
+
     public static void JobTypeAllowList(IServiceCollection services)
     {
         #region sample_dashboard_job_type_allow_list

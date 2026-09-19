@@ -50,5 +50,27 @@ public enum SchedulerOrigin
     /// listing — can tell that pausing a trigger here lands in somebody else's process, that its
     /// history is kept there, and that this process has no live event stream from it.
     /// </remarks>
-    Remote = 2
+    Remote = 2,
+
+    /// <summary>
+    /// A window onto a scheduler that lives in somebody else's process and is reached through the
+    /// database the two share: a never-started scheduler over that store, discovered by its
+    /// <c>SCHED_NAME</c> rather than registered by name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nothing in this process runs it and nothing ever will — its thread pool creates no threads and
+    /// it is never started — so its own <see cref="SchedulerStatus" /> says only that it was built.
+    /// What a reader is told instead is derived from the cluster's check-ins, which is the only
+    /// liveness a shared store carries.
+    /// </para>
+    /// <para>
+    /// The store is the contract, so everything the schedule <em>is</em> — jobs, triggers, calendars,
+    /// pausing, rescheduling, triggering now — works, and whichever node picks the work up honours it.
+    /// Everything that is a property of one process — starting, standing down, shutting down,
+    /// interrupting a running job, an execution limit held in memory — cannot be done from here at all.
+    /// <see cref="SchedulerRegistration.Target" /> says which attached store the window is onto.
+    /// </para>
+    /// </remarks>
+    Window = 3
 }
