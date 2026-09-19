@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The head-to-head harness: Quartz.NET against TickerQ and Hangfire on what a scheduler does.
+
+    It is deliberately NOT in Quartz.slnx. Compile, UnitTest, BenchmarkSmoke, ExamplesSmoke, the trim
+    canary and Sonar all walk the solution, so a project outside it is invisible to every one of them —
+    which is what lets this one reference two unsigned third-party schedulers and an EF Core stack
+    without any of that reaching a build the repository gates on. Build it by naming it:
+
+      dotnet build -c Release src/Quartz.Benchmark.Competitors/Quartz.Benchmark.Competitors.csproj
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- Necessary to run benchmarks on .NET 6.0+ -->
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
+    <AnalysisLevel>none</AnalysisLevel>
+    <!--
+      TickerQ's source generator emits a module initializer into this assembly and Hangfire's API is
+      largely expression trees over static methods, so the two libraries between them raise a handful of
+      analyzer and obsoletion warnings that say nothing about a measurement. The generated file is read
+      rather than suppressed — README.md quotes it.
+    -->
+    <NoWarn>$(NoWarn);CS1591;CA1050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+
+  <!--
+    The two schedulers under comparison, each with the storage the scenario needs. Versions are in the
+    repository's Directory.Packages.props under "Competitor benchmark rows", with a comment saying that
+    they ship nowhere.
+  -->
+  <ItemGroup Label="TickerQ">
+    <PackageReference Include="TickerQ" />
+    <PackageReference Include="TickerQ.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+
+  <ItemGroup Label="Hangfire">
+    <PackageReference Include="Hangfire.Core" />
+    <PackageReference Include="Hangfire.InMemory" />
+    <PackageReference Include="Hangfire.PostgreSql" />
+    <!--
+      Hangfire.Core 1.8.25 asks for Newtonsoft.Json 11.0.1, which carries GHSA-5crp-9r3c-p9vr, and this
+      project does not pin its transitive versions — so restore resolves 11.0.1 and NU1903 fails the
+      build. Named here at the repository's own version, which is where the advisory was already
+      answered. This is a restore fix, not a measurement choice: Hangfire serialises a job's arguments
+      through it, and the version it gets is the one a current application would give it.
+    -->
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+  <ItemGroup Label="Shared">
+    <!-- The PostgreSQL fixture creates the three schemas and counts commits at the database. -->
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Data.SQLite" />
+  </ItemGroup>
+
+  <!--
+    A ProjectReference rather than a PackageReference on Quartz, so that what is measured is the working
+    tree. A published package would measure whatever was last released, which is the thing every
+    comparison that goes stale does.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
+</Project>

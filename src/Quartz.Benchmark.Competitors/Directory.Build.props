@@ -1,0 +1,21 @@
+<Project>
+
+  <Import Project="..\..\Directory.Build.props" />
+
+  <PropertyGroup>
+    <!--
+      Same as Quartz.Benchmark: BenchmarkDotNet generates a project per job beside the built exe and
+      builds it, which the repository-wide artifacts layout puts somewhere it cannot find.
+    -->
+    <UseArtifactsOutput>false</UseArtifactsOutput>
+
+    <!--
+      TickerQ and Hangfire.PostgreSql ship unsigned assemblies, and a strong-named assembly referencing
+      one is CS8002 — a warning, which TreatWarningsAsErrors turns into a build failure. Nothing here
+      ships or is referenced by anything that does, so the signature buys nothing and costs the whole
+      comparison.
+    -->
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+
+</Project>
