@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using BenchmarkDotNet.Columns;
@@ -27,6 +29,39 @@ internal static class Program
     /// </summary>
     private static readonly string[] printOnlyOptions = ["--help", "--version", "--list", "--info"];
 
+    /// <summary>
+    /// The runs that are not BenchmarkDotNet, each a whole run rather than a modifier on one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Three of them loop one workload in this process with the harness out of the way, which is what a
+    /// sampling profiler wants to attach to: no process per case, no pilot deciding how many invocations
+    /// an iteration gets, and no measurement machinery in the stacks. They measure nothing themselves —
+    /// <c>ultra</c> or an EventPipe session does that from outside, and
+    /// <c>README.md</c> says how. The fourth measures something BenchmarkDotNet's model cannot express,
+    /// because the interval it reports begins on one thread and ends on another.
+    /// </para>
+    /// <para>
+    /// They are development tools and are outside every build target. Nothing in CI runs them, and the
+    /// numbers they produce belong in an issue or a pull request rather than in this file.
+    /// </para>
+    /// </remarks>
+    private static readonly (string Option, string Description, Action Run)[] developerRuns =
+    [
+        ("--profile-fire",
+            "Fires against RAMJobStore at MaxConcurrency 10 for about 25 seconds. Attach a profiler to this for the fire path.",
+            ProfileFire),
+        ("--profile-cron",
+            "Chains CronExpression.GetNextValidTimeAfter a hundred at a time for about 20 seconds. Attach a profiler to this for cron.",
+            ProfileCron),
+        ("--profile-schedule",
+            "Schedules into a started scheduler for about 20 seconds, clearing the store every 50,000. Attach a profiler to this for ScheduleJob.",
+            ProfileSchedule),
+        ("--latency",
+            "Schedules one job for now on an idle scheduler, 200 times, and prints the schedule-to-execute percentiles and where they go.",
+            LatencyProbe.Run),
+    ];
+
     private static int Main(string[] args)
     {
         bool smoke = args.Contains(SmokeOption, StringComparer.OrdinalIgnoreCase);
@@ -34,6 +69,28 @@ internal static class Program
         {
             Console.Error.WriteLine($"{SmokeOption} takes no other arguments: it is a whole run, not a modifier on one.");
             return 1;
+        }
+
+        if (args.Any(argument => "--help".Equals(argument, StringComparison.OrdinalIgnoreCase)))
+        {
+            PrintDeveloperRuns();
+        }
+
+        foreach ((string option, string _, Action run) in developerRuns)
+        {
+            if (!args.Contains(option, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (args.Length > 1)
+            {
+                Console.Error.WriteLine($"{option} takes no other arguments: it is a whole run, not a modifier on one.");
+                return 1;
+            }
+
+            run();
+            return 0;
         }
 
         // The filter is passed even in smoke mode, because a switcher given no selection at all asks the
@@ -143,6 +200,133 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Prints the runs that are ours rather than BenchmarkDotNet's, above the switcher's own help.
+    /// </summary>
+    private static void PrintDeveloperRuns()
+    {
+        Console.WriteLine("Runs of this assembly that are not BenchmarkDotNet. Each is a whole run and takes no other arguments:");
+        Console.WriteLine();
+        Console.WriteLine($"  {SmokeOption,-18}  Every benchmark executed once with nothing measured. What the BenchmarkSmoke target runs.");
+
+        foreach ((string option, string description, Action _) in developerRuns)
+        {
+            Console.WriteLine($"  {option,-18}  {description}");
+        }
+
+        Console.WriteLine();
+    }
+
+    /// <summary>
+    /// Fires against <c>RAMJobStore</c> at the shipped pool size until the time is up, which is the
+    /// workload <see cref="FireThroughputBenchmark" /> measures with the measuring taken out.
+    /// </summary>
+    private static void ProfileFire()
+    {
+        IScheduler scheduler = FireThroughput.StartScheduler(
+            instanceName: "ProfileFire",
+            maxConcurrency: 10,
+            configureStore: quartz => quartz.UseInMemoryStore()).GetAwaiter().GetResult();
+
+        try
+        {
+            LoopFires(TimeSpan.FromSeconds(25));
+        }
+        finally
+        {
+            FireThroughput.StopScheduler(scheduler).GetAwaiter().GetResult();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void LoopFires(TimeSpan duration)
+    {
+        long started = Stopwatch.GetTimestamp();
+        long fires = 0;
+
+        while (Stopwatch.GetElapsedTime(started) < duration)
+        {
+            FireThroughput.AwaitFires(FireThroughput.RamFiresPerInvocation);
+            fires += FireThroughput.RamFiresPerInvocation;
+        }
+
+        Report("firings", fires, Stopwatch.GetElapsedTime(started));
+    }
+
+    /// <summary>
+    /// Chains next-occurrence calls off each other until the time is up, which is
+    /// <see cref="CronExpressionComparisonBenchmark.Next100" /> with the measuring taken out.
+    /// </summary>
+    private static void ProfileCron()
+    {
+        CronExpressionComparisonBenchmark benchmark = new();
+        benchmark.GlobalSetup();
+
+        LoopCron(benchmark, TimeSpan.FromSeconds(20));
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void LoopCron(CronExpressionComparisonBenchmark benchmark, TimeSpan duration)
+    {
+        long started = Stopwatch.GetTimestamp();
+        long calls = 0;
+
+        while (Stopwatch.GetElapsedTime(started) < duration)
+        {
+            benchmark.Next100();
+            calls += 100;
+        }
+
+        Report("next-occurrence calls", calls, Stopwatch.GetElapsedTime(started));
+    }
+
+    /// <summary>
+    /// Schedules into a started scheduler until the time is up, clearing the store between invocations
+    /// exactly as <see cref="ScheduleJobBenchmark" /> does, so that what is profiled is the call rather
+    /// than a sorted set growing without bound.
+    /// </summary>
+    private static void ProfileSchedule()
+    {
+        ScheduleJobBenchmark benchmark = new();
+        benchmark.GlobalSetup();
+
+        try
+        {
+            LoopSchedules(benchmark, TimeSpan.FromSeconds(20));
+        }
+        finally
+        {
+            benchmark.GlobalCleanup();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void LoopSchedules(ScheduleJobBenchmark benchmark, TimeSpan duration)
+    {
+        long started = Stopwatch.GetTimestamp();
+        long schedules = 0;
+
+        while (Stopwatch.GetElapsedTime(started) < duration)
+        {
+            benchmark.IterationSetup();
+            benchmark.ScheduleJob_SimpleTrigger();
+            schedules += ScheduleJobBenchmark.SchedulesPerInvocation;
+        }
+
+        Report("schedules", schedules, Stopwatch.GetElapsedTime(started));
+    }
+
+    /// <summary>
+    /// What the loop got through, so that a capture can be checked against the rate the benchmark
+    /// reports rather than assumed to have measured the same thing.
+    /// </summary>
+    private static void Report(string unit, long operations, TimeSpan elapsed)
+    {
+        Console.WriteLine(string.Create(
+            CultureInfo.InvariantCulture,
+            $"{operations:N0} {unit} in {elapsed.TotalSeconds:F1} s — {operations / elapsed.TotalSeconds:N0}/s, {elapsed.TotalNanoseconds / operations:N0} ns each."));
     }
 
     /// <summary>
