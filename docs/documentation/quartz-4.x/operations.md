@@ -820,6 +820,40 @@ thousand triggers on four engines, and
 [the cluster-wide execution ceiling](tutorial/execution-groups.md#cluster-scoped-limits), which costs
 one aggregate per acquisition attempt.
 
+### Against other .NET schedulers
+
+Also on one machine in one sitting, and also in the benchmark README:
+[`src/Quartz.Benchmark.Competitors`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Benchmark.Competitors/README.md)
+runs Quartz, **TickerQ 10.4.0** and **Hangfire 1.8.25** over the same workloads with the same worker
+limit, and counts inside the executing job on every side. The summary:
+
+| | Quartz.NET | TickerQ 10.4.0 | Hangfire 1.8.25 |
+|--- |--- |--- |--- |
+| One execution, in memory | 3.9-5.5 µs / 3.5 KB | 8.7-10.3 µs / 4.9-5.4 KB | 14.9-17.1 µs / 24.4 KB |
+| One execution, PostgreSQL | 11.3-11.8 ms / 90 KB | 2.9-3.2 ms / 49 KB | 15.8 ms / 102 KB |
+| Statements per execution, PostgreSQL | 26.0 | 1.96 | 61.6 |
+| Schedule to execute on an idle node, p50 / p99 | 58-70 µs / 261-441 µs | 14.7 ms / 15.6-16.0 ms | 94-235 µs / 1.0-22.5 ms |
+| Writing one schedule | 7.7-7.9 µs / 3.5 KB | 1.1-1.3 µs / 562 B | 6.5-7.1 µs / 7.2 KB |
+
+The Quartz column is its **shipped defaults** rather than the batched settings the rows above use;
+batching moves the two PostgreSQL rows to 10.2-10.5 ms and 19.6 statements and leaves the rest where
+they are. The latency row is each library's own fastest route for "run this now" — `StartNow` for
+Quartz, a null `ExecutionTime` for TickerQ, `Enqueue` for Hangfire — and the benchmark README also
+carries the row where Hangfire goes through its scheduler instead, which is 30 ms.
+`MaxConcurrency` is ten on all three, which is Quartz's default and neither of the others':
+TickerQ's is `Environment.ProcessorCount` and Hangfire's is `ProcessorCount × 5`, so on this machine
+Hangfire would otherwise have had sixteen times the workers. Both of the others are given a faster
+poll than they ship with. Everything else is each library's own default.
+
+**Quartz starts an execution faster in memory, allocates less doing it, and is an order of magnitude
+quicker to get a job that is wanted now into a worker.** On a one-second recurring schedule at its
+defaults it was the only one of the three to put every one of six thousand firings inside fifty
+milliseconds of the second it was due. **It loses the database rows to TickerQ, and not narrowly** —
+3.5-4× on time and more than tenfold on statements — and it loses the schedule-writing row by six
+to eight times. Some of that is the workload: these rows schedule one-off jobs, which Quartz deletes
+as it completes them and TickerQ leaves in its table. The benchmark README carries the method, the
+settings each engine was given, what one firing does on each side, and both halves of the result.
+
 ### What has been run against a cluster
 
 Two clustered nodes sharing one scheduler name were run for **30 minutes

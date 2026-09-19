@@ -106,20 +106,39 @@ second and returns everything inside it. `Harness.EnsureNothingRanEarly` fails a
 gets through more than 1% of the batch before the window opens, rather than publishing the number it
 would have produced.
 
-**Two seconds of lead** (ten on PostgreSQL) puts the work above TickerQ's immediate-dispatch
+**Two seconds of lead** (twenty on PostgreSQL) puts the work above TickerQ's immediate-dispatch
 threshold, so all three arms go through their scheduler's own path. The short-circuit paths are
 measured too, in rows of their own: Hangfire's `Enqueue` in S1 and TickerQ's null `ExecutionTime` in
 S3.
 
-**The engine is rebuilt every iteration** in S1, S2 and S5, because each of these stores fills up.
-TickerQ keeps completed tickers and LINQ-scans every entry it holds on each poll; Hangfire's finished
-jobs leave state-history entries; Quartz's one-off triggers delete themselves but their job details
-do not. A second iteration against the first one's leftovers would be measuring the leftovers.
+**The engine is rebuilt every iteration** in S1, S2 and S5, because two of these stores fill up.
+TickerQ keeps every completed ticker and LINQ-scans everything it holds on each poll; Hangfire's
+finished jobs live until their expiry sweep. Quartz is the one that does not — completing a one-off
+trigger deletes it and, because the job detail has no other trigger and is not durable, deletes that
+too — but a second iteration against the other two's leftovers would be measuring the leftovers.
 
 **`[MemoryDiagnoser]` is on every class, and `Allocated` is process-wide.** BenchmarkDotNet reads
 `GC.GetTotalAllocatedBytes`, which counts every thread, so the column is what one execution costs the
 whole engine — polling loop, workers and all — rather than what one thread of it cost. It is also
 exact whatever else the machine is doing, which the `Mean` column on a working machine is not.
+
+**The counter is the job's first instruction, so a drain ends when the last job *starts*.** That is
+what makes the three comparable — no arm gets to count a queue write as an execution — and it means
+each engine's bookkeeping for that last execution is outside the window. Over twenty thousand
+executions that is a one-in-twenty-thousand effect and is ignored; over one census window it was not,
+and `--commits` keeps its counters running for three seconds past the last start so that the final
+completion write is inside the count.
+
+**Scheduling is not measured, so where a library has no batch API it is done concurrently.** Hangfire
+is the only one of the three without one, and two thousand sequential round trips to PostgreSQL took
+about sixteen seconds — longer than the lead time the harness needs. Eight at a time, in the
+iteration setup, outside every measured window.
+
+**On PostgreSQL the schema is emptied between iterations.** An in-memory engine gets a fresh store
+for free because a new engine builds a new one; a database does not, and Hangfire's succeeded jobs
+live until their expiry sweep while TickerQ keeps every completed ticker. S2 also runs five
+iterations rather than seven, because each one is two thousand round trips and the better part of a
+minute.
 
 ## What one firing does
 
@@ -198,9 +217,10 @@ Recorded rather than acted on.
   `TickerQInstanceFactory.g.cs`, which is CS1643. The counting job here returns `Task` for that
   reason.
 - **TickerQ's worker pool backs off up to 50 ms when idle.** `TickerQTaskScheduler`'s worker loop
-  does `await Task.Delay(Math.Min(consecutiveStealFailures * 2, 50))` after three consecutive failures
-  to steal work. On an idle engine every worker is inside that delay, so a work item dispatched by the
-  immediate path waits for one to come out — which is what S3's TickerQ row is made of.
+  does `await Task.Delay(Math.Min(consecutiveStealFailures * 2, 50))` once it has failed to find work
+  more than three times running. On an idle engine every worker is inside that delay, so a work item
+  dispatched by the immediate path waits for one to come out — which is what S3's TickerQ row is made
+  of.
 - **Quartz's fire-ahead window trades punctuality for batching, and S4 prices it.** A second of
   window lets a batch hold triggers due up to a second later, and they fire at the batch's earliest
   fire time — so the tuned profile's worst deviation on a one-second schedule is ~1,000 ms against the
@@ -223,6 +243,14 @@ Recorded rather than acted on.
 - **S4's Quartz rows use the default profile**, and the tuned profile is a third row rather than the
   setting the other two use. Measuring punctuality with a one-second fire-ahead window would have been
   measuring the window.
-- **S2's lead time is ten seconds rather than two.** Hangfire has no batch API for scheduling, so two
-  thousand round trips take longer than two seconds on this database, and
-  `Harness.EnsureScheduledBeforeDue` fails a run whose work fell due while it was still being written.
+- **S2's lead time is twenty seconds rather than two, and Hangfire's scheduling is concurrent.**
+  Hangfire has no batch API for creating jobs, so two thousand round trips took about sixteen seconds
+  sequentially, which `Harness.EnsureScheduledBeforeDue` fails a run over rather than tolerating; eight
+  at a time brings it well inside. Quartz's batch write of two thousand job details and two thousand
+  triggers tripped the same guard once at ten seconds, which is why the lead is twenty. Scheduling is
+  iteration setup and is outside every measured window.
+- **S2 runs five iterations rather than seven**, because each one is two thousand round trips to a
+  database and the better part of a minute.
+- **The numbers were taken on `89fbadcdc2`, and #3801's cron fast path landed after it.** That work is
+  on `CronExpression`'s parse and next-fire-time, so the S5 cron row and Quartz's S4 cron row are both
+  due a re-run on top of it. Nothing else in these tables touches cron.

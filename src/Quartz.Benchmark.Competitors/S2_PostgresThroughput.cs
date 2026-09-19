@@ -65,7 +65,14 @@ public class S2PostgresThroughputBenchmark
     /// <summary>
     /// How far out the work is due, which is also how long the scheduling has to finish in.
     /// </summary>
-    internal static readonly TimeSpan Lead = TimeSpan.FromSeconds(10);
+    /// <remarks>
+    /// Twenty seconds rather than the two the in-memory scenario uses, because two thousand schedules
+    /// against a database is seconds of writing on every arm and the guard fails a run whose work fell
+    /// due while it was still being written — which it did, once, for Quartz at ten. The lead is spent
+    /// in the iteration setup and is outside every measured window, so its only cost is how long a
+    /// sitting takes.
+    /// </remarks>
+    internal static readonly TimeSpan Lead = TimeSpan.FromSeconds(20);
 
     private IEngine engine = null!;
 
