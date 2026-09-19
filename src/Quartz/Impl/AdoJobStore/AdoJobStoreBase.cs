@@ -853,6 +853,28 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     }
 
     /// <summary>
+    /// For each table only an opt-in feature reads: the probe that asks whether it is there, beside
+    /// the migration that creates it and the call that turns that feature on.
+    /// </summary>
+    /// <remarks>
+    /// Written the way <see cref="MigratedColumnProbes" /> is, and for the same two reasons. The
+    /// statement is a constant carrying the table-prefix placeholder, built once from
+    /// <see cref="AdoConstants.OptionalTableNames" /> and substituted at the command site, so no
+    /// command text here is composed from anything but constants. And <c>WHERE 1 = 0</c> because what
+    /// is being asked is whether the name resolves, not what is under it.
+    /// </remarks>
+    private static readonly (string Table, string Migration, string Feature, string Probe)[] OptionalTableProbes =
+    [
+        .. AdoConstants.OptionalTableNames.Select(t =>
+        (
+            t.Table,
+            t.Migration,
+            t.Feature,
+            $"SELECT 1 FROM {StdAdoConstants.TablePrefixSubst}{t.Table} WHERE 1 = 0"
+        ))
+    ];
+
+    /// <summary>
     /// The schema check, plus the tables a feature that is off by default needs.
     /// </summary>
     /// <remarks>
@@ -881,7 +903,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             return objectCount;
         }
 
-        foreach ((string table, string migration, string feature) in AdoConstants.OptionalTableNames)
+        foreach ((string table, string migration, string feature, string probe) in OptionalTableProbes)
         {
             string targetTable = $"{TablePrefix}{table}";
 
@@ -891,7 +913,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
                 // statement takes no parameters, so it needs nothing the delegate does to a command.
                 using DbCommand cmd = conn.Connection.CreateCommand();
                 conn.Attach(cmd);
-                cmd.CommandText = $"SELECT 1 FROM {targetTable} WHERE 1 = 0";
+                cmd.CommandText = AdoJobStoreUtil.ReplaceTablePrefixCached(probe, TablePrefix);
 
                 if (CommandTimeout.HasValue)
                 {
