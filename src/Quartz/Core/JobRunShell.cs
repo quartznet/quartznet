@@ -94,7 +94,11 @@ internal sealed class JobRunShell
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask Run(CancellationToken cancellationToken = default)
     {
-        Context.CallerId.Value = Guid.NewGuid();
+        // The firing's identity, announced before anything it does can reach a job store: every lock
+        // this firing takes is taken under it, which is what lets a nested acquisition be recognised as
+        // the same caller's. The context it runs under is published on this same holder further down,
+        // once the job exists — one execution context copy for the firing rather than two (#3802).
+        AmbientJobExecution.Holder ambientHolder = AmbientJobExecution.Begin(Guid.NewGuid());
 
         // No scheduler logging scope is opened here, though this is where one would have to go for a
         // job's own log lines to name the scheduler that fired it. It was written, measured and taken
@@ -173,7 +177,7 @@ internal sealed class JobRunShell
             // execution context when it returns and would take the value with it (#1528). Everything
             // from the listener notifications below to the job factory being handed the job back
             // therefore reads it, and nothing outside this firing can.
-            ambient = AmbientJobExecution.Enter(context);
+            ambient = ambientHolder.Enter(context);
 
             IOperableTrigger trigger = (IOperableTrigger) context!.Trigger;
             do

@@ -748,7 +748,7 @@ internal abstract partial class AdoJobStoreBase
     {
         if (requestorId is null)
         {
-            requestorId = Core.Context.CallerId.Value;
+            requestorId = Core.AmbientJobExecution.CurrentCallerId;
             if (requestorId is null)
             {
                 requestorId = Guid.NewGuid();

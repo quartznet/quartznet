@@ -274,7 +274,11 @@ internal sealed class QuartzSchedulerThread
         Activity.Current = null;
 
         int acquiresFailed = 0;
-        Context.CallerId.Value = Guid.NewGuid();
+
+        // The identity this loop takes job-store locks under, for the lifetime of the loop. No
+        // execution context to publish: the loop is not a firing, so what it begins here is only the
+        // caller id.
+        _ = AmbientJobExecution.Begin(Guid.NewGuid());
 
         // Everything this loop logs names the scheduler it belongs to. An ILogger category is a type
         // name, so without this two tenants' acquisition failures, misfire reports and shutdown notices
