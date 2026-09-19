@@ -72,10 +72,17 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     private readonly IJobDetail jobDetail;
 
     /// <summary>
-    /// The merged map, published only once it is fully populated. Volatile because the fast path in
-    /// <see cref="MergedJobDataMap" /> reads it without taking <see cref="lazyInitLock" />.
+    /// The merged map, published only once it is fully populated, and published with an interlocked
+    /// compare-and-exchange so that the first writer wins and every reader sees that one map.
     /// </summary>
-    private volatile JobDataMap? jobDataMap;
+    /// <remarks>
+    /// Not <c>volatile</c>, because a volatile field cannot be passed to
+    /// <see cref="Interlocked.CompareExchange{T}(ref T, T, T)" /> as volatile; the reads below go
+    /// through <see cref="Volatile" />.<c>Read</c> instead, which is the same barrier. The lock the
+    /// two lazies used to share was an object per firing that the #3802 profile could see, for two
+    /// fields written at most once each.
+    /// </remarks>
+    private JobDataMap? jobDataMap;
 
     private readonly IScheduler scheduler;
 
@@ -83,13 +90,11 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     private TimeSpan? jobRunTime;
 
     /// <summary>
-    /// Volatile for the same reason as <see cref="jobDataMap" />: the fast path reads it outside the lock.
+    /// Published the same way as <see cref="jobDataMap" />, and for the same reason.
     /// </summary>
-    private volatile CancellationTokenSource? cancellationTokenSource;
+    private CancellationTokenSource? cancellationTokenSource;
 
     internal readonly IJob jobInstance;
-
-    private readonly Lock lazyInitLock = new();
 
     /// <summary>
     /// Create a JobExecutionContext with the given context data.
@@ -213,48 +218,41 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     {
         get
         {
-            JobDataMap? current = jobDataMap;
+            JobDataMap? current = Volatile.Read(ref jobDataMap);
             if (current is not null)
             {
                 return current;
             }
 
-            lock (lazyInitLock)
+            // Merge into a local and publish the reference only once it is fully populated: the fast
+            // path above reads the field without synchronising, so a reference stored first and filled
+            // afterwards would let a racing reader see a half-built map.
+            // Read without creating either source map: both belong to copies made for this firing,
+            // and a map created to be found empty is three objects nobody reads (#3802).
+            JobDataMap? jobMap = JobDataMaps.OrNull(jobDetail);
+            JobDataMap? triggerMap = JobDataMaps.OrNull(trigger);
+
+            JobDataMap merged = new JobDataMap((jobMap?.Count ?? 0) + (triggerMap?.Count ?? 0));
+            if (jobMap is not null)
             {
-                current = jobDataMap;
-                if (current is not null)
+                foreach (var pair in jobMap)
                 {
-                    return current;
+                    merged[pair.Key] = pair.Value;
                 }
-
-                // Merge into a local and publish the reference only once it is fully populated: the
-                // fast path above reads the field without the lock, so a reference stored first and
-                // filled afterwards would let a racing reader see a half-built map.
-                // Read without creating either source map: both belong to copies made for this firing,
-                // and a map created to be found empty is three objects nobody reads (#3802).
-                JobDataMap? jobMap = JobDataMaps.OrNull(jobDetail);
-                JobDataMap? triggerMap = JobDataMaps.OrNull(trigger);
-
-                JobDataMap merged = new JobDataMap((jobMap?.Count ?? 0) + (triggerMap?.Count ?? 0));
-                if (jobMap is not null)
-                {
-                    foreach (var pair in jobMap)
-                    {
-                        merged[pair.Key] = pair.Value;
-                    }
-                }
-
-                if (triggerMap is not null)
-                {
-                    foreach (var pair in triggerMap)
-                    {
-                        merged[pair.Key] = pair.Value;
-                    }
-                }
-
-                jobDataMap = merged;
-                return merged;
             }
+
+            if (triggerMap is not null)
+            {
+                foreach (var pair in triggerMap)
+                {
+                    merged[pair.Key] = pair.Value;
+                }
+            }
+
+            // The first writer wins and a loser drops the copy it built rather than publishing a
+            // second one, so every reader of this context still sees one map - which is what makes a
+            // value a middleware puts into it visible to the job and to the listeners.
+            return Interlocked.CompareExchange(ref jobDataMap, merged, null) ?? merged;
         }
     }
 
@@ -391,16 +389,24 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     {
         get
         {
-            CancellationTokenSource? current = cancellationTokenSource;
+            CancellationTokenSource? current = Volatile.Read(ref cancellationTokenSource);
             if (current is not null)
             {
                 return current;
             }
 
-            lock (lazyInitLock)
+            CancellationTokenSource created = new();
+            CancellationTokenSource? published = Interlocked.CompareExchange(ref cancellationTokenSource, created, null);
+            if (published is null)
             {
-                return cancellationTokenSource ??= new CancellationTokenSource();
+                return created;
             }
+
+            // A loser of the race built a source nobody was handed a token from. Released here rather
+            // than left to the garbage collector, so that exactly one source per context is ever live
+            // - which is what Dispose below assumes.
+            created.Dispose();
+            return published;
         }
     }
 
