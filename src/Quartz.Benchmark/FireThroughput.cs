@@ -48,7 +48,7 @@ internal static class FireThroughput
     /// </summary>
     public const int AdoFiresPerInvocation = 250;
 
-    /// <summary>How many triggers are in flight, spread over <see cref="JobCount" /> jobs.</summary>
+    /// <summary>How many triggers are in flight, spread over <see cref="DefaultJobCount" /> jobs.</summary>
     /// <remarks>
     /// A schedule is triggers over a handful of jobs rather than one trigger each, and the store reads
     /// the job on every firing either way. The count is what decides the ceiling: a trigger that
@@ -59,7 +59,12 @@ internal static class FireThroughput
     /// </remarks>
     private const int TriggerCount = 2_000;
 
-    private const int JobCount = 100;
+    /// <summary>
+    /// How many jobs the triggers are spread over by default. A hundred is a schedule of ordinary
+    /// shape; one is the shape the one-off API produces - a durable job per job type and a trigger per
+    /// call - which #3823 found the store was quadratic in.
+    /// </summary>
+    public const int DefaultJobCount = 100;
 
     /// <summary>
     /// How far each firing advances its trigger, and the smallest interval a persistent store can
@@ -169,10 +174,15 @@ internal static class FireThroughput
     /// two cannot be varied independently and the batch tracks the pool.
     /// </param>
     /// <param name="configureStore">Selects the job store; everything else is the same on both arms.</param>
+    /// <param name="jobCount">
+    /// How many jobs the <see cref="TriggerCount" /> triggers are spread over. One is the one-off API's
+    /// shape and the arrangement #3823 is about; the default is a hundred.
+    /// </param>
     public static async Task<IScheduler> StartScheduler(
         string instanceName,
         int maxConcurrency,
-        Action<IQuartzBuilder> configureStore)
+        Action<IQuartzBuilder> configureStore,
+        int jobCount = DefaultJobCount)
     {
         QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(quartz =>
         {
@@ -195,13 +205,13 @@ internal static class FireThroughput
         IScheduler scheduler = await builder.BuildScheduler().ConfigureAwait(false);
 
         Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> schedule = [];
-        for (int i = 0; i < JobCount; i++)
+        for (int i = 0; i < jobCount; i++)
         {
             IJobDetail job = JobBuilder.Create<NoOpJob>()
                 .WithIdentity("job-" + i.ToString(CultureInfo.InvariantCulture), Group)
                 .Build();
 
-            int triggersForThisJob = TriggerCount / JobCount;
+            int triggersForThisJob = TriggerCount / jobCount;
             ITrigger[] triggers = new ITrigger[triggersForThisJob];
             for (int j = 0; j < triggersForThisJob; j++)
             {

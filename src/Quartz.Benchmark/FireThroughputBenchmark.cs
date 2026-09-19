@@ -40,6 +40,18 @@ public class FireThroughputBenchmark
     [Params(10, 50)]
     public int MaxConcurrency { get; set; }
 
+    /// <summary>
+    /// How many jobs the two thousand triggers are spread over.
+    /// </summary>
+    /// <remarks>
+    /// A hundred is a schedule of ordinary shape. One is what the one-off API produces - a durable job
+    /// per job type and a trigger per call - which is the arrangement #3823 found the store quadratic
+    /// in, and the row this benchmark exists to keep honest: firing a trigger must not cost more
+    /// because the job behind it has others.
+    /// </remarks>
+    [Params(FireThroughput.DefaultJobCount, 1)]
+    public int JobCount { get; set; }
+
     private IScheduler scheduler = null!;
 
     /// <summary>Starts the scheduler and gets it firing before anything is measured.</summary>
@@ -49,7 +61,8 @@ public class FireThroughputBenchmark
         scheduler = await FireThroughput.StartScheduler(
             instanceName: "RamThroughputBenchmark",
             maxConcurrency: MaxConcurrency,
-            configureStore: quartz => quartz.UseInMemoryStore()).ConfigureAwait(false);
+            configureStore: quartz => quartz.UseInMemoryStore(),
+            jobCount: JobCount).ConfigureAwait(false);
     }
 
     /// <summary>Stops the scheduler this case has been running throughout.</summary>
