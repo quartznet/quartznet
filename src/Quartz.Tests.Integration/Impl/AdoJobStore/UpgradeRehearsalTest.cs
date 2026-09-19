@@ -54,6 +54,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// because every Quartz table is keyed by <c>SCHED_NAME</c> and two schedulers share a schema
 /// happily), run both halves of <c>database/migrations/4.0/</c> over it — the mandatory
 /// <c>schema_30_to_40_upgrade_&lt;dialect&gt;.sql</c> and then <c>schema_30_to_40_indexes_…</c> —
+/// followed by every migration since —
 /// assert the structural equivalence <see cref="MigrationScriptTest" /> already asserts, and only then
 /// start a 4.0 scheduler and check every seeded row against the manifest the seeder wrote.
 /// </para>
@@ -166,13 +167,19 @@ public class UpgradeRehearsalTest
             manifests.Add(await SeedAsync(dialect, connectionString, serializer));
         }
 
-        // Both halves of the upgrade, in the order an operator runs them: the mandatory one while the
-        // 3.x nodes are still up, and the index set once the last of them has gone.
+        // Both halves of the 4.0 upgrade, in the order an operator runs them: the mandatory one while
+        // the 3.x nodes are still up, and the index set once the last of them has gone. Then every
+        // migration since, because what the comparison below is against is a fresh install of the
+        // current schema — a rehearsal that stopped at 4.0 would be rehearsing an upgrade to a
+        // release nobody is on.
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_upgrade", dialect, RehearsalPrefix), dialect);
 
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_indexes", dialect, RehearsalPrefix), dialect);
+
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.2", "add_continuations", dialect, RehearsalPrefix), dialect);
 
         await MigrationScriptTest.AssertSchemaMatchesAsync(connection, dialect, RehearsalPrefix);
 
