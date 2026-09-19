@@ -100,6 +100,42 @@ attempts puts the trigger back on its ordinary schedule rather than into an erro
 [Retrying Failed Jobs](../how-tos/retrying-failed-jobs.md) for the whole of it — including why
 `RefireImmediately` is not a zero-delay retry.
 
+## Continuations
+
+A trigger's start time need not be a *time*. `StartAfter` makes it another trigger's firing: the trigger is
+stored in `TriggerState.Awaiting`, nothing acquires it, and the parent's completion either releases it into
+the ordinary schedule or discards it — depending on how that firing ended.
+
+<!-- snippet: sample_continuations_tutorial -->
+```csharp
+public sealed class TutorialContinuation
+{
+    public async ValueTask Schedule(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        // The trigger is ordinary in every way except when it fires: it is stored in
+        // TriggerState.Awaiting, nothing acquires it, and the import's completion settles it.
+        ITrigger reconcile = TriggerBuilder.Create<ReconcileJob>(scheduler.TimeProvider)
+            .WithIdentity("reconcile", "nightly")
+            .ForJob("reconcile", "nightly")
+            .StartAfter(new TriggerKey("import", "nightly"), ContinuationCondition.OnSuccess)
+            .Build();
+
+        await scheduler.ScheduleJob(reconcile, cancellationToken: cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+The condition is flags — `OnSuccess`, `OnFailure`, `OnCancellation`, `OnVeto`, or `OnAnyOutcome` for all
+four — and it composes with the trigger's schedule rather than replacing it, so `StartAfter` plus
+`WithCronSchedule` is "start this cron once the import has finished". The wait is held by the store, so it
+survives a restart and the node that scheduled it need not be the node that settles it.
+
+A continuation settles **once**. For a recurring conditional chain — "run the cleanup whenever the nightly
+job fails" — the answer is `JobChainingJobListener` instead. See
+[Job Continuations](../how-tos/job-continuations.md) for the whole of it, including what a deleted parent
+does and why a retry settles nothing.
+
 ## Execution Groups
 
 Triggers can optionally be assigned an **execution group** -- a tag that characterizes the resource

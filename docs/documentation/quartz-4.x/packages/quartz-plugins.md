@@ -245,6 +245,7 @@ trigger kinds — `simple`, `cron` and `calendar-interval` — and it will not g
 | a trigger in an [execution group](../tutorial/execution-groups.md) | `<execution-group>` | `ExecutionGroup` |
 | a trigger with a [retry policy](../how-tos/retrying-failed-jobs.md) | `<retry-policy>` | `RetryPolicy` |
 | a trigger with a [preferred node](../tutorial/node-affinity.md) | `<preferred-node>` | `PreferredNode` |
+| a trigger waiting for another trigger's firing — a [continuation](../how-tos/job-continuations.md) | `<continues-after>`, `<continuation-condition>` | `ContinuesAfter`, `ContinuationCondition` |
 
 This is a decision, not a backlog. A trigger *kind* is a schedule shape with a parser, a misfire
 vocabulary and a schema branch of its own; two formats that both grow trigger kinds means two of each
@@ -253,14 +254,15 @@ unchanged. So it keeps loading them: **XML scheduling is not deprecated and is n
 A `quartz_jobs.xml` that worked on 3.x works here. Write a new schedule that needs a fourth kind as
 JSON, and move an XML one when it needs a shape the schema above cannot spell.
 
-The bottom three rows are the exception that proves where the line is. An execution group, a retry
-policy and a preferred node are not schedule shapes — each is one optional string on a trigger that
-already exists, so each is one optional element, and the last of them is the reason: pinning a trigger
-to a cluster node is exactly the sort of thing a deployment states in its own file. They were added in
-4.1 as optional elements between `<calendar-name>` and `<job-data-map>`, so the schema keeps its `2.0`
-version and its `http://quartznet.sourceforge.net/JobSchedulingData` namespace — an additive optional
-element does not change what a reader has to understand — and a file written before they existed
-validates and means exactly what it meant:
+The bottom four rows are the exception that proves where the line is. An execution group, a retry
+policy, a preferred node and a continuation are not schedule shapes — each is a *setting* on a trigger
+that already exists, so each is one optional element, and the preferred node is the clearest reason:
+pinning a trigger to a cluster node is exactly the sort of thing a deployment states in its own file.
+The first three were added in 4.1 and the continuation in 4.2, all as optional elements between
+`<calendar-name>` and `<job-data-map>`, so the schema keeps its `2.0` version and its
+`http://quartznet.sourceforge.net/JobSchedulingData` namespace — an additive optional element does not
+change what a reader has to understand — and a file written before they existed validates and means
+exactly what it meant:
 
 ```xml
 <trigger>
@@ -271,15 +273,28 @@ validates and means exactly what it meant:
     <execution-group>batch</execution-group>
     <retry-policy>fixed;3;00:00:30</retry-policy>
     <preferred-node>production-node-1</preferred-node>
+    <continues-after>
+      <name>import</name>
+      <group>nightly</group>
+    </continues-after>
+    <continuation-condition>OnFailure|OnCancellation</continuation-condition>
     <cron-expression>0 0 2 * * ?</cron-expression>
   </cron>
 </trigger>
 ```
 
 The order matters, as it does for every element in an XML scheduling file: the schema is a sequence, so
-the three go where they are shown above. `<preferred-node>` takes a scheduler instance id or `*` for
+the five go where they are shown above. `<preferred-node>` takes a scheduler instance id or `*` for
 [an automatic pin](../tutorial/node-affinity.md#auto-pin-mode); `<retry-policy>` takes the policy's
 stored form. A value that cannot be read is refused as the file is read, naming the trigger.
+
+`<continues-after>` names a trigger the way `<delete-trigger>` does — a `<name>` and an optional
+`<group>`, defaulting to `DEFAULT` — and the trigger declared with it is stored
+[waiting](../how-tos/job-continuations.md) for that trigger's next firing rather than scheduled.
+`<continuation-condition>` names the outcomes that release the wait, joined with `|`, and defaults to
+`OnSuccess`. The parent is **named, never resolved**, so it may be declared later in the same file or be
+in the store already; an outcome that is not one, and a condition with no `<continues-after>` beside it,
+are refused as the file is read.
 
 ### JobInterruptMonitorPlugin — retired
 

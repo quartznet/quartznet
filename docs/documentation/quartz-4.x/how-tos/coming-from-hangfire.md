@@ -51,7 +51,7 @@ a constructor-injected service, a `JobDataMap` entry, or the typed input of `IJo
 | `BackgroundJob.Delete(jobId)` | `scheduler.UnscheduleJob(triggerKey)` | the `TriggerKey` on the returned `ScheduledOneOffJob` is the handle |
 | `BackgroundJob.Requeue(jobId)` | `scheduler.TriggerJob(jobKey)`, optionally with a `JobDataMap` | fires the job again now; there is no failed record to put back on a queue |
 | `BackgroundJob.Reschedule(jobId, …)` | `scheduler.RescheduleJob(triggerKey, newTrigger)` | |
-| `BackgroundJob.ContinueJobWith(parentId, …)` | `JobChainingJobListener` | **the follow-up runs whatever the parent did**, including throwing. See [Continuations](#continuations-are-the-weakest-mapping) |
+| `BackgroundJob.ContinueJobWith(parentId, …)` | `.StartAfter(parentTriggerKey, condition)` on the follow-up's trigger | the parent is a *trigger's firing* rather than a job id, and the conditions are not the same set. See [Continuations](#continuations) |
 | `RecurringJob.AddOrUpdate(id, () => …, cron)` | `q.AddJob<T>(…)` + `q.AddTrigger<T>(t => t.WithCronSchedule(…))` | six cron fields, not five, and the default time zone differs |
 | `RecurringJob.RemoveIfExists(id)` | `scheduler.DeleteJob(jobKey)`, or `UnscheduleJob` to keep the job | |
 | `RecurringJob.TriggerJob(id)` | `scheduler.TriggerJob(jobKey)` | |
@@ -271,17 +271,27 @@ The rest of what a retry does and does not do — that it never displaces the tr
 occurrence, that running out of attempts is not an error, that it burns no repeat count — is
 [Retrying Failed Jobs](retrying-failed-jobs.md).
 
-### Continuations are the weakest mapping
+### Continuations
 
 `ContinueJobWith` takes a `JobContinuationOptions` and settles on the parent's final state;
-`OnlyOnSucceededState` is the default. Quartz's `JobChainingJobListener` has no equivalent of that: it
-triggers the follow-up when the parent completes, **and a parent that threw has completed**. The links
-also live in memory with the listener rather than in the store, so they are re-registered on every
-start and the follow-up runs on whichever node ran the parent.
+`OnlyOnSucceededState` is the default. Quartz's answer is
+[a continuation](job-continuations.md): a trigger carrying `StartAfter(parentTriggerKey, condition)`,
+held by the **store** in `TriggerState.Awaiting` and settled by the parent's completion inside the
+parent's own transaction. `OnSuccess` is the default here too.
 
-If the chain must not run after a failure, check inside the follow-up job, or schedule it from the end
-of the parent rather than from a listener. Store-owned continuations that settle on the outcome are
-[#3805](https://github.com/quartznet/quartznet/issues/3805), scheduled for 4.2.
+Two differences are worth knowing before porting one:
+
+* **The parent is a trigger, not a job.** Hangfire continues a job id; a continuation waits for one
+  *firing*, and the `TriggerKey` the one-call overloads answer with is the handle. A job fired by
+  several triggers therefore says which of them it is waiting for.
+* **The conditions are not the same set.** `OnSuccess`, `OnFailure`, `OnCancellation` and `OnVeto` are
+  flags, so `OnFailure | OnCancellation` needs no member of its own; there is nothing corresponding to
+  `OnlyOnDeletedState`, because Quartz keeps no job record to delete.
+
+`JobChainingJobListener` is still there, and is still what a *recurring* conditional chain is: a
+continuation settles once, where a link fires on every completion. It takes the same conditions now.
+The links live in memory with the listener rather than in the store, so they are re-registered on every
+start and the follow-up runs on whichever node ran the parent.
 
 ### Job expiration is not history retention
 

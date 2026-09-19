@@ -252,6 +252,19 @@ pagination, each row a link to a detail page.
 - **Calendars** lists the calendars by name; the detail page shows one, and outside read-only mode a
   cron calendar can be created, replaced or deleted.
 
+### Continuations
+
+A [continuation](../how-tos/job-continuations.md) is a trigger waiting for another trigger's firing, and
+it is the one thing in a listing that is deliberately not going to fire. The trigger listing therefore
+has an **Awaiting only** filter beside *Error only* and *Executing only*, waiting has a colour of its own
+in the state column, and each waiting row names the trigger it is waiting for — with the outcomes that
+release it on hover.
+
+The trigger's detail page spells both out: **Continues after**, as a link to the parent's own page, and
+**When**. A parent somebody has removed is named without a link and marked *no longer scheduled*; that
+trigger is parked in `ERROR`, and *reset error state* on it is what runs it, because a reset gives it the
+fire time a release would have given it.
+
 ### Currently Executing
 
 `/quartz/executing` — one row per firing: job, trigger, node, execution group, fire time and run time. It is the fire-instance
