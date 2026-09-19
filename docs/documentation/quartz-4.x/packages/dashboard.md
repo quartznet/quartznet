@@ -6,8 +6,8 @@ title: Dashboard
 
 ## Features
 
-Ten pages, listed under [The pages](#the-pages). What they are built on, which is what decides where
-the dashboard fits:
+Thirteen pages, listed under [The pages](#the-pages). What they are built on, which is what decides
+where the dashboard fits:
 
 - **It reads the schedulers registered in its own container**, through the `IQuartzApiClient` in it.
   Usually that means the schedulers this process runs, and there is nothing to configure. A scheduler
@@ -178,11 +178,25 @@ when your source can answer.
 
 ## The pages
 
-Ten of them, all served under `{DashboardPath}` — `/quartz` unless you said otherwise. Every one of
-them renders the scheduler the header's picker has selected, so switching schedulers keeps you on the
-page you were reading.
+Thirteen of them, all served under `{DashboardPath}` — `/quartz` unless you said otherwise. Every one
+of them renders the scheduler the header's picker has selected, so switching schedulers keeps you on
+the page you were reading.
 
-This section says what each page shows. What the numbers on them *mean* for a cluster in trouble is
+| Page | Route |
+|---|---|
+| Overview | `/quartz` |
+| Jobs, and one job | `/quartz/jobs`, `/quartz/jobs/{Group}/{Name}` |
+| Triggers, and one trigger | `/quartz/triggers`, `/quartz/triggers/{Group}/{Name}` |
+| Calendars, and one calendar | `/quartz/calendars`, `/quartz/calendars/{CalendarName}` |
+| Currently Executing | `/quartz/executing` |
+| Schedulers | `/quartz/schedulers` |
+| Cluster | `/quartz/cluster` |
+| Execution History | `/quartz/history` |
+| Live Logs | `/quartz/live` |
+| Action Log | `/quartz/actions` |
+
+The three detail pages are reached from their listing, so the sections below describe each listing and
+its detail together. What the numbers on them *mean* for a cluster in trouble is
 [Operating a Cluster](../operations.md), which these pages link into rather than restate.
 
 ### Overview

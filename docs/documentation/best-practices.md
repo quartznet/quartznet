@@ -182,18 +182,6 @@ catch (HttpRequestException ex) when (context.RefireCount < 3)
 On Quartz 3.x the flag is a constructor argument rather than an init-only property:
 `throw new JobExecutionException(ex, refireImmediately: true)`.
 
-This is where Quartz differs most sharply from its neighbours, and the difference is worth stating
-rather than papering over. Hangfire applies an `AutomaticRetryAttribute` to every job by default —
-ten attempts with an increasing, jittered delay spanning about three hours, then a durable `Failed`
-state with a dashboard to inspect and re-queue it. Sidekiq does much the same. **Quartz.NET has no
-retry policy at all**: there is immediate refire, and there is the next scheduled occurrence, and
-nothing in between. So a job that wants delayed retry has to build it, and the way to build it is
-not a `Task.Delay` inside the job — that holds a worker for the whole backoff. Store a one-off
-trigger for a few minutes' time and return, or let the next scheduled occurrence pick the work back
-up because the work is described by its inputs rather than by having been attempted.
-[Rescheduling Jobs](/documentation/quartz-4.x/how-tos/rescheduling-jobs#retrying-inside-the-job) has
-both shapes written out ([3.x](/documentation/quartz-3.x/how-tos/rescheduling-jobs)).
-
 Two more instructions are available on the same exception, and both are drastic:
 `UnscheduleFiringTrigger` removes the trigger that fired, and `UnscheduleAllTriggers` removes every
 trigger for the job. `RefireImmediately` wins over both if set.
@@ -201,6 +189,56 @@ trigger for the job. `RefireImmediately` wins over both if set.
 A job that unwinds because its cancellation token fired is **not** treated as a failure: the
 scheduler logs it at information level and completes the firing. That is what makes cooperative
 cancellation safe to use.
+
+### Give the trigger a retry policy
+
+A refire is not the retry most jobs want, and since 4.0 it is not the only one on offer. **Quartz 4.x
+puts a retry policy on the trigger; 3.x has none.** That is the largest behavioural difference between
+the two lines, and it is worth stating rather than papering over.
+
+On 4.x a trigger carries a `RetryPolicy` — `Fixed`, `Exponential` or `Explicit`, and those three
+factories are the only ways to make one — and a job that throws is re-fired at the stated waits with
+nothing to opt into:
+
+<!-- snippet: sample_best_practices_retry_policy -->
+```csharp
+services.AddQuartz(q =>
+{
+    q.AddJob<PublishReportJob>(j => j.WithIdentity("report", "nightly"));
+    q.AddTrigger<PublishReportJob>(t => t
+        .ForJob("report", "nightly")
+        .WithCronSchedule("0 0 2 * * ?")
+        // 30s, 1m, 2m, 4m, 8m — never longer than ten minutes, and never past the trigger's
+        // own next occurrence.
+        .WithRetryPolicy(RetryPolicy.Exponential(
+            maxAttempts: 5,
+            initialDelay: TimeSpan.FromSeconds(30),
+            factor: 2,
+            maxDelay: TimeSpan.FromMinutes(10))));
+});
+```
+<!-- endSnippet -->
+
+A retry is a fresh firing of the same occurrence at a later instant: it is written to the job store, it
+survives a restart, every node in the cluster sees it, `IJobExecutionContext.RetryAttempt` counts it,
+and `ScheduledFireTimeUtc` still reports the occurrence the schedule called for rather than the instant
+the retry ran. **It is not `RefireImmediately` with a delay** — that loop runs in process, persists
+nothing and never releases the execution slot, and the two counters move independently.
+
+Three rules decide whether a policy does anything at all. A retry that would land at, or within a second
+of, the trigger's next scheduled occurrence is dropped and the occurrence wins — so a policy whose waits
+are longer than the gap between occurrences quietly does nothing. Running out of attempts is not an
+error: the trigger goes back to its ordinary schedule rather than into `TriggerState.Error`. And a retry
+burns nothing — no `SimpleTrigger` repeat count, no recurrence `COUNT`, no `TimesTriggered`.
+[Retrying Failed Jobs](/documentation/quartz-4.x/how-tos/retrying-failed-jobs) is the whole of it.
+
+**On 3.x there is immediate refire, there is the next scheduled occurrence, and there is nothing in
+between.** A job that wants delayed retry there has to build it, and the way to build it is not a
+`Task.Delay` inside the job — that holds a worker for the whole backoff. Store a one-off trigger for a
+few minutes' time and return, or let the next scheduled occurrence pick the work back up because the
+work is described by its inputs rather than by having been attempted.
+[Rescheduling Jobs](/documentation/quartz-4.x/how-tos/rescheduling-jobs#retrying-inside-the-job) has
+both shapes written out ([3.x](/documentation/quartz-3.x/how-tos/rescheduling-jobs)).
 
 ### Keep job data small, string-safe and free of secrets
 

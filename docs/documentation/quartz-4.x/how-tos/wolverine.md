@@ -84,35 +84,19 @@ it still ships `MassTransit.Quartz` — before growing a cron parser of its own 
 purpose: a cron expression deciding *when* an occurrence is published, over the delivery, durability
 and replay it already had.
 
-Here is the whole of it side by side. Nothing in the right-hand column is a criticism of the left: a
-bus that grew a cron did not set out to grow a scheduler, and several of these rows are decisions
-Wolverine's feature declines to make on purpose.
+The whole of it side by side — cron grammar, time zones, missed occurrences, calendars, where the
+schedule lives, pausing, node ownership, deduplication, payloads, failure and durability — is
+[Comparison](../comparison.md), which puts Hangfire, TickerQ and Coravel in the same tables and cites
+each project's own source. Nothing in the Quartz column there is a criticism of Wolverine's feature: a
+bus that grew a cron did not set out to grow a scheduler, and several of those rows are decisions it
+declines to make on purpose.
 
-| | Wolverine `opts.Schedules` | A Quartz trigger |
-|---|---|---|
-| Cron grammar | Cronos: five fields, or six with a leading seconds field | Quartz: six fields, or seven with a trailing year, plus `L`, `W`, `#`, `H` hashing, wrapping ranges and a five-field [`CronFormat.Unix`](../cron-expressions.md) mode |
-| Time zone | per schedule; UTC unless one is supplied | per trigger, with `InTimeZone` |
-| Fastest cadence | every five seconds; anything quicker is refused at the registration call site | no floor |
-| A firing the process was down for | skipped, always | a misfire instruction per trigger: `DoNothing` skips it, `FireAndProceed` fires one catch-up, `IgnoreMisfires` fires all of them |
-| Dates it must not fire on | nothing; the handler returns early | a calendar on the trigger: `HolidayCalendar`, `CronCalendar`, `DailyCalendar`, `WeeklyCalendar`, `AnnualCalendar`, `MonthlyCalendar` |
-| Where the schedule lives | in code, at `UseWolverine`; the set is whatever the process was compiled with | in the job store; added, rescheduled and deleted while the host is up, by any node |
-| Pause and resume | `IRecurringScheduleControl.PauseAsync`/`ResumeAsync`/`QueryAsync`, durable where the store has the tracking table; a resume never back-fills | `PauseTrigger`, `PauseTriggerGroups`, `PauseAll` and their resume halves, with the misfire instruction deciding what the paused window did |
-| One firing, cancelled or moved | cancel the pre-scheduled envelope | `RescheduleJob`, `UnscheduleJob`, or `UnscheduleJobs` over a group matcher — a set operation rather than one call per handle |
-| Which node runs it | one `SingularAgent` per cluster, re-assigned on failover | the store's own trigger lock, so a scheduler on every node still fires each trigger once; `PreferredNode` pins one where the work is node-specific |
-| The same occurrence twice | a deterministic deduplication id, `{name}:{occurrenceUtc:O}`, collapsed at consumption | trigger acquisition is the lock, so a firing is exclusive before the job runs rather than after |
-| Payload | whatever the registered factory builds from the occurrence time | a `JobDataMap`, or a typed input through `UsingInput` — persisted with the trigger and changeable between firings |
-| Overlapping runs | an occurrence is a message like any other | `[DisallowConcurrentExecution]` on the job |
-| Failure | the message's own retries and dead-letter queue | a [retry policy on the trigger](retrying-failed-jobs.md), plus `JobExecutionException`'s refire and unschedule options |
-| Ordering when several are due at once | the receiving endpoint's own concurrency | `Priority` on the trigger; `MaxBatchSize` and a fire-ahead window on the scheduler |
-| Watching it | the `recurring-schedule` header on each occurrence, surfaced as a `wolverine.schedule.name` activity tag | `GetCurrentlyExecutingJobs` and `Interrupt`, the [HTTP API](../packages/http-api.md) and the [dashboard](../packages/dashboard.md) |
-| Durability | the message store's inbox, plus a `wolverine_recurring_messages` row per schedule | [any supported database](../db/), or in-memory |
-
-Be fair about what that means. For "publish message X every weekday at 03:00, and skip whatever the
+Be fair about what that comes to. For "publish message X every weekday at 03:00, and skip whatever the
 process was down for", Wolverine's own schedule is now the right answer: three lines inside
 `UseWolverine`, no second runtime, and the occurrence rides the outbox the application already trusts.
-Adding Quartz for that buys a set of tables nobody asked for. The right-hand column is what you are
-paying for when you do add it: "Wolverine's own schedules" and "When the schedule still belongs in
-Quartz" below are the two halves of that choice, in code.
+Adding Quartz for that buys a set of tables nobody asked for. The Quartz column of those tables is
+what you are paying for when you do add it: "Wolverine's own schedules" and "When the schedule still
+belongs in Quartz" below are the two halves of that choice, in code.
 
 ## Setting the two up
 

@@ -236,8 +236,8 @@ and `AddMeter(QuartzInstrumentation.MeterName)`. There is no package to install:
 What is lost with the package is its `QuartzInstrumentationOptions.TracedOperations` filter. Subscribing
 directly records both `Quartz.Job.Execute` and `Quartz.Job.Veto`; drop one with an OpenTelemetry
 [processor or a sampler](https://opentelemetry.io/docs/languages/dotnet/) if a vetoed fire is not worth a
-span to you. What is gained is everything 4.0 added — the store spans and all nine metrics — none of
-which the package knows about.
+span to you. What is gained is everything 4.0 added — the store spans and all ten instruments — none
+of which the package knows about.
 
 ## Older packages
 
