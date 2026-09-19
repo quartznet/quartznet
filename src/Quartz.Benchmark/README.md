@@ -40,6 +40,7 @@ reachable as plain runs of this assembly, with the harness out of the way. `--he
 | `--profile-cron` | `CronExpressionComparisonBenchmark.Next100`, for ~20 s |
 | `--profile-schedule` | `ScheduleJobBenchmark`'s simple arm, clearing the store every 50,000, for ~20 s |
 | `--latency` | The schedule-to-execute probe: one job scheduled for now on an idle scheduler, 200 times |
+| `--one-off-census` | A drain of one-off firings against PostgreSQL, with the commits and every statement counted at the database |
 
 Each is a whole run and takes no other arguments, as `--smoke` does. Each prints what it got through
 when it ends, so a capture can be checked against the rate the benchmark reports rather than assumed
@@ -541,7 +542,6 @@ gained are the same eight-byte field as above, rounded by the KB column. Schedul
 the store, the listener machinery and the scheduler-thread wake, none of which this touches - the
 cron work inside it is under a microsecond, which #3802 measured.
 
-
 ## Against TickerQ and Hangfire (2026-09-19, AMD Ryzen 9 5950X)
 
 Taken on `89fbadcdc2` to answer #3802's D2, with the harness in
@@ -941,3 +941,143 @@ triggers repeat forever and are never removed, so it never reaches the path #382
   more thread time blocked on the store's monitor than it spends on CPU. Cuts 2 and 5 remove two
   thread hand-offs per firing, which is part of why the time target was met, but the store's lock is
   untouched.
+
+## What #3824 changed (2026-09-19, AMD Ryzen 9 5950X)
+
+A **one-off** firing — a durable job per job type and one single-shot trigger per firing, which is
+what `IScheduler.ScheduleJob<TJob, TInput>` and every "enqueue this for later" caller produces — is a
+different workload from the repeating trigger the table above measures. A repeating trigger is
+written forward on completion; a one-off is deleted, and the deletion is a transaction's worth of
+statements the other shape never pays.
+
+`OneOffThroughputPostgresBenchmark` is the wall clock over it and `--one-off-census` counts the same
+drain at the database. Both run against PostgreSQL 15.1 in Docker over loopback with `fsync=on`, pool
+size 10, 500 firings a drain. The census is one drain per arm, so its firings-per-second column is a
+single sitting and carries this machine's usual variance; the benchmark's is five iterations.
+
+**Taken on `66fcbf98f5`**, which is before the fire-path cuts of the section above landed. Those cut
+roughly a kilobyte and a microsecond off the in-memory half of a firing, which is a rounding error
+beside an 11 ms round trip but does move the `Allocated` column a little; the statement and commit
+counts below are structural and are what this section is about, and nothing in that work touches
+them.
+
+### The itemised cost of one firing, at the shipped defaults
+
+Every statement of the drain, from `pg_stat_statements`, divided by the firings in the window. Reading
+down it is reading the fire path: an acquisition transaction, a `TriggersFired` transaction and a
+completion transaction, each borrowing and returning a connection.
+
+| Per firing | Statement | Issued by |
+|---:|---|---|
+| 3.01 | `BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED` | one per store call — acquire, fire, complete |
+| 3.01 | `COMMIT` | the same three |
+| 3.01 | `DISCARD ALL` | Npgsql resetting a pooled connection on return; each is its own transaction |
+| 1.01 | `SELECT t.TRIGGER_NAME, … JOIN QRTZ_JOB_DETAILS …` | `StdAdoDelegate.SelectTriggersToAcquire` |
+| 1.00 | `SELECT JOB_NAME, …, JOB_DATA … FROM QRTZ_TRIGGERS` | `AdoJobStoreBase.ReadAcquisitionCandidates` → `SelectTriggers` |
+| 1.00 | `UPDATE QRTZ_TRIGGERS SET TRIGGER_STATE … AND NEXT_FIRE_TIME = …` | `AcquireNextTrigger`, claiming the row |
+| 1.00 | `INSERT INTO QRTZ_FIRED_TRIGGERS …` | `AcquireNextTrigger`, at the end of the round |
+| 2.00 | `SELECT TRIGGER_STATE, NEXT_FIRE_TIME, JOB_NAME, JOB_GROUP, TRIGGER_TYPE …` | once in `TriggerFired`, once in the completion's reschedule double-check |
+| 1.00 | `SELECT … FROM QRTZ_JOB_DETAILS` | `TriggerFired` → `GetJob` |
+| 1.00 | `UPDATE QRTZ_FIRED_TRIGGERS SET INSTANCE_NAME, …` | `ApplyTriggerFired` — batched with the two below |
+| 1.00 | `UPDATE QRTZ_TRIGGERS SET JOB_NAME, …` — eighteen columns | `ApplyTriggerFired` |
+| 1.00 | `UPDATE QRTZ_SIMPLE_TRIGGERS SET …` | `ApplyTriggerFired`, described by the persistence delegate |
+| 1.00 | `SELECT … CONTINUATION_CONDITION … FROM QRTZ_TRIGGERS` | `SettleContinuations` |
+| 1.00 | `DELETE FROM QRTZ_SIMPLE_TRIGGERS …` | `DeleteTriggerExtension` |
+| 1.00 | `DELETE FROM QRTZ_TRIGGERS …` | `DeleteTriggerAndChildren` |
+| 1.00 | `DELETE FROM QRTZ_FIRED_TRIGGERS … TRIGGER_NAME …` | `DeleteTriggerAndChildren`, sweeping the fired rows |
+| **23.02** | | |
+
+The two statements this issue removed are already gone from that list. Before the change it also held
+a second `SELECT … CONTINUATION_CONDITION` (2.00 rather than 1.00), because the deletion asked again
+what the settlement had just answered, and a `DELETE FROM QRTZ_FIRED_TRIGGERS … ENTRY_ID` (1.00),
+after the sweep by trigger key had already removed that row.
+
+**Nine of the twenty-three are not statements Quartz writes.** `BEGIN`, `COMMIT` and `DISCARD ALL` are
+the transaction and the connection pool, three of each because a firing is three store calls. Four
+more are invisible here and visible at `pg_stat_statements.track = all`: deleting a trigger cascades
+to the four type tables through their foreign keys, which is schema rather than code. Counted at
+`track = all` the same drain reads 27.02.
+
+### Before and after
+
+`--one-off-census`, one drain per arm, two sittings each side.
+
+| Arm | Statements/firing | Commits/firing | Firings/s |
+|---|---:|---:|---:|
+| Defaults, before | 25.02 | 6.01 | 85.3, 90.8 |
+| Defaults, after | **23.02** | 6.01, 6.03 | 89.0, 90.7 |
+| `MaxBatchSize` = pool, window 0, before | 18.56 | 2.80 | 117.5, 117.6 |
+| `MaxBatchSize` = pool, window 0, after | **16.56, 16.57** | 2.80, 2.81 | 128.2, 128.3 |
+| `MaxBatchSize` = pool, window 1 s, before | 18.56 | 2.80 | 112.6, 115.5 |
+| `MaxBatchSize` = pool, window 1 s, after | **16.56** | 2.80 | 80.7, 127.5 |
+
+**The statements and the commits are the reliable columns here and the firings-per-second is not** —
+it is a single drain per cell, the two sittings of a row differ by more than the change does, and the
+80.7 in the last row is one drain that took 9.2 s where its neighbour took 6.9. Two per cent fewer
+statements at the defaults did not move the wall clock, and that is the finding rather than a
+disappointment: at the defaults a firing is three transactions and nine of its twenty-three
+statements are the transaction and pool overhead of being three, so a firing is bound by round trips
+and commit durability rather than by the statements Quartz writes.
+
+### What the shipped defaults cost, and what raising `MaxBatchSize` alone would buy
+
+`OneOffThroughputPostgresBenchmark`, five iterations of a 500-firing drain each.
+
+| Profile | Mean per firing | Firings/s | Allocated per firing |
+|---|---:|---:|---:|
+| Shipped defaults — `MaxBatchSize` 1, window 0 | 11.419 ms | 87.6 | 86.77 KB |
+| `MaxBatchSize` = pool, **window still 0** | **7.770 ms** | **128.7** | 72.89 KB |
+| `MaxBatchSize` = pool, window 1 s | 9.383 ms | 106.6 | 72.95 KB |
+
+The last row's `StdDev` is 2.13 ms against the middle row's 0.17, so read the two batched rows as one
+figure rather than as a difference: the window is not costing 1.6 ms, it is costing nothing and this
+machine is noisy.
+
+**The fire-ahead window contributes nothing, and `MaxBatchSize` = 1 is the whole of what pins a
+one-off workload to one trigger per round.** At a window of zero a batch ends at
+`max(now, the first trigger's fire time) + 0`, so every trigger already due joins it and only a
+trigger due later is left for the next round — a backlog batches at the shipped window. Raising the
+window fires triggers early and, on this workload, buys nothing for it.
+
+### `DISCARD ALL`, measured rather than assumed
+
+| Arm | Statements/firing | Commits/firing |
+|---|---:|---:|
+| Defaults | 23.02 | 6.01 |
+| Defaults + `No Reset On Close=true` | 20.01 | 3.01 |
+| `MaxBatchSize` = pool, window 0 | 16.56 | 2.80 |
+| …+ `No Reset On Close=true` | 15.16 | 1.41 |
+
+Half of what PostgreSQL records as Quartz's transactions is the connection pool resetting a
+connection. Turning the reset off removes exactly that and did **not** move the firings-per-second
+figure outside this machine's variance over loopback, where a round trip is nearly free. It is a
+connection-string decision for the operator and is documented as one on the configuration reference
+rather than changed.
+
+### The fire's eighteen-column `UPDATE`, measured and left alone
+
+#3824 asks for the trigger `UPDATE` to write only what changed. It is on the fire rather than on the
+completion — a one-off completion issues no `UPDATE QRTZ_TRIGGERS` at all — and firing changes three
+of its eighteen columns: the next and previous fire times and the state. The other fifteen were read
+off that row at acquisition and are sent straight back.
+
+Narrowing it was written, measured and then dropped. It removes no statement and no round trip; the
+server time of that one statement falls from **0.049 ms to 0.034 ms** of an 11.4 ms firing — 0.1 % —
+and the firing allocates **5.3 KB** less of the 86.8 KB it allocates, which is the twelve parameters
+that are no longer bound and shipped.
+
+Against that, it is observable from outside this repository: a trigger type of somebody's own whose
+`Triggered()` moves anything besides the fire times would stop having it persisted by the fire, and a
+4.x minor does not change what a store call persists for a type that already exists. The measurement
+is recorded here so the trade is priced rather than re-litigated — and so that whoever revisits it
+knows the prize is bytes rather than time.
+
+### A finding, filed rather than fixed
+
+The acceptance criterion on #3824 — twelve statements a firing — is not reachable while a firing is
+three transactions: nine of the twenty-three statements are `BEGIN`, `COMMIT` and `DISCARD ALL`, and
+four more are the foreign-key cascade of deleting a trigger. What is left to cut inside Quartz is the
+acquisition's second read of the triggers it has just named, the fire's job-detail read, and the
+completion's reschedule double-check — three statements, each of which needs a shape change rather
+than a deletion. Getting to TickerQ's class needs fewer transactions per firing, which is a scheduler
+change rather than a store one.

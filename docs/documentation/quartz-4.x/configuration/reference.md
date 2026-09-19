@@ -283,6 +283,42 @@ handing over its factory says both of these for you.
 The factory overloads take the connection string directly, so `ConnectionStringName` does not apply to
 them; read the connection string from `IConfiguration` where you have it and pass it in.
 
+#### PostgreSQL: `DISCARD ALL` on every connection return
+
+Npgsql resets a pooled connection when it is returned, by sending `DISCARD ALL`. That is one round
+trip per return, and because it runs outside any transaction of ours the server records it as a
+transaction of its own — so PostgreSQL counts roughly twice as many transactions as Quartz opens.
+
+At the shipped defaults one firing borrows and returns three connections: the acquisition, the fire
+and the completion are each their own transaction. So a firing costs three `DISCARD ALL` round trips
+and three extra commits, which is what a `pg_stat_database` reading of a Quartz deployment is mostly
+made of.
+
+`No Reset On Close=true` on the connection string turns it off:
+
+```text
+Host=db;Database=quartznet;Username=quartz;Password=…;No Reset On Close=true
+```
+
+Measured on a drain of 500 one-off firings against PostgreSQL 15.1 with `fsync=on`, pool size 10
+(`dotnet run -c Release --project src/Quartz.Benchmark -- --one-off-census`):
+
+| | commits per firing | statements per firing |
+|---|---:|---:|
+| shipped defaults | 6.01 | 23.0 |
+| with `No Reset On Close=true` | 3.01 | 20.0 |
+
+**It is a connection-string decision, not a Quartz default, and Quartz does not change it for you.**
+Over loopback the firings-per-second figure did not move outside run-to-run variance — the round trip
+is nearly free when the database is on the same machine — so what the setting buys depends entirely on
+what a round trip costs you. Across a network, or on a managed database with a connection proxy in
+front of it, three fewer per firing is worth measuring.
+
+What it costs is that a connection goes back into the pool carrying whatever session state it
+acquired: `SET` statements, prepared statements, listen/notify registrations, temporary tables. Quartz
+sets none of those, so for a data source Quartz alone uses it is safe; a data source shared with
+application code that does set session state is not a place to turn the reset off.
+
 #### Describing a driver Quartz does not know
 
 The provider name each method passes — `SqlServer`, `Npgsql` and so on — names a description of an
