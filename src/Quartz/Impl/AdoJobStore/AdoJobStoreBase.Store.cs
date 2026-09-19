@@ -222,7 +222,7 @@ internal abstract partial class AdoJobStoreBase
 
                 foreach (TriggerKey jobTrigger in jobTriggers)
                 {
-                    await DeleteTriggerAndChildren(conn, jobTrigger, cancellationToken).ConfigureAwait(false);
+                    await DeleteTriggerAndChildren(conn, jobTrigger, settleContinuations: true, cancellationToken).ConfigureAwait(false);
                 }
 
                 return await DeleteJobAndChildren(conn, jobKey, cancellationToken).ConfigureAwait(false);
@@ -402,16 +402,29 @@ internal abstract partial class AdoJobStoreBase
     /// </remarks>
     /// <seealso cref="DeleteJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
     /// <seealso cref="DeleteTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="key">The trigger being deleted.</param>
+    /// <param name="settleContinuations">
+    /// Whether the triggers awaiting this one still have to be settled. A completion that deletes its
+    /// trigger has already settled them against the outcome its firing reached, and that settlement
+    /// leaves none of them AWAITING, so asking again is a round trip whose answer is known to be empty.
+    /// Every other caller deletes a trigger that has not fired and passes <see langword="true" />.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask<bool> DeleteTriggerAndChildren(
         ConnectionAndTransactionHolder conn,
         TriggerKey key,
+        bool settleContinuations,
         CancellationToken cancellationToken)
     {
         // The triggers waiting for this one's firing, before the row goes: it is never going to fire,
         // so they are settled here rather than left waiting for ever. A replacement does not come
         // through this method — ReplaceTrigger deletes the row itself, precisely because the trigger
         // still exists afterwards — so a rescheduled parent keeps its dependants.
-        await SettleContinuationsOfDeletedParent(conn, key, cancellationToken).ConfigureAwait(false);
+        if (settleContinuations)
+        {
+            await SettleContinuationsOfDeletedParent(conn, key, cancellationToken).ConfigureAwait(false);
+        }
 
         bool deleted = await Delegate.DeleteTrigger(conn, key, cancellationToken).ConfigureAwait(false) > 0;
 
@@ -471,6 +484,24 @@ internal abstract partial class AdoJobStoreBase
         IJobDetail? job,
         CancellationToken cancellationToken = default)
     {
+        return DeleteTrigger(conn, triggerKey, job, settleContinuations: true, cancellationToken);
+    }
+
+    /// <inheritdoc cref="DeleteTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="triggerKey">The key identifying the trigger.</param>
+    /// <param name="job">The trigger's job, when the caller already holds it.</param>
+    /// <param name="settleContinuations">
+    /// <inheritdoc cref="DeleteTriggerAndChildren" path="/param[@name='settleContinuations']" />
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected ValueTask<bool> DeleteTrigger(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        IJobDetail? job,
+        bool settleContinuations,
+        CancellationToken cancellationToken = default)
+    {
         return Guarded(
             async () =>
             {
@@ -481,7 +512,7 @@ internal abstract partial class AdoJobStoreBase
                     job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NullJobTypeLoader(), loadJobType: false, cancellationToken).ConfigureAwait(false);
                 }
 
-                bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, settleContinuations, cancellationToken).ConfigureAwait(false);
 
                 if (null != job && !job.Durable)
                 {

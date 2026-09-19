@@ -145,9 +145,14 @@ internal abstract partial class AdoJobStoreBase
                 // known yet. That is the instruction's claim, not the outcome's — a job that ran and
                 // threw Failed whether or not the trigger asked for another attempt, so the gate
                 // names the instruction.
+                // Whether the scan above happened, which is what makes a second one — the one the
+                // deletion below would otherwise make — a round trip whose answer is already known to
+                // be empty. Settling leaves no row AWAITING for this parent: the ones its outcome
+                // named are WAITING or PAUSED, the rest are gone.
+                bool continuationsSettled = false;
                 if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
                 {
-                    await SettleContinuations(conn, trigger.Key, context.Outcome, cancellationToken).ConfigureAwait(false);
+                    continuationsSettled = await SettleContinuations(conn, trigger.Key, context.Outcome, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
@@ -159,12 +164,12 @@ internal abstract partial class AdoJobStoreBase
                         var header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                         if (header is not null && !header.NextFireTimeUtc.HasValue)
                         {
-                            await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                            await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
                         }
                     }
                     else
                     {
-                        await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                        await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
                         conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                     }
                 }
@@ -227,7 +232,7 @@ internal abstract partial class AdoJobStoreBase
                         // Read back rather than trusted, exactly as the DeleteTrigger branch above does:
                         // the trigger may have been rescheduled while the firing was in flight, and a
                         // trigger with a fire time ahead of it is nobody's leftover.
-                        await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                        await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -285,7 +290,13 @@ internal abstract partial class AdoJobStoreBase
     /// AWAITING, so a row some other path has already moved on is left alone and settlement happens
     /// exactly once.
     /// </remarks>
-    private async ValueTask SettleContinuations(
+    /// <returns>
+    /// <see langword="true" /> when the awaiting triggers were read and settled, which is also the
+    /// answer to "does anything of this parent's still say AWAITING": nothing does. A completion that
+    /// goes on to delete the trigger uses that to skip the scan
+    /// <see cref="SettleContinuationsOfDeletedParent" /> would make.
+    /// </returns>
+    private async ValueTask<bool> SettleContinuations(
         ConnectionAndTransactionHolder conn,
         TriggerKey parent,
         ExecutionOutcome outcome,
@@ -296,13 +307,13 @@ internal abstract partial class AdoJobStoreBase
         // what keeps the ordinary "could not dispatch" completion as cheap as it was.
         if (Continuation.ConditionFor(outcome) is not { } satisfied)
         {
-            return;
+            return false;
         }
 
         List<AwaitingContinuation> awaiting = await Delegate.SelectAwaitingContinuations(conn, parent, cancellationToken).ConfigureAwait(false);
         if (awaiting.Count == 0)
         {
-            return;
+            return true;
         }
 
         foreach (AwaitingContinuation continuation in awaiting)
@@ -316,6 +327,8 @@ internal abstract partial class AdoJobStoreBase
                 await DiscardContinuation(conn, continuation.Key, cancellationToken).ConfigureAwait(false);
             }
         }
+
+        return true;
     }
 
     /// <summary>
