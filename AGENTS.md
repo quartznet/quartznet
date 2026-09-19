@@ -222,7 +222,9 @@ Integration tests require a running Docker daemon (containers are provisioned by
 .\build.cmd Compile UnitTest IntegrationTest
 ```
 
-The test framework is **NUnit** with **AwesomeAssertions** and **FakeItEasy** for mocking. Some tests use **Verify.NUnit** for snapshot testing.
+The unit workflow runs `dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke PublishTrimmed PublishAot`; run the whole list before a pull request that touches a project file, a migration or a benchmark, with `PublishAot` from a shell whose `PATH` has the Visual Studio installer folder (ILCompiler shells out to `vswhere`).
+
+The test framework is **NUnit** with **AwesomeAssertions** and **FakeItEasy** for mocking. Some tests use **Verify.NUnit** for snapshot testing. A bunit read after `.Click()` or `.Change()` is a `WaitForAssertion`. SQL is a `static readonly` constant built from `StdAdoConstants.TablePrefixSubst` and substituted at the command site — Sonar fails the gate (S2077) on interpolation there.
 
 ### Assertions
 
@@ -286,6 +288,7 @@ Rules when touching any of this:
 - `database/migrations/4.2/` is the first schema move since 4.0; a 4.x migration adds nullable columns only, so a 4.1 node keeps running beside a 4.2 node — a continuation is a trigger in `AWAITING` that the parent's completion settles inside its own transaction.
 - Every migration ships a file for **every** supported dialect (`sqlServer`, `postgres`, `mysql_innodb`, `oracle`, `sqlite`, `firebird`), guarded so it is safe to re-run. SQLite `ADD COLUMN` is the one exception — it has no conditional DDL.
 - 4.x has no `Supports*Column` probes, so anything **optional on 3.x is required on 4.x**. Fold every 3.x column migration into `database/migrations/4.0/schema_30_to_40_upgrade_<dialect>.sql` — the fold happens here even when the migration itself was written on `3.x`, because that script is generated on `main` alone. The one exception is a migration that adds a **table** only an opt-in feature reads: it goes in `AdoConstants.OptionalTableNames` rather than `AllTableNames`, is probed at startup only when that feature is on, and is created by a fresh install and by `ProvisionSchema()` all the same — `4.2/add_execution_history_<dialect>.sql` is the case.
+- A new migration is also appended to the three hand-run chains in `src/Quartz.Tests.Integration/Impl/AdoJobStore/` — `MigrationScriptTest` (both routes), `UpgradeRehearsalTest.RehearseAsync` and `SchemaProvisioningTest.AssertUnmigratedSchemaRefusedAsync` — or `*SchemaMatchesFreshInstall` fails on every dialect; `MigrationScriptTest.Sqlite*` runs without Docker.
 - Adding a migration also needs a version section in `docs/documentation/database/schema-changes.md`. The docs site is built from `main` only, and it documents both the 3.x and 4.x trees.
 
 ### Scheduler Thread
@@ -386,6 +389,7 @@ Pluggable serialization for job store persistence:
   Package boundaries moved between the two, so match the files up first with the migration guide's
   appendix; `Task` → `ValueTask` and the namespace moves are systematic and are **not** deltas worth
   reporting.
+- **`docs/documentation/quartz-4.x/log-events.md` is generated** from the `LogEventCatalogTest_*` snapshots by `dotnet fallout DocsLogEvents`; `VerifyDocsLogEvents` runs on every docs pull request, and a rebase that merges two catalogues leaves the page stale until it is regenerated.
 - **Release notes live in GitHub releases, not in the repository.** There is no changelog file on
   either branch; the tag's release is the record. Unreleased 4.x notes accumulate in the `v4.0.0`
   draft release.
