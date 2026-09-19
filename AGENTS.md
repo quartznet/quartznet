@@ -49,7 +49,9 @@ binds this repository.
 - **No setter-only properties on interfaces.** Identity and configuration arrive by constructor or an explicit context parameter.
 - **Strong-named assemblies** — signed with `quartz.net.snk` (except examples).
 - **Central package management** — package versions in `Directory.Packages.props`.
-- **Single target** — everything targets `net10.0`.
+- **Single target** — everything targets `net10.0`. `Quartz.Analyzers` is the one exception: an analyzer
+  runs inside the compiler host, so it is `netstandard2.0`, links the cron parser's sources rather than
+  referencing `Quartz.dll`, and ships inside `Quartz.nupkg` under `analyzers/dotnet/cs`.
 - **SDK**: .NET 10 SDK (see `global.json`), with `rollForward: latestMinor`.
 - **License headers** — source files include Apache 2.0 license region at the top.
 - **UTF-8 without a byte-order mark** — everything under `src/`, whatever its extension;
