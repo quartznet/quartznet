@@ -36,7 +36,7 @@
                 <th>Execution Group</th>
                 <th>Fire Time</th>
                 <th>Run Time</th>
-                @if (!IsReadOnly)
+                @if (ShowInterrupt)
                 {
                     <th>Actions</th>
                 }
@@ -69,7 +69,7 @@
                         <td>@(string.IsNullOrEmpty(fireInstance.ExecutionGroup) ? "—" : fireInstance.ExecutionGroup)</td>
                         <td>@FormatFireTime(fireInstance.FireTimeUtc)</td>
                         <td>@FormatRunTime(fireInstance.FireTimeUtc)</td>
-                        @if (!IsReadOnly)
+                        @if (ShowInterrupt)
                         {
                             <td>
                                 <button type="button" class="qz-button qz-button-danger" @onclick="() => InterruptAsync(fireInstance.FireInstanceId)">Interrupt</button>
@@ -99,7 +99,16 @@
     private DateTimeOffset? _lastUpdatedAt;
 
     private bool IsReadOnly => Options.Value.ReadOnly;
-    private int TableColumnCount => IsReadOnly ? 6 : 7;
+
+    /// <summary>
+    /// Whether the active scheduler is a window onto an attached store. A firing belongs to the node
+    /// running it, and nothing in a shared database carries a request to stop one, so the column is
+    /// not offered rather than offered and refused.
+    /// </summary>
+    private bool _isWindow;
+
+    private bool ShowInterrupt => !IsReadOnly && !_isWindow;
+    private int TableColumnCount => ShowInterrupt ? 7 : 6;
 
     protected override async Task OnInitializedAsync()
     {
@@ -176,6 +185,7 @@
             _fireInstances.Clear();
             _hasMore = false;
             _totalCount = 0;
+            _isWindow = Scheduler.Find(schedulerName)?.IsWindow == true;
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {

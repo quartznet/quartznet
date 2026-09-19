@@ -277,6 +277,26 @@ public sealed class AdoJobStoreOptions
     public bool ExecutionHistory { get; set; }
 
     /// <summary>
+    /// Whether this store watches a cluster it is not a member of: it reads the cluster's check-ins
+    /// but writes none of its own, and never counts itself among the nodes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What a dashboard's store-attached window is. Such a store is never started, so it runs no
+    /// check-in loop and has no row in <c>QRTZ_SCHEDULER_STATE</c> — and without this, asking it
+    /// <see cref="IScheduler.QueryClusterNodes" /> answers with the one node it believes itself to be,
+    /// which is the liveness lie a window exists to avoid. With it, the answer is the cluster's rows
+    /// under this scheduler's name and nothing else, whether or not this store is clustered.
+    /// </para>
+    /// <para>
+    /// Internal: it is set by <c>AttachStore</c> on the window it builds, and a store an application
+    /// configures itself is a node of whatever it is a node of. Nothing else in the store reads it —
+    /// it changes one query's answer and no writes.
+    /// </para>
+    /// </remarks>
+    internal bool ClusterObserver { get; set; }
+
+    /// <summary>
     /// Overrides the SQL statement used to acquire the row lock. Defaulted for SQL Server to its
     /// <c>WITH (UPDLOCK,ROWLOCK)</c> form.
     /// </summary>

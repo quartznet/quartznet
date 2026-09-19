@@ -37,14 +37,35 @@
             <SchedulerStatusIndicator Status="_schedulerStatus" />
         </div>
 
+        @if (_isWindow)
+        {
+            @* The one sentence a window owes an operator, and it is on the page that offers the
+               actions rather than in the documentation: the buttons that are missing are missing on
+               purpose, and the ones that are there really do reach the cluster. *@
+            <p class="qz-muted">
+                <strong>@_windowDisplayName</strong> is a window onto the store attached as
+                <strong>@_windowTarget</strong>, not a scheduler this process runs. Scheduling changes —
+                pause, resume, reschedule, trigger now, add and delete — are writes to the database the
+                cluster shares, and whichever node picks the work up honours them. Starting, standing
+                down, shutting down and interrupting a running job belong to one process and are not
+                offered here; reach the node itself through an API or agent target for those.
+            </p>
+        }
+
         @if (!IsReadOnly)
         {
             <div class="qz-actions qz-scheduler-controls">
-                <button type="button" class="qz-button qz-button-primary" @onclick="StartSchedulerAsync">Start</button>
-                <button type="button" class="qz-button" @onclick="StandbySchedulerAsync">Standby</button>
+                @if (!_isWindow)
+                {
+                    <button type="button" class="qz-button qz-button-primary" @onclick="StartSchedulerAsync">Start</button>
+                    <button type="button" class="qz-button" @onclick="StandbySchedulerAsync">Standby</button>
+                }
                 <button type="button" class="qz-button" @onclick="PauseAllAsync">Pause all</button>
                 <button type="button" class="qz-button" @onclick="ResumeAllAsync">Resume all</button>
-                <button type="button" class="qz-button qz-button-danger" @onclick="PromptShutdown">Shutdown</button>
+                @if (!_isWindow)
+                {
+                    <button type="button" class="qz-button qz-button-danger" @onclick="PromptShutdown">Shutdown</button>
+                }
             </div>
         }
 
@@ -179,6 +200,19 @@
     /// and which every read on this page would otherwise report as a scheduler it could not find.
     /// </summary>
     private bool _schedulerIsNotCreated;
+
+    /// <summary>
+    /// Whether the active scheduler is a window onto an attached store, which decides whether the
+    /// node-local controls are offered at all.
+    /// </summary>
+    private bool _isWindow;
+
+    /// <summary>The attached store a window is onto, for the sentence that explains it.</summary>
+    private string? _windowTarget;
+
+    /// <summary>The window's identity as it is spelled everywhere else: <c>prod/reporting</c>.</summary>
+    private string? _windowDisplayName;
+
     private readonly List<DashboardActionLogEntry> _recentActions = [];
     private bool _showShutdownConfirm;
     private PeriodicTimer? _executingRefreshTimer;
@@ -263,7 +297,13 @@
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
-            if (string.IsNullOrWhiteSpace(schedulerName) || Scheduler.Find(schedulerName) is { IsCreated: false })
+
+            SchedulerHeaderDto? header = Scheduler.Find(schedulerName);
+            _isWindow = header?.IsWindow == true;
+            _windowTarget = header?.Target;
+            _windowDisplayName = header?.DisplayName;
+
+            if (string.IsNullOrWhiteSpace(schedulerName) || header is { IsCreated: false })
             {
                 _schedulerIsNotCreated = !string.IsNullOrWhiteSpace(schedulerName);
                 _schedulerStatus = SchedulerStatus.Unknown;

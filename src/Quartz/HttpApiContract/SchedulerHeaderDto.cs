@@ -36,6 +36,19 @@ internal record SchedulerHeaderDto(
     SchedulerStatus? Status,
     SchedulerOrigin Origin)
 {
+    /// <summary>
+    /// The attached store this scheduler is a window onto, or <see langword="null" /> for a scheduler
+    /// of the process that answered.
+    /// </summary>
+    /// <remarks>
+    /// An added property rather than a fifth positional parameter, so a client built against the four
+    /// goes on deserializing this and a server that never attaches a store sends nothing new. A 4.1
+    /// client reading a 4.2 listing sees <see cref="SchedulerOrigin" /> carry a value it has no name
+    /// for, exactly as a 4.0 client did when <see cref="SchedulerOrigin.Remote" /> was added; the enum
+    /// is numeric on the wire and appended to, which is what makes that safe.
+    /// </remarks>
+    public string? Target { get; init; }
+
     /// <remarks>
     /// Everything comes off the registration, which asked the scheduler once and asynchronously.
     /// Reading <see cref="IScheduler.SchedulerInstanceId" /> off the scheduler here is what used to make
@@ -49,6 +62,9 @@ internal record SchedulerHeaderDto(
             registration.Name,
             registration.SchedulerInstanceId,
             registration.Status,
-            registration.Origin);
+            registration.Origin)
+        {
+            Target = registration.Target
+        };
     }
 }

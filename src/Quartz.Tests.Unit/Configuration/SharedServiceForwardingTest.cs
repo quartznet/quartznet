@@ -33,6 +33,11 @@ public sealed class SharedServiceForwardingTest
             "written while a collection is being registered into, and a generation's collection holds "
             + "exactly one scheduler - the application's list of names is not that",
 
+        [typeof(SchedulerWindowRegistry)] =
+            "records which of a container's schedulers are windows onto an attached store, which is a "
+            + "registration fact about the application's container - a generation holds one scheduler "
+            + "and never asks. A tenant's own empty copy is read by nothing",
+
         [typeof(ISchedulerRegistry)] = ContainerWide,
         [typeof(ISchedulerRuntime)] = ContainerWide,
         [typeof(SchedulerRuntime)] = ContainerWide,

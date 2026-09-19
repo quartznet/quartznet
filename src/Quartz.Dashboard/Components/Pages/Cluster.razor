@@ -23,7 +23,19 @@
         <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
     }
 
-    @if (_isClustered == false)
+    @if (_isWindow)
+    {
+        @* A window is not one of these nodes and never appears among them, so the page says whose
+           check-ins it is showing. An empty list here is the one thing an operator must not read as
+           "the cluster is fine": a scheduler whose store is not clustered writes no check-in row at
+           all, and is indistinguishable from one that has stopped. *@
+        <p class="qz-muted">
+            These are the nodes of the cluster this window reads, from the check-ins they write. The
+            dashboard is not one of them. A scheduler whose store is not clustered writes no check-in
+            row, so it shows no nodes here however well it is running.
+        </p>
+    }
+    else if (_isClustered == false)
     {
         <p class="qz-muted">
             This scheduler is not clustered: its job store keeps no check-in state, so the only node is this one.
@@ -113,6 +125,12 @@
     /// </remarks>
     private bool? _isClustered;
 
+    /// <summary>
+    /// Whether the scheduler is a window onto an attached store, which changes whose nodes these are
+    /// and what an empty list means.
+    /// </summary>
+    private bool _isWindow;
+
     protected override async Task OnInitializedAsync()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
@@ -193,6 +211,7 @@
             _firingCountsArePartial = false;
             _firingsCounted = 0;
             _isClustered = null;
+            _isWindow = Scheduler.Find(schedulerName)?.IsWindow == true;
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {

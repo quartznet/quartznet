@@ -85,4 +85,26 @@ public partial class StdAdoDelegate
 
         return list;
     }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<List<string>> SelectSchedulerNames(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectSchedulerNames));
+
+        // No parameter, and that is the point: this is the one statement that asks about the database
+        // rather than about the scheduler this delegate was initialized for.
+        List<string> names = [];
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (!await rs.IsDBNullAsync(0, cancellationToken).ConfigureAwait(false))
+            {
+                names.Add(rs.GetString(0));
+            }
+        }
+
+        return names;
+    }
 }

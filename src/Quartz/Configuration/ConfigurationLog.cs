@@ -131,4 +131,13 @@ internal static partial class ConfigurationLog
 
     [LoggerMessage(EventId = 4025, Level = LogLevel.Warning, Message = "Scheduler '{SchedulerName}' was shut down for a restart but {JobsStillExecuting} job(s) outlived the {DrainTimeout} drain, so no new scheduler was built; restart again once the work has finished")]
     public static partial void SchedulerRestartAbandoned(this ILogger logger, string schedulerName, int jobsStillExecuting, TimeSpan drainTimeout);
+
+    [LoggerMessage(EventId = 4026, Level = LogLevel.Information, Message = "A window onto scheduler '{SchedulerName}' was opened over the store attached as '{Target}'")]
+    public static partial void AttachedStoreWindowOpened(this ILogger logger, string target, string schedulerName);
+
+    [LoggerMessage(EventId = 4027, Level = LogLevel.Warning, Message = "The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but no window could be opened onto it: {Problem}")]
+    public static partial void AttachedStoreWindowRefused(this ILogger logger, string target, string schedulerName, string problem, Exception exception);
+
+    [LoggerMessage(EventId = 4028, Level = LogLevel.Warning, Message = "The store attached as '{Target}' could not be read, so the schedulers in it are not shown; the next round will try again")]
+    public static partial void AttachedStoreDiscoveryFailed(this ILogger logger, string target, Exception exception);
 }

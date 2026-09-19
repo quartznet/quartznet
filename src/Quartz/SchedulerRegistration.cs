@@ -59,6 +59,26 @@ public sealed record SchedulerRegistration(string Name, SchedulerOrigin Origin, 
     public string? SchedulerInstanceId { get; init; }
 
     /// <summary>
+    /// The attached store this scheduler is a window onto, or <see langword="null" /> for a scheduler
+    /// of this process.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set for, and only for, <see cref="SchedulerOrigin.Window" />. It is the name the application gave
+    /// the store when it attached it — <c>AttachStore("prod", …)</c> — and together with
+    /// <see cref="Name" /> it is the window's identity, spelled <c>prod/reporting</c> wherever one is
+    /// shown. A scheduler of this process has no target and keeps its bare name, so nothing that
+    /// existed before reads differently.
+    /// </para>
+    /// <para>
+    /// The name is the scheduler's own, as the database spells it in <c>SCHED_NAME</c>, and it is what
+    /// every member taking a scheduler name still wants: the target is how a reader says which database
+    /// the name was found in, not a second half of the key.
+    /// </para>
+    /// </remarks>
+    public string? Target { get; init; }
+
+    /// <summary>
     /// Whether a scheduler exists under this name. A registration nothing has resolved yet reports
     /// <see langword="false" />; <see cref="Status" /> says what state a scheduler that does exist is in.
     /// </summary>

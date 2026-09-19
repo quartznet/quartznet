@@ -13,7 +13,8 @@
     <div class="qz-page-header">
         <h1>Schedulers</h1>
         <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">
-            Every scheduler this process has registered, whether or not one has been built
+            Every scheduler this process has registered, whether or not one has been built, and every
+            scheduler found in a store attached to this dashboard
         </span>
     </div>
 
@@ -56,11 +57,11 @@
                         <td>
                             @if (row.Header.IsCreated)
                             {
-                                <a href="@DashboardHref" @onclick="() => SelectAsync(row.Header.SchedulerName)" @onclick:preventDefault>@row.Header.SchedulerName</a>
+                                <a href="@DashboardHref" @onclick="() => SelectAsync(row.Header.SchedulerName)" @onclick:preventDefault>@row.Header.DisplayName</a>
                             }
                             else
                             {
-                                @row.Header.SchedulerName
+                                @row.Header.DisplayName
                             }
 
                             @if (row.Header.SchedulerInstanceId is { Length: > 0 } instanceId)
@@ -225,9 +226,12 @@
             SchedulerDetailDto detail = await Api.GetScheduler(header.SchedulerName);
 
             // Only a persistent, clustered store has a node table to read. A RAM store answers with the
-            // one node it is, which is a query per scheduler for an answer that is always "1".
+            // one node it is, which is a query per scheduler for an answer that is always "1". A window
+            // is asked whatever its own store says it is: it reads the cluster's check-ins because it
+            // is an observer of them, which is not the same thing as being clustered itself — and that
+            // count is the whole of what its status was derived from.
             int? nodeCount = null;
-            if (detail.Persistent && detail.Clustered)
+            if (header.IsWindow || (detail.Persistent && detail.Clustered))
             {
                 List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(header.SchedulerName);
                 nodeCount = nodes.Count;

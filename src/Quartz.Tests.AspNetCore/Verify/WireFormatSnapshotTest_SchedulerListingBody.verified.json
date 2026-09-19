@@ -3,12 +3,14 @@
     "name": "QuartzScheduler",
     "schedulerInstanceId": null,
     "status": null,
-    "origin": "Container"
+    "origin": "Container",
+    "target": null
   },
   {
     "name": "TestScheduler",
     "schedulerInstanceId": "TEST_NON_CLUSTERED",
     "status": "Running",
-    "origin": "Runtime"
+    "origin": "Runtime",
+    "target": null
   }
 ]

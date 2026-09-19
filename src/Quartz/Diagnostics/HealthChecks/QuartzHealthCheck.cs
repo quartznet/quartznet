@@ -73,6 +73,21 @@ internal sealed class QuartzHealthCheck : IHealthCheck
         if (target.SchedulerName is not null
             && serviceProvider.GetService<Extensibility.ISchedulerRepository>()?.Lookup(target.SchedulerName) is { } tenant)
         {
+            // Unless it is a window onto an attached store, which is in the repository for the same
+            // reason every other scheduler is and is emphatically not a scheduler of this process. It is
+            // never started, so this check would report it Unhealthy — "created but never started" —
+            // for a cluster that is running perfectly well somewhere else, and a probe that fails
+            // because a dashboard is attached to a database is a node taken out of rotation for
+            // nothing.
+            if (serviceProvider.GetService<SchedulerWindowRegistry>()?.TargetOf(target.SchedulerName) is { } window)
+            {
+                return HealthCheckResult.Unhealthy(
+                    $"'{target.SchedulerName}' is a window onto the store attached as '{window}', not a scheduler this "
+                    + "process runs, so there is nothing here to report on. Its liveness is its cluster's, which the "
+                    + "dashboard derives from the nodes' check-ins; health-check the nodes themselves, or drop this "
+                    + "registration.");
+            }
+
             return await Evaluate(tenant, cancellationToken).ConfigureAwait(false);
         }
 

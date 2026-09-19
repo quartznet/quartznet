@@ -169,8 +169,14 @@
         ISchedulerEventSource? source = SchedulerEventSources.For(Services, schedulerName);
         if (source is null)
         {
-            _error = "This application registers no event stream, so there is nothing to watch. "
-                + "AddQuartzDashboard() registers one for the schedulers in this process.";
+            // A window is the one case with a reason of its own, and it is not a misconfiguration:
+            // a shared database carries a schedule, not a feed of what happened to it.
+            _error = Scheduler.Find(schedulerName) is { IsWindow: true } window
+                ? $"'{window.DisplayName}' is a window onto an attached store, and a database carries no live "
+                    + "event stream: the events are raised in the processes that run the jobs. Its History page "
+                    + "shows what those nodes ran; live events need an API or agent target."
+                : "This application registers no event stream, so there is nothing to watch. "
+                    + "AddQuartzDashboard() registers one for the schedulers in this process.";
             return;
         }
 

@@ -25,6 +25,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 using Quartz.AspNetCore;
+using Quartz.Configuration;
 using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
@@ -122,7 +123,10 @@ public static class QuartzDashboardServiceCollectionExtensions
             provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
             provider.GetRequiredService<IExecutionHistoryStore>(),
             provider,
-            provider.GetRequiredService<SchedulerAuthorization>()));
+            provider.GetRequiredService<SchedulerAuthorization>(),
+            provider.GetRequiredService<AttachedStores>()));
+
+        AddAttachedStores(services);
         services.TryAddScoped<ToastService>();
 
         // The live events are Quartz's: this registers the broker every scheduler in the container
@@ -151,6 +155,35 @@ public static class QuartzDashboardServiceCollectionExtensions
         // event twice and record every execution twice.
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers the databases <see cref="QuartzDashboardOptions.AttachStore" /> points the dashboard
+    /// at, and the discovery that opens a window onto every scheduler in each of them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Registered whether or not anything is attached, because the options are read when they are
+    /// resolved rather than when this runs, and the hosted service is where a container without keyed
+    /// services would otherwise have to be asked. An empty set opens no connection, builds no
+    /// container and starts no timer.
+    /// </para>
+    /// <para>
+    /// <see cref="SchedulerWindowRegistry" /> is <c>TryAdd</c>ed here as well as by <c>AddQuartz</c>,
+    /// so that the registration order of the two calls cannot decide whether there is one of it. There
+    /// is one either way, and it is what the listing, the health check and the pages all read.
+    /// </para>
+    /// </remarks>
+    private static void AddAttachedStores(IServiceCollection services)
+    {
+        services.TryAddSingleton<SchedulerWindowRegistry>();
+        services.TryAddSingleton<AttachedStores>();
+
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AttachedStoreDiscovery>(static provider =>
+            new AttachedStoreDiscovery(
+                provider.GetRequiredService<AttachedStores>(),
+                provider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value.AttachedStores,
+                provider)));
     }
 
     /// <summary>
