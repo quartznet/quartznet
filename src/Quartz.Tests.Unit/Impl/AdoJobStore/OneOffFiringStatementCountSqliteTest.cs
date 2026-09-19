@@ -72,6 +72,7 @@ public sealed class OneOffFiringStatementCountSqliteTest
         database = new SqliteTestDatabase("one-off-statements");
         CountingSqliteDelegate.Reset();
         RecordingJob.Reset();
+        RepeatingJob.Reset();
     }
 
     [TearDown]
@@ -99,6 +100,62 @@ public sealed class OneOffFiringStatementCountSqliteTest
 
         CountingSqliteDelegate.AwaitingContinuationScans.Should().Be(1,
             "the completion settles this trigger's continuations before deleting it, so the deletion's own scan would find nothing AWAITING and is a round trip for an answer already known");
+
+        await scheduler.Shutdown(waitForJobsToComplete: false);
+    }
+
+    /// <summary>
+    /// Deleting the trigger sweeps the fired-trigger rows by trigger key, which is a superset of the
+    /// one entry id the completion used to go back for.
+    /// </summary>
+    [Test]
+    public async Task ACompletionThatDeletesItsTriggerDeletesTheFiredRowWithIt()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        await ScheduleOneOff(scheduler, "solo");
+        await scheduler.Start();
+        CountingSqliteDelegate.Reset();
+
+        await WaitForTheFiringToBeComplete();
+
+        CountingSqliteDelegate.FiredTriggerDeletesByEntryId.Should().Be(0,
+            "the trigger's deletion has already swept this firing's row along with every other fired row of that trigger, in the same transaction");
+        CountingSqliteDelegate.FiredTriggerDeletesByQuery.Should().Be(1,
+            "that sweep is the statement which removed it, and there is one of it");
+
+        await scheduler.Shutdown(waitForJobsToComplete: false);
+    }
+
+    /// <summary>
+    /// A completion that keeps its trigger — a repeating one — still has a fired row to remove, and
+    /// the entry id is the only thing that names it.
+    /// </summary>
+    [Test]
+    public async Task ACompletionThatKeepsItsTriggerStillDeletesTheFiredRowByEntryId()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        IJobDetail job = JobBuilder.Create<RepeatingJob>().WithIdentity("repeating", Group).Build();
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("repeating", Group)
+            .ForJob(job)
+            .StartAt(DateTimeOffset.UtcNow + dueIn)
+            .WithSimpleSchedule(simple => simple.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build();
+
+        await scheduler.ScheduleJob(job, trigger);
+        await scheduler.Start();
+        CountingSqliteDelegate.Reset();
+
+        await WaitFor(async () => await CountRows("QRTZ_FIRED_TRIGGERS") == 0 && RepeatingJob.Ran,
+            "the completion to remove the fired-trigger row of a trigger it keeps");
+
+        CountingSqliteDelegate.FiredTriggerDeletesByEntryId.Should().Be(1,
+            "nothing else names the row: the trigger stays, so no sweep by trigger key happens");
+        (await CountRows("QRTZ_TRIGGERS")).Should().Be(1, "a repeating trigger is written forward rather than deleted");
 
         await scheduler.Shutdown(waitForJobsToComplete: false);
     }
@@ -218,12 +275,20 @@ public sealed class OneOffFiringStatementCountSqliteTest
     public sealed class CountingSqliteDelegate : SQLiteDelegate
     {
         private static int awaitingContinuationScans;
+        private static int firedTriggerDeletesByEntryId;
+        private static int firedTriggerDeletesByQuery;
 
         public static int AwaitingContinuationScans => Volatile.Read(ref awaitingContinuationScans);
+
+        public static int FiredTriggerDeletesByEntryId => Volatile.Read(ref firedTriggerDeletesByEntryId);
+
+        public static int FiredTriggerDeletesByQuery => Volatile.Read(ref firedTriggerDeletesByQuery);
 
         public static void Reset()
         {
             Volatile.Write(ref awaitingContinuationScans, 0);
+            Volatile.Write(ref firedTriggerDeletesByEntryId, 0);
+            Volatile.Write(ref firedTriggerDeletesByQuery, 0);
         }
 
         public override ValueTask<List<AwaitingContinuation>> SelectAwaitingContinuations(
@@ -233,6 +298,43 @@ public sealed class OneOffFiringStatementCountSqliteTest
         {
             Interlocked.Increment(ref awaitingContinuationScans);
             return base.SelectAwaitingContinuations(conn, parent, cancellationToken);
+        }
+
+        public override ValueTask<int> DeleteFiredTrigger(
+            ConnectionAndTransactionHolder conn,
+            string entryId,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref firedTriggerDeletesByEntryId);
+            return base.DeleteFiredTrigger(conn, entryId, cancellationToken);
+        }
+
+        public override ValueTask<int> DeleteFiredTriggers(
+            ConnectionAndTransactionHolder conn,
+            FiredTriggerQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref firedTriggerDeletesByQuery);
+            return base.DeleteFiredTriggers(conn, query, cancellationToken);
+        }
+    }
+
+    /// <summary>The job of the repeating trigger, which is written forward rather than deleted.</summary>
+    public sealed class RepeatingJob : IJob
+    {
+        private static int runs;
+
+        public static bool Ran => Volatile.Read(ref runs) > 0;
+
+        public static void Reset()
+        {
+            Volatile.Write(ref runs, 0);
+        }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref runs);
+            return default;
         }
     }
 
