@@ -45,7 +45,9 @@ create everything below.
 | 2.2–2.5 | 3.x | [2.6](#version-2-6), [3.0](#version-3-0), then the optional 3.x ones |
 | 2.6 | 3.x | [3.0](#version-3-0), then the optional 3.x ones |
 | 3.0–3.16 | latest 3.x | [3.17](#version-3-17), [3.18](#version-3-18), [3.19](#version-3-19), [3.20](#version-3-20) — all optional |
-| any 3.x | 4.x | [4.0](#version-4-0) — **mandatory**, and it folds in everything from 3.17 onward |
+| any 3.x | 4.0 / 4.1 | [4.0](#version-4-0) — **mandatory**, and it folds in everything from 3.17 onward |
+| any 3.x | 4.2+ | [4.0](#version-4-0), then [4.2](#version-4-2) — both **mandatory** |
+| 4.0 / 4.1 | 4.2+ | [4.2](#version-4-2) — **mandatory** |
 
 ## Upgrading to 4.x is mandatory
 
@@ -342,6 +344,59 @@ The `4.0` scripts live on `main` and nowhere else — the `3.x` branch links to 
 carrying a copy, because what this upgrade has to do is decided by 4.x's schema and a mirror
 would go stale the moment that moved. The links above are already the right ones.
 :::
+
+---
+
+## Version 4.2
+
+**Mandatory** for 4.2 and later. The first schema change since 4.0.
+
+- Script: [`migrations/4.2/add_continuations_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.2) — all databases
+
+Three nullable columns on `QRTZ_TRIGGERS`, which carry a *conditional continuation* — a trigger that
+waits, in the store, for another trigger's firing to end
+([#3805](https://github.com/quartznet/quartznet/issues/3805)):
+
+| Column | What it holds |
+|---|---|
+| `CONTINUES_TRIGGER_NAME` | The name of the trigger whose firing this one waits for. |
+| `CONTINUES_TRIGGER_GROUP` | That trigger's group. |
+| `CONTINUATION_CONDITION` | The outcomes that release the wait, as flags: `1` on success, `2` on failure, `4` on cancellation, `8` on veto, `15` however it ends. A row that names a parent but has no condition reads as `15`. |
+
+Such a trigger is held in a new `TRIGGER_STATE` value, `AWAITING`, and is never acquired while it is
+there. The parent's completion settles it inside the parent's own lock and transaction: an outcome the
+condition names releases the trigger into the ordinary schedule — its next fire time becomes the later
+of "now" and its own `START_TIME` — and any other outcome deletes it. Whichever node ran the parent is
+the node that settles, so a continuation survives the failure of the node that scheduled it.
+
+All three columns are nullable with no default, so every existing row is valid the moment they appear
+and nothing has to be backfilled.
+
+No index is added. The lookup is
+`SCHED_NAME = ? AND TRIGGER_STATE = 'AWAITING' AND CONTINUES_TRIGGER_NAME = ? AND CONTINUES_TRIGGER_GROUP = ?`,
+whose two leading equality columns are what `IDX_QRTZ_T_NFT_ST` already leads with, and `AWAITING` is a
+small partition even of a schedule that leans on continuations. Measure before adding one.
+
+### Rolling 4.1 → 4.2
+
+**Run the migration while 4.1 nodes are still up.** A 4.1 node's trigger `INSERT` names its own
+columns, its acquisition and misfire sweeps select `WAITING`, its cluster recovery touches `ACQUIRED`
+and `BLOCKED`, and a state string it does not recognise reads as waiting — so such a node never sees
+an `AWAITING` row as schedulable and merely *reports* one as `Normal`.
+
+What a 4.1 node cannot do is **settle** a continuation: a parent completing there leaves the triggers
+waiting on that firing exactly where they are. So the order is:
+
+1. Run `add_continuations_<db>.sql`.
+2. Roll every node to 4.2.
+3. *Then* start scheduling continuations.
+
+A 4.2 node refuses to start against a database that has not taken this migration — it names all three
+columns in the statement it stores every trigger with — and the startup check says which column and
+which script.
+
+`ProvisionSchema()` does not help here: it creates missing tables and never adds a column to a table
+that already exists. Run the script.
 
 ## See also
 

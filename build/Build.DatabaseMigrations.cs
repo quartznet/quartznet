@@ -56,7 +56,7 @@ partial class Build
     };
 
     /// <summary>Version folders this target owns. Anything else under migrations/ is hand-written.</summary>
-    static readonly string[] GeneratedVersions = ["2.2", "2.6", "3.17", "3.18", "3.19", "3.20", "4.0"];
+    static readonly string[] GeneratedVersions = ["2.2", "2.6", "3.17", "3.18", "3.19", "3.20", "4.0", "4.2"];
 
     AbsolutePath MigrationsDirectory => RootDirectory / "database" / "migrations";
 
@@ -171,6 +171,40 @@ partial class Build
         ["oracle"] = "RETRY_ATTEMPT NUMBER(13) NULL",
         ["sqlite"] = "RETRY_ATTEMPT INTEGER NULL",
         ["firebird"] = "RETRY_ATTEMPT INTEGER DEFAULT NULL",
+    };
+
+    // The continuation columns copy each dialect's own TRIGGER_NAME and TRIGGER_GROUP declaration,
+    // made nullable: what they hold is a trigger key, so a name the key columns accept has to fit
+    // here too. PostgreSQL therefore says TEXT rather than the VARCHAR(200) the three 3.x columns
+    // above use - its TRIGGER_NAME is TEXT, and a narrower column could not name every trigger.
+    static readonly Dictionary<string, string> ContinuesTriggerName = new()
+    {
+        ["sqlServer"] = "[CONTINUES_TRIGGER_NAME] nvarchar(150) NULL",
+        ["postgres"] = "CONTINUES_TRIGGER_NAME TEXT NULL",
+        ["mysql_innodb"] = "CONTINUES_TRIGGER_NAME VARCHAR(200) NULL",
+        ["oracle"] = "CONTINUES_TRIGGER_NAME VARCHAR2(200) NULL",
+        ["sqlite"] = "CONTINUES_TRIGGER_NAME NVARCHAR(150) NULL",
+        ["firebird"] = "CONTINUES_TRIGGER_NAME VARCHAR(150) DEFAULT NULL",
+    };
+
+    static readonly Dictionary<string, string> ContinuesTriggerGroup = new()
+    {
+        ["sqlServer"] = "[CONTINUES_TRIGGER_GROUP] nvarchar(150) NULL",
+        ["postgres"] = "CONTINUES_TRIGGER_GROUP TEXT NULL",
+        ["mysql_innodb"] = "CONTINUES_TRIGGER_GROUP VARCHAR(200) NULL",
+        ["oracle"] = "CONTINUES_TRIGGER_GROUP VARCHAR2(200) NULL",
+        ["sqlite"] = "CONTINUES_TRIGGER_GROUP NVARCHAR(150) NULL",
+        ["firebird"] = "CONTINUES_TRIGGER_GROUP VARCHAR(150) DEFAULT NULL",
+    };
+
+    static readonly Dictionary<string, string> ContinuationCondition = new()
+    {
+        ["sqlServer"] = "[CONTINUATION_CONDITION] int NULL",
+        ["postgres"] = "CONTINUATION_CONDITION INTEGER NULL",
+        ["mysql_innodb"] = "CONTINUATION_CONDITION INTEGER NULL",
+        ["oracle"] = "CONTINUATION_CONDITION NUMBER(13) NULL",
+        ["sqlite"] = "CONTINUATION_CONDITION INTEGER NULL",
+        ["firebird"] = "CONTINUATION_CONDITION INTEGER DEFAULT NULL",
     };
 
     static readonly Dictionary<string, string> SchedTime = new()

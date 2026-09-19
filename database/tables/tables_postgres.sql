@@ -63,6 +63,9 @@ CREATE TABLE qrtz_triggers
     preferred_node_auto BOOL NOT NULL DEFAULT FALSE,
     retry_policy VARCHAR(250) NULL,
     retry_attempt INTEGER NULL,
+    continues_trigger_name TEXT NULL,
+    continues_trigger_group TEXT NULL,
+    continuation_condition INTEGER NULL,
     job_data BYTEA NULL,
     PRIMARY KEY (sched_name, trigger_name, trigger_group),
     FOREIGN KEY (sched_name, job_name, job_group)

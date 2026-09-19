@@ -114,6 +114,7 @@ in each SQLite file.
 | [`3.19`](migrations/3.19) | `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` on `QRTZ_TRIGGERS` (#3013, #3144) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.20`](migrations/3.20) | Index set realigned so every index leads with `SCHED_NAME`; prefix-redundant indexes dropped (#3203) | Optional, performance only | all | both |
 | [`4.0`](migrations/4.0) | **Two files.** `schema_30_to_40_upgrade_<db>.sql` folds in 3.17–3.19 and adds `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520) and the `QRTZ_PAUSED_JOB_GRPS` table (#3336). `schema_30_to_40_indexes_<db>.sql` supersedes 3.20 and lands the 4.x index shape, in which `IDX_QRTZ_T_NFT_ST` is dropped and recreated as `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` — Firebird excepted (#3510) — and `IDX_QRTZ_T_NFT_ST_MISFIRE` is dropped, since that reshape left it with no reader on any dialect (#3656) | Upgrade **mandatory for 4.x** and safe during a mixed window; indexes optional, and wait for the last 3.x node | all | `main` only |
+| [`4.2`](migrations/4.2) | `CONTINUES_TRIGGER_NAME`, `CONTINUES_TRIGGER_GROUP` and `CONTINUATION_CONDITION` on `QRTZ_TRIGGERS`, which carry a conditional continuation — a trigger that waits, in the store, for another trigger's firing to end (#3805) | **Required on 4.2+**, safe during a mixed 4.1/4.2 window | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -146,6 +147,24 @@ it would otherwise seek, on a schema large enough for that to matter.
 3.x → 4.0 script has to do is decided by 4.x's schema, which moves here, so a second copy there
 could only be right by accident. Read the version of this folder that matches the 4.x you are
 upgrading to.
+
+### Upgrading 4.0/4.1 → 4.2 is mandatory too
+
+[`migrations/4.2`](migrations/4.2) is the first schema change since 4.0. It adds three nullable
+columns to `QRTZ_TRIGGERS`, and 4.2 names all three in the statement it stores every trigger with,
+so a 4.2 node refuses to start against a database that has not taken it.
+
+**Roll it while 4.1 nodes are still running.** The columns are nullable with no default, so every
+existing row is valid the moment they appear; a 4.1 node's `INSERT` names its own columns, its
+acquisition and misfire sweeps select `WAITING` and its cluster recovery touches `ACQUIRED` and
+`BLOCKED`, so none of them sees a trigger in the new `AWAITING` state — and an unrecognised state
+string reads as waiting there, so such a node merely *reports* one as normal.
+
+What a 4.1 node cannot do is **settle** a continuation: a parent completing on it leaves the
+triggers waiting on that firing exactly where they are. So the order is: run the migration, roll
+every node to 4.2, and only then start scheduling continuations.
+
+A fresh install from [`tables/`](tables) already has the columns and needs nothing from this folder.
 
 ## Where these files moved
 

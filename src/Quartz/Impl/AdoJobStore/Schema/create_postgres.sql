@@ -60,6 +60,9 @@ CREATE TABLE IF NOT EXISTS {0}triggers (
   preferred_node_auto bool not null default false,
   retry_policy varchar(250) null,
   retry_attempt integer null,
+  continues_trigger_name text null,
+  continues_trigger_group text null,
+  continuation_condition integer null,
   job_data bytea null,
   primary key (sched_name,trigger_name,trigger_group),
   foreign key (sched_name,job_name,job_group) references {0}job_details (sched_name,job_name,job_group)
