@@ -540,3 +540,267 @@ suite's noise on a loaded machine; the cron arm moved 0.1 µs the other way. The
 gained are the same eight-byte field as above, rounded by the KB column. Scheduling is dominated by
 the store, the listener machinery and the scheduler-thread wake, none of which this touches - the
 cron work inside it is under a microsecond, which #3802 measured.
+
+
+## Against TickerQ and Hangfire (2026-09-19, AMD Ryzen 9 5950X)
+
+Taken on `89fbadcdc2` to answer #3802's D2, with the harness in
+[`src/Quartz.Benchmark.Competitors`](../Quartz.Benchmark.Competitors/README.md) — a project outside
+`Quartz.slnx` that references `Quartz.csproj`, so what these rows measure is the working tree rather
+than a published package. The sections above compare 4.0 against 3.x and against NCrontab. This one
+compares it against the two other .NET schedulers it gets put beside: **TickerQ 10.4.0** and
+**Hangfire 1.8.25**.
+
+**What makes these rows different from the published comparison they answer.** Every arm here
+executes a job, and every arm counts inside the executing job: an `Interlocked` counter incremented
+by the job body, an absolute target published before the work is scheduled, and a wait with a timeout
+that turns a hang into an exception. A benchmark invocation is *waiting for N executions to happen*.
+
+**What TickerQ's own suite measures.** `benchmarks/TickerQ.Benchmarks/Comparisons/` at 10.4.0:
+`ConcurrentThroughputComparison`'s baseline arms are a `FrozenDictionary<string,
+TickerFunctionDelegate>` lookup followed by invoking a delegate whose body is `Task.CompletedTask`;
+the Hangfire arms beside them create a background job in storage; the Quartz arms build an
+`IJobDetail` and an `ITrigger` and call `ScheduleJob`. `JobCreationComparison`'s baseline is
+"TickerQ: FrozenDictionary function lookup". The arms run under `Parallel.For` with
+`.GetAwaiter().GetResult()`. The project pins `Quartz` `3.14.*` and reaches it through
+`new StdSchedulerFactory()`. Nothing clears the scheduler or the storage between iterations, and the
+counter that names each job increments for the length of the run. No job is executed on any side.
+
+**Machine and runtime.** BenchmarkDotNet v0.15.8; Windows 11 (10.0.26200.9457/25H2); AMD Ryzen 9
+5950X 3.40 GHz, 1 CPU, 32 logical and 16 physical cores; .NET SDK 10.0.401; host and job .NET 10.0.12
+(10.0.1226.42308), X64 RyuJIT x86-64-v3, Concurrent Workstation GC. PostgreSQL 15.1 in Docker over
+loopback at its shipped durability settings (`fsync = on`, `synchronous_commit = on`), started with
+`-c shared_preload_libraries=pg_stat_statements` so the statement census could be taken.
+
+**Read the Error column.** This is a working machine and other sessions were building and testing
+throughout. The in-memory rows below are ranges over **three sittings, the middle one run with the
+arms in reverse order**, and the safe reading of them is the ratio between rows rather than the
+absolute of any one. The `Allocated` column is exact whatever the load, and the database census is
+counted at the database rather than in the client, so both of those carry across.
+
+**The settings, and the one that matters most.** `MaxConcurrency` is **10** on all three — Quartz's
+shipped default, against TickerQ's `Environment.ProcessorCount` (32 here) and Hangfire's
+`ProcessorCount × 5` (160). Left alone, Hangfire would have run this workload with sixteen times
+Quartz's workers. TickerQ's `MinPollingInterval` is 100 ms rather than its default second, and
+Hangfire's `SchedulePollingInterval` is 50 ms in memory and 100 ms on PostgreSQL rather than its
+default fifteen seconds; both are the settings #3802 specified, and both favour the library they are
+set on. Everything else on all three sides is the shipped default. Quartz appears twice because its
+two shapes differ: `defaults` is `MaxBatchSize` 1 with no fire-ahead window, which is what
+`AddQuartz(q => q.UseInMemoryStore())` gives you, and `tuned` is the batch tracking the pool with a
+one-second window, which is what the fire-throughput section above was taken at.
+
+### S1 — in-memory throughput
+
+Twenty thousand one-off schedules, all due at the same whole second two seconds out, over a job that
+increments a counter and returns. The measured window is the drain: the engine is built and the work
+scheduled in the iteration setup, and the body waits for twenty thousand executions, so `Mean` is
+what one of them cost. Two seconds puts every arm on its scheduler's own path — TickerQ dispatches a
+ticker due within one second on the calling thread, and Hangfire's `Enqueue` skips its delayed-job
+poll — and both of those short-circuits get rows of their own.
+
+| Engine | Mean (3 sittings) | Allocated | Executions/second |
+|------- |-----------------: |---------: |-----------------: |
+| Quartz (defaults)    |  3.89-5.54 µs |  3.46 KB |  181,000-257,000 |
+| Quartz (tuned)       |  5.51-6.57 µs |  3.26 KB |  152,000-181,000 |
+| TickerQ              |  8.68-10.25 µs |  4.92-5.39 KB |   98,000-115,000 |
+| Hangfire (scheduled) | 14.90-17.12 µs | 24.29-24.39 KB |   58,000-67,000 |
+| Hangfire (enqueued)  | 10.83-15.07 µs | 19.24 KB |   66,000-92,000 |
+
+**Quartz is the fastest of the three here and allocates the least**, by about 2× against TickerQ and
+about 3× against Hangfire on time, and by 1.5× and 7× on bytes. The allocation column is the one to
+read without qualification.
+
+**Quartz's tuned profile is consistently a little slower than its defaults on this workload**, in all
+three sittings, while allocating slightly less — 3.26 KB against 3.46 KB, which is the acquisition
+rounds it saves. Twenty thousand triggers due at one instant is the shape that batching should help
+most, so this is worth saying plainly: at ten workers the fire path is contention-bound, which is
+what #3802's D1 profile found (36.9 s of lock-blocked thread time against 29.8 s on CPU), and holding
+the store's lock for ten triggers instead of one does not help a workload whose limit is that lock.
+The Errors here are large; the ordering is the part that repeated.
+
+### S2 — PostgreSQL throughput
+
+The same, two thousand deep, against one PostgreSQL database with each library in its own schema at
+its own default — Quartz in `public`, TickerQ in `ticker`, Hangfire in `hangfire`. One database means
+one `fsync` setting, one disk and one connection pool under all three. The lead time is twenty seconds
+rather than two, because two thousand schedules against a database is seconds of writing on every arm
+— see the note under the table. Five iterations rather than seven; the store is emptied between them.
+
+| Engine | Mean (2 sittings) | StdDev | Allocated | Executions/second |
+|------- |-----------------: |------: |---------: |-----------------: |
+| Quartz (defaults) | 11.30-11.77 ms | 0.20-0.74 ms |  89.9 KB |   85-89 |
+| Quartz (tuned)    | 10.18-10.47 ms | 0.34-1.24 ms |  76.5 KB |   96-98 |
+| TickerQ           |  2.91-3.15 ms | 0.03-0.34 ms |  48.7-50.0 KB | 317-344 |
+| Hangfire          | 15.78-15.84 ms | 0.65-0.66 ms | 101.5 KB |      63 |
+
+**Quartz loses this one to TickerQ by 3.5-4x**, and beats Hangfire by about 1.4x. The row below says
+where the difference is: TickerQ's execution costs the database about two statements and Quartz's
+about twenty.
+
+**Here the tuned profile is the faster of the two Quartz rows**, which is the opposite of what
+happened in memory — 10.2-10.5 ms against 11.3-11.8, and 76.5 KB against 89.9. On a database an
+acquisition round is round trips and a commit, so amortising it across a batch of ten buys something
+real; in memory it is a lock the workload is already waiting on.
+
+**The two sittings agree.** Every arm's two means are within 8 % of each other and the ordering is
+identical in both, which is more than the in-memory rows can say. The `Error` column is half a 99.9 %
+confidence interval over five iterations and is wide here, so `StdDev` is above instead. These are
+still a commit-latency figure as much as a scheduler one: on faster storage every row moves, and the
+ratios between them are what carries.
+
+One run is not in the table. The guard that fails a sitting whose scheduling overran the lead time
+refused the second Quartz-defaults sitting at a ten-second lead — writing two thousand job details and
+two thousand triggers took longer than that on a busy box — so the lead is twenty seconds in the
+committed harness and that arm was re-run at it. The lead is spent in the iteration setup and is
+outside every measured window; the first sitting's rows were taken at ten.
+
+### S2 — what one execution costs the database
+
+Counted at the database rather than in the client, over one complete window per engine — the drain
+plus a three-second tail, so that the last execution's own completion write is inside it. The idle
+column is the same engine, still running, with nothing left to do.
+
+| Engine | Window (s) | Commits | Commits/execution | Statements | Statements/execution | Idle statements/s |
+|------- |----------: |-------: |----------------: |---------: |-------------------: |----------------: |
+| Quartz (defaults) | 26.6 |  11,724 |  **5.86** |  51,999 | **26.00** |   0.2 |
+| Quartz (tuned)    | 23.7 |   5,466 |  **2.73** |  39,173 | **19.59** |   0.2 |
+| TickerQ           |  9.0 |     415 |  **0.21** |   3,913 |  **1.96** |   0.2 |
+| Hangfire          | 33.3 |  58,850 | **29.43** | 123,135 | **61.57** | 526.0 |
+
+**TickerQ costs the database an order of magnitude less than Quartz here, and half of why is that it
+deletes nothing.** Its acquisition marks a whole second's worth of tickers in one bulk statement, so
+the only per-row write is the completion — and the completed ticker stays in the table afterwards.
+That is the trade: the cheapest execution of the three, and a table that only grows.
+
+**Quartz's figure is a one-off schedule's, which is its most expensive kind.** Completing one deletes
+the trigger row, the simple-trigger row and — because the job detail has no other trigger and is not
+durable — the job detail too. The fire-path figure #3802's D1 report measured on a *repeating*
+trigger is 9.7 statements and 1.24 commits an execution, against 19.6 and 2.73 here; the difference
+is the deletion. The defaults profile pays an acquisition round and a `TriggersFired` per execution
+on top of that, where the tuned profile amortises both across a batch of ten — which is also why
+batching is worth something on a database and was worth nothing in memory.
+
+**Hangfire's figure is the largest, and part of it is the server watching rather than working.** An
+idle Hangfire server at these settings issues about 526 statements a second — ten workers polling a
+queue at `QueuePollInterval`, plus the delayed-job and recurring-job schedulers — so over a 33-second
+window roughly a seventh of its statements are polls. The rest is its state machine: every
+transition through `Enqueued`, `Processing` and `Succeeded` is a storage write with a state-history
+entry. Quartz's and TickerQ's idle rates are indistinguishable from zero, because both sleep until
+the next fire time rather than polling for it.
+
+### S3 — schedule-to-execute latency
+
+One job at a time on an idle engine, two hundred repetitions, twenty milliseconds of quiet between
+them so that every repetition begins with the engine's loop parked. Timestamps are
+`Stopwatch.GetTimestamp()` at the call and again as the job's first instruction, so these stop where
+the job starts. Three sittings, the middle one in reverse order.
+
+| Engine | p50 | p95 | p99 |
+|------- |----: |----: |----: |
+| Quartz, `StartNow`             |  58-70 µs |  169-233 µs |  261-441 µs |
+| Hangfire, `Enqueue`            |  94-235 µs |  291 µs-14.5 ms |  1.0-22.5 ms |
+| TickerQ, `ExecutionTime = null` | 14.7-14.9 ms | 15.3-15.4 ms | 15.6-16.0 ms |
+| Hangfire, `Schedule(TimeSpan.Zero)` | 30.6-30.8 ms | 31.4-31.5 ms | 31.6-32.2 ms |
+
+**Quartz is the fastest of the four by an order of magnitude**, and the row below it is the one that
+needs explaining rather than this one. #3802's D1 probe put `StartNow` on an idle `RAMJobStore`
+scheduler at 74 µs p50 on this machine; 58-70 µs here is the same number.
+
+**TickerQ's immediate path is not slow to dispatch; it is slow to be picked up.** A ticker with a null
+`ExecutionTime` is acquired and dispatched on the calling thread, never reaching the scheduler loop —
+that is the fastest route it has. What it is dispatched *into* is `TickerQTaskScheduler`, whose worker
+loop backs off with `await Task.Delay(Math.Min(consecutiveStealFailures * 2, 50))` once it has failed
+to find work more than three times running. On an idle engine every worker is inside that delay, so
+the work item waits for one to come out, and the distribution is tight: p50 and p99 are within 1.3 ms
+of each other. A busy TickerQ would not show this; an idle one does, and "idle" is what this scenario
+is.
+
+**Hangfire's two rows are its poll, measured twice.** `Enqueue` puts the job where a worker is already
+looking. `Schedule(TimeSpan.Zero)` puts it in the delayed set, where the `DelayedJobScheduler` finds
+it on its next pass — so that row is bounded by `SchedulePollingInterval`, 50 ms here. Read the 30.7 ms
+as "up to one poll interval" rather than as a figure: the scenario's twenty milliseconds of quiet and
+the fifty of poll settle into a stable phase, which is why its spread is so small.
+
+### S4 — recurring accuracy
+
+A hundred schedules that each say "every second", for sixty seconds, on an idle engine. Not a
+BenchmarkDotNet benchmark — `dotnet run … -- --recurring` — because what it measures is not how long
+a call took. Quartz's and TickerQ's deviations are against what the engine hands the job
+(`IJobExecutionContext.ScheduledFireTimeUtc`, `TickerFunctionContext.ScheduledFor`); Hangfire's are
+against the nearest whole second, because a recurring job there is turned into an ordinary background
+job and the occurrence it came from is rewritten to "now" before the job is created. Two sittings.
+
+| Engine | Fired / expected | within ±50 ms | within ±250 ms | Max deviation |
+|------- |----------------: |-------------: |--------------: |------------: |
+| Quartz, simple trigger, defaults | 6,000 / 6,000 | 100 % | 100 % | 15-23 ms |
+| Quartz, cron `* * * * * ?`, defaults | 6,000 / 6,000 | 100 % | 100 % | 15 ms |
+| Quartz, simple trigger, fire-ahead 1 s | 5,999-6,000 / 6,000 | 98.2 % | 98.2 % | 999 ms |
+| TickerQ, cron `* * * * * *` | 6,000 / 6,000 | 73-78 % | 100 % | 74-75 ms |
+| Hangfire, cron `* * * * * *`, poll 1 s | 5,900-6,000 / 6,000 | 0-15 % | 21-71 % | 494-497 ms |
+
+**All three fire the right number of times.** What differs is when. At its defaults Quartz put every
+one of six thousand firings inside fifty milliseconds of its scheduled second, twice; TickerQ put all
+of them inside 250 ms and about three-quarters inside 50 ms, which is its hundred-millisecond poll;
+Hangfire scattered across half a second.
+
+**The third row is Quartz's own trade-off, priced.** `BatchTriggerAcquisitionFireAheadTimeWindow` is
+what lets a batch hold more than the triggers due at one instant, and the way it does that is by
+firing the later ones at the earliest one's fire time — so a second of window is up to a second of
+"early". It is the right setting for the throughput rows above and the wrong one for a punctual
+schedule, and a deployment should not have both.
+
+**Hangfire does honour a six-field cron expression** — `RecurringJobEntity.ParseCronExpression` hands
+one to Cronos with `CronFormat.IncludeSeconds` — so this is not the minute-granularity row #3802
+allowed for. What bounds it is the poll, set to one second here, and
+`MisfireHandlingMode.Relaxed`, which collapses every missed occurrence onto the instant the poll ran.
+
+### S5 — what one schedule costs
+
+Fifty thousand schedules into a store that started empty, through the API each library teaches, each
+due an hour out so nothing fires while the measurement runs. This is `ScheduleJobBenchmark`'s
+arrangement, so the Quartz rows are comparable with the numbers earlier in this file. Three sittings,
+the middle one in reverse order.
+
+| Call | Mean (3 sittings) | Allocated |
+|----- |-----------------: |---------: |
+| `ITimeTickerManager.AddAsync`                   |  1.06-1.28 µs |   562 B |
+| `ICronTickerManager.AddAsync`                   |  1.96-2.35 µs |   450 B |
+| Hangfire recurring job, `AddOrUpdate`           |  6.58-6.92 µs | 5,040-5,159 B |
+| Hangfire background job, `Schedule`             |  6.54-7.08 µs | 7,240-7,416 B |
+| `IScheduler.ScheduleJob`, simple trigger        |  7.67-7.93 µs | 3,540-3,656 B |
+| `IScheduler.ScheduleJob`, cron trigger          |  9.84-10.09 µs | 4,430-4,537 B |
+
+**Quartz loses this row, and it is the one that makes the rest of the table worth reading.** Writing a
+schedule costs it six to eight times what it costs TickerQ, and about a third more than Hangfire.
+
+Two things are worth saying beside it, neither of which changes the ordering. The first is that the
+three calls do not store the same thing: `ScheduleJob(job, trigger)` writes a job detail *and* a
+trigger, Hangfire's `Schedule` writes a job with its serialised method and arguments, and TickerQ's
+`AddAsync` writes a ticker naming a function that was registered at compile time by its source
+generator — there is no job to store. The second is that Quartz's number is a *schedule*, not a
+*firing*: a trigger it writes once will fire for years, and S1 is what that costs. A reader choosing
+between them on this row alone would be choosing on the operation Quartz does least often.
+
+The cron row is measured on `89fbadcdc2`, which is before #3801's cron fast path landed; that work
+moves `CronExpression` parsing and next-fire-time, so this row is due a re-run on top of it.
+
+### Verdict
+
+**In memory, Quartz starts an execution faster than either of the other two and allocates less doing
+it** — 3.9-5.5 µs and 3.46 KB against TickerQ's 8.7-10.3 µs and 4.9-5.4 KB and Hangfire's
+14.9-17.1 µs and 24.4 KB — **and it is an order of magnitude quicker to get a job that is wanted now
+into a worker**: 58-70 µs p50 against 14.7 ms and 30.7 ms. On a one-second recurring schedule at its
+defaults it is the only one of the three that put every one of six thousand firings inside fifty
+milliseconds of the second it was due.
+
+**On a database it loses to TickerQ, and not narrowly.** 10.5-11.3 ms an execution against 2.9, and
+19.6-26 statements against 1.96. Some of that is the workload — a one-off schedule is Quartz's most
+expensive kind, and TickerQ leaves its completed rows where they are — and some of it is a per-execution
+acquisition round the defaults profile pays and the tuned one does not. Neither reading makes 19.6
+statements look like a floor.
+
+**It loses the schedule-writing row by six to eight times to TickerQ**, which writes a ticker naming
+a function that was registered at compile time where Quartz writes a job detail and a trigger.
+
+Both halves are on this page on purpose. The comparison this answers publishes only the half its
+author wins.
