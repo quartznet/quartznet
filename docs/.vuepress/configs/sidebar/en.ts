@@ -73,6 +73,8 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/quartz-4.x/how-tos/job-template",
       "/documentation/quartz-4.x/how-tos/aspire",
       "/documentation/quartz-4.x/how-tos/wolverine",
+      "/documentation/quartz-4.x/how-tos/coming-from-hangfire",
+      "/documentation/quartz-4.x/how-tos/coming-from-tickerq",
       "/documentation/quartz-4.x/how-tos/embedding-quartz-in-a-library",
       "/documentation/quartz-4.x/how-tos/external-leader",
       "/documentation/quartz-4.x/how-tos/trimming-and-native-aot",

@@ -266,5 +266,6 @@ is that argument in full, including the cases where it goes the other way.
 
 ## Coming from one of these
 
-[Quartz.NET with Wolverine](how-tos/wolverine.md) is the how-to for running both in one host and
-deciding which of them owns a given schedule.
+* [Coming from Hangfire](how-tos/coming-from-hangfire.md) — the API mapping, and the semantics that differ
+* [Coming from TickerQ](how-tos/coming-from-tickerq.md) — the same, shorter
+* [Quartz.NET with Wolverine](how-tos/wolverine.md) — running both in one host, and deciding which owns a schedule
