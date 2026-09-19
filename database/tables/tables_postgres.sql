@@ -209,6 +209,8 @@ CREATE TABLE qrtz_execution_history
     run_time BIGINT NOT NULL,
     succeeded BOOL NOT NULL,
     error_message TEXT NULL,
+    retry_attempt INTEGER NOT NULL DEFAULT 0,
+    retry_scheduled BOOL NOT NULL DEFAULT FALSE,
     PRIMARY KEY (sched_name, entry_id)
 );
 

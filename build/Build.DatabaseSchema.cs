@@ -292,6 +292,27 @@ partial class Build
                     oracle: "VARCHAR2(4000) NULL",
                     sqlite: "NVARCHAR(1000) NULL",
                     firebird: "VARCHAR(1000) DEFAULT NULL"),
+                // Which attempt at the occurrence the row is of, and whether the trigger answered
+                // this failure with another one. Together they are what lets a history page tell
+                // "failed, retrying" from "failed, and that was the last word" — a question no
+                // reading of SUCCEEDED alone can answer, because a job under a retry policy writes a
+                // failed row per attempt. Defaulted rather than merely NOT NULL so that a row
+                // inserted by something that does not name them is still a coherent row: no retry
+                // policy at all is exactly attempt zero with nothing scheduled.
+                Column("RETRY_ATTEMPT",
+                    sqlServer: "int NOT NULL DEFAULT 0",
+                    postgres: "INTEGER NOT NULL DEFAULT 0",
+                    mysql: "INTEGER NOT NULL DEFAULT 0",
+                    oracle: "NUMBER(13) DEFAULT 0 NOT NULL",
+                    sqlite: "INTEGER NOT NULL DEFAULT 0",
+                    firebird: "INTEGER DEFAULT 0 NOT NULL"),
+                Column("RETRY_SCHEDULED",
+                    sqlServer: "bit NOT NULL DEFAULT 0",
+                    postgres: "BOOL NOT NULL DEFAULT FALSE",
+                    mysql: "BOOLEAN NOT NULL DEFAULT FALSE",
+                    oracle: "VARCHAR2(1) DEFAULT '0' NOT NULL",
+                    sqlite: "BIT NOT NULL DEFAULT 0",
+                    firebird: "SMALLINT DEFAULT 0 NOT NULL"),
             ],
             OracleStem: "EXEC_HISTORY"),
 

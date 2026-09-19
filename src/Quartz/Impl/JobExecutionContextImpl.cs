@@ -121,6 +121,7 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
         jobDetail = firedBundle.JobDetail;
         jobInstance = job;
         Recovering = firedBundle.Recovering;
+        RetryAttempt = trigger.RetryAttempt;
         FireTimeUtc = firedBundle.FireTimeUtc;
         ScheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
         PreviousFireTimeUtc = firedBundle.PreviousFireTimeUtc;
@@ -181,11 +182,44 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// How many times this occurrence has already been retried under the trigger's retry policy.
     /// </summary>
     /// <remarks>
-    /// Read from the trigger this firing was handed, which is the copy the job store fired: the store
+    /// Taken from the trigger this firing was handed, which is the copy the job store fired: the store
     /// wrote the attempt when it scheduled the retry and read it back when it acquired the trigger, so
     /// this is the count as the store has it and not something the run shell keeps.
+    /// <para>
+    /// Copied when the context is built rather than read through the trigger, because
+    /// <c>ExecutionComplete</c> writes that field on its way out — advancing it on a firing that is
+    /// being retried and zeroing it on one that has settled — and it runs before the listeners are
+    /// told. Reading it live left <see cref="IJobListener.JobWasExecuted" /> and
+    /// <see cref="ITriggerListener.TriggerComplete" /> with the attempt that is about to be made, or
+    /// with nothing at all, rather than with the attempt the job just made.
+    /// </para>
     /// </remarks>
-    public int RetryAttempt => Trigger.RetryAttempt;
+    public int RetryAttempt { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Written once by the run shell, on the thread that ran the job and before any completion
+    /// notification goes out, and read by the listeners those notifications reach. An ordinary field
+    /// rather than an interlocked one: the write happens-before every read through the awaits the
+    /// notifications go through.
+    /// </remarks>
+    public ExecutionOutcome Outcome { get; private set; } = ExecutionOutcome.Succeeded;
+
+    /// <inheritdoc />
+    public bool RetryScheduled { get; private set; }
+
+    /// <summary>
+    /// Records how the firing ended, and whether the trigger answered it with another attempt.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Core.JobRunShell" />'s to call, as <see cref="IncrementRefireCount" /> is: a job or a
+    /// listener writing either would be reporting an ending the scheduler did not observe.
+    /// </remarks>
+    internal void Settle(ExecutionOutcome outcome, bool retryScheduled)
+    {
+        Outcome = outcome;
+        RetryScheduled = retryScheduled;
+    }
 
     /// <summary>
     /// Get the convenience <see cref="JobDataMap" /> of this execution context.

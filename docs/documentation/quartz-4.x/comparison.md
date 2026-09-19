@@ -138,15 +138,15 @@ each process keeps its own copy of.
 |---|---|---|---|---|---|
 | Retry on failure | [`RetryPolicy` on the trigger](how-tos/retrying-failed-jobs.md) — `Fixed`, `Exponential` or `Explicit`, opt-in per trigger | [`AutomaticRetryAttribute`, applied to every job by default: ten attempts, delay `(attempt − 1)⁴ + 15 + rand(30) × attempt` seconds](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/AutomaticRetryAttribute.cs) | [`Retries` and `RetryIntervals` in seconds, per ticker](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/error-handling.mdx) | the message's own retry policies and dead-letter queue | [none — `OnError` and a `ScheduledEventFailed` broadcast, with no re-invocation](https://docs.coravel.net/Scheduler/) |
 | What holds the wait | the job store: a retry is a new fire time on the trigger, so it survives a restart and any node can run it | the storage: the job sits in the `Scheduled` state until its next attempt | [an in-process `Task.Delay` inside the execution, so the worker slot and the row's lease are held for the whole sequence and it dies with the process](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ/Src/TickerExecutionTaskHandler.cs) | the message store | — |
-| Jitter | none | [yes, `rand(30) × attempt` seconds](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/AutomaticRetryAttribute.cs) | none | the bus's own policy | — |
-| When the attempts run out | the trigger returns to its ordinary schedule; it is not parked in an error state | [the job lands in `Failed`, which never expires](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/States/FailedState.cs) and can be requeued from the dashboard | the ticker is recorded as failed | dead-letter queue | — |
+| Jitter | [opt-in on `Exponential`: each wait is drawn from `[1 − jitter, 1 + jitter]` times what the backoff says](how-tos/retrying-failed-jobs.md#give-the-trigger-a-policy) | [yes, `rand(30) × attempt` seconds](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/AutomaticRetryAttribute.cs) | none | the bus's own policy | — |
+| When the attempts run out | the trigger returns to its ordinary schedule; it is not parked in an error state. [`ITriggerListener.TriggerRetriesExhausted`, a log event, a counter and a history row marked final](how-tos/retrying-failed-jobs.md#when-the-policy-gives-up) all say it happened | [the job lands in `Failed`, which never expires](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/States/FailedState.cs) and can be requeued from the dashboard | the ticker is recorded as failed | dead-letter queue | — |
 | Per-job timeout | [`[JobTimeout]` on the job class, enforced once `AddJobTimeout` registers the middleware](tutorial/job-execution-middleware.md#timing-a-job-out) | none | [none](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/configuration.mdx) | the message's own | none |
 
 Hangfire's retry is on by default and Quartz's is opt-in, which is a real difference in what a careless
-application gets. Hangfire also jitters and Quartz does not; jitter, and a signal when a policy gives
-up, are [#3807](https://github.com/quartznet/quartznet/issues/3807), scheduled for 4.2 and not shipped.
-What Quartz has that the others do not is that the wait is held in the store rather than in the process:
-a node that dies during a five-minute backoff does not take the retry with it.
+application gets. Hangfire jitters unconditionally where Quartz's jitter is a number on the policy, so a
+schedule that wants its waits exact keeps them. What Quartz has that the others do not is that the wait
+is held in the store rather than in the process: a node that dies during a five-minute backoff does not
+take the retry with it.
 
 ## Continuations and chaining
 
@@ -183,17 +183,17 @@ the outcome it named; the listener remains as the *recurring* form and takes the
 | Read-only mode | yes, and a [job-type allow-list](packages/dashboard.md#narrowing-which-job-types-may-be-named) for what may be scheduled through it | [`IsReadOnlyFunc`, off by default](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | no | — | — |
 | What it is best at | the whole cluster: node check-ins, execution groups and their headroom, misfires, an action log of what was done from it | [the state machine — one page per state, and one-click requeue or delete of a failed job, singly or in bulk](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | [live SignalR monitoring, editing both ticker kinds, starting and stopping the host](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/dashboard/index.mdx) | — | — |
 
-Hangfire's per-state lists and its requeue button are better than anything Quartz has for the
-"something failed last night, show me and run it again" workflow. A retries-exhausted signal, a history
-filter for it and a *run again* action are
-[#3807](https://github.com/quartznet/quartznet/issues/3807), scheduled for 4.2.
+Hangfire's per-state lists are still better at browsing failures by kind. The
+"something failed last night, show me and run it again" workflow itself is answered: the History page
+has a **Failed after retries** filter and a **Run again** button on every occurrence that gave up — see
+[When the policy gives up](how-tos/retrying-failed-jobs.md#when-the-policy-gives-up).
 
 ## Observability
 
 | | Quartz.NET 4.1 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.35 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Traces | [two job spans and thirty-three store spans on the `Quartz` activity source](packages/opentelemetry-integration.md) | [none in the box](https://github.com/HangfireIO/Hangfire/tree/v1.8.25/src/Hangfire.Core); the [OpenTelemetry community's instrumentation package](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Hangfire) is still pre-release | [`TickerQ.Instrumentation.OpenTelemetry` — `tickerq.job.execute.*` spans on a `TickerQ` source](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/opentelemetry/index.mdx) | the bus's own message spans, tagged [`wolverine.schedule.name`](https://github.com/JasperFx/wolverine/blob/V6.35.0/src/Wolverine/Runtime/WolverineTracing.cs) | none |
-| Metrics | [ten instruments on the `Quartz` meter](packages/opentelemetry-integration.md#metrics) | none | [none — the package emits traces and `ILogger` events only](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/opentelemetry/index.mdx) | [yes, on Wolverine's own meter](https://github.com/JasperFx/wolverine/blob/V6.35.0/src/Wolverine/Runtime/WolverineRuntime.cs) | none |
+| Metrics | [eleven instruments on the `Quartz` meter](packages/opentelemetry-integration.md#metrics) | none | [none — the package emits traces and `ILogger` events only](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/opentelemetry/index.mdx) | [yes, on Wolverine's own meter](https://github.com/JasperFx/wolverine/blob/V6.35.0/src/Wolverine/Runtime/WolverineRuntime.cs) | none |
 | Health check | [in the core package](packages/hosted-services-integration.md#health-checks) | none | none | [`WolverineFx.HealthChecks`, a separate package](https://www.nuget.org/packages/WolverineFx.HealthChecks) | none |
 | .NET Aspire | [`Quartz.Aspire`](packages/aspire.md) — a connection name becomes a persistent store with its telemetry and health check | none | none | — | none |
 
@@ -253,10 +253,9 @@ are what Quartz offers.
 holds: see [Continuations and chaining](#continuations-and-chaining) above and
 [Job Continuations](how-tos/job-continuations.md).
 
-**Retry is opt-in, and it does not jitter.** Hangfire retries every job by default and spreads the
+**Retry is opt-in, and so is its jitter.** Hangfire retries every job by default and spreads the
 attempts. Quartz retries only the triggers you gave a policy to, and the waits are exactly what the
-policy says. [#3807](https://github.com/quartznet/quartznet/issues/3807) adds jitter and a
-retries-exhausted signal in 4.2.
+policy says — unless the policy names a `jitter`, which spreads them the same way.
 
 **There are no queues.** Hangfire's `[Queue]` with several servers each subscribing to a different set
 is a routing mechanism, and Quartz has nothing that routes.

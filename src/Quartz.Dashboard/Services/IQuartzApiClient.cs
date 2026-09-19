@@ -443,6 +443,18 @@ public sealed record DashboardHistoryQuery : PagedQuery
     /// Lists only the executions whose trigger key matches this, or every trigger's when null.
     /// </summary>
     public string? TriggerFilter { get; init; }
+
+    /// <summary>
+    /// Narrows the page to the executions that failed for the last time, or to everything else.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="true" /> lists the rows where the job failed and the trigger did <em>not</em>
+    /// answer with another attempt — the occurrences that gave up. <see langword="false" /> lists
+    /// every other row, and <see langword="null" />, the default, lists them all. It is a question
+    /// <c>Succeeded</c> alone cannot ask: a job under a retry policy writes a failed row per attempt,
+    /// so filtering on failure shows one occurrence several times over.
+    /// </remarks>
+    public bool? FailedFinally { get; init; }
 }
 
 /// <summary>

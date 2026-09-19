@@ -82,6 +82,81 @@ public class HttpExecutionHistoryStoreTest
     }
 
     [Test]
+    public async Task TheAttemptAndTheRetryFlagTravelWithEachRow()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "items": [
+                {
+                  "schedulerInstanceId": "node-a",
+                  "jobGroup": "DummyGroup",
+                  "jobName": "nightly",
+                  "triggerGroup": "DummyTriggerGroup",
+                  "triggerName": "at-midnight",
+                  "firedAtUtc": "2026-08-26T12:00:00+00:00",
+                  "duration": "00:00:01.5000000",
+                  "succeeded": false,
+                  "exceptionMessage": "the job threw",
+                  "retryAttempt": 2,
+                  "retryScheduled": true
+                },
+                {
+                  "schedulerInstanceId": "node-a",
+                  "jobGroup": "DummyGroup",
+                  "jobName": "hourly",
+                  "triggerGroup": "DummyTriggerGroup",
+                  "triggerName": "on-the-hour",
+                  "firedAtUtc": "2026-08-26T11:00:00+00:00",
+                  "duration": "00:00:00.5000000",
+                  "succeeded": true,
+                  "exceptionMessage": null
+                }
+              ],
+              "hasMore": false,
+              "totalCount": 2
+            }
+            """);
+
+        PagedResult<ExecutionHistoryEntry> page = await Store().QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = "Remote"
+        });
+
+        page.Items[0].RetryAttempt.Should().Be(2);
+        page.Items[0].RetryScheduled.Should().BeTrue();
+
+        page.Items[1].RetryAttempt.Should().Be(0, "a host that sends neither is a host with nothing to say about retries");
+        page.Items[1].RetryScheduled.Should().BeFalse();
+    }
+
+    [TestCase(true, "failedFinally=true")]
+    [TestCase(false, "failedFinally=false")]
+    public async Task TheFinalFailureFilterIsAskedForOverTheWire(bool failedFinally, string expected)
+    {
+        handler.Respond(HttpStatusCode.OK, """{ "items": [], "hasMore": false, "totalCount": 0 }""");
+
+        await Store().QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = "Remote",
+            FailedFinally = failedFinally
+        });
+
+        handler.LastRequestUri.Should().Be(
+            "http://localhost:8080/schedulers/Remote/history/executions?take=250&" + expected,
+            "a filter this client dropped would be a page that quietly answered a different question");
+    }
+
+    [Test]
+    public async Task AnUnaskedFinalFailureFilterIsNotSent()
+    {
+        handler.Respond(HttpStatusCode.OK, """{ "items": [], "hasMore": false, "totalCount": 0 }""");
+
+        await Store().QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote" });
+
+        handler.LastRequestUri.Should().Be("http://localhost:8080/schedulers/Remote/history/executions?take=250");
+    }
+
+    [Test]
     public async Task MisfiresAreReadFromTheTargetsHistoryRoute()
     {
         handler.Respond(HttpStatusCode.OK, """

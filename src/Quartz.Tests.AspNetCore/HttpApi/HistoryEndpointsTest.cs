@@ -127,6 +127,42 @@ public sealed class HistoryEndpointsTest
     }
 
     [Test]
+    public async Task ExecutionsCanBeNarrowedToTheOccurrencesThatGaveUp()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await history.AddExecution(Failed(now.AddSeconds(1), "nightly", retryAttempt: 0, retryScheduled: true));
+        await history.AddExecution(Failed(now.AddSeconds(2), "nightly", retryAttempt: 1, retryScheduled: false));
+        await history.AddExecution(Entry(now.AddSeconds(3), "hourly"));
+
+        PagedResultDto<ExecutionHistoryEntryDto> gaveUp = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?failedFinally=true");
+
+        gaveUp.Items.Should().ContainSingle(
+            "a filter on failure alone would show one occurrence twice over").Which.RetryAttempt.Should().Be(1);
+
+        PagedResultDto<ExecutionHistoryEntryDto> everythingElse = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?failedFinally=false");
+        everythingElse.Items.Should().HaveCount(2);
+
+        PagedResultDto<ExecutionHistoryEntryDto> everything = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions");
+        everything.Items.Should().HaveCount(3, "a route that was not given the parameter narrows nothing");
+    }
+
+    [Test]
+    public async Task TheAttemptAndTheRetryFlagAreOnEveryRow()
+    {
+        await history.AddExecution(Failed(DateTimeOffset.UtcNow, "nightly", retryAttempt: 2, retryScheduled: true));
+
+        ExecutionHistoryEntryDto row = (await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions")).Items.Should().ContainSingle().Subject;
+
+        row.RetryAttempt.Should().Be(2);
+        row.RetryScheduled.Should().BeTrue(
+            "without it a remote reader cannot tell a failure that is going to be retried from one that is over");
+    }
+
+    [Test]
     public async Task MisfiresAreListedAndCounted()
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -199,6 +235,19 @@ public sealed class HistoryEndpointsTest
         Duration: TimeSpan.FromMilliseconds(5),
         Succeeded: true,
         ExceptionMessage: null);
+
+    /// <summary>One failed attempt at an occurrence, which may or may not have another coming.</summary>
+    private static ExecutionHistoryEntry Failed(
+        DateTimeOffset firedAt,
+        string jobName,
+        int retryAttempt,
+        bool retryScheduled) => Entry(firedAt, jobName) with
+    {
+        Succeeded = false,
+        ExceptionMessage = "the upstream system is down",
+        RetryAttempt = retryAttempt,
+        RetryScheduled = retryScheduled
+    };
 
     private static MisfireHistoryEntry Misfire(DateTimeOffset misfiredAt, string triggerName) => new(
         SchedulerName: TestData.SchedulerName,

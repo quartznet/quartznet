@@ -47,7 +47,33 @@ public sealed record DashboardHistoryEntry(
     DateTimeOffset FiredAtUtc,
     TimeSpan Duration,
     bool Succeeded,
-    string? ExceptionMessage);
+    string? ExceptionMessage)
+{
+    /// <summary>
+    /// Which attempt at the occurrence this execution was: <c>0</c> on the regular fire, <c>n</c> on
+    /// the <c>n</c>-th retry under the trigger's retry policy.
+    /// </summary>
+    /// <remarks>
+    /// Non-positional <c>init</c> properties, so the record's constructor is unchanged and a store an
+    /// application wrote against 4.0 or 4.1 still compiles. Both are <c>0</c> and
+    /// <see langword="false" /> for an execution with no retry policy behind it, which is the default.
+    /// </remarks>
+    public int RetryAttempt { get; init; }
+
+    /// <summary>
+    /// Whether the trigger answered this failure with another attempt, so the occurrence was not
+    /// finished when this row was written.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="RetryAttempt" path="/remarks" />
+    /// <para>
+    /// A row that did not succeed and has this <see langword="false" /> is a final failure, which is
+    /// what the history page labels "Failed" rather than "Failed (retrying)" and what it offers to run
+    /// again.
+    /// </para>
+    /// </remarks>
+    public bool RetryScheduled { get; init; }
+}
 
 /// <summary>
 /// One trigger that missed its scheduled firing, as the scheduler reported it.

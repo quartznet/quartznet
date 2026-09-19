@@ -47,6 +47,11 @@ public class RetryPolicyStoredFormContractTest
         yield return new TestCaseData(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10)), "exp;5;00:00:10;2").SetName("exponential, default factor");
         yield return new TestCaseData(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 1.5), "exp;5;00:00:10;1.5").SetName("exponential, fractional factor");
         yield return new TestCaseData(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(10)), "exp;5;00:00:10;2;00:10:00").SetName("exponential, with a ceiling");
+        // The jitter token carries a marker because the ceiling before it is optional, so the two
+        // occupy the same position and two bare numbers could not be told apart.
+        yield return new TestCaseData(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 2, null, 0.2), "exp;5;00:00:10;2;j0.2").SetName("exponential, jittered, no ceiling");
+        yield return new TestCaseData(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(10), 0.25), "exp;5;00:00:10;2;00:10:00;j0.25").SetName("exponential, jittered, with a ceiling");
+        yield return new TestCaseData(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 2, null, 1), "exp;5;00:00:10;2;j1").SetName("exponential, jittered to the full band");
         yield return new TestCaseData(RetryPolicy.Explicit(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30)), "list;00:00:01;00:00:05;00:00:30").SetName("explicit table");
         yield return new TestCaseData(RetryPolicy.Explicit(TimeSpan.FromMinutes(2)), "list;00:02:00").SetName("explicit table of one");
     }
@@ -86,6 +91,46 @@ public class RetryPolicyStoredFormContractTest
 
         policy.ToStoredString().Should().Be("exp;3;00:00:01;1;00:00:01");
         RetryPolicy.Parse(policy.ToStoredString()).Should().Be(policy);
+    }
+
+    [Test]
+    public void APolicyWithoutJitterStoresExactlyWhatItAlwaysStored()
+    {
+        // The token is appended only when there is jitter, so the column a 4.0 or 4.1 node wrote and
+        // the column a 4.2 node writes for the same policy are the same bytes - and only a trigger
+        // that actually asked for jitter carries a stored form an older node cannot read.
+        RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 2, null, jitter: 0).ToStoredString()
+            .Should().Be("exp;5;00:00:10;2");
+        RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(10), jitter: 0).ToStoredString()
+            .Should().Be("exp;5;00:00:10;2;00:10:00");
+    }
+
+    [Test]
+    public void TheJitterRoundTripsToTheBit()
+    {
+        RetryPolicy policy = RetryPolicy.Exponential(3, TimeSpan.FromSeconds(1), 2, null, 1d / 3);
+
+        RetryPolicy.Parse(policy.ToStoredString()).Jitter.Should().Be(1d / 3,
+            "the jitter is written with the round-trip format, as the factor is, so no precision is lost in the column");
+    }
+
+    [Test]
+    public void TheJitterIgnoresTheAmbientCultureToo()
+    {
+        CultureInfo original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("fi-FI");
+
+            RetryPolicy policy = RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 2, null, 0.25);
+
+            policy.ToStoredString().Should().Be("exp;5;00:00:10;2;j0.25");
+            RetryPolicy.Parse("exp;5;00:00:10;2;j0.25").Should().Be(policy);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 
     [Test]
@@ -142,6 +187,11 @@ public class RetryPolicyStoredFormContractTest
     [TestCase("exp;3;00:00:10;0.5")]
     [TestCase("exp;3;00:00:10;2;00:00:01")]
     [TestCase("exp;3;00:00:10;2;00:10:00;more")]
+    [TestCase("exp;3;00:00:10;2;jnot-a-number")]
+    [TestCase("exp;3;00:00:10;2;j2")]
+    [TestCase("exp;3;00:00:10;2;j-0.5")]
+    [TestCase("exp;3;00:00:10;2;j0.2;00:10:00")]
+    [TestCase("exp;3;00:00:10;2;00:10:00;j0.2;j0.3")]
     [TestCase("list")]
     [TestCase("list;")]
     [TestCase("list;00:00:01;nonsense")]

@@ -554,10 +554,23 @@ is populated without anything further being written. Each row names the job, the
 ran it, when it fired, how long it took, whether it succeeded and the error if it did not.
 
 Above the rows are four figures over the page in view — success rate, failures, average duration and
-P95 duration — and above those three filters: by job, by trigger, and by node. **The node filter is the
-one a cluster needs**: it narrows the listing to one machine, and the stat cards' titles then say so, so
-a success rate cannot be read as the fleet's when it is one node's. Without it a clustered scheduler's
-history is an undifferentiated stream.
+P95 duration — and above those four filters: by job, by trigger, by node and by outcome. **The node
+filter is the one a cluster needs**: it narrows the listing to one machine, and the stat cards' titles
+then say so, so a success rate cannot be read as the fleet's when it is one node's. Without it a
+clustered scheduler's history is an undifferentiated stream.
+
+**The outcome filter is the one a retry policy needs.** A job under a policy of three writes four failed
+rows for one bad night, so a page read for failures shows the same occurrence four times over. A row
+whose failure the trigger answered with another attempt says *Failed (retrying)* rather than *Failed*,
+and **Failed after retries** narrows the listing to the occurrences that gave up — the ones where
+something actually did not happen.
+
+Each of those carries a **Run again** button, which fires the job by hand through
+`IScheduler.TriggerJob`. It is a mutation like any other: it is recorded in the
+[action log](#action-log), and a [read-only](#read-only-mode) dashboard does not offer it. It fires
+the job with the data map the job and its trigger have stored, not the merged map the failed execution
+ran with — a history row records that an execution happened, not what it was handed. A row that is
+going to be retried has no button: another attempt is already coming.
 
 Beneath the executions the page lists **misfires**: firings the scheduler missed. Nothing ran, so they
 never appear in the execution history however long a reader stares at it; each row names the trigger,

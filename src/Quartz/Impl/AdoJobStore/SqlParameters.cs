@@ -213,6 +213,25 @@ internal static class SqlParameters
     public const string ErrorMessage = "errorMessage";
     public const string MisfireTime = "misfireTime";
 
+    /// <summary>Which attempt at the occurrence a history row is of.</summary>
+    /// <remarks>
+    /// Its own name rather than <see cref="TriggerRetryAttempt" />, because the two are bound in
+    /// different statements against different tables and a shared name would hide that.
+    /// </remarks>
+    public const string HistoryRetryAttempt = "historyRetryAttempt";
+
+    /// <summary>Whether a history row's failure was answered with another attempt.</summary>
+    /// <remarks>
+    /// Bound by the insert, and again by the <c>failedFinally</c> predicate — which compares against
+    /// parameters rather than literals, because a dialect's <see langword="false" /> is a <c>bit</c>,
+    /// a <c>boolean</c>, a <c>NUMBER(1)</c> or a <c>CHAR(1)</c> depending on who is asked, and
+    /// <c>GetDbBooleanValue</c> is what knows which. That predicate names this and
+    /// <see cref="Succeeded" /> once each rather than one name twice, because a dialect that binds by
+    /// position needs one parameter per occurrence.
+    /// </remarks>
+    public const string HistoryRetryScheduled = "historyRetryScheduled";
+
+
     /// <summary>The node a history page is narrowed to.</summary>
     public const string HistoryNode = "historyNode";
 

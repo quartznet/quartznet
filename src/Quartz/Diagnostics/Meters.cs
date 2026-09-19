@@ -42,6 +42,7 @@ internal sealed class Meters : IDisposable
     private readonly Histogram<double> jobExecuteDuration;
     private readonly Counter<long> triggerMisfires;
     private readonly Counter<long> triggerRetries;
+    private readonly Counter<long> triggerRetriesExhausted;
     private readonly Histogram<double> triggerAcquisitionDuration;
     private readonly Counter<long> triggersAcquired;
     private readonly Histogram<double> clusterCheckinDuration;
@@ -78,6 +79,13 @@ internal sealed class Meters : IDisposable
         // retries rather than working. Counted once per retry the scheduler schedules, not per attempt
         // configured, so a policy that never has to be used contributes nothing.
         triggerRetries = meter.CreateCounter<long>(QuartzInstrumentation.Instruments.TriggerRetry, "{trigger}", "Number of trigger retries the scheduler scheduled after a job failed");
+
+        // And the end of that story: the occurrence failed for the last time and the trigger went back
+        // to its ordinary schedule. A counter of its own rather than an outcome tag on the duration
+        // histogram, which would change the cardinality of a series every existing dashboard already
+        // charts. Retries scheduled against retries exhausted is the ratio that says whether retrying
+        // is buying anything.
+        triggerRetriesExhausted = meter.CreateCounter<long>(QuartzInstrumentation.Instruments.TriggerRetriesExhausted, "{trigger}", "Number of failed occurrences whose retry policy ran out of attempts");
 
         // How long the scheduling loop waits on its store for the next batch. This is the round trip the
         // loop cannot overlap with anything, so it is what a slow or contended store shows up as.
@@ -270,6 +278,33 @@ internal sealed class Meters : IDisposable
         }
 
         triggerRetries.Add(1, tags);
+    }
+
+    /// <summary>
+    /// One failed occurrence the scheduler has stopped retrying, its attempts spent.
+    /// </summary>
+    internal void TriggerRetriesExhausted(string schedulerName, string schedulerId, ITrigger trigger)
+    {
+        if (!triggerRetriesExhausted.Enabled)
+        {
+            return;
+        }
+
+        // The same tags the retry counter carries, so the two divide: a rate of exhaustion against a
+        // rate of retrying is what says whether the policy is buying anything for this group.
+        TagList tags = new()
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+            { ActivityTags.TriggerGroup, trigger.Key.Group },
+        };
+
+        if (trigger.ExecutionGroup is { } executionGroup)
+        {
+            tags.Add(ActivityTags.ExecutionGroup, executionGroup);
+        }
+
+        triggerRetriesExhausted.Add(1, tags);
     }
 
     /// <summary>

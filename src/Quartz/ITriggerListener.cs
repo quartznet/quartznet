@@ -152,4 +152,41 @@ public interface ITriggerListener
         IJobExecutionContext context,
         SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
+    /// Called by the <see cref="IScheduler" /> when a failed occurrence has run out of retries: the
+    /// trigger carries a <see cref="ITrigger.RetryPolicy" />, the job failed, and the scheduler is not
+    /// going to try again.
+    /// </summary>
+    /// <param name="trigger">The <see cref="ITrigger" /> whose occurrence has given up.</param>
+    /// <param name="context">
+    /// The <see cref="IJobExecutionContext" /> of the last attempt. <see cref="IJobExecutionContext.RetryAttempt" />
+    /// is how many retries that occurrence had already spent, and
+    /// <see cref="IJobExecutionContext.RetryScheduled" /> is <see langword="false" />.
+    /// </param>
+    /// <param name="exception">What the last attempt threw.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// <para>
+    /// Raised once per settled failed occurrence, between
+    /// <see cref="IJobListener.JobWasExecuted" /> and <see cref="TriggerComplete" />, and never for a
+    /// failure the trigger answered with another attempt — that firing's instruction is
+    /// <see cref="SchedulerInstruction.RetryTrigger" />. A trigger with no retry policy never raises it
+    /// either: nothing gave up, because nothing was going to try again.
+    /// </para>
+    /// <para>
+    /// Running out of attempts is not an error. The trigger goes back to its ordinary schedule with its
+    /// attempt cleared, which is why this notification exists: without it the only way to tell
+    /// "retrying" from "given up" was to compare <see cref="TriggerComplete" />'s instruction against
+    /// <see cref="SchedulerInstruction.RetryTrigger" /> and know what the trigger's policy said.
+    /// </para>
+    /// <para>
+    /// The default implementation does nothing.
+    /// </para>
+    /// </remarks>
+    ValueTask TriggerRetriesExhausted(
+        ITrigger trigger,
+        IJobExecutionContext context,
+        JobExecutionException exception,
+        CancellationToken cancellationToken = default) => default;
 }

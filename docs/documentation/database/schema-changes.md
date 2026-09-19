@@ -411,7 +411,7 @@ that already exists. Run the script.
 
 | Table | What it holds |
 |---|---|
-| `QRTZ_EXECUTION_HISTORY` | One row per execution that finished: the node that ran it, the job and trigger, when it fired, how long it took in ticks, whether it threw, and what it said. |
+| `QRTZ_EXECUTION_HISTORY` | One row per execution that finished: the node that ran it, the job and trigger, when it fired, how long it took in ticks, whether it threw, what it said, which attempt at the occurrence it was (`RETRY_ATTEMPT`) and whether the trigger answered it with another one (`RETRY_SCHEDULED`). |
 | `QRTZ_MISFIRE_HISTORY` | One row per firing that was missed: the trigger, the node that noticed, when it was noticed and the firing that was missed. Nothing ran, so there is no duration and no outcome — which is why it is a second table rather than a kind column that would leave half of every row null. |
 
 Both are keyed by `(SCHED_NAME, ENTRY_ID)`, where `ENTRY_ID` is a value the store writes exactly as
@@ -422,7 +422,10 @@ names, which is the point of keeping one — and no other statement in the schem
 Two indexes on each: `(SCHED_NAME, <time>)` for the age query and the retention sweep, and
 `(SCHED_NAME, INSTANCE_NAME)` for the dashboard's node filter. A search by job or trigger name is a
 scan, deliberately: it lowercases the key to match the way the in-memory history matches, which no
-index can serve, and the feed a search runs over is bounded by the retention window.
+index can serve, and the feed a search runs over is bounded by the retention window. `RETRY_ATTEMPT`
+and `RETRY_SCHEDULED` are not indexed either: the "failed after retries" filter
+(`SUCCEEDED = 0 AND RETRY_SCHEDULED = 0`) runs over the same bounded feed, and two low-cardinality
+columns are a poor index in any case.
 
 Run it, or do not: a scheduler that keeps no history never probes for these tables, so a database
 created by 4.0 or 4.1 goes on working untouched. A store that *is* configured for one refuses to start

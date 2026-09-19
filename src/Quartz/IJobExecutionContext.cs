@@ -71,6 +71,55 @@ public interface IJobExecutionContext
     int RetryAttempt { get; }
 
     /// <summary>
+    /// How this firing ended, as the scheduler classified it — the same value the job store is told on
+    /// <see cref="Extensibility.TriggeredJobCompleteContext.Outcome" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Written by the scheduler once the job has finished and before the completion notifications go
+    /// out, so <see cref="IJobListener.JobWasExecuted" /> and
+    /// <see cref="ITriggerListener.TriggerComplete" /> read what actually happened. A listener asking
+    /// earlier — or a context built by hand — is answered <see cref="ExecutionOutcome.Succeeded" />,
+    /// because nothing has gone wrong yet.
+    /// </para>
+    /// <para>
+    /// It says what the firing did and nothing about what the schedule makes of it: a job that ran and
+    /// threw is <see cref="ExecutionOutcome.Failed" /> whether or not the trigger's
+    /// <see cref="ITrigger.RetryPolicy" /> then asked for another attempt. <see cref="RetryScheduled" />
+    /// is what tells those two apart.
+    /// </para>
+    /// <para>
+    /// A default interface member, so an <see cref="IJobExecutionContext" /> implemented outside
+    /// this repository compiles unchanged.
+    /// </para>
+    /// </remarks>
+    ExecutionOutcome Outcome => ExecutionOutcome.Succeeded;
+
+    /// <summary>
+    /// Whether the trigger answered this firing's failure with another attempt, so the occurrence is
+    /// not finished.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="true" /> exactly when the scheduler decided
+    /// <see cref="SchedulerInstruction.RetryTrigger" />: the job failed, the trigger has a
+    /// <see cref="ITrigger.RetryPolicy" />, it has attempts left, and there was room for the retry
+    /// before the next scheduled occurrence. A failed firing with
+    /// <see langword="false" /> here is the occurrence's last word — that is what
+    /// <see cref="ITriggerListener.TriggerRetriesExhausted" /> announces.
+    /// </para>
+    /// <para>
+    /// Set beside <see cref="Outcome" /> and read in the same places. Never <see langword="true" /> on
+    /// a firing that succeeded.
+    /// </para>
+    /// <para>
+    /// A default interface member, so an <see cref="IJobExecutionContext" /> implemented outside
+    /// this repository compiles unchanged.
+    /// </para>
+    /// </remarks>
+    bool RetryScheduled => false;
+
+    /// <summary>
     /// Get the convenience <see cref="JobDataMap" /> of this execution context.
     /// </summary>
     /// <remarks>

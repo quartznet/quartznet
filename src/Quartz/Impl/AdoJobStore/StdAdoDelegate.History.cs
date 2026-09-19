@@ -93,6 +93,8 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.RunTime, entry.Duration.Ticks);
         AddCommandParameter(cmd, SqlParameters.Succeeded, GetDbBooleanValue(entry.Succeeded));
         AddCommandParameter(cmd, SqlParameters.ErrorMessage, Truncate(entry.ExceptionMessage));
+        AddCommandParameter(cmd, SqlParameters.HistoryRetryAttempt, entry.RetryAttempt);
+        AddCommandParameter(cmd, SqlParameters.HistoryRetryScheduled, GetDbBooleanValue(entry.RetryScheduled));
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -153,6 +155,7 @@ public partial class StdAdoDelegate
             SqlParameters.HistoryTriggerContains,
             HistoryKeyExpression(AdoConstants.ColumnTriggerGroup, AdoConstants.ColumnTriggerName),
             query.TriggerContains);
+        AppendFailedFinallyPredicate(predicateBuilder, parameters, query.FailedFinally);
 
         string predicate = predicateBuilder.ToString();
         string schedulerName = query.SchedulerName;
@@ -378,6 +381,34 @@ public partial class StdAdoDelegate
         parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryNode, schedulerInstanceId.Trim()));
     }
 
+    /// <summary>
+    /// Narrows a history read to the occurrences that gave up, or to everything else.
+    /// </summary>
+    /// <remarks>
+    /// The <see langword="true" /> and <see langword="false" /> are bound once each and named by both
+    /// forms of the predicate, so a dialect that stores a boolean as something other than a bit gets
+    /// its own spelling of them from <c>GetDbBooleanValue</c> rather than from the statement text.
+    /// </remarks>
+    private void AppendFailedFinallyPredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        bool? failedFinally)
+    {
+        if (failedFinally is not { } wanted)
+        {
+            return;
+        }
+
+        predicate.Append(wanted
+            ? StdAdoConstants.SqlExecutionHistoryFailedFinally
+            : StdAdoConstants.SqlExecutionHistoryNotFailedFinally);
+
+        // "Gave up" is two falses ANDed; "everything else" is the De Morgan of it, two trues ORed.
+        object? comparand = GetDbBooleanValue(!wanted);
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.Succeeded, comparand));
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryRetryScheduled, comparand));
+    }
+
     private void AppendContainsPredicate(
         StringBuilder predicate,
         List<KeyValuePair<string, object?>> parameters,
@@ -433,7 +464,11 @@ public partial class StdAdoDelegate
             FiredAtUtc: GetDateTimeFromDbValue(rs.GetValue(5)) ?? DateTimeOffset.MinValue,
             Duration: TimeSpan.FromTicks(Convert.ToInt64(rs.GetValue(6), CultureInfo.InvariantCulture)),
             Succeeded: GetBooleanFromDbValue(rs.GetValue(7)),
-            ExceptionMessage: rs.IsDBNull(8) ? null : rs.GetString(8));
+            ExceptionMessage: rs.IsDBNull(8) ? null : rs.GetString(8))
+        {
+            RetryAttempt = Convert.ToInt32(rs.GetValue(9), CultureInfo.InvariantCulture),
+            RetryScheduled = GetBooleanFromDbValue(rs.GetValue(10))
+        };
     }
 
     private MisfireHistoryEntry ReadMisfireHistoryEntry(DbDataReader rs, string schedulerName)

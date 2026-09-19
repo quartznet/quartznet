@@ -133,6 +133,7 @@ public sealed class InstrumentNameTest
                 "quartz.job.execution.duration",
                 "quartz.trigger.misfire",
                 "quartz.trigger.retry",
+                "quartz.trigger.retries_exhausted",
                 "quartz.trigger.acquisition.duration",
                 "quartz.trigger.acquired",
                 "quartz.cluster.checkin.duration",

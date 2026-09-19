@@ -399,9 +399,113 @@ public abstract class ExecutionHistoryStoreContractTest
         (await store.CountMisfires("OtherScheduler", Start.AddDays(-1))).Should().Be(0);
     }
 
+    [Test]
+    public async Task TheAttemptAndWhetherAnotherWasScheduledAreReadBack()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Execution(Start, "retried") with
+        {
+            Succeeded = false,
+            ExceptionMessage = "the upstream system is down",
+            RetryAttempt = 2,
+            RetryScheduled = true
+        });
+
+        ExecutionHistoryEntry entry = (await Executions(store)).Items.Should().ContainSingle().Subject;
+
+        entry.RetryAttempt.Should().Be(2, "which attempt at the occurrence a row is of is what makes a page of "
+            + "repeated failures readable as one occurrence rather than three");
+        entry.RetryScheduled.Should().BeTrue("the trigger answered this failure with another attempt, so the row "
+            + "is not the occurrence's last word");
+    }
+
+    [Test]
+    public async Task AnExecutionWithNoRetryPolicyBehindItRecordsTheDefaults()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Execution(Start, "plain"));
+
+        ExecutionHistoryEntry entry = (await Executions(store)).Items.Should().ContainSingle().Subject;
+
+        entry.RetryAttempt.Should().Be(0);
+        entry.RetryScheduled.Should().BeFalse("nothing was going to try again, which is exactly what the defaults say");
+    }
+
+    [Test]
+    public async Task TheFinalFailureFilterSeparatesGivingUpFromStillTrying()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        // One occurrence: two attempts that were answered with a retry, and a third that was not.
+        await store.AddExecution(Failed(Start.AddSeconds(1), "nightly", retryAttempt: 0, retryScheduled: true));
+        await store.AddExecution(Failed(Start.AddSeconds(2), "nightly", retryAttempt: 1, retryScheduled: true));
+        await store.AddExecution(Failed(Start.AddSeconds(3), "nightly", retryAttempt: 2, retryScheduled: false));
+
+        // And a firing that simply worked.
+        await store.AddExecution(Execution(Start.AddSeconds(4), "hourly"));
+
+        PagedResult<ExecutionHistoryEntry> gaveUp = await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            FailedFinally = true,
+            IncludeTotalCount = true
+        });
+
+        gaveUp.Items.Should().ContainSingle("a filter on failure alone would show one occurrence three times over")
+            .Which.RetryAttempt.Should().Be(2);
+        gaveUp.TotalCount.Should().Be(1, "the count has to agree with the page, or the pager lies about it");
+
+        PagedResult<ExecutionHistoryEntry> everythingElse = await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            FailedFinally = false,
+            IncludeTotalCount = true
+        });
+
+        everythingElse.Items.Should().HaveCount(3,
+            "the complement is the successes and the failures that are going to be tried again");
+        everythingElse.Items.Should().OnlyContain(x => x.Succeeded || x.RetryScheduled);
+
+        (await Executions(store)).Items.Should().HaveCount(4, "an unasked filter narrows nothing");
+    }
+
+    [Test]
+    public async Task TheFinalFailureFilterComposesWithTheOtherFilters()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Failed(Start.AddSeconds(1), "nightly", retryAttempt: 1, retryScheduled: false));
+        await store.AddExecution(Failed(Start.AddSeconds(2), "hourly", retryAttempt: 1, retryScheduled: false));
+
+        PagedResult<ExecutionHistoryEntry> page = await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            JobContains = "nightly",
+            FailedFinally = true
+        });
+
+        page.Items.Should().ContainSingle().Which.JobName.Should().Be("nightly",
+            "the outcome filter is one predicate among the others rather than a second query");
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Building the entries
     // ---------------------------------------------------------------------------------------------
+
+    /// <summary>One failed attempt at an occurrence, which may or may not have another coming.</summary>
+    protected static ExecutionHistoryEntry Failed(
+        DateTimeOffset firedAt,
+        string jobName,
+        int retryAttempt,
+        bool retryScheduled) => Execution(firedAt, jobName) with
+    {
+        Succeeded = false,
+        ExceptionMessage = "the upstream system is down",
+        RetryAttempt = retryAttempt,
+        RetryScheduled = retryScheduled
+    };
 
     protected static ExecutionHistoryEntry Execution(
         DateTimeOffset firedAt,

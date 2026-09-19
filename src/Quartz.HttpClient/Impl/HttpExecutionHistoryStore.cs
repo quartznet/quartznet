@@ -107,6 +107,13 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             parameters.Add("jobContains", query.JobContains);
         }
 
+        // Sent only when the query asks a question: a route that is not given the parameter lists
+        // everything, which is what a null filter means.
+        if (query.FailedFinally is { } failedFinally)
+        {
+            parameters.Add("failedFinally", failedFinally);
+        }
+
         PagedResultDto<ExecutionHistoryEntryDto> result = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
             $"{HistoryUrl}/executions{parameters}", cancellationToken).ConfigureAwait(false);
 

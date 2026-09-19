@@ -178,6 +178,8 @@ namespace Quartz.Dashboard.Services
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string JobGroup { get; init; }
         public string JobName { get; init; }
+        public int RetryAttempt { get; init; }
+        public bool RetryScheduled { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
         public bool Succeeded { get; init; }
@@ -187,6 +189,7 @@ namespace Quartz.Dashboard.Services
     public sealed record DashboardHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryQuery>
     {
         public DashboardHistoryQuery() { }
+        public bool? FailedFinally { get; init; }
         public string? JobFilter { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }

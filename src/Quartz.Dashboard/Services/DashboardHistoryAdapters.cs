@@ -49,7 +49,11 @@ internal static class DashboardHistoryMapping
             entry.FiredAtUtc,
             entry.Duration,
             entry.Succeeded,
-            entry.ExceptionMessage);
+            entry.ExceptionMessage)
+        {
+            RetryAttempt = entry.RetryAttempt,
+            RetryScheduled = entry.RetryScheduled
+        };
     }
 
     public static DashboardHistoryEntry AsDashboardHistoryEntry(this ExecutionHistoryEntry entry)
@@ -64,7 +68,11 @@ internal static class DashboardHistoryMapping
             entry.FiredAtUtc,
             entry.Duration,
             entry.Succeeded,
-            entry.ExceptionMessage);
+            entry.ExceptionMessage)
+        {
+            RetryAttempt = entry.RetryAttempt,
+            RetryScheduled = entry.RetryScheduled
+        };
     }
 
     public static MisfireHistoryEntry AsMisfireHistoryEntry(this DashboardMisfireEntry entry)
@@ -103,6 +111,7 @@ internal static class DashboardHistoryMapping
             SchedulerInstanceId = query.SchedulerInstanceId,
             JobContains = query.JobFilter,
             TriggerContains = query.TriggerFilter,
+            FailedFinally = query.FailedFinally,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = query.IncludeTotalCount
@@ -119,6 +128,7 @@ internal static class DashboardHistoryMapping
             SchedulerInstanceId = query.SchedulerInstanceId,
             JobFilter = query.JobContains,
             TriggerFilter = query.TriggerContains,
+            FailedFinally = query.FailedFinally,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = query.IncludeTotalCount

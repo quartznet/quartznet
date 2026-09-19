@@ -327,6 +327,134 @@ public class HistoryPageTest
             "nothing failed: the target answered, and what it said is that it has no history route");
     }
 
+    [Test]
+    public void AFailureThatIsGoingToBeRetriedIsNotTheSameRowAsOneThatGaveUp()
+    {
+        GivenHistory(
+            Failed(retryAttempt: 0, retryScheduled: true),
+            Failed(retryAttempt: 1, retryScheduled: false),
+            Entry(100));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.TextOfAll(".qz-state-label").Should().Equal(["Failed (retrying)", "Failed", "Complete"],
+            "a page that called both failures the same thing made a job under a retry policy look "
+            + "several times as broken as it was");
+    }
+
+    [Test]
+    public void RunAgainIsOfferedOnlyWhereTheOccurrenceGaveUp()
+    {
+        GivenHistory(
+            Failed(retryAttempt: 0, retryScheduled: true),
+            Failed(retryAttempt: 1, retryScheduled: false),
+            Entry(100));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.FindAll("[data-testid=history-run-again]").Should().HaveCount(1,
+            "a row the trigger is about to retry already has another attempt coming, and a success has "
+            + "nothing to run again");
+    }
+
+    [Test]
+    public void RunAgainFiresTheJobAndIsRecordedInTheActionLog()
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false));
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-run-again]").Click();
+
+        A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName,
+                A<JobKeyDto>.That.Matches(key => key.Group == "DummyGroup" && key.Name == "DummyJob"),
+                null,
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        context.ActionLog.GetLatest().Should().ContainSingle(
+                "every mutation the dashboard makes is recorded, and this one is a mutation like any other")
+            .Which.Should().Match<DashboardActionLogEntry>(
+                entry => entry.Action == "TriggerJob" && entry.Target == "DummyGroup.DummyJob" && entry.Succeeded);
+    }
+
+    [Test]
+    public void ReadOnlyModeOffersNoWayToRunAnythingAgain()
+    {
+        context.Options.ReadOnly = true;
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.FindAll("[data-testid=history-run-again]").Should().BeEmpty();
+        page.TextOfAll("th").Should().NotContain("Actions",
+            "an empty column reads as a rendering fault rather than as a policy");
+    }
+
+    [Test]
+    public void TheOutcomeFilterAsksTheStoreForTheOccurrencesThatGaveUp()
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false));
+
+        context.Navigate("/quartz/history?outcome=failed");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.FailedFinally == true),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Markup.Should().Contain("Failed after retries",
+            "the summary above the table says what the listing is narrowed to");
+    }
+
+    [Test]
+    public void AnUnfilteredListingAsksForEveryOutcome()
+    {
+        GivenHistory(Entry(100));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.FailedFinally == null),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Markup.Should().Contain("Any outcome");
+    }
+
+    [Test]
+    public void ChoosingAnOutcomePutsItInTheUrlSoTheViewCanBeShared()
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false));
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("#history-outcome-filter").Change("failed");
+
+        context.CurrentUri.Should().EndWith("/quartz/history?outcome=failed",
+            "the filters are query parameters so a narrowed listing is a link someone can send");
+    }
+
+    [Test]
+    public void AnOutcomeNobodyRecognisesNarrowsNothing()
+    {
+        GivenHistory(Entry(100));
+
+        context.Navigate("/quartz/history?outcome=sideways");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        // A hand-edited URL, or a link from a version that knows another value, reads as no filter
+        // rather than as an empty page.
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.FailedFinally == null),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Markup.Should().Contain("Any outcome");
+    }
+
     private static DashboardHistoryEntry Entry(
         int durationMilliseconds,
         bool succeeded = true,
@@ -338,6 +466,16 @@ public class HistoryPageTest
             succeeded,
             exceptionMessage: exceptionMessage,
             schedulerInstanceId: node);
+    }
+
+    /// <summary>One failed attempt at an occurrence, which may or may not have another coming.</summary>
+    private static DashboardHistoryEntry Failed(int retryAttempt, bool retryScheduled)
+    {
+        return Entry(100, succeeded: false, exceptionMessage: "the upstream system is down") with
+        {
+            RetryAttempt = retryAttempt,
+            RetryScheduled = retryScheduled
+        };
     }
 
     private void GivenHistory(params DashboardHistoryEntry[] entries)

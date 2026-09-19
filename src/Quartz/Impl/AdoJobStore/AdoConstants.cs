@@ -478,6 +478,18 @@ public static class AdoConstants
     public const string ColumnErrorMessage = "ERROR_MESSAGE";
 
     /// <summary>
+    /// The <c>RETRY_SCHEDULED</c> column of <see cref="TableExecutionHistory" />: whether the trigger
+    /// answered this failure with another attempt, so the occurrence was not finished.
+    /// </summary>
+    /// <remarks>
+    /// Beside <see cref="ColumnRetryAttempt" />, which this table reuses from
+    /// <see cref="TableTriggers" /> for the attempt the row is of. The two together are what lets a
+    /// history page tell "failed, retrying" from "failed, and that was the last word" without
+    /// reconstructing the occurrence from its rows.
+    /// </remarks>
+    public const string ColumnRetryScheduled = "RETRY_SCHEDULED";
+
+    /// <summary>
     /// The <c>MISFIRE_TIME</c> column of <see cref="TableMisfireHistory" />: when the misfire was
     /// noticed, which is not a firing and so is not <see cref="ColumnFiredTime" />.
     /// </summary>

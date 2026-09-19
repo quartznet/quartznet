@@ -372,6 +372,13 @@ internal sealed class JobRunShell
                         _ => ExecutionOutcome.Succeeded
                     };
 
+                    // Published on the context before any completion notification goes out, so that a
+                    // job listener's JobWasExecuted and a trigger listener's TriggerComplete can read
+                    // how the firing ended and whether the occurrence is finished - which until now
+                    // only the trigger listener could work out, by comparing the instruction it was
+                    // handed against RetryTrigger.
+                    context.Settle(outcome, instructionCode == SchedulerInstruction.RetryTrigger);
+
                     // notify all job listeners
                     if (!await NotifyJobListenersComplete(qs, context, jobExEx, cancellationToken).ConfigureAwait(false))
                     {
@@ -380,6 +387,17 @@ internal sealed class JobRunShell
                             CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
                             cancellationToken).ConfigureAwait(false);
                         break;
+                    }
+
+                    // The occurrence failed for the last time: it has a policy, it threw, and the
+                    // trigger is not trying again. Between the two completion notifications, so a
+                    // listener hearing it has already had JobWasExecuted for the same firing and has
+                    // not yet had TriggerComplete.
+                    if (outcome == ExecutionOutcome.Failed
+                        && instructionCode != SchedulerInstruction.RetryTrigger
+                        && trigger.RetryPolicy is { } spentPolicy)
+                    {
+                        await NotifyRetriesExhausted(qs, context, jobExEx!, spentPolicy, cancellationToken).ConfigureAwait(false);
                     }
 
                     // notify all trigger listeners
@@ -548,6 +566,37 @@ internal sealed class JobRunShell
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Announces, once, that a failed occurrence has run out of retries.
+    /// </summary>
+    /// <remarks>
+    /// A supplementary signal rather than a gate, so a listener that throws here is reported the way
+    /// every other listener failure is and the firing carries on to its completion notifications: the
+    /// occurrence is over either way, and skipping <see cref="ITriggerListener.TriggerComplete" />
+    /// because an extra notification failed would lose the one every listener already relies on.
+    /// </remarks>
+    private async ValueTask NotifyRetriesExhausted(
+        QuartzScheduler qs,
+        JobExecutionContextImpl ctx,
+        JobExecutionException exception,
+        RetryPolicy policy,
+        CancellationToken cancellationToken)
+    {
+        // Information, as the scheduling of a retry is: an operator watching a job limp along on its
+        // retries wants to see the moment it stopped limping without turning Debug on.
+        logger.TriggerRetriesExhausted(ctx.Trigger.Key, ctx.RetryAttempt, policy.MaxAttempts, exception);
+
+        try
+        {
+            await qs.NotifyTriggerListenersRetriesExhausted(ctx, exception, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SchedulerException se)
+        {
+            string msg = $"Unable to notify TriggerListener(s) that the retries of an occurrence were exhausted: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
+            await qs.NotifySchedulerListenersError(ErrorFor(ctx, msg, se), cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static ValueTask<bool> NotifyTriggerListenersComplete(QuartzScheduler qs,

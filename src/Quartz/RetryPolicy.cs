@@ -30,7 +30,7 @@ namespace Quartz;
 /// <remarks>
 /// <para>
 /// A policy is a value: two policies of the same shape that would produce the same waits are equal.
-/// There is no public constructor — <see cref="Fixed" />, <see cref="Exponential" /> and
+/// There is no public constructor — <see cref="Fixed" />, <see cref="Exponential(int, TimeSpan, double, TimeSpan?)" /> and
 /// <see cref="Explicit" /> are the only ways to make one, so a policy that could not be honoured
 /// (no attempts, a negative wait, a backoff that shrinks) cannot be built at all.
 /// </para>
@@ -71,6 +71,13 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     private const string ExplicitMarker = "list";
 
     /// <summary>
+    /// What a jitter token in the stored form starts with. The maximum delay before it is optional, so
+    /// two bare numbers in that position could not be told apart; a duration in the constant
+    /// (<c>"c"</c>) format never starts with a letter, so this marker separates them.
+    /// </summary>
+    private const char JitterMarker = 'j';
+
+    /// <summary>
     /// How many characters of stored form the triggers table can hold: <c>RETRY_POLICY</c> is 250
     /// characters wide in every dialect. Only <see cref="Explicit" /> can produce a longer one, and
     /// it rejects the policy rather than letting the insert truncate it.
@@ -84,15 +91,16 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     /// Creates a policy from its parts. Callers are the three factories, which have validated the
     /// parts already.
     /// </summary>
-    private RetryPolicy(Shape shape, int maxAttempts, TimeSpan initialDelay, double backoffFactor, TimeSpan? maxDelay, ImmutableArray<TimeSpan> delays)
+    private RetryPolicy(Shape shape, int maxAttempts, TimeSpan initialDelay, double backoffFactor, TimeSpan? maxDelay, double jitter, ImmutableArray<TimeSpan> delays)
     {
         this.shape = shape;
         MaxAttempts = maxAttempts;
         InitialDelay = initialDelay;
         BackoffFactor = backoffFactor;
         MaxDelay = maxDelay;
+        Jitter = jitter;
         Delays = delays;
-        storedForm = BuildStoredForm(shape, maxAttempts, initialDelay, backoffFactor, maxDelay, delays);
+        storedForm = BuildStoredForm(shape, maxAttempts, initialDelay, backoffFactor, maxDelay, jitter, delays);
     }
 
     /// <summary>
@@ -127,6 +135,28 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     public TimeSpan? MaxDelay { get; }
 
     /// <summary>
+    /// How far either side of the computed wait a retry may be scattered, as a fraction of it between
+    /// <c>0</c> and <c>1</c>. <c>0</c>, the default, means every retry waits exactly what the backoff
+    /// says.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only <see cref="Exponential(int, TimeSpan, double, TimeSpan?, double)" /> takes one, and it is
+    /// what keeps a batch of triggers that failed
+    /// together from coming back together: with <c>0.2</c> a computed wait of five minutes becomes a
+    /// wait drawn uniformly from four to six, per retry, so the herd spreads instead of hammering the
+    /// dependency that just refused it in lockstep.
+    /// </para>
+    /// <para>
+    /// Persisted with the round-trip (<c>"R"</c>) format and the invariant culture, as
+    /// <see cref="BackoffFactor" /> is, and written to the stored form <strong>only when it is not zero</strong>
+    /// — so a policy with no jitter stores exactly the string it has always stored. A stored policy
+    /// that does carry jitter is not readable by a node older than 4.2.
+    /// </para>
+    /// </remarks>
+    public double Jitter { get; }
+
+    /// <summary>
     /// The explicit table of waits, longest-lived entry last; empty when the waits are computed
     /// from <see cref="InitialDelay" /> and <see cref="BackoffFactor" />.
     /// </summary>
@@ -150,7 +180,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
         EnsureAttempts(maxAttempts, nameof(maxAttempts));
         EnsureNotNegative(delay, nameof(delay));
 
-        return new RetryPolicy(Shape.Fixed, maxAttempts, delay, backoffFactor: 1, maxDelay: null, delays: ImmutableArray<TimeSpan>.Empty);
+        return new RetryPolicy(Shape.Fixed, maxAttempts, delay, backoffFactor: 1, maxDelay: null, jitter: 0, delays: ImmutableArray<TimeSpan>.Empty);
     }
 
     /// <summary>
@@ -179,6 +209,43 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     /// </remarks>
     public static RetryPolicy Exponential(int maxAttempts, TimeSpan initialDelay, double factor = 2, TimeSpan? maxDelay = null)
     {
+        return Exponential(maxAttempts, initialDelay, factor, maxDelay, jitter: 0);
+    }
+
+    /// <summary>
+    /// A policy whose wait grows by a constant factor with every retry, scattered by a jitter factor so
+    /// that triggers which failed together do not come back together.
+    /// </summary>
+    /// <param name="maxAttempts">How many times to retry after the first failure; at least one.</param>
+    /// <param name="initialDelay">The wait before the first retry; not negative.</param>
+    /// <param name="factor">
+    /// What each wait is multiplied by to get the next one. At least <c>1</c>, which makes the
+    /// policy wait the same amount every time; a shrinking backoff is not a backoff.
+    /// </param>
+    /// <param name="maxDelay">
+    /// A ceiling for the computed waits, or <see langword="null" /> to let them grow unbounded.
+    /// Not shorter than <paramref name="initialDelay" />, which a ceiling below the first wait
+    /// would silently undo. It bounds the scattered wait too, so jitter never carries a retry past it.
+    /// </param>
+    /// <param name="jitter">
+    /// How far either side of the computed wait a retry may land, as a fraction of it between <c>0</c>
+    /// and <c>1</c>: each wait is multiplied by a value drawn uniformly from
+    /// <c>[1 - jitter, 1 + jitter]</c>. <c>0</c> is the four-argument overload, and stores and behaves
+    /// identically to it.
+    /// </param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="maxAttempts" /> is less than one, <paramref name="initialDelay" /> is
+    /// negative, <paramref name="factor" /> is less than one or is not a number,
+    /// <paramref name="maxDelay" /> is shorter than <paramref name="initialDelay" />, or
+    /// <paramref name="jitter" /> is outside <c>[0, 1]</c>.
+    /// </exception>
+    /// <remarks>
+    /// A separate overload rather than a fifth optional parameter on the one above: the four-argument
+    /// signature is what every 4.0 and 4.1 caller is compiled against, and adding a parameter to it
+    /// would keep the source compiling while breaking the binaries.
+    /// </remarks>
+    public static RetryPolicy Exponential(int maxAttempts, TimeSpan initialDelay, double factor, TimeSpan? maxDelay, double jitter)
+    {
         EnsureAttempts(maxAttempts, nameof(maxAttempts));
         EnsureNotNegative(initialDelay, nameof(initialDelay));
 
@@ -197,7 +264,15 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
                 + ", which would make every wait the maximum.");
         }
 
-        return new RetryPolicy(Shape.Exponential, maxAttempts, initialDelay, factor, maxDelay, ImmutableArray<TimeSpan>.Empty);
+        if (double.IsNaN(jitter) || jitter < 0 || jitter > 1)
+        {
+            Throw.ArgumentOutOfRangeException(
+                nameof(jitter),
+                "A jitter factor is a fraction of the computed wait between 0 and 1, not " + jitter.ToString("R", CultureInfo.InvariantCulture)
+                + "; a factor above 1 would ask for a wait before the failure.");
+        }
+
+        return new RetryPolicy(Shape.Exponential, maxAttempts, initialDelay, factor, maxDelay, jitter, ImmutableArray<TimeSpan>.Empty);
     }
 
     /// <summary>
@@ -237,7 +312,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
             builder.Add(delays[i]);
         }
 
-        RetryPolicy policy = new RetryPolicy(Shape.Explicit, delays.Count, delays[0], backoffFactor: 1, maxDelay: null, builder.MoveToImmutable());
+        RetryPolicy policy = new RetryPolicy(Shape.Explicit, delays.Count, delays[0], backoffFactor: 1, maxDelay: null, jitter: 0, builder.MoveToImmutable());
 
         if (policy.storedForm.Length > MaxStoredLength)
         {
@@ -260,6 +335,11 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     /// The wait, clamped to <see cref="MaxDelay" /> when there is one. An attempt beyond
     /// <see cref="MaxAttempts" /> answers as the last one does rather than throwing, because the
     /// decision to stop retrying belongs to the scheduler and not to the arithmetic.
+    /// <para>
+    /// A policy carrying <see cref="Jitter" /> answers with a fresh draw every call, so two calls for
+    /// the same attempt give different waits. That is the point of jitter, and the scheduler asks once
+    /// per retry it schedules.
+    /// </para>
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="attempt" /> is less than one.</exception>
     /// <remarks>
@@ -299,8 +379,45 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
                     delay = MaxDelay.Value;
                 }
 
-                return delay;
+                // Drawn from the shared generator rather than a TimeProvider: this is a spread, not a
+                // reading of the clock, and a test that froze time would still want it to vary.
+                return Jitter == 0 ? delay : Scatter(delay, Jitter, Random.Shared.NextDouble(), MaxDelay);
         }
+    }
+
+    /// <summary>
+    /// One computed wait, moved by a jitter factor: multiplied by a value uniform in
+    /// <c>[1 - jitter, 1 + jitter]</c>, never below zero and never past <paramref name="maxDelay" />.
+    /// </summary>
+    /// <param name="delay">The wait the backoff computed, already clamped to the ceiling.</param>
+    /// <param name="jitter">The fraction of the wait to scatter it by, between 0 and 1.</param>
+    /// <param name="sample">The draw, in <c>[0, 1)</c>.</param>
+    /// <param name="maxDelay">The ceiling the scattered wait is held to, when there is one.</param>
+    /// <remarks>
+    /// Takes the draw rather than making it, so a test can say exactly which wait a sample produces
+    /// without a seedable generator hiding in a static field. <see cref="DelayFor" /> is the only
+    /// caller and supplies <see cref="Random" />.<see cref="Random.Shared" />.
+    /// </remarks>
+    internal static TimeSpan Scatter(TimeSpan delay, double jitter, double sample, TimeSpan? maxDelay)
+    {
+        double ticks = delay.Ticks * (1 - jitter + 2 * jitter * sample);
+
+        if (ticks <= 0)
+        {
+            // A wait of zero rather than one in the past: the scheduler would decline an instant behind
+            // it, and "retry as soon as you can" is what the arithmetic was reaching for.
+            return TimeSpan.Zero;
+        }
+
+        if (ticks >= long.MaxValue)
+        {
+            // Saturating, as the backoff itself does. A ceiling wins over it, because a policy that
+            // named one asked for exactly that.
+            return maxDelay ?? TimeSpan.MaxValue;
+        }
+
+        TimeSpan scattered = TimeSpan.FromTicks((long) ticks);
+        return maxDelay is not null && scattered > maxDelay.Value ? maxDelay.Value : scattered;
     }
 
     /// <summary>
@@ -418,9 +535,9 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     {
         policy = null;
 
-        if (parts.Length is not (4 or 5))
+        if (parts.Length is < 4 or > 6)
         {
-            problem = $"an exponential policy is '{ExponentialMarker}{Separator}<attempts>{Separator}<initial delay>{Separator}<factor>' with an optional '{Separator}<maximum delay>'";
+            problem = $"an exponential policy is '{ExponentialMarker}{Separator}<attempts>{Separator}<initial delay>{Separator}<factor>' with an optional '{Separator}<maximum delay>' and an optional '{Separator}{JitterMarker}<jitter>'";
             return false;
         }
 
@@ -432,8 +549,29 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
             return false;
         }
 
+        // The jitter token is read off the end and taken away before the maximum delay is looked for,
+        // because the maximum delay is optional and so the two occupy the same position.
+        double jitter = 0;
+        int last = parts.Length - 1;
+        if (last >= 4 && parts[last].StartsWith(JitterMarker))
+        {
+            if (!double.TryParse(parts[last].AsSpan(1), NumberStyles.Float, CultureInfo.InvariantCulture, out jitter))
+            {
+                problem = "the jitter factor is not a number";
+                return false;
+            }
+
+            last--;
+        }
+
         TimeSpan? maxDelay = null;
-        if (parts.Length == 5)
+        if (last > 4)
+        {
+            problem = "there are more fields than an exponential policy has";
+            return false;
+        }
+
+        if (last == 4)
         {
             if (!TryReadDelay(parts[4], out TimeSpan parsedMaxDelay))
             {
@@ -444,7 +582,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
             maxDelay = parsedMaxDelay;
         }
 
-        policy = Exponential(attempts, initialDelay, factor, maxDelay);
+        policy = Exponential(attempts, initialDelay, factor, maxDelay, jitter);
         problem = null;
         return true;
     }
@@ -512,6 +650,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
                && InitialDelay == other.InitialDelay
                && BitConverter.DoubleToInt64Bits(BackoffFactor) == BitConverter.DoubleToInt64Bits(other.BackoffFactor)
                && Nullable.Equals(MaxDelay, other.MaxDelay)
+               && BitConverter.DoubleToInt64Bits(Jitter) == BitConverter.DoubleToInt64Bits(other.Jitter)
                && Delays.AsSpan().SequenceEqual(other.Delays.AsSpan());
     }
 
@@ -530,6 +669,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
         hash.Add(InitialDelay);
         hash.Add(BitConverter.DoubleToInt64Bits(BackoffFactor));
         hash.Add(MaxDelay);
+        hash.Add(BitConverter.DoubleToInt64Bits(Jitter));
         foreach (TimeSpan delay in Delays)
         {
             hash.Add(delay);
@@ -554,7 +694,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     /// <returns><see langword="true" /> when the two are not the same value.</returns>
     public static bool operator !=(RetryPolicy? left, RetryPolicy? right) => !(left == right);
 
-    private static string BuildStoredForm(Shape shape, int maxAttempts, TimeSpan initialDelay, double backoffFactor, TimeSpan? maxDelay, ImmutableArray<TimeSpan> delays)
+    private static string BuildStoredForm(Shape shape, int maxAttempts, TimeSpan initialDelay, double backoffFactor, TimeSpan? maxDelay, double jitter, ImmutableArray<TimeSpan> delays)
     {
         string attempts = maxAttempts.ToString(CultureInfo.InvariantCulture);
 
@@ -576,7 +716,22 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
                 string form = ExponentialMarker + Separator + attempts + Separator + FormatDelay(initialDelay)
                               + Separator + backoffFactor.ToString("R", CultureInfo.InvariantCulture);
 
-                return maxDelay is null ? form : form + Separator + FormatDelay(maxDelay.Value);
+                if (maxDelay is not null)
+                {
+                    form += Separator + FormatDelay(maxDelay.Value);
+                }
+
+                // Appended only when there is jitter, so a policy without it stores byte for byte what
+                // 4.0 and 4.1 stored — and only a trigger that actually asked for jitter carries a
+                // stored form an older node cannot read.
+                if (jitter != 0)
+                {
+                    // Interpolated rather than concatenated: the separator and the marker are both
+                    // chars, and adding them would be arithmetic.
+                    form += $"{Separator}{JitterMarker}{jitter.ToString("R", CultureInfo.InvariantCulture)}";
+                }
+
+                return form;
         }
     }
 

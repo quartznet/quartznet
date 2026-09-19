@@ -48,4 +48,22 @@ public sealed record ExecutionHistoryQuery : PagedQuery
     /// Lists only the executions whose trigger key matches this, or every trigger's when null.
     /// </summary>
     public string? TriggerContains { get; init; }
+
+    /// <summary>
+    /// Narrows the page to the executions that failed for the last time, or to everything else.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="true" /> lists the rows where the job failed and the trigger did <em>not</em>
+    /// answer with another attempt — <c>!Succeeded &amp;&amp; !RetryScheduled</c>, the occurrence's last
+    /// word. <see langword="false" /> lists every other row: the successes, and the failures that are
+    /// going to be tried again. <see langword="null" />, the default, lists them all.
+    /// </para>
+    /// <para>
+    /// "Failed for the last time" is the question an operator opens a history page with, and it cannot
+    /// be asked with <c>Succeeded</c> alone: a job under a retry policy writes a failed row per
+    /// attempt, so filtering on failure shows the same occurrence three times over.
+    /// </para>
+    /// </remarks>
+    public bool? FailedFinally { get; init; }
 }

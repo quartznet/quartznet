@@ -71,6 +71,9 @@ public static class QuartzInstrumentation
         /// <summary>Retries the scheduler scheduled after a job failed — a counter, <c>{trigger}</c>.</summary>
         public const string TriggerRetry = "quartz.trigger.retry";
 
+        /// <summary>Failed occurrences whose retries ran out — a counter, <c>{trigger}</c>.</summary>
+        public const string TriggerRetriesExhausted = "quartz.trigger.retries_exhausted";
+
         /// <summary>How long one round of the scheduling loop's acquisition took — a histogram, seconds.</summary>
         public const string TriggerAcquisitionDuration = "quartz.trigger.acquisition.duration";
 

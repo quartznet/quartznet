@@ -2400,6 +2400,55 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Notifies the trigger listeners that a failed occurrence has run out of retries, and counts it.
+    /// </summary>
+    /// <param name="context">The job execution context of the attempt that gave up.</param>
+    /// <param name="exception">What that attempt threw.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// The counter is incremented outside the "is anyone listening" check below, as the misfire counter
+    /// is: what it counts is occurrences that gave up, not occurrences somebody had a listener for.
+    /// </remarks>
+    public ValueTask NotifyTriggerListenersRetriesExhausted(
+        IJobExecutionContext context,
+        JobExecutionException exception,
+        CancellationToken cancellationToken = default)
+    {
+        resources.Meters.TriggerRetriesExhausted(resources.Name, resources.InstanceId, context.Trigger);
+
+        AttachedListener<ITriggerListener, TriggerKey>[] listeners = listenerManager.GetAttachedTriggerListeners();
+
+        return listeners.Length == 0 ? default
+            : NotifyAwaited(listeners, context, exception, cancellationToken);
+
+        static async ValueTask NotifyAwaited(
+            AttachedListener<ITriggerListener, TriggerKey>[] listeners,
+            IJobExecutionContext context,
+            JobExecutionException exception,
+            CancellationToken cancellationToken)
+        {
+            foreach (AttachedListener<ITriggerListener, TriggerKey> attached in listeners)
+            {
+                if (!attached.Matches(context.Trigger.Key))
+                {
+                    continue;
+                }
+
+                ITriggerListener tl = attached.Listener;
+
+                try
+                {
+                    await tl.TriggerRetriesExhausted(context.Trigger, context, exception, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    throw new JobExecutionProcessException(tl, context, e);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Notifies the job listeners about job to be executed.
     /// </summary>
     /// <param name="context">The context.</param>

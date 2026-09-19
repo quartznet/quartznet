@@ -127,6 +127,53 @@ public sealed class ExecutionHistoryRegistrationTest
             "the shipped store is a TryAdd, so a store the application registered first is the seam");
     }
 
+    /// <summary>
+    /// The recorder writes what the scheduler observed about the firing, which is more than whether it
+    /// threw: a job under a retry policy writes a row per attempt, and only the attempt number and the
+    /// retry flag tell them apart.
+    /// </summary>
+    [Test]
+    public async Task EachAttemptAtAnOccurrenceIsRecordedAsTheAttemptItWas()
+    {
+        FailingJob.Reset();
+
+        await using ServiceProvider provider = Container(services =>
+        {
+            services.AddQuartz(q => q.UseInMemoryStore());
+            services.AddQuartzExecutionHistory();
+        });
+
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        await scheduler.Start();
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<FailingJob>().WithIdentity("flaky", "DummyGroup").Build(),
+            TriggerBuilder.Create()
+                .WithIdentity("now", "DummyGroup")
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(0))
+                .StartNow()
+                .WithRetryPolicy(RetryPolicy.Fixed(1, TimeSpan.FromMilliseconds(200)))
+                .Build());
+
+        (await FailingJob.Retried.Task.WaitAsync(TimeSpan.FromSeconds(30))).Should().BeTrue(
+            "the job fails, is retried once, and fails again - which is one occurrence and two rows");
+
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        IExecutionHistoryStore store = provider.GetRequiredService<IExecutionHistoryStore>();
+        List<ExecutionHistoryEntry> rows = (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = scheduler.SchedulerName
+        })).Items.OrderBy(x => x.RetryAttempt).ToList();
+
+        rows.Should().HaveCount(2);
+        rows.Select(x => x.Succeeded).Should().AllBeEquivalentTo(false);
+        rows.Select(x => x.RetryAttempt).Should().Equal([0, 1],
+            "the row records the attempt the job made, not the one the trigger is about to make");
+        rows.Select(x => x.RetryScheduled).Should().Equal([true, false],
+            "the first failure was answered with another attempt and the second was not, which is the "
+            + "difference a history page has to show and a FailedFinally filter selects on");
+    }
+
     private static ServiceProvider Container(Action<IServiceCollection> configure)
     {
         ServiceCollection services = new();
@@ -168,6 +215,32 @@ public sealed class ExecutionHistoryRegistrationTest
         {
             Executed.TrySetResult(true);
             return default;
+        }
+    }
+
+    /// <summary>
+    /// A job that always throws, so its trigger's retry policy is spent rather than satisfied.
+    /// </summary>
+    private sealed class FailingJob : IJob
+    {
+        private static int firings;
+
+        public static TaskCompletionSource<bool> Retried { get; private set; } = new();
+
+        public static void Reset()
+        {
+            firings = 0;
+            Retried = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Increment(ref firings) >= 2)
+            {
+                Retried.TrySetResult(true);
+            }
+
+            throw new InvalidOperationException("the upstream system is down");
         }
     }
 

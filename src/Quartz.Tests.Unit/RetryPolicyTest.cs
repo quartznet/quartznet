@@ -246,4 +246,110 @@ public class RetryPolicyTest
 
         bounded.Should().NotBe(unbounded, "the two hand out different waits from the third attempt onwards");
     }
+
+    // -----------------------------------------------------------------------------------------
+    // Jitter
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public void EveryPolicyWithoutJitterReportsNone()
+    {
+        RetryPolicy.Fixed(2, TimeSpan.FromSeconds(1)).Jitter.Should().Be(0);
+        RetryPolicy.Exponential(2, TimeSpan.FromSeconds(1)).Jitter.Should().Be(0);
+        RetryPolicy.Explicit(TimeSpan.FromSeconds(1)).Jitter.Should().Be(0);
+    }
+
+    [Test]
+    public void AJitterOfZeroIsTheFourArgumentPolicy()
+    {
+        RetryPolicy spelled = RetryPolicy.Exponential(4, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(1), jitter: 0);
+        RetryPolicy implied = RetryPolicy.Exponential(4, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(1));
+
+        spelled.Should().Be(implied, "no jitter is no jitter, however the caller said it");
+        spelled.GetHashCode().Should().Be(implied.GetHashCode());
+        spelled.DelayFor(3).Should().Be(implied.DelayFor(3),
+            "a policy with no jitter computes exactly what the backoff says, with nothing drawn");
+    }
+
+    [TestCase(-0.1)]
+    [TestCase(1.1)]
+    [TestCase(double.NaN)]
+    [TestCase(double.PositiveInfinity)]
+    public void AJitterOutsideZeroToOneIsRefused(double jitter)
+    {
+        Action act = () => RetryPolicy.Exponential(3, TimeSpan.FromSeconds(1), 2, null, jitter);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("jitter");
+    }
+
+    [Test]
+    public void JitterIsPartOfTheValue()
+    {
+        RetryPolicy scattered = RetryPolicy.Exponential(3, TimeSpan.FromSeconds(1), 2, null, 0.2);
+        RetryPolicy exact = RetryPolicy.Exponential(3, TimeSpan.FromSeconds(1), 2);
+
+        scattered.Should().NotBe(exact, "the two hand out different waits, so they are different policies");
+        scattered.Should().NotBe(RetryPolicy.Exponential(3, TimeSpan.FromSeconds(1), 2, null, 0.3));
+        scattered.Should().Be(RetryPolicy.Exponential(3, TimeSpan.FromSeconds(1), 2, null, 0.2));
+    }
+
+    [TestCase(0.0, 480)]
+    [TestCase(0.5, 600)]
+    [TestCase(0.999999, 720)]
+    public void ASampleMovesTheWaitAcrossTheWholeBand(double sample, int expectedSeconds)
+    {
+        // A ten-minute wait with a 20% band runs from eight to twelve minutes, and the sample says
+        // where in it the draw landed.
+        TimeSpan scattered = RetryPolicy.Scatter(TimeSpan.FromMinutes(10), jitter: 0.2, sample, maxDelay: null);
+
+        scattered.Should().BeCloseTo(TimeSpan.FromSeconds(expectedSeconds), TimeSpan.FromMilliseconds(10));
+    }
+
+    [Test]
+    public void TheCeilingBoundsTheScatteredWaitToo()
+    {
+        // The upper half of the band is past the ceiling, and the ceiling is what the policy asked for.
+        TimeSpan scattered = RetryPolicy.Scatter(TimeSpan.FromMinutes(10), jitter: 0.5, sample: 0.99, maxDelay: TimeSpan.FromMinutes(11));
+
+        scattered.Should().Be(TimeSpan.FromMinutes(11));
+    }
+
+    [Test]
+    public void AFullyScatteredWaitNeverGoesBelowZero()
+    {
+        // jitter 1 with a sample of 0 is the bottom of the band, which is exactly zero rather than a
+        // retry the scheduler would have to decline for being in the past.
+        RetryPolicy.Scatter(TimeSpan.FromMinutes(10), jitter: 1, sample: 0, maxDelay: null)
+            .Should().Be(TimeSpan.Zero);
+    }
+
+    [Test]
+    public void AWaitScatteredPastRepresentableTimeSaturates()
+    {
+        RetryPolicy.Scatter(TimeSpan.MaxValue, jitter: 1, sample: 0.999, maxDelay: null)
+            .Should().Be(TimeSpan.MaxValue, "the backoff saturates rather than overflowing, and so does the scatter");
+
+        RetryPolicy.Scatter(TimeSpan.MaxValue, jitter: 1, sample: 0.999, maxDelay: TimeSpan.FromHours(1))
+            .Should().Be(TimeSpan.FromHours(1), "a policy that named a ceiling asked for exactly that");
+    }
+
+    [Test]
+    public void AJitteredPolicyStaysInsideItsBandAndDoesNotAlwaysAnswerTheSame()
+    {
+        RetryPolicy policy = RetryPolicy.Exponential(5, TimeSpan.FromMinutes(10), factor: 1, maxDelay: null, jitter: 0.2);
+
+        HashSet<TimeSpan> draws = [];
+        for (int i = 0; i < 200; i++)
+        {
+            TimeSpan delay = policy.DelayFor(1);
+            delay.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMinutes(8))
+                .And.BeLessThanOrEqualTo(TimeSpan.FromMinutes(12),
+                    "a 20% band around ten minutes is eight to twelve, and a draw outside it is a wait nobody asked for");
+            draws.Add(delay);
+        }
+
+        draws.Should().HaveCountGreaterThan(1,
+            "the point of jitter is that two triggers which failed together do not come back together, "
+            + "so the wait is drawn afresh rather than computed once");
+    }
 }

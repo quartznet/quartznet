@@ -381,6 +381,8 @@ namespace Quartz
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string JobGroup { get; init; }
         public string JobName { get; init; }
+        public int RetryAttempt { get; init; }
+        public bool RetryScheduled { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
         public bool Succeeded { get; init; }
@@ -396,6 +398,7 @@ namespace Quartz
     public sealed record ExecutionHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.ExecutionHistoryQuery>
     {
         public ExecutionHistoryQuery() { }
+        public bool? FailedFinally { get; init; }
         public string? JobContains { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
@@ -554,12 +557,14 @@ namespace Quartz
         System.TimeSpan JobRunTime { get; }
         Quartz.JobDataMap MergedJobDataMap { get; }
         System.DateTimeOffset? NextFireTimeUtc { get; }
+        Quartz.ExecutionOutcome Outcome { get; } // default implementation
         System.DateTimeOffset? PreviousFireTimeUtc { get; }
         bool Recovering { get; }
         Quartz.TriggerKey? RecoveringTriggerKey { get; }
         int RefireCount { get; }
         object? Result { get; set; }
         int RetryAttempt { get; }
+        bool RetryScheduled { get; } // default implementation
         System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         Quartz.IScheduler Scheduler { get; }
         Quartz.ITrigger Trigger { get; }
@@ -890,6 +895,7 @@ namespace Quartz
         System.Threading.Tasks.ValueTask TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask TriggerRetriesExhausted(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.JobExecutionException exception, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default); // default implementation
     }
     public sealed class InMemoryJobStoreOptions
@@ -1513,6 +1519,7 @@ namespace Quartz
         public double BackoffFactor { get; }
         public System.Collections.Immutable.ImmutableArray<System.TimeSpan> Delays { get; }
         public System.TimeSpan InitialDelay { get; }
+        public double Jitter { get; }
         public int MaxAttempts { get; }
         public System.TimeSpan? MaxDelay { get; }
         public System.TimeSpan DelayFor(int attempt) { }
@@ -1523,6 +1530,7 @@ namespace Quartz
         public override string ToString() { }
         public static Quartz.RetryPolicy Explicit([System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyList<System.TimeSpan> delays) { }
         public static Quartz.RetryPolicy Exponential(int maxAttempts, System.TimeSpan initialDelay, double factor = 2, System.TimeSpan? maxDelay = default) { }
+        public static Quartz.RetryPolicy Exponential(int maxAttempts, System.TimeSpan initialDelay, double factor, System.TimeSpan? maxDelay, double jitter) { }
         public static Quartz.RetryPolicy Fixed(int maxAttempts, System.TimeSpan delay) { }
         public static Quartz.RetryPolicy Parse(string value) { }
         public static bool TryParse(string? value, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.RetryPolicy? policy) { }
@@ -2093,6 +2101,7 @@ namespace Quartz.Diagnostics
             public const string TriggerAcquired = "quartz.trigger.acquired";
             public const string TriggerAcquisitionDuration = "quartz.trigger.acquisition.duration";
             public const string TriggerMisfire = "quartz.trigger.misfire";
+            public const string TriggerRetriesExhausted = "quartz.trigger.retries_exhausted";
             public const string TriggerRetry = "quartz.trigger.retry";
         }
     }
@@ -2379,6 +2388,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";
         public const string ColumnRetryAttempt = "RETRY_ATTEMPT";
         public const string ColumnRetryPolicy = "RETRY_POLICY";
+        public const string ColumnRetryScheduled = "RETRY_SCHEDULED";
         public const string ColumnRunTime = "RUN_TIME";
         public const string ColumnScheduledTime = "SCHED_TIME";
         public const string ColumnSchedulerName = "SCHED_NAME";
@@ -3473,12 +3483,14 @@ namespace Quartz.Impl
         public System.TimeSpan JobRunTime { get; }
         public Quartz.JobDataMap MergedJobDataMap { get; }
         public System.DateTimeOffset? NextFireTimeUtc { get; }
+        public Quartz.ExecutionOutcome Outcome { get; }
         public System.DateTimeOffset? PreviousFireTimeUtc { get; }
         public bool Recovering { get; }
         public Quartz.TriggerKey? RecoveringTriggerKey { get; }
         public int RefireCount { get; }
         public object? Result { get; set; }
         public int RetryAttempt { get; }
+        public bool RetryScheduled { get; }
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         public Quartz.IScheduler Scheduler { get; }
         public Quartz.ITrigger Trigger { get; }

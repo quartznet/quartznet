@@ -47,6 +47,42 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
+An exponential policy can also be **jittered**, so that triggers which failed together do not come back
+together. Each wait is multiplied by a value drawn uniformly from `[1 - jitter, 1 + jitter]`, and the
+ceiling still bounds the result:
+
+<!-- snippet: sample_retry_jitter -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.AddJob<ImportJob>(j => j.WithIdentity("import", "nightly"));
+    q.AddTrigger<ImportJob>(t => t
+        .ForJob("import", "nightly")
+        .WithCronSchedule("0 0 2 * * ?")
+        // The same backoff as above, spread by a fifth either way: the first retry lands
+        // between 24 and 36 seconds after the failure, the second between 48 and 72, and so
+        // on. A hundred triggers that failed on the same outage come back at a hundred
+        // different instants instead of all at once.
+        .WithRetryPolicy(RetryPolicy.Exponential(
+            maxAttempts: 5,
+            initialDelay: TimeSpan.FromSeconds(30),
+            factor: 2,
+            maxDelay: TimeSpan.FromMinutes(10),
+            jitter: 0.2)));
+});
+```
+<!-- endSnippet -->
+
+A jitter of `0` — the default — is the four-argument overload: the same waits, and the same bytes in the
+`RETRY_POLICY` column.
+
+::: warning A jittered policy is not readable by a node older than 4.2
+The jitter is stored as a `;j<value>` token appended to the policy's stored form, and **only when it is
+not zero**. A 4.1 node reading a trigger whose policy carries one meets a field it cannot parse and
+reports the row as unreadable. So in a mixed cluster the order is the usual one: roll every node to 4.2
+first, and only then start giving triggers jitter.
+:::
+
 Or spell the waits out. The table's length is the number of attempts, and its last entry repeats:
 
 <!-- snippet: sample_retry_explicit -->
@@ -167,6 +203,116 @@ to every node in a cluster. **`RefireImmediately` is not a zero-delay retry**, a
 independently.
 :::
 
+## When the policy gives up
+
+Running out of attempts used to be silent. A listener could work it out, but only by comparing
+`TriggerComplete`'s instruction against `SchedulerInstruction.RetryTrigger` and knowing what the trigger's
+policy said. Three things now say it outright.
+
+**The execution context says how the firing ended.** `IJobExecutionContext.Outcome` is what the scheduler
+classified the firing as, and `IJobExecutionContext.RetryScheduled` is whether the trigger answered it
+with another attempt. Both are set before the completion notifications go out, so `JobWasExecuted` and
+`TriggerComplete` read them:
+
+<!-- snippet: sample_retry_reading_the_outcome -->
+```csharp
+/// <summary>
+/// A job listener that tells an attempt from a verdict, which before 4.2 only a trigger listener
+/// could do — and only by comparing an instruction against <c>RetryTrigger</c>.
+/// </summary>
+public sealed class OutcomeReadingListener : IJobListener
+{
+    private readonly ILogger<OutcomeReadingListener> logger;
+
+    public OutcomeReadingListener(ILogger<OutcomeReadingListener> logger)
+    {
+        this.logger = logger;
+    }
+
+    public ValueTask JobWasExecuted(
+        IJobExecutionContext context,
+        JobExecutionException? jobException,
+        CancellationToken cancellationToken = default)
+    {
+        if (context.Outcome == ExecutionOutcome.Failed && !context.RetryScheduled)
+        {
+            logger.LogError("{Job} failed for the last time", context.JobDetail.Key);
+        }
+
+        return default;
+    }
+}
+```
+<!-- endSnippet -->
+
+A job that ran and threw is `ExecutionOutcome.Failed` whether or not it is going to be retried — the
+outcome says what the firing *did*. `RetryScheduled` is what says whether the occurrence is finished.
+
+**A trigger listener is told once per occurrence that gave up.**
+`ITriggerListener.TriggerRetriesExhausted` is raised between `JobWasExecuted` and `TriggerComplete`, and
+only when the trigger has a policy, the job failed, and there is no further attempt coming:
+
+<!-- snippet: sample_retry_listener_gave_up -->
+```csharp
+/// <summary>
+/// Raises an alert when an occurrence has run out of retries, and says nothing while it is still
+/// trying.
+/// </summary>
+public sealed class GaveUpListener : ITriggerListener
+{
+    private readonly ILogger<GaveUpListener> logger;
+
+    public GaveUpListener(ILogger<GaveUpListener> logger)
+    {
+        this.logger = logger;
+    }
+
+    public ValueTask TriggerRetriesExhausted(
+        ITrigger trigger,
+        IJobExecutionContext context,
+        JobExecutionException exception,
+        CancellationToken cancellationToken = default)
+    {
+        // context.RetryAttempt is how many retries this occurrence spent before giving up, and
+        // context.RetryScheduled is false: there is no further attempt coming.
+        logger.LogError(
+            exception,
+            "{Job} gave up after {Attempts} retries; the occurrence scheduled for {Scheduled} never succeeded",
+            context.JobDetail.Key,
+            context.RetryAttempt,
+            context.ScheduledFireTimeUtc);
+
+        return default;
+    }
+}
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_retry_listener_registration -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.AddTriggerListener<GaveUpListener>(Matchers.AllTriggers());
+});
+```
+<!-- endSnippet -->
+
+A failure on a trigger with **no** policy never raises it: nothing gave up, because nothing was going to
+try again. Neither does a failure that is being retried. Like every other member of `ITriggerListener` it
+is a default interface member, so a listener written against 4.0 or 4.1 compiles and runs unchanged.
+
+**The history says which row was the last word.** Every execution the history records carries
+`RetryAttempt` — which attempt at the occurrence it was — and `RetryScheduled`. A row that did not succeed
+and has `RetryScheduled` false is a *final* failure, and `ExecutionHistoryQuery.FailedFinally` selects
+exactly those. It is a question `Succeeded` alone cannot ask: a job under a policy of three writes four
+failed rows for one bad night, and a page filtered on failure shows the same occurrence four times over.
+The HTTP API takes it as `failedFinally` on `GET …/history/executions`.
+
+The dashboard's **History** page is built on all three: a row says *Failed (retrying)* or *Failed*, the
+**Outcome** filter offers *Failed after retries*, and a final failure carries a **Run again** button that
+fires the job by hand — recorded in the action log like every other mutation, and absent when the
+dashboard is read-only.
+
 ## The rules worth knowing
 
 **A retry never displaces the trigger's next scheduled occurrence.** If the retry would land at, or within
@@ -222,11 +368,17 @@ has already spent.
 
 * Meter `quartz.trigger.retry` counts each retry the scheduler schedules, tagged with the scheduler, the
   trigger group and the execution group — the same tags `quartz.trigger.misfire` carries.
-* Log event `1056` reports the trigger, the attempt and the retry instant at `Information`.
-* `ITriggerListener.TriggerComplete` is called with `SchedulerInstruction.RetryTrigger`.
+* Meter `quartz.trigger.retries_exhausted` counts each occurrence that gave up, under the same tags. The
+  two divide: a group whose retries are nearly all exhausted is a group the policy is buying nothing for.
+* Log event `1056` reports the trigger, the attempt and the retry instant at `Information`, and `1057`
+  reports the occurrence that gave up, the attempts it spent and what the last one threw.
+* `ITriggerListener.TriggerComplete` is called with `SchedulerInstruction.RetryTrigger`, and
+  `ITriggerListener.TriggerRetriesExhausted` once when the attempts run out.
 * On a persistent store the two columns are on `QRTZ_TRIGGERS`: `RETRY_POLICY` holds the policy's stored
   string form and `RETRY_ATTEMPT` how far through it the current occurrence is. Both are queryable, and
   the dashboard's trigger page shows them.
+* Where the history is kept in the database, `QRTZ_EXECUTION_HISTORY` carries `RETRY_ATTEMPT` and
+  `RETRY_SCHEDULED` per row.
 
 ## See also
 

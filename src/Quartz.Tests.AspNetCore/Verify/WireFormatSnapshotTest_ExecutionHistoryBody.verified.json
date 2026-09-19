@@ -9,7 +9,9 @@
       "firedAtUtc": "2026-08-26T12:00:00+00:00",
       "duration": "00:00:01.5000000",
       "succeeded": false,
-      "exceptionMessage": "the job threw"
+      "exceptionMessage": "the job threw",
+      "retryAttempt": 0,
+      "retryScheduled": false
     }
   ],
   "hasMore": false,
