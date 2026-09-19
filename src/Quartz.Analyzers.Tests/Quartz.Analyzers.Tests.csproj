@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="AwesomeAssertions" />
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="AwesomeAssertions.Analyzers" />
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <!--
+      The compiler the analyzer is written against, so a test drives it through the same API a build
+      does. Quartz.Analyzers keeps this PrivateAssets=all, which is why it is named again here.
+    -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="$(MicrosoftCodeAnalysisVersion)" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Both assemblies declare Quartz.CronExpression - that is the point of this project - so the
+      analyzer's copy arrives under an alias and a bare Quartz name means the shipped one. Only
+      CronParityTest ever spells both.
+
+      ReferenceOutputAssembly stays on: this project compiles against the analyzer's types rather
+      than being analysed by them, and OutputItemType="Analyzer" would run QZ0001 over test sources
+      that are deliberately full of unparseable cron.
+    -->
+    <ProjectReference Include="..\Quartz.Analyzers\Quartz.Analyzers.csproj" Aliases="QuartzAnalyzers" />
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
+</Project>

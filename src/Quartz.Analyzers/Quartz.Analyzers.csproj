@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyTitle>Quartz.NET analyzers</AssemblyTitle>
+    <!--
+      The one project in this repository that is not net10.0, and it has no choice: an analyzer is
+      loaded by the compiler, and the compiler host is .NET Framework inside Visual Studio and
+      whichever .NET the SDK on the machine runs on from the command line. netstandard2.0 is the only
+      target every one of those can load, which is why Roslyn itself still ships on it.
+    -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!--
+      Nothing is published under this id. The assembly ships inside Quartz.nupkg, under
+      analyzers/dotnet/cs, which src/Quartz/Quartz.csproj packs.
+    -->
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <!-- No consumer reads these types through IntelliSense; the diagnostics are the documentation. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      VersionOverride because the version is $(MicrosoftCodeAnalysisVersion) in
+      Directory.Packages.props rather than a PackageVersion row; that file says why. The analyzer rules
+      themselves - the RS1xxx that hold an analyzer to the compiler's rules, and the RS2xxx release
+      tracking below - arrive with Microsoft.CodeAnalysis.Common rather than being asked for
+      separately, for the same reason: a central row for Microsoft.CodeAnalysis.Analyzers would be
+      pinned into every project that resolves Roslyn at all.
+    -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="$(MicrosoftCodeAnalysisVersion)" PrivateAssets="all" />
+    <!--
+      The nullable attributes, IsByRefLikeAttribute and ParamCollectionAttribute the linked sources
+      below are written against. A source-only package, so it contributes nothing to any nuspec - which
+      matters here because this assembly rides inside Quartz.nupkg.
+    -->
+    <PackageReference Include="PolySharp" PrivateAssets="all">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PolySharpIncludeRuntimeSupportedAttributes>true</PolySharpIncludeRuntimeSupportedAttributes>
+  </PropertyGroup>
+
+  <!--
+    Analyzer release tracking, which EnforceExtendedAnalyzerRules requires: every shipped diagnostic id
+    is listed with its category, severity and what it says, so that removing or re-purposing one is a
+    diff rather than a surprise.
+  -->
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+
+  <!--
+    The cron parser, linked rather than referenced.
+
+    The analyzer cannot reference Quartz.dll - that is net10.0 and this is netstandard2.0 - and it must
+    not reimplement the grammar: H, wrapping ranges, L/W/#, the macros, the Unix rewrite and the Vixie
+    day-union are Quartz's identity, and a reduced parser that rejects a valid expression is a build
+    break invented by the analyzer. So the compiler reads a cron literal with exactly the parser that
+    will read it at run time. CronParityTest is what proves the two copies still agree.
+
+    CronExpressionBuilder.cs is deliberately not here: nothing in the analyzer reads a builder chain,
+    and the eight params-span members it adds are the only reason this project would need
+    ParamCollectionAttribute at all.
+  -->
+  <ItemGroup>
+    <Compile Include="../Quartz/CronExpression.cs" Link="Cron/CronExpression.cs" />
+    <Compile Include="../Quartz/CronExpressionConstants.cs" Link="Cron/CronExpressionConstants.cs" />
+    <Compile Include="../Quartz/CronFormat.cs" Link="Cron/CronFormat.cs" />
+    <Compile Include="../Quartz/CronMacros.cs" Link="Cron/CronMacros.cs" />
+    <Compile Include="../Quartz/TimeZones.cs" Link="Cron/TimeZones.cs" />
+    <Compile Include="../Quartz/UnixCronRewriter.cs" Link="Cron/UnixCronRewriter.cs" />
+    <Compile Include="../Quartz/Util/BitUtil.cs" Link="Cron/Util/BitUtil.cs" />
+    <Compile Include="../Quartz/Util/SerializationInfoExtensions.cs" Link="Cron/Util/SerializationInfoExtensions.cs" />
+    <Compile Include="../Quartz/Util/StringExtensions.cs" Link="Cron/Util/StringExtensions.cs" />
+  </ItemGroup>
+
+</Project>

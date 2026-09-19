@@ -30,6 +30,7 @@
     <File Path="Analyzers/bannedsymbols.txt" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="src/Quartz.Analyzers.Tests/Quartz.Analyzers.Tests.csproj" />
     <Project Path="src/Quartz.Tests.AspNetCore/Quartz.Tests.AspNetCore.csproj" />
     <Project Path="src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj" />
     <Project Path="src/Quartz.Tests.Integration.Seeder/Quartz.Tests.Integration.Seeder.csproj" />
@@ -51,6 +52,7 @@
     <Project Path="src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj" />
     <Project Path="src/Quartz.Serialization.SystemTextJson/Quartz.Serialization.SystemTextJson.csproj" />
   </Folder>
+  <Project Path="src/Quartz.Analyzers/Quartz.Analyzers.csproj" />
   <Project Path="src/Quartz.Aspire/Quartz.Aspire.csproj" />
   <Project Path="src/Quartz.AspNetCore/Quartz.AspNetCore.csproj" />
   <Project Path="src/Quartz.Dashboard/Quartz.Dashboard.csproj" />

@@ -72,6 +72,25 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <!--
+    The analyzer, which rides inside this package rather than under an id of its own.
+
+    A separate Quartz.Analyzers package would be a second id every consumer has to hear about and a
+    permanent publishing obligation (src/QuartzShimPackage.props says what one of those costs), for
+    something nobody would ever want without Quartz. Inside analyzers/dotnet/cs it arrives with the
+    reference that made it relevant, and ExcludeAssets="analyzers" on the PackageReference is how an
+    application that does not want the diagnostics turns them off.
+
+    ReferenceOutputAssembly="false" because Quartz does not call into it; OutputItemType="Analyzer"
+    because Quartz should be held to its own rules, which is also what orders the two builds. The
+    pack item names the artifacts-output path rather than the project reference, because the item has
+    to exist at evaluation time and the reference resolves during the build.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../Quartz.Analyzers/Quartz.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+    <None Include="$(ArtifactsPath)/bin/Quartz.Analyzers/$(Configuration.ToLowerInvariant())/Quartz.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="Xml\job_scheduling_data_2_0.xsd" />
     <!--

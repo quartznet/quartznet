@@ -34,8 +34,15 @@ If you ran a 4.0 alpha or beta, everything that changed between one pre-release 
 collected in [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release).
 The rest of this guide is written as one statement about 3.x and 4.0, with no build numbers in it.
 
-**Already on 4.0?** Then this guide is not your upgrade —
-[Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1) is, and it is short.
+**Already on 4.0 or 4.1?** Then this guide is not your upgrade —
+[Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2) and
+[Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1) are, and both are short.
+
+## Upgrading from 4.1 to 4.2
+
+| Added | What it is |
+|---|---|
+| `Quartz.nupkg` carries an analyzer | Under `analyzers/dotnet/cs`, so referencing `Quartz` is all it takes. It reads a cron expression written as a literal or a `const` with the parser that would read it at run time and fails the build on one that cannot parse (`QZ0001`), reads a `[JobTimeout]` argument the way the attribute's constructor does (`QZ0002`), warns about a job that persists its data map and allows concurrent firings (`QZ0003`), and points out a job body that awaits or loops without ever reading its cancellation token (`QZ0004`). Nothing else in the package changed and no dependency was added. An existing application can see a new build error where it had a run-time exception waiting; `dotnet_diagnostic.QZ0001.severity` moves any one of the four, and `ExcludeAssets="analyzers"` on the package reference turns all four off. See [Compile-Time Checks](tutorial/compile-time-checks.md) |
 
 ## Upgrading from 4.0 to 4.1
 

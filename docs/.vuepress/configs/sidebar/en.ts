@@ -37,6 +37,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-4.x/tutorial/execution-groups",
           "/documentation/quartz-4.x/tutorial/node-affinity",
           "/documentation/quartz-4.x/tutorial/testing",
+          "/documentation/quartz-4.x/tutorial/compile-time-checks",
         ],
       },
       "/documentation/quartz-4.x/configuration/reference",
