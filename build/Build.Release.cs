@@ -63,11 +63,17 @@ public partial class Build
     /// <remarks>
     /// Triggered by <see cref="Publish"/> rather than depending on it — the idiom <see cref="PackZip"/>
     /// already uses — so that running this target by hand cannot drag a package push along behind it.
-    /// Every step is written to be re-runnable, because re-running a failed publish workflow is the
-    /// recovery path for a release that went wrong halfway.
+    /// Ordered after <see cref="PackZip"/> explicitly, because a trigger only says "after Pack", not
+    /// "before the next invoked target": the v4.1.1 tag build ran PackZip last of all, after Publish,
+    /// and the planner puts an invoked target ahead of a merely triggered one, so without this the
+    /// archive would not exist yet when this runs. After, not DependsOn, so that running this by hand
+    /// to recover a release does not rebuild the archive it is about to attach. Every step is written
+    /// to be re-runnable, because re-running a failed publish workflow is the recovery path for a
+    /// release that went wrong halfway.
     /// </remarks>
     Target DraftRelease => _ => _
         .TriggeredBy(Publish)
+        .After(PackZip)
         .OnlyWhenDynamic(() => IsTaggedBuild)
         .Executes(async () =>
         {
@@ -78,7 +84,7 @@ public partial class Build
 
             var assets = ReleaseAssetFiles.ToList();
             Assert.NotEmpty(assets,
-                $"No Quartz.NET-{FullVersion}.zip under {ArtifactsDirectory} — DraftRelease runs after Pack, which is what triggers PackZip");
+                $"No Quartz.NET-{FullVersion}.zip under {ArtifactsDirectory} — DraftRelease is ordered after PackZip, which Pack triggers; run Pack first");
 
             using var client = CreateGitHubClient(token);
 
