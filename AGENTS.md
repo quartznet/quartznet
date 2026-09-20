@@ -397,8 +397,10 @@ Pluggable serialization for job store persistence:
   A draft that already carries notes keeps them and only gains the zip, so notes are written ahead
   of the tag; re-running the workflow is the recovery path (`Publish` skips duplicates, the asset is
   replaced). A human publishes the draft and decides "latest" — unticked for a 3.x release. To
-  rehearse: a `v0.0.0-rehearsal` tag on `HEAD`, never pushed, `dotnet fallout Pack DraftRelease
-  --github-token …`, then delete the draft and the tag.
+  rehearse: `GITHUB_ACTIONS=true GITHUB_REF_TYPE=tag GITHUB_REF_NAME=v0.0.0-rehearsal
+  GITHUB_REPOSITORY=quartznet/quartznet GITHUB_TOKEN=$(gh auth token) dotnet fallout Pack
+  DraftRelease`, then delete the draft; a local tag is stamped `-dev` instead and `--skip` skips a
+  target's dependencies, not the target.
 
 ## Porting changes between 3.x and main
 
