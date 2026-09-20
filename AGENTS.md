@@ -54,10 +54,11 @@ nothing, so the last step is still a human editing the draft and pressing Publis
 is the current line. An existing draft that already has a body is never overwritten, and re-running the
 publish workflow is safe, which makes it the recovery path for a release that broke halfway. It is
 ordered after `PackZip` explicitly, because a trigger only says "after Pack" and the planner runs an
-invoked target ahead of a merely triggered one. To rehearse it: `GITHUB_ACTIONS=true
-GITHUB_REF_TYPE=tag GITHUB_REF_NAME=v0.0.0-rehearsal GITHUB_REPOSITORY=quartznet/quartznet
-GITHUB_TOKEN=$(gh auth token) dotnet fallout Pack DraftRelease`, then delete the draft; a local tag
-is stamped `-dev` instead, and `--skip` skips a target's dependencies, not the target.
+invoked target ahead of a merely triggered one. To rehearse it here, where the tag is read from git
+rather than from the Actions environment: a `v0.0.0-rehearsal` tag on `HEAD`, never pushed, then
+`GITHUB_ACTIONS=true GITHUB_REPOSITORY=quartznet/quartznet GITHUB_TOKEN=$(gh auth token) dotnet
+fallout Compile Pack DraftRelease` (Compile, because the archive copies the examples' binaries), then
+delete the draft and the tag. `--skip` skips a target's dependencies, not the target.
 
 ## Documentation
 

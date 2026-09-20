@@ -245,7 +245,18 @@ partial class Build : FalloutBuild
                     .SetContinuousIntegrationBuild(IsServerBuild)
                 );
             }
+        });
 
+    /// <summary>
+    /// The source-and-binaries archive a release carries. A target of its own, triggered by
+    /// <see cref="Pack"/>, as it is on main: <c>DraftRelease</c> orders itself after it by this name,
+    /// and <c>build/Build.Release.cs</c> stays byte-identical on both branches because of it.
+    /// </summary>
+    Target PackZip => _ => _
+        .TriggeredBy(Pack)
+        .Produces(ArtifactsDirectory / "*.zip")
+        .Executes(() =>
+        {
             var zipContents = Array.Empty<AbsolutePath>()
                     .Concat(SourceDirectory.GlobFiles("**/*.*"))
                     .Concat(RootDirectory.GlobFiles("database/**/*"))

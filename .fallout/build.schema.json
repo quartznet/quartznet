@@ -31,6 +31,7 @@
         "GenerateMigrations",
         "IntegrationTest",
         "Pack",
+        "PackZip",
         "Publish",
         "Restore",
         "UnitTest",
