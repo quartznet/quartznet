@@ -625,8 +625,10 @@ public sealed record TriggerHeaderDto(
 {
     /// <summary>
     /// The trigger whose firing this one is waiting for, or <see langword="null" /> when it waits for
-    /// nothing. Set exactly when <see cref="State" /> is <see cref="TriggerState.Awaiting" />, and kept
-    /// afterwards — a released continuation still says what it waited for.
+    /// nothing. Set while <see cref="State" /> is <see cref="TriggerState.Awaiting" />, and on a
+    /// continuation parked in <see cref="TriggerState.Error" /> because its parent was deleted. A
+    /// released continuation waits for nothing — the release clears the parent — so it is
+    /// <see langword="null" /> for one.
     /// </summary>
     /// <remarks>
     /// An <c>init</c> property rather than a positional parameter, and the same goes for

@@ -178,11 +178,13 @@ internal abstract partial class AdoJobStoreBase
                     return false;
                 }
 
-                // A continuation parked here is one whose parent was deleted, so its fire time is the
-                // one it had while it was waiting — which is to say, none it can act on. Resetting it
-                // means running it now, at the later of now and its own start time: the same instant a
-                // release would have given it. The statement touches only a row that names a parent,
-                // so an ordinary trigger's reset writes nothing extra.
+                // A row in error that still names a parent is a continuation parked because its parent
+                // was deleted — a released one names none — so its fire time is the one it had while
+                // it was waiting, which is to say none it can act on. Resetting it means running it now,
+                // at the later of now and its own start time: the same instant a release would have
+                // given it; and, like a release, it forgets the parent, so a later error and reset of
+                // the same trigger keeps its schedule. The statement touches only a row that names a
+                // parent, so an ordinary trigger's reset writes nothing extra.
                 await Delegate.ResetContinuationFireTime(conn, triggerKey, timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
 
                 Logger.TriggerResetFromError(triggerKey, newState);

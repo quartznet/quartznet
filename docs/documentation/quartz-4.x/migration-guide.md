@@ -102,7 +102,8 @@ end, and is released or discarded by how it ended. The model in five sentences:
 * Any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized,
   because the firing it was waiting for has been and gone.
 * Settlement is one-shot, because every statement that settles names `Awaiting` and a settled trigger
-  no longer holds it.
+  no longer holds it. A released trigger is an ordinary one: the release clears the parent it named,
+  so it waits for nothing, a listing says so, and `GetTriggerBuilder()` does not re-arm the wait.
 
 The parent is a `TriggerKey` rather than a `JobKey`: a continuation waits for one *firing*, and a job
 may be fired by several triggers.
@@ -125,7 +126,8 @@ would discard a continuation waiting on success at the parent's first hiccup.
 A parent **deleted** while continuations await it is the one settlement with no outcome to match:
 `OnAnyOutcome` is released anyway, and anything narrower is parked in `TriggerState.Error` with
 `TriggerInError` for an operator to see. `ResetTriggerFromErrorState` on such a trigger gives it the
-fire time a release would have, so resetting it means running it. `PauseTrigger` on an awaiting
+fire time a release would have and clears the parent as a release does, so resetting it means running
+it. `PauseTrigger` on an awaiting
 trigger returns `false`: there is nothing to hold back that is not already held back.
 
 A **recurring** conditional chain — "run the cleanup whenever the nightly job fails" — is not a

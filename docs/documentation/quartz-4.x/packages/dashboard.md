@@ -267,7 +267,8 @@ release it on hover.
 The trigger's detail page spells both out: **Continues after**, as a link to the parent's own page, and
 **When**. A parent somebody has removed is named without a link and marked *no longer scheduled*; that
 trigger is parked in `ERROR`, and *reset error state* on it is what runs it, because a reset gives it the
-fire time a release would have given it.
+fire time a release would have given it. A released trigger — or a reset one — waits for nothing, so its
+page no longer shows either.
 
 ### Currently Executing
 

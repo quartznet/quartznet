@@ -1416,7 +1416,8 @@ public interface IDriverDelegate
 
     /// <summary>
     /// Moves one awaiting trigger into the ordinary schedule, firing at the later of
-    /// <paramref name="now" /> and the trigger's own start time.
+    /// <paramref name="now" /> and the trigger's own start time, and clears the continuation columns:
+    /// a released trigger is an ordinary one and waits for nothing.
     /// </summary>
     /// <remarks>
     /// Only a row still in <see cref="StoredTriggerState.Awaiting" /> is written, which is what makes
@@ -1444,13 +1445,14 @@ public interface IDriverDelegate
     }
 
     /// <summary>
-    /// Gives a continuation that has just been reset out of the error state a fire time, the same way
-    /// <see cref="ReleaseContinuation" /> does.
+    /// Gives a continuation that has just been reset out of the error state a fire time, and clears
+    /// its continuation columns, the same way <see cref="ReleaseContinuation" /> does.
     /// </summary>
     /// <remarks>
-    /// Touches only a row that names a parent, so an ordinary trigger's reset costs a statement that
-    /// matches nothing. A default interface member that does nothing: a delegate with no continuation
-    /// columns has no such row to fix.
+    /// Touches only a row that names a parent — in the error state, a continuation parked because its
+    /// parent was deleted, since a released one names none — so an ordinary trigger's reset costs a
+    /// statement that matches nothing. A default interface member that does nothing: a delegate with no
+    /// continuation columns has no such row to fix.
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="triggerKey">The trigger that was just reset.</param>

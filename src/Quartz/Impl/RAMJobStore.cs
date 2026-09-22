@@ -930,6 +930,7 @@ public sealed class RAMJobStore : IJobStore
     private void ReleaseContinuationNoLock(TriggerWrapper tw, ref PendingSignals pending)
     {
         RemoveContinuationNoLock(tw);
+        ForgetContinuation(tw);
 
         DateTimeOffset now = timeProvider.GetUtcNow();
         tw.Trigger.NextFireTimeUtc = tw.Trigger.StartTimeUtc > now ? tw.Trigger.StartTimeUtc : now;
@@ -941,6 +942,24 @@ public sealed class RAMJobStore : IJobStore
         PlaceScheduledTriggerNoLock(tw);
 
         pending.RecordSchedulingChange();
+    }
+
+    /// <summary>
+    /// Makes a trigger whose wait is over an ordinary one: it no longer names the parent, so a listing
+    /// reports it waiting for nothing, <see cref="ITrigger.GetTriggerBuilder" /> does not re-arm the
+    /// wait, and resetting it from an error later keeps its schedule rather than treating it as parked.
+    /// </summary>
+    /// <remarks>
+    /// Called once the trigger is out of <see cref="continuationsByParent" />, which is keyed by the
+    /// parent this clears. A trigger that is not a <see cref="TriggerBase" /> carries no continuation it
+    /// could be released from — <see cref="ITrigger.Continuation" /> answers none for it by default.
+    /// </remarks>
+    private static void ForgetContinuation(TriggerWrapper tw)
+    {
+        if (tw.Trigger is TriggerBase trigger)
+        {
+            trigger.Continuation = Continuation.None;
+        }
     }
 
     /// <summary>
@@ -1269,12 +1288,15 @@ public sealed class RAMJobStore : IJobStore
             return false;
         }
 
-        // A continuation parked here is one whose parent was deleted, so it has no fire time worth
-        // keeping: the schedule it would have been released into never started. Resetting it means
-        // running it now, at the later of now and its start time — the same instant a release would
-        // have given it.
+        // A trigger in error that still names a parent is a continuation parked because its parent was
+        // deleted — a released one names none — so it has no fire time worth keeping: the schedule it
+        // would have been released into never started. Resetting it means running it now, at the later
+        // of now and its start time, the same instant a release would have given it; and like a release
+        // it forgets the parent, so that a later error and reset of the same trigger keeps its schedule.
         if (!tw.Trigger.Continuation.IsNone)
         {
+            ForgetContinuation(tw);
+
             DateTimeOffset now = timeProvider.GetUtcNow();
             tw.Trigger.NextFireTimeUtc = tw.Trigger.StartTimeUtc > now ? tw.Trigger.StartTimeUtc : now;
         }

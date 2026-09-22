@@ -187,6 +187,87 @@ public sealed class ContinuationSettlementTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // A released continuation is an ordinary trigger: the release clears what it waited for
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AReleasedContinuationWaitsForNothingAnyMore()
+    {
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger continuation = await ScheduleContinuation("released", parent.Key, ContinuationCondition.OnFailure);
+
+        await Complete(Firing(await Fire(parent.Key), parent.Key), ExecutionOutcome.Failed);
+
+        IOperableTrigger released = (await store.GetTrigger(continuation.Key))!;
+
+        released.Continuation.Should().Be(Continuation.None,
+            "the wait is over, and a trigger that is still said to wait for its parent is one every later path "
+            + "has to remember to treat as released");
+
+        released.GetTriggerBuilder().Build().Continuation.Should().Be(Continuation.None,
+            "rebuilding a trigger is how a reschedule keeps what the caller did not change, and a wait that has "
+            + "ended is not part of the definition any more — rebuilt, it would wait again for a firing that has been");
+
+        TriggerHeader header = (await store.QueryTriggers(new TriggerQuery { Group = GroupMatcher<TriggerKey>.GroupEquals(Group) }))
+            .Items.Single(x => x.Key.Equals(continuation.Key));
+
+        header.ContinuesAfter.Should().BeNull("a listing says what a trigger waits for, and this one waits for nothing");
+        header.ContinuationCondition.Should().BeNull();
+    }
+
+    [Test]
+    public async Task AReleasedCronContinuationResetFromErrorKeepsItsSchedule()
+    {
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger continuation = await ScheduleContinuation(
+            "nightly",
+            parent.Key,
+            ContinuationCondition.OnSuccess,
+            configure: x => x.WithCronSchedule("0 0 2 * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+
+        await Complete(Firing(await Fire(parent.Key), parent.Key), ExecutionOutcome.Succeeded);
+
+        // The release fires it at once, and that firing moves it on to its own schedule.
+        IOperableTrigger firing = Firing(await Fire(continuation.Key), continuation.Key);
+
+        DateTimeOffset nextNightly = new(2031, 6, 18, 2, 0, 0, TimeSpan.Zero);
+        (await store.GetTrigger(continuation.Key))!.NextFireTimeUtc.Should().Be(nextNightly,
+            "a released cron continuation keeps the schedule it was given, from the firing the release made on");
+
+        await Complete(firing, ExecutionOutcome.Failed, SchedulerInstruction.SetTriggerError);
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Error);
+
+        (await store.ResetTriggerFromErrorState(continuation.Key)).Should().BeTrue();
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal);
+        (await store.GetTrigger(continuation.Key))!.NextFireTimeUtc.Should().Be(nextNightly,
+            "this is an ordinary cron trigger reset from an ordinary error, so it keeps its 02:00 — resetting it "
+            + "into 'fire now' is for a continuation parked because its parent was deleted, which this is not");
+    }
+
+    [Test]
+    public async Task ResettingAContinuationParkedByItsDeletedParentRunsItOnceAndForgetsTheParent()
+    {
+        IOperableTrigger parent = await ScheduleParent("doomed");
+        IOperableTrigger continuation = await ScheduleContinuation("orphaned", parent.Key, ContinuationCondition.OnSuccess);
+
+        await store.DeleteTrigger(parent.Key);
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Error,
+            "the firing it asked about is never going to happen");
+
+        (await store.ResetTriggerFromErrorState(continuation.Key)).Should().BeTrue();
+
+        IOperableTrigger reset = (await store.GetTrigger(continuation.Key))!;
+        reset.NextFireTimeUtc.Should().Be(clock.GetUtcNow(),
+            "resetting a parked continuation runs it, at the instant a release would have given it");
+        reset.Continuation.Should().Be(Continuation.None,
+            "the reset is its release: from here it is an ordinary trigger, so a later error and reset of it keeps "
+            + "whatever schedule it is on rather than firing it now again, and a reschedule does not wait for a "
+            + "parent that no longer exists");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Scaffolding
     //////////////////////////////////////////////////////////////////////////////////////////////
 

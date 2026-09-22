@@ -30,6 +30,11 @@ Settlement is **one-shot**. Every statement that settles a continuation names `A
 trigger no longer holds it, so a continuation is released or discarded exactly once. A continuation is not
 a subscription to a schedule — for that, see [a recurring chain](#a-recurring-chain-is-a-listener) below.
 
+A released continuation is an **ordinary trigger** from then on. The release clears what it waited for, so
+its `Continuation` is `Continuation.None`, a listing no longer names the parent, `GetTriggerBuilder()` does
+not re-arm the wait for a firing that has been, and a later error and reset keeps whatever schedule the
+trigger is on.
+
 The parent is a `TriggerKey` rather than a `JobKey`: a continuation waits for one *firing*, and a job may
 be fired by several triggers.
 
@@ -134,7 +139,8 @@ narrower is parked in `TriggerState.Error`, with `ISchedulerListener.TriggerInEr
 see rather than silently deleted or left waiting forever.
 
 `ResetTriggerFromErrorState` on such a trigger gives it the fire time a release would have given it, so
-**resetting one means running it**. `PauseTrigger` on a trigger that is still `Awaiting` answers `false`:
+**resetting one means running it** — and, like a release, the reset clears the parent it named, so from
+then on it is an ordinary trigger. `PauseTrigger` on a trigger that is still `Awaiting` answers `false`:
 there is nothing to hold back that is not already held back.
 
 ## Seeing what is waiting
