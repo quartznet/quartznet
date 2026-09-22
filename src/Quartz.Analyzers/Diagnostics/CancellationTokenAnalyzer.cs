@@ -120,7 +120,8 @@ public sealed class CancellationTokenAnalyzer : DiagnosticAnalyzer
 
     /// <summary>
     /// Whether this method is what <c>IJob.Execute</c> resolves to on its type - the implementation,
-    /// explicit or not, rather than anything that happens to be called <c>Execute</c>.
+    /// explicit or not, or an override of it - rather than anything that happens to be called
+    /// <c>Execute</c>.
     /// </summary>
     private static bool IsJobExecution(IMethodSymbol method, INamedTypeSymbol job, INamedTypeSymbol? genericJob)
     {
@@ -138,10 +139,34 @@ public sealed class CancellationTokenAnalyzer : DiagnosticAnalyzer
 
             foreach (ISymbol member in implemented.GetMembers("Execute"))
             {
-                if (SymbolEqualityComparer.Default.Equals(type.FindImplementationForInterfaceMember(member), method))
+                if (type.FindImplementationForInterfaceMember(member) is IMethodSymbol implementation
+                    && IsOrOverrides(method, implementation))
                 {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether the method is the interface's implementation, or overrides it however many classes down.
+    /// </summary>
+    /// <remarks>
+    /// The implementation is the member that maps to the interface, which for a virtual or abstract
+    /// <c>Execute</c> on a base job is the base's - while the body the scheduler runs is the override.
+    /// A partial method maps through its declaration, and its body is on the other part. A <c>new</c>
+    /// method overrides nothing, so a derived job hiding its base's <c>Execute</c> is still not the
+    /// body the scheduler runs, and is not read.
+    /// </remarks>
+    private static bool IsOrOverrides(IMethodSymbol method, IMethodSymbol implementation)
+    {
+        for (IMethodSymbol? current = method.PartialDefinitionPart ?? method; current is not null; current = current.OverriddenMethod)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, implementation))
+            {
+                return true;
             }
         }
 

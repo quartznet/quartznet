@@ -141,6 +141,139 @@ public class CancellationTokenAnalyzerTest
     }
 
     [Test]
+    public async Task AnOverrideOfAnAbstractBaseJobIsReadTheSameWay()
+    {
+        string snippet = """
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            public abstract class JobBase : IJob
+            {
+                public abstract ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default);
+            }
+
+            public sealed class MyJob : JobBase
+            {
+                public override async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+                {
+                    await Task.Delay(1000);
+                }
+            }
+            """;
+
+        IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CancellationTokenAnalyzer>(snippet);
+
+        Diagnostic diagnostic = diagnostics.Should().ContainSingle(
+            "the scheduler calls IJob.Execute, which runs the override, so the override is the body the token is handed to").Subject;
+
+        diagnostic.GetMessage().Should().Contain("MyJob.Execute");
+    }
+
+    /// <summary>
+    /// Two overrides deep, one forwarding the token and the one below it not.
+    /// </summary>
+    [Test]
+    public async Task AnOverrideOfAVirtualBaseJobIsReadTheSameWay()
+    {
+        string snippet = """
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            public class JobBase : IJob
+            {
+                public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+
+            public class PausingJob : JobBase
+            {
+                public override async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+                {
+                    await Task.Delay(1000, cancellationToken);
+                }
+            }
+
+            public sealed class MyJob : PausingJob
+            {
+                public override async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+                {
+                    await Task.Delay(1000);
+                }
+            }
+            """;
+
+        IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CancellationTokenAnalyzer>(snippet);
+
+        Diagnostic diagnostic = diagnostics.Should().ContainSingle(
+            "the base neither awaits nor loops, the first override forwards the token, and only the second ignores it").Subject;
+
+        diagnostic.GetMessage().Should().Contain("MyJob.Execute");
+    }
+
+    [Test]
+    public async Task APartialImplementationIsReadTheSameWay()
+    {
+        string snippet = """
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            public partial class MyJob : IJob
+            {
+                public partial ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default);
+            }
+
+            public partial class MyJob
+            {
+                public partial async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken)
+                {
+                    await Task.Delay(1000);
+                }
+            }
+            """;
+
+        IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CancellationTokenAnalyzer>(snippet);
+
+        Diagnostic diagnostic = diagnostics.Should().ContainSingle(
+            "IJob.Execute is implemented by the partial method's declaration, and its body is in the other part").Subject;
+
+        diagnostic.SpanText().Should().Be("Execute");
+        diagnostic.Location.GetLineSpan().StartLinePosition.Line.Should().Be(12, "the report goes where the body is");
+    }
+
+    [Test]
+    public async Task AMethodThatHidesTheBaseJobsExecuteIsNotReported()
+    {
+        string snippet = """
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            public class JobBase : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+
+            public sealed class HidingJob : JobBase
+            {
+                public new async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+                {
+                    await Task.Delay(1000);
+                }
+            }
+            """;
+
+        IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CancellationTokenAnalyzer>(snippet);
+
+        diagnostics.Should().BeEmpty("a 'new' method overrides nothing, and IJob.Execute on HidingJob still runs the base's body");
+    }
+
+    [Test]
     public async Task AMethodCalledExecuteOnATypeThatIsNotAJobIsNotReported()
     {
         string snippet = """

@@ -111,6 +111,11 @@ public async ValueTask Execute(IJobExecutionContext context, CancellationToken c
 }
 ```
 
+The body read is the one the scheduler runs when it calls `IJob.Execute`: the implementation, explicit or
+not, an `override` of it in a job deriving from a virtual or abstract base, or the half of a `partial`
+method that carries the body. A method called `Execute` that hides the base job's with `new` is not that
+body, and is not read.
+
 This is information rather than a warning, and deliberately. Whether a piece of work is interruptible is
 a judgement no analyzer can make, and a job that returns in a millisecond is right to ignore the token.
 The `await`-or-loop condition is what keeps it off the jobs that could not honour a cancellation anyway.
