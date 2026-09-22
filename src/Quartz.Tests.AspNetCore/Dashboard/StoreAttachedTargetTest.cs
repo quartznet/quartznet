@@ -188,6 +188,26 @@ public sealed class StoreAttachedTargetTest
         state.Should().Be(TriggerState.Paused);
     }
 
+    /// <summary>
+    /// A window onto a store attached without <c>UseExecutionHistory()</c> says there is no history
+    /// there, naming the store and the window, rather than showing this process's own history.
+    /// </summary>
+    [Test]
+    public async Task AWindowOntoAStoreWithoutHistorySaysWhichStoreHasNone()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database, history: false);
+
+        Func<Task> read = async () => await dashboard.Client.QueryExecutions(
+            new DashboardHistoryQuery { SchedulerName = ClusterScheduler });
+
+        await read.Should().ThrowAsync<NotSupportedException>()
+            .WithMessage("The store attached as 'test', which 'reporting' is a window onto, keeps no execution history*UseExecutionHistory()*",
+                "the page shows this text as it stands, so it has to say which store has no history and which "
+                + "window reads through it - in a sentence that parses");
+    }
+
     [Test]
     public async Task AWindowHasNoLiveEventStream()
     {
@@ -356,7 +376,8 @@ public sealed class StoreAttachedTargetTest
 
         public static async ValueTask<DashboardHost> Attached(
             SqliteTestDatabase database,
-            Action<IServiceCollection>? configure = null)
+            Action<IServiceCollection>? configure = null,
+            bool history = true)
         {
             ServiceCollection services = new();
             services.AddLogging();
@@ -370,7 +391,11 @@ public sealed class StoreAttachedTargetTest
                 store =>
                 {
                     store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
-                    store.UseExecutionHistory();
+
+                    if (history)
+                    {
+                        store.UseExecutionHistory();
+                    }
                 }));
 
             configure?.Invoke(services);

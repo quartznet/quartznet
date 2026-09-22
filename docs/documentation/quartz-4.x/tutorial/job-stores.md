@@ -394,6 +394,13 @@ A history write never runs inside the job's transaction or under the trigger loc
 fails is logged and dropped. The execution it describes has already happened; losing the record of it
 must not fail the firing.
 
+**It is one scheduler's choice.** In a container with several schedulers, a
+[named scheduler](../packages/multiple-schedulers.md) that does not call `UseExecutionHistory()` records
+into the container's shared history store — the in-memory one, unless the *default* scheduler called
+`UseExecutionHistory()`, in which case it is the default scheduler's database. The named scheduler's
+executions then land in that database under its own scheduler name, and are swept there. Call
+`UseExecutionHistory()` on each scheduler whose history belongs in its own database.
+
 ::: tip
 Nothing about a mixed cluster has to be co-ordinated. A 4.1 node cannot see these tables, and a 4.2
 node that does not call `UseExecutionHistory()` neither writes nor reads them — it keeps its own

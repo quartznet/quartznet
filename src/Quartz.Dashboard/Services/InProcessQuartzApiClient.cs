@@ -662,14 +662,14 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         // cluster does not keep its history in the database has none here at all, and saying so is
         // better than this process's own history, which would be an empty page that reads as a cluster
         // that has run nothing.
-        if (attachedStores.IsWindow(schedulerName))
+        if (attachedStores.TargetOf(schedulerName) is { } target)
         {
             return attachedStores.HistoryFor(schedulerName)
                 ?? throw new NotSupportedException(
-                    $"The store '{schedulerName}' is a window onto keeps no execution history: it was attached "
-                    + "without UseExecutionHistory(), so nothing a node ran was written where this dashboard can "
-                    + "read it. Add store.UseExecutionHistory() to the nodes and to AttachStore, and run "
-                    + "database/migrations/4.2/add_execution_history_<dialect>.sql.");
+                    $"The store attached as '{target}', which '{schedulerName}' is a window onto, keeps no execution "
+                    + "history: it was attached without UseExecutionHistory(), so nothing a node ran was written where "
+                    + "this dashboard can read it. Add store.UseExecutionHistory() to the nodes and to AttachStore, "
+                    + "and run database/migrations/4.2/add_execution_history_<dialect>.sql.");
         }
 
         // A container that does not do keyed services holds no per-scheduler store either, so asking it

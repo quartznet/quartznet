@@ -102,6 +102,12 @@ internal sealed class AttachedStores : IAsyncDisposable
     /// </summary>
     public bool IsWindow(string? schedulerName) => registry.TargetOf(schedulerName) is not null;
 
+    /// <summary>
+    /// The name the store <paramref name="schedulerName" /> is a window onto was attached under, or
+    /// <see langword="null" /> when it is not a window.
+    /// </summary>
+    public string? TargetOf(string? schedulerName) => registry.TargetOf(schedulerName);
+
     public async ValueTask DisposeAsync()
     {
         foreach (AttachedStore store in stores)
