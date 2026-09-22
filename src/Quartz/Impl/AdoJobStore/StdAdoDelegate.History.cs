@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Collections.Frozen;
 using System.Data.Common;
 using System.Globalization;
 using System.Text;
@@ -38,6 +39,37 @@ namespace Quartz.Impl.AdoJobStore;
 // and cannot be failed by.
 public partial class StdAdoDelegate
 {
+    /// <summary>
+    /// A delegate of the same dialect for the execution history to initialize and use on its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The history store can be read before anything has built its scheduler — a dashboard or the HTTP
+    /// API resolves it at their first request — and the job store is what initializes the scheduler's
+    /// delegate, once, when the scheduler is built. Until then this delegate has no connection helper and
+    /// the default table prefix. Initializing <em>this</em> instance from the history store as well would
+    /// be a second initialization of an object the job store owns, racing the job store's own with an
+    /// instance id only the scheduler's build settles. A copy initialized separately touches none of it.
+    /// </para>
+    /// <para>
+    /// A copy rather than a fresh instance, because the runtime type is the dialect — the paging, the key
+    /// expression, the parameter binding, and whatever a delegate derived outside Quartz overrides — and
+    /// constructing that type again would take reflection over it or a second registration of every way
+    /// a delegate is chosen. The copy is shallow. What it shares with this one are the statement caches,
+    /// which are keyed by statement and filled with the one table prefix the scheduler's options name,
+    /// and whatever a derived delegate keeps — both of which the history store shared whole until now.
+    /// The trigger persistence delegates are not shared: initializing the copy would otherwise point the
+    /// ones the job store registered at the copy.
+    /// </para>
+    /// </remarks>
+    internal StdAdoDelegate CopyForHistory()
+    {
+        StdAdoDelegate copy = (StdAdoDelegate) MemberwiseClone();
+        copy.triggerPersistenceDelegates = [];
+        copy.triggerPersistenceDelegatesByDiscriminator = FrozenDictionary<string, ITriggerPersistenceDelegate>.Empty;
+        return copy;
+    }
+
     /// <summary>
     /// How a dialect writes "this key, as one string": the group, a dot, and the name, lowered so that
     /// a <c>Contains</c> filter reads the way the in-memory history reads it — case-insensitively.

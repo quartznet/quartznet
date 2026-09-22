@@ -822,6 +822,77 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
     }
 
     /// <summary>
+    /// The history can be read before anything has built the scheduler it belongs to.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A dashboard or the HTTP API resolves the store at its first request, and nothing about that
+    /// request builds the scheduler — a registered scheduler is listed without being built, on purpose.
+    /// The store used the job store's driver delegate, which the job store initializes when the
+    /// scheduler is built, so a read before then threw a <see cref="NullReferenceException" /> out of
+    /// <c>StdAdoDelegate.PrepareCommand</c>.
+    /// </para>
+    /// <para>
+    /// A table prefix of its own, so that a delegate initialized with the default one would find no
+    /// table: the reader has to read with the scheduler's prefix, not merely with some prefix. A named
+    /// scheduler, so the scheduler's options are found by name as its job store would find them.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task TheHistoryCanBeReadBeforeTheSchedulerIsBuilt()
+    {
+        const string Scheduler = "reporting";
+
+        // The process that runs the scheduler: building it provisions the schema.
+        await using ServiceProvider node = HistoryContainer(Scheduler);
+        await node.GetRequiredKeyedService<ISchedulerFactory>(Scheduler).GetScheduler();
+
+        // A process that only reads: its container is built and its scheduler never is.
+        await using ServiceProvider reader = HistoryContainer(Scheduler);
+        IExecutionHistoryStore history = reader.GetRequiredKeyedService<IExecutionHistoryStore>(Scheduler);
+
+        ExecutionHistoryQuery query = new() { SchedulerName = Scheduler, IncludeTotalCount = true };
+
+        PagedResult<ExecutionHistoryEntry> empty = await history.QueryExecutions(query);
+        empty.Items.Should().BeEmpty("nothing has run yet, and that is an answer rather than a failure");
+        empty.TotalCount.Should().Be(0);
+
+        (await history.QueryMisfires(new MisfireHistoryQuery { SchedulerName = Scheduler })).Items.Should().BeEmpty();
+        (await history.CountMisfires(Scheduler, Start.AddDays(-1))).Should().Be(0);
+
+        await node.GetRequiredKeyedService<IExecutionHistoryStore>(Scheduler).AddExecution(
+            Execution(Start, "nightly") with { SchedulerName = Scheduler });
+
+        (await history.QueryExecutions(query)).Items.Should().ContainSingle()
+            .Which.JobName.Should().Be("nightly",
+                "the reader's statements are the scheduler's own - its dialect and its table prefix - "
+                + "whether or not the scheduler has been built in this process");
+
+        reader.GetService<ISchedulerRepository>()!.Lookup(Scheduler).Should().BeNull(
+            "reading the history is not a reason to build the scheduler, and did not");
+    }
+
+    /// <summary>
+    /// A container holding one named scheduler that keeps its history in the database, under a table
+    /// prefix of its own.
+    /// </summary>
+    private ServiceProvider HistoryContainer(string schedulerName)
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<TimeProvider>(Clock);
+
+        services.AddQuartz(schedulerName, quartz => quartz.UsePersistentStore(store =>
+        {
+            store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
+            store.ProvisionSchema();
+            store.UseExecutionHistory();
+            store.ConfigureStore(options => options.TablePrefix = "HIST_");
+        }));
+
+        return services.BuildServiceProvider();
+    }
+
+    /// <summary>
     /// Writes <paramref name="count" /> executions of <see cref="ExecutionHistoryStoreContractTest.SchedulerName" />
     /// in one statement, a millisecond apart and all before <see cref="ExecutionHistoryStoreContractTest.Start" />.
     /// </summary>

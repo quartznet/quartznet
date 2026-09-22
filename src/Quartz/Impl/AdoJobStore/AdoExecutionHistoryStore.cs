@@ -109,9 +109,12 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
 
     /// <param name="dbProvider">The database this scheduler reads and writes through.</param>
     /// <param name="driverDelegate">
-    /// The dialect the statements are issued in. It has to be a <see cref="StdAdoDelegate" />: the
-    /// history's statements live there, beside the paging and parameter binding every dialect delegate
-    /// already inherits.
+    /// The dialect the statements are issued in, already initialized, and this store's alone: a scheduler's
+    /// store is handed a copy of the scheduler's delegate rather than the job store's own, which the job
+    /// store initializes only when the scheduler is built (see <c>ExecutionHistoryRegistration</c>), and
+    /// an attached store's is its probe's. It has to be a <see cref="StdAdoDelegate" />: the history's
+    /// statements live there, beside the paging and parameter binding every dialect delegate already
+    /// inherits.
     /// </param>
     /// <param name="historyOptions">The bounds the history is kept under.</param>
     /// <param name="schedulerOptions">Names the scheduler this store was built for.</param>
