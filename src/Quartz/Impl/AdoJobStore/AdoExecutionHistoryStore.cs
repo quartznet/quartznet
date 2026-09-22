@@ -69,9 +69,16 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// How many batches one sweep runs before leaving the rest to the next. A bound rather than "until
     /// it is finished", so that a store that has been down for a week gives its connection back.
     /// </summary>
+    /// <remarks>
+    /// The bound is per pass, not per interval: a pass that stops on it brings the next one forward to
+    /// <see cref="MinimumSweepInterval" />, which is what keeps the sweep ahead of a busy scheduler.
+    /// </remarks>
     internal const int SweepBatchesPerPass = 20;
 
-    /// <summary>The floor under the sweep interval, whatever the retention window is.</summary>
+    /// <summary>
+    /// The floor under the sweep interval, whatever the retention window is — and the interval a pass
+    /// that ran out of batches brings the next one forward to.
+    /// </summary>
     internal static readonly TimeSpan MinimumSweepInterval = TimeSpan.FromMinutes(1);
 
     private readonly IDbProvider dbProvider;
@@ -231,9 +238,15 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// Deletes what has fallen out of either bound, for every scheduler this store has seen.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Internal so that a test can run one pass rather than wait for the timer. Each node sweeps
     /// independently and the deletes are idempotent, so a cluster sweeping in parallel does the same
     /// work twice at worst — never the wrong work.
+    /// </para>
+    /// <para>
+    /// A pass that stops on its batch budget on either bound of either feed brings the next pass
+    /// forward; see <see cref="CatchUp" />.
+    /// </para>
     /// </remarks>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     internal async ValueTask Sweep(CancellationToken cancellationToken = default)
@@ -246,11 +259,19 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         try
         {
             ExecutionHistoryOptions bounds = historyOptions.Value;
+            bool finished = true;
 
             foreach (string schedulerName in schedulers.Keys)
             {
-                await SweepFeed(schedulerName, misfires: false, bounds, cancellationToken).ConfigureAwait(false);
-                await SweepFeed(schedulerName, misfires: true, bounds, cancellationToken).ConfigureAwait(false);
+                // Not short-circuited: a feed that ran out of batches is no reason to leave the next one
+                // unswept this pass.
+                finished &= await SweepFeed(schedulerName, misfires: false, bounds, cancellationToken).ConfigureAwait(false);
+                finished &= await SweepFeed(schedulerName, misfires: true, bounds, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!finished)
+            {
+                CatchUp();
             }
         }
         catch (Exception failure) when (!cancellationToken.IsCancellationRequested)
@@ -261,6 +282,22 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         {
             sweepGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Waits for the pass in progress, if there is one, to finish.
+    /// </summary>
+    /// <remarks>
+    /// For a test that moves a fake clock: the timer starts its pass and does not wait for it, so the
+    /// pass a clock move caused may still be running when the move returns. It has taken
+    /// <see cref="sweepGate" /> by then — that happens before its first await — so taking the gate here
+    /// waits exactly as long as the pass does.
+    /// </remarks>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal async ValueTask WaitForSweep(CancellationToken cancellationToken = default)
+    {
+        await sweepGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        sweepGate.Release();
     }
 
     public void Dispose()
@@ -282,21 +319,30 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// <summary>The instant a row stops being part of the history.</summary>
     private DateTimeOffset RetentionFloor() => timeProvider.GetUtcNow() - historyOptions.Value.Retention;
 
-    private async ValueTask SweepFeed(
+    /// <summary>
+    /// Applies both bounds to one scheduler's feed.
+    /// </summary>
+    /// <returns>
+    /// Whether both bounds finished inside their batch budget — <see langword="false" /> when either one
+    /// stopped on it with rows still to go.
+    /// </returns>
+    private async ValueTask<bool> SweepFeed(
         string schedulerName,
         bool misfires,
         ExecutionHistoryOptions bounds,
         CancellationToken cancellationToken)
     {
-        int deleted = await Execute(async conn =>
+        (int deleted, bool finished) = await Execute(async conn =>
         {
-            int removed = await DeleteBelow(conn, misfires, schedulerName, RetentionFloor(), cancellationToken).ConfigureAwait(false);
+            (int removed, bool finishedAge) = await DeleteBelow(
+                conn, misfires, schedulerName, RetentionFloor(), cancellationToken).ConfigureAwait(false);
 
             // The count bound is applied to what the age bound left, so the boundary row is looked up
             // once against a feed that is already inside its window.
             DateTimeOffset? countBoundary = await Delegate.SelectHistoryCountBoundary(
                 conn, misfires, schedulerName, bounds.MaxEntriesPerScheduler, cancellationToken).ConfigureAwait(false);
 
+            bool finishedCount = true;
             if (countBoundary is { } boundary)
             {
                 // The boundary row is the first one to go, so the cutoff is one tick past it: the
@@ -304,16 +350,21 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
                 // and keeps one statement shape for both bounds. Rows sharing the boundary's instant
                 // go with it, so a feed whose rows arrived together can be left shorter than the
                 // bound — which is the right way to be wrong about a bound that says "at most".
-                removed += await DeleteBelow(conn, misfires, schedulerName, boundary.AddTicks(1), cancellationToken).ConfigureAwait(false);
+                (int removedByCount, finishedCount) = await DeleteBelow(
+                    conn, misfires, schedulerName, boundary.AddTicks(1), cancellationToken).ConfigureAwait(false);
+
+                removed += removedByCount;
             }
 
-            return removed;
+            return (removed, finishedAge && finishedCount);
         }, cancellationToken).ConfigureAwait(false);
 
         if (deleted > 0)
         {
             logger.ExecutionHistorySwept(schedulerName, deleted);
         }
+
+        return finished;
     }
 
     /// <summary>
@@ -326,7 +377,11 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// row is included, so a batch always removes at least one row and a feed whose rows share one
     /// instant cannot stall the sweep.
     /// </remarks>
-    private async ValueTask<int> DeleteBelow(
+    /// <returns>
+    /// The rows deleted, and whether that was all of them: <see langword="false" /> when the batch budget
+    /// ran out while every batch was still finding a full batch to delete.
+    /// </returns>
+    private async ValueTask<(int Deleted, bool Finished)> DeleteBelow(
         ConnectionAndTransactionHolder conn,
         bool misfires,
         string schedulerName,
@@ -346,21 +401,77 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
             if (boundary is null)
             {
                 // Fewer than a batch were left, so that statement finished the job.
-                break;
+                return (deleted, true);
             }
         }
 
-        return deleted;
+        return (deleted, false);
+    }
+
+    /// <summary>
+    /// Brings the next pass forward to <see cref="MinimumSweepInterval" />, after a pass that stopped on
+    /// its batch budget.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A pass is bounded so that it gives its connection back, and at the long interval that bound was
+    /// also a ceiling on the rate: <see cref="SweepBatchesPerPass" /> × <see cref="SweepBatchSize" />
+    /// rows a bound a feed every <c>Retention / 10</c> — some 20,000 rows in 2.4 hours at the defaults,
+    /// under three a second. A scheduler recording faster than that grew the tables without limit while
+    /// every pass did all it was allowed to. Coming back a minute later instead lifts the ceiling to that
+    /// many rows a minute, and the connection is still given back between passes.
+    /// </para>
+    /// <para>
+    /// Only the due time changes; the period the timer carries on with is still the long one, so the
+    /// first pass that finishes puts the store back on it with nothing to undo. A pass that
+    /// <em>failed</em> does not hurry — a database that is refusing the deletes is not helped by being
+    /// asked every minute.
+    /// </para>
+    /// </remarks>
+    private void CatchUp()
+    {
+        ITimer? timer = sweepTimer;
+        if (timer is null || disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            timer.Change(MinimumSweepInterval, SweepInterval());
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed while this pass ran: there is no next pass to bring forward.
+        }
+    }
+
+    /// <summary>
+    /// How often the store sweeps while it is keeping up: a tenth of the retention window, and never
+    /// more often than <see cref="MinimumSweepInterval" />.
+    /// </summary>
+    private TimeSpan SweepInterval()
+    {
+        TimeSpan tenth = historyOptions.Value.Retention / 10;
+        return tenth > MinimumSweepInterval ? tenth : MinimumSweepInterval;
     }
 
     /// <summary>
     /// Starts the sweep timer on the first write, and never again.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// On the first write rather than in the constructor: a process that resolves this store and
     /// records nothing — one that maps the HTTP API to read another node's history — has nothing to
     /// sweep, and a timer it never needs is a connection it opens for no reason. The first tick is due
     /// immediately, which is the "sweep on the first write after startup" the retention rule asks for.
+    /// </para>
+    /// <para>
+    /// Created stopped and started once it is in <see cref="sweepTimer" />, because the first pass can
+    /// run before <c>CreateTimer</c> returns — a timer due at once may fire on another thread straight
+    /// away, and a fake clock fires it inside the call — and a pass that has to <see cref="CatchUp" />
+    /// needs the timer it is bringing forward.
+    /// </para>
     /// </remarks>
     private void StartSweeping()
     {
@@ -369,14 +480,14 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
             return;
         }
 
-        TimeSpan retention = historyOptions.Value.Retention;
-        TimeSpan interval = retention / 10 > MinimumSweepInterval ? retention / 10 : MinimumSweepInterval;
-
-        sweepTimer = timeProvider.CreateTimer(
+        ITimer timer = timeProvider.CreateTimer(
             static state => _ = ((AdoExecutionHistoryStore) state!).Sweep(CancellationToken.None).AsTask(),
             this,
-            TimeSpan.Zero,
-            interval);
+            Timeout.InfiniteTimeSpan,
+            Timeout.InfiniteTimeSpan);
+
+        sweepTimer = timer;
+        timer.Change(TimeSpan.Zero, SweepInterval());
     }
 
     // ---------------------------------------------------------------------------------------------

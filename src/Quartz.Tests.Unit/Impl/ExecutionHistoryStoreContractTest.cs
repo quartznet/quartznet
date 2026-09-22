@@ -768,6 +768,85 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
             + "fewer than the bound asked to be removed, and never a sweep that removes nothing");
     }
 
+    /// <summary>
+    /// A pass that runs out of batches brings the next one forward, so the sweep keeps up with a
+    /// scheduler that records faster than one pass per interval can delete.
+    /// </summary>
+    /// <remarks>
+    /// A pass stops after <see cref="AdoExecutionHistoryStore.SweepBatchesPerPass" /> batches of
+    /// <see cref="AdoExecutionHistoryStore.SweepBatchSize" />, so that it gives its connection back —
+    /// and at the long interval, <c>Retention / 10</c>, that bound was also the most the store could
+    /// ever delete: a busy scheduler grew the table without limit while every pass did all it was
+    /// allowed to. The backlog is written in one statement, because what is being measured is what the
+    /// timer does about it rather than how long 25,000 writes take.
+    /// </remarks>
+    [Test]
+    public async Task ASweepThatRunsOutOfBatchesComesBackAMinuteLater()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(24), maxEntriesPerScheduler: 5);
+        AdoExecutionHistoryStore history = (AdoExecutionHistoryStore) store;
+
+        await InsertExecutionBacklog(25_000);
+
+        // The first write starts the timer, and its first pass is due at once.
+        await store.AddExecution(Execution(Start, "latest"));
+        await history.WaitForSweep();
+
+        (await RowCount()).Should().BeGreaterThan(5,
+            "one pass deletes at most SweepBatchesPerPass x SweepBatchSize rows a bound, and gives its "
+            + "connection back rather than holding it until a backlog of any size is gone");
+
+        Clock.Advance(AdoExecutionHistoryStore.MinimumSweepInterval);
+        await history.WaitForSweep();
+
+        (await RowCount()).Should().Be(5,
+            "a pass that stopped on its batch budget brings the next one forward to a minute, rather than "
+            + "leaving the rest for Retention / 10 - 2.4 hours here - which a busy scheduler outruns");
+
+        foreach (int index in Enumerable.Range(1, 10))
+        {
+            await store.AddExecution(Execution(Start.AddSeconds(index), "later" + index));
+        }
+
+        Clock.Advance(AdoExecutionHistoryStore.MinimumSweepInterval);
+        await history.WaitForSweep();
+
+        (await RowCount()).Should().Be(15,
+            "the pass that finished put the store back on the long interval, so a minute later is not a "
+            + "pass - hurrying is for a backlog, not for every table");
+
+        Clock.Advance(TimeSpan.FromHours(2.4));
+        await history.WaitForSweep();
+
+        (await RowCount()).Should().Be(5, "and the long interval still comes round");
+    }
+
+    /// <summary>
+    /// Writes <paramref name="count" /> executions of <see cref="ExecutionHistoryStoreContractTest.SchedulerName" />
+    /// in one statement, a millisecond apart and all before <see cref="ExecutionHistoryStoreContractTest.Start" />.
+    /// </summary>
+    private async Task InsertExecutionBacklog(int count)
+    {
+        await using SqliteConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText =
+            "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < @count) "
+            + "INSERT INTO QRTZ_EXECUTION_HISTORY (SCHED_NAME, ENTRY_ID, INSTANCE_NAME, JOB_NAME, JOB_GROUP, "
+            + "TRIGGER_NAME, TRIGGER_GROUP, FIRED_TIME, RUN_TIME, SUCCEEDED) "
+            + "SELECT @scheduler, 'backlog-' || i, 'node-a', 'backlog', @jobGroup, 'at-midnight', @triggerGroup, "
+            + "@start - i * @millisecond, @millisecond, 1 FROM n";
+        command.Parameters.AddWithValue("@count", count);
+        command.Parameters.AddWithValue("@scheduler", SchedulerName);
+        command.Parameters.AddWithValue("@jobGroup", JobGroup);
+        command.Parameters.AddWithValue("@triggerGroup", TriggerGroup);
+        command.Parameters.AddWithValue("@start", Start.UtcTicks);
+        command.Parameters.AddWithValue("@millisecond", TimeSpan.TicksPerMillisecond);
+
+        (await command.ExecuteNonQueryAsync()).Should().Be(count);
+    }
+
     private async Task<long> RowCount()
     {
         await using SqliteConnection connection = new(database.ConnectionString);
