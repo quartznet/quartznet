@@ -154,9 +154,10 @@ public interface ITriggerListener
         CancellationToken cancellationToken = default) => default;
 
     /// <summary>
-    /// Called by the <see cref="IScheduler" /> when a failed occurrence has run out of retries: the
-    /// trigger carries a <see cref="ITrigger.RetryPolicy" />, the job failed, and the scheduler is not
-    /// going to try again.
+    /// Called by the <see cref="IScheduler" /> when a failed occurrence of a trigger with a retry
+    /// policy is over without another attempt: the trigger carries a
+    /// <see cref="ITrigger.RetryPolicy" />, the job ran and threw, and the firing did not end in a
+    /// retry.
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> whose occurrence has given up.</param>
     /// <param name="context">
@@ -168,17 +169,38 @@ public interface ITriggerListener
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <remarks>
     /// <para>
-    /// Raised once per settled failed occurrence, between
-    /// <see cref="IJobListener.JobWasExecuted" /> and <see cref="TriggerComplete" />, and never for a
-    /// failure the trigger answered with another attempt — that firing's instruction is
-    /// <see cref="SchedulerInstruction.RetryTrigger" />. A trigger with no retry policy never raises it
-    /// either: nothing gave up, because nothing was going to try again.
+    /// Raised once per failed occurrence that is not going to be retried, whichever of these is why:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// the policy's attempts are spent — the case the name describes;
+    /// </item>
+    /// <item>
+    /// a retry was declined for lack of room: it would have landed at, or within a second of, the
+    /// trigger's next scheduled occurrence, after its <see cref="ITrigger.EndTimeUtc" />, or past the end
+    /// of representable time — attempts may be left, but there is nowhere to make one;
+    /// </item>
+    /// <item>
+    /// the job's <see cref="JobExecutionException" /> asked for
+    /// <see cref="JobExecutionException.UnscheduleFiringTrigger" /> or
+    /// <see cref="JobExecutionException.UnscheduleAllTriggers" />, a directive that wins over the policy,
+    /// so no retry is attempted whatever the policy has left.
+    /// </item>
+    /// </list>
+    /// <para>
+    /// It comes between <see cref="IJobListener.JobWasExecuted" /> and <see cref="TriggerComplete" />.
+    /// It is never raised for a failure the trigger answered with another attempt — that firing's
+    /// instruction is <see cref="SchedulerInstruction.RetryTrigger" /> — nor for a firing that was
+    /// cancelled, vetoed or succeeded, nor for a trigger with no retry policy: nothing gave up, because
+    /// nothing was going to try again. <see cref="JobExecutionException.RefireImmediately" /> re-runs the
+    /// job inside the same firing, so only the run that ends the firing can raise it.
     /// </para>
     /// <para>
-    /// Running out of attempts is not an error. The trigger goes back to its ordinary schedule with its
-    /// attempt cleared, which is why this notification exists: without it the only way to tell
-    /// "retrying" from "given up" was to compare <see cref="TriggerComplete" />'s instruction against
-    /// <see cref="SchedulerInstruction.RetryTrigger" /> and know what the trigger's policy said.
+    /// Giving up is not an error. The trigger goes back to its ordinary schedule with its attempt
+    /// cleared — unless the job asked for it to be unscheduled — which is why this notification exists:
+    /// without it the only way to tell "retrying" from "given up" was to compare
+    /// <see cref="TriggerComplete" />'s instruction against <see cref="SchedulerInstruction.RetryTrigger" />
+    /// and know what the trigger's policy said.
     /// </para>
     /// <para>
     /// The default implementation does nothing.
