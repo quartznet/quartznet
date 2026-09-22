@@ -101,7 +101,8 @@ end, and is released or discarded by how it ended. The model in five sentences:
   `Blocked` behind a running execution of a job that disallows concurrent execution. One whose end
   time is behind that instant has no firing left and is discarded instead.
 * Any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized,
-  because the firing it was waiting for has been and gone.
+  because the firing it was waiting for has been and gone. What waits on a discarded continuation is
+  discarded with it, all the way down, since none of it can ever be satisfied.
 * Settlement is one-shot, because every statement that settles names `Awaiting` and a settled trigger
   no longer holds it. A released trigger is an ordinary one: the release clears the parent it named,
   so it waits for nothing, a listing says so, and `GetTriggerBuilder()` does not re-arm the wait.

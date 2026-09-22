@@ -3264,6 +3264,25 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task DiscardingAContinuationDiscardsEverythingWaitingOnIt()
+    {
+        IOperableTrigger a = await GivenAFiredParent("chain-head");
+        IOperableTrigger b = await GivenAContinuationOf(a.Key, "chain-b", ContinuationCondition.OnSuccess);
+        IOperableTrigger c = await GivenAContinuationOf(b.Key, "chain-c", ContinuationCondition.OnAnyOutcome);
+        IOperableTrigger d = await GivenAContinuationOf(c.Key, "chain-d", ContinuationCondition.OnSuccess);
+
+        await CompleteParent(a, ExecutionOutcome.Failed);
+
+        foreach (IOperableTrigger discarded in new[] { b, c, d })
+        {
+            (await Store.GetTriggerState(discarded.Key)).Should().Be(TriggerState.None,
+                "{0} waited, directly or through others, on a trigger that never runs, so nothing it could wait for "
+                + "will happen — it is discarded, not released for a firing that did not take place nor parked in error",
+                discarded.Key);
+        }
+    }
+
+    [Test]
     public async Task DeletingAParentParksItsContinuationsInErrorExceptOnAnyOutcome()
     {
         IOperableTrigger parent = await GivenAScheduledParent("deleted-parent");

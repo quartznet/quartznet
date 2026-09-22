@@ -979,13 +979,33 @@ public sealed class RAMJobStore : IJobStore
     /// Deletes an awaiting trigger that has no firing left: its parent ended in a way its condition did
     /// not name, or its end time is behind the instant a release would have fired it at.
     /// </summary>
+    /// <remarks>
+    /// The triggers waiting on this one are discarded with it, and theirs with them: this trigger never
+    /// runs, so no outcome any of them waits for can happen. That is what separates a discard from a
+    /// deletion, whose dependants <see cref="SettleContinuationsOfDeletedParentNoLock" /> parks or
+    /// releases — a parent somebody removed is a question an operator has to answer, and this is not.
+    /// The trigger leaves the store before its dependants are visited, so a chain that loops back on
+    /// itself ends rather than coming round again.
+    /// </remarks>
     private void DiscardContinuationNoLock(TriggerWrapper tw, ref PendingSignals pending)
     {
         RemoveContinuationNoLock(tw);
 
         // Announced before the removal, so the listeners are handed a trigger the store still has.
         pending.RecordFinalized(tw.Trigger);
-        RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending);
+        RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: true, keepExecutions: false, keepDependants: true, ref pending);
+
+        if (continuationsByParent.TryGetValue(tw.TriggerKey, out List<TriggerWrapper>? dependants))
+        {
+            // Over a copy: each discard takes its trigger out of the very list being walked.
+            foreach (TriggerWrapper dependant in dependants.ToArray())
+            {
+                if (dependant.state == StoredTriggerState.Awaiting)
+                {
+                    DiscardContinuationNoLock(dependant, ref pending);
+                }
+            }
+        }
     }
 
     /// <summary>

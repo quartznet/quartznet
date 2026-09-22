@@ -400,6 +400,55 @@ public sealed class ContinuationSettlementTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Discarding a continuation discards what waits on it
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task DiscardingAContinuationDiscardsEverythingWaitingOnItAllTheWayDown()
+    {
+        IOperableTrigger a = await ScheduleParent("a");
+        IOperableTrigger b = await ScheduleContinuation("b", a.Key, ContinuationCondition.OnSuccess);
+        IOperableTrigger c = await ScheduleContinuation("c", b.Key, ContinuationCondition.OnAnyOutcome);
+        IOperableTrigger d = await ScheduleContinuation("d", b.Key, ContinuationCondition.OnSuccess);
+        IOperableTrigger e = await ScheduleContinuation("e", c.Key, ContinuationCondition.OnFailure);
+
+        await Complete(Firing(await Fire(a.Key), a.Key), ExecutionOutcome.Failed);
+
+        foreach (IOperableTrigger discarded in new[] { b, c, d, e })
+        {
+            (await store.GetTrigger(discarded.Key)).Should().BeNull(
+                "{0} waited, directly or through others, on a trigger that is never going to run — so no outcome "
+                + "it could have been waiting for will ever happen, and it is discarded with it rather than released "
+                + "for a firing that did not take place or parked for an operator to puzzle over",
+                discarded.Key);
+        }
+
+        signals.Finalized.Should().BeEquivalentTo([b.Key, c.Key, d.Key, e.Key],
+            "each of them is finalized, which is what a discard says");
+        signals.InError.Should().BeEmpty(
+            "the deleted-parent rule is for a parent an operator removed, and nothing here was removed by anyone");
+
+        (await AcquireKeys()).Should().BeEmpty("nothing in the chain fires");
+    }
+
+    [Test]
+    public async Task DeletingAParentStillParksWhatCaredAndReleasesWhatDidNot()
+    {
+        IOperableTrigger parent = await ScheduleParent("removed");
+        IOperableTrigger onSuccess = await ScheduleContinuation("orphaned", parent.Key, ContinuationCondition.OnSuccess);
+        IOperableTrigger onAny = await ScheduleContinuation("indifferent", parent.Key, ContinuationCondition.OnAnyOutcome);
+
+        await store.DeleteTrigger(parent.Key);
+
+        (await store.GetTriggerState(onSuccess.Key)).Should().Be(TriggerState.Error,
+            "an operator deleting the parent is not the parent failing to run: the question has no answer, which "
+            + "is an operator's to see");
+        (await store.GetTriggerState(onAny.Key)).Should().Be(TriggerState.Normal);
+        signals.InError.Should().Equal([onSuccess.Key]);
+        signals.Finalized.Should().BeEmpty();
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Scaffolding
     //////////////////////////////////////////////////////////////////////////////////////////////
 

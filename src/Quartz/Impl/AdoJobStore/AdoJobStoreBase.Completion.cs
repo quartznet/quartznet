@@ -440,15 +440,13 @@ internal abstract partial class AdoJobStoreBase
         TriggerKey triggerKey,
         CancellationToken cancellationToken)
     {
+        // No row is nothing to discard: the key came from the statement that found it awaiting, in
+        // this transaction, so there is no path by which it went missing that left anything behind.
         IOperableTrigger? discarded = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
-        if (discarded is null)
+        if (discarded is not null)
         {
-            await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            return;
+            await DiscardContinuation(conn, discarded, cancellationToken).ConfigureAwait(false);
         }
-
-        await DiscardContinuation(conn, discarded, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -456,13 +454,27 @@ internal abstract partial class AdoJobStoreBase
     /// did not name, or its end time is behind the instant a release would have fired it at — and
     /// tells the scheduler listeners it is finalized.
     /// </summary>
+    /// <remarks>
+    /// The triggers waiting on this one are discarded with it, and theirs with them: this trigger never
+    /// runs, so no outcome any of them waits for can happen. That is what separates a discard from a
+    /// deletion, whose dependants <see cref="SettleContinuationsOfDeletedParent" /> parks or releases —
+    /// a parent somebody removed is a question an operator has to answer, and this is not. The row goes
+    /// before its dependants are looked for, so a chain that loops back on itself ends rather than
+    /// coming round again.
+    /// </remarks>
     private async ValueTask DiscardContinuation(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger discarded,
         CancellationToken cancellationToken)
     {
-        await DeleteTrigger(conn, discarded.Key, cancellationToken).ConfigureAwait(false);
+        await DeleteTrigger(conn, discarded.Key, job: null, settleContinuations: false, cancellationToken).ConfigureAwait(false);
         await signaler.NotifySchedulerListenersFinalized(discarded, cancellationToken).ConfigureAwait(false);
+
+        List<AwaitingContinuation> dependants = await Delegate.SelectAwaitingContinuations(conn, discarded.Key, cancellationToken).ConfigureAwait(false);
+        foreach (AwaitingContinuation dependant in dependants)
+        {
+            await DiscardContinuation(conn, dependant.Key, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

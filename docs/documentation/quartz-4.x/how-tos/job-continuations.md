@@ -28,6 +28,12 @@ there. When the parent's firing completes:
 * any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized, because
   the firing it was waiting for has been and gone.
 
+A discarded continuation never runs, so nothing waiting on it can ever be satisfied either: the
+continuations waiting on it are **discarded with it**, and theirs with them, each finalized. In a chain
+`import → reconcile (OnSuccess) → cleanup (OnAnyOutcome)`, an import that fails discards both — the cleanup
+is not released for a reconciliation that never took place. That is the difference from
+[a parent that is deleted](#when-the-parent-is-deleted), which is a question for an operator.
+
 Settlement is **one-shot**. Every statement that settles a continuation names `Awaiting`, and a settled
 trigger no longer holds it, so a continuation is released or discarded exactly once. A continuation is not
 a subscription to a schedule — for that, see [a recurring chain](#a-recurring-chain-is-a-listener) below.
@@ -135,10 +141,12 @@ them.
 
 ## When the parent is deleted
 
-A parent removed while continuations await it is the one settlement with no outcome to match. A
-continuation that did not care how the firing ended — `OnAnyOutcome` — is released anyway; anything
-narrower is parked in `TriggerState.Error`, with `ISchedulerListener.TriggerInError`, for an operator to
-see rather than silently deleted or left waiting forever.
+A parent removed while continuations await it — by `UnscheduleJob`, `DeleteJob` or anything else that
+deletes a trigger — is the one settlement with no outcome to match. A continuation that did not care how
+the firing ended — `OnAnyOutcome` — is released anyway; anything narrower is parked in
+`TriggerState.Error`, with `ISchedulerListener.TriggerInError`, for an operator to see rather than silently
+deleted or left waiting forever. A continuation *discarded* by its parent's outcome is not a deletion in
+this sense: what waits on it is discarded with it, as above.
 
 `ResetTriggerFromErrorState` on such a trigger gives it the fire time a release would have given it, so
 **resetting one means running it** — and, like a release, the reset clears the parent it named, so from
