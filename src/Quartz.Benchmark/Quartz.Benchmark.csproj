@@ -34,6 +34,8 @@
   -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="Npgsql" />
     <!--
