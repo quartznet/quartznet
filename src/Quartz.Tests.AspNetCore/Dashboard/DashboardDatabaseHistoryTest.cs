@@ -21,6 +21,7 @@
 
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
@@ -78,6 +79,11 @@ public sealed class DashboardDatabaseHistoryTest
                 options.InstanceName = SchedulerName;
                 options.InstanceId = "node-a";
             });
+
+            // The store answers only what is inside its retention window, measured from its clock. The
+            // rows below are stamped at a fixed instant, so the clock is fixed beside it: on the real
+            // one this test began failing on every build a day after it was written.
+            quartz.UseTimeProvider(new FakeTimeProvider(Start));
 
             quartz.UsePersistentStore(store =>
             {
