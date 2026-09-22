@@ -23,6 +23,8 @@
 
 using System.Collections.Specialized;
 
+using FakeItEasy;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -190,6 +192,35 @@ public sealed class ExecutionHistorySelectionTest
             .And.Contain(plugin => plugin is ExecutionHistoryPlugin,
                 "the key has to install the recorder as well, or the scheduler would have a history "
                 + "store nothing ever writes to");
+    }
+
+    /// <summary>
+    /// A driver delegate the history's statements cannot run through is refused when the store is
+    /// resolved, saying what to do, rather than copied for the history and failing on the first read.
+    /// </summary>
+    /// <remarks>
+    /// The store is handed a copy of the scheduler's delegate, and only a <see cref="StdAdoDelegate" />
+    /// can be copied that way — it is also the only kind the history's statements live on. Anything
+    /// else is passed through for the store to refuse, which is where the message that names the fix is.
+    /// </remarks>
+    [Test]
+    public void ADelegateTheHistoryCannotUseIsRefusedWhenTheStoreIsResolved()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(quartz => quartz.UsePersistentStore(store =>
+        {
+            // Before the database, because registrations are first-wins and UseSqlite names a delegate.
+            store.UseDriverDelegate(_ => A.Fake<IDriverDelegate>());
+            store.UseSqlite(SqliteFactory.Instance, ConnectionString);
+            store.UseExecutionHistory();
+        }));
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        Action resolve = () => provider.GetRequiredService<IExecutionHistoryStore>();
+
+        resolve.Should().Throw<SchedulerConfigException>().WithMessage("*StdAdoDelegate*UseExecutionHistory()*",
+            "the history's statements, the dialect's paging and its parameter binding all live on StdAdoDelegate");
     }
 
     /// <summary>
