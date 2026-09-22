@@ -27,6 +27,7 @@ using System.Text;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Quartz.Analyzers;
 
@@ -70,16 +71,19 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // Types only. The attributes are matched by name, so one written on a method or on the
+        // assembly still arrives here, with a target that is not a type; the compiler's CS0592 already
+        // reports that, and the jobs declared where the attribute belongs are generated as ever.
         IncrementalValuesProvider<DeclaredJob> jobs = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 QuartzJobAttributeTypeName,
-                predicate: static (_, _) => true,
+                predicate: static (node, _) => node is TypeDeclarationSyntax,
                 transform: static (attributeContext, _) => ReadJob(attributeContext));
 
         IncrementalValuesProvider<OrphanTrigger> orphans = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 CronTriggerAttributeTypeName,
-                predicate: static (_, _) => true,
+                predicate: static (node, _) => node is TypeDeclarationSyntax,
                 transform: static (attributeContext, _) => ReadOrphan(attributeContext))
             .Where(static x => x is not null)
             .Select(static (x, _) => x!);

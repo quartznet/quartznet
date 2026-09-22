@@ -122,10 +122,15 @@ internal static class AnalyzerRunner
     /// <param name="references">
     /// Assemblies beyond this process's own, such as another run's <see cref="GeneratorRun.ToReference" />.
     /// </param>
+    /// <param name="toleratedErrors">
+    /// Compiler errors the snippet is written to provoke, which are the compiler's to report rather
+    /// than the generator's; every other error still fails the run.
+    /// </param>
     internal static GeneratorRun RunGenerator<TGenerator>(
         string source,
         string assemblyName = DefaultAssemblyName,
-        IEnumerable<MetadataReference>? references = null)
+        IEnumerable<MetadataReference>? references = null,
+        IReadOnlyCollection<string>? toleratedErrors = null)
         where TGenerator : IIncrementalGenerator, new()
     {
         CSharpCompilation compilation = Compile(source, assemblyName, references);
@@ -148,7 +153,7 @@ internal static class AnalyzerRunner
         }
 
         output.GetDiagnostics()
-            .Where(x => x.Severity == DiagnosticSeverity.Error)
+            .Where(x => x.Severity == DiagnosticSeverity.Error && toleratedErrors?.Contains(x.Id) != true)
             .Should().BeEmpty("what a generator writes has to compile against the shipped Quartz, and so does the snippet that called it");
 
         ImmutableArray<SyntaxTree> generated = [.. output.SyntaxTrees.Where(x => !ReferenceEquals(x, compilation.SyntaxTrees[0]))];
