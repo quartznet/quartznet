@@ -683,8 +683,14 @@ services.AddQuartzExecutionHistory(options => options.MaxEntriesPerScheduler = 0
 [`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database)
 puts both feeds in `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY`, where they survive a restart
 and where a whole cluster writes into one history — so these three routes answer for every node rather
-than for the one that happens to serve the request. The routes themselves are unchanged: they resolve
-`IExecutionHistoryStore`, and which store that is was decided at registration.
+than for the one that happens to serve the request.
+
+The routes read the history of the scheduler they name, from wherever that scheduler keeps it, by the
+same rule the [dashboard](dashboard.md#execution-history-and-misfires) reads it by. A named scheduler
+that called `UseExecutionHistory()` is read from its own database; every other scheduler from the
+container's shared store. A [store-attached window](dashboard.md#store-attached-targets) is read from the
+database it is a window onto, and when that store keeps no history the routes answer `400` with the
+dashboard's own explanation, rather than an empty page from this process's history.
 
 To keep history somewhere else again, register an `IExecutionHistoryStore` of your own before
 `AddQuartzHttpApi()`; the shipped registration is a `TryAdd`, and `UseExecutionHistory()` replaces only
