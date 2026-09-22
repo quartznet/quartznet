@@ -105,8 +105,8 @@ public sealed class SchedulerRuntimeDrainTest
             [
                 "Freed 0 triggers from 'acquired' / 'blocked' state.",
                 "Recovering 0 jobs that were in-progress at the time of the last shut-down.",
-                "Removed 0 'complete' triggers.",
-                "Removed 0 stale fired job entries."
+                "Removed 0 stale fired job entries.",
+                "Removed 0 'complete' triggers."
             ],
             "the drain finished before the new generation started, so the job had already completed its own "
             + "trigger and deleted its own fired-trigger row - anything the sweep found to recover here would "
