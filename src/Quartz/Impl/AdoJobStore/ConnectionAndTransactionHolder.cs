@@ -25,6 +25,7 @@ using System.Data.Common;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 
@@ -293,6 +294,39 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     private void LogDisposeFailure(Exception e)
     {
         logger.ConnectionDisposeFailed(e);
+    }
+
+    /// <summary>
+    /// Listener notifications this unit of work owes once its transaction has committed, in the order
+    /// they were recorded; <see langword="null" /> until the first.
+    /// </summary>
+    private List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? notificationsAfterCommit;
+
+    /// <summary>
+    /// Records a listener notification to raise once this unit of work's transaction has committed,
+    /// rather than now.
+    /// </summary>
+    /// <remarks>
+    /// A notification runs listener code, which has no business executing inside the store's
+    /// transaction and lock or hearing of a change that may yet roll back. The store's transaction
+    /// wrappers raise what was recorded once the transaction has committed and the lock is released,
+    /// and drop it when the work rolls back — which is the rule <c>FiringComplete</c>'s own error
+    /// notifications already followed.
+    /// </remarks>
+    internal void NotifyAfterCommit(Func<ISchedulerSignaler, CancellationToken, ValueTask> notification)
+    {
+        (notificationsAfterCommit ??= []).Add(notification);
+    }
+
+    /// <summary>
+    /// Hands over the notifications recorded so far and forgets them, so that a unit of work is never
+    /// asked to raise the same one twice.
+    /// </summary>
+    internal List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? TakeNotificationsAfterCommit()
+    {
+        List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? notifications = notificationsAfterCommit;
+        notificationsAfterCommit = null;
+        return notifications;
     }
 
     internal DateTimeOffset? SignalSchedulingChangeOnTxCompletion

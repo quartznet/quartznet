@@ -570,6 +570,69 @@ public sealed class ContinuationSettlementTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // A listener hears of a settlement once it has committed
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ListenersHearOfASettlementOnlyOnceItHasCommitted()
+    {
+        signals.Observe = CommittedState;
+
+        IOperableTrigger doomed = await ScheduleParent("doomed");
+        IOperableTrigger parked = await ScheduleContinuation("parked", doomed.Key, ContinuationCondition.OnSuccess);
+
+        await store.DeleteTrigger(doomed.Key);
+
+        signals.ObservedWhenNotified.Should().ContainKey(parked.Key).WhoseValue.Should().Be(TriggerState.Error,
+            "a listener told the trigger is in error reads it in error — told from inside the deletion's "
+            + "transaction, it would read the waiting row everyone outside that transaction still sees, and hear "
+            + "of a change a rollback could yet undo");
+
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger discarded = await ScheduleContinuation("discarded", parent.Key, ContinuationCondition.OnFailure);
+
+        await Complete(Firing(await Fire(parent.Key), parent.Key), ExecutionOutcome.Succeeded);
+
+        signals.ObservedWhenNotified.Should().ContainKey(discarded.Key).WhoseValue.Should().Be(TriggerState.None,
+            "a listener told the trigger is finalized finds it gone, because it is told after the completion committed");
+    }
+
+    /// <summary>
+    /// A trigger's state as a reader outside the store's transaction sees it: through a connection of
+    /// its own for the database, and through the store for the in-memory one, whose notifications are
+    /// raised once its lock is released.
+    /// </summary>
+    private async Task<TriggerState> CommittedState(TriggerKey key)
+    {
+        if (kind == ContinuationStoreKind.InMemory)
+        {
+            return await store.GetTriggerState(key);
+        }
+
+        // A short busy timeout, so a reader blocked by an open write fails the test rather than hanging it.
+        SqliteConnectionStringBuilder builder = new(database!.ConnectionString) { DefaultTimeout = 5 };
+        await using SqliteConnection connection = new(builder.ToString());
+        await connection.OpenAsync();
+
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = SelectTriggerState;
+        command.Parameters.AddWithValue("@schedulerName", SchedulerName);
+        command.Parameters.AddWithValue("@name", key.Name);
+        command.Parameters.AddWithValue("@group", key.Group);
+
+        return await command.ExecuteScalarAsync() switch
+        {
+            null or DBNull => TriggerState.None,
+            AdoConstants.StateError => TriggerState.Error,
+            AdoConstants.StateAwaiting => TriggerState.Awaiting,
+            _ => TriggerState.Normal
+        };
+    }
+
+    private const string SelectTriggerState =
+        "SELECT TRIGGER_STATE FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @name AND TRIGGER_GROUP = @group";
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Scaffolding
     //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -760,7 +823,8 @@ public sealed class ContinuationSettlementTest
     }
 
     /// <summary>
-    /// Records what the store told the scheduler about, in the order it said it.
+    /// Records what the store told the scheduler about, in the order it said it — and, when asked to,
+    /// what somebody outside the store could read of the trigger at the moment it was told.
     /// </summary>
     private sealed class RecordingSignaler : ISchedulerSignaler
     {
@@ -768,20 +832,33 @@ public sealed class ContinuationSettlementTest
 
         public List<TriggerKey> InError { get; } = [];
 
+        /// <summary>Reads a trigger's state the way a listener calling back in would see it.</summary>
+        public Func<TriggerKey, Task<TriggerState>>? Observe { get; set; }
+
+        public Dictionary<TriggerKey, TriggerState> ObservedWhenNotified { get; } = [];
+
         public ValueTask NotifyTriggerListenersMisfired(ITrigger trigger, CancellationToken cancellationToken = default) => default;
 
-        public ValueTask NotifySchedulerListenersFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
+        public async ValueTask NotifySchedulerListenersFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
         {
             Finalized.Add(trigger.Key);
-            return default;
+            await ObserveWhenNotified(trigger.Key);
         }
 
         public ValueTask NotifySchedulerListenersJobDeleted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
-        public ValueTask NotifySchedulerListenersTriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public async ValueTask NotifySchedulerListenersTriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             InError.Add(triggerKey);
-            return default;
+            await ObserveWhenNotified(triggerKey);
+        }
+
+        private async Task ObserveWhenNotified(TriggerKey key)
+        {
+            if (Observe is not null)
+            {
+                ObservedWhenNotified[key] = await Observe(key);
+            }
         }
 
         public ValueTask SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc, CancellationToken cancellationToken = default) => default;

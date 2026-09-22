@@ -34,6 +34,11 @@ there. When the parent's firing completes:
 * any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized, because
   the firing it was waiting for has been and gone.
 
+Listeners hear of a settlement — `TriggerFinalized` for a discard, `TriggerInError` for a parked
+continuation — once it has committed and the store's lock is released, never from inside it, so a listener
+that reads the trigger back sees what the notification says. (Where the store works inside a transaction
+the application owns, "committed" is the store's part of it being done: the commit is the application's.)
+
 A discarded continuation never runs, so nothing waiting on it can ever be satisfied either: the
 continuations waiting on it are **discarded with it**, and theirs with them, each finalized. In a chain
 `import → reconcile (OnSuccess) → cleanup (OnAnyOutcome)`, an import that fails discards both — the cleanup

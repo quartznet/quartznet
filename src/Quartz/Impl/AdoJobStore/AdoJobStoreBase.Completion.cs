@@ -371,7 +371,12 @@ internal abstract partial class AdoJobStoreBase
             {
                 Logger.TriggerSetToError(continuation.Key);
                 await Delegate.UpdateTriggerState(conn, continuation.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
-                await signaler.NotifySchedulerListenersTriggerInError(continuation.Key, cancellationToken).ConfigureAwait(false);
+
+                // Once the deletion has committed, as FiringComplete's own error notifications are:
+                // listener code has no business running inside this transaction, or hearing of a
+                // parked trigger the rollback of a failed deletion would put back.
+                TriggerKey parked = continuation.Key;
+                conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersTriggerInError(parked, token));
             }
         }
     }
@@ -468,7 +473,10 @@ internal abstract partial class AdoJobStoreBase
         CancellationToken cancellationToken)
     {
         await DeleteTrigger(conn, discarded.Key, job: null, settleContinuations: false, cancellationToken).ConfigureAwait(false);
-        await signaler.NotifySchedulerListenersFinalized(discarded, cancellationToken).ConfigureAwait(false);
+
+        // Once the completion has committed, not from inside its transaction and lock — the rule
+        // FiringComplete's own notifications follow.
+        conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersFinalized(discarded, token));
 
         List<AwaitingContinuation> dependants = await Delegate.SelectAwaitingContinuations(conn, discarded.Key, cancellationToken).ConfigureAwait(false);
         foreach (AwaitingContinuation dependant in dependants)
@@ -549,7 +557,9 @@ internal abstract partial class AdoJobStoreBase
 
         foreach (IOperableTrigger trigger in finalized ?? [])
         {
-            await signaler.NotifySchedulerListenersFinalized(trigger, cancellationToken).ConfigureAwait(false);
+            // After the completion commits, with the continuation notifications above and for the
+            // same reason: this runs inside the completion's transaction and lock.
+            conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersFinalized(trigger, token));
 
             // A trigger with nothing left to fire was just stored COMPLETE, and a COMPLETE row lingers
             // where callers expect the trigger to be gone — GetTrigger would keep handing it back.

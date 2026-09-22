@@ -123,6 +123,11 @@ internal abstract partial class AdoJobStoreBase
             long checkinStarted = measureCheckin ? timeProvider.GetTimestamp() : 0;
             Exception? checkinFailure = null;
 
+            // What recovering a failed node owes the listeners — continuations of a parent that went down
+            // with it, parked when recovery deleted the parent — raised only once the recovery has
+            // committed and the locks are released.
+            List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? committedNotifications = null;
+
             ConnectionAndTransactionHolder conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -163,6 +168,7 @@ internal abstract partial class AdoJobStoreBase
                 }
 
                 await CommitConnection(conn, false, cancellationToken).ConfigureAwait(false);
+                committedNotifications = conn.TakeNotificationsAfterCommit();
 
                 firstCheckIn = false;
                 return recovered;
@@ -214,6 +220,8 @@ internal abstract partial class AdoJobStoreBase
                             checkinFailure);
                     }
                 }
+
+                await RaiseNotificationsAfterCommit(committedNotifications, cancellationToken).ConfigureAwait(false);
             }
 
             // Delay before the next attempt
