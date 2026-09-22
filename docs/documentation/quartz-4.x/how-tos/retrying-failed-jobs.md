@@ -250,7 +250,19 @@ outcome says what the firing *did*. `RetryScheduled` is what says whether the oc
 
 **A trigger listener is told once per occurrence that gave up.**
 `ITriggerListener.TriggerRetriesExhausted` is raised between `JobWasExecuted` and `TriggerComplete`, and
-only when the trigger has a policy, the job failed, and there is no further attempt coming:
+only when the trigger has a policy, the job ran and threw, and there is no further attempt coming. That is
+three situations, not one:
+
+* the policy's attempts are **spent** — the case the name describes;
+* a retry was **declined for lack of room** — it would have landed at or within a second of the next
+  scheduled occurrence, after the trigger's end time, or past the end of representable time (see
+  [the rules](#the-rules-worth-knowing) below) — so the occurrence settles with attempts still left;
+* the job's `JobExecutionException` asked for **`UnscheduleFiringTrigger` or `UnscheduleAllTriggers`**, an
+  explicit directive that wins over the policy, so no retry is attempted at all.
+
+A listener that needs to tell them apart can: `context.RetryAttempt` against the policy's `MaxAttempts`
+says whether attempts were left, and `TriggerComplete`'s instruction says whether the trigger was
+unscheduled.
 
 <!-- snippet: sample_retry_listener_gave_up -->
 ```csharp
@@ -298,8 +310,10 @@ builder.Services.AddQuartz(q =>
 <!-- endSnippet -->
 
 A failure on a trigger with **no** policy never raises it: nothing gave up, because nothing was going to
-try again. Neither does a failure that is being retried. Like every other member of `ITriggerListener` it
-is a default interface member, so a listener written against 4.0 or 4.1 compiles and runs unchanged.
+try again. Neither does a failure that is being retried, nor a firing that was cancelled, vetoed or
+succeeded. `RefireImmediately` re-runs the job inside the same firing, so only the run that ends the firing
+can raise it. Like every other member of `ITriggerListener` it is a default interface member, so a
+listener written against 4.0 or 4.1 compiles and runs unchanged.
 
 **The history says which row was the last word.** Every execution the history records carries
 `RetryAttempt` — which attempt at the occurrence it was — and `RetryScheduled`. A row that did not succeed
@@ -373,7 +387,8 @@ has already spent.
 * Log event `1056` reports the trigger, the attempt and the retry instant at `Information`, and `1057`
   reports the occurrence that gave up, the attempts it spent and what the last one threw.
 * `ITriggerListener.TriggerComplete` is called with `SchedulerInstruction.RetryTrigger`, and
-  `ITriggerListener.TriggerRetriesExhausted` once when the attempts run out.
+  `ITriggerListener.TriggerRetriesExhausted` once when the occurrence gives up — its attempts spent, a
+  retry declined for lack of room, or the job asking to be unscheduled.
 * On a persistent store the two columns are on `QRTZ_TRIGGERS`: `RETRY_POLICY` holds the policy's stored
   string form and `RETRY_ATTEMPT` how far through it the current occurrence is. Both are queryable, and
   the dashboard's trigger page shows them.
