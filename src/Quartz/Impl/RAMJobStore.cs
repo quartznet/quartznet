@@ -671,20 +671,33 @@ public sealed class RAMJobStore : IJobStore
             return;
         }
 
+        PlaceScheduledTriggerNoLock(tw);
+    }
+
+    /// <summary>
+    /// Gives a trigger that is joining the schedule the state any trigger stored at this moment would
+    /// have: paused if its group is, blocked if its job disallows concurrent execution and is running,
+    /// and otherwise waiting, in <see cref="timeTriggers" /> where acquisition can see it.
+    /// </summary>
+    /// <remarks>
+    /// Shared by a trigger being stored and a continuation being released, because a release is the
+    /// moment a continuation joins the schedule and nothing about that moment is different for it.
+    /// </remarks>
+    private void PlaceScheduledTriggerNoLock(TriggerWrapper tw)
+    {
+        bool jobBlocked = blockedJobs.Contains(tw.JobKey);
+
         if (IsTriggerGroupPausedNoLock(tw))
         {
-            tw.state = StoredTriggerState.Paused;
-            if (blockedJobs.Contains(tw.JobKey))
-            {
-                tw.state = StoredTriggerState.PausedBlocked;
-            }
+            tw.state = jobBlocked ? StoredTriggerState.PausedBlocked : StoredTriggerState.Paused;
         }
-        else if (blockedJobs.Contains(tw.JobKey))
+        else if (jobBlocked)
         {
             tw.state = StoredTriggerState.Blocked;
         }
         else
         {
+            tw.state = StoredTriggerState.Waiting;
             timeTriggers.Add(tw);
         }
     }
@@ -921,14 +934,11 @@ public sealed class RAMJobStore : IJobStore
         DateTimeOffset now = timeProvider.GetUtcNow();
         tw.Trigger.NextFireTimeUtc = tw.Trigger.StartTimeUtc > now ? tw.Trigger.StartTimeUtc : now;
 
-        // A group that was paused while the trigger waited stays paused: the release says the wait is
-        // over, not that somebody resumed the group.
-        tw.state = IsTriggerGroupPausedNoLock(tw) ? StoredTriggerState.Paused : StoredTriggerState.Waiting;
-
-        if (tw.state == StoredTriggerState.Waiting)
-        {
-            timeTriggers.Add(tw);
-        }
+        // The wait is over, and the trigger joins the schedule the way a trigger stored at this moment
+        // would: a group paused while it waited keeps it paused — the release is not somebody resuming
+        // the group — and a job that disallows concurrent execution and is running right now keeps it
+        // blocked, for that execution's completion to let go like any other trigger of the job.
+        PlaceScheduledTriggerNoLock(tw);
 
         pending.RecordSchedulingChange();
     }
@@ -3222,9 +3232,12 @@ public sealed class RAMJobStore : IJobStore
             }
 
             // The continuations waiting on this trigger, settled under the same lock as the rest of
-            // the completion so that a crash cannot leave one half-settled — the ADO store does this
-            // inside the completion's transaction, for the same reason. After the unblock above, so a
-            // released continuation of the same job is evaluated against a job that is free again, and
+            // the completion so that no reader ever sees the completion without its settlement — the
+            // ADO store does this inside the completion's transaction. A released continuation joins
+            // the schedule as any trigger stored now would, blocked behind a job that disallows
+            // concurrent execution and is running; this comes after the unblock above, so one whose
+            // job is the job that has just finished finds it free again and waits, while one whose job
+            // is still running under another trigger is blocked until that execution completes. And
             // before the instruction is applied below, so a completion that deletes the trigger
             // settles by outcome first and then finds nothing left awaiting.
             //

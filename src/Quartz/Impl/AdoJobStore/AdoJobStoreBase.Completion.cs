@@ -154,7 +154,7 @@ internal abstract partial class AdoJobStoreBase
                 // Whether the scan happened is kept, because it is what makes the second one — the
                 // one the deletion below would otherwise make — a round trip whose answer is already
                 // known to be empty. Settling leaves no row AWAITING for this parent: the ones its
-                // outcome named are WAITING or PAUSED, the rest are gone.
+                // outcome named have joined the schedule, the rest are gone.
                 bool continuationsSettled = false;
                 if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
                 {
@@ -377,8 +377,10 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Moves one awaiting trigger into the ordinary schedule — or into the paused state, if its group
-    /// or its job's group is paused, because the wait ending is not somebody resuming the group.
+    /// Moves one awaiting trigger into the ordinary schedule, in the state a trigger stored at this
+    /// moment would get: paused if its group or its job's group is, because the wait ending is not
+    /// somebody resuming the group, and blocked if its job disallows concurrent execution and is
+    /// running, for that execution's completion to let go like any other trigger of the job.
     /// </summary>
     private async ValueTask ReleaseContinuation(
         ConnectionAndTransactionHolder conn,
@@ -397,6 +399,14 @@ internal abstract partial class AdoJobStoreBase
             header.JobKey.Group,
             StoredTriggerState.Waiting,
             cancellationToken).ConfigureAwait(false);
+
+        // What AddTrigger asks of a job that disallows concurrent execution, asked without loading the
+        // job: the fired-trigger row of a running execution says whether its job is one of those, so a
+        // job that allows concurrency answers "not blocked" from the same read. When the continuation's
+        // job is the parent's own, the parent's row is still here and this answers BLOCKED — which the
+        // unblock later in this same completion turns into WAITING, as it does for every trigger of the
+        // job that has just finished.
+        released = await CheckBlockedState(conn, header.JobKey, released, cancellationToken).ConfigureAwait(false);
 
         await Delegate.ReleaseContinuation(conn, triggerKey, released, timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;

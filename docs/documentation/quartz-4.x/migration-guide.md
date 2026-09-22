@@ -95,8 +95,10 @@ end, and is released or discarded by how it ended. The model in five sentences:
   `TriggerState.Awaiting` and never acquired while it is there.
 * The parent's completion settles it, inside the parent's own lock and transaction, so a crash cannot
   lose one and whichever node ran the parent is the node that promotes it.
-* An outcome the continuation's `ContinuationCondition` names **releases** it — into `Normal`, or
-  `Paused` if its group is, with its next fire time set to the later of now and its own start time.
+* An outcome the continuation's `ContinuationCondition` names **releases** it, with its next fire time
+  set to the later of now and its own start time, into the state a trigger stored at that moment would
+  get: `Normal`, `Paused` if its group is, `Blocked` behind a running execution of a job that disallows
+  concurrent execution.
 * Any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized,
   because the firing it was waiting for has been and gone.
 * Settlement is one-shot, because every statement that settles names `Awaiting` and a settled trigger
