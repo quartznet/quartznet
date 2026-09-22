@@ -369,6 +369,37 @@ public sealed class ContinuationSettlementTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // A job-wide state change from a sibling's firing leaves an awaiting trigger to its parent
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [TestCase(SchedulerInstruction.SetAllJobTriggersError)]
+    [TestCase(SchedulerInstruction.SetAllJobTriggersComplete)]
+    public async Task AJobWideStateChangeLeavesItsAwaitingTriggerToTheParent(SchedulerInstruction instruction)
+    {
+        IJobDetail shared = Job("shared");
+        IOperableTrigger sibling = Hourly("sibling", shared.Key);
+        await store.ScheduleJob(shared, sibling);
+
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger continuation = await ScheduleContinuation("waiting", parent.Key, ContinuationCondition.OnSuccess, shared.Key);
+
+        List<IOperableTrigger> fired = await Fire(sibling.Key, parent.Key);
+
+        // What the scheduler tells the store when the job cannot be built for the sibling's firing, or
+        // when the job asks for all of its triggers to be unscheduled.
+        await Complete(Firing(fired, sibling.Key), ExecutionOutcome.NotExecuted, instruction);
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting,
+            "an awaiting trigger belongs to its parent's settlement: a sibling's firing did not happen to it, and "
+            + "moving it would leave it neither waiting for the parent nor anywhere the parent can release it from");
+
+        await Complete(Firing(fired, parent.Key), ExecutionOutcome.Succeeded);
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal,
+            "the parent succeeded, which is what it was waiting for");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Scaffolding
     //////////////////////////////////////////////////////////////////////////////////////////////
 

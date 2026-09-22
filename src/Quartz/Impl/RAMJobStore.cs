@@ -3407,10 +3407,18 @@ public sealed class RAMJobStore : IJobStore
     public TimeSpan GetAcquireRetryDelay(int failureCount) => TimeSpan.FromMilliseconds(20);
 
     /// <summary>
-    /// Sets the state of all triggers of job to specified state.
+    /// Sets the state of all triggers of job to specified state — except the ones awaiting a parent.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// An awaiting trigger belongs to its parent's settlement. A sibling's firing that errors or
+    /// completes the job's triggers did not happen to it, and moving it off
+    /// <see cref="StoredTriggerState.Awaiting" /> would leave it waiting for the parent in no state the
+    /// parent's completion can release it from. The ADO store's statement excludes the same state.
+    /// </para>
+    /// <para>
     /// This method should only be executed while holding the instance level lock.
+    /// </para>
     /// </remarks>
     internal void SetAllTriggersOfJobToState(JobKey jobKey, StoredTriggerState state)
     {
@@ -3418,6 +3426,11 @@ public sealed class RAMJobStore : IJobStore
 
         foreach (TriggerWrapper tw in triggerWrappersForJob.Values)
         {
+            if (tw.state == StoredTriggerState.Awaiting)
+            {
+                continue;
+            }
+
             tw.state = state;
             if (state != StoredTriggerState.Waiting)
             {

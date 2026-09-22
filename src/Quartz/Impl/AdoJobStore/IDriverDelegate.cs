@@ -473,8 +473,16 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Update the states of all triggers associated with the given job.
+    /// Update the states of all triggers associated with the given job, leaving any trigger in
+    /// <see cref="StoredTriggerState.Awaiting" /> as it is.
     /// </summary>
+    /// <remarks>
+    /// The statement behind <see cref="SchedulerInstruction.SetAllJobTriggersError" /> and
+    /// <see cref="SchedulerInstruction.SetAllJobTriggersComplete" />, both issued by a completion of one
+    /// of the job's triggers. An awaiting trigger belongs to its parent's settlement rather than to
+    /// that firing, and moved to another state it would be waiting for its parent in a state the
+    /// parent's completion cannot release it from.
+    /// </remarks>
     /// <param name="conn">The DB Connection</param>
     /// <param name="jobKey">The key identifying the job.</param>
     /// <param name="state">The new state for the triggers.</param>
