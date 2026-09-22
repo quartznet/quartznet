@@ -385,12 +385,15 @@ small partition even of a schedule that leans on continuations. Measure before a
 ### Rolling 4.1 → 4.2
 
 **Run the migration while 4.1 nodes are still up.** A 4.1 node's trigger `INSERT` names its own
-columns, its acquisition and misfire sweeps select `WAITING`, its cluster recovery touches `ACQUIRED`
-and `BLOCKED`, and a state string it does not recognise reads as waiting — so such a node never sees
-an `AWAITING` row as schedulable and merely *reports* one as `Normal`.
+columns, its acquisition and misfire sweeps select `WAITING`, and its cluster recovery touches
+`ACQUIRED` and `BLOCKED`, so nothing such a node does on its own picks an `AWAITING` row up. A state
+string it does not recognise reads as waiting, though: it *reports* an `AWAITING` row as `Normal`, its
+single-trigger `PauseTrigger` writes `PAUSED` over one — which a resume then sets off without its
+parent — and its reschedule rewrites one as an ordinary trigger.
 
-What a 4.1 node cannot do is **settle** a continuation: a parent completing there leaves the triggers
-waiting on that firing exactly where they are. So the order is:
+What a 4.1 node cannot do at all is **settle** a continuation: a parent completing there leaves the
+triggers waiting on that firing exactly where they are. So while any 4.1 node is running, do not pause,
+resume or reschedule a continuation from it, and the order is:
 
 1. Run `add_continuations_<db>.sql`.
 2. Roll every node to 4.2.
