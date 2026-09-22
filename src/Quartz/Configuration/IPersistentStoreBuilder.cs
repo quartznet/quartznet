@@ -238,6 +238,13 @@ public interface IPersistentStoreBuilder
     /// of its own keeps it: this replaces the shipped in-memory default and only that.
     /// </para>
     /// <para>
+    /// It is one scheduler's choice. A named scheduler that does not call it records into the
+    /// container's shared, unkeyed history store — and when the <em>default</em> scheduler called it,
+    /// that store is the default scheduler's database-backed one, so the named scheduler's executions
+    /// land in the default scheduler's database under the named scheduler's own name, and are swept
+    /// there. Call it on each scheduler whose history belongs in its own database.
+    /// </para>
+    /// <para>
     /// In a mixed cluster nothing has to be co-ordinated. A 4.1 node cannot see these tables, and a 4.2
     /// node that does not call this neither writes nor reads them; the nodes that do call it share one
     /// history, and a page read from any of them shows every node's rows, told apart by
