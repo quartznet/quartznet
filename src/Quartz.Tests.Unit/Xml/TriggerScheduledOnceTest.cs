@@ -249,13 +249,25 @@ public sealed class TriggerScheduledOnceTest
     /// <summary>
     /// Records the time each firing was scheduled for, and completes once enough of them have arrived.
     /// </summary>
+    /// <summary>
+    /// Collects the scheduled fire times of the first firings, in scheduled order.
+    /// </summary>
+    /// <remarks>
+    /// Firings complete on different worker threads, so the order they report in is not the order
+    /// they were scheduled in: after a stall two due firings run at once and the later one can finish
+    /// first, which is how this test once saw a firing "missing" from the first three. The times are
+    /// therefore sorted, and the recorder waits until the earliest ones are one interval apart — or,
+    /// if they never are, until three times as many firings have arrived, so that a trigger which
+    /// really does fire off its interval still fails the assertion rather than timing out.
+    /// </remarks>
     private sealed class FiringRecorder : IJobListener
     {
         private readonly TaskCompletionSource<IReadOnlyList<DateTimeOffset>> enough =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private readonly List<DateTimeOffset> scheduledFireTimes = [];
+        private readonly SortedSet<DateTimeOffset> scheduledFireTimes = [];
         private readonly int firings;
+        private int reported;
 
         public FiringRecorder(int firings)
         {
@@ -272,13 +284,29 @@ public sealed class TriggerScheduledOnceTest
             lock (scheduledFireTimes)
             {
                 scheduledFireTimes.Add(context.ScheduledFireTimeUtc!.Value);
-                if (scheduledFireTimes.Count >= firings)
+                reported++;
+
+                DateTimeOffset[] earliest = scheduledFireTimes.Take(firings).ToArray();
+                if (earliest.Length == firings && (OnTheInterval(earliest) || reported >= firings * 3))
                 {
-                    enough.TrySetResult(scheduledFireTimes.ToArray());
+                    enough.TrySetResult(earliest);
                 }
             }
 
             return default;
+        }
+
+        private static bool OnTheInterval(DateTimeOffset[] times)
+        {
+            for (int i = 1; i < times.Length; i++)
+            {
+                if (times[i] != times[i - 1] + interval)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
