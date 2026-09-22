@@ -27,7 +27,7 @@ namespace Quartz;
 /// <remarks>
 /// The API answers an error with problem details naming the exception type it came from, and the client
 /// rebuilds that type where it recognises the name — a <see cref="SchedulerException" />,
-/// <see cref="ObjectAlreadyExistsException" /> or any of the other six reach the caller as themselves.
+/// <see cref="ObjectAlreadyExistsException" /> or any of the other seven reach the caller as themselves.
 /// This is what everything else becomes: a request the endpoint rejected before it reached a scheduler,
 /// a scheduler name the server does not hold, a response that carried no problem details, or a body that
 /// could not be deserialized. It derives from <see cref="SchedulerException" /> so that one

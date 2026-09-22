@@ -66,6 +66,7 @@ do rather than read: see [The 4.2 schema migration](#the-4-2-schema-migration) b
 | `IJobStore.FiringComplete` | The completion the scheduler calls, as a **default interface member** that drops the outcome and calls `TriggeredJobComplete` — so a store written against an earlier 4.x behaves exactly as it did. A new name rather than an overload of `TriggeredJobComplete` because `PublicApiGenerator` marks default implementations per method *name*, and an overload would make the API baseline claim the abstract member is a default too |
 | `IDriverDelegate.SelectAwaitingContinuations`, `ReleaseContinuation`, `ResetContinuationFireTime` | The three statements settlement issues, likewise **default interface members**. A delegate that does not write the continuation columns reports nothing awaiting and has no fire time to fix, both of which are true for it. `ReleaseContinuation` is handed the fire time the store worked out — `fireTime`, the later of now and the start time moved past a calendar exclusion — rather than "now", and clears the three continuation columns as it releases |
 | `AwaitingContinuation` | What `SelectAwaitingContinuations` answers with: a `TriggerKey` and the condition it waits on |
+| `ObjectDoesNotExistException` | A `JobPersistenceException`, beside `ObjectAlreadyExistsException`: what storing a continuation of a trigger the store does not hold throws, with `TriggerKey` and `MissingTriggerKey` naming both. Nothing of the call is stored. `HttpScheduler` rebuilds it from the server's answer as it does the other named exceptions |
 | `ScheduleJob<TJob, TInput>(input, Continuation after, options)` | The one-call overload for a firing whose time is another firing's completion. There is no time argument because the time is the parent's completion |
 | `JobChainingJobListener.AddJobChainLink(first, second, condition)` | The conditional link. The two-argument overload is unchanged and is `OnAnyOutcome`, which is what this listener has always done. `JobExecutionVetoed` is now declared, so a link conditioned on a veto fires |
 | `IPersistentStoreBuilder.UseExecutionHistory()` | Keeps this scheduler's execution history in its own database, so a cluster has one history rather than one per node. A **default interface member** that registers the store, so an `IPersistentStoreBuilder` implemented outside this repository compiles unchanged. Needs two tables `4.2/add_execution_history_<db>.sql` creates — see [The execution history tables](#the-execution-history-tables) |
@@ -92,7 +93,8 @@ A *conditional continuation* is a trigger that waits, in the store, for another 
 end, and is released or discarded by how it ended. The model in five sentences:
 
 * A continuation is an ordinary trigger carrying a `Continuation`, stored in the new state
-  `TriggerState.Awaiting` and never acquired while it is there.
+  `TriggerState.Awaiting` and never acquired while it is there. Its parent has to be in the store when
+  it is stored: a continuation of a missing trigger is refused with `ObjectDoesNotExistException`.
 * The parent's completion settles it, inside the parent's own lock and transaction, so a crash cannot
   lose one and whichever node ran the parent is the node that promotes it.
 * An outcome the continuation's `ContinuationCondition` names **releases** it, with its next fire time
@@ -151,7 +153,8 @@ seen.
   namespace, and the [XML trigger kinds stay frozen](packages/quartz-plugins.md#the-xml-trigger-kinds-are-frozen).
   JSON — a standalone `quartz_jobs.json` and the `Quartz:Schedule` section alike — gains
   `ContinuesAfter` as a `Name`/`Group` object and `ContinuationCondition` as the same string.
-  The parent is named, never resolved, so a file may declare it after the trigger that waits for it.
+  The parent is named rather than resolved as the file is read, so a file may declare it after the
+  trigger that waits for it: the file's triggers are stored parent first.
 * **`TriggerHeaderDto` on the HTTP API carries `continuesAfterTriggerName`,
   `continuesAfterTriggerGroup` and `continuationCondition`** — spelled as a trigger body spells them,
   with the condition as its names rather than as the stored integer, because that is what

@@ -440,6 +440,12 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     /// continuation whose end time has passed by then is discarded rather than released.
     /// </para>
     /// <para>
+    /// The parent has to be in the store when this trigger is stored, or the store refuses it with
+    /// <see cref="ObjectDoesNotExistException" /> naming both keys — a continuation of a trigger that
+    /// does not exist would wait for ever. A one-shot parent is deleted once it has fired, so schedule
+    /// the continuation before the parent can finish, or check the parent's key.
+    /// </para>
+    /// <para>
     /// For a <em>recurring</em> conditional chain — "run the cleanup whenever the nightly job
     /// fails" — use <see cref="Quartz.Listeners.JobChainingJobListener" /> instead: a continuation
     /// settles once, on the firing it was waiting for.

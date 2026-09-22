@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Collections.Specialized;
 using System.Text;
 
 using FakeItEasy;
@@ -1953,6 +1954,141 @@ public class XmlSchedulingDataProcessorTest
         processor.Triggers[0].Continuation.Parent.Should().Be(new TriggerKey("first", "group1"));
         processor.Triggers[1].Continuation.IsNone.Should().BeTrue("the parent waits for nothing itself");
     }
+
+    /// <summary>
+    /// A store refuses a continuation of a trigger it does not hold, so the file's order would matter
+    /// unless the processor stored the parent first — which it does, wherever the file puts the two.
+    /// </summary>
+    [Test]
+    public async Task AContinuationDeclaredBeforeItsParentIsScheduledAfterIt()
+    {
+        IScheduler scheduler = CreateFakeScheduler();
+        TestProcessor processor = CreateProcessor();
+
+        await processor.ProcessStreamAndScheduleJobs(ToStream(Document(ContinuationBeforeItsParent)), scheduler);
+
+        A.CallTo(() => scheduler.ScheduleJob(
+                A<IJobDetail>.That.Matches(j => j.Key == new JobKey("import", "nightly")),
+                A<ITrigger>.That.Matches(t => t.Key == new TriggerKey("import", "nightly")),
+                A<ScheduleJobOptions>._,
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly()
+            .Then(A.CallTo(() => scheduler.ScheduleJob(
+                    A<IJobDetail>.That.Matches(j => j.Key == new JobKey("reconcile", "nightly")),
+                    A<ITrigger>.That.Matches(t => t.Key == new TriggerKey("reconcile", "nightly")),
+                    A<ScheduleJobOptions>._,
+                    A<CancellationToken>._))
+                .MustHaveHappenedOnceExactly());
+    }
+
+    [Test]
+    public async Task AContinuationDeclaredBeforeItsParentIsStoredAwaitingIt()
+    {
+        NameValueCollection properties = new()
+        {
+            ["quartz.scheduler.instanceName"] = nameof(AContinuationDeclaredBeforeItsParentIsStoredAwaitingIt),
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
+        try
+        {
+            TestProcessor processor = CreateProcessor();
+
+            await processor.ProcessStreamAndScheduleJobs(ToStream(Document(ContinuationBeforeItsParent)), scheduler);
+
+            (await scheduler.GetTriggerState(new TriggerKey("reconcile", "nightly"))).Should().Be(TriggerState.Awaiting,
+                "the store refuses a continuation of a trigger it does not hold, and it held the parent by the time "
+                + "the continuation reached it");
+            (await scheduler.GetTriggerState(new TriggerKey("import", "nightly"))).Should().Be(TriggerState.Normal);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task AContinuationOfATriggerNeitherTheFileNorTheStoreHoldsIsRefused()
+    {
+        NameValueCollection properties = new()
+        {
+            ["quartz.scheduler.instanceName"] = nameof(AContinuationOfATriggerNeitherTheFileNorTheStoreHoldsIsRefused),
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
+        try
+        {
+            TestProcessor processor = CreateProcessor();
+
+            Func<Task> act = async () => await processor.ProcessStreamAndScheduleJobs(ToStream(Document($"""
+                <schedule>
+                  <job>
+                    <name>reconcile</name>
+                    <group>nightly</group>
+                    <job-type>{JobType}</job-type>
+                  </job>
+                  <trigger>
+                    <simple>
+                      <name>reconcile</name>
+                      <group>nightly</group>
+                      <job-name>reconcile</job-name>
+                      <job-group>nightly</job-group>
+                      <continues-after>
+                        <name>imprt</name>
+                        <group>nightly</group>
+                      </continues-after>
+                    </simple>
+                  </trigger>
+                </schedule>
+                """)), scheduler);
+
+            await act.Should().ThrowAsync<ObjectDoesNotExistException>()
+                .WithMessage("*nightly.reconcile*nightly.imprt*",
+                    "a misspelled parent is an error the document's author has to see, not a trigger that waits for ever");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    private const string ContinuationBeforeItsParent = $"""
+        <schedule>
+          <job>
+            <name>reconcile</name>
+            <group>nightly</group>
+            <job-type>{JobType}</job-type>
+          </job>
+          <trigger>
+            <simple>
+              <name>reconcile</name>
+              <group>nightly</group>
+              <job-name>reconcile</job-name>
+              <job-group>nightly</job-group>
+              <continues-after>
+                <name>import</name>
+                <group>nightly</group>
+              </continues-after>
+            </simple>
+          </trigger>
+          <job>
+            <name>import</name>
+            <group>nightly</group>
+            <job-type>{JobType}</job-type>
+          </job>
+          <trigger>
+            <cron>
+              <name>import</name>
+              <group>nightly</group>
+              <job-name>import</job-name>
+              <job-group>nightly</job-group>
+              <cron-expression>0 0 2 * * ?</cron-expression>
+            </cron>
+          </trigger>
+        </schedule>
+        """;
 
     [Test]
     public async Task AnOutcomeThatIsNotOneIsRefusedAsTheFileIsRead()

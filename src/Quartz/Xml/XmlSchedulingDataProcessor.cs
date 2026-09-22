@@ -760,6 +760,20 @@ internal class XmlSchedulingDataProcessor
         // the fire times the first scheduling had already computed (#3554).
         HashSet<TriggerKey> handledTriggerKeys = [];
 
+        // A store refuses a continuation of a trigger it does not hold, so a continuation whose parent
+        // this document also declares is stored after that parent, wherever the two sit in it: the
+        // parent is named rather than resolved as the document is read, and declaring it later is not
+        // an ordering a file has to know about. `declared` is every trigger key the document names,
+        // `present` the ones the store already holds, and `deferred` what waits for one of them.
+        HashSet<TriggerKey> declared = [];
+        foreach (ITrigger trigger in triggers)
+        {
+            declared.Add(trigger.Key);
+        }
+
+        HashSet<TriggerKey> present = [];
+        List<DeferredContinuation> deferred = [];
+
         // add each job, and it's associated triggers
         while (jobs.Count > 0)
         {
@@ -858,6 +872,9 @@ internal class XmlSchedulingDataProcessor
                     ITrigger? dupeT = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (dupeT is not null)
                     {
+                        // In the store already, so a parent of a continuation from here on either way.
+                        present.Add(trigger.Key);
+
                         if (OverwriteExistingData)
                         {
                             if (logger.IsEnabled(LogLevel.Debug))
@@ -880,10 +897,24 @@ internal class XmlSchedulingDataProcessor
                             ReportDuplicateTrigger(trigger);
                         }
 
+                        if (WaitsForALaterTrigger(trigger, declared, present))
+                        {
+                            deferred.Add(new DeferredContinuation(trigger, NewJob: null, Existing: dupeT));
+                            continue;
+                        }
+
                         await DoRescheduleJob(scheduler, trigger, dupeT, cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
+                        // The job goes with the first trigger that is stored rather than the first one
+                        // met, so it is still to be stored when a held-back continuation is the first.
+                        if (WaitsForALaterTrigger(trigger, declared, present))
+                        {
+                            deferred.Add(new DeferredContinuation(trigger, NewJob: detail, Existing: null));
+                            continue;
+                        }
+
                         if (logger.IsEnabled(LogLevel.Debug))
                         {
                             logger.SchedulingJob(trigger.JobKey, trigger.Key);
@@ -912,6 +943,8 @@ internal class XmlSchedulingDataProcessor
                             var oldTrigger = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
                             await DoRescheduleJob(scheduler, trigger, oldTrigger, cancellationToken).ConfigureAwait(false);
                         }
+
+                        present.Add(trigger.Key);
                     }
                 }
             }
@@ -928,6 +961,8 @@ internal class XmlSchedulingDataProcessor
             ITrigger? dupeT = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
             if (dupeT is not null)
             {
+                present.Add(trigger.Key);
+
                 if (OverwriteExistingData)
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
@@ -950,10 +985,22 @@ internal class XmlSchedulingDataProcessor
                     ReportDuplicateTrigger(trigger);
                 }
 
+                if (WaitsForALaterTrigger(trigger, declared, present))
+                {
+                    deferred.Add(new DeferredContinuation(trigger, NewJob: null, Existing: dupeT));
+                    continue;
+                }
+
                 await DoRescheduleJob(scheduler, trigger, dupeT, cancellationToken).ConfigureAwait(false);
             }
             else
             {
+                if (WaitsForALaterTrigger(trigger, declared, present))
+                {
+                    deferred.Add(new DeferredContinuation(trigger, NewJob: null, Existing: null));
+                    continue;
+                }
+
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
                     logger.SchedulingJob(trigger.JobKey, trigger.Key);
@@ -974,7 +1021,84 @@ internal class XmlSchedulingDataProcessor
                     var oldTrigger = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
                     await DoRescheduleJob(scheduler, trigger, oldTrigger, cancellationToken).ConfigureAwait(false);
                 }
+
+                present.Add(trigger.Key);
             }
+        }
+
+        await ScheduleDeferredContinuations(scheduler, deferred, declared, present, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A continuation held back because the parent it waits for is declared later in the document, and
+    /// what it takes to store it once that parent is in the store.
+    /// </summary>
+    /// <param name="Trigger">The continuation.</param>
+    /// <param name="NewJob">
+    /// Its job, when the document defines the job and the job may not be stored yet — every trigger of it
+    /// met so far having been held back too.
+    /// </param>
+    /// <param name="Existing">The trigger of the same key already in the store, when this is a reschedule.</param>
+    private sealed record DeferredContinuation(IMutableTrigger Trigger, IJobDetail? NewJob, ITrigger? Existing);
+
+    /// <summary>
+    /// Whether <paramref name="trigger" /> waits for a trigger this document declares and has not yet
+    /// put in the store — which a store would refuse it for.
+    /// </summary>
+    private static bool WaitsForALaterTrigger(ITrigger trigger, HashSet<TriggerKey> declared, HashSet<TriggerKey> present)
+    {
+        return trigger.Continuation.Parent is { } parent
+               && !parent.Equals(trigger.Key)
+               && declared.Contains(parent)
+               && !present.Contains(parent);
+    }
+
+    /// <summary>
+    /// Stores the held-back continuations, each once the parent it waits for is in the store.
+    /// </summary>
+    /// <remarks>
+    /// A chain is stored parent first however deep it goes, because each pass stores whatever has its
+    /// parent in place by then. What is left when nothing can go waits in a loop — each for another that
+    /// is waiting too — and the first of it is stored anyway: the store's refusal of it, naming the
+    /// parent that does not exist, is the error such a document has earned.
+    /// </remarks>
+    private async ValueTask ScheduleDeferredContinuations(
+        IScheduler scheduler,
+        List<DeferredContinuation> deferred,
+        HashSet<TriggerKey> declared,
+        HashSet<TriggerKey> present,
+        CancellationToken cancellationToken)
+    {
+        while (deferred.Count > 0)
+        {
+            int ready = deferred.FindIndex(x => !WaitsForALaterTrigger(x.Trigger, declared, present));
+            int index = ready < 0 ? 0 : ready;
+
+            DeferredContinuation next = deferred[index];
+            deferred.RemoveAt(index);
+
+            if (next.Existing is not null)
+            {
+                await DoRescheduleJob(scheduler, next.Trigger, next.Existing, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                if (logger.IsEnabled(LogLevel.Debug))
+                {
+                    logger.SchedulingJob(next.Trigger.JobKey, next.Trigger.Key);
+                }
+
+                if (next.NewJob is not null && !await scheduler.Exists(next.NewJob.Key, cancellationToken).ConfigureAwait(false))
+                {
+                    await scheduler.ScheduleJob(next.NewJob, next.Trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await scheduler.ScheduleJob(next.Trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            present.Add(next.Trigger.Key);
         }
     }
 

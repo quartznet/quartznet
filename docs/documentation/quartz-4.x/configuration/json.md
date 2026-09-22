@@ -307,8 +307,10 @@ defaulting to `DEFAULT` — and the trigger declared with it is stored
 }
 ```
 
-The parent is **named, never resolved**: nothing looks it up as the file is read, so it may be declared
-later in the same file or be in the store already. An outcome that is not one, and a
+The parent is **named, not resolved as the file is read**, so it may be declared later in the same file —
+the file's triggers are stored parent first, whatever their order — or be in the store already. One that
+is in neither is refused when the file is scheduled, with the `ObjectDoesNotExistException` any
+continuation of a missing trigger gets. An outcome that is not one, and a
 `ContinuationCondition` with no `ContinuesAfter` beside it, are refused as the file is read, naming the
 trigger — a condition nothing satisfies would discard the trigger whatever its parent did.
 

@@ -75,6 +75,7 @@ public class CommonEndpointTest : WebApiTest
         yield return Case(() => new LockException("the lock was not taken"));
         yield return Case(() => new NoSuchDelegateException("there is no such delegate"));
         yield return Case(() => new ObjectAlreadyExistsException("that one exists already"));
+        yield return Case(() => new ObjectDoesNotExistException("the parent it names does not exist"));
 
         static TestCaseData Case<TException>(Func<TException> create) where TException : SchedulerException
         {

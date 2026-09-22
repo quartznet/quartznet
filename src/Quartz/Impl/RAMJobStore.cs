@@ -339,8 +339,11 @@ public sealed class RAMJobStore : IJobStore
         // inside one ExecuteInLock.
         lock (lockObject)
         {
+            // Before the job is stored, so a refused continuation leaves no job behind it either.
+            EnsureContinuationParentExistsNoLock(trigger, alsoStored: null);
+
             AddJobNoLock(job, replace: false);
-            AddTriggerNoLock(trigger, replace: false, ref pending);
+            AddTriggerNoLock(trigger, replace: false, checkContinuationParent: false, ref pending);
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -568,13 +571,33 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
 
+            // A continuation may wait for a trigger stored beside it in this same call, whichever order
+            // the two come in, so its parent is looked for in the batch as well as in the store — and
+            // all of them before anything is added, so a refused one leaves the store as it was.
+            HashSet<TriggerKey> batch = [];
+            foreach (var triggersByJob in triggersAndJobs)
+            {
+                foreach (IOperableTrigger trigger in triggersByJob.Value)
+                {
+                    batch.Add(trigger.Key);
+                }
+            }
+
+            foreach (var triggersByJob in triggersAndJobs)
+            {
+                foreach (IOperableTrigger trigger in triggersByJob.Value)
+                {
+                    EnsureContinuationParentExistsNoLock(trigger, batch);
+                }
+            }
+
             // do bulk add...
             foreach (var triggersByJob in triggersAndJobs)
             {
                 AddJobNoLock(triggersByJob.Key, replace: true);
                 foreach (IOperableTrigger trigger in triggersByJob.Value)
                 {
-                    AddTriggerNoLock(trigger, replace: true, ref pending);
+                    AddTriggerNoLock(trigger, replace: true, checkContinuationParent: false, ref pending);
                 }
             }
         }
@@ -607,14 +630,24 @@ public sealed class RAMJobStore : IJobStore
 
         lock (lockObject)
         {
-            AddTriggerNoLock(trigger, options.Replace, ref pending);
+            AddTriggerNoLock(trigger, options.Replace, checkContinuationParent: true, ref pending);
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
-    private void AddTriggerNoLock(IOperableTrigger trigger, bool replace, ref PendingSignals pending)
+    // checkContinuationParent: whether a continuation's parent is looked for here. Every caller says
+    // which: the batch add has looked already, across the batch as well as the store, and putting a
+    // replaced trigger back after a refused replacement is a restore rather than a new wait.
+    private void AddTriggerNoLock(IOperableTrigger trigger, bool replace, bool checkContinuationParent, ref PendingSignals pending)
     {
+        // Before anything is removed or added, so a refused continuation leaves the store as it was —
+        // the trigger it would have replaced included.
+        if (checkContinuationParent)
+        {
+            EnsureContinuationParentExistsNoLock(trigger, alsoStored: null);
+        }
+
         TriggerWrapper tw = new((IOperableTrigger) trigger.Clone());
         if (triggersByKey.TryGetValue(tw.TriggerKey, out TriggerWrapper? replaced))
         {
@@ -672,6 +705,29 @@ public sealed class RAMJobStore : IJobStore
         }
 
         PlaceScheduledTriggerNoLock(tw);
+    }
+
+    /// <summary>
+    /// Refuses a trigger whose continuation waits for a trigger this store does not hold.
+    /// </summary>
+    /// <remarks>
+    /// Such a trigger would wait for a firing that can never happen — a misspelled parent, or a
+    /// one-shot parent that has already fired and been deleted — and a trigger held in
+    /// <see cref="StoredTriggerState.Awaiting" /> with nothing to release it is one nobody notices.
+    /// </remarks>
+    /// <param name="trigger">The trigger about to be stored.</param>
+    /// <param name="alsoStored">
+    /// Keys being stored in the same operation, which count as present; <see langword="null" /> when
+    /// there are none.
+    /// </param>
+    private void EnsureContinuationParentExistsNoLock(IOperableTrigger trigger, HashSet<TriggerKey>? alsoStored)
+    {
+        if (trigger.Continuation.Parent is { } parent
+            && !triggersByKey.ContainsKey(parent)
+            && alsoStored?.Contains(parent) != true)
+        {
+            Throw.ObjectDoesNotExistException(trigger, parent);
+        }
     }
 
     /// <summary>
@@ -1038,6 +1094,11 @@ public sealed class RAMJobStore : IJobStore
                     Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
 
+                // Likewise a replacement that would wait for a trigger the store does not hold — a
+                // rescheduled continuation whose parent has gone, parked or not. Put back after a
+                // refusal below, the old trigger would come back awaiting rather than as it was.
+                EnsureContinuationParentExistsNoLock(trigger, alsoStored: null);
+
                 // The old trigger is deleted rather than updated, but its executions stay: a replaced
                 // trigger keeps its identity and its job, so what was running under the key is still
                 // running under it, as in the ADO store where a replacement leaves the fired-trigger rows
@@ -1047,12 +1108,14 @@ public sealed class RAMJobStore : IJobStore
 
                 try
                 {
-                    AddTriggerNoLock(trigger, replace: false, ref pending);
+                    // Checked again now the old trigger has gone, which is what refuses a trigger
+                    // replaced by one that waits for itself.
+                    AddTriggerNoLock(trigger, replace: false, checkContinuationParent: true, ref pending);
                 }
                 catch (JobPersistenceException)
                 {
                     // put previous trigger back...
-                    AddTriggerNoLock(tw.Trigger, replace: false, ref pending);
+                    AddTriggerNoLock(tw.Trigger, replace: false, checkContinuationParent: false, ref pending);
                     throw;
                 }
             }
