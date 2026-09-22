@@ -3075,6 +3075,41 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task AContinuationReleasedWhileItsJobRunsIsBlockedUntilTheJobFinishes()
+    {
+        IJobDetail busy = JobBuilder.Create<NonConcurrentContractTestJob>().WithIdentity("busy", JobGroupA).StoreDurably().Build();
+        IOperableTrigger running = CreateTrigger("running", TriggerGroupA, busy.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(busy, running);
+
+        IJobDetail parentJob = CreateJob("blocking-parent", JobGroupA);
+        IOperableTrigger parent = CreateTrigger("blocking-parent", TriggerGroupA, parentJob.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(parentJob, parent);
+
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "blocked", ContinuationCondition.OnSuccess, job: busy.Key);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        acquired.Select(x => x.Key).Should().BeEquivalentTo([running.Key, parent.Key], "those two are due, and a continuation is never acquired");
+        (await Store.TriggersFired(acquired)).Should().OnlyContain(x => x.TriggerFiredBundle != null);
+
+        await CompleteParent(acquired.Single(x => x.Key.Equals(parent.Key)), ExecutionOutcome.Succeeded);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Blocked,
+            "the job disallows concurrent execution and is running under another trigger, so the release puts the "
+            + "continuation where any trigger of that job stored now would go — behind the execution");
+
+        await CompleteParent(acquired.Single(x => x.Key.Equals(running.Key)), ExecutionOutcome.Succeeded);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal,
+            "the execution it was blocked behind has finished, which unblocks it like every other trigger of the job");
+    }
+
+    [Test]
     public async Task DeletingAParentParksItsContinuationsInErrorExceptOnAnyOutcome()
     {
         IOperableTrigger parent = await GivenAScheduledParent("deleted-parent");
@@ -3191,26 +3226,36 @@ public abstract class JobStoreContractTest
 
     /// <summary>
     /// A continuation of <paramref name="parent" />, due by its own schedule so that only its state can
-    /// keep it from being acquired.
+    /// keep it from being acquired. It fires <paramref name="job" /> when one is given — that job has to
+    /// be stored already — and a job of its own otherwise.
     /// </summary>
     private async Task<IOperableTrigger> GivenAContinuationOf(
         TriggerKey parent,
         string name,
         ContinuationCondition condition,
-        string group = TriggerGroupA)
+        string group = TriggerGroupA,
+        JobKey job = null)
     {
-        IJobDetail job = CreateJob(name, JobGroupA);
+        IJobDetail ownJob = job is null ? CreateJob(name, JobGroupA) : null;
 
         IOperableTrigger continuation = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity(name, group)
-            .ForJob(job.Key)
+            .ForJob(job ?? ownJob.Key)
             .StartAt(DateTimeOffset.UtcNow.AddSeconds(-5))
             .StartAfter(parent, condition)
             .Build();
 
         continuation.ComputeFirstFireTimeUtc(null);
 
-        await Store.ScheduleJob(job, continuation);
+        if (ownJob is null)
+        {
+            await Store.AddTrigger(continuation);
+        }
+        else
+        {
+            await Store.ScheduleJob(ownJob, continuation);
+        }
+
         return continuation;
     }
 

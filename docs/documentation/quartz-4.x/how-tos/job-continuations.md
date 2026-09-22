@@ -19,8 +19,10 @@ death of the node that scheduled it.
 A trigger carrying a `Continuation` is stored in `TriggerState.Awaiting` and is never acquired while it is
 there. When the parent's firing completes:
 
-* an outcome the continuation's `ContinuationCondition` names **releases** it — into `Normal`, or `Paused`
-  if its group is, with its next fire time set to the later of *now* and its own start time;
+* an outcome the continuation's `ContinuationCondition` names **releases** it, with its next fire time set to
+  the later of *now* and its own start time, into the state any trigger stored at that moment would get —
+  `Normal`; `Paused` if its group is; `Blocked` if its job disallows concurrent execution and is running
+  under another trigger, until that execution completes;
 * any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized, because
   the firing it was waiting for has been and gone.
 
