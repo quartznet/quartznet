@@ -61,6 +61,12 @@ public readonly record struct Continuation(TriggerKey? Parent, ContinuationCondi
     /// <summary>
     /// Wait for the given trigger's firing, and be released when it ends in one of the named ways.
     /// </summary>
+    /// <remarks>
+    /// The parent has to be in the store when the trigger carrying this is stored, or the store
+    /// refuses it with <see cref="ObjectDoesNotExistException" /> naming both keys. A one-shot parent
+    /// is deleted once it has fired, so schedule the continuation before the parent can finish, or
+    /// check the parent's key.
+    /// </remarks>
     /// <param name="parent">The trigger whose firing to wait for.</param>
     /// <param name="condition">
     /// The outcomes that release the wait. Any other outcome discards the continuation, so

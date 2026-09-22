@@ -155,6 +155,13 @@ internal static class Throw
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void ObjectDoesNotExistException(ITrigger offendingTrigger, TriggerKey missingTrigger)
+    {
+        throw new ObjectDoesNotExistException(offendingTrigger, missingTrigger);
+    }
+
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void KeyNotFoundException()
     {
         throw new KeyNotFoundException();

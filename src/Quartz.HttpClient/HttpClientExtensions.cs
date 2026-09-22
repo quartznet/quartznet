@@ -253,6 +253,7 @@ internal static class HttpClientExtensions
                 nameof(LockException) => new LockException(problemDetails.Detail),
                 nameof(NoSuchDelegateException) => new NoSuchDelegateException(problemDetails.Detail),
                 nameof(ObjectAlreadyExistsException) => new ObjectAlreadyExistsException(problemDetails.Detail),
+                nameof(ObjectDoesNotExistException) => new ObjectDoesNotExistException(problemDetails.Detail),
                 _ => new HttpClientException($"Received response with bad request status code: {problemDetails.Detail}")
             };
         }

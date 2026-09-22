@@ -178,7 +178,15 @@ public static class SchedulerJobExtensions
     /// <see cref="OneOffJobOptions" /> nothing else and the firing happens as soon as it is released;
     /// a floor — "and never before nine" — is a <c>StartAfter</c> trigger built by hand.
     /// </para>
+    /// <para>
+    /// The parent has to be in the store when this is called: a one-shot parent is deleted once it has
+    /// fired, so schedule the continuation before the parent can finish — the handle an earlier call
+    /// answered with is the one to use straight away — or check the parent's key.
+    /// </para>
     /// </remarks>
+    /// <exception cref="ObjectDoesNotExistException">
+    /// The parent <paramref name="after" /> names is not in the store. Nothing is stored.
+    /// </exception>
     /// <returns>The trigger that was stored, and the time it would first fire were it released now.</returns>
     public static ValueTask<ScheduledOneOffJob> ScheduleJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
         this IScheduler scheduler,

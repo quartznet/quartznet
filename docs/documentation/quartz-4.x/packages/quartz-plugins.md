@@ -292,9 +292,10 @@ stored form. A value that cannot be read is refused as the file is read, naming 
 `<group>`, defaulting to `DEFAULT` — and the trigger declared with it is stored
 [waiting](../how-tos/job-continuations.md) for that trigger's next firing rather than scheduled.
 `<continuation-condition>` names the outcomes that release the wait, joined with `|`, and defaults to
-`OnSuccess`. The parent is **named, never resolved**, so it may be declared later in the same file or be
-in the store already; an outcome that is not one, and a condition with no `<continues-after>` beside it,
-are refused as the file is read.
+`OnSuccess`. The parent is **named, not resolved as the file is read**, so it may be declared later in the
+same file — the file's triggers are stored parent first — or be in the store already; one in neither is
+refused when the file is scheduled, with `ObjectDoesNotExistException`. An outcome that is not one, and a
+condition with no `<continues-after>` beside it, are refused as the file is read.
 
 ### JobInterruptMonitorPlugin — retired
 

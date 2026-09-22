@@ -3283,6 +3283,72 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task AContinuationOfATriggerThatDoesNotExistIsRefusedWithItsJob()
+    {
+        TriggerKey missing = new("no-such-parent", TriggerGroupA);
+        IJobDetail job = CreateJob("refused-continuation", JobGroupA);
+        IOperableTrigger continuation = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("refused-continuation", TriggerGroupA)
+            .ForJob(job.Key)
+            .StartAfter(missing)
+            .Build();
+        continuation.ComputeFirstFireTimeUtc(null);
+
+        Func<Task> schedule = async () => await Store.ScheduleJob(job, continuation);
+
+        ObjectDoesNotExistException refused = (await schedule.Should().ThrowAsync<ObjectDoesNotExistException>(
+            "a continuation of a trigger the store does not hold would wait for a firing that can never happen")).Which;
+        refused.TriggerKey.Should().Be(continuation.Key);
+        refused.MissingTriggerKey.Should().Be(missing);
+
+        (await Store.Exists(continuation.Key)).Should().BeFalse();
+        (await Store.Exists(job.Key)).Should().BeFalse("the refusal is atomic with the insert, job included");
+    }
+
+    [Test]
+    public async Task ReplacingAParkedContinuationWithOneWhoseParentIsGoneIsRefused()
+    {
+        IOperableTrigger parent = await GivenAScheduledParent("gone-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "still-parked", ContinuationCondition.OnSuccess);
+
+        await Store.DeleteTrigger(parent.Key);
+
+        IOperableTrigger rebuilt = (IOperableTrigger) (await Store.GetTrigger(continuation.Key)).GetTriggerBuilder().Build();
+        rebuilt.ComputeFirstFireTimeUtc(null);
+
+        Func<Task> replace = async () => await Store.ReplaceTrigger(continuation.Key, rebuilt);
+
+        await replace.Should().ThrowAsync<ObjectDoesNotExistException>(
+            "stored again it would wait, silently and for ever, for a parent that is gone");
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Error,
+            "a refused replacement leaves the trigger as it was");
+    }
+
+    [Test]
+    public async Task ABatchMayCarryAContinuationBeforeItsParent()
+    {
+        IJobDetail parentJob = CreateJob("batch-parent", JobGroupA);
+        IOperableTrigger parent = CreateTrigger("batch-parent", TriggerGroupA, parentJob.Key);
+
+        IJobDetail continuationJob = CreateJob("batch-continuation", JobGroupA);
+        IOperableTrigger continuation = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("batch-continuation", TriggerGroupA)
+            .ForJob(continuationJob.Key)
+            .StartAfter(parent.Key)
+            .Build();
+        continuation.ComputeFirstFireTimeUtc(null);
+
+        await Store.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>
+        {
+            [continuationJob] = [continuation],
+            [parentJob] = [parent],
+        });
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting,
+            "a batch is one operation, and the parent the continuation waits for is part of it");
+    }
+
+    [Test]
     public async Task DeletingAParentParksItsContinuationsInErrorExceptOnAnyOutcome()
     {
         IOperableTrigger parent = await GivenAScheduledParent("deleted-parent");

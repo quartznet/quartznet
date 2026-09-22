@@ -449,6 +449,127 @@ public sealed class ContinuationSettlementTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // A continuation whose parent does not exist is refused when it is stored
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AContinuationOfATriggerThatDoesNotExistIsRefusedWithItsJob()
+    {
+        TriggerKey missing = new("no-such-parent", Group);
+        IJobDetail job = Job("orphan-job");
+        IOperableTrigger continuation = ContinuationOf(missing, "orphan", job.Key);
+
+        Func<Task> schedule = async () => await store.ScheduleJob(job, continuation);
+
+        ObjectDoesNotExistException refused = (await schedule.Should().ThrowAsync<ObjectDoesNotExistException>(
+            "a continuation of a trigger the store does not hold would wait for a firing that can never happen, "
+            + "and a trigger nobody can release is one nobody notices")).Which;
+
+        refused.TriggerKey.Should().Be(continuation.Key);
+        refused.MissingTriggerKey.Should().Be(missing);
+        refused.Message.Should().Contain(continuation.Key.ToString()).And.Contain(missing.ToString(),
+            "the message names both keys, so the typo is visible without a debugger");
+
+        (await store.Exists(continuation.Key)).Should().BeFalse();
+        (await store.Exists(job.Key)).Should().BeFalse(
+            "the refusal is part of the store's own add, so the job stored beside the trigger is refused with it");
+    }
+
+    [Test]
+    public async Task AddingAContinuationOfATriggerThatDoesNotExistToAStoredJobIsRefused()
+    {
+        IJobDetail job = Job("existing-job");
+        await store.AddJob(job, new AddJobOptions());
+
+        Func<Task> add = async () => await store.AddTrigger(ContinuationOf(new TriggerKey("typo", Group), "orphan", job.Key));
+
+        await add.Should().ThrowAsync<ObjectDoesNotExistException>();
+        (await store.GetTriggersForJob(job.Key)).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task ReplacingAContinuationWithOneWhoseParentIsGoneIsRefusedAndLeavesItAsItWas()
+    {
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger continuation = await ScheduleContinuation("parked", parent.Key, ContinuationCondition.OnSuccess);
+
+        await store.DeleteTrigger(parent.Key);
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Error, "the parent is gone");
+
+        // A reschedule rebuilds the trigger, and the rebuilt one still waits for the deleted parent.
+        IOperableTrigger rebuilt = (IOperableTrigger) (await store.GetTrigger(continuation.Key))!.GetTriggerBuilder().Build();
+        rebuilt.ComputeFirstFireTimeUtc(null);
+
+        Func<Task> replace = async () => await store.ReplaceTrigger(continuation.Key, rebuilt);
+
+        await replace.Should().ThrowAsync<ObjectDoesNotExistException>(
+            "storing it again would park nothing — it would wait, silently and for ever, for a trigger that is gone");
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Error,
+            "a refused replacement leaves the trigger it would have replaced exactly as it was");
+    }
+
+    [Test]
+    public async Task ReplacingAnAwaitingTriggerWithOneThatWaitsForAMissingTriggerIsRefused()
+    {
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger continuation = await ScheduleContinuation("waiting", parent.Key, ContinuationCondition.OnSuccess);
+
+        IOperableTrigger elsewhere = ContinuationOf(new TriggerKey("nowhere", Group), continuation.Key.Name, continuation.JobKey);
+
+        Func<Task> replace = async () => await store.ReplaceTrigger(continuation.Key, elsewhere);
+
+        await replace.Should().ThrowAsync<ObjectDoesNotExistException>();
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting);
+        (await store.GetTrigger(continuation.Key))!.Continuation.Parent.Should().Be(parent.Key,
+            "the trigger still waits for the parent it waited for before the refused replacement");
+    }
+
+    [Test]
+    public async Task ABatchMayCarryAContinuationBeforeTheParentItWaitsFor()
+    {
+        IJobDetail parentJob = Job("batch-parent");
+        IOperableTrigger parent = Hourly("batch-parent", parentJob.Key);
+        IJobDetail continuationJob = Job("batch-continuation");
+        IOperableTrigger continuation = ContinuationOf(parent.Key, "batch-continuation", continuationJob.Key);
+
+        // The continuation first: a batch is one operation, and its parent is part of it.
+        Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> batch = new()
+        {
+            [continuationJob] = [continuation],
+            [parentJob] = [parent],
+        };
+
+        await store.ScheduleJobs(batch);
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting);
+        (await store.GetTriggerState(parent.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
+    public async Task ABatchCarryingAContinuationOfATriggerThatDoesNotExistStoresNothing()
+    {
+        IJobDetail ordinaryJob = Job("batch-ordinary");
+        IOperableTrigger ordinary = Hourly("batch-ordinary", ordinaryJob.Key);
+        IJobDetail continuationJob = Job("batch-orphan");
+        IOperableTrigger continuation = ContinuationOf(new TriggerKey("absent", Group), "batch-orphan", continuationJob.Key);
+
+        Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> batch = new()
+        {
+            [ordinaryJob] = [ordinary],
+            [continuationJob] = [continuation],
+        };
+
+        Func<Task> schedule = async () => await store.ScheduleJobs(batch);
+
+        await schedule.Should().ThrowAsync<ObjectDoesNotExistException>();
+
+        (await store.Exists(ordinary.Key)).Should().BeFalse("the batch is refused as a whole, before anything in it is stored");
+        (await store.Exists(ordinaryJob.Key)).Should().BeFalse();
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Scaffolding
     //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -550,6 +671,22 @@ public sealed class ContinuationSettlementTest
             await store.AddTrigger(continuation);
         }
 
+        return continuation;
+    }
+
+    /// <summary>
+    /// A continuation of <paramref name="parent" /> for <paramref name="job" />, built but not stored.
+    /// </summary>
+    private IOperableTrigger ContinuationOf(TriggerKey parent, string name, JobKey job)
+    {
+        IOperableTrigger continuation = (IOperableTrigger) TriggerBuilder.Create(clock)
+            .WithIdentity(name, Group)
+            .ForJob(job)
+            .StartAt(clock.GetUtcNow().AddMinutes(-1))
+            .StartAfter(parent)
+            .Build();
+
+        continuation.ComputeFirstFireTimeUtc(null);
         return continuation;
     }
 

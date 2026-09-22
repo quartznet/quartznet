@@ -1247,6 +1247,13 @@ namespace Quartz
         public Quartz.JobKey? JobKey { get; }
         public Quartz.TriggerKey? TriggerKey { get; }
     }
+    public sealed class ObjectDoesNotExistException : Quartz.JobPersistenceException
+    {
+        public ObjectDoesNotExistException(string message) { }
+        public ObjectDoesNotExistException(Quartz.ITrigger offendingTrigger, Quartz.TriggerKey missingTrigger) { }
+        public Quartz.TriggerKey? MissingTriggerKey { get; }
+        public Quartz.TriggerKey? TriggerKey { get; }
+    }
     public readonly record struct OneOffJobOptions : System.IEquatable<Quartz.OneOffJobOptions>
     {
         public string? Description { get; init; }

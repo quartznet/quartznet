@@ -120,6 +120,21 @@ await scheduler.ScheduleJob(report, cancellationToken: cancellationToken);
 ```
 <!-- endSnippet -->
 
+## The parent has to exist
+
+A continuation is refused when it is stored if its parent is not in the store: `ScheduleJob`,
+`AddTrigger`, `RescheduleJob` and the batch `ScheduleJobs` throw `ObjectDoesNotExistException`, naming both
+keys in its message and as `TriggerKey` and `MissingTriggerKey`, and store nothing — not the job scheduled
+beside the trigger, and not a change to the trigger a reschedule would have replaced. A continuation of a
+trigger that does not exist would wait for a firing that can never happen, and a trigger that waits for
+ever is one nobody notices; the refusal turns a misspelled key into an error at the call that made it.
+
+The case that is easy to walk into is a **one-shot parent that has already fired**: a trigger with nothing
+left to fire is deleted once its firing completes, so a continuation scheduled after that finds nothing to
+wait for. **Schedule the continuation before the parent can finish** — together with it, or before it is
+due — **or check the parent's key.** A batch passed to `ScheduleJobs` may carry the parent and the
+continuation together, in either order.
+
 ## The outcome table
 
 The outcome says what the firing *did*:
@@ -243,9 +258,11 @@ and in JSON — a standalone `quartz_jobs.json` or the `Quartz:Schedule` section
 ```
 
 An omitted `Group` is the default group and an omitted condition is `OnSuccess`. The parent is **named,
-never resolved**, so it may be declared later in the same file, or not be in the file at all because it is
-already in the store. An outcome that is not one — or a condition with nothing to wait for beside it — is
-refused as the file is read, naming the trigger.
+not resolved as the file is read**, so it may be declared later in the same file — the file's triggers are
+stored parent first, whatever their order — or not be in the file at all because it is already in the
+store. A parent that is in neither is refused when the file is scheduled, as
+[any continuation of a missing trigger](#the-parent-has-to-exist) is. An outcome that is not one — or a
+condition with nothing to wait for beside it — is refused as the file is read, naming the trigger.
 
 ## A recurring chain is a listener
 
