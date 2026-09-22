@@ -49,8 +49,8 @@ namespace Quartz.Configuration;
 /// the connection provider and the driver delegate, and no scheduler at all — which is what discovery
 /// runs through and what a window's history is read with, because neither question belongs to any one
 /// scheduler name. And one <em>window</em> per discovered name: a real scheduler over the same store,
-/// built through <see cref="ISchedulerRuntime.Add" /> and never started, whose thread pool creates no
-/// threads.
+/// built through <see cref="ISchedulerRuntime.Add" /> and never started — its store refuses to be — whose
+/// thread pool creates no threads.
 /// </para>
 /// <para>
 /// A name that this process already has a scheduler under is refused, naming both — the window would
@@ -260,17 +260,19 @@ internal sealed class AttachedStore : IAsyncDisposable
     {
         quartz.ConfigureScheduler(static options => options.InstanceId = WindowInstanceId);
 
-        // No threads at all, and the two members a running scheduler calls throw — so a window that
-        // something tried to start would say so rather than quietly acquiring triggers a cluster node
-        // should have had.
+        // No threads at all: a window runs nothing. This is not what stops one being started — a start
+        // reaches the job store's start-up, and its recovery of the cluster's rows, before the thread
+        // pool is asked for anything. The observer flag below is.
         quartz.UseThreadPool<ZeroSizeThreadPool>();
 
         quartz.UsePersistentStore(store =>
         {
             configure(store);
 
-            // Last, so it cannot be turned off by the recipe: a window that counted itself among the
-            // nodes would report a cluster as running because a dashboard is watching it.
+            // Last, so it cannot be turned off by the recipe. It makes the store refuse to start — a
+            // start would recover the cluster's in-flight firings as though this process were a node
+            // that had crashed — and it keeps the window out of the node listing, where it would report
+            // a cluster as running because a dashboard is watching it.
             store.ConfigureStore(static options => options.ClusterObserver = true);
         });
     }

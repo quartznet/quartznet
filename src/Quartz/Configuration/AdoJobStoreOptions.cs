@@ -282,16 +282,19 @@ public sealed class AdoJobStoreOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// What a dashboard's store-attached window is. Such a store is never started, so it runs no
-    /// check-in loop and has no row in <c>QRTZ_SCHEDULER_STATE</c> — and without this, asking it
+    /// What a dashboard's store-attached window is. Such a store refuses to start: its
+    /// <c>SchedulerStarted</c> throws before recovery, the check-in loop or the misfire handler has run,
+    /// because each of those is a node's start-up and would act on the cluster's live rows — recovery
+    /// alone deletes the fired-trigger rows of firings a node is in the middle of. So it has no row in
+    /// <c>QRTZ_SCHEDULER_STATE</c> — and without this, asking it
     /// <see cref="IScheduler.QueryClusterNodes" /> answers with the one node it believes itself to be,
     /// which is the liveness lie a window exists to avoid. With it, the answer is the cluster's rows
     /// under this scheduler's name and nothing else, whether or not this store is clustered.
     /// </para>
     /// <para>
     /// Internal: it is set by <c>AttachStore</c> on the window it builds, and a store an application
-    /// configures itself is a node of whatever it is a node of. Nothing else in the store reads it —
-    /// it changes one query's answer and no writes.
+    /// configures itself is a node of whatever it is a node of. The store reads it in two places: the
+    /// node listing, and the start-up hook that refuses. It changes no writes.
     /// </para>
     /// </remarks>
     internal bool ClusterObserver { get; set; }

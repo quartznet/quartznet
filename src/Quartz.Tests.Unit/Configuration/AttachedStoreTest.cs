@@ -19,6 +19,8 @@
 
 #endregion
 
+using AwesomeAssertions.Execution;
+
 using FakeItEasy;
 
 using Microsoft.Data.Sqlite;
@@ -26,6 +28,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 using Quartz.Configuration;
+using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Configuration;
@@ -113,6 +116,58 @@ public sealed class AttachedStoreTest
         window.Status.Should().Be(SchedulerStatus.Created,
             "a window is built and never started, which is what makes deriving its reported status from "
             + "the cluster's check-ins necessary rather than a refinement");
+    }
+
+    /// <summary>
+    /// Starting a window is refused by its store, before recovery has touched a single row.
+    /// </summary>
+    /// <remarks>
+    /// The reviewer's evidence for the defect, kept as its regression test. A start used to run the
+    /// cluster's start-up as though this process were one of its nodes: recovery put the node's
+    /// <c>ACQUIRED</c> trigger back to <c>WAITING</c> and deleted its fired-trigger row, so a firing a live
+    /// node was in the middle of could be run a second time. Anything that reaches the scheduler object —
+    /// the HTTP API, <see cref="Extensibility.ISchedulerRepository" />, an application's own code — could
+    /// do it, which is why the refusal is the store's rather than a page's.
+    /// </remarks>
+    [Test]
+    public async Task StartingAWindowIsRefusedAndLeavesTheNodesFiringAlone()
+    {
+        await using ServiceProvider alpha = await Node("alpha", schedule: true);
+
+        IJobStore nodeStore = alpha.GetRequiredService<IJobStore>();
+        await nodeStore.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddYears(2),
+            MaxCount = 1,
+            TimeWindow = TimeSpan.FromDays(1)
+        });
+
+        (await FiredRowCount()).Should().Be(1, "the node has acquired its trigger and is about to fire it");
+        (await TriggerState()).Should().Be("ACQUIRED");
+
+        await using ServiceProvider application = Application();
+        await using AttachedStore store = new("prod", Recipe, application);
+        await store.Synchronize();
+
+        IScheduler window = application.GetRequiredService<Extensibility.ISchedulerRepository>().Lookup("alpha")!;
+
+        Func<Task> start = async () => await window.Start();
+
+        await start.Should().ThrowAsync<SchedulerException>()
+            .WithMessage("*'alpha'*window*",
+                "the refusal names the scheduler and says what it is, so whoever pressed start learns why "
+                + "nothing happened");
+
+        await start.Should().ThrowAsync<SchedulerException>(
+            "a refused start leaves the scheduler as it was built, so asking again is refused again rather "
+            + "than sliding down the resume path that skips the store's start-up hook");
+
+        using AssertionScope scope = new();
+        window.Status.Should().Be(SchedulerStatus.Created, "a window is never started");
+        (await TriggerState()).Should().Be("ACQUIRED",
+            "recovery would have put the node's trigger back to WAITING for this process to acquire");
+        (await FiredRowCount()).Should().Be(1,
+            "recovery would have deleted the node's fired-trigger row, which is what lets a firing run twice");
     }
 
     [Test]
@@ -222,6 +277,28 @@ public sealed class AttachedStoreTest
     private void Recipe(IPersistentStoreBuilder store)
     {
         store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
+    }
+
+    private async Task<long> FiredRowCount()
+    {
+        await using SqliteConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM QRTZ_FIRED_TRIGGERS";
+
+        return Convert.ToInt64(await command.ExecuteScalarAsync());
+    }
+
+    private async Task<string> TriggerState()
+    {
+        await using SqliteConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT TRIGGER_STATE FROM QRTZ_TRIGGERS WHERE TRIGGER_NAME = 'at-midnight'";
+
+        return (string) (await command.ExecuteScalarAsync())!;
     }
 
     private sealed class NoOpJob : IJob
