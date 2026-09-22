@@ -13,7 +13,7 @@ tends to be a surprise. It is all in the box, and none of it needs a third-party
   [fail-closed](packages/dashboard.md#production-hardening): a mapping that authorizes nothing refuses
   to start, rather than serving a mutating surface to anyone who finds the path. Thirteen pages and
   sixty-five routes — [dashboard](packages/dashboard.md), [HTTP API](packages/http-api.md).
-* **Telemetry without an instrumentation package.** Two job spans, thirty-three store spans and ten
+* **Telemetry without an instrumentation package.** Two job spans, thirty-three store spans and eleven
   instruments on the `Quartz` activity source and meter, covering job execution, trigger acquisition,
   cluster check-in and every store round trip —
   [OpenTelemetry](packages/opentelemetry-integration.md). The scheduler
@@ -33,8 +33,21 @@ tends to be a surprise. It is all in the box, and none of it needs a third-party
   keeps one job from overlapping itself; an [execution group](tutorial/execution-groups.md) caps a whole
   category of work, counted per node or across every node sharing the store.
 * **A retry policy lives on the trigger.** `RetryPolicy.Fixed`, `Exponential` and `Explicit` are
-  persisted, survive a restart and are visible to every node —
+  persisted, survive a restart and are visible to every node, and a policy that runs out says so to a
+  listener, a counter and the history —
   [Retrying Failed Jobs](how-tos/retrying-failed-jobs.md).
+* **A job can be declared on its class, and the compiler reads it.** `[QuartzJob]` and `[CronTrigger]`
+  put a job and its schedules on the class and a source generator writes the registration; an analyzer
+  shipped inside the package fails the build on a cron expression or a `[JobTimeout]` that would not
+  parse — [Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md),
+  [Compile-Time Checks](tutorial/compile-time-checks.md).
+* **One firing can wait for another.** A continuation is a trigger the store holds until its parent's
+  firing ends, released or discarded by how it ended inside the parent's own transaction, so a crash
+  cannot lose the link — [Job Continuations](how-tos/job-continuations.md).
+* **The history can live in the database, and so can the dashboard's view of it.**
+  `UseExecutionHistory()` keeps one history for a cluster rather than one per node, and a dashboard
+  [pointed at the database](packages/dashboard.md#store-attached-targets) shows every scheduler in it
+  without running any of them.
 
 How all of that lines up against Hangfire, TickerQ, Wolverine and Coravel is
 [Comparison](comparison.md), which is sourced and says where Quartz loses.
