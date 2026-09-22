@@ -432,6 +432,13 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     /// the node that scheduled it goes away in between.
     /// </para>
     /// <para>
+    /// The node running the parent going away is different. A one-shot parent lost with its node is
+    /// deleted by cluster recovery, so its continuations are settled as for a deleted parent — parked
+    /// in <see cref="TriggerState.Error" />, or released if they wait on
+    /// <see cref="ContinuationCondition.OnAnyOutcome" /> — and the recovery firing, which runs under a
+    /// key of its own, settles nothing. A parent with firings left keeps them waiting for its next one.
+    /// </para>
+    /// <para>
     /// This composes with a schedule rather than replacing one: <c>StartAfter</c> plus
     /// <c>WithCronSchedule</c> is "start this cron once the import has finished". It composes with
     /// <see cref="StartAt" /> too, which stays a floor — a released continuation fires at the later

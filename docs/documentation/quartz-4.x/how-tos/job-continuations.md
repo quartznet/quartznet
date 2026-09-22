@@ -11,8 +11,14 @@ and is released or discarded by *how* it ended. "Reconcile the ledger once tonig
 
 The wait is held by the job store, not by the process that arranged it. Nothing is running while a
 continuation waits, no misfire accrues, and whichever node runs the parent is the node that settles the
-continuation — inside the parent's own lock and transaction. A crash cannot lose one, and neither can the
-death of the node that scheduled it.
+continuation — inside the parent's own lock and transaction, so it is never half-settled, and the death of
+the node that scheduled it changes nothing.
+
+The death of the node **running the parent** is the case to know. With a persistent store, a one-shot
+parent lost with its node is deleted by cluster recovery, so its continuations are settled by
+[the deleted-parent rule](#when-the-parent-is-deleted) — parked in `Error`, or released if they wait on
+`OnAnyOutcome` — and the recovery firing, which runs under a key of its own, settles nothing. A parent with
+firings left keeps its continuations waiting for the next one.
 
 ## The model
 

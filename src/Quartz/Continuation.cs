@@ -28,7 +28,9 @@ namespace Quartz;
 /// acquired while it is there. The parent's completion settles it, inside the parent's own lock and
 /// transaction: a matching outcome releases the trigger into the ordinary schedule, and any other
 /// outcome deletes it. Whichever node completes the parent is the node that settles, so a
-/// continuation survives the failure of the node that scheduled it.
+/// continuation survives the failure of the node that scheduled it. A one-shot parent lost with the
+/// node <em>running</em> it is deleted by cluster recovery, so its continuations are settled as for a
+/// deleted parent, and the recovery firing — under a key of its own — settles nothing.
 /// </para>
 /// <para>
 /// The parent is a <see cref="TriggerKey" /> rather than a <see cref="JobKey" /> because a
