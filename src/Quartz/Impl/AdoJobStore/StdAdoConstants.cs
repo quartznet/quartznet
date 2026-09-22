@@ -1197,16 +1197,15 @@ internal static class StdAdoConstants
         $", {AdoConstants.ColumnContinuesTriggerName} = NULL, {AdoConstants.ColumnContinuesTriggerGroup} = NULL, {AdoConstants.ColumnContinuationCondition} = NULL";
 
     /// <summary>
-    /// Releases one awaiting trigger into the ordinary schedule, firing at the later of now and its
-    /// own start time — which is what keeps START_TIME a floor rather than a schedule — and forgetting
-    /// the parent it waited for.
+    /// Releases one awaiting trigger into the ordinary schedule at the fire time the store worked out
+    /// for it — the later of now and its start time, past any calendar exclusion — forgetting the
+    /// parent it waited for.
     /// </summary>
     /// <remarks>
-    /// The floor is a CASE rather than a second statement so that a release is one round trip, and
-    /// the old state is named so that a row somebody settled first is left alone.
+    /// The old state is named so that a row somebody settled first is left alone.
     /// </remarks>
     public static readonly string SqlReleaseContinuation =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.NewState}, {AdoConstants.ColumnNextFireTime} = CASE WHEN {AdoConstants.ColumnStartTime} > @{SqlParameters.ReleaseTimeCompare} THEN {AdoConstants.ColumnStartTime} ELSE @{SqlParameters.ReleaseTime} END{ForgetContinuationSetClause} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.OldState}");
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.NewState}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.ReleaseTime}{ForgetContinuationSetClause} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.OldState}");
 
     /// <summary>
     /// Gives a continuation reset out of the error state a fire time, the same way a release does, and

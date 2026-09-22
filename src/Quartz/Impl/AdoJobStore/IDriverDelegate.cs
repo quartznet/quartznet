@@ -1415,9 +1415,9 @@ public interface IDriverDelegate
     }
 
     /// <summary>
-    /// Moves one awaiting trigger into the ordinary schedule, firing at the later of
-    /// <paramref name="now" /> and the trigger's own start time, and clears the continuation columns:
-    /// a released trigger is an ordinary one and waits for nothing.
+    /// Moves one awaiting trigger into the ordinary schedule, firing at <paramref name="fireTime" />,
+    /// and clears the continuation columns: a released trigger is an ordinary one and waits for
+    /// nothing.
     /// </summary>
     /// <remarks>
     /// Only a row still in <see cref="StoredTriggerState.Awaiting" /> is written, which is what makes
@@ -1428,15 +1428,23 @@ public interface IDriverDelegate
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="triggerKey">The awaiting trigger to release.</param>
-    /// <param name="newState">The state to release it into — waiting, or paused if its group is.</param>
-    /// <param name="now">The scheduler's reading of "now", which the fire time is floored at.</param>
+    /// <param name="newState">
+    /// The state to release it into — the one a trigger stored at this moment would get: waiting,
+    /// paused if its group is, blocked if its job disallows concurrent execution and is running.
+    /// </param>
+    /// <param name="fireTime">
+    /// When the released trigger fires, as the store worked it out: the later of now and the
+    /// trigger's start time, moved on to its calendar's next included instant when the calendar
+    /// excludes that one. A continuation whose end time is behind that instant is discarded rather
+    /// than released, so this is never past the trigger's end time.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>How many rows were updated.</returns>
     ValueTask<int> ReleaseContinuation(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         StoredTriggerState newState,
-        DateTimeOffset now,
+        DateTimeOffset fireTime,
         CancellationToken cancellationToken = default)
     {
         Throw.NotSupportedException(

@@ -20,9 +20,11 @@ A trigger carrying a `Continuation` is stored in `TriggerState.Awaiting` and is 
 there. When the parent's firing completes:
 
 * an outcome the continuation's `ContinuationCondition` names **releases** it, with its next fire time set to
-  the later of *now* and its own start time, into the state any trigger stored at that moment would get —
-  `Normal`; `Paused` if its group is; `Blocked` if its job disallows concurrent execution and is running
-  under another trigger, until that execution completes;
+  the later of *now* and its own start time — moved on to the next instant its calendar includes, if it
+  names one that excludes that — into the state any trigger stored at that moment would get: `Normal`;
+  `Paused` if its group is; `Blocked` if its job disallows concurrent execution and is running under
+  another trigger, until that execution completes. A continuation whose end time is behind that instant
+  has no firing left, and is discarded as below instead;
 * any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized, because
   the firing it was waiting for has been and gone.
 

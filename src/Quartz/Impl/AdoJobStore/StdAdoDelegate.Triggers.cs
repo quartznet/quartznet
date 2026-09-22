@@ -2297,16 +2297,14 @@ public partial class StdAdoDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         StoredTriggerState newState,
-        DateTimeOffset now,
+        DateTimeOffset fireTime,
         CancellationToken cancellationToken = default)
     {
         using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlReleaseContinuation));
 
-        // Statement order. "Now" is named twice - the CASE compares it and then supplies it - so it is
-        // bound twice, which is what a provider that adapts placeholders positionally needs.
+        // Statement order.
         AddCommandParameter(cmd, SqlParameters.NewState, StoredTriggerStates.ToStoredValue(newState));
-        AddCommandParameter(cmd, SqlParameters.ReleaseTimeCompare, GetDbDateTimeValue(now));
-        AddCommandParameter(cmd, SqlParameters.ReleaseTime, GetDbDateTimeValue(now));
+        AddCommandParameter(cmd, SqlParameters.ReleaseTime, GetDbDateTimeValue(fireTime));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
         AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);

@@ -3176,6 +3176,61 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task AContinuationWhoseEndTimeHasPassedByTheReleaseIsDiscarded()
+    {
+        IOperableTrigger parent = await GivenAFiredParent("late-parent");
+
+        IJobDetail job = CreateJob("expired-continuation", JobGroupA);
+        IOperableTrigger continuation = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("expired-continuation", TriggerGroupA)
+            .ForJob(job.Key)
+            .StartAt(DateTimeOffset.UtcNow.AddHours(-1))
+            .EndAt(DateTimeOffset.UtcNow.AddMinutes(-1))
+            .StartAfter(parent.Key)
+            .Build();
+        continuation.ComputeFirstFireTimeUtc(null);
+        await Store.ScheduleJob(job, continuation);
+
+        await CompleteParent(parent, ExecutionOutcome.Succeeded);
+
+        (await Store.GetTrigger(continuation.Key)).Should().BeNull(
+            "a release fires the trigger now, and now is after its end time — so it has no firing left, and is "
+            + "discarded the way a continuation whose condition the outcome did not name is");
+    }
+
+    [Test]
+    public async Task AReleaseTheCalendarExcludesFiresAtTheCalendarsNextIncludedInstant()
+    {
+        // Three whole hours from the current one are excluded, so a test that crosses an hour boundary
+        // still releases into the excluded window, and the first included instant is the same.
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset hourStart = new(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero);
+        string excludedHours = string.Join(",", Enumerable.Range(0, 3).Select(x => (now.Hour + x) % 24));
+        ICalendar excluding = new CronCalendar(null, $"* * {excludedHours} ? * *", TimeZoneInfo.Utc);
+        await Store.AddCalendar("excluding-now", excluding, new AddCalendarOptions());
+
+        IOperableTrigger parent = await GivenAFiredParent("calendar-parent");
+
+        IJobDetail job = CreateJob("calendar-continuation", JobGroupA);
+        IOperableTrigger continuation = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("calendar-continuation", TriggerGroupA)
+            .ForJob(job.Key)
+            .StartAt(now.AddSeconds(-5))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .WithCalendarName("excluding-now")
+            .StartAfter(parent.Key)
+            .Build();
+        continuation.ComputeFirstFireTimeUtc(excluding);
+        await Store.ScheduleJob(job, continuation);
+
+        await CompleteParent(parent, ExecutionOutcome.Succeeded);
+
+        (await Store.GetTrigger(continuation.Key)).NextFireTimeUtc.Should().Be(hourStart.AddHours(3),
+            "the release would fire it now, the calendar excludes now, and so it fires at the first instant the "
+            + "calendar includes");
+    }
+
+    [Test]
     public async Task DeletingAParentParksItsContinuationsInErrorExceptOnAnyOutcome()
     {
         IOperableTrigger parent = await GivenAScheduledParent("deleted-parent");

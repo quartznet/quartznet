@@ -64,7 +64,7 @@ do rather than read: see [The 4.2 schema migration](#the-4-2-schema-migration) b
 | `TriggerHeader.ContinuesAfter`, `TriggerHeader.ContinuationCondition` | What a listing says about a waiting trigger, so "why is this not running" is answerable without materializing it. Non-positional `init` properties, so the record's constructor is unchanged |
 | `TriggeredJobCompleteContext` | `Quartz.Extensibility`: what a job store is told about a firing that is over. `required init` `Trigger`, `JobDetail` and `Instruction` — exactly what `IJobStore.TriggeredJobComplete` took — plus `Outcome` and `Exception` |
 | `IJobStore.FiringComplete` | The completion the scheduler calls, as a **default interface member** that drops the outcome and calls `TriggeredJobComplete` — so a store written against an earlier 4.x behaves exactly as it did. A new name rather than an overload of `TriggeredJobComplete` because `PublicApiGenerator` marks default implementations per method *name*, and an overload would make the API baseline claim the abstract member is a default too |
-| `IDriverDelegate.SelectAwaitingContinuations`, `ReleaseContinuation`, `ResetContinuationFireTime` | The three statements settlement issues, likewise **default interface members**. A delegate that does not write the continuation columns reports nothing awaiting and has no fire time to fix, both of which are true for it |
+| `IDriverDelegate.SelectAwaitingContinuations`, `ReleaseContinuation`, `ResetContinuationFireTime` | The three statements settlement issues, likewise **default interface members**. A delegate that does not write the continuation columns reports nothing awaiting and has no fire time to fix, both of which are true for it. `ReleaseContinuation` is handed the fire time the store worked out — `fireTime`, the later of now and the start time moved past a calendar exclusion — rather than "now", and clears the three continuation columns as it releases |
 | `AwaitingContinuation` | What `SelectAwaitingContinuations` answers with: a `TriggerKey` and the condition it waits on |
 | `ScheduleJob<TJob, TInput>(input, Continuation after, options)` | The one-call overload for a firing whose time is another firing's completion. There is no time argument because the time is the parent's completion |
 | `JobChainingJobListener.AddJobChainLink(first, second, condition)` | The conditional link. The two-argument overload is unchanged and is `OnAnyOutcome`, which is what this listener has always done. `JobExecutionVetoed` is now declared, so a link conditioned on a veto fires |
@@ -96,9 +96,10 @@ end, and is released or discarded by how it ended. The model in five sentences:
 * The parent's completion settles it, inside the parent's own lock and transaction, so a crash cannot
   lose one and whichever node ran the parent is the node that promotes it.
 * An outcome the continuation's `ContinuationCondition` names **releases** it, with its next fire time
-  set to the later of now and its own start time, into the state a trigger stored at that moment would
-  get: `Normal`, `Paused` if its group is, `Blocked` behind a running execution of a job that disallows
-  concurrent execution.
+  set to the later of now and its own start time — or its calendar's next included instant after that
+  — into the state a trigger stored at that moment would get: `Normal`, `Paused` if its group is,
+  `Blocked` behind a running execution of a job that disallows concurrent execution. One whose end
+  time is behind that instant has no firing left and is discarded instead.
 * Any other outcome **discards** it: the trigger is deleted and its listeners told it is finalized,
   because the firing it was waiting for has been and gone.
 * Settlement is one-shot, because every statement that settles names `Awaiting` and a settled trigger
