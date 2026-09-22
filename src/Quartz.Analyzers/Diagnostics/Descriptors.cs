@@ -39,17 +39,23 @@ internal static class Descriptors
     /// A cron literal that the parser refuses.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// An error rather than a warning, because there is no reading of the program in which this
     /// literal works: the same parser runs at build time and at run time, and it has already said no.
+    /// </para>
+    /// <para>
+    /// The whole sentence is the argument, as for <see cref="InvalidJobTimeout" />, because a missing
+    /// expression has no text to quote and says so in a sentence of its own.
+    /// </para>
     /// </remarks>
     internal static readonly DiagnosticDescriptor InvalidCronExpression = new DiagnosticDescriptor(
         id: "QZ0001",
         title: "Cron expression cannot be parsed",
-        messageFormat: "'{0}' is not a valid cron expression: {1}",
+        messageFormat: "{0}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "A cron expression written as a literal or a constant is read at build time with the same parser that would read it at run time. This one does not parse, so the call it was written for would have thrown.",
+        description: "A cron expression written as a literal or a constant is read at build time with the same parser that would read it at run time. This one does not parse, or is null or empty, so the call it was written for would have thrown.",
         helpLinkUri: HelpLink + "#qz0001-invalidcronexpression");
 
     /// <summary>
