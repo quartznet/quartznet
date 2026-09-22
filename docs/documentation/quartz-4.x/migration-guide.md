@@ -95,8 +95,10 @@ end, and is released or discarded by how it ended. The model in five sentences:
 * A continuation is an ordinary trigger carrying a `Continuation`, stored in the new state
   `TriggerState.Awaiting` and never acquired while it is there. Its parent has to be in the store when
   it is stored: a continuation of a missing trigger is refused with `ObjectDoesNotExistException`.
-* The parent's completion settles it, inside the parent's own lock and transaction, so a crash cannot
-  lose one and whichever node ran the parent is the node that promotes it.
+* The parent's completion settles it, inside the parent's own lock and transaction, so none is ever
+  half-settled and whichever node ran the parent is the node that promotes it. A one-shot parent lost
+  with the node running it is deleted by cluster recovery, so its continuations are settled as for a
+  deleted parent; the recovery firing runs under a key of its own and settles nothing.
 * An outcome the continuation's `ContinuationCondition` names **releases** it, with its next fire time
   set to the later of now and its own start time — or its calendar's next included instant after that
   — into the state a trigger stored at that moment would get: `Normal`, `Paused` if its group is,
