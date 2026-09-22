@@ -82,9 +82,48 @@ the `ScheduledOneOffJob` the call answers with carries the `TriggerKey` to cance
 by; [One-Off Job](how-tos/one-off-job.md) is the whole of it, including how to name and group a firing so
 a whole conversation can be called off at once.
 
-That form covers "run this once, soon". A recurring schedule, a database behind it, a misfire
-instruction, a calendar or a retry policy are things a trigger says, and saying them is the rest of this
-page.
+That form covers "run this once, soon". A recurring job can be just as short, declared on its class,
+with the schedule read by the compiler — an expression that will not parse is a build error, not an
+exception at start-up:
+
+<!-- snippet: sample_declared_job -->
+```csharp
+[QuartzJob(Name = "cleanup", Group = "maintenance", Description = "removes rows nobody reads")]
+[CronTrigger("0 0 0/6 * * ?")]
+[CronTrigger("0 0 12 ? * MON-FRI", Name = "cleanup-weekday-noon", TimeZone = "Europe/Helsinki")]
+public sealed class CleanupJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+}
+```
+<!-- endSnippet -->
+
+One call registers every job the assembly declares, beside anything else you configure by hand:
+
+<!-- snippet: sample_add_declared_jobs -->
+```csharp
+services.AddQuartz(q =>
+{
+    // Every job in this assembly that carries [QuartzJob], with the schedules it declares.
+    q.AddDeclaredJobs();
+
+    // Anything an attribute cannot say is still written here, beside it.
+    q.AddTrigger<CleanupJob>(trigger => trigger
+        .WithIdentity("cleanup-on-start")
+        .ForJob("cleanup", "maintenance")
+        .StartNow());
+});
+
+services.AddQuartzHostedService();
+```
+<!-- endSnippet -->
+
+[Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md) covers what the attributes
+can say and what the generator writes. A database behind the schedule, a misfire instruction, a
+calendar or a retry policy are things a trigger says, and saying them is the rest of this page.
 
 ## Configuration
 

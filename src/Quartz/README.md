@@ -53,6 +53,11 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
+A recurring job can instead be declared on its class with `[QuartzJob]` and `[CronTrigger("0 0 0/6 * * ?")]`;
+a source generator in this package writes the registration, and an analyzer fails the build on a cron
+expression that would not parse. See
+[Declaring jobs with attributes](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html).
+
 Console applications and tests build a scheduler without a host, from the same configuration API:
 
 <!-- snippet: sample_readme_quartz_standalone -->
@@ -80,6 +85,7 @@ await scheduler.Start();
 
 - [Quick start](https://www.quartz-scheduler.net/documentation/quartz-4.x/quick-start.html)
 - [Tutorial](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/)
+- [Job continuations](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/job-continuations.html)
 - [Configuration reference](https://www.quartz-scheduler.net/documentation/quartz-4.x/configuration/reference.html)
 - [Publishing trimmed and native AOT](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/trimming-and-native-aot.html)
 - [Migrating from Quartz 3](https://www.quartz-scheduler.net/documentation/quartz-4.x/migration-guide.html)

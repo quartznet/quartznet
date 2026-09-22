@@ -181,9 +181,8 @@ Extension policy, not taste. `how-tos/extending-quartz.md` is the reader-facing 
 - **A collaborator is handed a context object** — parameterless ctor, `init` properties — never a
   parameter list: `DriverDelegateContext`, `LockHandlerContext`, `TriggerFiredBundle` and the rest. A
   new datum is a non-`required` property, so it is source- and binary-compatible.
-- **A member added to a public interface lands as a default interface member.** `IJobStore` has nine,
-  `IScheduler` one, `ILockHandler` and `ITriggerPersistenceDelegate` one each; that is what makes
-  freezing `IQuartzApiClient` and `ITriggerSerializer` without default bodies safe, and the baselines
+- **A member added to a public interface lands as a default interface member**, as on `IJobStore`,
+  `IScheduler`, `ILockHandler` and `ITriggerPersistenceDelegate`; that is what makes freezing `IQuartzApiClient` and `ITriggerSerializer` without default bodies safe, and the baselines
   mark DIMs so the promise is checkable. A forwarder must *declare* every such member — an omitted one
   runs the default on the forwarder; `DelegatingForwardingTest` sweeps both delegating types for it.
 - **Read-replica routing, if ever, is a DIM `IDbProvider.CreateReadConnection()`** — never a `readOnly`
