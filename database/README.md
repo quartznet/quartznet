@@ -157,13 +157,21 @@ so a 4.2 node refuses to start against a database that has not taken it.
 
 **Roll it while 4.1 nodes are still running.** The columns are nullable with no default, so every
 existing row is valid the moment they appear; a 4.1 node's `INSERT` names its own columns, its
-acquisition and misfire sweeps select `WAITING` and its cluster recovery touches `ACQUIRED` and
-`BLOCKED`, so none of them sees a trigger in the new `AWAITING` state — and an unrecognised state
-string reads as waiting there, so such a node merely *reports* one as normal.
+acquisition and misfire sweeps select `WAITING`, and its cluster recovery touches `ACQUIRED` and
+`BLOCKED`, so nothing a 4.1 node does on its own picks an `AWAITING` row up.
 
-What a 4.1 node cannot do is **settle** a continuation: a parent completing on it leaves the
+A state string a 4.1 node does not recognise reads as waiting, though, so it *reports* an `AWAITING`
+row as `Normal` — and one operation takes that reading at its word. 4.1's single-trigger
+`PauseTrigger` writes `PAUSED` over a row it read as waiting, and a resume then makes it `WAITING`: the
+continuation fires without its parent. A 4.1 reschedule does the same by another route, rewriting the
+row as an ordinary trigger that has forgotten what it waited for. (`PauseJob` and the group and batch
+pauses name the states they move, so they leave an `AWAITING` row alone.)
+
+And what a 4.1 node cannot do at all is **settle** a continuation: a parent completing there leaves the
 triggers waiting on that firing exactly where they are. So the order is: run the migration, roll
-every node to 4.2, and only then start scheduling continuations.
+**every** node to 4.2, and only then start scheduling continuations. The two rules are one: while any
+4.1 node is still running, do not pause, resume or reschedule a continuation from it — and a cluster that
+schedules its first continuation only after the last node has rolled has none for a 4.1 node to touch.
 
 A fresh install from [`tables/`](tables) already has the columns and needs nothing from this folder.
 
