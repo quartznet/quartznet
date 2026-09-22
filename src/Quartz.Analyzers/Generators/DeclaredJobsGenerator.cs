@@ -23,8 +23,10 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace Quartz.Analyzers;
 
@@ -40,13 +42,17 @@ namespace Quartz.Analyzers;
 /// reflection, no <c>Type.GetType</c>, nothing that a trimmer or ILCompiler has to be told about.
 /// </para>
 /// <para>
-/// One <c>QuartzDeclaredJobs</c> class per compilation, and internal, so two assemblies that both
-/// declare jobs do not collide and neither adds anything to its public surface.
+/// One <c>QuartzDeclaredJobs</c> class per compilation, and internal, so that no assembly adds
+/// anything to its public surface and two assemblies that both declare jobs do not collide. The one
+/// exception is <c>InternalsVisibleTo</c>, which puts both in scope in the assembly it names; that
+/// assembly's class is then named after it — see <see cref="NameRegistration" />.
 /// </para>
 /// </remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class DeclaredJobsGenerator : IIncrementalGenerator
 {
+    private const string GeneratedTypeName = "Quartz." + RegistrationName.OrdinaryClassName;
+
     private const string QuartzJobAttributeTypeName = "Quartz.QuartzJobAttribute";
 
     private const string CronTriggerAttributeTypeName = "Quartz.CronTriggerAttribute";
@@ -78,9 +84,86 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             .Where(static x => x is not null)
             .Select(static (x, _) => x!);
 
+        // Read off the compilation, which is new on every edit, and reduced to strings at once, so that
+        // an edit that changes nothing about what this assembly can see compares equal and re-emits nothing.
+        IncrementalValueProvider<RegistrationName> registration = context.CompilationProvider
+            .Select(static (compilation, _) => NameRegistration(compilation));
+
         context.RegisterSourceOutput(
-            jobs.Collect().Combine(orphans.Collect()),
-            static (production, source) => Execute(production, source.Left, source.Right));
+            jobs.Collect().Combine(orphans.Collect()).Combine(registration),
+            static (production, source) => Execute(production, source.Left.Left, source.Left.Right, source.Right));
+    }
+
+    /// <summary>
+    /// What this assembly's registration is called: <c>QuartzDeclaredJobs.AddDeclaredJobs</c>, unless
+    /// another assembly's class of that name is already visible here.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every assembly that declares jobs gets an internal <c>Quartz.QuartzDeclaredJobs</c>, and being
+    /// internal keeps them apart until one assembly grants another <c>InternalsVisibleTo</c>. Then both
+    /// are in scope in the second, and <c>AddDeclaredJobs()</c> is ambiguous there with no spelling
+    /// that resolves it: naming the class is ambiguous too. So the second assembly's class steps aside
+    /// and is named after that assembly, and the ordinary name keeps meaning the one it could already see.
+    /// </para>
+    /// <para>
+    /// A renamed class is never what another assembly looks for here, so a chain of grants renames
+    /// each assembly at most once, and only the ones that can see an ordinary name.
+    /// </para>
+    /// </remarks>
+    private static RegistrationName NameRegistration(Compilation compilation)
+    {
+        string? visible = null;
+
+        foreach (INamedTypeSymbol type in compilation.GetTypesByMetadataName(GeneratedTypeName))
+        {
+            if (SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, compilation.Assembly)
+                || !compilation.IsSymbolAccessibleWithin(type, compilation.Assembly))
+            {
+                continue;
+            }
+
+            // The first by name, so that the warning names the same assembly however the references
+            // happened to be ordered.
+            string name = type.ContainingAssembly.Name;
+            if (visible is null || string.CompareOrdinal(name, visible) < 0)
+            {
+                visible = name;
+            }
+        }
+
+        if (visible is null)
+        {
+            return RegistrationName.Ordinary;
+        }
+
+        string suffix = Identifier(compilation.Assembly.Name);
+
+        return new RegistrationName(
+            RegistrationName.OrdinaryClassName + "_" + suffix,
+            RegistrationName.OrdinaryMethodName + "From" + suffix,
+            visible);
+    }
+
+    /// <summary>
+    /// An assembly name made into a C# identifier: every character an identifier cannot hold becomes
+    /// <c>_</c>, and one that cannot start an identifier is given a <c>_</c> to follow.
+    /// </summary>
+    private static string Identifier(string assemblyName)
+    {
+        StringBuilder identifier = new StringBuilder(assemblyName.Length + 1);
+
+        foreach (char character in assemblyName)
+        {
+            identifier.Append(SyntaxFacts.IsIdentifierPartCharacter(character) ? character : '_');
+        }
+
+        if (!SyntaxFacts.IsIdentifierStartCharacter(identifier[0]))
+        {
+            identifier.Insert(0, '_');
+        }
+
+        return identifier.ToString();
     }
 
     /// <summary>
@@ -204,7 +287,8 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     private static void Execute(
         SourceProductionContext context,
         ImmutableArray<DeclaredJob> jobs,
-        ImmutableArray<OrphanTrigger> orphans)
+        ImmutableArray<OrphanTrigger> orphans,
+        RegistrationName registration)
     {
         foreach (OrphanTrigger orphan in orphans.OrderBy(x => x.DisplayName, StringComparer.Ordinal))
         {
@@ -235,7 +319,13 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource("QuartzDeclaredJobs.g.cs", DeclaredJobsEmitter.Emit(declared));
+        if (registration.VisibleAssembly is not null)
+        {
+            // Once, on the first job: the rename is a fact about the assembly, not about any one job.
+            Report(context, Descriptors.DeclaredJobsRegistrationRenamed, declared[0].Location, registration.VisibleAssembly, registration.MethodName);
+        }
+
+        context.AddSource("QuartzDeclaredJobs.g.cs", DeclaredJobsEmitter.Emit(declared, registration));
     }
 
     /// <summary>

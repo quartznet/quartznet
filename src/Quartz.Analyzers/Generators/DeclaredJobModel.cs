@@ -83,6 +83,23 @@ internal sealed record DeclaredTrigger(
 internal sealed record OrphanTrigger(string DisplayName, LocationInfo? Location);
 
 /// <summary>
+/// What the generated class and its method are called in this assembly.
+/// </summary>
+/// <param name="VisibleAssembly">
+/// The assembly whose own generated class this compilation can already see through
+/// <c>InternalsVisibleTo</c>, which is why this one is named after its assembly instead; or
+/// <see langword="null" /> in the ordinary case, where it can see none and keeps the ordinary name.
+/// </param>
+internal sealed record RegistrationName(string ClassName, string MethodName, string? VisibleAssembly)
+{
+    internal const string OrdinaryClassName = "QuartzDeclaredJobs";
+
+    internal const string OrdinaryMethodName = "AddDeclaredJobs";
+
+    internal static RegistrationName Ordinary { get; } = new RegistrationName(OrdinaryClassName, OrdinaryMethodName, VisibleAssembly: null);
+}
+
+/// <summary>
 /// Why a <c>[QuartzJob]</c> class cannot be registered, or <see cref="None" /> when it can.
 /// </summary>
 internal enum JobProblem

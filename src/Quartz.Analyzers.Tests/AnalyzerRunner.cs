@@ -24,6 +24,7 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Quartz.Analyzers.Tests;
@@ -52,6 +53,8 @@ internal static class AnalyzerRunner
     /// <c>Quartz.CronExpression</c> too, and a snippet referencing both would not compile.
     /// </summary>
     private const string AnalyzerAssemblyFileName = "Quartz.Analyzers.dll";
+
+    private const string DefaultAssemblyName = "Snippet";
 
     private static readonly Lazy<ImmutableArray<MetadataReference>> references = new Lazy<ImmutableArray<MetadataReference>>(BuildReferences);
 
@@ -111,10 +114,21 @@ internal static class AnalyzerRunner
     /// compilation is checked instead, and that check covers both halves at once.
     /// </para>
     /// </remarks>
-    internal static GeneratorRun RunGenerator<TGenerator>(string source)
+    /// <param name="source">The snippet.</param>
+    /// <param name="assemblyName">
+    /// What the snippet's assembly is called, which is what another snippet's
+    /// <c>InternalsVisibleTo</c> names.
+    /// </param>
+    /// <param name="references">
+    /// Assemblies beyond this process's own, such as another run's <see cref="GeneratorRun.ToReference" />.
+    /// </param>
+    internal static GeneratorRun RunGenerator<TGenerator>(
+        string source,
+        string assemblyName = DefaultAssemblyName,
+        IEnumerable<MetadataReference>? references = null)
         where TGenerator : IIncrementalGenerator, new()
     {
-        CSharpCompilation compilation = Compile(source);
+        CSharpCompilation compilation = Compile(source, assemblyName, references);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
             generators: [new TGenerator().AsSourceGenerator()],
@@ -194,12 +208,15 @@ internal static class AnalyzerRunner
         return tree.GetText().ToString(diagnostic.Location.SourceSpan);
     }
 
-    private static CSharpCompilation Compile(string source)
+    private static CSharpCompilation Compile(
+        string source,
+        string assemblyName = DefaultAssemblyName,
+        IEnumerable<MetadataReference>? additionalReferences = null)
     {
         return CSharpCompilation.Create(
-            "Snippet",
+            assemblyName,
             [CSharpSyntaxTree.ParseText(source, ParseOptions, path: "Snippet.cs")],
-            references.Value,
+            [.. references.Value, .. additionalReferences ?? []],
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
     }
 
@@ -260,5 +277,23 @@ internal sealed record GeneratorRun(string Snippet, IReadOnlyList<Diagnostic> Di
     {
         TextSpan span = diagnostic.Location.SourceSpan;
         return Snippet.Substring(span.Start, span.Length);
+    }
+
+    /// <summary>
+    /// The assembly this run built, generated file included, as another snippet would reference it.
+    /// </summary>
+    /// <remarks>
+    /// Emitted and read back as metadata rather than handed over as a compilation reference, because
+    /// that is what a referencing project's compiler sees: an internal type, and whichever
+    /// <c>InternalsVisibleTo</c> grants the assembly carries.
+    /// </remarks>
+    internal MetadataReference ToReference()
+    {
+        using MemoryStream image = new MemoryStream();
+        EmitResult result = Output.Emit(image);
+
+        result.Success.Should().BeTrue("an assembly another snippet references has to exist: {0}", string.Join(Environment.NewLine, result.Diagnostics));
+
+        return MetadataReference.CreateFromImage(image.ToArray());
     }
 }

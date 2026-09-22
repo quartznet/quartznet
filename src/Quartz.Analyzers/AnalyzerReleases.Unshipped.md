@@ -12,3 +12,4 @@ QZ0004  | Quartz   | Info     | CancellationTokenAnalyzer, [Documentation](https
 QZ1001  | Quartz   | Error    | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1001-declaredjobtypenotschedulable)
 QZ1002  | Quartz   | Error    | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1002-duplicatedeclaredidentity)
 QZ1003  | Quartz   | Error    | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1003-crontriggerwithoutquartzjob)
+QZ1004  | Quartz   | Warning  | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1004-declaredjobsregistrationrenamed)
