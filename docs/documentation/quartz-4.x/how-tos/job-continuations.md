@@ -293,11 +293,16 @@ settled by whichever node ran the parent.
 ## Upgrading a running cluster
 
 The columns a continuation lives in arrived in 4.2, and a 4.1 node cannot settle one: a parent completing
-there leaves the triggers waiting on that firing exactly where they are.
+there leaves the triggers waiting on that firing exactly where they are. Nor does a 4.1 node know the
+`AWAITING` state — it reads it as waiting — so a single-trigger `PauseTrigger` from one writes `PAUSED` over
+a continuation, which a resume then sets off without its parent, and a 4.1 reschedule rewrites it as an
+ordinary trigger.
 
 So the order is: run
 [the migration](../../database/schema-changes.md#version-4-2), roll **every** node to 4.2, and only then start
-scheduling continuations. Rolling the migration itself while 4.1 nodes are still running is safe — the
+scheduling continuations; while any 4.1 node is still running, do not pause, resume or reschedule a
+continuation from it — which a cluster that schedules its first continuation after the last node has rolled
+never has to think about. Rolling the migration itself while 4.1 nodes are still running is safe — the
 columns are nullable with no default — and a 4.2 node refuses to start against a database that has not
 taken it, naming the column and the script. The
 [migration guide](../migration-guide.md#the-4-2-schema-migration) has the whole of it.
