@@ -130,15 +130,20 @@ dotnet_diagnostic.QZ0001.severity = warning
 dotnet_diagnostic.QZ0004.severity = none
 ```
 
-To take the analyzer out of the build entirely, exclude the analyzer assets from the package reference:
+To take the analyzer out of the build entirely, set one property in the project file:
 
 ```xml
-<PackageReference Include="Quartz" Version="4.2.0" ExcludeAssets="analyzers" />
+<PropertyGroup>
+  <DisableQuartzAnalyzers>true</DisableQuartzAnalyzers>
+</PropertyGroup>
 ```
 
 ::: tip
-`ExcludeAssets="analyzers"` is a whole-package switch and affects nothing else Quartz does. Prefer the
-`.editorconfig` route when what you want is one rule quieter rather than all four gone.
+The property removes the whole assembly, so the [source generator](declaring-jobs-with-attributes.md)
+and its `AddDeclaredJobs()` go with the four diagnostics; nothing else Quartz does is affected. Prefer
+the `.editorconfig` route when what you want is one rule quieter rather than all of it gone.
+`ExcludeAssets="analyzers"` on the package reference looks like the same switch and is not one: the
+.NET 10 SDK still hands the assembly to the compiler.
 :::
 
 ## What it does not check
