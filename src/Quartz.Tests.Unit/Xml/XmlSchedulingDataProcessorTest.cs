@@ -2054,6 +2054,92 @@ public class XmlSchedulingDataProcessorTest
         }
     }
 
+    /// <summary>
+    /// Processing a document again is how an application that declares its schedule re-applies it on
+    /// every start: the triggers exist by then, so each is rescheduled — the continuation still after
+    /// its parent.
+    /// </summary>
+    [Test]
+    public async Task ADocumentProcessedAgainReschedulesTheContinuationAfterItsParent()
+    {
+        NameValueCollection properties = new()
+        {
+            ["quartz.scheduler.instanceName"] = nameof(ADocumentProcessedAgainReschedulesTheContinuationAfterItsParent),
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
+        try
+        {
+            await CreateProcessor().ProcessStreamAndScheduleJobs(ToStream(Document(ContinuationBeforeItsParent)), scheduler);
+            await CreateProcessor().ProcessStreamAndScheduleJobs(ToStream(Document(ContinuationBeforeItsParent)), scheduler);
+
+            ITrigger continuation = await scheduler.GetTrigger(new TriggerKey("reconcile", "nightly"));
+            continuation.Continuation.Parent.Should().Be(new TriggerKey("import", "nightly"),
+                "the reschedule kept what the document says the trigger waits for");
+            (await scheduler.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// Two triggers that wait for each other can never be stored — each needs the other in the store
+    /// first — and the processor says so rather than going round for ever.
+    /// </summary>
+    [Test]
+    public async Task ContinuationsThatWaitForEachOtherAreRefused()
+    {
+        NameValueCollection properties = new()
+        {
+            ["quartz.scheduler.instanceName"] = nameof(ContinuationsThatWaitForEachOtherAreRefused),
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
+        try
+        {
+            Func<Task> act = async () => await CreateProcessor().ProcessStreamAndScheduleJobs(ToStream(Document($"""
+                <schedule>
+                  {Job}
+                  <trigger>
+                    <simple>
+                      <name>chicken</name>
+                      <group>group1</group>
+                      <job-name>job1</job-name>
+                      <job-group>group1</job-group>
+                      <continues-after>
+                        <name>egg</name>
+                        <group>group1</group>
+                      </continues-after>
+                    </simple>
+                  </trigger>
+                  <trigger>
+                    <simple>
+                      <name>egg</name>
+                      <group>group1</group>
+                      <job-name>job1</job-name>
+                      <job-group>group1</job-group>
+                      <continues-after>
+                        <name>chicken</name>
+                        <group>group1</group>
+                      </continues-after>
+                    </simple>
+                  </trigger>
+                </schedule>
+                """)), scheduler);
+
+            await act.Should().ThrowAsync<ObjectDoesNotExistException>(
+                "neither can be stored before the other, so the first one tried is refused for the parent it names");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     private const string ContinuationBeforeItsParent = $"""
         <schedule>
           <job>
