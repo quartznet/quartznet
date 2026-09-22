@@ -143,7 +143,10 @@ see rather than silently deleted or left waiting forever.
 `ResetTriggerFromErrorState` on such a trigger gives it the fire time a release would have given it, so
 **resetting one means running it** — and, like a release, the reset clears the parent it named, so from
 then on it is an ordinary trigger. `PauseTrigger` on a trigger that is still `Awaiting` answers `false`:
-there is nothing to hold back that is not already held back.
+there is nothing to hold back that is not already held back. Nor does a sibling move it: when another
+trigger of the same job ends in `SetAllJobTriggersError` or `SetAllJobTriggersComplete` — the job could
+not be built, or it asked for all of its triggers to be unscheduled — an `Awaiting` trigger is left where it
+is, for its parent to settle.
 
 ## Seeing what is waiting
 

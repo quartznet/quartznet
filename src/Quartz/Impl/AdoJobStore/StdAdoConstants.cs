@@ -1056,8 +1056,17 @@ internal static class StdAdoConstants
     public static readonly string SqlUpdateJobDetail =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableJobDetails} SET {AdoConstants.ColumnDescription} = @{SqlParameters.JobDescription}, {AdoConstants.ColumnJobClass} = @{SqlParameters.JobType}, {AdoConstants.ColumnIsDurable} = @{SqlParameters.JobDurable}, {AdoConstants.ColumnIsNonConcurrent} = @{SqlParameters.JobVolatile}, {AdoConstants.ColumnIsUpdateData} = @{SqlParameters.JobStateful}, {AdoConstants.ColumnRequestsRecovery} = @{SqlParameters.JobRequestsRecovery}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.JobDataMap}  WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup}");
 
+    /// <summary>
+    /// Every trigger of one job into one state — except the ones awaiting a parent, which belong to
+    /// that parent's settlement rather than to the sibling firing whose completion moves the rest.
+    /// </summary>
+    /// <remarks>
+    /// The excluded state is a literal rather than a parameter: it is a constant of the schema, as the
+    /// fired-trigger state in <see cref="SqlExecutingFiredTriggerExists" /> is, and binding it would add
+    /// a parameter whose value never changes to a statement the two job-wide completions issue.
+    /// </remarks>
     public static readonly string SqlUpdateJobTriggerStates =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup}");
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnTriggerState} <> '{AdoConstants.StateAwaiting}'");
 
     public static readonly string SqlUpdateJobTriggerStatesFromOtherState =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.OldState}");

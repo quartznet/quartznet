@@ -3230,6 +3230,39 @@ public abstract class JobStoreContractTest
             + "calendar includes");
     }
 
+    [TestCase(SchedulerInstruction.SetAllJobTriggersError)]
+    [TestCase(SchedulerInstruction.SetAllJobTriggersComplete)]
+    public async Task AJobWideStateChangeLeavesItsAwaitingTriggerToTheParent(SchedulerInstruction instruction)
+    {
+        IJobDetail shared = JobBuilder.Create<ContractTestJob>().WithIdentity("shared", JobGroupA).StoreDurably().Build();
+        IOperableTrigger sibling = CreateTrigger("sibling", TriggerGroupA, shared.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(shared, sibling);
+
+        IJobDetail parentJob = CreateJob("sweep-parent", JobGroupA);
+        IOperableTrigger parent = CreateTrigger("sweep-parent", TriggerGroupA, parentJob.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(parentJob, parent);
+
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "left-alone", ContinuationCondition.OnSuccess, job: shared.Key);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+        acquired.Select(x => x.Key).Should().BeEquivalentTo([sibling.Key, parent.Key]);
+        (await Store.TriggersFired(acquired)).Should().OnlyContain(x => x.TriggerFiredBundle != null);
+
+        await CompleteParent(acquired.Single(x => x.Key.Equals(sibling.Key)), ExecutionOutcome.NotExecuted, instruction);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Awaiting,
+            "an awaiting trigger belongs to its parent's settlement, not to a sibling's firing");
+
+        await CompleteParent(acquired.Single(x => x.Key.Equals(parent.Key)), ExecutionOutcome.Succeeded);
+
+        (await Store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal);
+    }
+
     [Test]
     public async Task DeletingAParentParksItsContinuationsInErrorExceptOnAnyOutcome()
     {
