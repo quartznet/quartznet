@@ -951,6 +951,86 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
     }
 
     /// <summary>
+    /// A sweep timer created while the store is being disposed is disposed with it.
+    /// </summary>
+    /// <remarks>
+    /// The first write starts the timer after checking that the store is not disposed. A disposal that
+    /// lands between that check and the timer being stored finds no timer to stop, and the timer went on
+    /// sweeping a store nobody could reach any more. The clock here holds the timer's creation until the
+    /// store has been disposed on another thread, which is exactly that interleaving.
+    /// </remarks>
+    [Test]
+    public async Task ASweepTimerCreatedWhileTheStoreIsDisposedIsDisposedWithIt()
+    {
+        await CreateStore(TimeSpan.FromHours(1), maxEntriesPerScheduler: 10);
+
+        ServiceProvider services = container!;
+        DisposingWhileCreatingTimeProvider clock = new(Clock);
+
+        AdoExecutionHistoryStore store = new(
+            services.GetRequiredService<IDbProvider>(),
+            services.GetRequiredService<IDriverDelegate>(),
+            Options.Create(new ExecutionHistoryOptions { Retention = TimeSpan.FromHours(1) }),
+            Options.Create(new QuartzSchedulerOptions { InstanceName = SchedulerName }),
+            clock);
+
+        Task write = Task.Run(async () => await store.AddExecution(Execution(Start, "nightly")));
+
+        clock.Creating.Wait(TimeSpan.FromSeconds(30)).Should().BeTrue("the first write is creating the sweep timer");
+        store.Dispose();
+        clock.Disposed.Set();
+        await write;
+
+        clock.Created.Should().NotBeNull();
+        clock.Created!.IsDisposed.Should().BeTrue(
+            "a timer the disposal could not see yet is still the store's, and it is stopped rather than left "
+            + "sweeping a store that has been disposed");
+    }
+
+    /// <summary>
+    /// A clock whose timer creation waits until the test has disposed the store, and which remembers
+    /// the timer it made.
+    /// </summary>
+    private sealed class DisposingWhileCreatingTimeProvider(TimeProvider inner) : TimeProvider
+    {
+        public ManualResetEventSlim Creating { get; } = new();
+
+        public ManualResetEventSlim Disposed { get; } = new();
+
+        public TrackingTimer? Created { get; private set; }
+
+        public override DateTimeOffset GetUtcNow() => inner.GetUtcNow();
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            Creating.Set();
+            Disposed.Wait(TimeSpan.FromSeconds(30));
+
+            Created = new TrackingTimer(inner.CreateTimer(callback, state, dueTime, period));
+            return Created;
+        }
+    }
+
+    private sealed class TrackingTimer(ITimer inner) : ITimer
+    {
+        public bool IsDisposed { get; private set; }
+
+        public bool Change(TimeSpan dueTime, TimeSpan period) => inner.Change(dueTime, period);
+
+        public void Dispose()
+        {
+            IsDisposed = true;
+            inner.Dispose();
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Dispose();
+            return default;
+        }
+    }
+
+    /// <summary>
     /// A container holding one named scheduler that keeps its history in the database, under a table
     /// prefix of its own.
     /// </summary>

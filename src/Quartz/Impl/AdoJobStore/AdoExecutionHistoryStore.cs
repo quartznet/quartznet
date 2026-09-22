@@ -342,9 +342,16 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     }
 
     /// <remarks>
+    /// <para>
     /// Stops the timer and cancels a pass it started, and waits for nothing: a pass in flight stops at
     /// its next statement and gives the gate back itself, which is why the gate is not disposed here.
     /// <see cref="disposed" /> is set first, so a pass that fails because of any of this sees that it did.
+    /// </para>
+    /// <para>
+    /// The timer is taken with a full fence after <see cref="disposed" /> is written, which pairs with
+    /// <see cref="StartSweeping" /> storing its timer before it looks at <see cref="disposed" /> again: a
+    /// timer being created while this runs is disposed by one of the two.
+    /// </para>
     /// </remarks>
     public void Dispose()
     {
@@ -354,7 +361,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         }
 
         disposed = true;
-        sweepTimer?.Dispose();
+        Interlocked.Exchange(ref sweepTimer, null)?.Dispose();
         stopping.Cancel();
     }
 
@@ -518,6 +525,13 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// away, and a fake clock fires it inside the call — and a pass that has to <see cref="CatchUp" />
     /// needs the timer it is bringing forward.
     /// </para>
+    /// <para>
+    /// A disposal can land between the check at the top and the timer being stored, and it finds no timer
+    /// to stop. So the store is asked again once the timer is in place, and a timer it cannot keep is
+    /// disposed here. The store and the read are ordered against <see cref="Dispose" />'s own pair by full
+    /// fences on both sides, so at least one of the two sees the other; if both do, the timer is disposed
+    /// twice, which a timer allows.
+    /// </para>
     /// </remarks>
     private void StartSweeping()
     {
@@ -532,8 +546,23 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
             Timeout.InfiniteTimeSpan,
             Timeout.InfiniteTimeSpan);
 
-        sweepTimer = timer;
-        timer.Change(TimeSpan.Zero, SweepInterval());
+        Interlocked.Exchange(ref sweepTimer, timer);
+
+        if (disposed)
+        {
+            timer.Dispose();
+            return;
+        }
+
+        try
+        {
+            timer.Change(TimeSpan.Zero, SweepInterval());
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed between the second look and the start: the disposal stopped it, which is the
+            // outcome the second look is for.
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
