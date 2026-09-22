@@ -21,6 +21,8 @@
 
 using System.Data;
 using System.Data.Common;
+
+using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -765,6 +767,12 @@ internal abstract partial class AdoJobStoreBase
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder? conn = null;
+
+            // What the work owes the listeners, taken from the unit of work only once it has committed
+            // and raised only once the lock is released: listener code neither runs inside the store's
+            // transaction and lock nor hears of work that rolled back. An attempt that fails leaves this
+            // null, and its unit of work — notifications and all — is discarded with it.
+            List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? committedNotifications = null;
             try
             {
                 if (lockKind is not null)
@@ -828,6 +836,7 @@ internal abstract partial class AdoJobStoreBase
                     await SignalSchedulingChangeImmediately(sigTime, cancellationToken).ConfigureAwait(false);
                 }
 
+                committedNotifications = conn.TakeNotificationsAfterCommit();
                 return result;
             }
             catch (JobPersistenceException jpe)
@@ -870,6 +879,8 @@ internal abstract partial class AdoJobStoreBase
                 {
                     await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
                 }
+
+                await RaiseNotificationsAfterCommit(committedNotifications, cancellationToken).ConfigureAwait(false);
             }
 
             // Delay before the next attempt
@@ -878,5 +889,29 @@ internal abstract partial class AdoJobStoreBase
 
         Throw.InvalidOperationException("ExecuteInLocalTransactionLock retry loop exited unexpectedly");
         return default;
+    }
+
+    /// <summary>
+    /// Raises the listener notifications a unit of work recorded with
+    /// <see cref="ConnectionAndTransactionHolder.NotifyAfterCommit" />, in the order it recorded them.
+    /// </summary>
+    /// <remarks>
+    /// Called by each wrapper that runs store work once that work is committed and its lock released —
+    /// or, where the transaction is the application's, once the store's own part is done, which is as
+    /// late as the store can see.
+    /// </remarks>
+    private protected async ValueTask RaiseNotificationsAfterCommit(
+        List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? notifications,
+        CancellationToken cancellationToken)
+    {
+        if (notifications is null)
+        {
+            return;
+        }
+
+        foreach (Func<ISchedulerSignaler, CancellationToken, ValueTask> notify in notifications)
+        {
+            await notify(signaler, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

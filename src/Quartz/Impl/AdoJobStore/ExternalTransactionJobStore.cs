@@ -154,6 +154,12 @@ internal class ExternalTransactionJobStore : AdoJobStoreBase
         bool transOwner = false;
         ConnectionAndTransactionHolder? conn = null;
         Guid requestorId = Guid.NewGuid();
+
+        // Listener notifications the work recorded, raised once it has returned and the lock is
+        // released. Whether that work commits is the transaction owner's to decide, so this is as late
+        // as this store can see — and still outside the lock, which is what keeps a listener that calls
+        // back into the scheduler from queueing behind the operation that told it.
+        List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? notifications = null;
         try
         {
             if (lockKind is not null)
@@ -190,6 +196,7 @@ internal class ExternalTransactionJobStore : AdoJobStoreBase
                 SignalSchedulingChangeOnApplicationCommit(conn, sigTime, cancellationToken);
             }
 
+            notifications = conn.TakeNotificationsAfterCommit();
             return result;
         }
         finally
@@ -202,6 +209,8 @@ internal class ExternalTransactionJobStore : AdoJobStoreBase
             {
                 await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
             }
+
+            await RaiseNotificationsAfterCommit(notifications, cancellationToken).ConfigureAwait(false);
         }
     }
 }
