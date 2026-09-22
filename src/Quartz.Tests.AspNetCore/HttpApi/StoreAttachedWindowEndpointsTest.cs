@@ -152,6 +152,34 @@ public sealed class StoreAttachedWindowEndpointsTest
         details.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// A window whose store keeps no history here is refused on the history routes, as the dashboard
+    /// refuses it, rather than answered with this process's own history.
+    /// </summary>
+    /// <remarks>
+    /// This process's history is what its own schedulers ran. Answering a window's route with it would
+    /// be an empty page that reads as a cluster which has run nothing.
+    /// </remarks>
+    [Test]
+    public async Task AWindowsHistoryIsRefusedWhereNoneIsKept()
+    {
+        await using ServiceProvider node = await Node();
+        await using AttachedStore store = await AttachedApplication();
+        using HttpClient client = factory!.CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync($"schedulers/{Window}/history/executions");
+        string body = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, body);
+
+        using JsonDocument problem = JsonDocument.Parse(body);
+        problem.RootElement.GetProperty(HttpApiConstants.ProblemDetailsExceptionType).GetString()
+            .Should().Be(nameof(SchedulerException));
+        problem.RootElement.GetProperty("detail").GetString().Should()
+            .StartWith($"The store attached as 'prod', which '{Window}' is a window onto, keeps no execution history",
+                "the refusal is the dashboard's, word for word, because it is decided by the same rule");
+    }
+
     [Test]
     public async Task ASchedulerOfThisProcessIsStillStarted()
     {

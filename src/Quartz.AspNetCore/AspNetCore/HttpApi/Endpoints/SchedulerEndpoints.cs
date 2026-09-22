@@ -371,11 +371,12 @@ internal static class SchedulerEndpoints
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The history is the process's rather than the scheduler's: a job store holds what is scheduled,
-    /// and what happened is kept by the container's <see cref="IExecutionHistoryStore" /> — in memory and
-    /// bounded unless the application registered a store of its own. The route names the scheduler
-    /// because that is what the rows are keyed by, and because it is what per-scheduler authorization
-    /// reads.
+    /// A job store holds what is scheduled; what happened is kept by an <see cref="IExecutionHistoryStore" />,
+    /// and which one is <see cref="HistoryFor" />'s decision: the scheduler's own when it has one —
+    /// <c>UseExecutionHistory()</c> keeps it in its database, keyed by its name — and the container's
+    /// shared store, in memory and bounded unless the application registered its own, otherwise. The
+    /// route names the scheduler because that is what the rows are keyed by, and because it is what
+    /// per-scheduler authorization reads.
     /// </para>
     /// <para>
     /// <c>schedulerInstanceId</c> narrows to one node of a cluster; <c>jobContains</c> and
@@ -389,6 +390,7 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
         string schedulerName,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
@@ -421,7 +423,8 @@ internal static class SchedulerEndpoints
                 query = query with { Take = takeItems.Value };
             }
 
-            PagedResult<ExecutionHistoryEntry> page = await historyStore.QueryExecutions(query, cancellationToken).ConfigureAwait(false);
+            PagedResult<ExecutionHistoryEntry> page = await HistoryFor(httpContext, historyStore, scheduler.SchedulerName)
+                .QueryExecutions(query, cancellationToken).ConfigureAwait(false);
 
             ExecutionHistoryEntryDto[] items = new ExecutionHistoryEntryDto[page.Items.Count];
             for (int i = 0; i < page.Items.Count; i++)
@@ -444,6 +447,7 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
         string schedulerName,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
@@ -469,7 +473,8 @@ internal static class SchedulerEndpoints
                 query = query with { Take = takeItems.Value };
             }
 
-            PagedResult<MisfireHistoryEntry> page = await historyStore.QueryMisfires(query, cancellationToken).ConfigureAwait(false);
+            PagedResult<MisfireHistoryEntry> page = await HistoryFor(httpContext, historyStore, scheduler.SchedulerName)
+                .QueryMisfires(query, cancellationToken).ConfigureAwait(false);
 
             MisfireHistoryEntryDto[] items = new MisfireHistoryEntryDto[page.Items.Count];
             for (int i = 0; i < page.Items.Count; i++)
@@ -494,6 +499,7 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
         string schedulerName,
         DateTimeOffset? since = null,
         CancellationToken cancellationToken = default)
@@ -505,9 +511,35 @@ internal static class SchedulerEndpoints
 
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            int count = await historyStore.CountMisfires(scheduler.SchedulerName, since.Value, cancellationToken).ConfigureAwait(false);
+            int count = await HistoryFor(httpContext, historyStore, scheduler.SchedulerName)
+                .CountMisfires(scheduler.SchedulerName, since.Value, cancellationToken).ConfigureAwait(false);
             return new MisfireCountResponse(count);
         });
+    }
+
+    /// <summary>
+    /// The store that holds one scheduler's history, decided as the dashboard decides it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The rule is <see cref="ExecutionHistoryLookup" />'s, shared with the dashboard's client so that a
+    /// scheduler has one history whichever of them is asked: a window reads the database it is a window
+    /// onto, a scheduler with a store of its own reads that one, and everything else reads
+    /// <paramref name="shared" />. Asked with the scheduler's own spelling of its name, which is the key
+    /// its store is registered under.
+    /// </para>
+    /// <para>
+    /// A window whose store keeps no history here is refused rather than answered with this process's
+    /// history, with the dashboard's own words — as a <see cref="SchedulerException" />, which is the
+    /// <c>400</c> the API answers a scheduler's refusals with.
+    /// </para>
+    /// </remarks>
+    private static IExecutionHistoryStore HistoryFor(HttpContext httpContext, IExecutionHistoryStore shared, string schedulerName)
+    {
+        IServiceProvider services = httpContext.RequestServices;
+
+        return ExecutionHistoryLookup.Find(services, services.GetService<AttachedStores>(), shared, schedulerName, out string? refusal)
+            ?? throw new SchedulerException(refusal!);
     }
 
     [ProducesResponseType(typeof(ExecutionLimitsResponse), StatusCodes.Status200OK)]
