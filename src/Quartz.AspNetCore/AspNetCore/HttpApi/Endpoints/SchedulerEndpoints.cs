@@ -5,9 +5,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.AspNetCore.HttpApi.Util;
+using Quartz.Configuration;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
 
@@ -156,10 +158,16 @@ internal static class SchedulerEndpoints
     /// <see cref="TimeSpan" /> like every other duration on the wire. A request that names none starts
     /// the scheduler immediately.
     /// </summary>
+    /// <remarks>
+    /// A store-attached window is refused — see <see cref="EnsureNotAWindow" /> — before a delayed start
+    /// is queued, since a start refused on the task that waits out the delay would already have answered
+    /// <c>200</c>.
+    /// </remarks>
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Start(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
         TimeSpan? delay,
         CancellationToken cancellationToken = default)
@@ -168,6 +176,8 @@ internal static class SchedulerEndpoints
         {
             throw new BadHttpRequestException("delay must not be negative");
         }
+
+        EnsureNotAWindow(httpContext, schedulerName, "start a scheduler");
 
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler =>
         {
@@ -180,25 +190,71 @@ internal static class SchedulerEndpoints
         });
     }
 
+    /// <remarks>
+    /// A store-attached window is refused: see <see cref="EnsureNotAWindow" />.
+    /// </remarks>
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Standby(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
+        EnsureNotAWindow(httpContext, schedulerName, "stand a scheduler down");
+
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.Standby(cancellationToken).AsTask());
     }
 
+    /// <remarks>
+    /// A store-attached window is refused: see <see cref="EnsureNotAWindow" />.
+    /// </remarks>
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Shutdown(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
         bool waitForJobsToComplete = false,
         CancellationToken cancellationToken = default)
     {
+        EnsureNotAWindow(httpContext, schedulerName, "shut a scheduler down");
+
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.Shutdown(waitForJobsToComplete, cancellationToken).AsTask());
+    }
+
+    /// <summary>
+    /// Refuses a verb that belongs to the process running a scheduler, when this process only has a
+    /// window onto it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A store-attached window is a scheduler this process built over a database other processes run,
+    /// bound in the repository like any other — so the lookup every route makes reaches it, and nothing
+    /// about the object says this process does not run it. Starting, standing down and shutting down
+    /// would all act on that object and reach none of the nodes the caller meant: a start is refused by
+    /// the window's store as well, but a standby would report a cluster stood down that is running, and a
+    /// shutdown would unbind the window for good, since its name has already been decided about and is
+    /// never rediscovered. The dashboard's client refuses the same three for the same reason, and this
+    /// decides "window" the way it does: <see cref="SchedulerWindowRegistry" /> is the one place that
+    /// fact is recorded.
+    /// </para>
+    /// <para>
+    /// A <see cref="SchedulerException" />, so the answer is the <c>400</c> a scheduler's own refusal is
+    /// and <c>HttpScheduler</c> rethrows it as the exception an in-process caller would get. The registry
+    /// is asked for rather than injected, so a container without one — nothing attached a store — is a
+    /// scheduler of this process as it always was.
+    /// </para>
+    /// </remarks>
+    private static void EnsureNotAWindow(HttpContext httpContext, string schedulerName, string what)
+    {
+        if (httpContext.RequestServices.GetService<SchedulerWindowRegistry>()?.TargetOf(schedulerName) is { } target)
+        {
+            throw new SchedulerException(
+                $"Cannot {what} through a window: '{schedulerName}' is read through the store attached as '{target}', "
+                + "not run by this process, and nothing in a shared database carries an instruction to a node. Reach "
+                + "the node itself — its own HTTP API, or an agent — for anything that belongs to one process.");
+        }
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]

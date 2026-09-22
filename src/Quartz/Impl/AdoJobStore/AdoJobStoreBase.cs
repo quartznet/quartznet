@@ -458,7 +458,8 @@ internal abstract partial class AdoJobStoreBase : IJobStore
 
     /// <summary>
     /// Whether this store watches a cluster it is not a member of, which is what a dashboard's
-    /// store-attached window is. See <c>AdoJobStoreOptions.ClusterObserver</c>.
+    /// store-attached window is. Such a store refuses <see cref="SchedulerStarted" />. See
+    /// <c>AdoJobStoreOptions.ClusterObserver</c>.
     /// </summary>
     internal bool ClusterObserver { get; }
 
@@ -1126,6 +1127,23 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     public async ValueTask SchedulerStarted(
         CancellationToken cancellationToken = default)
     {
+        // First, before anything else: a window is a scheduler this process built over a database other
+        // processes run, and everything below is a node's start-up. Recovery would put the cluster's
+        // ACQUIRED and BLOCKED triggers back to WAITING and delete this scheduler name's fired-trigger
+        // rows — a live node's in-flight firing among them, which can then run twice — and a clustered
+        // recipe would check in as a member and could convict the nodes it is watching. The window is
+        // in the repository like any other scheduler, so the HTTP API, an application's own code or
+        // anything else holding it can reach Start(); the store is the one place every path passes.
+        // Nothing has been created yet, so QuartzScheduler.Start leaves the scheduler Created.
+        if (ClusterObserver)
+        {
+            throw new Core.SchedulerStartRefusedException(
+                $"The scheduler '{InstanceName}' is a store-attached window onto a database other processes run, so "
+                + "it cannot be started here: starting it would run that cluster's start-up in this process, "
+                + "recovering in-flight firings its nodes are running. It is started by the processes that run it; "
+                + "this one only reads and writes its schedule.");
+        }
+
         // Recovery below competes for the same TRIGGER_ACCESS lock that a scheduling call made earlier
         // in this scope is still holding on the caller uncommitted transaction, and the caller cannot
         // commit while awaiting Start(). That deadlock has no diagnostic of its own, so refuse the call

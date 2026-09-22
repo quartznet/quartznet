@@ -540,9 +540,9 @@ because it is not talking to a node.
 ### What a window is
 
 A *window* is a scheduler this process builds over the same store, with
-[`ZeroSizeThreadPool`](../how-tos/external-leader.md) and never started. That topology is already a
-documented pattern — an admin process that writes a schedule for other processes to run — and this is
-that pattern with discovery and presentation on top.
+[`ZeroSizeThreadPool`](../how-tos/external-leader.md) and never started, because its store refuses to
+be. That topology is already a documented pattern — an admin process that writes a schedule for other
+processes to run — and this is that pattern with discovery and presentation on top.
 
 Discovery is a query for the distinct `SCHED_NAME` values in three tables: `QRTZ_SCHEDULER_STATE`,
 `QRTZ_TRIGGERS` and `QRTZ_JOB_DETAILS`. No one of them is enough — a scheduler that is not clustered
@@ -611,7 +611,10 @@ Everything on the left is a write to the shared tables, and whichever node picks
 it — that is what clustering already is, and a window is doing nothing a node would not. Everything on
 the right belongs to **one process**: nothing in a database carries an instruction to a node, so the
 pages do not offer it, and the client refuses it if something calls it anyway. The Overview says so in a
-sentence on the page. Reaching one node for those needs an
+sentence on the page. The [HTTP API](http-api.md) of a process holding a window refuses its `start`,
+`standby` and `shutdown` routes the same way, with a `400`, and the window's store refuses a start from
+anywhere else: starting it would run the cluster's start-up here, and that start-up's recovery deletes
+the fired-trigger rows of firings the nodes are running. Reaching one node for those needs an
 [HTTP target](#fronting-a-scheduler-in-another-process-over-http) or the agent target of
 [#3773](https://github.com/quartznet/quartznet/issues/3773).
 

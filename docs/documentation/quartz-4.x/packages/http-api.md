@@ -137,9 +137,9 @@ one of them.
 | `GET` | `{ApiPath}/schedulers` | Every scheduler the container knows about, built or merely registered — [see below](#the-scheduler-listing-carries-registrations). The one route that names no scheduler, so it filters itself |
 | `GET` | `{ApiPath}/schedulers/{name}` | The scheduler and its `SchedulerMetadata` |
 | `GET` | `{ApiPath}/schedulers/{name}/context` | `{ context }` — [every value as text](#the-scheduler-context-travels-as-text) |
-| `POST` | `{ApiPath}/schedulers/{name}/start` | empty. `?delay=00:00:30` starts it delayed; a negative delay is a `400` |
-| `POST` | `{ApiPath}/schedulers/{name}/standby` | empty |
-| `POST` | `{ApiPath}/schedulers/{name}/shutdown` | empty. `?waitForJobsToComplete=true` waits for running jobs |
+| `POST` | `{ApiPath}/schedulers/{name}/start` | empty. `?delay=00:00:30` starts it delayed; a negative delay is a `400`, and so is a [store-attached window](dashboard.md#what-a-window-can-and-cannot-do) |
+| `POST` | `{ApiPath}/schedulers/{name}/standby` | empty. A store-attached window is a `400` |
+| `POST` | `{ApiPath}/schedulers/{name}/shutdown` | empty. `?waitForJobsToComplete=true` waits for running jobs; a store-attached window is a `400` |
 | `POST` | `{ApiPath}/schedulers/{name}/clear` | empty — deletes every job, trigger and calendar |
 | `POST` | `{ApiPath}/schedulers/{name}/pause-all` | empty |
 | `POST` | `{ApiPath}/schedulers/{name}/resume-all` | empty |
