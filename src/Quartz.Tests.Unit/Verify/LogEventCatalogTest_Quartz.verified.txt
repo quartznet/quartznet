@@ -366,6 +366,8 @@
     "The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but no window could be opened onto it: {Problem}"
 4028  Warning  ConfigurationLog.AttachedStoreDiscoveryFailed
     "The store attached as '{Target}' could not be read, so the schedulers in it are not shown; the next round will try again"
+4029  Warning  ConfigurationLog.AttachedStoreWindowFailed
+    "The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but its window could not be built this round; the next round will try again"
 5000  Information  XmlSchedulingLog.ParsingFile
     "Parsing XML file: {FileName} with systemId: {SystemId}"
 5001  Information  XmlSchedulingLog.ParsingStream

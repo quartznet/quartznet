@@ -572,8 +572,10 @@ A window is shown as `prod/reporting`: the name the store was attached under, an
 `SCHED_NAME`. A scheduler of *this* process keeps its bare name, so nothing that existed before reads
 differently. The target is a label rather than half of a key — everything that takes a scheduler name
 still takes the bare one — and a name that collides with a scheduler this process already has is
-**refused, naming both**, logged as `4027`, and the rest of the database is shown as usual. Two stores
-attached under one target name are refused too.
+**refused, naming both**, logged as `4027`, and the rest of the database is shown as usual. That refusal
+is for good; a window that fails to build for any other reason is logged as `4029` and tried again on the
+next round, and it does not stop the round opening the others. Two stores attached under one target name
+are refused too.
 
 ### Status comes from the cluster, never from the window
 

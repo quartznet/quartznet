@@ -194,6 +194,80 @@ public sealed class AttachedStoreTest
             + "'created but never started' for a cluster that is running perfectly well elsewhere");
     }
 
+    /// <summary>
+    /// A name this process already uses is refused for good, naming both, and the rest of the database
+    /// is still shown.
+    /// </summary>
+    [Test]
+    public async Task ANameThisProcessAlreadyUsesIsRefusedForGood()
+    {
+        await using ServiceProvider alpha = await Node("alpha", schedule: true);
+        await using ServiceProvider beta = await Node("beta", schedule: false);
+
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz("alpha", q => q.UseInMemoryStore());
+
+        await using ServiceProvider application = services.BuildServiceProvider();
+        await using AttachedStore store = new("prod", Recipe, application);
+
+        (await store.Synchronize()).Should().Equal(["beta"]);
+
+        store.Refusals.Should().ContainKey("alpha")
+            .WhoseValue.Should().Contain("prod/alpha").And.Contain("registered with the container");
+
+        (await store.Synchronize()).Should().BeEmpty(
+            "a taken name stays taken, so it is decided once rather than tried and logged every round");
+    }
+
+    /// <summary>
+    /// A window that fails to build for any reason but a taken name is tried again next round, and does
+    /// not cost the round the names after it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ISchedulerRuntime.Add" /> reports a taken name and a recipe that would not build as the
+    /// same <see cref="SchedulerConfigException" />, so a validation failure used to be recorded as a
+    /// permanent "two schedulers under one name" refusal — and anything that was not a
+    /// <see cref="SchedulerConfigException" /> escaped the round and skipped every name after it. Both
+    /// failures are raised here by the runtime the store builds through, which lets the case say exactly
+    /// which name fails and when.
+    /// </remarks>
+    [TestCase(typeof(SchedulerConfigException))]
+    [TestCase(typeof(InvalidOperationException))]
+    public async Task AWindowThatFailsToOpenIsTriedAgainAndTheRoundGoesOn(Type failure)
+    {
+        await using ServiceProvider alpha = await Node("alpha", schedule: true);
+        await using ServiceProvider beta = await Node("beta", schedule: false);
+
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz("core", q => q.UseInMemoryStore());
+        services.AddSingleton<ISchedulerRuntime>(provider =>
+        {
+            ISchedulerRuntime runtime = A.Fake<ISchedulerRuntime>(options => options.Wrapping(
+                provider.GetRequiredService<SchedulerRuntime>()));
+
+            A.CallTo(() => runtime.Add("alpha", A<Action<IQuartzBuilder>>._, A<SchedulerAddOptions>._, A<CancellationToken>._))
+                .Throws(() => (Exception) Activator.CreateInstance(failure, "alpha's options did not validate this time")!)
+                .Once();
+
+            return runtime;
+        });
+
+        await using ServiceProvider application = services.BuildServiceProvider();
+        await using AttachedStore store = new("prod", Recipe, application);
+
+        (await store.Synchronize()).Should().Equal(["beta"],
+            "one name that could not be opened this round does not cost the operator the rest of the database");
+
+        store.Refusals.Should().BeEmpty(
+            "nothing about the failure says the name is taken, and recording it as a collision would hide "
+            + "the scheduler for the life of the process");
+
+        (await store.Synchronize()).Should().Equal(["alpha"],
+            "a window that failed to build is tried again, and opens once whatever stopped it has passed");
+    }
+
     [Test]
     public void ADelegateThatCannotDiscoverSchedulerNamesSaysSo()
     {
