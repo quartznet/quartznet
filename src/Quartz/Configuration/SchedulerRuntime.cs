@@ -578,33 +578,52 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
     /// </remarks>
     private void ThrowIfTheNameIsNotAvailable(string schedulerName)
     {
+        if (NameCollision(schedulerName) is { } collision)
+        {
+            Throw.SchedulerConfigException(collision);
+        }
+
+        ThrowIfTheHostIsStopping(schedulerName);
+    }
+
+    /// <summary>
+    /// Why <paramref name="schedulerName" /> cannot be added because something in this container already
+    /// holds it, or <see langword="null" /> when nothing does.
+    /// </summary>
+    /// <remarks>
+    /// The name rules of <see cref="ThrowIfTheNameIsNotAvailable" /> without the throw, for a caller that
+    /// has to tell a taken name from every other way <see cref="Add" /> can fail: both arrive as a
+    /// <see cref="SchedulerConfigException" />, and only a taken name stays taken. A store-attached window
+    /// is that caller — a name its database shares with a scheduler of this process is refused for good,
+    /// while a window that merely failed to build is tried again. Asked outside the name's gate, so the
+    /// answer can be overtaken by an <see cref="Add" /> in flight; <see cref="Add" /> asks again under it.
+    /// </remarks>
+    internal string? NameCollision(string schedulerName)
+    {
         if (ContainerRegistration(schedulerName) is { } registered)
         {
-            Throw.SchedulerConfigException(
-                $"Scheduler '{registered}' is registered with the container, and a container registration "
+            return $"Scheduler '{registered}' is registered with the container, and a container registration "
                 + "cannot be added again at runtime: its parts are registered under that name already, and a "
                 + "second set of them would be two schedulers wearing one name. Build it with "
                 + $"GetRequiredKeyedService<ISchedulerFactory>(\"{registered}\").GetScheduler(), or add this one "
-                + "under a name of its own.");
+                + "under a name of its own.";
         }
 
         if (units.ContainsKey(schedulerName))
         {
-            Throw.SchedulerConfigException(
-                $"A scheduler named '{schedulerName}' has already been added at runtime. Remove it first with "
+            return $"A scheduler named '{schedulerName}' has already been added at runtime. Remove it first with "
                 + $"ISchedulerRuntime.Remove(\"{schedulerName}\") and add it again: a scheduler's thread pool and "
-                + "job store cannot be replaced underneath it, which is why there is no way to add over one.");
+                + "job store cannot be replaced underneath it, which is why there is no way to add over one.";
         }
 
         if (repository.Lookup(schedulerName) is not null)
         {
-            Throw.SchedulerConfigException(
-                $"A scheduler named '{schedulerName}' is already bound in this container's repository, so adding "
+            return $"A scheduler named '{schedulerName}' is already bound in this container's repository, so adding "
                 + "one would be a second scheduler under one name. Shut down the one that is there first — a "
-                + "scheduler bound by hand, or one AddQuartzHttpClient bound, is not this runtime's to remove.");
+                + "scheduler bound by hand, or one AddQuartzHttpClient bound, is not this runtime's to remove.";
         }
 
-        ThrowIfTheHostIsStopping(schedulerName);
+        return null;
     }
 
     /// <summary>

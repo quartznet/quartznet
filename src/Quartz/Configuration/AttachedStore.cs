@@ -96,12 +96,13 @@ internal sealed class AttachedStore : IAsyncDisposable
     private readonly Dictionary<string, byte> windows = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// The scheduler names in this database that could not become windows, and why.
+    /// The scheduler names in this database that will never become windows here, and why.
     /// </summary>
     /// <remarks>
-    /// A name that collides with a scheduler of this process is the case this exists for. It is logged
-    /// as well — a scheduler an operator cannot find must not be silently absent — and kept here so the
-    /// refusal can be read rather than only tailed.
+    /// Only a name that collides with a scheduler of this process is refused for good; any other failure
+    /// to open a window is tried again next round and is not here. Nothing in the product reads this —
+    /// what an operator reads is the log line, event 4027, which carries the same text. It is kept as data
+    /// for the tests that assert a refusal, and for whoever is looking at this object in a debugger.
     /// </remarks>
     private readonly Dictionary<string, string> refusals = new(StringComparer.OrdinalIgnoreCase);
 
@@ -191,10 +192,17 @@ internal sealed class AttachedStore : IAsyncDisposable
     /// does not have yet.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Safe to call again: a name that already has a window is skipped, so the timer costs one query
     /// and nothing else once a database has settled. Nothing is ever removed — a scheduler whose rows
     /// were deleted is a window with an empty schedule, which is a truthful page, and removing it under
     /// an operator who is reading it is not.
+    /// </para>
+    /// <para>
+    /// A name this process already has a scheduler under is refused for good, naming both. Any other
+    /// failure to build a window is logged for that name, left for the next round to try again, and
+    /// does not stop this round opening the names after it.
+    /// </para>
     /// </remarks>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The names windows were built for by this call.</returns>
@@ -218,24 +226,34 @@ internal sealed class AttachedStore : IAsyncDisposable
                     continue;
                 }
 
+                // Asked of the runtime before the window is built rather than read off the failure
+                // afterwards: Add reports a taken name and a recipe that would not build as the same
+                // SchedulerConfigException, and only a taken name stays taken. A name that is taken
+                // between this question and Add is a failure like any other this round, and is refused
+                // here on the next.
+                if ((runtime as SchedulerRuntime)?.NameCollision(schedulerName) is { } collision)
+                {
+                    Refuse(schedulerName, collision);
+                    continue;
+                }
+
                 try
                 {
                     await runtime.Add(schedulerName, Recipe, SchedulerAddOptions.WithoutStarting, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (SchedulerConfigException collision)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
-                    // One name that cannot be a window does not cost the operator the rest of the
-                    // database. Recorded as decided, so the next round does not try again and log again,
-                    // and the reason is kept so the refusal can be read rather than only tailed.
-                    string problem =
-                        $"'{Target}/{schedulerName}' cannot be shown: this process already has a scheduler named "
-                        + $"'{schedulerName}', and two schedulers under one name is a name that resolves to "
-                        + $"whichever was bound first. {collision.Message}";
-
-                    windows[schedulerName] = 0;
-                    refusals[schedulerName] = problem;
-                    logger.AttachedStoreWindowRefused(Target, schedulerName, problem, collision);
+                    throw;
+                }
+                catch (Exception failure)
+                {
+                    // Not decided: options that did not validate, a database that refused this name's
+                    // store, anything else the build threw. Logged for this name and left out of the
+                    // names decided about, so the next round tries again; and the round goes on, because
+                    // one name that cannot be a window this time does not cost the operator the rest of
+                    // the database.
+                    logger.AttachedStoreWindowFailed(Target, schedulerName, failure);
                     continue;
                 }
 
@@ -251,6 +269,27 @@ internal sealed class AttachedStore : IAsyncDisposable
         {
             gate.Release();
         }
+    }
+
+    /// <summary>
+    /// Records that <paramref name="schedulerName" /> will never be a window here, because this process
+    /// already has a scheduler under it, and says so.
+    /// </summary>
+    /// <remarks>
+    /// Recorded as decided, so the next round neither tries again nor logs again: the name stays taken
+    /// for as long as the scheduler holding it does, which is the life of the process for a container
+    /// registration.
+    /// </remarks>
+    private void Refuse(string schedulerName, string collision)
+    {
+        string problem =
+            $"'{Target}/{schedulerName}' cannot be shown: this process already has a scheduler named "
+            + $"'{schedulerName}', and two schedulers under one name is a name that resolves to "
+            + $"whichever was bound first. {collision}";
+
+        windows[schedulerName] = 0;
+        refusals[schedulerName] = problem;
+        logger.AttachedStoreWindowRefused(Target, schedulerName, problem);
     }
 
     /// <summary>

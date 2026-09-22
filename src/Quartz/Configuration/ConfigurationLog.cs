@@ -136,8 +136,11 @@ internal static partial class ConfigurationLog
     public static partial void AttachedStoreWindowOpened(this ILogger logger, string target, string schedulerName);
 
     [LoggerMessage(EventId = 4027, Level = LogLevel.Warning, Message = "The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but no window could be opened onto it: {Problem}")]
-    public static partial void AttachedStoreWindowRefused(this ILogger logger, string target, string schedulerName, string problem, Exception exception);
+    public static partial void AttachedStoreWindowRefused(this ILogger logger, string target, string schedulerName, string problem);
 
     [LoggerMessage(EventId = 4028, Level = LogLevel.Warning, Message = "The store attached as '{Target}' could not be read, so the schedulers in it are not shown; the next round will try again")]
     public static partial void AttachedStoreDiscoveryFailed(this ILogger logger, string target, Exception exception);
+
+    [LoggerMessage(EventId = 4029, Level = LogLevel.Warning, Message = "The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but its window could not be built this round; the next round will try again")]
+    public static partial void AttachedStoreWindowFailed(this ILogger logger, string target, string schedulerName, Exception exception);
 }

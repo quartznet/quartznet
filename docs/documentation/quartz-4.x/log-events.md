@@ -239,6 +239,7 @@ matching on its text is not.
 | 4026 | Information | `Quartz` | `"A window onto scheduler '{SchedulerName}' was opened over the store attached as '{Target}'"` |
 | 4027 | Warning | `Quartz` | `"The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but no window could be opened onto it: {Problem}"` |
 | 4028 | Warning | `Quartz` | `"The store attached as '{Target}' could not be read, so the schedulers in it are not shown; the next round will try again"` |
+| 4029 | Warning | `Quartz` | `"The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but its window could not be built this round; the next round will try again"` |
 | 5000 | Information | `Quartz` | `"Parsing XML file: {FileName} with systemId: {SystemId}"` |
 | 5001 | Information | `Quartz` | `"Parsing XML from stream with systemId: {SystemId}"` |
 | 5002 | Debug | `Quartz` | `"Found {JobGroupCount} delete job group commands."` |
