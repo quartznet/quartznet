@@ -51,8 +51,20 @@ public class CronLiteralAnalyzerTest
         ("CronTriggerImpl ctor", "_ = new Quartz.Impl.Triggers.CronTriggerImpl(\"n\", \"g\", {0});"),
     ];
 
+    /// <summary>
+    /// The entry points whose expression parameter is <c>string?</c>: a null there is an answer of
+    /// <see langword="false" />, which is the method's contract rather than a mistake.
+    /// </summary>
+    private static readonly string[] entryPointsAcceptingNull = ["CronExpression.TryParse", "CronExpression.TryParseWithHash"];
+
     public static IEnumerable<TestCaseData> EntryPoints() =>
         entryPoints.Select(x => new TestCaseData(x.Template).SetArgDisplayNames(x.Name));
+
+    public static IEnumerable<TestCaseData> EntryPointsRefusingNull() =>
+        entryPoints.Where(x => !entryPointsAcceptingNull.Contains(x.Name)).Select(x => new TestCaseData(x.Template).SetArgDisplayNames(x.Name));
+
+    public static IEnumerable<TestCaseData> EntryPointsAcceptingNull() =>
+        entryPoints.Where(x => entryPointsAcceptingNull.Contains(x.Name)).Select(x => new TestCaseData(x.Template).SetArgDisplayNames(x.Name));
 
     [TestCaseSource(nameof(EntryPoints))]
     public async Task ValidExpressionIsNotReported(string template)
@@ -82,6 +94,60 @@ public class CronLiteralAnalyzerTest
         IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CronLiteralAnalyzer>(snippet);
 
         diagnostics.Should().BeEmpty("the compiler does not know what this string is, so neither does the analyzer");
+    }
+
+    /// <summary>
+    /// A null constant is a missing expression wherever the parameter says it may not be null: every
+    /// one of those entry points throws for it the moment it runs.
+    /// </summary>
+    /// <remarks>
+    /// Cast, because several of these methods have an overload taking a <c>CronExpression</c> that a
+    /// bare <c>null</c> would be ambiguous with.
+    /// </remarks>
+    [TestCaseSource(nameof(EntryPointsRefusingNull))]
+    public async Task NullExpressionIsReportedAsMissing(string template)
+    {
+        IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CronLiteralAnalyzer>(SnippetFor(template, "(string) null!"));
+
+        Diagnostic diagnostic = diagnostics.Should().ContainSingle("the compiler knows this argument is null, and the call throws for it").Subject;
+        diagnostic.Id.Should().Be("QZ0001");
+        diagnostic.GetMessage().Should().Be("The cron expression is missing: the argument is null");
+        diagnostic.SpanText().Should().Be("(string) null!");
+    }
+
+    [TestCaseSource(nameof(EntryPointsAcceptingNull))]
+    public async Task NullExpressionIsNotReportedWhereTheParameterAcceptsNull(string template)
+    {
+        IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CronLiteralAnalyzer>(SnippetFor(template, "(string) null!"));
+
+        diagnostics.Should().BeEmpty("a Try method takes a null and answers false, which is its contract rather than a mistake");
+    }
+
+    [TestCaseSource(nameof(EntryPoints))]
+    public async Task EmptyExpressionIsReportedAsMissing(string template)
+    {
+        IReadOnlyList<Diagnostic> diagnostics = await AnalyzerRunner.Run<CronLiteralAnalyzer>(SnippetFor(template, "\"\""));
+
+        diagnostics.Should().ContainSingle("an empty string never parses, wherever it is passed").Which.GetMessage().Should()
+            .Be("The cron expression is missing: the argument is an empty string", "a parse error about zero fields would describe the symptom rather than the mistake");
+    }
+
+    /// <summary>
+    /// The case the generator used to turn into <c>WithCronSchedule("")</c>, which throws while the
+    /// host starts.
+    /// </summary>
+    [Test]
+    public async Task MissingExpressionOnTheAttributeIsReported()
+    {
+        IReadOnlyList<Diagnostic> nullExpression = await AnalyzerRunner.Run<CronLiteralAnalyzer>(JobSnippet("null!"));
+
+        nullExpression.Should().ContainSingle("the attribute's parameter is not nullable, and a schedule with no expression is no schedule")
+            .Which.GetMessage().Should().Be("The cron expression is missing: the argument is null");
+
+        IReadOnlyList<Diagnostic> blank = await AnalyzerRunner.Run<CronLiteralAnalyzer>(JobSnippet("\"   \""));
+
+        blank.Should().ContainSingle("the parser trims the expression, so whitespace is as missing as nothing")
+            .Which.GetMessage().Should().Be("The cron expression is missing: the argument is only whitespace");
     }
 
     [Test]

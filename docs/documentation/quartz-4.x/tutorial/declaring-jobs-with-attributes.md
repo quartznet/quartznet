@@ -186,7 +186,8 @@ public sealed class CleanupJob : IJob { /* … */ }
 ```
 
 It is reported once, on the attribute — the generated file carries the same literal, and generated code
-is not analysed. `H` is accepted here, because the schedule is built with `WithCronSchedule`, which
+is not analysed. An expression that is missing altogether, `[CronTrigger(null!)]` or `[CronTrigger("")]`,
+is reported the same way, and the generator writes no schedule for it. `H` is accepted here, because the schedule is built with `WithCronSchedule`, which
 resolves `H` against the trigger's key. [Compile-Time Checks](compile-time-checks.md) is the rest of
 what the analyzer reads.
 

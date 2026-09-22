@@ -238,9 +238,15 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
 
             index++;
 
-            string expression = attribute.ConstructorArguments.Length > 0
-                ? attribute.ConstructorArguments[0].Value as string ?? ""
-                : "";
+            if (attribute.ConstructorArguments.Length == 0
+                || attribute.ConstructorArguments[0].Value is not string expression
+                || string.IsNullOrWhiteSpace(expression))
+            {
+                // QZ0001 reports a missing expression where it was written, and WithCronSchedule("")
+                // would only throw the same thing while the host starts. The count above has already
+                // moved on, so the schedules after this one keep the names their position gives them.
+                continue;
+            }
 
             // The first schedule a job declares is named after the job, because that is what a single
             // trigger would have been called by hand; the rest count up from there.

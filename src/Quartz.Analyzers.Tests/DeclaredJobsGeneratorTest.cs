@@ -705,6 +705,70 @@ public class DeclaredJobsGeneratorTest
     }
 
     /// <summary>
+    /// A schedule with no expression is QZ0001's to report, and the generator writes nothing for it:
+    /// <c>WithCronSchedule("")</c> would only throw the same thing while the host starts.
+    /// </summary>
+    [Test]
+    public void ScheduleWithNoExpressionIsNotGenerated()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Snippet("""
+            [QuartzJob(Name = "cleanup")]
+            [CronTrigger(null!)]
+            [CronTrigger("")]
+            [CronTrigger("0 0 3 * * ?")]
+            public sealed class CleanupJob : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+            """));
+
+        run.Diagnostics.Should().BeEmpty("the missing expression is reported once, by QZ0001, where it was written");
+        run.Generated.Should().NotContain("WithCronSchedule(\"\")", "a schedule the registration would throw for is not written")
+            .And.Contain(".WithCronSchedule(\"0 0 3 * * ?\")");
+        run.Generated.Should().Contain("\"cleanup-3\"").And.NotContain("\"cleanup-2\"",
+            "a schedule keeps the name its position gives it, so supplying the missing expressions later renames nothing");
+        run.Generated.Should().NotContain(".StoreDurably", "one schedule is still declared, so the job needs no durability to survive");
+    }
+
+    [Test]
+    public void JobWhoseOnlyScheduleHasNoExpressionIsStoredDurably()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Snippet("""
+            [QuartzJob(Name = "cleanup")]
+            [CronTrigger(null!)]
+            public sealed class CleanupJob : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+            """));
+
+        run.Diagnostics.Should().BeEmpty();
+        run.Generated.Should().NotContain("AddTrigger");
+        run.Generated.Should().Contain(".StoreDurably(true)",
+            "with QZ0001 turned down to a warning the build succeeds, and a non-durable job with no trigger is refused when it is added");
+    }
+
+    [Test]
+    public void ScheduleMissingItsArgumentIsLeftToTheCompiler()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            Snippet("""
+                [QuartzJob(Name = "cleanup")]
+                [CronTrigger]
+                public sealed class CleanupJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+                """),
+            toleratedErrors: ["CS7036"]);
+
+        run.Output.GetDiagnostics().Should().Contain(x => x.Id == "CS7036", "the compiler refuses an attribute missing its required argument");
+        run.Diagnostics.Should().BeEmpty();
+        run.Generated.Should().Contain("builder.AddJob<global::App.CleanupJob>")
+            .And.NotContain("AddTrigger", "an attribute carrying no expression has no schedule to write");
+    }
+
+    /// <summary>
     /// An edit that changes nothing about the declarations writes no source again.
     /// </summary>
     /// <remarks>

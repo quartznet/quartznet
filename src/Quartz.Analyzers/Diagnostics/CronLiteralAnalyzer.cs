@@ -117,8 +117,14 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
             x.Parameter?.Name == entryPoint.ExpressionParameterName
             && x.Parameter.Type.SpecialType == SpecialType.System_String);
 
-        if (expressionArgument?.Value.ConstantValue is not { HasValue: true, Value: string expression })
+        if (expressionArgument?.Value.ConstantValue is not { HasValue: true } constant)
         {
+            return;
+        }
+
+        if (constant.Value is not string expression || string.IsNullOrWhiteSpace(expression))
+        {
+            ReportMissing(context, expressionArgument, constant.Value as string);
             return;
         }
 
@@ -132,13 +138,47 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
         string? message = CronLiteralValidator.Validate(expression, format, entryPoint.ResolvesHash);
         if (message is not null)
         {
-            context.ReportDiagnostic(Diagnostic.Create(
-                Descriptors.InvalidCronExpression,
-                expressionArgument.Value.Syntax.GetLocation(),
-                expression,
-                message));
+            Report(context, expressionArgument, "'" + expression + "' is not a valid cron expression: " + message);
         }
     }
+
+    /// <summary>
+    /// A constant expression that is null, empty or only whitespace, which no parser reads as a
+    /// schedule — so it is reported as missing rather than as a parse error about zero fields.
+    /// </summary>
+    /// <remarks>
+    /// A Try method's <c>string?</c> takes a null and answers <see langword="false" />, which is its
+    /// contract. Everywhere else the parameter is not nullable and the call throws for a null the
+    /// moment it runs; <c>[CronTrigger(null!)]</c> did so while the host was starting.
+    /// </remarks>
+    private static void ReportMissing(OperationAnalysisContext context, IArgumentOperation expressionArgument, string? expression)
+    {
+        if (expression is null && expressionArgument.Parameter!.NullableAnnotation == NullableAnnotation.Annotated)
+        {
+            return;
+        }
+
+        Report(context, expressionArgument, "The cron expression is missing: the argument is " + Describe(expression));
+    }
+
+    private static void Report(OperationAnalysisContext context, IArgumentOperation expressionArgument, string message)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            Descriptors.InvalidCronExpression,
+            expressionArgument.Value.Syntax.GetLocation(),
+            message));
+    }
+
+    /// <summary>
+    /// What a missing expression was written as. Whitespace is missing too: the parser trims before it
+    /// reads, so it sees exactly what an empty string gives it.
+    /// </summary>
+    private static string Describe(string? expression) => expression switch
+    {
+        null => "null",
+        "" => "an empty string",
+        _ => "only whitespace",
+    };
 
     /// <summary>
     /// The dialect the sibling <see cref="CronFormat" /> argument names, or

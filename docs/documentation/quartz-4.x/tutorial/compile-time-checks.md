@@ -66,6 +66,11 @@ Two things decide how a literal is read, and both come from the call rather than
 `TryParse` is checked too. Its contract is that an expression *might* not parse; a literal that can
 never parse is still a bug, and a `TryParse` that can only return `false` is not what anybody wrote.
 
+A constant that is `null`, empty or only whitespace is reported as a missing expression rather than as a
+parse error — `error QZ0001: The cron expression is missing: the argument is null`. A `null` is left
+alone only where the parameter is `string?`: `TryParse` and `TryParseWithHash` answer `false` for it by
+contract, where every other entry point throws.
+
 ### QZ0002 InvalidJobTimeout
 
 [`[JobTimeout]`](job-execution-middleware.md) takes its budget as an invariant `TimeSpan` string, because
