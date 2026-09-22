@@ -178,6 +178,63 @@ public class DeclaredJobsGeneratorTest
         run.Diagnostics.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// <c>[QuartzJob]</c> and <c>[CronTrigger]</c> where the compiler already refuses them are the
+    /// compiler's to report, and must not take the assembly's other declared jobs down with them.
+    /// </summary>
+    /// <remarks>
+    /// The attributes are matched by name, so a misplaced one still reaches the generator — with a
+    /// method or the assembly as its target rather than a type. The harness rethrows what a generator
+    /// throws, which a build would otherwise turn into CS8785 and a missing file.
+    /// </remarks>
+    [Test]
+    public void AttributesOnAMethodAreLeftToTheCompiler()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            Snippet("""
+                [QuartzJob(Name = "cleanup")]
+                public sealed class CleanupJob : IJob
+                {
+                    [QuartzJob]
+                    [CronTrigger("0 0 3 * * ?")]
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+                """),
+            toleratedErrors: ["CS0592"]);
+
+        run.Output.GetDiagnostics().Where(x => x.Id == "CS0592").Should().HaveCount(2, "the compiler refuses each attribute where its usage does not allow it");
+        run.Diagnostics.Should().BeEmpty("a misplaced attribute is the compiler's to report, and it already has");
+        run.Generated.Should().Contain("builder.AddJob<global::App.CleanupJob>", "the job declared where the attribute belongs is still registered");
+    }
+
+    [Test]
+    public void AttributesOnTheAssemblyAreLeftToTheCompiler()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            """
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            [assembly: QuartzJob]
+            [assembly: CronTrigger("0 0 3 * * ?")]
+
+            namespace App;
+
+            [QuartzJob(Name = "cleanup")]
+            public sealed class CleanupJob : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+            """,
+            toleratedErrors: ["CS0592"]);
+
+        run.Output.GetDiagnostics().Where(x => x.Id == "CS0592").Should().HaveCount(2, "the compiler refuses each attribute where its usage does not allow it");
+        run.Diagnostics.Should().BeEmpty("a misplaced attribute is the compiler's to report, and it already has");
+        run.Generated.Should().Contain("builder.AddJob<global::App.CleanupJob>", "the job declared where the attribute belongs is still registered");
+    }
+
     [Test]
     public void AssemblyThatDeclaresNoJobGetsNoRegistration()
     {
