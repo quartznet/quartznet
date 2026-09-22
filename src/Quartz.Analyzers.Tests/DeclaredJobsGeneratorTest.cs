@@ -22,6 +22,7 @@
 extern alias QuartzAnalyzers;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 using QuartzAnalyzers::Quartz.Analyzers;
@@ -233,6 +234,136 @@ public class DeclaredJobsGeneratorTest
         run.Output.GetDiagnostics().Where(x => x.Id == "CS0592").Should().HaveCount(2, "the compiler refuses each attribute where its usage does not allow it");
         run.Diagnostics.Should().BeEmpty("a misplaced attribute is the compiler's to report, and it already has");
         run.Generated.Should().Contain("builder.AddJob<global::App.CleanupJob>", "the job declared where the attribute belongs is still registered");
+    }
+
+    /// <summary>
+    /// The generated file is compiled as part of the project it is generated into, so it has to be
+    /// C# that project's language version reads — including a project that pins an older
+    /// <c>LangVersion</c> than its target framework's default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The harness compiles what the generator wrote at the snippet's language version, so the run
+    /// building at all is the assertion. <c>#nullable</c> is the newest thing the file may use, and it
+    /// arrived in C# 8.
+    /// </para>
+    /// <para>
+    /// The attributes' named properties are <c>init</c>-only, which C# 8 cannot set (CS8400), so the
+    /// bare attributes here are everything a C# 8 project can declare;
+    /// <see cref="GeneratedFileCompilesUnderCSharp9" /> asks for every call the generator can write.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void GeneratedFileCompilesUnderCSharp8()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            """
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            namespace App
+            {
+                [QuartzJob]
+                [CronTrigger("0 0 6 * * ?")]
+                [CronTrigger("0 0 18 * * ?")]
+                public sealed class ReportJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                [QuartzJob]
+                public sealed class CleanupJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder builder)
+                    {
+                        builder.AddDeclaredJobs();
+                    }
+                }
+            }
+            """,
+            languageVersion: LanguageVersion.CSharp8);
+
+        run.Diagnostics.Should().BeEmpty();
+        run.Generated.Should().Contain(".StoreDurably(true)").And.Contain("\"ReportJob-2\"");
+        AssertParsedAt(run, LanguageVersion.CSharp8);
+    }
+
+    /// <summary>
+    /// C# 9, the first version that can set the attributes' named properties, over every call the
+    /// generator can write.
+    /// </summary>
+    [Test]
+    public void GeneratedFileCompilesUnderCSharp9()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            """
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            namespace App
+            {
+                [QuartzJob(
+                    Name = "report",
+                    Group = "reports",
+                    Description = "the morning report",
+                    Durable = true,
+                    RequestRecovery = true,
+                    Scheduler = "reporting")]
+                [CronTrigger(
+                    "0 0 6 * * ?",
+                    Name = "morning",
+                    Group = "mornings",
+                    TimeZone = "Europe/Helsinki",
+                    MisfireInstruction = CronTriggerMisfireInstruction.DoNothing,
+                    Priority = 9,
+                    Description = "six o'clock, Helsinki time",
+                    ExecutionGroup = "reports")]
+                [CronTrigger("0 0 18 * * ?", MisfireInstruction = (CronTriggerMisfireInstruction) 42)]
+                public sealed class ReportJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                [QuartzJob]
+                public sealed class CleanupJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder builder)
+                    {
+                        builder.AddDeclaredJobs();
+                    }
+                }
+            }
+            """,
+            languageVersion: LanguageVersion.CSharp9);
+
+        run.Diagnostics.Should().BeEmpty();
+        run.Generated.Should().Contain("if (builder.SchedulerName == \"reporting\")")
+            .And.Contain(".InTimeZone(")
+            .And.Contain("global::Quartz.CronTriggerMisfireInstruction.DoNothing")
+            .And.Contain("(global::Quartz.CronTriggerMisfireInstruction) 42",
+                "the snippet has to reach every shape of call the generator writes, or this proves less than it says");
+        AssertParsedAt(run, LanguageVersion.CSharp9);
+    }
+
+    private static void AssertParsedAt(GeneratorRun run, LanguageVersion languageVersion)
+    {
+        run.Output.SyntaxTrees.Should().HaveCount(2).And.AllSatisfy(x =>
+            ((CSharpParseOptions) x.Options).LanguageVersion.Should().Be(languageVersion,
+                "the generated file is parsed at the language version of the project it is generated into"));
     }
 
     [Test]

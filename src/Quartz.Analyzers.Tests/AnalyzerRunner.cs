@@ -126,18 +126,24 @@ internal static class AnalyzerRunner
     /// Compiler errors the snippet is written to provoke, which are the compiler's to report rather
     /// than the generator's; every other error still fails the run.
     /// </param>
+    /// <param name="languageVersion">
+    /// The C# the snippet is written in, and so the C# the generated file is parsed and compiled as —
+    /// which is what an older project's build does with it.
+    /// </param>
     internal static GeneratorRun RunGenerator<TGenerator>(
         string source,
         string assemblyName = DefaultAssemblyName,
         IEnumerable<MetadataReference>? references = null,
-        IReadOnlyCollection<string>? toleratedErrors = null)
+        IReadOnlyCollection<string>? toleratedErrors = null,
+        LanguageVersion languageVersion = LanguageVersion.Latest)
         where TGenerator : IIncrementalGenerator, new()
     {
-        CSharpCompilation compilation = Compile(source, assemblyName, references);
+        CSharpParseOptions parseOptions = new CSharpParseOptions(languageVersion);
+        CSharpCompilation compilation = Compile(source, assemblyName, references, parseOptions);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
             generators: [new TGenerator().AsSourceGenerator()],
-            parseOptions: ParseOptions);
+            parseOptions: parseOptions);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation output, out ImmutableArray<Diagnostic> diagnostics);
 
@@ -216,11 +222,12 @@ internal static class AnalyzerRunner
     private static CSharpCompilation Compile(
         string source,
         string assemblyName = DefaultAssemblyName,
-        IEnumerable<MetadataReference>? additionalReferences = null)
+        IEnumerable<MetadataReference>? additionalReferences = null,
+        CSharpParseOptions? parseOptions = null)
     {
         return CSharpCompilation.Create(
             assemblyName,
-            [CSharpSyntaxTree.ParseText(source, ParseOptions, path: "Snippet.cs")],
+            [CSharpSyntaxTree.ParseText(source, parseOptions ?? ParseOptions, path: "Snippet.cs")],
             [.. references.Value, .. additionalReferences ?? []],
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
     }
