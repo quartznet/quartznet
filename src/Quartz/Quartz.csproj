@@ -78,8 +78,9 @@
     A separate Quartz.Analyzers package would be a second id every consumer has to hear about and a
     permanent publishing obligation (src/QuartzShimPackage.props says what one of those costs), for
     something nobody would ever want without Quartz. Inside analyzers/dotnet/cs it arrives with the
-    reference that made it relevant, and ExcludeAssets="analyzers" on the PackageReference is how an
-    application that does not want the diagnostics turns them off.
+    reference that made it relevant. An application that does not want it sets DisableQuartzAnalyzers,
+    which buildTransitive/net10.0/Quartz.targets reads; ExcludeAssets="analyzers" is not enough on the
+    .NET 10 SDK, which says why.
 
     ReferenceOutputAssembly="false" because Quartz does not call into it; OutputItemType="Analyzer"
     because Quartz should be held to its own rules, which is also what orders the two builds. The
@@ -89,6 +90,7 @@
   <ItemGroup>
     <ProjectReference Include="../Quartz.Analyzers/Quartz.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     <None Include="$(ArtifactsPath)/bin/Quartz.Analyzers/$(Configuration.ToLowerInvariant())/Quartz.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="buildTransitive/net10.0/Quartz.targets" Pack="true" PackagePath="buildTransitive/net10.0/" />
   </ItemGroup>
 
   <ItemGroup>

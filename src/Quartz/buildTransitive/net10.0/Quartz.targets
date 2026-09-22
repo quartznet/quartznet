@@ -1,0 +1,20 @@
+<Project>
+  <!--
+    <DisableQuartzAnalyzers>true</DisableQuartzAnalyzers> takes the analyzer and the source generator
+    this package ships out of the compilation.
+
+    ExcludeAssets="analyzers" on the PackageReference looks like the switch and is not one: NuGet leaves
+    the assembly out of the assets file, and the .NET 10 SDK hands it to the compiler all the same, for
+    this package and for every other. This is the property System.Text.Json offers its generator for the
+    same reason. It removes the whole assembly, so AddDeclaredJobs() goes with the diagnostics; to quiet
+    one rule, set its severity in .editorconfig instead.
+  -->
+  <Target Name="_QuartzRemoveAnalyzers"
+          Condition="'$(DisableQuartzAnalyzers)' == 'true'"
+          AfterTargets="ResolveLockFileAnalyzers"
+          BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="'%(Filename)' == 'Quartz.Analyzers'" />
+    </ItemGroup>
+  </Target>
+</Project>
