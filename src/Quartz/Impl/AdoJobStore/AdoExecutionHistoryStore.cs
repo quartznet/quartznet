@@ -101,11 +101,23 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// Holds one sweep at a time. The deletes are idempotent, so two nodes sweeping at once is
     /// harmless — but two sweeps in one process would only be two connections doing the same work.
     /// </summary>
+    /// <remarks>
+    /// Never disposed, and neither is <see cref="stopping" />. Disposing the timer does not wait for a
+    /// pass it already started, so a pass can still hold this when the store is disposed, and it
+    /// releases the gate and reads the token on its way out. Neither holds anything that needs releasing
+    /// unless its wait handle is asked for, which nothing here does.
+    /// </remarks>
     private readonly SemaphoreSlim sweepGate = new(1, 1);
+
+    /// <summary>
+    /// Cancelled when the store is disposed, which stops a pass the timer started at its next statement
+    /// rather than letting it run on against a store that is shutting down.
+    /// </summary>
+    private readonly CancellationTokenSource stopping = new();
 
     private ITimer? sweepTimer;
     private int sweepScheduled;
-    private bool disposed;
+    private volatile bool disposed;
 
     /// <param name="dbProvider">The database this scheduler reads and writes through.</param>
     /// <param name="driverDelegate">
@@ -277,6 +289,12 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
                 CatchUp();
             }
         }
+        catch (Exception) when (disposed)
+        {
+            // Disposed under the pass: its token was cancelled, or its next statement found the store
+            // closed, or the database was torn down around it. Shutting down is not a sweep that failed,
+            // and what this pass left is the next one's — on another node, or in whatever runs next.
+        }
         catch (Exception failure) when (!cancellationToken.IsCancellationRequested)
         {
             logger.ExecutionHistorySweepFailed(failure);
@@ -284,6 +302,26 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         finally
         {
             sweepGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// The pass the timer starts, stopped by the store's disposal rather than by any caller.
+    /// </summary>
+    /// <remarks>
+    /// Started and not awaited: a timer callback returns void. Everything inside the pass is handled
+    /// by <see cref="Sweep" />; the one thing that is not is a pass refused at the gate by a token the
+    /// disposal has already cancelled, which is the same shutdown and is dropped as quietly.
+    /// </remarks>
+    private async Task SweepOnTimer()
+    {
+        try
+        {
+            await Sweep(stopping.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (stopping.IsCancellationRequested)
+        {
+            // Disposed before the pass began.
         }
     }
 
@@ -303,6 +341,11 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         sweepGate.Release();
     }
 
+    /// <remarks>
+    /// Stops the timer and cancels a pass it started, and waits for nothing: a pass in flight stops at
+    /// its next statement and gives the gate back itself, which is why the gate is not disposed here.
+    /// <see cref="disposed" /> is set first, so a pass that fails because of any of this sees that it did.
+    /// </remarks>
     public void Dispose()
     {
         if (disposed)
@@ -312,7 +355,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
 
         disposed = true;
         sweepTimer?.Dispose();
-        sweepGate.Dispose();
+        stopping.Cancel();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -484,7 +527,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         }
 
         ITimer timer = timeProvider.CreateTimer(
-            static state => _ = ((AdoExecutionHistoryStore) state!).Sweep(CancellationToken.None).AsTask(),
+            static state => _ = ((AdoExecutionHistoryStore) state!).SweepOnTimer(),
             this,
             Timeout.InfiniteTimeSpan,
             Timeout.InfiniteTimeSpan);
