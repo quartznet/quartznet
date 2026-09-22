@@ -57,8 +57,10 @@ services.AddQuartzHostedService();
 The method appears once something in the assembly carries `[QuartzJob]`; a project that declares no
 job gets no generated file and no method to call.
 
-This is what the generator writes for the job above — one `internal` class per assembly, so two
-assemblies that both declare jobs never collide:
+This is what the generator writes for the job above — one `internal` class per assembly, so nothing it
+adds reaches the assembly's public surface. Two assemblies that both declare jobs each get their own, and
+only `InternalsVisibleTo` puts both in scope at once; [`QZ1004`](#qz1004-declaredjobsregistrationrenamed)
+is what happens then:
 
 <!-- The block below is generated output rather than a sample: it is what the compiler writes, so it
      cannot come from a project that compiles it. -->
@@ -185,10 +187,10 @@ is not analysed. `H` is accepted here, because the schedule is built with `WithC
 resolves `H` against the trigger's key. [Compile-Time Checks](compile-time-checks.md) is the rest of
 what the analyzer reads.
 
-## What the generator refuses
+## What the generator reports
 
 Three more build errors, all of them cases where the alternative is a job that was declared and never
-fires.
+fires, and one warning about a name.
 
 ### QZ1001 DeclaredJobTypeNotSchedulable
 
@@ -208,6 +210,27 @@ the same key on two jobs that name different `Scheduler`s is two jobs rather tha
 attribute declares, so on its own it registers nothing — and a schedule that silently registers nothing
 is worse than a build error.
 
+### QZ1004 DeclaredJobsRegistrationRenamed
+
+A warning rather than an error, because everything still builds. When an assembly that declares jobs
+grants `InternalsVisibleTo` to another assembly that declares jobs too, both generated
+`QuartzDeclaredJobs` classes are in scope in the second one, and `AddDeclaredJobs()` there would be
+ambiguous — with no spelling that resolves it, since naming the class is ambiguous as well. So the second
+assembly's registration is named after that assembly instead: in `MyApp.Worker` it is
+`QuartzDeclaredJobs_MyApp_Worker.AddDeclaredJobsFromMyApp_Worker()`, with every character an identifier
+cannot hold turned into `_`, and a `_` in front of a name that starts with a digit.
+
+`AddDeclaredJobs()` written in that assembly keeps meaning the other assembly's jobs, and the warning, on
+the assembly's first `[QuartzJob]`, says so:
+
+```text
+warning QZ1004: AddDeclaredJobs() in this assembly resolves to 'MyApp.Jobs''s declared jobs, which are
+visible through InternalsVisibleTo; call AddDeclaredJobsFromMyApp_Worker() for this assembly's own
+```
+
+Call both to register both. An assembly that can see no other assembly's registration — which is every
+assembly no `InternalsVisibleTo` names — keeps `QuartzDeclaredJobs.AddDeclaredJobs()`.
+
 ## What an attribute does not say
 
 A declared job is a starting point, not a second configuration system. Everything below is still
@@ -222,9 +245,13 @@ written as a registration, beside `AddDeclaredJobs()`:
 - **A cron expression from configuration.** An attribute argument is a constant by definition, which is
   what lets the compiler check it. A schedule a deployment changes belongs in
   [a scheduling file or the `Quartz:Schedule` section](../configuration/json.md).
-- **Jobs from another assembly.** `AddDeclaredJobs()` is generated per assembly and registers that
-  assembly's jobs. A library that declares jobs exposes its own registration call, or the application
-  writes one.
+- **Jobs from another assembly.** `AddDeclaredJobs()` is generated per assembly, registers that
+  assembly's jobs, and is `internal`. Without `InternalsVisibleTo`, a library's generated method is
+  invisible to the application that references it, so a library that declares jobs exposes a
+  registration call of its own, or the application writes one. With `InternalsVisibleTo`, the
+  application can call the library's `AddDeclaredJobs()` itself — and if the application declares jobs
+  too, its own registration is named after its assembly instead, as
+  [`QZ1004`](#qz1004-declaredjobsregistrationrenamed) describes.
 
 ## Related
 

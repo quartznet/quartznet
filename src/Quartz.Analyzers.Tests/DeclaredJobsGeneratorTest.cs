@@ -22,6 +22,7 @@
 extern alias QuartzAnalyzers;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 using QuartzAnalyzers::Quartz.Analyzers;
 
@@ -189,6 +190,153 @@ public class DeclaredJobsGeneratorTest
 
         run.Diagnostics.Should().BeEmpty();
         run.Generated.Should().BeNull("a compilation that never heard of the attributes is left exactly as it was");
+    }
+
+    /// <summary>
+    /// Two assemblies that both declare jobs, the first granting the second <c>InternalsVisibleTo</c>.
+    /// </summary>
+    /// <remarks>
+    /// Both generated classes are in scope in the second assembly, so an unrenamed one there made
+    /// <c>AddDeclaredJobs()</c> CS0121-ambiguous with no spelling that resolved it — naming the class
+    /// was ambiguous too. The harness compiles the snippet with the generated file, so the call below
+    /// building at all is half of this test.
+    /// </remarks>
+    [TestCase("App", "App")]
+    [TestCase("My.App", "My_App")]
+    [TestCase("3rd-Party.App", "_3rd_Party_App")]
+    public void AssemblyThatSeesAnotherAssemblysDeclaredJobsNamesItsOwnAfterItself(string assemblyName, string identifier)
+    {
+        GeneratorRun library = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Library(grantInternalsTo: assemblyName), assemblyName: "Lib");
+
+        library.Diagnostics.Should().BeEmpty("the library can see nobody else's registration, so nothing about its own changes");
+        library.Generated.Should().Contain("internal static class QuartzDeclaredJobs").And.NotContain("QuartzDeclaredJobs_");
+
+        string method = "AddDeclaredJobsFrom" + identifier;
+
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            Snippet($$"""
+                [QuartzJob(Name = "app-job")]
+                public sealed class AppJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                [QuartzJob(Name = "other-app-job")]
+                public sealed class OtherAppJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder builder) => builder.AddDeclaredJobs().{{method}}();
+                }
+                """),
+            assemblyName: assemblyName,
+            references: [library.ToReference()]);
+
+        Diagnostic diagnostic = run.Diagnostics.Should().ContainSingle("the rename is one fact about the assembly, however many jobs it declares").Subject;
+        diagnostic.Id.Should().Be("QZ1004");
+        diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning, "nothing is broken, but a call that used to mean this assembly's jobs now means another's");
+        diagnostic.GetMessage().Should().Be(
+            $"AddDeclaredJobs() in this assembly resolves to 'Lib''s declared jobs, which are visible through InternalsVisibleTo; call {method}() for this assembly's own");
+        diagnostic.Location.SourceSpan.Start.Should().Be(run.Snippet.IndexOf("QuartzJob", StringComparison.Ordinal),
+            "the warning goes on the first job the assembly declares");
+
+        IMethodSymbol libraries = Resolve(run, "AddDeclaredJobs");
+        libraries.ContainingAssembly.Name.Should().Be("Lib", "the ordinary name stays with the assembly that had it first, which this one can see");
+        libraries.ContainingType.ToDisplayString().Should().Be("Quartz.QuartzDeclaredJobs");
+
+        IMethodSymbol own = Resolve(run, method);
+        own.ContainingAssembly.Name.Should().Be(assemblyName);
+        own.ContainingType.ToDisplayString().Should().Be("Quartz.QuartzDeclaredJobs_" + identifier,
+            "the class is named after the assembly, made into an identifier, so that it cannot collide with the one it steps aside for");
+
+        library.Generated.Should().Contain("builder.AddJob<global::Lib.LibraryJob>").And.NotContain("AppJob");
+        run.Generated.Should().Contain("builder.AddJob<global::App.AppJob>")
+            .And.Contain("builder.AddJob<global::App.OtherAppJob>")
+            .And.NotContain("LibraryJob", "each registration carries its own assembly's jobs and nobody else's");
+    }
+
+    [Test]
+    public void AssemblyThatCannotSeeAnotherAssemblysDeclaredJobsKeepsTheOrdinaryName()
+    {
+        GeneratorRun library = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Library(grantInternalsTo: null), assemblyName: "Lib");
+
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            Snippet("""
+                [QuartzJob(Name = "app-job")]
+                public sealed class AppJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder builder) => builder.AddDeclaredJobs();
+                }
+                """),
+            assemblyName: "App",
+            references: [library.ToReference()]);
+
+        run.Diagnostics.Should().BeEmpty("without InternalsVisibleTo the library's generated class is invisible here, so nothing collides");
+        run.Generated.Should().Contain("internal static class QuartzDeclaredJobs").And.NotContain("QuartzDeclaredJobs_");
+        Resolve(run, "AddDeclaredJobs").ContainingAssembly.Name.Should().Be("App");
+    }
+
+    [Test]
+    public void AssemblyThatDeclaresNoJobReachesALibrarysThroughInternalsVisibleTo()
+    {
+        GeneratorRun library = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Library(grantInternalsTo: "App"), assemblyName: "Lib");
+
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            Snippet("""
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder builder) => builder.AddDeclaredJobs();
+                }
+                """),
+            assemblyName: "App",
+            references: [library.ToReference()]);
+
+        run.Diagnostics.Should().BeEmpty("an assembly that declares nothing has no registration of its own to rename");
+        run.Generated.Should().BeNull();
+        Resolve(run, "AddDeclaredJobs").ContainingAssembly.Name.Should().Be("Lib");
+    }
+
+    /// <summary>
+    /// Two libraries granting the same assembly <c>InternalsVisibleTo</c>: the warning names one of
+    /// them, and the same one whichever order the references arrive in.
+    /// </summary>
+    [TestCase("Zeta", "Alpha")]
+    [TestCase("Alpha", "Zeta")]
+    public void RenameWarningNamesTheSameAssemblyWhateverOrderTheReferencesArriveIn(string first, string second)
+    {
+        MetadataReference[] libraries =
+        [
+            AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Library(grantInternalsTo: "App"), assemblyName: first).ToReference(),
+            AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Library(grantInternalsTo: "App"), assemblyName: second).ToReference(),
+        ];
+
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            Snippet("""
+                [QuartzJob(Name = "app-job")]
+                public sealed class AppJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder builder) => builder.AddDeclaredJobsFromApp();
+                }
+                """),
+            assemblyName: "App",
+            references: libraries);
+
+        run.Diagnostics.Should().ContainSingle().Which.GetMessage().Should().StartWith(
+            "AddDeclaredJobs() in this assembly resolves to 'Alpha''s declared jobs",
+            "the first by ordinal name is named, so the same references never produce a different warning");
     }
 
     [Test]
@@ -392,6 +540,49 @@ public class DeclaredJobsGeneratorTest
         reasons.Should().NotBeEmpty("the run has to have produced an output step for its reason to mean anything");
         reasons.Should().AllSatisfy(x => x.Should().Be(IncrementalStepRunReason.Cached),
             "the declarations are the same ones, so what the transform read out of them has to compare equal to what it read before");
+    }
+
+    /// <summary>
+    /// The method a call in the snippet binds to, which is how a test says which assembly's
+    /// registration a line of application code reaches.
+    /// </summary>
+    private static IMethodSymbol Resolve(GeneratorRun run, string methodName)
+    {
+        SyntaxTree snippet = run.Output.SyntaxTrees.First();
+        SemanticModel model = run.Output.GetSemanticModel(snippet);
+
+        InvocationExpressionSyntax call = snippet.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>()
+            .Single(x => x.Expression is MemberAccessExpressionSyntax member && member.Name.Identifier.ValueText == methodName);
+
+        return model.GetSymbolInfo(call).Symbol.Should().BeAssignableTo<IMethodSymbol>().Subject;
+    }
+
+    /// <summary>
+    /// A second assembly that declares a job, optionally granting another <c>InternalsVisibleTo</c>.
+    /// </summary>
+    private static string Library(string? grantInternalsTo)
+    {
+        string grant = grantInternalsTo is null
+            ? ""
+            : $"[assembly: System.Runtime.CompilerServices.InternalsVisibleTo(\"{grantInternalsTo}\")]";
+
+        return $$"""
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            using Quartz;
+
+            {{grant}}
+
+            namespace Lib;
+
+            [QuartzJob(Name = "library-job")]
+            public sealed class LibraryJob : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+            """;
     }
 
     private static string Snippet(string declarations)

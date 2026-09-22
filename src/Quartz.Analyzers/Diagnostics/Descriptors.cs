@@ -146,4 +146,23 @@ internal static class Descriptors
         isEnabledByDefault: true,
         description: "[CronTrigger] is read as part of the job [QuartzJob] declares. On a class carrying no [QuartzJob] it registers nothing, and a schedule that silently registers nothing is worse than a build error.",
         helpLinkUri: DeclaredJobsHelpLink + "#qz1003-crontriggerwithoutquartzjob");
+
+    /// <summary>
+    /// This assembly's registration renamed, because another assembly's is visible here through
+    /// <c>InternalsVisibleTo</c>.
+    /// </summary>
+    /// <remarks>
+    /// A warning rather than an error: everything still builds and every job is still registered, but
+    /// <c>AddDeclaredJobs()</c> written in this assembly now means another assembly's jobs, which is not
+    /// what it means anywhere else.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor DeclaredJobsRegistrationRenamed = new DiagnosticDescriptor(
+        id: "QZ1004",
+        title: "Declared-job registration is named after this assembly",
+        messageFormat: "AddDeclaredJobs() in this assembly resolves to '{0}''s declared jobs, which are visible through InternalsVisibleTo; call {1}() for this assembly's own",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "Every assembly that declares jobs gets an internal QuartzDeclaredJobs class. When another assembly that declares jobs grants this one InternalsVisibleTo, both classes are in scope here and AddDeclaredJobs() would be ambiguous, so this assembly's class and method are named after it instead and AddDeclaredJobs() keeps meaning the other assembly's.",
+        helpLinkUri: DeclaredJobsHelpLink + "#qz1004-declaredjobsregistrationrenamed");
 }

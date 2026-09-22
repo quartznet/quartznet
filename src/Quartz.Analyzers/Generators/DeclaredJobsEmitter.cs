@@ -41,7 +41,8 @@ namespace Quartz.Analyzers;
 /// <para>
 /// The class is in the <c>Quartz</c> namespace so that <c>AddDeclaredJobs</c> is reached by the
 /// <c>using Quartz;</c> the surrounding <c>AddQuartz</c> call already needs, and internal so that two
-/// assemblies declaring jobs do not collide.
+/// assemblies declaring jobs do not collide. Where <c>InternalsVisibleTo</c> would make them collide
+/// anyway, <see cref="RegistrationName" /> is what renames this one.
 /// </para>
 /// </remarks>
 internal static class DeclaredJobsEmitter
@@ -50,7 +51,7 @@ internal static class DeclaredJobsEmitter
 
     private const string MisfireInstructionTypeName = "global::Quartz.CronTriggerMisfireInstruction";
 
-    internal static string Emit(IReadOnlyList<DeclaredJob> jobs)
+    internal static string Emit(IReadOnlyList<DeclaredJob> jobs, RegistrationName registration)
     {
         StringBuilder source = new StringBuilder();
 
@@ -65,15 +66,22 @@ internal static class DeclaredJobsEmitter
         source.AppendLine("/// <remarks>");
         source.AppendLine("/// Written by Quartz's source generator from the attributes on the job classes. Every call below");
         source.AppendLine("/// is one this application could have written by hand, and means there what it means here.");
+
+        if (registration.VisibleAssembly is not null)
+        {
+            source.AppendLine("/// Named after this assembly because another assembly's <c>QuartzDeclaredJobs</c> is visible here");
+            source.AppendLine("/// through <c>InternalsVisibleTo</c>, and <c>AddDeclaredJobs()</c> here means that assembly's jobs.");
+        }
+
         source.AppendLine("/// </remarks>");
-        source.AppendLine("internal static class QuartzDeclaredJobs");
+        source.AppendLine($"internal static class {registration.ClassName}");
         source.AppendLine("{");
         source.AppendLine("    /// <summary>");
         source.AppendLine("    /// Adds every job this assembly declares, and every schedule those jobs declare.");
         source.AppendLine("    /// </summary>");
         source.AppendLine("    /// <param name=\"builder\">The scheduler being built.</param>");
         source.AppendLine("    /// <returns>The same builder, so that the call chains.</returns>");
-        source.AppendLine("    public static global::Quartz.IQuartzBuilder AddDeclaredJobs(this global::Quartz.IQuartzBuilder builder)");
+        source.AppendLine($"    public static global::Quartz.IQuartzBuilder {registration.MethodName}(this global::Quartz.IQuartzBuilder builder)");
         source.AppendLine("    {");
 
         bool first = true;
