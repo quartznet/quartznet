@@ -225,9 +225,12 @@ public interface IPersistentStoreBuilder
     /// <para>
     /// The store keeps itself trimmed to <see cref="ExecutionHistoryOptions" /> — 24 hours and 2,000
     /// rows per scheduler by default — sweeping on a timer of its own and never inside a job's
-    /// transaction or under the trigger lock. A history write that fails is logged and dropped: the
-    /// execution it describes has already happened, and losing the record of it must not fail the
-    /// firing. Every node sweeps independently, which is safe because the deletes are idempotent.
+    /// transaction or under the trigger lock. A pass deletes a bounded number of rows and gives its
+    /// connection back; one that stops on that bound brings the next pass forward to a minute later, so
+    /// the sweep keeps up with a busy scheduler rather than falling further behind every interval. A
+    /// history write that fails is logged and dropped: the execution it describes has already happened,
+    /// and losing the record of it must not fail the firing. Every node sweeps independently, which is
+    /// safe because the deletes are idempotent.
     /// </para>
     /// <para>
     /// It also calls <c>AddQuartzExecutionHistory()</c> if nothing has, so the recorder and the bounds

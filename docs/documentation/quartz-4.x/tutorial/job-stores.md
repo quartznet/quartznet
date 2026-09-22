@@ -377,10 +377,18 @@ A store configured this way refuses to start without them, and says which script
 is needed by nothing else, so a deployment that leaves this uncalled never has to run it.
 
 **The store keeps itself trimmed.** Both bounds above are applied by a sweep the store runs on a timer
-of its own — every `Retention / 10`, and never less often than once a minute — and by a bounded batch
+of its own — every `Retention / 10`, and never more often than once a minute — and by a bounded batch
 per statement, so a store that has been down for a week does not lock the table while it catches up.
 Every node sweeps independently, which is safe because the deletes are idempotent: two nodes sweeping
 at once do the same work twice at worst.
+
+What the sweep guarantees is that it keeps up. One pass deletes at most 20 batches of 1,000 rows per
+bound and per feed, and then gives its connection back; a pass that stopped on that budget with rows
+still to go brings the next pass forward to a minute later, and the first pass that finishes puts the
+store back on the long interval. So a backlog of any size is worked off a minute at a time, and a
+scheduler recording anything short of 20,000 executions a minute — over 300 a second — never outruns
+it. Between passes the tables can hold more than `MaxEntriesPerScheduler` rows; reads apply the age
+bound themselves, and the count bound is the sweep's.
 
 A history write never runs inside the job's transaction or under the trigger lock, and a write that
 fails is logged and dropped. The execution it describes has already happened; losing the record of it
