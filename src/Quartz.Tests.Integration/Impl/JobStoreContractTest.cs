@@ -3110,6 +3110,72 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task AReleasedContinuationWaitsForNothingAnyMore()
+    {
+        IOperableTrigger parent = await GivenAFiredParent("forgotten-parent");
+        IOperableTrigger continuation = await GivenAContinuationOf(parent.Key, "released-for-good", ContinuationCondition.OnSuccess);
+
+        await CompleteParent(parent, ExecutionOutcome.Succeeded);
+
+        IOperableTrigger released = await Store.GetTrigger(continuation.Key);
+        released.Continuation.Should().Be(Continuation.None,
+            "the wait is over, so the trigger is an ordinary one and says it waits for nothing");
+        released.GetTriggerBuilder().Build().Continuation.Should().Be(Continuation.None,
+            "a reschedule rebuilds the trigger, and must not re-arm a wait for a firing that has been");
+
+        PagedResult<TriggerHeader> listing = await Store.QueryTriggers(new TriggerQuery { State = TriggerState.Normal });
+        TriggerHeader header = listing.Items.Should().ContainSingle(x => x.Key.Equals(continuation.Key)).Subject;
+        header.ContinuesAfter.Should().BeNull("a released trigger waits for nothing, and the listing says so");
+        header.ContinuationCondition.Should().BeNull();
+    }
+
+    [Test]
+    public async Task AReleasedCronContinuationResetFromErrorKeepsItsSchedule()
+    {
+        IOperableTrigger parent = await GivenAFiredParent("cron-parent");
+
+        IJobDetail job = CreateJob("nightly-continuation", JobGroupA);
+        IOperableTrigger continuation = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("nightly-continuation", TriggerGroupA)
+            .ForJob(job.Key)
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(-5))
+            .StartAfter(parent.Key)
+            .WithCronSchedule("0 0 2 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc))
+            .Build();
+        continuation.ComputeFirstFireTimeUtc(null);
+        await Store.ScheduleJob(job, continuation);
+
+        await CompleteParent(parent, ExecutionOutcome.Succeeded);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+        IOperableTrigger firing = acquired.Should().ContainSingle(x => x.Key.Equals(continuation.Key),
+            "the release made it due at once").Subject;
+        (await Store.TriggersFired([firing])).Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+
+        DateTimeOffset? nextNightly = (await Store.GetTrigger(continuation.Key)).NextFireTimeUtc;
+        nextNightly.Should().NotBeNull().And.BeAfter(DateTimeOffset.UtcNow, "the firing moved it on to its own schedule");
+
+        await Store.FiringComplete(new TriggeredJobCompleteContext
+        {
+            Trigger = firing,
+            JobDetail = job,
+            Instruction = SchedulerInstruction.SetTriggerError,
+            Outcome = ExecutionOutcome.Failed
+        });
+
+        (await Store.ResetTriggerFromErrorState(continuation.Key)).Should().BeTrue();
+
+        (await Store.GetTrigger(continuation.Key)).NextFireTimeUtc.Should().Be(nextNightly,
+            "an ordinary cron trigger reset from an ordinary error keeps its next 02:00 — 'fire now' is for a "
+            + "continuation parked because its parent was deleted, which a released one is not");
+    }
+
+    [Test]
     public async Task DeletingAParentParksItsContinuationsInErrorExceptOnAnyOutcome()
     {
         IOperableTrigger parent = await GivenAScheduledParent("deleted-parent");
@@ -3148,6 +3214,9 @@ public abstract class JobStoreContractTest
         acquired.Should().Contain(x => x.Key.Equals(continuation.Key),
             "resetting a continuation means running it, and the fire time it had while it was waiting was never "
             + "one the schedule chose — so the reset gives it the one a release would have");
+
+        (await Store.GetTrigger(continuation.Key)).Continuation.Should().Be(Continuation.None,
+            "the reset is its release, so from here it is an ordinary trigger that waits for nothing");
     }
 
     [Test]

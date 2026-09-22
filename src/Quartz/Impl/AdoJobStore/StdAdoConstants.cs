@@ -1189,22 +1189,33 @@ internal static class StdAdoConstants
         Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnContinuationCondition} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnContinuesTriggerName} = @{SqlParameters.TriggerContinuesName} AND {AdoConstants.ColumnContinuesTriggerGroup} = @{SqlParameters.TriggerContinuesGroup}");
 
     /// <summary>
+    /// What a row whose wait is over keeps of it: nothing. A released trigger is an ordinary one, so
+    /// it names no parent — a listing reports it waiting for nothing, rebuilding it does not re-arm the
+    /// wait, and a later reset from an error keeps its schedule.
+    /// </summary>
+    private const string ForgetContinuationSetClause =
+        $", {AdoConstants.ColumnContinuesTriggerName} = NULL, {AdoConstants.ColumnContinuesTriggerGroup} = NULL, {AdoConstants.ColumnContinuationCondition} = NULL";
+
+    /// <summary>
     /// Releases one awaiting trigger into the ordinary schedule, firing at the later of now and its
-    /// own start time — which is what keeps START_TIME a floor rather than a schedule.
+    /// own start time — which is what keeps START_TIME a floor rather than a schedule — and forgetting
+    /// the parent it waited for.
     /// </summary>
     /// <remarks>
     /// The floor is a CASE rather than a second statement so that a release is one round trip, and
     /// the old state is named so that a row somebody settled first is left alone.
     /// </remarks>
     public static readonly string SqlReleaseContinuation =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.NewState}, {AdoConstants.ColumnNextFireTime} = CASE WHEN {AdoConstants.ColumnStartTime} > @{SqlParameters.ReleaseTimeCompare} THEN {AdoConstants.ColumnStartTime} ELSE @{SqlParameters.ReleaseTime} END WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.OldState}");
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.NewState}, {AdoConstants.ColumnNextFireTime} = CASE WHEN {AdoConstants.ColumnStartTime} > @{SqlParameters.ReleaseTimeCompare} THEN {AdoConstants.ColumnStartTime} ELSE @{SqlParameters.ReleaseTime} END{ForgetContinuationSetClause} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.OldState}");
 
     /// <summary>
-    /// Gives a continuation reset out of the error state a fire time, the same way a release does.
-    /// Runs only against a row that names a parent, so an ordinary trigger's reset is untouched.
+    /// Gives a continuation reset out of the error state a fire time, the same way a release does, and
+    /// forgets its parent the way a release does. Runs only against a row that names a parent — which
+    /// in the error state is a continuation parked because its parent was deleted, a released one
+    /// naming none — so an ordinary trigger's reset is untouched.
     /// </summary>
     public static readonly string SqlResetContinuationFireTime =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = CASE WHEN {AdoConstants.ColumnStartTime} > @{SqlParameters.ReleaseTimeCompare} THEN {AdoConstants.ColumnStartTime} ELSE @{SqlParameters.ReleaseTime} END WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnContinuesTriggerName} IS NOT NULL");
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = CASE WHEN {AdoConstants.ColumnStartTime} > @{SqlParameters.ReleaseTimeCompare} THEN {AdoConstants.ColumnStartTime} ELSE @{SqlParameters.ReleaseTime} END{ForgetContinuationSetClause} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnContinuesTriggerName} IS NOT NULL");
 
     public static readonly string SqlUpdateMisfireOrigFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnMisfireOriginalFireTime} = @{SqlParameters.MisfireOrigFireTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
