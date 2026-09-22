@@ -102,10 +102,9 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// harmless — but two sweeps in one process would only be two connections doing the same work.
     /// </summary>
     /// <remarks>
-    /// Never disposed, and neither is <see cref="stopping" />. Disposing the timer does not wait for a
-    /// pass it already started, so a pass can still hold this when the store is disposed, and it
-    /// releases the gate and reads the token on its way out. Neither holds anything that needs releasing
-    /// unless its wait handle is asked for, which nothing here does.
+    /// Never disposed. Disposing the timer does not wait for a pass it already started, so a pass can
+    /// still hold this when the store is disposed, and it releases the gate on its way out. It holds
+    /// nothing that needs releasing unless its wait handle is asked for, which nothing here does.
     /// </remarks>
     private readonly SemaphoreSlim sweepGate = new(1, 1);
 
@@ -113,7 +112,14 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// Cancelled when the store is disposed, which stops a pass the timer started at its next statement
     /// rather than letting it run on against a store that is shutting down.
     /// </summary>
+    /// <remarks>
+    /// Cancelled and then disposed. A pass reads <see cref="stoppingToken" />, taken at construction,
+    /// never the source itself: a token whose source was cancelled before it was disposed still answers
+    /// every question a pass asks of it.
+    /// </remarks>
     private readonly CancellationTokenSource stopping = new();
+
+    private readonly CancellationToken stoppingToken;
 
     private ITimer? sweepTimer;
     private int sweepScheduled;
@@ -161,6 +167,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         this.driverDelegate = driverDelegate;
         this.historyOptions = historyOptions;
         this.timeProvider = timeProvider ?? TimeProvider.System;
+        stoppingToken = stopping.Token;
         logger = loggerFactory is null
             ? LogProvider.CreateLogger<AdoExecutionHistoryStore>()
             : loggerFactory.CreateLogger<AdoExecutionHistoryStore>();
@@ -317,9 +324,9 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     {
         try
         {
-            await Sweep(stopping.Token).ConfigureAwait(false);
+            await Sweep(stoppingToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (stopping.IsCancellationRequested)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
             // Disposed before the pass began.
         }
@@ -363,7 +370,11 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         disposed = true;
         Interlocked.Exchange(ref sweepTimer, null)?.Dispose();
         stopping.Cancel();
+        stopping.Dispose();
     }
+
+    /// <summary>Whether <see cref="Dispose" /> has run, read afresh on every call.</summary>
+    private bool IsDisposed() => disposed;
 
     // ---------------------------------------------------------------------------------------------
     // Retention
@@ -548,7 +559,8 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
 
         Interlocked.Exchange(ref sweepTimer, timer);
 
-        if (disposed)
+        // Read again, through a call: Dispose may have run on another thread since the check above.
+        if (IsDisposed())
         {
             timer.Dispose();
             return;
