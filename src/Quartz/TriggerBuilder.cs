@@ -435,7 +435,9 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     /// This composes with a schedule rather than replacing one: <c>StartAfter</c> plus
     /// <c>WithCronSchedule</c> is "start this cron once the import has finished". It composes with
     /// <see cref="StartAt" /> too, which stays a floor — a released continuation fires at the later
-    /// of "now" and the start time.
+    /// of "now" and the start time — and with <see cref="WithCalendarName" /> and <see cref="EndAt" />:
+    /// a calendar that excludes that instant moves it on to the next one it includes, and a
+    /// continuation whose end time has passed by then is discarded rather than released.
     /// </para>
     /// <para>
     /// For a <em>recurring</em> conditional chain — "run the cleanup whenever the nightly job

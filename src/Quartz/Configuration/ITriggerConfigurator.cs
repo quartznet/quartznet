@@ -179,7 +179,8 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// </para>
     /// <para>
     /// <see cref="StartAt" /> stays a floor when both are given: a released continuation fires at the
-    /// later of "now" and the start time.
+    /// later of "now" and the start time, or at its calendar's next included instant after that, and
+    /// is discarded instead if its end time has passed by then.
     /// </para>
     /// </remarks>
     /// <param name="parent">the trigger whose firing to wait for</param>

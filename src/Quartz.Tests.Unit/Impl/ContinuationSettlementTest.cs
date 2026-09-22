@@ -26,6 +26,7 @@ using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Impl.Calendar;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -265,6 +266,106 @@ public sealed class ContinuationSettlementTest
             "the reset is its release: from here it is an ordinary trigger, so a later error and reset of it keeps "
             + "whatever schedule it is on rather than firing it now again, and a reschedule does not wait for a "
             + "parent that no longer exists");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // The release honours the trigger's end time and its calendar
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AContinuationWhoseEndTimeHasPassedByTheReleaseIsDiscarded()
+    {
+        IOperableTrigger parent = await ScheduleParent("slow-parent");
+        IOperableTrigger continuation = await ScheduleContinuation(
+            "too-late",
+            parent.Key,
+            ContinuationCondition.OnSuccess,
+            configure: x => x.EndAt(clock.GetUtcNow().AddMinutes(30)));
+
+        List<IOperableTrigger> fired = await Fire(parent.Key);
+
+        // The parent runs for an hour, past the half hour the continuation was allowed to fire in.
+        clock.Advance(TimeSpan.FromHours(1));
+        await Complete(Firing(fired, parent.Key), ExecutionOutcome.Succeeded);
+
+        (await store.GetTrigger(continuation.Key)).Should().BeNull(
+            "a trigger does not fire after its end time, and a released continuation would fire now — so it has "
+            + "no firing left, which is exactly where an outcome its condition did not name would have left it");
+
+        signals.Finalized.Should().Contain(continuation.Key,
+            "a discarded continuation is finalized the way one discarded by the outcome is");
+
+        (await AcquireKeys()).Should().NotContain(continuation.Key);
+    }
+
+    [Test]
+    public async Task AReleaseTheCalendarExcludesFiresAtTheCalendarsNextIncludedInstant()
+    {
+        // Nothing before noon, UTC. The fixture's clock stands at ten in the morning.
+        ICalendar afternoons = new CronCalendar(null, "* * 0-11 ? * *", TimeZoneInfo.Utc);
+        await store.AddCalendar("afternoons", afternoons, new AddCalendarOptions { Replace = false, UpdateTriggers = false });
+
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger continuation = await ScheduleContinuation(
+            "afternoon-only",
+            parent.Key,
+            ContinuationCondition.OnSuccess,
+            configure: x => x
+                .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+                .WithCalendarName("afternoons"),
+            calendar: afternoons);
+
+        await Complete(Firing(await Fire(parent.Key), parent.Key), ExecutionOutcome.Succeeded);
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal);
+        (await store.GetTrigger(continuation.Key))!.NextFireTimeUtc.Should().Be(new DateTimeOffset(2031, 6, 17, 12, 0, 0, TimeSpan.Zero),
+            "the release would fire it now, the calendar excludes now, and a trigger never fires in an excluded "
+            + "instant — so it fires at the first instant the calendar includes");
+    }
+
+    [Test]
+    public async Task AContinuationTheCalendarPushesPastItsEndTimeIsDiscarded()
+    {
+        ICalendar afternoons = new CronCalendar(null, "* * 0-11 ? * *", TimeZoneInfo.Utc);
+        await store.AddCalendar("afternoons", afternoons, new AddCalendarOptions { Replace = false, UpdateTriggers = false });
+
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger continuation = await ScheduleContinuation(
+            "morning-window",
+            parent.Key,
+            ContinuationCondition.OnSuccess,
+            configure: x => x
+                .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromMinutes(10)).RepeatForever())
+                .WithCalendarName("afternoons")
+                .EndAt(clock.GetUtcNow().AddHours(1)),
+            calendar: afternoons);
+
+        await Complete(Firing(await Fire(parent.Key), parent.Key), ExecutionOutcome.Succeeded);
+
+        (await store.GetTrigger(continuation.Key)).Should().BeNull(
+            "the first instant the calendar allows is noon, and the trigger was over at eleven");
+        signals.Finalized.Should().Contain(continuation.Key);
+    }
+
+    [Test]
+    public async Task AContinuationWhoseCalendarIncludesNothingIsDiscardedRatherThanFailingTheCompletion()
+    {
+        ICalendar never = new CronCalendar(null, "* * * ? * *", TimeZoneInfo.Utc);
+        await store.AddCalendar("never", never, new AddCalendarOptions());
+
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger continuation = await ScheduleContinuation(
+            "never-fires",
+            parent.Key,
+            ContinuationCondition.OnSuccess,
+            configure: x => x.WithCalendarName("never"));
+
+        await Complete(Firing(await Fire(parent.Key), parent.Key), ExecutionOutcome.Succeeded);
+
+        (await store.GetTrigger(continuation.Key)).Should().BeNull(
+            "a calendar that includes no instant leaves the trigger nothing to fire at — and the parent's "
+            + "completion has to settle it rather than fail on the calendar's exception every time it is retried");
+        signals.Finalized.Should().Contain(continuation.Key);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

@@ -39,7 +39,9 @@ namespace Quartz;
 /// <para>
 /// <see cref="ITrigger.StartTimeUtc" /> stays a floor rather than a schedule: releasing a
 /// continuation sets its next fire time to the later of "now" and its start time, so
-/// "an hour after the import, and never before nine" is expressible.
+/// "an hour after the import, and never before nine" is expressible. A calendar the trigger names
+/// moves that instant on to the next one it includes, and a continuation whose
+/// <see cref="ITrigger.EndTimeUtc" /> is behind it by then is discarded rather than released.
 /// </para>
 /// </remarks>
 /// <param name="Parent">
@@ -124,6 +126,48 @@ public readonly record struct Continuation(TriggerKey? Parent, ContinuationCondi
             ExecutionOutcome.Vetoed => ContinuationCondition.OnVeto,
             _ => null
         };
+    }
+
+    /// <summary>
+    /// When a continuation released at <paramref name="now" /> fires, or <see langword="null" /> when
+    /// it has no firing left and is discarded rather than released.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The later of now and the trigger's start time — which is what keeps the start time a floor —
+    /// moved on to the calendar's next included instant when the trigger's calendar excludes it. A
+    /// trigger whose end time is behind that instant can never fire, which is the position a condition
+    /// the outcome did not name leaves a continuation in too, so both are discarded the same way.
+    /// </para>
+    /// <para>
+    /// Shared by both job stores so that neither can answer differently: the in-memory one hands in
+    /// the calendar it holds, the ADO.NET one the calendar it reads for the row it is releasing.
+    /// </para>
+    /// </remarks>
+    /// <param name="trigger">The continuation being released.</param>
+    /// <param name="calendar">The calendar the trigger names, or <see langword="null" /> for none.</param>
+    /// <param name="now">The store's reading of "now".</param>
+    internal static DateTimeOffset? ReleaseFireTime(ITrigger trigger, ICalendar? calendar, DateTimeOffset now)
+    {
+        DateTimeOffset fireTime = trigger.StartTimeUtc > now ? trigger.StartTimeUtc : now;
+
+        if (calendar is not null && !calendar.IsTimeIncluded(fireTime))
+        {
+            try
+            {
+                fireTime = calendar.GetNextIncludedTimeUtc(fireTime);
+            }
+            catch (SchedulerException)
+            {
+                // A calendar that includes no instant at all says so by throwing — CronCalendar over an
+                // expression that matches every second does. Such a trigger has nothing to fire at, and
+                // letting the exception out would fail the parent's completion over and over rather than
+                // settle it.
+                return null;
+            }
+        }
+
+        return trigger.EndTimeUtc is { } end && fireTime > end ? null : fireTime;
     }
 
     /// <summary>

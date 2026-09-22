@@ -382,21 +382,40 @@ internal abstract partial class AdoJobStoreBase
     /// somebody resuming the group, and blocked if its job disallows concurrent execution and is
     /// running, for that execution's completion to let go like any other trigger of the job.
     /// </summary>
+    /// <remarks>
+    /// It fires at the later of now and its start time, moved on to its calendar's next included
+    /// instant when the calendar excludes that one — <see cref="Continuation.ReleaseFireTime" />, the
+    /// rule the in-memory store applies too. A trigger whose end time is behind that instant has no
+    /// firing left, and is discarded instead.
+    /// </remarks>
     private async ValueTask ReleaseContinuation(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken)
     {
-        StoredTriggerHeader? header = await Delegate.SelectTriggerHeader(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-        if (header is null)
+        // The whole trigger rather than its header: a release needs the start time, the end time and
+        // the calendar as well as the job, and the heavier read is paid only by a completion that has
+        // something waiting on it.
+        IOperableTrigger? trigger = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        if (trigger is null)
         {
+            return;
+        }
+
+        ICalendar? calendar = trigger.CalendarName is { } calendarName
+            ? await GetCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        if (Continuation.ReleaseFireTime(trigger, calendar, timeProvider.GetUtcNow()) is not { } fireTime)
+        {
+            await DiscardContinuation(conn, trigger, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         StoredTriggerState released = await ApplyPausedGroupState(
             conn,
             triggerKey.Group,
-            header.JobKey.Group,
+            trigger.JobKey.Group,
             StoredTriggerState.Waiting,
             cancellationToken).ConfigureAwait(false);
 
@@ -406,9 +425,9 @@ internal abstract partial class AdoJobStoreBase
         // job is the parent's own, the parent's row is still here and this answers BLOCKED — which the
         // unblock later in this same completion turns into WAITING, as it does for every trigger of the
         // job that has just finished.
-        released = await CheckBlockedState(conn, header.JobKey, released, cancellationToken).ConfigureAwait(false);
+        released = await CheckBlockedState(conn, trigger.JobKey, released, cancellationToken).ConfigureAwait(false);
 
-        await Delegate.ReleaseContinuation(conn, triggerKey, released, timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        await Delegate.ReleaseContinuation(conn, triggerKey, released, fireTime, cancellationToken).ConfigureAwait(false);
         conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
     }
 
@@ -423,12 +442,27 @@ internal abstract partial class AdoJobStoreBase
     {
         IOperableTrigger? discarded = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-        await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
-        if (discarded is not null)
+        if (discarded is null)
         {
-            await signaler.NotifySchedulerListenersFinalized(discarded, cancellationToken).ConfigureAwait(false);
+            await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            return;
         }
+
+        await DiscardContinuation(conn, discarded, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Deletes an awaiting trigger that has no firing left — its parent ended in a way its condition
+    /// did not name, or its end time is behind the instant a release would have fired it at — and
+    /// tells the scheduler listeners it is finalized.
+    /// </summary>
+    private async ValueTask DiscardContinuation(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger discarded,
+        CancellationToken cancellationToken)
+    {
+        await DeleteTrigger(conn, discarded.Key, cancellationToken).ConfigureAwait(false);
+        await signaler.NotifySchedulerListenersFinalized(discarded, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

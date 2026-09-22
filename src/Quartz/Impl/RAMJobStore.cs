@@ -925,15 +925,28 @@ public sealed class RAMJobStore : IJobStore
 
     /// <summary>
     /// Moves an awaiting trigger into the ordinary schedule, firing at the later of now and its start
-    /// time — which is what keeps <see cref="ITrigger.StartTimeUtc" /> a floor rather than a schedule.
+    /// time — which is what keeps <see cref="ITrigger.StartTimeUtc" /> a floor rather than a schedule —
+    /// or at its calendar's next included instant after that. A trigger whose end time has passed by
+    /// then has no firing left, and is discarded instead.
     /// </summary>
     private void ReleaseContinuationNoLock(TriggerWrapper tw, ref PendingSignals pending)
     {
         RemoveContinuationNoLock(tw);
-        ForgetContinuation(tw);
 
-        DateTimeOffset now = timeProvider.GetUtcNow();
-        tw.Trigger.NextFireTimeUtc = tw.Trigger.StartTimeUtc > now ? tw.Trigger.StartTimeUtc : now;
+        ICalendar? calendar = null;
+        if (tw.Trigger.CalendarName is { } calendarName)
+        {
+            calendarsByName.TryGetValue(calendarName, out calendar);
+        }
+
+        if (Continuation.ReleaseFireTime(tw.Trigger, calendar, timeProvider.GetUtcNow()) is not { } fireTime)
+        {
+            DiscardContinuationNoLock(tw, ref pending);
+            return;
+        }
+
+        ForgetContinuation(tw);
+        tw.Trigger.NextFireTimeUtc = fireTime;
 
         // The wait is over, and the trigger joins the schedule the way a trigger stored at this moment
         // would: a group paused while it waited keeps it paused — the release is not somebody resuming
@@ -963,7 +976,8 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Deletes an awaiting trigger whose parent ended in a way its condition did not name.
+    /// Deletes an awaiting trigger that has no firing left: its parent ended in a way its condition did
+    /// not name, or its end time is behind the instant a release would have fired it at.
     /// </summary>
     private void DiscardContinuationNoLock(TriggerWrapper tw, ref PendingSignals pending)
     {

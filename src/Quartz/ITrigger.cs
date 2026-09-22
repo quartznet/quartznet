@@ -167,7 +167,8 @@ public interface ITrigger
     /// </para>
     /// <para>
     /// <see cref="StartTimeUtc" /> stays a floor rather than a schedule — a released continuation
-    /// fires at the later of "now" and its start time.
+    /// fires at the later of "now" and its start time, or at its calendar's next included instant
+    /// after that; one whose <see cref="EndTimeUtc" /> has passed by then is discarded instead.
     /// </para>
     /// </remarks>
     /// <seealso cref="Quartz.Continuation" />
