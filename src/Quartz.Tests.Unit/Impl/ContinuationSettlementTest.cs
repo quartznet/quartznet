@@ -157,6 +157,40 @@ public sealed class ContinuationSettlementTest
             "the release gave it the fire time it would have had, and nothing holds it back any more");
     }
 
+    /// <summary>
+    /// A crash leaves a fired row behind for a job that disallows concurrent execution, and a parent that
+    /// ended lingering as complete. Startup recovery deletes that parent, which releases a continuation
+    /// waiting on any outcome — and the release asks whether its job is running. The stale row says it
+    /// is, unless recovery has cleared the fired rows first; asked in the wrong order, the continuation
+    /// stays blocked behind an execution no process is running.
+    /// </summary>
+    [Test]
+    public async Task AContinuationReleasedByStartupRecoveryIsNotBlockedByAFiringTheCrashLeftBehind()
+    {
+        if (kind != ContinuationStoreKind.Sqlite)
+        {
+            Assert.Ignore("Only the database store recovers at startup; the in-memory one starts empty.");
+        }
+
+        IJobDetail busy = Job("busy", nonConcurrent: true);
+        IOperableTrigger running = Hourly("running", busy.Key);
+        await store.ScheduleJob(busy, running);
+
+        IOperableTrigger parent = await ScheduleParent("parent");
+
+        List<IOperableTrigger> fired = await Fire(running.Key, parent.Key);
+        await Complete(Firing(fired, parent.Key), ExecutionOutcome.Succeeded, SchedulerInstruction.SetTriggerComplete);
+
+        IOperableTrigger continuation = await ScheduleContinuation("continuation", parent.Key, ContinuationCondition.OnAnyOutcome, busy.Key);
+
+        // The process "dies" here: running's fired row stays, and the next start recovers.
+        await store.SchedulerStarted();
+
+        (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal,
+            "recovery clears the fired rows the crash left, so nothing is executing when the deleted parent's "
+            + "continuation is released — and a trigger released behind no execution is simply schedulable");
+    }
+
     [Test]
     public async Task AContinuationReleasedIntoAPausedGroupWhileItsJobRunsIsHeldByBoth()
     {

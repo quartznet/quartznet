@@ -74,6 +74,14 @@ internal abstract partial class AdoJobStoreBase
                 }
                 Logger.RecoveryComplete();
 
+                // Clean up the fired-trigger entries before anything below can read them. They have been
+                // read above for recovery, and no process is executing what they describe; deleting a
+                // lingering complete trigger releases the continuations of it that care for any outcome,
+                // and a release asks whether its job is executing — which a stale row here would answer
+                // yes, leaving the continuation blocked behind nothing.
+                int deleted = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
+                Logger.StaleFiredJobEntriesRemoved(deleted);
+
                 // remove lingering 'complete' triggers...
                 var triggersInState = await Delegate.SelectTriggersInState(conn, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
                 foreach (var trigger in triggersInState)
@@ -81,10 +89,6 @@ internal abstract partial class AdoJobStoreBase
                     await DeleteTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
                 }
                 Logger.CompleteTriggersRemoved(triggersInState.Count);
-
-                // clean up any fired trigger entries
-                int deleted = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
-                Logger.StaleFiredJobEntriesRemoved(deleted);
             },
             "recover jobs");
     }
