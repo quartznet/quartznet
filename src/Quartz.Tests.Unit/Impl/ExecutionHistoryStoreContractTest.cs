@@ -21,14 +21,19 @@
 
 #nullable enable
 
+using FakeItEasy;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Tests.Unit.Plugin.History;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -870,6 +875,79 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
 
         reader.GetService<ISchedulerRepository>()!.Lookup(Scheduler).Should().BeNull(
             "reading the history is not a reason to build the scheduler, and did not");
+    }
+
+    /// <summary>
+    /// Disposing the store under a pass the timer started is shutting down, not a failed sweep.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A timer's disposal does not wait for its callback, so a pass can be in flight when the container
+    /// disposes the store. The store used to dispose the gate that pass was holding, so the pass logged
+    /// "sweep failed" on its next statement — a warning at every shutdown that landed mid-pass — and then
+    /// threw from releasing the disposed gate, into a task nobody observes.
+    /// </para>
+    /// <para>
+    /// The pass is held inside its first connection open, which is where the test knows it is running,
+    /// and the open fails once it is let go: the failure a pass sees when the database is being torn
+    /// down around it.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task DisposingTheStoreUnderATimerStartedPassIsNotASweepFailure()
+    {
+        await CreateStore(TimeSpan.FromHours(1), maxEntriesPerScheduler: 10);
+
+        ServiceProvider services = container!;
+        IDbProvider database = services.GetRequiredService<IDbProvider>();
+        IDriverDelegate driver = services.GetRequiredService<IDriverDelegate>();
+
+        using ManualResetEventSlim holdTheNextOpen = new();
+        using ManualResetEventSlim opening = new();
+        using ManualResetEventSlim letItFail = new();
+
+        IDbProvider provider = A.Fake<IDbProvider>(options => options.Wrapping(database));
+        A.CallTo(() => provider.CreateConnection()).ReturnsLazily(() =>
+        {
+            if (!holdTheNextOpen.IsSet)
+            {
+                return database.CreateConnection();
+            }
+
+            opening.Set();
+            letItFail.Wait();
+            throw new InvalidOperationException("the connection provider has been shut down");
+        });
+
+        RecordingLoggerProvider logs = new();
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
+
+        AdoExecutionHistoryStore store = new(
+            provider,
+            driver,
+            Options.Create(new ExecutionHistoryOptions { Retention = TimeSpan.FromHours(1) }),
+            Options.Create(new QuartzSchedulerOptions { InstanceName = SchedulerName }),
+            Clock,
+            loggerFactory);
+
+        // The first write starts the timer, and its first pass runs and finishes here.
+        await store.AddExecution(Execution(Start, "nightly"));
+
+        holdTheNextOpen.Set();
+        Task tick = Task.Run(() => Clock.Advance(TimeSpan.FromMinutes(6)));
+        opening.Wait(TimeSpan.FromSeconds(30)).Should().BeTrue("the timer's second pass is under way");
+
+        store.Dispose();
+        letItFail.Set();
+        await tick;
+
+        logs.Entries.Should().NotContain(entry => entry.EventId.Id == 3161,
+            "the store was disposed under the pass - shutting down is not a sweep that failed, and a warning "
+            + "at every shutdown that lands mid-pass is one an operator learns to ignore");
+
+        Func<Task> wait = async () => await store.WaitForSweep();
+        await wait.Should().NotThrowAsync(
+            "the gate the pass released on its way out is still a gate, rather than disposed under it");
     }
 
     /// <summary>
