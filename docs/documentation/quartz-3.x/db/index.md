@@ -2,7 +2,7 @@
 title: Database Schema
 ---
 
-When using ADO.NET-based job store (the usual being `JobStoreTX`), Quartz requires the creation of a set of tables. Creating the initial schema or migrating existing one is a manual step, as Quartz.NET does not create or migrate these automatically.
+An ADO.NET-based job store (usually `JobStoreTX`) needs a set of tables. Quartz.NET does not create or migrate them; you create the schema and run migrations yourself.
 
 | Table | Brief Description |
 | -- | -- |
@@ -18,13 +18,13 @@ When using ADO.NET-based job store (the usual being `JobStoreTX`), Quartz requir
 | qrtz_simprop_triggers | Reusable table for custom triggers. `ICalendarIntervalTrigger`, `IDailyTimeIntervalTrigger`, and `IRecurrenceTrigger` (3.18+) use this |
 | qrtz_paused_trigger_grps | `IScheduler.PauseTriggers` data |
 
-The scripts to create these tables for various providers can be found [here](https://github.com/quartznet/quartznet/tree/main/database/tables).
+The [table creation scripts](https://github.com/quartznet/quartznet/tree/main/database/tables) cover the supported providers.
 
-Upgrading an existing database instead? See [Database Schema Changes](../../database/schema-changes.md) for every schema change by version, which migration to run, and what skipping it costs.
+To upgrade an existing database, see [Database Schema Changes](../../database/schema-changes.md): every schema change by version, which migration to run, and what skipping it costs.
 
 ## Quartz Triggers Table
 
-This table stores the configuration of the `ITrigger` data that is shared across all types.
+Stores the `ITrigger` data shared by all trigger types.
 
 | [Trigger State](https://github.com/quartznet/quartznet/blob/main/src/Quartz/TriggerState.cs) | Description |
 | -- | -- |

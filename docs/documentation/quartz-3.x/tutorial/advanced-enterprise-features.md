@@ -5,26 +5,27 @@ title: 'Advanced (Enterprise) Features'
 
 ## Clustering
 
-Clustering currently only works with the AdoJobstore (`JobStoreTX`).
-Features include load-balancing and job fail-over (if the JobDetail's "request recovery" flag is set to true).
+Clustering works only with the AdoJobStore (`JobStoreTX` or `JobStoreCMT`). It provides load balancing and job fail-over (when the JobDetail's "request recovery" flag is true).
 
-Enable clustering by setting the `quartz.jobStore.clustered` property to "true".
-Each instance in the cluster should use the same copy of the Quartz properties.
-Exceptions of this would be to use properties that are identical, with the following allowable exceptions:
-Different thread pool size, and different value for the `quartz.scheduler.instanceId` property.
-Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing `AUTO` as the value of this property.
+To enable clustering:
+
+1. Set `quartz.jobStore.clustered` to "true".
+2. Use the same Quartz properties on every instance. The allowed differences are the thread pool size and `quartz.scheduler.instanceId`.
+3. Give each node a unique instanceId. `AUTO` does this without separate properties files.
+
+See [Clustering](../configuration/reference.md#clustering) in the configuration reference for how load balancing and fail-over work.
 
 ::: danger
-Never run clustering on separate machines, unless their clocks are synchronized using some form of time-sync service (daemon) that runs very regularly (the clocks must be within a second of each other).
+Never cluster separate machines unless their clocks are synchronized by a time-sync service that runs very regularly (clocks within a second of each other).
 See [https://www.nist.gov/pml/time-and-frequency-division/services/internet-time-service-its](https://www.nist.gov/pml/time-and-frequency-division/services/internet-time-service-its) if you are unfamiliar with how to do this.
 :::
 
 ::: danger
-Never start (`scheduler.Start()`) a non-clustered instance against the same set of database tables that any other instance is running (`Start()`ed) against.
-You may get serious data corruption, and will definitely experience erratic behavior.
+Never start (`scheduler.Start()`) a non-clustered instance against the same set of database tables that any other started (`Start()`ed) instance uses.
+You may get serious data corruption, and will see erratic behavior.
 :::
 
 ::: danger
-Monitor and ensure that your nodes have enough CPU resources to complete jobs.
-When some nodes are in 100% CPU, they may be unable to update the job store and other nodes can consider these jobs lost and recover them by re-running.  
+Make sure your nodes have enough CPU to complete jobs.
+A node at 100% CPU may be unable to update the job store, and other nodes can then consider its jobs lost and recover them by re-running.
 :::

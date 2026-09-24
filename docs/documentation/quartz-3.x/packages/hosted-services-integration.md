@@ -4,15 +4,13 @@ title: Hosted Services Integration
 ---
 
 [Quartz.Extensions.Hosting](https://www.nuget.org/packages/Quartz.Extensions.Hosting)
-provides integration with [hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
+integrates Quartz with [hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
 
 ::: tip
-Quartz 3.2 or later required for Quartz.Extensions.Hosting. You can use package Quartz.AspNetCore with version 3.1.
+Quartz.Extensions.Hosting requires Quartz 3.2 or later. On 3.1, use the Quartz.AspNetCore package.
 :::
 
 ## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 **Quartz 3.1**
 
@@ -28,13 +26,12 @@ Install-Package Quartz.Extensions.Hosting
 
 ## Using
 
-You can add Quartz configuration by invoking an extension method `AddQuartzHostedService` on `IServiceCollection`.
-This will add a hosted Quartz server into process that will be started and stopped based on applications lifetime.
+The `AddQuartzHostedService` extension method on `IServiceCollection` adds a hosted Quartz server to the process, started and stopped with the application's lifetime.
 
 ::: tip
-See [Quartz.Extensions.DependencyInjection documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
+The [Quartz.Extensions.DependencyInjection documentation](microsoft-di-integration) covers configuring the scheduler, jobs and triggers.
 
-Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
+For several independent schedulers in one application, see [Multiple Schedulers](multiple-schedulers.md).
 :::
 
 **Example program utilizing hosted services configuration**

@@ -4,16 +4,14 @@ title : Serialization (System.Text.Json)
 ---
 
 ::: tip
-JSON is recommended persistent format to store data in database for greenfield projects.
-You should also strongly consider setting useProperties to true to restrict key-values to be strings.
+JSON is the recommended persistent format for greenfield projects.
+Also strongly consider setting useProperties to true, to restrict key-values to strings.
 :::
 
-[Quartz.Serialization.SystemTextJson](https://www.nuget.org/packages/Quartz.Serialization.SystemTextJson) provides JSON serialization support for job stores using
-System.Text.Json facilities to handle the actual serialization process.
+[Quartz.Serialization.SystemTextJson](https://www.nuget.org/packages/Quartz.Serialization.SystemTextJson) adds JSON serialization for job stores, using
+System.Text.Json.
 
 ## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 ```powershell
     Install-Package Quartz.Serialization.SystemTextJson
@@ -52,10 +50,10 @@ ISchedulerFactory schedulerFactory = config.Build();
 
 ## Migrating from binary serialization
 
-There's now official solution for migration as there can be quirks in every setup, but there's a recipe that can work for you.
+There is no official migration, because every setup has its quirks, but this recipe can work:
 
-* Configure custom serializer like `MigratorSerializer` below that can read binary serialization format and writes JSON format
-* Either let system gradually migrate as it's running or create a program which loads and writes back to DB all relevant serialized assets
+1. Configure a custom serializer, like `MigratorSerializer` below, that reads the binary format and writes JSON.
+2. Let the system migrate gradually as it runs, or write a program that loads all relevant serialized assets and writes them back to the database.
 
 **Example hybrid serializer**
 
@@ -115,7 +113,7 @@ public sealed class MigratorSerializer : IObjectSerializer
 
 ## Customizing serialization options
 
- If you need to customize serialization, you need to inherit custom implementation and override `CreateSerializerOptions`.
+To customize serialization, subclass the serializer and override `CreateSerializerOptions`.
 
  ```csharp
 class CustomJsonSerializer : SystemTextJsonObjectSerializer
@@ -129,7 +127,7 @@ class CustomJsonSerializer : SystemTextJsonObjectSerializer
 }
 ```
 
-**And then configure it to use**
+**Then configure it**
 
 ```csharp
 store.UseSerializer<CustomJsonSerializer>();
@@ -139,8 +137,7 @@ store.UseSerializer<CustomJsonSerializer>();
 
 ## Customizing calendar serialization
 
-If you have implemented a custom calendar, you need to implement a `ICalendarSerializer` for it.
-There's a convenience base class `CalendarSerializer` that you can use the get strongly-typed experience.
+A custom calendar needs an `ICalendarSerializer`. The base class `CalendarSerializer` makes it strongly typed.
 
 **Custom calendar and serializer**
 

@@ -5,25 +5,23 @@ title: Library Overview
 
 # The Quartz API
 
-The key interfaces and classes of the Quartz API are:
+The key interfaces and classes of the Quartz API:
 
-| Type | |
+| Type | Purpose |
 |-|--|
 | `IScheduler` | the main API for interacting with the scheduler |
-| `IJob` | an interface to be implemented by components that you wish to have executed by the scheduler |
-| `IJobDetail` | used to define instances of Jobs |
-| `ITrigger` | a component that defines the schedule upon which a given Job will be executed, job can have multiple associated triggers |
-| `JobBuilder` | used to define/build JobDetail instances, which define instances of Jobs |
-| `TriggerBuilder` | used to define/build Trigger instances |
-| `SchedulerBuilder` | used to define/build scheduler instances, requires Quartz 3.1 or later |
+| `IJob` | implemented by components the scheduler executes |
+| `IJobDetail` | defines instances of Jobs |
+| `ITrigger` | defines the schedule on which a Job executes; a job can have several triggers |
+| `JobBuilder` | builds JobDetail instances, which define instances of Jobs |
+| `TriggerBuilder` | builds Trigger instances |
+| `SchedulerBuilder` | builds scheduler instances; requires Quartz 3.1 or later |
 
-In this tutorial for readability's sake following terms are used interchangeably: `IScheduler` and `Scheduler`, `IJob` and `Job`, `IJobDetail` and `JobDetail`, `ITrigger` and `Trigger`.
+This tutorial uses `IScheduler` and `Scheduler`, `IJob` and `Job`, `IJobDetail` and `JobDetail`, `ITrigger` and `Trigger` interchangeably.
 
-A `Scheduler`'s life-cycle is bounded by its creation via a `SchedulerFactory`, and a call to its `Shutdown()` method.
-Once created, the `IScheduler` interface can be used to add, remove, list Jobs and Triggers, and perform other scheduling-related operations (such as pausing a trigger).
-However, the Scheduler will not actually act on any triggers (execute jobs) until it has been started with the `Start()` method, as shown in [Lesson 1](using-quartz.md).
+A `Scheduler` lives from its creation by a `SchedulerFactory` until its `Shutdown()` method is called. Once created, the `IScheduler` interface can add, remove and list Jobs and Triggers, and perform other scheduling operations (such as pausing a trigger). The Scheduler does not act on any triggers (execute jobs) until it is started with `Start()`, as shown in [Lesson 1](using-quartz.md).
 
-Quartz provides "builder" classes that define a Domain Specific Language (or DSL, also sometimes referred to as a "fluent interface"). In the previous lesson you saw an example of it, which we present a portion of here again:
+Quartz's "builder" classes form a fluent interface (a Domain Specific Language, or DSL). From the previous lesson:
 
 ```csharp
 // define the job and tie it to our HelloJob class
@@ -46,18 +44,14 @@ var sched = scheduleFactory.GetScheduler();
 await sched.ScheduleJob(job, trigger);
 ```
   
-The block of code that builds the job definition is using `JobBuilder` to create the `IJobDetail`.
-Likewise, the block of code that builds the trigger is using `TriggerBuilder`'s fluent interface to
-the trigger.
+`JobBuilder` creates the `IJobDetail`, and `TriggerBuilder`'s fluent interface creates the trigger.
 
-Possible schedule extension methods are:
+The schedule extension methods are:
 
 * `WithCalendarIntervalSchedule`
 * `WithCronSchedule`
 * `WithDailyTimeIntervalSchedule`
-* `WithRecurrenceSchedule` — uses [RFC 5545 RRULE](recurrencetrigger) for complex patterns like "2nd Monday of the month" (Quartz 3.18+)
+* `WithRecurrenceSchedule`: uses [RFC 5545 RRULE](recurrencetrigger) for complex patterns like "2nd Monday of the month" (Quartz 3.18+)
 * `WithSimpleSchedule`
 
-The `DateBuilder` type contains various methods for easily constructing `DateTimeOffset`
-instances for particular points in time (such as a date that represents the next even
-hour — for example, 10:00:00 if it is currently 9:43:27).
+`DateBuilder` has methods for building `DateTimeOffset` instances for particular points in time, such as the next even hour (10:00:00 if it is now 9:43:27).

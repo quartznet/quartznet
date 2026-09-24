@@ -2,22 +2,22 @@
 title: 'Execution Groups'
 ---
 
-Execution groups allow you to limit how many threads a category of job can use concurrently on a given scheduler node.
-This prevents resource-intensive jobs from starving lightweight jobs of available threads.
+Execution groups limit how many threads a category of job can use concurrently on a scheduler node, so
+resource-intensive jobs cannot starve lightweight ones of threads.
 
 ## Concepts
 
-An **execution group** is an optional tag on a trigger that characterizes the resource requirements of its associated job.
-Examples might be `"batch-jobs"`, `"high-cpu"`, `"large-ram"`, or `"reports"`.
+An **execution group** is an optional tag on a trigger describing the resource needs of its job, such as
+`"batch-jobs"`, `"high-cpu"`, `"large-ram"` or `"reports"`.
 
-**Execution limits** are configured per node, declaring how many threads each group may consume:
+**Execution limits** are configured per node and say how many threads each group may use:
 
 - A positive integer (e.g. `5`) limits the group to that many concurrent executions.
-- `0` forbids the group from running on this node entirely.
-- No limit configured means unlimited (no restriction).
+- `0` forbids the group on this node.
+- No limit means unlimited.
 
-Each scheduler node can declare its own independent limits, making this ideal for heterogeneous clusters
-where some nodes are tuned for heavy batch work and others for lightweight, latency-sensitive jobs.
+Each node declares its own limits, which suits heterogeneous clusters: some nodes tuned for heavy batch
+work, others for lightweight, latency-sensitive jobs.
 
 ## Setting execution groups on triggers
 
@@ -32,8 +32,8 @@ ITrigger trigger = TriggerBuilder.Create()
     .Build();
 ```
 
-Triggers without an execution group (`null`) use the default behavior. It is expected that all triggers
-for a given job share the same execution group.
+Triggers without an execution group (`null`) use the default behavior. All triggers of a job are expected
+to share the same execution group.
 
 ## Configuring execution limits
 
@@ -53,9 +53,9 @@ quartz.executionLimit.* = 5
 | `_` (underscore) | At most 10 concurrent triggers with no execution group |
 | `*` (asterisk) | Default limit of 5 for any group not explicitly listed |
 
-Special values for the limit:
-- `unlimited`, `none`, or `null` — no restriction (same as not listing the group)
-- `0` — completely forbidden on this node
+Special limit values:
+- `unlimited`, `none`, or `null`: no restriction (same as not listing the group)
+- `0`: forbidden on this node
 
 ### Via dependency injection
 
@@ -90,24 +90,24 @@ scheduler.SetExecutionLimits(null);
 
 ## How it works
 
-On each trigger acquisition cycle, the scheduler thread:
+On each trigger acquisition cycle:
 
-1. Computes the available slots per execution group by subtracting currently running counts from configured limits.
-2. Passes these available limits to the job store during trigger acquisition.
-3. The job store skips triggers whose execution group has no available slots.
-4. When a job starts, the running count for its group is incremented; when it completes, the count is decremented.
+1. The scheduler thread computes the free slots per execution group: configured limit minus running count.
+2. It passes these to the job store during trigger acquisition.
+3. The job store skips triggers whose execution group has no free slot.
+4. A group's running count goes up when a job starts and down when it completes.
 
-This means:
-- The overall thread pool limit (`quartz.threadPool.threadCount`) still applies as a global cap.
-- Execution group limits provide additional per-group caps within that global pool.
-- In the worst case, a group might be slightly under-utilized for one cycle if a slot opens between computation and acquisition.
+So:
+- The overall thread pool limit (`quartz.threadPool.threadCount`) is still the global cap.
+- Execution group limits add per-group caps within that pool.
+- At worst, a group is slightly under-used for one cycle if a slot frees up between computation and acquisition.
 
 ## Clustering considerations
 
-Execution limits are **per-node** configuration. Each scheduler node independently declares and enforces its own limits.
-This is intentional — different nodes in a cluster may have different hardware capabilities.
+Execution limits are **per node**: each node declares and enforces its own, because nodes may have
+different hardware.
 
-Example: in a cluster with dedicated batch nodes and API nodes:
+Example: a cluster with dedicated batch nodes and API nodes:
 ```
 # batch-node.properties
 quartz.executionLimit.batch-jobs = 8
@@ -120,26 +120,26 @@ quartz.executionLimit.* = 10
 
 ## Interaction with DisallowConcurrentExecution
 
-`[DisallowConcurrentExecution]` is always respected regardless of execution group configuration. Both
-constraints are applied — a trigger must satisfy both to be acquired.
+`[DisallowConcurrentExecution]` is always respected. A trigger must satisfy both constraints to be
+acquired.
 
-The order in which they are applied differs by store, which matters only in that a slot can be spent on
-a trigger that is then dropped. `RAMJobStore` checks `[DisallowConcurrentExecution]` first and the
-execution group limit second. In the ADO job store neither is a SQL predicate: the candidate select
-projects each trigger's execution group and the delegate counts slots down as it reads the rows, and
-`[DisallowConcurrentExecution]` is checked afterwards in the acquisition loop. Either way the trigger
-stays where it is and is reconsidered on the next cycle.
+The order of the two checks differs by store. It matters only because a slot can be spent on a trigger
+that is then dropped.
+
+- `RAMJobStore` checks `[DisallowConcurrentExecution]` first, the execution group limit second.
+- In the ADO job store neither is a SQL predicate. The candidate select returns each trigger's execution
+  group and the delegate counts slots down as it reads the rows; `[DisallowConcurrentExecution]` is
+  checked afterwards in the acquisition loop.
+
+Either way, a dropped trigger stays where it is and is reconsidered on the next cycle.
 
 ## Database migration
 
-For ADO.NET job stores, execution groups are stored in an `EXECUTION_GROUP` column on the
-`QRTZ_TRIGGERS` table. Without this column, execution group values set via `WithExecutionGroup()`
-are not persisted — all triggers appear ungrouped after restart. Execution group limits still
-work with RAMJobStore (in-memory) without any schema changes.
+ADO.NET job stores keep the execution group in an `EXECUTION_GROUP` column on `QRTZ_TRIGGERS`. Without
+the column, values set with `WithExecutionGroup()` are not persisted and every trigger looks ungrouped
+after a restart. With RAMJobStore, execution group limits work without schema changes.
 
-For ADO job stores, adding the column is recommended when using execution groups.
-
-To add the column to `QRTZ_TRIGGERS` (required):
+An ADO job store that uses execution groups needs the column. Add it to `QRTZ_TRIGGERS`:
 
 ```sql
 -- SQL Server
@@ -152,8 +152,8 @@ ALTER TABLE QRTZ_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;
 ALTER TABLE QRTZ_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);
 ```
 
-Optionally, add the column to `QRTZ_FIRED_TRIGGERS` for forward compatibility (not currently
-read/written, but reserved for future cluster-wide execution group counting):
+Optionally, add it to `QRTZ_FIRED_TRIGGERS` for forward compatibility. It is not read or written yet;
+it is reserved for future cluster-wide execution group counting:
 
 ```sql
 ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;  -- SQL Server
@@ -161,14 +161,14 @@ ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;  -
 ALTER TABLE QRTZ_FIRED_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);  -- Oracle
 ```
 
-The scheduler probes for column existence at startup and logs at Debug level if the column is missing.
+The scheduler probes for the column at startup and logs at Debug level if it is missing.
 
 ## Dashboard
 
-The Quartz Dashboard shows execution group information:
-- Trigger list page displays an "Execution Group" column
-- Trigger detail page shows the execution group
-- Currently executing page shows which execution group each running job belongs to
+The Quartz Dashboard shows the execution group on:
+- the trigger list page (an "Execution Group" column)
+- the trigger detail page
+- the currently executing page, for each running job
 
 ## Common scenarios
 
@@ -198,10 +198,10 @@ limits.ForGroup("tenant-b", maxConcurrent: 5);
 limits.ForGroup("tenant-c", maxConcurrent: 5);
 ```
 
-Every trigger belonging to a tenant must carry `.WithExecutionGroup("tenant-a")`; the execution group
-is a separate tag and is not derived from the trigger's key group. Remember also that these limits are
-per node, so a three-node cluster running the configuration above allows fifteen concurrent jobs per
-tenant, not five.
+- Every trigger of a tenant must carry `.WithExecutionGroup("tenant-a")`. The execution group is a
+  separate tag, not derived from the trigger's key group.
+- Limits are per node: a three-node cluster with the configuration above allows fifteen concurrent jobs
+  per tenant, not five.
 
-For the wider picture — the other two separations Quartz offers, and how to choose between them —
-see [Multi-Tenancy](../multi-tenancy.md) and [Tenancy Patterns](../../tenancy-patterns.md).
+See [Multi-Tenancy](../multi-tenancy.md) and [Tenancy Patterns](../../tenancy-patterns.md) for the other
+ways to separate tenants and how to choose.

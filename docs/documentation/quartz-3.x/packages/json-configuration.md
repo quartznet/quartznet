@@ -1,6 +1,6 @@
 # JSON Configuration
 
-Quartz.NET supports hierarchical JSON configuration in `appsettings.json`, providing a modern alternative to flat property keys. This includes both scheduler properties and declarative job/trigger definitions.
+`appsettings.json` can configure Quartz.NET with hierarchical JSON instead of flat property keys: both scheduler properties and job/trigger definitions.
 
 ::: tip
 Requires Quartz 3.18 or later with the `Quartz.Extensions.DependencyInjection` package.
@@ -8,7 +8,7 @@ Requires Quartz 3.18 or later with the `Quartz.Extensions.DependencyInjection` p
 
 ## Hierarchical Properties
 
-Instead of flat property keys like `"quartz.threadPool.maxConcurrency": "10"`, you can use a natural nested JSON structure:
+Instead of flat keys like `"quartz.threadPool.maxConcurrency": "10"`, nest the JSON:
 
 ```json
 {
@@ -45,7 +45,7 @@ Instead of flat property keys like `"quartz.threadPool.maxConcurrency": "10"`, y
 
 ### Mapping Rules
 
-Each JSON path segment becomes a dot-separated segment in the flat property key, with PascalCase automatically converted to camelCase:
+Each JSON path segment becomes a dot-separated segment of the flat key, with PascalCase converted to camelCase:
 
 | JSON Path | Flat Property Key |
 |---|---|
@@ -75,7 +75,7 @@ factory.Initialize(properties);
 
 ### Backward Compatibility
 
-Flat property keys still work. You can mix both styles in the same section:
+Flat keys still work, and both styles can be mixed in one section:
 
 ```json
 {
@@ -90,7 +90,7 @@ Flat property keys still work. You can mix both styles in the same section:
 
 ## JSON Scheduling Data
 
-Jobs and triggers can be defined declaratively in `appsettings.json` under a `Schedule` sub-section:
+Define jobs and triggers in `appsettings.json` under a `Schedule` sub-section:
 
 ```json
 {
@@ -132,7 +132,7 @@ Jobs and triggers can be defined declaratively in `appsettings.json` under a `Sc
 
 ### Trigger Types
 
-Exactly one schedule type must be specified per trigger. The trigger type is determined by which nested object is present.
+Each trigger has exactly one schedule object; which one is present sets the trigger type.
 
 #### Simple Trigger
 
@@ -201,7 +201,7 @@ Exactly one schedule type must be specified per trigger. The trigger type is det
 
 ### Common Trigger Fields
 
-All trigger types support these optional fields:
+All trigger types support these fields:
 
 | Field | Description |
 |---|---|
@@ -219,7 +219,7 @@ All trigger types support these optional fields:
 
 ## Multiple Named Schedulers
 
-When the `Quartz` section contains a `Schedulers` sub-section, each child is automatically registered as a named scheduler:
+Each child of a `Schedulers` sub-section is registered as a named scheduler:
 
 ```json
 {
@@ -265,11 +265,10 @@ services.AddQuartz(Configuration.GetSection("Quartz"));
 services.AddQuartzHostedService();
 ```
 
-Each named scheduler section supports the same hierarchical properties, `Schedule` sub-section with `Jobs`/`Triggers`, and code-based overrides.
+Each named scheduler section supports the same hierarchical properties, a `Schedule` sub-section with `Jobs`/`Triggers`, and code-based overrides.
 
-You can also register a single named scheduler explicitly. The named overload accepts either the
-scheduler's own section or the root `Quartz` section — when given the root section it resolves the
-matching `Schedulers:{name}` sub-section automatically:
+To register one named scheduler explicitly, pass the named overload either the scheduler's own section
+or the root `Quartz` section; from the root it finds the matching `Schedulers:{name}` sub-section:
 
 ```csharp
 // Both lines are equivalent
@@ -278,14 +277,14 @@ services.AddQuartz("Primary", Configuration.GetSection("Quartz:Schedulers:Primar
 ```
 
 ::: warning
-Defining both a `Schedulers` sub-section and direct scheduler configuration (e.g., `Scheduler`, `ThreadPool` at the top level) is an error. Use one or the other. A top-level `Schedule`/`Scheduling` section cannot be combined with `Schedulers` either — move it under the appropriate `Schedulers:{name}` entry.
+A `Schedulers` sub-section together with top-level scheduler configuration (e.g., `Scheduler`, `ThreadPool`) is an error; use one or the other. A top-level `Schedule`/`Scheduling` section cannot be combined with `Schedulers` either: move it under the right `Schedulers:{name}` entry.
 :::
 
 ## Standalone JSON Files (quartz_jobs.json)
 
-For file-based scheduling with hot-reload support, use `JsonSchedulingDataProcessorPlugin` from the `Quartz.Plugins` package. See [Quartz Plugins](quartz-plugins.md) for plugin configuration.
+For file-based scheduling with hot reload, use `JsonSchedulingDataProcessorPlugin` from the `Quartz.Plugins` package; see [Quartz Plugins](quartz-plugins.md).
 
-Standalone JSON files use the same `Jobs` and `Triggers` format as the `Schedule` section above, wrapped in an envelope with optional `PreProcessingCommands` and `ProcessingDirectives`:
+The file uses the same `Jobs` and `Triggers` format as the `Schedule` section, in an envelope with optional `PreProcessingCommands` and `ProcessingDirectives`:
 
 ```json
 {
@@ -327,7 +326,7 @@ Standalone JSON files use the same `Jobs` and `Triggers` format as the `Schedule
 
 ### PreProcessingCommands
 
-Commands executed before scheduling. All fields are optional:
+Run before scheduling. All fields are optional:
 
 | Field | Description |
 |---|---|

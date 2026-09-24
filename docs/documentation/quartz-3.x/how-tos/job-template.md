@@ -5,8 +5,7 @@ title: Job Template
 
 # Job Template
 
-This page tries to pull together a variety of common recommendations listed throughout the documentation
-into one page can be easily referenced.
+Common recommendations from across the documentation, in one job:
 
 ```csharp
 public class SampleJob : IJob

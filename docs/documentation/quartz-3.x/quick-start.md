@@ -3,52 +3,40 @@
 title: Quartz 3 Quick Start
 ---
 
-Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect to see details of:
-
-* Downloading Quartz.NET
-* Installing Quartz.NET
-* Configuring Quartz to your own particular needs
-* Starting a sample application
-
 ## Download and Install
 
-You can either download the zip file or use the NuGet package.
-NuGet package contains only the binaries needed to run Quartz.NET, zip file comes with source code, samples and Quartz.NET server sample application.
+Use the NuGet package or the zip file. The NuGet package has only the binaries needed to run Quartz.NET. The zip file adds source code, samples and the Quartz.NET server sample application.
 
 ## NuGet Package
 
-Couldn't get any simpler than this. Just fire up Visual Studio (with NuGet installed) and add reference to package **Quartz** from package manager extension:
+In Visual Studio (with NuGet installed), add the **Quartz** package:
 
-* Right-click on your project's References and choose **Manage NuGet Packages...**
-* Choose **Online** category from the left
-* Enter **Quartz** to the top right search and hit enter
-* Choose **Quartz.NET** from search results and hit install
-* Done!
+1. Right-click your project's References and choose **Manage NuGet Packages...**
+2. Choose the **Online** category on the left.
+3. Enter **Quartz** in the search box at the top right and press enter.
+4. Choose **Quartz.NET** from the results and install it.
 
-or from NuGet Command-Line:
+or from the NuGet command line:
 
 ```shell
 Install-Package Quartz
 ```
 
-If you want to add JSON Serialization, just add either [Quartz.Serialization.SystemTextJson](packages/system-text-json) or [Quartz.Serialization.Json](packages/json-serialization) package the same way.
+For JSON serialization, add the [Quartz.Serialization.SystemTextJson](packages/system-text-json) or [Quartz.Serialization.Json](packages/json-serialization) package the same way.
 
 ### Zip Archive
 
-**Short version**: Once you've downloaded Quartz.NET, unzip it somewhere, grab the `Quartz.dll` from bin directory and start to use it.
+Unzip the download, take `Quartz.dll` from the bin directory and reference it from your Visual Studio project. It is in the extracted archive under **bin\your-target-framework-version\release\Quartz**.
 
-Quartz core library does not have any hard binary dependencies. You can opt-in to more dependencies when you choose to use JSON serialization package.
-You need to have at least `Quartz.dll` beside your app binaries to successfully run Quartz.NET. So just add it as a references to your Visual Studio project that uses them.
-You can find these dlls from extracted archive from path **bin\your-target-framework-version\release\Quartz**.
+The Quartz core library has no hard binary dependencies; the JSON serialization packages add some. `Quartz.dll` beside your app binaries is the minimum to run Quartz.NET.
 
 ## Configuration
 
-This is the big bit! Quartz.NET is a very configurable library. There are two main ways (which are not mutually exclusive) to supply Quartz.NET configuration information:
+There are two ways to configure Quartz.NET, and you can combine them.
 
 ### Fluent Scheduler Builder API
 
-You can configure scheduler using C# fluent API, or via providing `NameValueCollection` parameter to scheduler factory
-which contains configuration keys and values.
+Configure the scheduler with the C# fluent API, or pass the scheduler factory a `NameValueCollection` of configuration keys and values.
 
 ```csharp
 // you can have base properties
@@ -89,15 +77,15 @@ await scheduler.Start();
 
 ### Configuration files
 
-Following files are searched for known configuration properties:
+Quartz reads known configuration properties from:
 
 * `YourApplication.exe.config` configuration file using quartz-element (full .NET framework only)
 * `appsettings.json` (.NET Core/NET5 onwards)
 * `quartz.config` file in your application's root directory (works both with .NET Core and full .NET Framework)
 
-Full documentation of available properties is available in the [Quartz Configuration Reference](configuration/reference).
+All properties are in the [Quartz Configuration Reference](configuration/reference).
 
-To get up and running quickly, a basic quartz.config looks something like this:
+A basic quartz.config:
 
 ```text
  quartz.scheduler.instanceName = MyScheduler
@@ -105,23 +93,23 @@ To get up and running quickly, a basic quartz.config looks something like this:
  quartz.threadPool.maxConcurrency = 3
 ```
 
-Remember to set the **Copy to Output Directory** on Visual Studio's file property pages to have value **Copy always**. Otherwise the config will not be seen if it's not in build directory.
+Set **Copy to Output Directory** to **Copy always** in the file's Visual Studio properties; a config file outside the build directory is not found.
 
-The scheduler created by this configuration has the following characteristics:
+This configuration gives a scheduler with:
 
-* `quartz.scheduler.instanceName` - This scheduler's name will be "MyScheduler".
-* `quartz.threadPool.maxConcurrency` - Maximum of 3 jobs can be run simultaneously (default is 10).
-* `quartz.jobStore.type` - All of Quartz's data, such as details of jobs and triggers, is held in memory (rather than in a database).
+* `quartz.scheduler.instanceName`: the name "MyScheduler".
+* `quartz.threadPool.maxConcurrency`: at most 3 jobs running at once (default is 10).
+* `quartz.jobStore.type`: all of Quartz's data, such as jobs and triggers, held in memory instead of a database.
 
-* Even if you have a database and want to use it with Quartz, I suggest you get Quartz working with the RamJobStore before you open up a whole new dimension by working with a database.
+Even if you plan to use a database, get Quartz working with the RamJobStore first.
 
 ::: tip
-Actually you don't need to define these properties if you don't want to, Quartz.NET comes with sane defaults
+These properties are optional; Quartz.NET has sensible defaults.
 :::
 
 ## Starting a Sample Application
 
-Now you've downloaded and installed Quartz, it's time to get a sample application up and running. The following code obtains an instance of the scheduler, starts it, then shuts it down:
+This code gets a scheduler instance, starts it, then shuts it down:
 
 **Program.cs**
 
@@ -155,16 +143,13 @@ namespace QuartzSampleApp
 }
 ```
 
-As of Quartz 3.0 your application will terminate when there's no code left to execute after `scheduler.Shutdown()`, because there won't be any active threads. You should manually block exiting of application if you want scheduler to keep running also after the Task.Delay and Shutdown has been processed.
+Since Quartz 3.0 the application exits when no code is left to run after `scheduler.Shutdown()`, because no threads are active. To keep the scheduler running past the Task.Delay and Shutdown, block the application from exiting yourself.
 
-Now running the program will not show anything. When 10 seconds have passed the program will just terminate. Lets add some logging to console.
+The program shows nothing yet and exits after 10 seconds. Add logging to the console next.
 
 ## Adding logging
 
-[LibLog](https://github.com/damianh/LibLog/wiki) can be configured to use different logging frameworks under the hood; namely Log4Net, NLog and Serilog.
-
-When LibLog does not detect any other logging framework to be present, it will be silent. We can configure a custom logger provider that just logs to console show the output
-if you don't have logging framework setup ready yet.
+[LibLog](https://github.com/damianh/LibLog/wiki) can use Log4Net, NLog or Serilog. When it detects no logging framework, it is silent. Until you set one up, a custom log provider can write to the console:
 
 ```csharp
 LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
@@ -197,7 +182,7 @@ private class ConsoleLogProvider : ILogProvider
 
 ## Trying out the application
 
-Now we should get a lot more information when we start the application.
+The application now logs at start-up:
 
 ```log
 [12.51.10] [Info] Quartz.NET properties loaded from configuration file 'C:\QuartzSampleApp\quartz.config'
@@ -217,7 +202,7 @@ Now we should get a lot more information when we start the application.
 [12.51.10] [Info] Scheduler MyScheduler_$_NON_CLUSTERED started.
 ```
 
-We need a simple test job to test the functionality, lets create HelloJob that outputs greetings to console.
+A test job that writes a greeting to the console:
 
 ```csharp
 public class HelloJob : IJob
@@ -229,7 +214,7 @@ public class HelloJob : IJob
 }
 ```
 
-To do something interesting, you need code just after Start() method, before the Task.Delay.
+Schedule it after `Start()`, before the `Task.Delay`:
 
 ```csharp
 // define the job and tie it to our HelloJob class
@@ -253,7 +238,7 @@ await scheduler.ScheduleJob(job, trigger);
 // await scheduler.ScheduleJob(job, new List<ITrigger>() { trigger1, trigger2 }, replace: true);
 ```
 
-The complete console application will now look like this
+The complete console application:
 
 ```csharp
 using System;
@@ -344,11 +329,11 @@ namespace QuartzSampleApp
 
 ## Creating and initializing database
 
-In order to use SQL persistence storage for Quartz and enabling features like clustering, you need to create a database and initialize the schema objects using SQL scripts.
-First you need to create a database and credentials for Quartz. After you have a database that Quartz will be able to connect to, you also need to create database tables and indexes
-that Quartz needs for successful operation.
+SQL persistence, and features such as clustering, need a database with the Quartz schema:
 
-You can find latest DDL scripts in [Quartz's GitHub repository](https://github.com/quartznet/quartznet/tree/main/database/tables) and they are also contained in the ZIP archive distribution.
-There are also third party additions to Quartz that enable other types of storage, like NoSQL databases. You can search for them on NuGet.
+1. Create a database and credentials for Quartz.
+2. Create the tables and indexes with the DDL scripts from [Quartz's GitHub repository](https://github.com/quartznet/quartznet/tree/main/database/tables). The ZIP archive distribution contains them too.
 
-Now go have some fun exploring Quartz.NET! You can continue by reading [the tutorial](tutorial/index.html).
+Third-party additions to Quartz support other storage, such as NoSQL databases; search for them on NuGet.
+
+Continue with [the tutorial](tutorial/index.html).

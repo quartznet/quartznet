@@ -4,20 +4,18 @@ title: OpenTelemetry Integration
 ---
 
 ::: warning DEPRECATED
-The `Quartz.OpenTelemetry.Instrumentation` package is **obsolete** and no longer maintained. It is incompatible with .NET 10 and later versions.
+The `Quartz.OpenTelemetry.Instrumentation` package is **obsolete** and no longer maintained. It is incompatible with .NET 10 and later.
 
-**Please use the official [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz) package instead**, which is actively maintained by the OpenTelemetry community and fully compatible with the latest .NET versions.
+**Use the official [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz) package instead.** The OpenTelemetry community maintains it, and it supports the latest .NET versions.
 :::
 
 ## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
 Install-Package OpenTelemetry.Instrumentation.Quartz
 ```
 
-It also makes sense to install package for exporter to actually get the results somewhere.
+Also install an exporter package, so the results go somewhere.
 
 ::: tip
 Quartz 3.1 or later required.
@@ -25,14 +23,14 @@ Quartz 3.1 or later required.
 
 ## Using
 
-You can add Quartz configuration by invoking an extension method `AddQuartzInstrumentation` on `TracerProviderBuilder`.
+Call the `AddQuartzInstrumentation` extension method on `TracerProviderBuilder`.
 
-In the next example we will integrate with [Jaeger](https://www.jaegertracing.io/). We expect that you have also installed dependencies:
+This example exports to [Jaeger](https://www.jaegertracing.io/). It also needs:
 
 * [OpenTelemetry.Extensions.Hosting](https://www.nuget.org/packages/OpenTelemetry.Extensions.Hosting)
 * [OpenTelemetry.Exporter.Jaeger](https://www.nuget.org/packages/OpenTelemetry.Exporter.Jaeger)
 
-You can run local Jaeger via docker using:
+Run Jaeger locally with docker:
 
 ```shell
 $ docker run -d --name jaeger \

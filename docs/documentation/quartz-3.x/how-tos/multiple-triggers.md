@@ -3,12 +3,9 @@
 title: Multiple Triggers
 ---
 
-Quartz is designed with the ability to register a job with multiple triggers.
-Each job can have a base line set of data, and then each trigger can bring its
-own set of data as well. During the job execution Quartz will merge the data
-for you, with the data in the trigger overriding the data in the job.
+A job can have several triggers. The job can carry baseline data and each trigger its own; at execution Quartz merges them, and trigger data overrides job data.
 
-Our example job:
+The example job:
 
 ```csharp
 public class HelloJob : IJob
@@ -25,29 +22,28 @@ public class HelloJob : IJob
 }
 ```
 
-Below, we have two triggers, each with their own set of data, but
-we only had to register the one job.
+Two triggers, each with its own data, for one registered job:
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
+public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 {
     var job = JobBuilder.Create<HelloJob>()
                         .WithIdentity(HelloJob.Key)
                         .Build();
     
-    await schedule.AddJob(job, replace: true, storeNonDurableWhileAwaitingScheduling: true, ct);
+    await scheduler.AddJob(job, replace: true, storeNonDurableWhileAwaitingScheduling: true, ct);
 
     // Trigger 1
     var jobData1 = new JobDataMap { { "CustomerId", "1" } };
-    await scheduler.TriggerJob(new JobKey("customer-process", "group"), jobData1, ct);
+    await scheduler.TriggerJob(HelloJob.Key, jobData1, ct);
 
     // Trigger 2
     var jobData2 = new JobDataMap { { "CustomerId", "2" } };
-    await scheduler.TriggerJob(new JobKey("customer-process", "group"), jobData2, ct);
+    await scheduler.TriggerJob(HelloJob.Key, jobData2, ct);
 }
 ```
 
-When this runs you will see:
+Output:
 
 ```text
 CustomerId=1 batch-size=
@@ -56,18 +52,17 @@ CustomerId=2 batch-size=
 
 ### Job Data and Trigger Data
 
-You could even set common data parameters on the job itself. Here
-we are adding some job data to the job itself.
+Set common data on the job itself:
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
+public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 {
     var job = JobBuilder.Create<AnExampleJob>()
                         .WithIdentity(HelloJob.Key)
                         .UsingJobData("batch-size", "50")
                         .Build();
     
-    await schedule.AddJob(job, replace: true, storeNonDurableWhileAwaitingScheduling: true, ct);
+    await scheduler.AddJob(job, replace: true, storeNonDurableWhileAwaitingScheduling: true, ct);
 
     // Trigger 1
     var jobData1 = new JobDataMap { { "CustomerId", 1 } };
@@ -79,7 +74,7 @@ public Task DoSomething(IScheduler schedule, CancellationToken ct)
 }
 ```
 
-When this runs you will see:
+Output:
 
 ```text
 CustomerId=1 batch-size=50

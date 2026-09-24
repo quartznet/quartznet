@@ -5,10 +5,6 @@ title: Redis Lock Handler
 [Quartz.Extensions.Redis](https://www.nuget.org/packages/Quartz.Extensions.Redis) provides a Redis-based distributed lock handler (`ISemaphore`) that replaces database row locks in clustered Quartz.NET setups.
 
 ::: tip
-Useful when database row locks (the default for clustered setups) cause deadlocks or performance issues under heavy scheduling load.
-:::
-
-::: tip
 Quartz 3.18 or later required.
 :::
 
@@ -20,13 +16,13 @@ Install-Package Quartz.Extensions.Redis
 
 ## Why Redis Locks?
 
-The default `StdRowLockSemaphore` uses `SELECT ... FOR UPDATE` database row locks to coordinate trigger acquisition across cluster nodes. Under heavy scheduling load this can lead to:
+The default `StdRowLockSemaphore` coordinates trigger acquisition across cluster nodes with `SELECT ... FOR UPDATE` database row locks. Under heavy scheduling load this can cause:
 
 - **Table deadlocks** in certain database engines
 - **Connection timeouts** when obtaining locks is slow
 - **Performance degradation** from lock contention on the `QRTZ_LOCKS` table
 
-The Redis lock handler replaces these database locks with Redis `SET NX PX` distributed locks while keeping all job and trigger data in your relational database.
+The Redis lock handler replaces these locks with Redis `SET NX PX` distributed locks. All job and trigger data stays in your relational database.
 
 ## Configuring
 
@@ -72,16 +68,15 @@ All properties are set under `quartz.jobStore.lockHandler.*`. The `schedName` an
 
 ## How It Works
 
-The lock handler uses a two-tier locking strategy:
+Two lock tiers:
 
-1. **Local tier** &mdash; A `SemaphoreSlim` per lock name prevents redundant Redis round-trips when the same process already holds the lock.
+1. **Local tier:** a `SemaphoreSlim` per lock name saves Redis round-trips when the same process already holds the lock.
+2. **Redis tier:** `SET key value NX PX timeout` is the cross-node distributed lock. The key includes the scheduler name to isolate schedulers (e.g., `quartz:lock:MyScheduler:TRIGGER_ACCESS`).
 
-2. **Redis tier** &mdash; `SET key value NX PX timeout` provides the cross-node distributed lock. The key includes the scheduler name for multi-scheduler isolation (e.g., `quartz:lock:MyScheduler:TRIGGER_ACCESS`).
-
-Lock release uses a Lua script for atomic check-and-delete, preventing a node from accidentally releasing a lock that has already expired and been re-acquired by another node.
+Lock release is an atomic check-and-delete in a Lua script, so a node cannot release a lock that has expired and been re-acquired by another node.
 
 ## Considerations
 
-- **Lock TTL**: The default 30-second TTL provides ample margin for typical scheduling operations (milliseconds to low seconds). If your database is very slow, increase the TTL. If a node crashes, the lock auto-expires after the TTL.
-- **Redis availability**: If Redis is unreachable, `ObtainLock` throws a `LockException` which the scheduler handles via its standard retry mechanism.
-- **Single-instance Redis**: This implementation uses simple `SET NX` locks, not the Redlock algorithm. For most Quartz.NET deployments a single Redis instance (or replica set with Sentinel) is sufficient since the locks are advisory and short-lived.
+- **Lock TTL:** the default 30-second TTL is ample for typical scheduling operations (milliseconds to low seconds). Increase it if your database is very slow. If a node crashes, its lock expires after the TTL.
+- **Redis availability:** if Redis is unreachable, `ObtainLock` throws a `LockException`, which the scheduler handles with its standard retry mechanism.
+- **Single-instance Redis:** these are simple `SET NX` locks, not the Redlock algorithm. A single Redis instance (or a replica set with Sentinel) is enough for most deployments, because the locks are advisory and short-lived.

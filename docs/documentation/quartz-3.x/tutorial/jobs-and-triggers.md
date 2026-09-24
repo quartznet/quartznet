@@ -5,12 +5,11 @@ title: 'Jobs And Triggers'
 
 # Jobs and Triggers
 
-**Jobs** and **Triggers** will be the core tools that you use as a developer
-working with the Quartz library.
+**Jobs** and **Triggers** are the core of the Quartz library.
 
 ## Jobs
 
-A job is a class that implements the `IJob` interface, which has only one simple method:
+A job is a class that implements the `IJob` interface, which has one method:
 
 ```csharp
 namespace Quartz
@@ -22,25 +21,19 @@ namespace Quartz
 }
 ```
 
-When the job's trigger fires (more on that in a moment), the `Execute(..)` method is invoked by one of the scheduler's worker threads.
-The `JobExecutionContext` object that is passed to this method provides the job instance with information about its "run-time" environment -
-a handle to the `IScheduler` that executed it, a handle to the Trigger that triggered the execution, the job's `IJobDetail` object, and a few other items.
+When the job's trigger fires, one of the scheduler's worker threads calls `Execute(..)`. The `JobExecutionContext` passed to it describes the job's run-time environment: the `IScheduler` that executed it, the Trigger that fired it, the job's `IJobDetail` object, and a few other items.
 
-The `IJobDetail` object is created by the Quartz.NET client (your program) at the time the job is added to the scheduler.
-It contains various property settings for the job, as well as a `JobDataMap`, which can be used to store state information for a given instance of your job class.
-It is essentially the definition of the job instance, and is discussed in further detail in the next lesson.
+Your program creates the `IJobDetail` when it adds the job to the scheduler. It is the definition of the job instance: property settings for the job, and a `JobDataMap` that can store state for a given instance of your job class. The next lesson covers it in detail.
 
 ## Triggers
 
-Trigger objects are used to trigger the execution (or 'firing') of jobs. When you wish to schedule a job, you instantiate a trigger and use its properties to configure the scheduling you wish to have. Triggers may also have a `JobDataMap` associated with them. - this is useful to passing parameters to a
-Job that are specific to the firings of the trigger. Quartz ships with a handful of different trigger types, but the most commonly used types are simple trigger (interface `ISimpleTrigger`) and a cron trigger (interface `ICronTrigger`).
+A trigger fires the execution of a job. To schedule a job, create a trigger and set its properties to the schedule you want. A trigger can have its own `JobDataMap`, to pass the job parameters specific to that trigger's firings. Quartz has several trigger types; the most used are the simple trigger (interface `ISimpleTrigger`) and the cron trigger (interface `ICronTrigger`).
 
 :::warning
-[`cron`](https://en.wikipedia.org/wiki/Cron) is the name of an early Linux command-line utility used to schedule
-jobs. It developed a specific way of describing how a job runs, however the `CronTrigger` uses a different format where Quartz expects seconds as the first parameter. [More...](/documentation/quartz-3.x/tutorial/crontrigger)
+[`cron`](https://en.wikipedia.org/wiki/Cron) is an early Linux command-line job scheduler with its own schedule format. `CronTrigger` uses a different format, with seconds as the first field. [More...](/documentation/quartz-3.x/tutorial/crontrigger)
 :::
 
-**SimpleTrigger** is handy if you need 'one-shot' execution (just single execution of a job at a given moment in time), or if you need to fire a job at a given time, and have it repeat `N` times, with a delay of `T` between executions. This should feel similar to the .NET Timer class.
+**SimpleTrigger** is for 'one-shot' execution (a single execution at a given moment), or for firing at a given time and repeating `N` times with a delay of `T` between executions, much like the .NET Timer class.
 
 ```csharp
 var example = TriggerBuilder.Create()
@@ -54,8 +47,7 @@ var example = TriggerBuilder.Create()
     .Build();
 ```
 
-**CronTrigger** is useful if you wish to have triggering based on calendar-like schedules -
-such as "every Friday, at noon" or "at 10:15 on the 10th day of every month.". `WithCronSchedule` supports `H` (hash) tokens to [spread fire times across triggers](crontrigger#h-hash-for-load-distribution). See [CronTrigger](crontrigger) for the syntax, and `CronExpressionBuilder` for composing an expression without writing the string yourself.
+**CronTrigger** is for calendar-like schedules, such as "every Friday, at noon" or "at 10:15 on the 10th day of every month". `WithCronSchedule` supports `H` (hash) tokens to [spread fire times across triggers](crontrigger#h-hash-for-load-distribution). See [CronTrigger](crontrigger) for the syntax, and `CronExpressionBuilder` to compose an expression without writing the string.
 
 ```csharp
 var example = TriggerBuilder.Create()
@@ -65,7 +57,7 @@ var example = TriggerBuilder.Create()
     .Build();
 ```
 
-**[RecurrenceTrigger](recurrencetrigger.md)** (Quartz 3.18+) is useful for complex calendar-based patterns that cron cannot express — such as "every 2nd Monday of the month", "every other week on specific days", or "the last weekday of March each year". It uses RFC 5545 RRULE strings.
+**[RecurrenceTrigger](recurrencetrigger.md)** (Quartz 3.18+) is for calendar patterns cron cannot express, such as "every 2nd Monday of the month", "every other week on specific days" or "the last weekday of March each year". It uses RFC 5545 RRULE strings.
 
 ```csharp
 var example = TriggerBuilder.Create()
@@ -77,21 +69,14 @@ var example = TriggerBuilder.Create()
 
 ## Why Jobs and Triggers?
 
-Many job schedulers do not have separate notions of jobs and triggers. Some define a 'job' as simply an execution time (or schedule)
-along with some small job identifier. Others are much like the union of Quartz's job and trigger objects. While developing Quartz, we decided that it made sense
- to create a separation between the schedule and the work to be performed on that schedule. This has (in our opinion) many benefits.
+Quartz separates the schedule (trigger) from the work (job). As a result:
 
-For example, Jobs can be created and stored in the job scheduler independent of a trigger, and many triggers can be associated with the same job.
-Another benefit of this loose-coupling is the ability to configure jobs that remain in the scheduler after their associated triggers have expired,
-so that that it can be rescheduled later, without having to re-define it. It also allows you to modify or replace a trigger without having to re-define
-its associated job.
+* Jobs can be stored in the scheduler without a trigger, and many triggers can use the same job.
+* A job can stay in the scheduler after its triggers have expired, and be rescheduled later without being re-defined.
+* A trigger can be modified or replaced without re-defining its job.
 
 ## Identities
 
-Jobs and Triggers are given identifying keys as they are registered with the Quartz scheduler.
-The keys of Jobs and Triggers (`JobKey` and `TriggerKey`) allow them to be placed into 'groups' which can be useful for organizing your jobs and
- triggers into categories such as "reporting jobs" and "maintenance jobs". The name portion of the key of a job or trigger must be unique within the group.
-The complete key (or identifier) of a job or trigger is the compound of the name and group.
+Jobs and triggers get identifying keys (`JobKey` and `TriggerKey`) when they are registered with the scheduler. A key has a name and a group; groups organize jobs and triggers into categories such as "reporting jobs" and "maintenance jobs". The name must be unique within the group, and name plus group is the complete key.
 
-You now have a general idea about what Jobs and Triggers are, you can learn more about them in
-[Lesson 4: More About Jobs & JobDetails](more-about-jobs.md) and [Lesson 5: More About Triggers](more-about-triggers.md)
+More in [Lesson 4: More About Jobs & JobDetails](more-about-jobs.md) and [Lesson 5: More About Triggers](more-about-triggers.md).

@@ -3,15 +3,12 @@
 title: 'Using Quartz'
 ---
 
-Before you can use the scheduler, it needs to be instantiated (who'd have guessed?).
-To do this, you use an implementor of ISchedulerFactory.
+An `ISchedulerFactory` implementation creates the scheduler. Once created, a scheduler can be started, put in stand-by mode, and shut down.
 
-Once a scheduler is instantiated, it can be started, placed in stand-by mode, and shutdown.
-Note that once a scheduler is shutdown, it cannot be restarted without being re-instantiated.
-Triggers do not fire (jobs do not execute) until the scheduler has been started, nor while it is
-in the paused state.
+* A shut-down scheduler cannot be restarted; create a new one.
+* Triggers do not fire (jobs do not execute) before the scheduler is started, nor while it is paused.
 
-Here's a quick snippet of code, that instantiates and starts a scheduler, and schedules a job for execution:
+The code below creates and starts a scheduler and schedules a job.
 
 ### Install Quartz.NET NuGets
 
@@ -24,8 +21,7 @@ Install-Package Quartz.Extensions.Hosting
 
 ### Configure `Program.cs`
 
-A minimal style example of configuring Quartz.NET with the Microsoft Hosting framework
-looks like this.
+A minimal Quartz.NET setup with the Microsoft Hosting framework:
 
 ```csharp
 using Microsoft.Extensions.Hosting;
@@ -45,7 +41,7 @@ var builder = Host.CreateDefaultBuilder()
 await builder.RunAsync();
 ```
 
-Let's add a job to this.
+With a job:
 
 ```csharp
 
@@ -88,12 +84,11 @@ await scheduler.ScheduleJob(job, trigger);
 await builder.RunAsync();
 ```
 
-As you can see, working with Quartz.NET is rather simple. In [Lesson 2](jobs-and-triggers.md) we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
+[Jobs and Triggers](jobs-and-triggers.md) explains the parts of this example.
 
 ## Traditional Program.cs
 
-If you are working in a pre-minimal API project, you can use the same old `Program.cs` structure
-as well.
+A project without minimal APIs can use the classic `Program.cs` structure:
 
 ```csharp
 using Microsoft.Extensions.Hosting;

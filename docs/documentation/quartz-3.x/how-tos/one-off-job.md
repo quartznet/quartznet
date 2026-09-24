@@ -1,6 +1,6 @@
 # One-Off Job
 
-You can run the simplest job this way.
+A job that runs once.
 
 :::tip
 
@@ -10,8 +10,7 @@ Misfire Mode: Smart
 
 ## Ahead of Time Job Registration
 
-If you have a static set of jobs, you can register them ahead of time using something like this.
-If the `durable` flag is `true`, then the job will stay dormant until its triggered.
+Register a static set of jobs ahead of time. With `durable` set to `true`, the job stays dormant until it is triggered.
 
 ```csharp
 public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
@@ -26,7 +25,7 @@ public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 }
 ```
 
-To trigger the job later, simply call `TriggerJob` like below:
+Trigger it later with `TriggerJob`:
 
 ```csharp
 public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
@@ -35,7 +34,7 @@ public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 }
 ```
 
-If you want to adjust the `JobDataMap`
+With a `JobDataMap`:
 
 ```csharp
 public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
@@ -47,8 +46,7 @@ public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 
 ## Dynamic Registration
 
-In this scenario, you may have a dynamic set of jobs and need to
-generate both the job and trigger on the fly.
+For a dynamic set of jobs, create the job and trigger on the fly:
 
 ```csharp
 public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
