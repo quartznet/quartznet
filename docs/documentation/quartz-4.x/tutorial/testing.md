@@ -8,12 +8,9 @@ title: 'Testing'
      NuGet dependency taken purely for a documentation sample is not worth it. Everything here that
      compiles against Quartz alone is a snippet. -->
 
-Scheduling code is unusually easy to test badly. A test that starts a scheduler, sleeps two seconds and
-asserts that a counter moved is a test that passes on your laptop and fails in CI, and the fix people
-reach for — a longer sleep — makes the suite slower without making it correct.
-
-There are four levels of Quartz test, in increasing cost. Most of what you want to know can be answered
-at the first two, which involve no scheduler at all or no clock at all.
+Test Quartz code at the cheapest level that answers the question. A test that starts a scheduler, sleeps
+two seconds and checks a counter passes locally and fails in CI; a longer sleep only makes it slower.
+Most questions are answered at levels 0 and 1, which need no scheduler or no clock.
 
 | Level | What it exercises | Cost |
 |---|---|---|
@@ -24,9 +21,8 @@ at the first two, which involve no scheduler at all or no clock at all.
 
 ## Level 0: schedules, with no scheduler
 
-A trigger is a pure function from a start time to a sequence of fire times, and you can call it
-directly. This is where a fake clock is *completely* effective, and it is where most schedule bugs
-actually live.
+A trigger is a pure function from a start time to a sequence of fire times; call it directly. A fake
+clock works fully here, and most schedule bugs are found here.
 
 ```csharp
 [Test]
@@ -56,34 +52,29 @@ public void CronScheduleSkipsWeekends()
 | `ComputeBetween(trigger, calendar, from, to)` | every fire time in a window |
 | `ComputeEndTimeForCount(trigger, calendar, numberOfTimes)` | the `EndAt` that would allow exactly *n* firings |
 
-Each has an `ITrigger` overload and an `IOperableTrigger` one. Pass what you are holding: the
-`ITrigger` form does the cast for you, and answers with an `ArgumentException` naming the type if the
-trigger is one of your own that cannot be advanced. They clone the trigger before computing and prime
-it themselves, so you do not have to call `ComputeFirstFireTimeUtc` first, and the trigger you passed
-in is untouched.
-
-For a single step, `ITrigger.GetFireTimeAfter(DateTimeOffset?)` answers "and then?" directly — it
-computes from the schedule rather than from stored state, so it works on a trigger that has never been
-scheduled.
+* Each has an `ITrigger` overload and an `IOperableTrigger` one. The `ITrigger` form casts for you, and
+  throws an `ArgumentException` naming the type for a trigger of your own that cannot be advanced.
+* They clone the trigger and prime it themselves: you need not call `ComputeFirstFireTimeUtc` first, and
+  the trigger you passed is untouched.
+* For a single step, `ITrigger.GetFireTimeAfter(DateTimeOffset?)` computes from the schedule, not from
+  stored state, so it works on a trigger that was never scheduled.
 
 ::: warning
 `TriggerBuilder.Create()` with no argument defaults its start time to the **wall clock**, even inside a
 test holding a `FakeTimeProvider`. Pass the clock — `TriggerBuilder.Create(clock)` — and set `StartAt`
 explicitly. See [Time and TimeProvider](time-and-timeprovider.md#the-trap-triggers-built-outside-the-container).
 
-Passing the clock is enough: the built trigger keeps it, so every "now" it reads afterwards — a cron
-trigger's past-due clamp in `ComputeFirstFireTimeUtc`, and the whole of `UpdateAfterMisfire` — is the
-clock you passed rather than the machine's.
+The built trigger keeps the clock, so every later "now" it reads (a cron trigger's past-due clamp in
+`ComputeFirstFireTimeUtc`, and all of `UpdateAfterMisfire`) comes from it, not from the machine.
 :::
 
 Calendars are testable the same way: `ICalendar.IsTimeIncluded(when)` needs nothing but the calendar.
 
 ### Crossing a daylight-saving transition
 
-The question a DST test asks is "what does my schedule do on the two days a year the local clock is not
-monotonic", and level 0 answers it exactly: put the fake clock a day before a transition, put the trigger
-in a real time zone, and ask for the window. No scheduler, no waiting, and the assertion is the answer
-rather than a proxy for it.
+To test what a schedule does on the two days a year the local clock is not monotonic: set the fake clock
+a day before a transition, put the trigger in a real time zone, and compute the window. No scheduler and
+no waiting.
 
 ```csharp
 [Test]
@@ -112,23 +103,21 @@ public void DailyCronKeepsItsLocalTimeAcrossSpringForward()
 }
 ```
 
-Three more cases are worth a test of their own, and all three are the same shape:
+Test these three cases the same way:
 
-- **A time that does not exist**, in the hour spring-forward skips — `0 30 3 * * ?` in the zone above.
-  Assert on the instant the trigger actually picks rather than assuming one: on 2026-03-29 that schedule
-  fires at 04:00 local, the moment the clock jumps to, and not at 03:30 of either offset.
-- **A time that happens twice**, in the hour fall-back repeats. Assert on the *count* in the window: one
-  firing or two is the whole question.
-- **An interval schedule across the same boundary.** Interval triggers count *elapsed time* by default,
-  so a 24-hour `SimpleTrigger` that fired at 02:30 fires at 03:30 local afterwards — and so does a
-  one-day `CalendarIntervalTrigger`, unless it is asked otherwise.
-  `PreserveHourOfDayAcrossDaylightSavings()` is the ask, and it is the one that keeps 02:30 across the
-  transition. Which of the two your schedule wants is a decision, and this is the test that shows you
-  made it.
+* **A time that does not exist**, in the hour spring-forward skips: `0 30 3 * * ?` in the zone above.
+  Assert on the instant the trigger picks. On 2026-03-29 that schedule fires at 04:00 local, when the
+  clock jumps, not at 03:30 of either offset.
+* **A time that happens twice**, in the hour fall-back repeats. Assert on the *count* of firings in the
+  window: one or two.
+* **An interval schedule across the boundary.** Interval triggers count *elapsed time* by default, so a
+  24-hour `SimpleTrigger` that fired at 02:30 fires at 03:30 local afterwards. So does a one-day
+  `CalendarIntervalTrigger`, unless you call `PreserveHourOfDayAcrossDaylightSavings()`, which keeps
+  02:30. The test shows which of the two your schedule does.
 
-`TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki")` resolves IANA ids on Windows too since .NET 6;
-[Quartz.Plugins.TimeZoneConverter](../packages/timezoneconverter-integration.md) is for the cases it
-still cannot.
+`TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki")` resolves IANA ids on Windows too since .NET 6.
+Use [Quartz.Plugins.TimeZoneConverter](../packages/timezoneconverter-integration.md) where it still
+cannot.
 
 ## Level 1: one job, one context
 
@@ -168,34 +157,29 @@ public async Task ImportJobWritesTheWatermark()
 }
 ```
 
-`TriggerFiredBundle` is a required-init record, which is what makes this level teachable — the compiler
-lists what a firing consists of. Seven members are required: `JobDetail`, `Trigger`, `Recovering`,
-`FireTimeUtc`, `ScheduledFireTimeUtc`, `PreviousFireTimeUtc` and `NextFireTimeUtc`. Three of those are
-nullable but still required, so you have to say `null` rather than forget them. `Calendar` is optional.
-
-`JobExecutionContextImpl` does no null-checking in its constructor — it copies fields. Passing `null`
-for the scheduler and the job is fine as long as the code under test does not reach for them; reach for
-`context.Scheduler` with a null scheduler and you get the `NullReferenceException` you asked for. Fake
-the scheduler when the job uses it.
+* `TriggerFiredBundle` is a required-init record, so the compiler lists what a firing needs. Required:
+  `JobDetail`, `Trigger`, `Recovering`, `FireTimeUtc`, `ScheduledFireTimeUtc`, `PreviousFireTimeUtc` and
+  `NextFireTimeUtc`. Three are nullable but still required, so write `null` explicitly. `Calendar` is
+  optional.
+* `JobExecutionContextImpl` does no null-checking in its constructor. `null` for the scheduler and the
+  job is fine if the code under test does not use them; `context.Scheduler` with a null scheduler throws
+  `NullReferenceException`. Fake the scheduler when the job uses it.
 
 ::: warning
-`context.JobRunTime` while a job is still running is computed from `DateTimeOffset.UtcNow`, not from the
-scheduler's `TimeProvider`. Under a fake clock set to a different instant the mid-execution value is
-meaningless and can be negative. The value the scheduler records *after* the job completes is measured
-from a monotonic timestamp and is always sane.
+`context.JobRunTime` while a job is running is computed from `DateTimeOffset.UtcNow`, not from the
+scheduler's `TimeProvider`. Under a fake clock set to another instant the mid-execution value is
+meaningless and can be negative. The value recorded *after* the job completes uses a monotonic timestamp
+and is always correct.
 :::
 
 ### Keeping jobs testable
 
-Three habits make level 1 the level you spend most of your time at:
-
-- **Inject dependencies through the constructor.** The container builds jobs; a job that news up its
-  own `HttpClient` cannot be tested without a network.
-- **Read inputs from `MergedJobDataMap`**, or let the job factory set properties for you. Either way
-  the inputs are data you can supply.
-- **Forward the cancellation token.** `Execute(context, cancellationToken)` receives it as a parameter
-  precisely so that `CA2016` flags a job that drops it — and a job that drops it cannot be tested for
-  cancellation.
+* **Inject dependencies through the constructor.** A job that creates its own `HttpClient` cannot be
+  tested without a network.
+* **Read inputs from `MergedJobDataMap`**, or let the job factory set properties. Either way the test
+  supplies them as data.
+* **Forward the cancellation token.** It is a parameter of `Execute(context, cancellationToken)` so that
+  `CA2016` flags a job that drops it; such a job cannot be tested for cancellation.
 
 ### Jobs the container builds
 
@@ -219,10 +203,9 @@ finally
 }
 ```
 
-That exercises the whole instantiation path — the scope, the property injection, and any
-`ConfigureJobScope` hook. It is also the level at which to test a per-firing `AsyncLocal`: the hook is
-deliberately synchronous so that values it sets flow into `Execute`, and this is the test that proves
-they do.
+This exercises the whole instantiation path: the scope, property injection, and any
+`ConfigureJobScope` hook. Test a per-firing `AsyncLocal` here: the hook is synchronous so that values it
+sets flow into `Execute`, and this test proves they do.
 
 ::: warning Changed in 4.x
 The scheduler context is **no longer** merged into the properties the job factory sets, and no longer
@@ -232,8 +215,8 @@ from `context.Scheduler.Context`.
 
 ## Level 2: a real in-memory scheduler
 
-When the thing under test is the *wiring* — that a trigger reaches a job, that a listener vetoes, that
-`[DisallowConcurrentExecution]` does what it says — run a real scheduler in memory:
+To test the *wiring* (a trigger reaches a job, a listener vetoes, `[DisallowConcurrentExecution]`
+works), run a real scheduler in memory:
 
 <!-- snippet: sample_testing_in_memory_scheduler -->
 ```csharp
@@ -248,14 +231,13 @@ await scheduler.Start();
 ```
 <!-- endSnippet -->
 
-`BuildScheduler()` is the shortcut when you do not need the factory, but hold the factory in a test:
-disposing it is what shuts the scheduler down and releases its container.
+In a test, hold the factory rather than using `BuildScheduler()`: disposing it shuts the scheduler down
+and releases its container.
 
 ### Signal completion; never sleep
 
-The one rule that makes level 2 reliable: **the job tells the test when it is done.** A
-`TaskCompletionSource` on a listener is the tidiest form, and because `IJobListener` has a default
-implementation for every member you only write the one you need:
+**The job tells the test when it is done.** Use a `TaskCompletionSource` on a listener. `IJobListener`
+has a default implementation for every member, so write only the one you need:
 
 <!-- snippet: sample_testing_completion_listener -->
 ```csharp
@@ -288,25 +270,20 @@ JobExecutionException? failure = await listener.Completed.WaitAsync(TimeSpan.Fro
 failure.Should().BeNull();
 ```
 
-Two details worth copying:
-
-- **`RunContinuationsAsynchronously`.** Without it the continuation runs on the scheduler's own thread,
+* **`RunContinuationsAsynchronously`.** Without it the continuation runs on the scheduler's thread,
   inside the notification, and a test that then blocks deadlocks the scheduler.
-- **A generous deadline, never a timing assertion.** Thirty seconds is not "the job takes thirty
-  seconds"; it is "if we are still waiting after thirty seconds, something is broken". The deadline
-  decides when it is safe to give up, not when it is correct to look.
-
-Registering a listener with no matchers means every job. `IJobListener.Name` defaults to the
-implementing type's name, which is fine until you register two instances of the same listener type with
-one scheduler — the second replaces the first. Override `Name` when you do that.
-
-The same shape works for `ITriggerListener` (whose `VetoJobExecution` defaults to vetoing nothing) and
-`ISchedulerListener`.
+* **A generous deadline, never a timing assertion.** Thirty seconds means "if still waiting, something
+  is broken", not "the job takes thirty seconds".
+* A listener with no matchers hears every job.
+* `IJobListener.Name` defaults to the type's name. A second instance of the same type registered with
+  one scheduler replaces the first; override `Name` to register both.
+* The same shape works for `ITriggerListener` (whose `VetoJobExecution` defaults to vetoing nothing) and
+  `ISchedulerListener`.
 
 ::: warning Changed in 4.x
 `JobListenerSupport`, `TriggerListenerSupport` and `SchedulerListenerSupport` are gone. The interfaces
-carry default implementations now, so implement the interface directly — and note the namespace for the
-shipped listeners is `Quartz.Listeners`, plural.
+have default implementations, so implement the interface directly. The shipped listeners' namespace is
+`Quartz.Listeners`, plural.
 :::
 
 ### Asserting on the outcome
@@ -323,18 +300,18 @@ PagedResult<FireInstance> running = await scheduler.QueryFireInstances();
 context.Result.Should().Be(42);
 ```
 
-Remember that a query pages: `Take` defaults to 250, so an assertion on a large result set needs
+Queries page: `Take` defaults to 250, so an assertion on a large result set needs
 `Take = PagedQuery.All` or a loop. See
 [Querying Jobs and Triggers](querying-jobs-and-triggers.md#paging).
 
 ::: warning Changed in 4.x
-`GetCurrentlyExecutingJobs()` is gone; `QueryFireInstances()` is the replacement, and it lists firings
-across the cluster rather than only on the node that answered.
+`GetCurrentlyExecutingJobs()` is gone. `QueryFireInstances()` replaces it and lists firings across the
+cluster, not only on the node that answered.
 :::
 
 ### Controlling time
 
-Give the scheduler a `FakeTimeProvider` and every *computation* moves when you advance it:
+With a `FakeTimeProvider`, every scheduler *computation* moves when you advance it:
 
 ```csharp
 FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 6, 8, 0, 0, TimeSpan.Zero));
@@ -347,11 +324,11 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
 ```
 
 **Advancing the clock does not wake the scheduler.** The scheduling loop reads the `TimeProvider` for
-every decision, but it *waits* on a `SemaphoreSlim`, which only knows about real elapsed time. So:
+every decision, but *waits* on a `SemaphoreSlim`, which only knows real elapsed time.
 
-> **Advance, then signal.** Move the fake clock, then do something that signals a scheduling change —
-> scheduling, rescheduling, pausing or resuming anything releases the loop's semaphore and it
-> re-evaluates immediately against the new "now".
+**Advance, then signal.** Move the fake clock, then signal a scheduling change. Scheduling,
+rescheduling, pausing or resuming anything releases the loop's semaphore, and it re-evaluates against
+the new "now":
 
 ```csharp
 clock.Advance(TimeSpan.FromHours(2));
@@ -366,17 +343,16 @@ Where there is nothing natural to signal, shorten the wait instead:
 ```
 <!-- endSnippet -->
 
-One second is the minimum the option validator accepts; the default is thirty. The misfire handler and
-the cluster manager have the same property — they compute on the `TimeProvider` but wake on their own
-real delay — so misfire recovery and cluster check-in are equally undrivable by `Advance` alone.
-
-**Never write `Advance(1h)` and assert "therefore it fired".** That test passes or fails on wall-clock
-timing, which is the thing the fake clock was supposed to remove.
+* `IdleWaitTime` is at least one second (the option validator's minimum); the default is thirty.
+* The misfire handler and the cluster manager also compute on the `TimeProvider` but wake on their own
+  real delay, so `Advance` alone cannot drive misfire recovery or cluster check-in either.
+* **Never write `Advance(1h)` and assert "therefore it fired".** That test depends on wall-clock timing,
+  which the fake clock was meant to remove.
 
 ### Testing misfire behaviour
 
-Misfire is a comparison between a trigger's scheduled time and now, so a fake clock plus a small
-threshold makes it reachable:
+A misfire compares a trigger's scheduled time with now, so a fake clock and a small threshold produce
+one:
 
 <!-- snippet: sample_testing_misfire_threshold -->
 ```csharp
@@ -386,13 +362,17 @@ QuartzSchedulerBuilder.Create(q => q
 ```
 <!-- endSnippet -->
 
-The in-memory store's threshold defaults to five seconds, the ADO store's to one minute, and both must
-be at least one millisecond. Put the scheduler in standby, move the clock past the fire time, then start
-it — the trigger is late by construction, with no sleeping involved.
+| Store | `MisfireThreshold` default | Minimum |
+|---|---|---|
+| in-memory | five seconds | one millisecond |
+| ADO | one minute | one millisecond |
+
+Put the scheduler in standby, move the clock past the fire time, then start it: the trigger is late,
+with no sleeping.
 
 ### Fault injection
 
-`DelegatingJobStore` is public, non-sealed and virtual throughout, for exactly this:
+`DelegatingJobStore` is public, non-sealed and virtual throughout, for this purpose:
 
 <!-- snippet: sample_testing_flaky_job_store -->
 ```csharp
@@ -423,31 +403,31 @@ QuartzSchedulerBuilder.Create(q => q
 ```
 <!-- endSnippet -->
 
-Counting, stalling and failing store calls is how you test retry and backoff behaviour without a
-database. `DelegatingScheduler` is the same idea one layer up.
+Count, stall and fail store calls to test retry and backoff without a database. `DelegatingScheduler`
+does the same one layer up.
 
 ## Level 3: the host, and a real database
 
 ### Under a host
 
 `AddQuartz` plus `AddQuartzHostedService` inside `WebApplicationFactory<TProgram>` exercises the real
-startup path — configuration binding, hosted-service ordering, the lot:
+startup path, including configuration binding and hosted-service ordering:
 
 ```csharp
 await using WebApplicationFactory<Program> app = new();
 IScheduler scheduler = app.Services.GetRequiredService<IScheduler>();
 ```
 
-Set `WaitForJobsToComplete = true` on `QuartzHostedServiceOptions` in tests so that teardown does not
-race a running job. `AwaitApplicationStarted` and `StartDelay` are the other two knobs, and both change
-*when* jobs first become eligible — worth setting explicitly rather than inheriting.
+* Set `WaitForJobsToComplete = true` on `QuartzHostedServiceOptions`, so teardown does not race a
+  running job.
+* `AwaitApplicationStarted` and `StartDelay` change *when* jobs first become eligible; set them
+  explicitly in tests.
 
 ### Against a persistent store, without Docker
 
-Most of what you want from a persistent store in a test is *persistence*: that a job survives a restart,
-that job data round-trips through the serializer, that your trigger's persistence delegate writes what it
-reads. None of that needs a server. A **file** SQLite database plus `ProvisionSchema()` gives you a real
-ADO job store in milliseconds, with no container to start:
+Testing *persistence* (a job survives a restart, job data round-trips through the serializer, your
+trigger's persistence delegate writes what it reads) needs no server. A **file** SQLite database plus
+`ProvisionSchema()` gives a real ADO job store in milliseconds, with no container:
 
 ```csharp
 string databasePath = Path.Combine(Path.GetTempPath(), $"quartz-{Guid.NewGuid():N}.db");
@@ -467,65 +447,60 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
     .Build();
 ```
 
-A file, not `:memory:` — an in-memory SQLite database lives as long as its connection, and the store
-opens and closes one per operation, so the tables vanish between them. Delete the file in teardown.
+* Use a file, not `:memory:`. An in-memory SQLite database lives as long as its connection, and the
+  store opens one per operation, so the tables vanish between operations. Delete the file in teardown.
+* It tells you nothing dialect-specific: the SQL a `SqlServerDelegate` emits, how Postgres locks a row,
+  whether an index is used.
+* It [cannot be clustered](job-stores.md#configuring-a-persistent-store): SQLite locks in process, and
+  `UseClustering()` with it is refused at startup.
 
-What this level cannot tell you is anything dialect-specific: the SQL a `SqlServerDelegate` emits, how
-Postgres locks a row, whether an index is used. It also
-[cannot be clustered](job-stores.md#configuring-a-persistent-store) — SQLite locks in process rather than in the
-database, and `UseClustering()` with it is refused at startup. For those, go one level further.
+For those, use a real database.
 
 ### Against a real database
 
-A test whose subject is the SQL — a driver delegate, a lock handler, a migration, an index — needs the
-engine it is written for. Provision one per fixture with Testcontainers, and **create the schema from the
-shipped DDL** — `database/tables/tables_<dialect>.sql` — rather than from a hand-maintained copy.
-Applying it with the engine's own client is what handles the dialect's batch separator (`GO`, `/`,
-`SET TERM`); a plain `ExecuteNonQuery` over the whole file will not.
+A test of SQL (a driver delegate, a lock handler, a migration, an index) needs the engine it is written
+for.
 
-A container per fixture, not per test: starting SQL Server takes longer than every test in the class.
+* Provision one per fixture with Testcontainers, not per test: starting SQL Server takes longer than
+  every test in the class.
+* **Create the schema from the shipped DDL**, `database/tables/tables_<dialect>.sql`, not from a
+  hand-maintained copy.
+* Apply it with the engine's own client, which handles the dialect's batch separator (`GO`, `/`,
+  `SET TERM`); a plain `ExecuteNonQuery` over the whole file does not.
 
 ## Isolation rules
 
-Four things keep tests from contaminating each other:
-
-- **A unique instance name per test.** The scheduler repository indexes by name, and binding a second
-  scheduler with the same name *and* the same instance id throws. `$"test-{Guid.NewGuid():N}"` is
-  enough.
-- **One container per test.** `QuartzSchedulerBuilder.Build()` creates its own service provider and
-  therefore its own scheduler repository — two builders never see each other's schedulers. That is what
-  makes parallel tests safe, and it is also why a test cannot look up another test's scheduler.
-- **`await using` the factory.** Disposing `StandaloneSchedulerFactory` shuts the scheduler down and
+* **A unique instance name per test.** The scheduler repository indexes by name, and binding a second
+  scheduler with the same name *and* instance id throws. `$"test-{Guid.NewGuid():N}"` is enough.
+* **One container per test.** `QuartzSchedulerBuilder.Build()` creates its own service provider and
+  scheduler repository, so two builders never see each other's schedulers. Parallel tests are safe, and
+  a test cannot look up another test's scheduler.
+* **`await using` the factory.** Disposing `StandaloneSchedulerFactory` shuts the scheduler down and
   disposes its container. A leaked scheduler keeps a scheduling loop running for the rest of the run.
-- **`Shutdown(waitForJobsToComplete: true)`** when a job may still be in flight and you need it
-  finished before assertions or cleanup.
+* **`Shutdown(waitForJobsToComplete: true)`** when a job may still be running and must finish before
+  assertions or cleanup.
 
-A persistent store adds two more, because the state now outlives the process that wrote it:
+With a persistent store, state outlives the process, so also:
 
-- **`SCHED_NAME` is the partition.** Every Quartz table carries it, and every statement the store issues
-  filters on it, so a unique `InstanceName` per test isolates tests *inside one database* — which is what
-  makes a container per fixture affordable. It is not a substitute for the unique name above; it is the
-  same setting doing a second job.
-- **Give each test its own database file, or clean up after it.** A shared file plus unique names works
-  and leaves the file growing; a file per test is simpler and costs nothing at SQLite's price. Where a
-  fixture is shared, `IScheduler.Clear()` is the cheap reset: for that scheduler name it deletes the
-  jobs, the triggers of every type, the calendars, the paused job and trigger groups, and the
-  fired-trigger rows. What it leaves behind is the node's own `QRTZ_SCHEDULER_STATE` check-in row, which
-  is why a test asserting on `QueryClusterNodes()` wants a name nothing else has used.
+* **`SCHED_NAME` is the partition.** Every Quartz table has it and every store statement filters on it,
+  so the unique `InstanceName` per test also isolates tests *inside one database*. That makes a
+  container per fixture affordable.
+* **Give each test its own database file, or clean up.** A shared file with unique names works but
+  grows; a file per test is simpler and cheap with SQLite. For a shared fixture, `IScheduler.Clear()`
+  resets that scheduler name: it deletes the jobs, the triggers of every type, the calendars, the paused
+  job and trigger groups, and the fired-trigger rows. It leaves the node's own `QRTZ_SCHEDULER_STATE`
+  check-in row, so a test asserting on `QueryClusterNodes()` needs a name nothing else has used.
 
 ## Anti-patterns
 
-- **Sleeping for a fire.** `await Task.Delay(2000)` is a coin flip on a loaded CI agent. Signal.
-- **Sharing one scheduler across tests.** State from one test — a paused group, a stored job, a
-  listener — leaks into the next, and the failure surfaces in whichever test happens to run second.
-- **Asserting on wall-clock times.** `firedAt.Should().BeCloseTo(expected, 100.Milliseconds())` is a
-  flake waiting for a slow day. Assert on the fire times the trigger *computes* (level 0), and on
-  ordering and counts everywhere else.
-- **Testing Quartz.** That a `SimpleTrigger` repeats, or that pausing a group stops it firing, is
-  tested here. Test your schedule and your job.
+* **Sleeping for a fire.** `await Task.Delay(2000)` fails at random on a loaded CI agent. Signal.
+* **Sharing one scheduler across tests.** State (a paused group, a stored job, a listener) leaks into
+  the next test, and the failure appears in whichever test runs second.
+* **Asserting on wall-clock times.** `firedAt.Should().BeCloseTo(expected, 100.Milliseconds())` fails on
+  a slow day. Assert on the fire times the trigger *computes* (level 0), and on order and counts
+  elsewhere.
+* **Testing Quartz.** Quartz's own tests cover that a `SimpleTrigger` repeats or that pausing a group
+  stops it firing. Test your schedule and your job.
 
-## See also
-
-- [Time and TimeProvider](time-and-timeprovider.md) — the clock seam, and where a fake clock reaches
-- [Building a Scheduler Without a Host](standalone-scheduler.md) — the builder these tests use
-- [Querying Jobs and Triggers](querying-jobs-and-triggers.md) — the assertions available after a run
+The clock is covered in [Time and TimeProvider](time-and-timeprovider.md), and the builder these tests
+use in [Building a Scheduler Without a Host](standalone-scheduler.md).

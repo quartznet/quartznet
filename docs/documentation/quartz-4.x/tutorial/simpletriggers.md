@@ -5,34 +5,30 @@ title: 'Simple Triggers'
 
 # Simple Triggers
 
-SimpleTrigger should meet your scheduling needs if you need to have a job execute exactly once at a specific moment in time,
-or at a specific moment in time followed by repeats at a specific interval. Or plainer English, if you want the trigger to
-fire at exactly 11:23:54 AM on January 13, 2005, and then fire five more times, every ten seconds.
+Use a SimpleTrigger to run a job once at a specific moment, or at a moment and then repeatedly at an
+interval: for example, at exactly 11:23:54 AM on January 13, 2005, and then five more times, every ten
+seconds.
 
-With this description, you may not find it surprising to find that the properties of a SimpleTrigger include: a start-time,
-and end-time, a repeat count, and a repeat interval. All of these properties are exactly what you'd expect them to be, with
-only a couple special notes related to the end-time property.
+| Property | Values |
+|---|---|
+| start time | a `DateTimeOffset` |
+| end time (`EndTimeUtc`) | a `DateTimeOffset`; overrides the repeat count |
+| repeat count | zero, a positive integer, or `SimpleTriggerImpl.RepeatIndefinitely` (`-1`), which `RepeatForever()` sets |
+| repeat interval | `TimeSpan.Zero` or a positive `TimeSpan` |
 
-The repeat count can be zero, a positive integer, or the constant value `SimpleTriggerImpl.RepeatIndefinitely`
-(`-1`) — which is what `RepeatForever()` on the schedule builder sets for you.
-The repeat interval property must be `TimeSpan.Zero`, or a positive TimeSpan value.
-Note that a repeat interval of zero will cause 'repeat count' firings of the trigger to happen concurrently
-(or as close to concurrently as the scheduler can manage).
+* A repeat interval of zero makes the repeat-count firings happen concurrently, or as close to it as the
+  scheduler can manage.
+* Start and end times carry an offset, so they are unambiguous. Compute one from `DateTimeOffset.UtcNow`;
+  in code that has a `TimeProvider` (a job, a test), read the clock from it, as
+  `DateBuilder.Create(timeProvider)` does.
+* To fire every 10 seconds until a given moment, set the end time and a repeat count of
+  `RepeatIndefinitely` instead of computing the number of repeats. A repeat count larger than the number
+  of firings before the end time also works.
 
-Start and end times are `DateTimeOffset` values, so they carry an offset and are unambiguous.
-`DateTimeOffset.UtcNow` is the straightforward way to compute one; in code that has a `TimeProvider` — a job, a
-test — read the clock from that instead, and `DateBuilder.Create(timeProvider)` will do the same.
+Build a SimpleTrigger with `TriggerBuilder` (the main properties) and its `WithSimpleSchedule`
+extension method (the SimpleTrigger-specific properties).
 
-The `EndTimeUtc` property (if it is specified) over-rides the repeat count property. This can be useful if you wish to create a trigger
-such as one that fires every 10 seconds until a given moment in time - rather than having to compute the number of times it would
-repeat between the start-time and the end-time, you can simply specify the end-time and then use a repeat count of RepeatIndefinitely
-(you could even specify a repeat count of some huge number that is sure to be more than the number of times the trigger will actually
-fire before the end-time arrives).
-
-SimpleTrigger instances are built using `TriggerBuilder` (for the trigger's main properties) and `WithSimpleSchedule` extension method
-(for the SimpleTrigger-specific properties).
-
-__Build a trigger for a specific moment in time, with no repeats:__
+__A specific moment in time, with no repeats:__
 
 <!-- snippet: sample_simpletriggers_one_shot -->
 ```csharp
@@ -47,9 +43,9 @@ ITrigger trigger = TriggerBuilder.Create()
 
 The trigger family interfaces (`ISimpleTrigger` and friends) are read models: cast to one to *inspect*
 a trigger's schedule, never to change it. To change a schedule, rebuild the trigger with
-`trigger.GetTriggerBuilder()` and hand it to `IScheduler.RescheduleJob`.
+`trigger.GetTriggerBuilder()` and pass it to `IScheduler.RescheduleJob`.
 
-__Build a trigger for a specific moment in time, then repeating every ten seconds ten times:__
+__A specific moment in time, then every ten seconds ten times:__
 
 <!-- snippet: sample_simpletriggers_repeat_ten_times -->
 ```csharp
@@ -64,7 +60,7 @@ ITrigger trigger = TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-__Build a trigger that will fire once, five minutes in the future:__
+__Once, five minutes in the future:__
 
 <!-- snippet: sample_simpletriggers_five_minutes_from_now -->
 ```csharp
@@ -76,7 +72,7 @@ ITrigger trigger = TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-__Build a trigger that will fire now, then repeat every five minutes, until the hour 22:00:__
+__Now, then every five minutes, until 22:00:__
 
 <!-- snippet: sample_simpletriggers_repeat_until_end_time -->
 ```csharp
@@ -90,7 +86,7 @@ ITrigger trigger = TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-__Build a trigger that will fire at the top of the next hour, then repeat every 2 hours, forever:__
+__At the top of the next hour, then every 2 hours, forever:__
 
 <!-- snippet: sample_simpletriggers_every_two_hours -->
 ```csharp
@@ -108,16 +104,12 @@ await scheduler.ScheduleJob(job, trigger);
 ```
 <!-- endSnippet -->
 
-Spend some time looking at all of the available methods in the language defined by `TriggerBuilder` and its extension method `WithSimpleSchedule`
-so that you can be familiar with options available to you that may not have been demonstrated in the examples above.
+`TriggerBuilder` and `WithSimpleSchedule` have more options than these examples show.
 
 ## SimpleTrigger Misfire Instructions
 
-SimpleTrigger has several instructions that can be used to inform Quartz.NET what it should do when a misfire occurs.
-(Misfire situations were introduced in the [More About Triggers](more-about-triggers.md#misfire-instructions) section of this tutorial).
-The instructions live on the `SimpleTriggerMisfireInstruction` enum (whose API documentation describes each one's behavior):
-
-__Misfire instructions for SimpleTrigger__
+Misfires are explained in [More About Triggers](more-about-triggers.md#misfire-instructions). SimpleTrigger's
+instructions are on the `SimpleTriggerMisfireInstruction` enum, whose API documentation describes each:
 
 * `SimpleTriggerMisfireInstruction.IgnoreMisfires`
 * `SimpleTriggerMisfireInstruction.FireNow`
@@ -126,11 +118,8 @@ __Misfire instructions for SimpleTrigger__
 * `SimpleTriggerMisfireInstruction.NextWithRemainingCount`
 * `SimpleTriggerMisfireInstruction.NextWithExistingCount`
 
-You should recall from the earlier lessons that all triggers have the `SmartPolicy` instruction available for use,
-and this instruction is also the default for all trigger types.
-
-If the 'smart policy' instruction is used, SimpleTrigger chooses between its instructions based on the repeat
-count of the trigger:
+`SmartPolicy` is available on every trigger and is the default. On a SimpleTrigger it resolves by repeat
+count:
 
 | Repeat count | Resolves to |
 |---|---|
@@ -138,11 +127,10 @@ count of the trigger:
 | `RepeatIndefinitely` — repeats forever | `NextWithRemainingCount` |
 | a finite count | `NowWithExistingCount` |
 
-`FireNow` on a trigger that does repeat is treated as `NowWithRemainingCount`, since firing "now" and forgetting
-the rest of the schedule is not what anyone means by it. The behaviour lives in
-`SimpleTriggerImpl.UpdateAfterMisfire`.
+`FireNow` on a repeating trigger is treated as `NowWithRemainingCount`, so the rest of the schedule is
+kept. The behaviour is in `SimpleTriggerImpl.UpdateAfterMisfire`.
 
-When building SimpleTriggers, you specify the misfire instruction as part of the simple schedule (via `SimpleScheduleBuilder`):
+Set the misfire instruction on the simple schedule (`SimpleScheduleBuilder`):
 
 <!-- snippet: sample_simpletriggers_misfire_instruction -->
 ```csharp

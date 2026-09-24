@@ -5,15 +5,13 @@ title: 'Job Execution Middleware'
 
 # Job Execution Middleware
 
-Middleware wraps every job a scheduler executes. It is where a cross-cutting concern lives — a log
-scope, a tenant context, a metric, a translation of what a third-party library throws — when that
-concern has to *surround* the call to the job rather than merely hear about it.
+Middleware wraps every job a scheduler executes. Use it for a cross-cutting concern that must *surround*
+the call to the job: a log scope, a tenant context, a metric, translating a third-party library's
+exceptions.
 
-Listeners cannot do this. An `IJobListener` is notified before the job runs and again after it has
-run, but the execution happens *between* the two notifications rather than *inside* them, so a
-listener cannot open an `await using` around it, cannot decline to run it, and cannot catch what it
-threw. Before 4.0 the only place left for such code was a job that wrapped another job, which is why
-several frameworks built on Quartz ship exactly that adapter.
+A [listener](trigger-and-job-listeners.md) cannot do this: the job runs *between* its two notifications,
+so it cannot open an `await using` around the job, skip it, or catch its exception. Before 4.0 such code
+had to be a job that wrapped another job.
 
 ## The interface
 
@@ -29,9 +27,9 @@ public interface IJobExecutionMiddleware
 }
 ```
 
-`next` is the rest of the chain, ending in the job. Await it to run the job; do not, and the job does
-not run. Awaiting it twice is legal and runs the job twice inside the one firing — see
-[Translating exceptions](#translating-exceptions) for why that is not how you retry.
+`next` is the rest of the chain, ending in the job. Await it to run the job; if you do not, the job does
+not run. Awaiting it twice runs the job twice in one firing; that is not a retry (see
+[Translating exceptions](#translating-exceptions)).
 
 ## Writing one
 
@@ -55,9 +53,8 @@ public sealed class LogScopeMiddleware(ILogger<LogScopeMiddleware> logger) : IJo
 
 ## Registering
 
-Middleware belongs to a scheduler, so it is registered where the scheduler is configured. The same
-three shapes listeners have: the container builds it, you build it from the container, or you hand
-over one you already have.
+Register middleware where the scheduler is configured, in the same three shapes as listeners: built by
+the container, built by you from the container, or an instance you already have.
 
 <!-- snippet: sample_job_middleware_register -->
 ```csharp
@@ -75,7 +72,7 @@ builder.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-The standalone builder takes the same calls, because it *is* an `IQuartzBuilder`:
+The standalone builder takes the same calls, because it is an `IQuartzBuilder`:
 
 <!-- snippet: sample_job_middleware_standalone -->
 ```csharp
@@ -88,16 +85,15 @@ IScheduler scheduler = await QuartzSchedulerBuilder
 <!-- endSnippet -->
 
 ::: tip
-Registering a middleware for `AddQuartz("reporting", …)` puts it in that scheduler's pipeline alone.
-A named scheduler's middleware is its own, the way its listeners and its job store are.
+Registering a middleware for `AddQuartz("reporting", …)` puts it in that scheduler's pipeline only,
+like its listeners and job store.
 :::
 
 ::: warning
-A middleware is built **once, from the container's root**, when the scheduler's resources are. Its
-constructor dependencies must therefore be singletons: a scoped one throws
-`Cannot resolve scoped service … from root provider` where scope validation is on — the Host's default
-in Development — and becomes a captive dependency living as long as the scheduler where it is not. The
-name is ASP.NET Core's, but the lifetime is a listener's.
+A middleware is built **once, from the container's root**, with the scheduler's other resources. Its
+constructor dependencies must be singletons. A scoped one throws
+`Cannot resolve scoped service … from root provider` where scope validation is on (the Host's default in
+Development), and elsewhere becomes a captive dependency that lives as long as the scheduler.
 
 Take an `IServiceScopeFactory` and open a scope inside `Invoke` instead:
 
@@ -119,15 +115,14 @@ public sealed class AuditMiddleware(IServiceScopeFactory scopeFactory) : IJobExe
 ```
 <!-- endSnippet -->
 
-The firing's own scope — the one the job was resolved from — is reachable through
+The firing's own scope, the one the job was resolved from, is reachable through
 `IJobExecutionContextAccessor`; see [Per-firing state](#per-firing-state).
 :::
 
 ## Order
 
-Middleware runs in registration order, **outermost first**. The first registered sees the firing
-before the second does and sees its result after it, which is the ordering a log scope or a
-transaction has to be planned around:
+Middleware runs in registration order, **outermost first**. The first registered sees the firing before
+the second and sees its result after it. Plan a log scope or a transaction around this:
 
 ```text
 q.AddJobMiddleware<A>();     A ─┐
@@ -137,33 +132,28 @@ q.AddJobMiddleware<B>();        B ─┐
                              A ─┘
 ```
 
-Each call adds a stage, so registering the same type twice puts it in the chain twice.
-
-The chain is composed **once**, when the scheduler is built, and one instance of each middleware
-serves every firing that scheduler performs. A middleware must therefore keep no per-firing state in
-a field — see [Per-firing state](#per-firing-state) below.
-
-A middleware registered through `ConfigureAllQuartzSchedulers` always composes **inside** one
-registered in a scheduler's own `AddQuartz` callback, whichever of the two calls was written first: a
-scheduler's own configuration runs before what every scheduler was told. That is deliberate, and it is
-what a library embedding Quartz relies on — what the library wraps, such as an outbox or a unit of
-work, belongs inside what the application wraps, such as its tenant scope. Because the ordering does not
-depend on the order of the calls, a library cannot change it by being registered earlier.
+* Each call adds a stage; registering a type twice puts it in the chain twice.
+* The chain is composed **once**, when the scheduler is built, and one instance of each middleware serves
+  every firing. Keep no per-firing state in a field; see [Per-firing state](#per-firing-state).
+* A middleware registered through `ConfigureAllQuartzSchedulers` always runs **inside** one registered in
+  a scheduler's own `AddQuartz` callback, whichever call comes first. So what a library embedding Quartz
+  wraps (an outbox, a unit of work) runs inside what the application wraps (its tenant scope), and a
+  library cannot change that by registering earlier.
 
 ## Where it runs
 
-| | |
+| Middleware runs | So |
 | -- | -- |
 | after the trigger and job listeners have been notified | a fire a listener vetoed never reaches the pipeline |
-| inside the execution span and the duration measurement | what a middleware costs is part of what the firing cost, and anything it traces is a child of `Quartz.Job.Execute` |
-| outside the run shell's exception handling | what a middleware throws is classified exactly as though the job had thrown it |
-| inside the store's concurrency handling | `[DisallowConcurrentExecution]` is enforced above the pipeline, so a middleware never sees two firings of one job overlapping |
+| inside the execution span and the duration measurement | its cost counts as the firing's, and anything it traces is a child of `Quartz.Job.Execute` |
+| outside the run shell's exception handling | what it throws is classified as though the job threw it |
+| inside the store's concurrency handling | `[DisallowConcurrentExecution]` is enforced above the pipeline, so it never sees two firings of one job overlap |
 
 ## Short-circuiting
 
-A middleware that does not call `next` keeps the call to itself. The job does not run; everything
-else about the firing is unchanged — the listeners are notified as usual, and the trigger is left
-where a successful execution leaves it.
+A middleware that does not call `next` stops the job from running. Everything else about the firing is
+unchanged: listeners are notified as usual, and the trigger is left where a successful execution leaves
+it.
 
 <!-- snippet: sample_job_middleware_short_circuit -->
 ```csharp
@@ -180,15 +170,13 @@ public sealed class FeatureFlagMiddleware(FeatureFlags flags) : IJobExecutionMid
 <!-- endSnippet -->
 
 This is not a veto. A trigger listener's `VetoJobExecution` is the *scheduler's* refusal: it raises
-`JobExecutionVetoed`, and the firing ends there. A middleware that declines is invisible from
-outside.
+`JobExecutionVetoed` and ends the firing. A middleware that skips the job is invisible from outside.
 
 ## Translating exceptions
 
-A middleware runs outside the run shell's exception classification, so a `JobExecutionException` it
-throws is honoured exactly like one the job raised — including `RefireImmediately` and the unschedule
-flags — and a plain exception is wrapped the same way. That makes middleware the place to teach
-Quartz what a library's own failures mean:
+A middleware runs outside the run shell's exception classification. A `JobExecutionException` it throws
+is honoured like one the job raised, including `RefireImmediately` and the unschedule flags, and a plain
+exception is wrapped the same way. Use middleware to tell Quartz what a library's failures mean:
 
 <!-- snippet: sample_job_middleware_translate -->
 ```csharp
@@ -212,17 +200,16 @@ public sealed class TransientFailureMiddleware : IJobExecutionMiddleware
 
 ::: warning
 Catching a failure and awaiting a delay before calling `next` again is not a retry. It holds a
-thread-pool slot for the whole wait, and the attempt is lost if the process stops. A trigger's retry
-policy is the tool for that.
+thread-pool slot for the whole wait, and the attempt is lost if the process stops. Use a trigger's
+[retry policy](../how-tos/retrying-failed-jobs.md).
 :::
 
 ## Per-firing state
 
-One middleware instance serves every firing, so a field is the wrong place to keep anything about the
-firing in hand. Two things that are the right place:
+One middleware instance serves every firing, so do not keep firing state in a field. Use one of these:
 
-**An `AsyncLocal<T>`.** The value travels with the execution context, so the job and everything it
-calls read the one their own firing set:
+**An `AsyncLocal<T>`.** The value travels with the execution context, so the job and everything it calls
+read the value their own firing set:
 
 <!-- snippet: sample_job_middleware_ambient -->
 ```csharp
@@ -246,8 +233,9 @@ public sealed class TenantScopeMiddleware : IJobExecutionMiddleware
 ```
 <!-- endSnippet -->
 
-**The job's dependency-injection scope.** `ConfigureJobScope` runs once per firing, before anything
-in the scope is resolved, and is handed the `TriggerFiredBundle`:
+**The job's dependency-injection scope.** `ConfigureJobScope` runs once per firing, before anything in
+the scope is resolved, and receives the `TriggerFiredBundle` (see also
+[More About Jobs](more-about-jobs.md#jobfactory)):
 
 <!-- snippet: sample_job_middleware_job_scope -->
 ```csharp
@@ -260,32 +248,31 @@ builder.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-No `IServiceScope` is threaded through `Invoke`, deliberately: the scope belongs to the firing rather
-than to any one middleware, and code that needs the firing itself can read it from
-`IJobExecutionContextAccessor.Current`, which is set for the whole execution — including inside the
-pipeline, on the way in and on the way out.
+`Invoke` is not passed an `IServiceScope`, because the scope belongs to the firing, not to a middleware.
+Code that needs the firing reads `IJobExecutionContextAccessor.Current`, which is set for the whole
+execution, including inside the pipeline on the way in and out.
 
-**`context.MergedJobDataMap`,** to hand something to a *listener*. An `AsyncLocal` does not reach one:
-an async method restores its caller's execution context, so what a middleware sets inside `Invoke` is
-gone by the time the run shell notifies listeners. The merged map is not — it is this firing's own copy
-of the job's and the trigger's data, built once and shared by everything that holds the context, so a
-value put into it is visible to the job, to the rest of the pipeline and to the listeners for as long
-as the firing lasts. Writing to it is safe and persists nothing: neither the job's nor the trigger's
-stored map is touched. Data that has to outlive the firing goes into `context.JobDetail.JobDataMap` on
-a job marked `[PersistJobDataAfterExecution]`, which is what a job store writes back.
+**`context.MergedJobDataMap`,** to pass something to a *listener*. An `AsyncLocal` does not reach one:
+an async method restores its caller's execution context, so a value set in `Invoke` is gone when the run
+shell notifies listeners.
+
+* The merged map is this firing's own copy of the job's and trigger's data, shared by everything that
+  holds the context. A value put in it is visible to the job, the rest of the pipeline and the listeners
+  for the whole firing.
+* Writing to it persists nothing; neither stored map is touched.
+* Data that must outlive the firing goes in `context.JobDetail.JobDataMap` on a job marked
+  `[PersistJobDataAfterExecution]`, which the job store writes back.
 
 ## The cancellation token
 
-Forward the token you were given. Passing a different one to `next` changes what the job's `Execute`
-parameter is without changing `IJobExecutionContext.CancellationToken`, so the two stop being the
-same token and a job that reads the context sees the wrong one. That is the trap in writing a timeout
-as a middleware — and it is why the built-in one interrupts the firing instead.
+Forward the token you were given. Passing a different one to `next` changes the job's `Execute`
+parameter but not `IJobExecutionContext.CancellationToken`, so a job that reads the context sees the
+wrong token. For that reason the built-in timeout interrupts the firing instead of passing a new token.
 
 ## Timing a job out
 
-`AddJobTimeout` registers the middleware Quartz ships for exactly this. It replaces
-`JobInterruptMonitorPlugin`, which is gone in 4.0 along with its `"AutoInterruptable"` and
-`"MaxRunTime"` job-data-map keys.
+`AddJobTimeout` registers the timeout middleware Quartz ships. It replaces `JobInterruptMonitorPlugin`,
+which is gone in 4.0 along with its `"AutoInterruptable"` and `"MaxRunTime"` job-data-map keys.
 
 <!-- snippet: sample_job_timeout_register -->
 ```csharp
@@ -300,9 +287,9 @@ builder.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-A job varies the budget by declaring one, the way it declares `[DisallowConcurrentExecution]`. The
+A job sets its own budget with `[JobTimeout]`, as it declares `[DisallowConcurrentExecution]`. The
 attribute is inherited from a base class or from an interface the job implements, so a contract can set
-the budget for everything that fulfils it:
+the budget for everything that implements it:
 
 <!-- snippet: sample_job_timeout_attribute -->
 ```csharp
@@ -327,35 +314,36 @@ public sealed class NightlyRebuildJob : IJob
 ```
 <!-- endSnippet -->
 
-**Precedence.** The job type's `[JobTimeout]` decides whenever there is one — including when it says
-zero, which means the job has no timeout and is exempt from the scheduler-wide default rather than
-overruled by it. Without the attribute, `AddJobTimeout`'s argument decides; without an argument, and
-on a scheduler that never called `AddJobTimeout` at all, nothing is bounded.
+**Precedence:**
 
-**What a timeout does.** When the budget is spent, the firing is interrupted through
-`IScheduler.InterruptFireInstance` — the same path an operator's interrupt takes, so
-`IJobExecutionContext.CancellationToken` (the very token the job holds) is cancelled and
-`ISchedulerListener.JobInterrupted` is raised. Only the firing that overran is interrupted, because it
-is named by its fire instance id: two concurrent executions of one job are timed separately. The
-middleware then raises a `JobExecutionException` naming the budget. That second step is the point: an
-interrupt on its own is *success-shaped*, because the run shell treats a cancellation of the context's
-token as a completed firing, so without it a timeout would reach no listener, produce no error, and
-never be retried.
+1. The job type's `[JobTimeout]`, whenever there is one. Zero means no timeout: the job is exempt from
+   the scheduler-wide default.
+2. Otherwise, `AddJobTimeout`'s argument.
+3. Without an argument, or when `AddJobTimeout` was never called, nothing is bounded.
 
-**A timeout is a retryable failure.** Because it arrives as a `JobExecutionException`, the trigger's
-[`RetryPolicy`](../how-tos/retrying-failed-jobs.md) decides what happens next, exactly as it would for any other
-failure. A retry is an ordinary re-acquisition with a new fire instance, so the pipeline runs again and
-each attempt is handed the whole budget afresh.
+**What a timeout does:**
+
+1. The firing is interrupted through `IScheduler.InterruptFireInstance`, the same path as an operator's
+   interrupt. `IJobExecutionContext.CancellationToken`, the token the job holds, is cancelled and
+   `ISchedulerListener.JobInterrupted` is raised.
+2. Only the firing that overran is interrupted, by its fire instance id; two concurrent executions of one
+   job are timed separately.
+3. The middleware raises a `JobExecutionException` naming the budget. Without it the timeout would look
+   like success, because the run shell treats a cancelled context token as a completed firing: no
+   listener would hear of it, no error would be produced, and nothing would retry.
+
+**A timeout is a retryable failure.** It arrives as a `JobExecutionException`, so the trigger's
+[`RetryPolicy`](../how-tos/retrying-failed-jobs.md) decides what happens next, as for any failure. A
+retry is a new acquisition with a new fire instance, so the pipeline runs again with the full budget.
 
 ::: warning
 **A job that ignores its `CancellationToken` cannot be stopped.** Cancellation is cooperative and
 nothing in .NET aborts running code. Such a job runs to completion, holding its thread-pool slot, and is
-reported as timed out only when it finally returns — which is worth knowing before a budget is relied on
-to free capacity. `CA2016` is the analyzer that flags a job failing to forward the token it was handed;
-turn it on.
+reported as timed out only when it returns, so a budget does not free capacity for it. Turn on
+`CA2016`, the analyzer that flags a job not forwarding its token.
 
-An exception the job threw that is *not* a cancellation is left alone even when the budget had expired:
-it says more about what went wrong than the timeout does. The overrun is logged either way.
+An exception the job threw that is *not* a cancellation is kept even when the budget had expired,
+because it says more about what went wrong. The overrun is logged either way.
 :::
 
 ## Middleware or a listener?
@@ -368,12 +356,5 @@ it says more about what went wrong than the timeout does. The overrun is logged 
 | set ambient state the job will read | react to scheduling events that are not executions at all — a trigger paused, the scheduler shutting down |
 | act only on this scheduler's job executions | select which jobs or triggers you hear about, with a matcher |
 
-Listeners stay notification-only, and none of this changes them. The two compose: a middleware can do
-its work and a listener can still record what happened.
-
-## See also
-
-* [Trigger and Job Listeners](trigger-and-job-listeners.md)
-* [More About Jobs](more-about-jobs.md) — job scopes and `ConfigureJobScope`
-* [Retrying failed jobs](../how-tos/retrying-failed-jobs.md) — what a trigger does with the failure a
-  timeout raises
+Listeners stay notification-only. The two compose: a middleware does its work and a listener records
+what happened.

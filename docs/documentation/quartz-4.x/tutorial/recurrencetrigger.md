@@ -2,16 +2,15 @@
 title: 'RecurrenceTrigger'
 ---
 
-RecurrenceTrigger uses iCalendar RFC 5545 recurrence rules (RRULE) to define schedules. This trigger type enables complex scheduling
-patterns that cannot be expressed with CronTrigger or SimpleTrigger, such as "every 2nd Monday of the month", "every other week on
-Monday, Wednesday and Friday", or "the last weekday of March each year".
-
-RecurrenceTrigger accepts a standard RRULE string and computes fire times lazily without materializing all occurrences.
+RecurrenceTrigger schedules with an iCalendar RFC 5545 recurrence rule (RRULE). Use it for patterns that
+CronTrigger and SimpleTrigger cannot express: "every 2nd Monday of the month", "every other week on
+Monday, Wednesday and Friday", "the last weekday of March each year". It takes a standard RRULE string
+and computes fire times lazily, without materializing all occurrences.
 
 ## RRULE Basics
 
-An RRULE string defines a recurrence pattern using semicolon-separated key-value pairs. The `FREQ` property is required and specifies
-the base frequency. Other properties refine the pattern:
+An RRULE is semicolon-separated key-value pairs. `FREQ`, the base frequency, is required; the other
+properties refine it:
 
 | Property | Description | Example |
 |----------|-------------|---------|
@@ -35,12 +34,11 @@ the base frequency. Other properties refine the pattern:
 :::
 
 ::: warning
-`COUNT` tracks the number of times the trigger has actually fired (via `TimesTriggered`),
-not the number of theoretical recurrence occurrences. Misfired occurrences that are skipped
-(e.g., via `DoNothing` misfire policy) do **not** count toward the limit. However, if the
-misfire policy causes an immediate fire (e.g., `FireAndProceed`), that fire **does** count.
-This is consistent with Quartz.NET trigger semantics but differs from strict RFC 5545
-occurrence counting.
+`COUNT` counts actual firings (`TimesTriggered`), not recurrence occurrences, which differs from strict
+RFC 5545 counting:
+
+* a misfired occurrence that is skipped (e.g. by the `DoNothing` misfire policy) does **not** count;
+* an immediate fire caused by the misfire policy (e.g. `FireAndProceed`) **does** count.
 :::
 
 ## Examples
@@ -119,8 +117,7 @@ ITrigger trigger = TriggerBuilder.Create()
 
 ## Time Zone Support
 
-By default, recurrence calculations use the system's local time zone. You can specify a different time zone
-using the builder's `InTimeZone` method:
+Recurrence calculations use the system's local time zone by default. Set another with `InTimeZone`:
 
 <!-- snippet: sample_recurrencetrigger_in_time_zone -->
 ```csharp
@@ -135,7 +132,7 @@ ITrigger trigger = TriggerBuilder.Create()
 
 ## DI / Hosted Service Configuration
 
-When using `AddQuartz()` for dependency injection, configure a recurrence trigger with `WithRecurrenceSchedule`:
+Under `AddQuartz()`, use `WithRecurrenceSchedule` on the trigger:
 
 <!-- snippet: sample_recurrencetrigger_under_di -->
 ```csharp
@@ -153,14 +150,15 @@ services.AddQuartz(q =>
 
 ## RecurrenceTrigger Misfire Instructions
 
-RecurrenceTrigger has two trigger-specific misfire instructions (identical semantics to CronTrigger),
-plus the generic one every family has. They live on the `RecurrenceTriggerMisfireInstruction` enum:
+The `RecurrenceTriggerMisfireInstruction` enum has two trigger-specific instructions, with the same
+semantics as [CronTrigger's](crontriggers.md#crontrigger-misfire-instructions), plus `IgnoreMisfires`,
+which every family has:
 
 * `RecurrenceTriggerMisfireInstruction.FireAndProceed`
 * `RecurrenceTriggerMisfireInstruction.DoNothing`
 * `RecurrenceTriggerMisfireInstruction.IgnoreMisfires`
 
-If the `SmartPolicy` instruction is used (the default), RecurrenceTrigger will use `FireAndProceed`.
+`SmartPolicy`, the default, resolves to `FireAndProceed`.
 
 <!-- snippet: sample_recurrencetrigger_misfire_instruction -->
 ```csharp
@@ -186,5 +184,8 @@ ITrigger trigger = TriggerBuilder.Create()
 
 ## Persistence
 
-RecurrenceTrigger uses the existing `QRTZ_SIMPROP_TRIGGERS` table for persistence - no database schema changes are required.
-The RRULE string is stored in the `STR_PROP_1` column (max 512 characters). The trigger type discriminator is `RECUR`.
+| Stored in | Value |
+|---|---|
+| table | `QRTZ_SIMPROP_TRIGGERS` (existing; no schema change) |
+| RRULE string | `STR_PROP_1` column, max 512 characters |
+| trigger type discriminator | `RECUR` |

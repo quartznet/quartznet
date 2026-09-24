@@ -2,12 +2,9 @@
 title: 'Building a Scheduler Without a Host'
 ---
 
-Not every scheduler lives in a web application. A console tool, a library, a test, a worker that does
-its own lifecycle management — all of them want a scheduler and none of them has an
-`IServiceCollection` to hang it on.
-
-`QuartzSchedulerBuilder` is for those. It creates a container of its own, configures the scheduler with
-the *same* API `AddQuartz` uses, and hands back something you can dispose.
+Use `QuartzSchedulerBuilder` when there is no `IServiceCollection` to register a scheduler with: a
+console tool, a library, a test, a worker that manages its own lifecycle. It creates its own container,
+configures the scheduler with the *same* API as `AddQuartz`, and returns something you can dispose.
 
 <!-- snippet: sample_standalone_scheduler -->
 ```csharp
@@ -24,24 +21,22 @@ await scheduler.Start();
 
 ## One configuration API, two entry points
 
-`Create` hands the callback an `IQuartzBuilder` — the very interface the `AddQuartz` callback gives
-you. `q => q.ConfigureScheduler(…)` means the same thing in both places, letter for letter, because it
-*is* the same method:
+`Create` passes the callback an `IQuartzBuilder`, the same interface the `AddQuartz` callback gets, so
+`q => q.ConfigureScheduler(…)` is the same method in both places. That covers:
 
 `ConfigureScheduler`, `ConfigureOptions<TOptions>`, `UseDefaultThreadPool`, `UseThreadPool<T>`,
 `UseInMemoryStore`, `UsePersistentStore`, `UseJobStore<T>`, `UseJobFactory<T>`, `UseTypeLoader<T>`,
 `UseInstanceIdGenerator<T>`, `UseTimeProvider`, `UseExecutionLimits`, `AddPlugin<T>`,
-`AddSchedulerListener<T>`, `AddJobListener<T>`, `AddTriggerListener<T>` — plus the extension methods
+`AddSchedulerListener<T>`, `AddJobListener<T>`, `AddTriggerListener<T>`, the extension methods
 `AddJob<T>`, `AddTrigger<TJob>`, `ScheduleJob<T>` and `AddCalendar`, and every extension a package of
 your own contributes.
 
-Learn the configuration API once and it works in both places. Only five members are the builder's own:
-`Create(configure)`, `Build()`, `BuildScheduler()`, `UseConfiguration(IConfiguration)` and the two
-`UseProperties` overloads. Those five are the whole of the type — it declares no configuration member
-of its own, so nothing here can fall behind what `AddQuartz` grew.
+The builder's own members are only `Create(configure)`, `Build()`, `BuildScheduler()`,
+`UseConfiguration(IConfiguration)` and the two `UseProperties` overloads. It declares no configuration
+member of its own, so it cannot fall behind `AddQuartz`.
 
-The callback runs immediately, and the terminal methods hang off the builder it returns, so the whole
-thing stays one expression:
+The callback runs immediately, and the terminal methods are on the builder it returns, so the whole thing
+is one expression:
 
 <!-- snippet: sample_standalone_one_expression -->
 ```csharp
@@ -54,8 +49,6 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
 <!-- endSnippet -->
 
 ## Build, or BuildScheduler
-
-Two endings, for two different needs:
 
 <!-- snippet: sample_standalone_build_scheduler_ending -->
 ```csharp
@@ -72,21 +65,18 @@ IScheduler scheduler = await factory.GetScheduler();
 ```
 <!-- endSnippet -->
 
-`BuildScheduler()` is `Build().GetScheduler()`, and it drops the factory on the floor — which is fine
-for a process whose scheduler lives as long as the process, and wrong for anything that has to clean
-up.
-
-`Build()` also validates the container it creates (`ValidateOnBuild`, `ValidateScopes`), so a
-registration mistake surfaces there rather than at the first job execution.
+* `BuildScheduler()` is `Build().GetScheduler()` and discards the factory. Use it when the scheduler
+  lives as long as the process, not when something must clean up.
+* `Build()` validates the container it creates (`ValidateOnBuild`, `ValidateScopes`), so a registration
+  mistake fails there rather than at the first job execution.
 
 ## The factory owns the container
 
 `StandaloneSchedulerFactory` is an `ISchedulerFactory` that also implements `IDisposable` and
-`IAsyncDisposable`. Disposing it shuts the scheduler down and *then* disposes the service provider it
-was built with, along with everything that container created — the job store, the thread pool, your own
-registered services. That is the order the hosted service uses when an application stops, and it is that
-way round for a reason: a container disposed underneath a running scheduler leaves it firing triggers
-whose jobs it can no longer build.
+`IAsyncDisposable`. Disposing it shuts the scheduler down, *then* disposes the service provider and
+everything that container created: the job store, the thread pool, your registered services. The hosted
+service uses the same order, because a container disposed under a running scheduler leaves it firing
+triggers whose jobs it can no longer build.
 
 <!-- snippet: sample_standalone_factory_owns_the_container -->
 ```csharp
@@ -103,12 +93,11 @@ await scheduler.Start();
 ```
 <!-- endSnippet -->
 
-Prefer `await using`. The synchronous `Dispose()` exists so the type fits `using` in code that cannot
-be async; it blocks on the same shutdown, which is all a synchronous door onto asynchronous work can do.
-
-The shutdown does not wait for running jobs to finish, which is the default that
-`QuartzHostedServiceOptions.WaitForJobsToComplete` and `IScheduler.Shutdown()` both carry. Say so
-yourself when you want to wait, and dispose afterwards — disposal then finds nothing left to shut down:
+* Prefer `await using`. The synchronous `Dispose()` exists for code that cannot be async, and blocks on
+  the same shutdown.
+* The shutdown does not wait for running jobs, the same default as
+  `QuartzHostedServiceOptions.WaitForJobsToComplete` and `IScheduler.Shutdown()`. To wait, shut down
+  yourself first; disposal then finds nothing left to shut down:
 
 <!-- snippet: sample_standalone_wait_for_jobs -->
 ```csharp
@@ -116,25 +105,23 @@ await scheduler.Shutdown(waitForJobsToComplete: true);
 ```
 <!-- endSnippet -->
 
-Disposing twice does nothing the second time, and disposing a factory whose `GetScheduler()` was never
-called does nothing at all: a scheduler is never built merely to be torn down.
-
-**Never disposing is a supported choice.** A console application whose scheduler runs until the process
-ends behaves exactly as it did with the process-lifetime scheduler of earlier versions. The dispose
-story exists for the cases where a scheduler is *shorter*-lived than the process: a test, a CLI
-subcommand, a plug-in host.
+* Disposing twice does nothing the second time. Disposing a factory whose `GetScheduler()` was never
+  called does nothing; no scheduler is built just to be torn down.
+* **Never disposing is a supported choice.** A console application whose scheduler runs until the
+  process ends behaves as the process-lifetime scheduler of earlier versions did. Disposal is for a
+  scheduler *shorter*-lived than the process: a test, a CLI subcommand, a plug-in host.
 
 ::: warning
 A scheduler that has been shut down is not restarted in place. The container owns its parts' lifetimes,
-so `GetScheduler()` after a `Shutdown()` throws rather than quietly handing back a dead instance — build
-a new factory instead. `Standby()` / `Start()` is the pause-and-resume pair. In an application that has a
-container, [`ISchedulerRuntime.Restart`](../multi-tenancy.md#restarting-a-scheduler) does the
-build-a-new-one step for you, from the recipe the old one was built with.
+so `GetScheduler()` after a `Shutdown()` throws instead of returning a dead instance; build a new factory.
+`Standby()` / `Start()` is the pause-and-resume pair. In an application with a container,
+[`ISchedulerRuntime.Restart`](../multi-tenancy.md#restarting-a-scheduler) builds the new one for you from
+the recipe the old one was built with.
 :::
 
 ## Jobs, triggers and calendars
 
-The `IQuartzBuilder` extension methods work here unchanged, and chain with the rest inside the callback:
+The `IQuartzBuilder` extension methods work unchanged and chain inside the callback:
 
 <!-- snippet: sample_standalone_jobs_triggers_and_calendars -->
 ```csharp
@@ -151,7 +138,9 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
 ```
 <!-- endSnippet -->
 
-Jobs declared this way are registered with the container, so they can take constructor dependencies:
+Jobs declared this way are registered with the container, so they can take constructor dependencies.
+`q.Services` is a real `IServiceCollection`; register anything there you would register in an
+application container:
 
 <!-- snippet: sample_standalone_registering_services -->
 ```csharp
@@ -164,15 +153,11 @@ QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q =>
 ```
 <!-- endSnippet -->
 
-`q.Services` is a real `IServiceCollection`. Anything you would register in an application container
-you can register here.
-
 ## Configuration from a file
 
-`UseConfiguration` is the standalone counterpart of `AddQuartz(configuration)`, and reads the section
-exactly the way a host does — hierarchical `Scheduler` and `ThreadPool` sections bind onto the typed
-options, a `Schedule` section becomes jobs and triggers, and flat `quartz.*` keys still mean what they
-always meant:
+`UseConfiguration` is the standalone counterpart of `AddQuartz(configuration)` and reads the section as
+a host does: hierarchical `Scheduler` and `ThreadPool` sections bind to the typed options, a `Schedule`
+section becomes jobs and triggers, and flat `quartz.*` keys keep their meaning.
 
 <!-- snippet: sample_standalone_configuration -->
 ```csharp
@@ -187,8 +172,8 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-`UseProperties` is the flat-key path, for a properties file or an environment-derived bag — the shape
-`StdSchedulerFactory` took:
+`UseProperties` takes flat keys, from a properties file or an environment-derived bag, as
+`StdSchedulerFactory` did:
 
 <!-- snippet: sample_standalone_properties -->
 ```csharp
@@ -202,21 +187,18 @@ QuartzSchedulerBuilder.Create().UseProperties(properties);
 ```
 <!-- endSnippet -->
 
-There is also an overload taking `IEnumerable<KeyValuePair<string, string?>>`, which is the shape a
-`Dictionary<string, string?>` and `QuartzOptions.Properties` already have.
+Another overload takes `IEnumerable<KeyValuePair<string, string?>>`, the shape of a
+`Dictionary<string, string?>` and of `QuartzOptions.Properties`.
 
-**Code wins, whichever order the two are written in.** Values from configuration and properties are
-applied *before* anything the builder was told, and implementations they name are registered *after* —
-because options are last-wins and registrations are first-wins. Applying them where the call happened to
-appear would make precedence depend on the order you happened to type things.
-
-Property keys are checked against the ones Quartz reads, so a misspelling is reported rather than
-silently ignored. Set `quartz.checkConfiguration` to `false` when you keep keys of your own in the same
-bag.
+* **Code wins, whichever order the calls are written in.** Values from configuration and properties are
+  applied *before* anything the builder was told, and implementations they name are registered *after*,
+  because options are last-wins and registrations first-wins.
+* Property keys are checked against the ones Quartz reads, so a misspelling is reported. Set
+  `quartz.checkConfiguration` to `false` when you keep keys of your own in the same bag.
 
 ## Persistent and clustered, standalone
 
-Nothing about persistence needs a host:
+Persistence needs no host:
 
 <!-- snippet: sample_standalone_persistent_and_clustered -->
 ```csharp
@@ -237,26 +219,24 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
 ```
 <!-- endSnippet -->
 
-The dialect methods — `UseSqlServer`, `UsePostgres`, `UseMySql`, `UseMySqlConnector`, `UseSqlite`,
-`UseSystemDataSqlite`, `UseOracle`, `UseFirebird`, `UseGenericDatabase` — each take either a connection
-string or an `Action<DataSourceOptions>`.
+The dialect methods (`UseSqlServer`, `UsePostgres`, `UseMySql`, `UseMySqlConnector`, `UseSqlite`,
+`UseSystemDataSqlite`, `UseOracle`, `UseFirebird`, `UseGenericDatabase`) each take a connection string or
+an `Action<DataSourceOptions>`.
 
 ::: tip
-Options validation behaves slightly differently without a host. `ValidateOnStart` is wired up either
-way, but the startup validator that runs it is a hosted service — with no host it never runs, so a bad
-option value is reported the first time the options are read, during `GetScheduler()`, instead of at
-application start. It is still reported; it is just reported a moment later.
+Without a host, options validation runs later. `ValidateOnStart` is wired up either way, but the
+validator that runs it is a hosted service, so without a host a bad option value is reported the first
+time the options are read, during `GetScheduler()`, instead of at application start.
 :::
 
 ## Scheduler isolation
 
-Each `Build()` creates its own container, and each container has its own `ISchedulerRepository`. Two
-standalone factories therefore never see each other's schedulers: `GetAllSchedulers()` on one returns
-only what it built, and `LookupScheduler(name)` cannot find the other's.
+Each `Build()` creates its own container with its own `ISchedulerRepository`. Two standalone factories
+never see each other's schedulers: `GetAllSchedulers()` on one returns only what it built, and
+`LookupScheduler(name)` cannot find the other's. That keeps parallel tests safe.
 
-That is what makes parallel tests safe, and it is occasionally not what you want. When several entry
-points genuinely must share one repository, register a shared instance before building — Quartz's own
-registration is `TryAdd`, so yours wins:
+To share one repository between several entry points, register a shared instance before building.
+Quartz's own registration is `TryAdd`, so yours wins:
 
 <!-- snippet: sample_standalone_shared_repository -->
 ```csharp
@@ -269,9 +249,6 @@ QuartzSchedulerBuilder second = QuartzSchedulerBuilder.Create(q => q.Services.Ad
 
 ## What the container-first path adds
 
-Standalone gives you a scheduler. `AddQuartz` in an application container gives you a scheduler plus
-everything a host makes possible:
-
 | Container-first | Standalone |
 |---|---|
 | `AddQuartzHostedService` — start, graceful shutdown, `WaitForJobsToComplete`, `StartDelay` | you call `Start()` and `Shutdown()` |
@@ -282,11 +259,14 @@ everything a host makes possible:
 | Configuration bound by the host | `UseConfiguration(section)` |
 | Application services already registered | register them on `q.Services` yourself |
 
-`q.SchedulerName` inside the callback is `""` — the standalone builder configures the default
-scheduler, and the instance name comes from `ConfigureScheduler(o => o.InstanceName = …)`.
+* `q.SchedulerName` inside the callback is `""`: the standalone builder configures the default
+  scheduler. The instance name comes from `ConfigureScheduler(o => o.InstanceName = …)`.
+* If the process already has a `HostApplicationBuilder` or `WebApplicationBuilder`, use `AddQuartz`
+  ([Configuration, Resource Usage and Building a Scheduler](configuration-resource-usage-and-scheduler-factory.md),
+  [Microsoft DI Integration](../packages/microsoft-di-integration.md)).
 
-If a process is already a `HostApplicationBuilder` or a `WebApplicationBuilder`, use `AddQuartz`. The
-standalone builder is for the processes that are not.
+The standalone builder is the entry point for tests; see [Testing](testing.md). Every option, typed and
+legacy, is in the [Configuration Reference](../configuration/reference.md).
 
 ## Coming from 3.x
 
@@ -298,12 +278,5 @@ standalone builder is for the processes that are not.
 | `SchedulerBuilder.Create()` | `QuartzSchedulerBuilder.Create(q => …)` |
 | `quartz.config` picked up implicitly | `UseConfiguration` or `UseProperties`, explicitly |
 
-The big change is ownership: 3.x's factory was a process-wide singleton handing out schedulers that
-lived forever, and 4.x's factory is an object you hold and dispose. Everything else is a rename.
-
-## See also
-
-- [Configuration, Resource Usage and Building a Scheduler](configuration-resource-usage-and-scheduler-factory.md) — the container-first path
-- [Testing](testing.md) — the standalone builder is the entry point every test uses
-- [Configuration Reference](../configuration/reference.md) — every option, typed and legacy
-- [Microsoft DI Integration](../packages/microsoft-di-integration.md) — `AddQuartz` in depth
+The main change is ownership: 3.x's factory was a process-wide singleton handing out schedulers that
+lived forever; 4.x's factory is an object you hold and dispose. The rest are renames.
