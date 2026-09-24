@@ -5,46 +5,51 @@ title: Troubleshooting
 
 # Troubleshooting
 
-This guide covers common issues users encounter with Quartz.NET and how to diagnose and resolve them.
+Common Quartz.NET problems, by symptom, with how to diagnose and fix each.
 
 ## Scheduler Stops Executing Jobs
 
-**Symptoms:** Jobs stop firing after running for hours or days. No error messages in logs. The scheduler appears to be running but no triggers fire.
+**Symptoms:** jobs stop firing after hours or days. No errors in the logs. The scheduler appears to
+be running, but no triggers fire.
 
-**Common Causes:**
+**Common causes:**
 
-1. **Thread pool exhaustion** — All worker threads are occupied by long-running jobs. Other jobs queue up and eventually misfire.
-   * Check the thread pool size (default: 10) — `ThreadPool:MaxConcurrency` in 4.x,
-     `quartz.threadPool.threadCount` as a flat key on both versions. Increase it if you have many
-     concurrent jobs.
-   * Ensure jobs don't block threads indefinitely. Use cancellation tokens and timeouts.
-   * Consider using `[DisallowConcurrentExecution]` to prevent a single slow job from consuming all threads.
+1. **Thread pool exhaustion.** Long-running jobs occupy every worker; other jobs wait and eventually
+   misfire.
+   * Check the thread pool size (default 10): `ThreadPool:MaxConcurrency` in 4.x,
+     `quartz.threadPool.threadCount` as a flat key on both versions. Raise it if you run many jobs
+     at once.
+   * Make sure jobs do not block threads indefinitely. Use cancellation tokens and timeouts.
+   * Consider `[DisallowConcurrentExecution]` so one slow job cannot take every thread.
+2. **Database connectivity.** Transient database errors during trigger acquisition can leave the
+   scheduler unable to pick up new triggers.
+   * Check the connection string and the connection pool configuration.
+   * Make the connection pool at least the thread count + 3 (see
+     [Best Practices](best-practices.md#the-connection-pool-is-the-thread-pool-plus-three)).
+   * Check the database server's logs for connection timeouts or deadlocks.
+3. **Unhandled exceptions in listeners.** An exception from an `IJobListener`, `ITriggerListener` or
+   `ISchedulerListener` can disrupt the scheduling cycle.
+   * Wrap listener code in try-catch (see
+     [Best Practices](best-practices.md#listeners-run-in-the-middle-of-everything)).
 
-2. **Database connectivity issues** — Transient database errors during trigger acquisition can leave the scheduler unable to pick up new triggers.
-   * Check your database connection string and connection pool configuration.
-   * Ensure your connection pool size is at least thread count + 3 (see [Best Practices](best-practices.md#the-connection-pool-is-the-thread-pool-plus-three)).
-   * Review database server logs for connection timeouts or deadlocks.
+**Diagnosis:**
 
-3. **Unhandled exceptions in listeners** — An exception thrown from a `IJobListener`, `ITriggerListener`, or `ISchedulerListener` can disrupt the scheduling cycle.
-   * Always wrap listener code in try-catch blocks (see [Best Practices](best-practices.md#listeners-run-in-the-middle-of-everything)).
-
-**Diagnosis Steps:**
-
-1. Enable debug logging for `Quartz` namespace to see trigger acquisition activity.
-2. Check `QRTZ_FIRED_TRIGGERS` table for jobs that never completed.
-3. Check `QRTZ_TRIGGERS` table for triggers stuck in unexpected states (see next section).
-4. Verify the scheduler is still firing: `scheduler.Status` should be `SchedulerStatus.Running` in 4.x,
-   `scheduler.IsStarted` should be `true` and `scheduler.InStandbyMode` `false` on 3.x.
+1. Enable debug logging for the `Quartz` namespace to see trigger acquisition.
+2. Check `QRTZ_FIRED_TRIGGERS` for jobs that never completed.
+3. Check `QRTZ_TRIGGERS` for triggers stuck in unexpected states (see the next section).
+4. Check that the scheduler is still firing: `scheduler.Status` is `SchedulerStatus.Running` in 4.x;
+   on 3.x, `scheduler.IsStarted` is `true` and `scheduler.InStandbyMode` is `false`.
 
 ## Triggers Stuck in ACQUIRED State
 
-**Symptoms:** Triggers show `TRIGGER_STATE = 'ACQUIRED'` in the database but never fire. New triggers are not being picked up.
+**Symptoms:** triggers show `TRIGGER_STATE = 'ACQUIRED'` in the database but never fire. New triggers
+are not picked up.
 
 **Causes:**
 
-* The scheduler instance that acquired the trigger crashed or lost connectivity before it could fire.
-* Transient database errors during the fire-and-complete cycle — the reservation was written, and the
-  statement that would have fired it or released it did not run.
+* The scheduler instance that acquired the trigger crashed or lost connectivity before firing it.
+* A transient database error during the fire-and-complete cycle: the reservation was written, but
+  the statement that would have fired or released it did not run.
 
 **Diagnosis:**
 
@@ -59,39 +64,37 @@ SELECT * FROM QRTZ_FIRED_TRIGGERS
 WHERE STATE = 'ACQUIRED';
 ```
 
-**Resolution: the store already does this.** `RecoverStaleAcquiredTriggers` runs on the persistent
-store's misfire loop — every `MisfireHandlerFrequency`, which defaults to the misfire threshold, one
-minute — on both versions, and whether or not the scheduler is clustered. For each of **this node's
-own** fired-trigger rows still in `ACQUIRED` state past the stale threshold, it puts the trigger back to
-`WAITING` (from `ACQUIRED` or `BLOCKED`, since a `[DisallowConcurrentExecution]` job's trigger may have
-moved on) and deletes the row. It is worth knowing about because it is easy to mistake for something
-having gone wrong: rows disappear on their own, a minute or two after they stopped moving.
+**Resolution: the store already does this.** On both versions, clustered or not,
+`RecoverStaleAcquiredTriggers` runs on the persistent store's misfire loop, every
+`MisfireHandlerFrequency` (by default the misfire threshold, one minute).
 
-The stale threshold is derived rather than configured: it is **twice the misfire threshold, with a floor
-of two minutes**. The floor is what keeps it clear of normal acquisition, which takes at most one
-`IdleWaitTime` — 30 seconds by default — plus the time to fire. Widening `MisfireThreshold` widens this
-with it; there is no separate setting.
+* For each of **this node's own** fired-trigger rows still `ACQUIRED` past the stale threshold, it
+  sets the trigger back to `WAITING` (from `ACQUIRED` or `BLOCKED`, since a
+  `[DisallowConcurrentExecution]` job's trigger may have moved on) and deletes the row.
+* The stale threshold is **twice the misfire threshold, with a floor of two minutes**. The floor keeps
+  it clear of normal acquisition, which takes at most one `IdleWaitTime` (30 seconds by default) plus
+  the time to fire. There is no separate setting; widening `MisfireThreshold` widens it.
 
-Two things it deliberately does not do:
+So stuck rows disappear on their own, a minute or two after they stopped moving. The sweep does not
+touch:
 
-* It only touches rows carrying **its own** instance id. A row left by a node that is gone is cleaned up
-  by cluster recovery once that node is declared failed, not by this sweep — see
-  [Operating a Cluster (4.x)](quartz-4.x/operations.md#when-a-peer-takes-over). The reverse case — this
-  node's rows swept by a peer that decided *it* was gone — is
-  [Clock Skew Between Nodes](#clock-skew-between-nodes).
-* It does not touch rows in `EXECUTING` state. Those describe a job the node believes is running, and
-  the node is the authority on that.
+* **Rows with another instance id.** Rows left by a node that is gone are cleaned up by cluster
+  recovery once that node is declared failed; see
+  [Operating a Cluster (4.x)](quartz-4.x/operations.md#when-a-peer-takes-over). For this node's rows
+  swept by a peer that decided *it* was gone, see [Clock Skew Between Nodes](#clock-skew-between-nodes).
+* **Rows in `EXECUTING` state.** They describe a job the node believes is running, and the node is
+  the authority on that.
 
-So the ordinary answer is to wait one sweep, and if nothing changes, to find out which instance id owns
-the rows. In 4.x, `IScheduler.QueryFireInstances(new FireInstanceQuery { State = null })` lists them
-without SQL, and `QueryClusterNodes()` says which of those instance ids still exist.
+Wait one sweep. If nothing changes, find which instance id owns the rows. In 4.x,
+`IScheduler.QueryFireInstances(new FireInstanceQuery { State = null })` lists them without SQL, and
+`QueryClusterNodes()` says which of those instance ids still exist.
 
 **Resolution, as a fallback:**
 
-1. **Restart the scheduler.** A non-clustered scheduler frees every `ACQUIRED` and `BLOCKED` trigger and
-   deletes every fired-trigger row at startup. A clustered one does the same for its own rows on its
-   first check-in.
-2. **Manual recovery** — if a restart is not possible, put the stuck triggers back to `WAITING`:
+1. **Restart the scheduler.** A non-clustered scheduler frees every `ACQUIRED` and `BLOCKED` trigger
+   and deletes every fired-trigger row at startup. A clustered one does the same for its own rows on
+   its first check-in.
+2. **Manual recovery.** If a restart is not possible, put the stuck triggers back to `WAITING`:
 
 ```sql
 UPDATE QRTZ_TRIGGERS
@@ -101,26 +104,26 @@ WHERE TRIGGER_STATE = 'ACQUIRED'
 ```
 
 ::: warning
-Only perform manual database updates as a last resort, and never against a running cluster: the row you
-edit may be one a node is about to fire, and the fired-trigger row that pairs with it is left behind.
-Prefer letting the sweep or a restart handle it.
+Update the database by hand only as a last resort, and never against a running cluster: the row you
+edit may be one a node is about to fire, and its paired fired-trigger row is left behind. Prefer the
+sweep or a restart.
 :::
 
 **Prevention:**
 
-* Ensure adequate database connection pool sizing.
-* Use clustered mode if running multiple scheduler instances — it includes automatic recovery for failed nodes.
-* Keep jobs short-running to minimize the window for failures.
+* Size the database connection pool adequately.
+* Run clustered if you run several scheduler instances; clustering recovers failed nodes
+  automatically.
+* Keep jobs short to narrow the window for failures.
 
 ## A Lock Held by a Connection That Is Gone
 
-**Symptoms:** every node of a cluster stops firing at the same moment, and the log says nothing at all —
-no exception, no misfire, no `SchedulerError`, not even a retry. The processes are healthy and the
-scheduler still reports itself as running. In the database, a session is waiting on `QRTZ_LOCKS` and the
-session blocking it belongs to a client that is no longer there.
+**Symptoms:** every node of a cluster stops firing at the same moment, and the log is silent: no
+exception, no misfire, no `SchedulerError`, not even a retry. The processes are healthy and the
+scheduler reports itself running. In the database, a session is waiting on `QRTZ_LOCKS`, and the
+session blocking it belongs to a client that no longer exists.
 
-**Diagnosis:** ask the database who is blocking whom, and then whether the blocker's client still
-exists.
+**Diagnosis:** ask the database who is blocking whom, then whether the blocker's client still exists.
 
 ```sql
 -- Oracle
@@ -143,39 +146,41 @@ WHERE blocking_session_id <> 0;
 SELECT * FROM performance_schema.data_lock_waits;
 ```
 
-If the blocking session has been idle for as long as the outage has lasted, and belongs to a node whose
-process you can see is gone, this is what you are looking at.
+It is this problem if the blocking session has been idle as long as the outage has lasted and belongs
+to a node whose process is gone.
 
-**Cause:** a node held the `TRIGGER_ACCESS` row lock and its connection died in a way that told the
-server nothing. Killing the process sends a TCP reset and the server tears the session down at once,
-which is why killing a node does *not* reproduce this. Cutting the network out from under a live
-process sends nothing: the socket is aborted on the client side, no FIN or RST ever reaches the server,
-and so the server keeps the session, its open transaction and the row lock, and goes on holding all
-three until *it* notices the client is gone. When the node comes back it connects on a fresh session
-and queues behind its own ghost.
+**Cause:** a node held the `TRIGGER_ACCESS` row lock, and its connection died without telling the
+server.
+
+* Killing the process sends a TCP reset, and the server ends the session at once. Killing a node
+  therefore does *not* reproduce this.
+* Cutting the network under a live process sends nothing: the socket is aborted on the client side
+  and no FIN or RST reaches the server. The server keeps the session, its open transaction and the
+  row lock until *it* notices the client is gone.
+* When the node comes back, it connects on a fresh session and queues behind its own ghost.
 
 **Quartz cannot release that lock, and neither can any other client.** A row lock belongs to the
-session that took it; only the server can end a session that is not there any more. What Quartz can
-do — and until [#3764](https://github.com/quartznet/quartznet/issues/3764) did not — is make the wait
-finite and make it visible, because a blocked lock statement returns nothing and throws nothing, so the
-handler's retry loop, the store's transient-failure handling and the scheduler's error listener all
-wait with it in silence.
+session that took it; only the server can end a session that is no longer there. A blocked lock
+statement returns nothing and throws nothing, so the handler's retry loop, the store's
+transient-failure handling and the scheduler's error listener all wait with it in silence. Since
+[#3764](https://github.com/quartznet/quartznet/issues/3764), Quartz can make the wait finite and
+visible.
 
-There are two fixes and they solve different halves. Take both.
+There are two fixes, for different halves of the problem. Apply both.
 
 ### Make the wait finite
 
-This is what turns a stall into a failure the scheduler reports and recovers from. It does not free the
-lock.
+This turns a stall into a failure the scheduler reports and recovers from. It does not free the lock.
 
-* **`CommandTimeout`** — `JobStore:CommandTimeout` in 4.x, `quartz.jobStore.commandTimeout` from 3.22 —
-  applies to every statement the store issues, the lock statement included, on every database. On
-  Oracle, ODP.NET's [`CommandTimeout`](https://docs.oracle.com/en/database/oracle/oracle-database/26/odpnt/CommandCommandTimeout.html)
-  cancels the statement rather than ending the wait server-side; the cancel usually surfaces as
-  `ORA-01013`, and on some managed-driver versions as `ORA-03111` instead. Either way it is a statement
-  that failed, and Quartz treats it as one.
-* **A wait timeout in the lock statement itself.** Oracle has no session-level DML lock wait timeout, so
-  on Oracle this is the cleaner of the two: `FOR UPDATE WAIT 20` fails the statement with `ORA-30006`
+* **`CommandTimeout`**: `JobStore:CommandTimeout` in 4.x, `quartz.jobStore.commandTimeout` from 3.22.
+  It applies to every statement the store issues, the lock statement included, on every database.
+  On Oracle, ODP.NET's
+  [`CommandTimeout`](https://docs.oracle.com/en/database/oracle/oracle-database/26/odpnt/CommandCommandTimeout.html)
+  cancels the statement rather than ending the wait on the server. The cancel usually surfaces as
+  `ORA-01013`, and on some managed-driver versions as `ORA-03111`. Either way Quartz treats it as a
+  failed statement.
+* **A wait timeout in the lock statement itself.** Oracle has no session-level DML lock wait timeout,
+  so on Oracle this is the cleaner option: `FOR UPDATE WAIT 20` fails the statement with `ORA-30006`
   after twenty seconds.
 
 <!-- snippet: sample_troubleshooting_oracle_lock_wait -->
@@ -207,76 +212,104 @@ On 3.x the same statement is a flat key:
 quartz.jobStore.selectWithLockSQL = SELECT * FROM {0}LOCKS WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName FOR UPDATE WAIT 20
 ```
 
-PostgreSQL's equivalent is the [`lock_timeout`](https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-LOCK-TIMEOUT)
-setting, which aborts any statement that waits longer than it to acquire a lock; Npgsql sets it per
-connection with `Options=-c lock_timeout=20000` in the connection string. On MySQL,
-[`innodb_lock_wait_timeout`](https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html#sysvar_innodb_lock_wait_timeout)
-already bounds the waiter at 50 seconds by default, so this half is done for you.
+* **PostgreSQL:** [`lock_timeout`](https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-LOCK-TIMEOUT)
+  aborts any statement that waits longer than it for a lock. Npgsql sets it per connection with
+  `Options=-c lock_timeout=20000` in the connection string.
+* **MySQL:** [`innodb_lock_wait_timeout`](https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html#sysvar_innodb_lock_wait_timeout)
+  already bounds the waiter at 50 seconds by default.
 
-**What Quartz then does.** The row-lock handler attempts the statement `MaxRetry` times — three by
-default, a second apart — and then throws `LockException`. The scheduler thread reports the first
-failure through `ISchedulerListener.SchedulerError` and backs off `DbRetryInterval` before trying
-again; the check-in and misfire loops log every `RetryableActionErrorLogThreshold`-th consecutive
-failure as an error. None of it is fatal, and the scheduler picks up by itself the moment the lock is
-released — the point is that the cluster is now loud instead of silent.
+**What Quartz then does:**
 
-On 4.x it is also loud before the timeout expires: an acquisition that has been waiting longer than
-`JobStore:LockWaitWarningThreshold` (30 seconds by default) logs **warning 3716** once, naming the lock
-and how long it has waited, and every acquisition is measured on the `quartz.jobstore.lock.wait.duration`
-histogram, tagged with `quartz.jobstore.lock`. That warning is the one to alert on: while a lock wait is
-in progress, nothing else in Quartz produces a signal at all.
+* The row-lock handler tries the statement `MaxRetry` times (three by default, a second apart), then
+  throws `LockException`.
+* The scheduler thread reports the first failure through `ISchedulerListener.SchedulerError` and backs
+  off `DbRetryInterval` before trying again.
+* The check-in and misfire loops log every `RetryableActionErrorLogThreshold`-th consecutive failure
+  as an error.
+
+None of it is fatal. The scheduler picks up by itself the moment the lock is released; the cluster is
+now loud instead of silent.
+
+On 4.x it is loud before the timeout expires, too. An acquisition waiting longer than
+`JobStore:LockWaitWarningThreshold` (30 seconds by default) logs **warning 3716** once, naming the
+lock and how long it has waited. Every acquisition is measured on the
+`quartz.jobstore.lock.wait.duration` histogram, tagged with `quartz.jobstore.lock`. Alert on that
+warning: while a lock wait is in progress, nothing else in Quartz produces a signal.
 
 ### Make the server drop the dead session
 
-This is the half that actually frees the lock, and it is configured on the database server rather than
-in Quartz.
+This half frees the lock. It is configured on the database server, not in Quartz.
 
-| Database | Setting | What it does |
+| Database | Server setting | Default |
 |---|---|---|
-| Oracle | [`SQLNET.EXPIRE_TIME=n`](https://docs.oracle.com/en/database/oracle/oracle-database/21/netrf/parameters-for-the-sqlnet.ora.html) in the **server's** `sqlnet.ora` | Dead connection detection: probes every *n* minutes to verify the client is still there and closes the connection when it is not, which ends the session and rolls its transaction back. Default `0` — off — which leaves you on the operating system's TCP keepalive, typically two hours. A single-digit number of minutes is the usual setting. |
-| Oracle | [`MAX_IDLE_BLOCKER_TIME`](https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/MAX_IDLE_BLOCKER_TIME.html) (19c and later, minutes, `ALTER SYSTEM`, per-PDB) | Terminates a session that has been **idle while blocking another session** for that long. Safer than it sounds: a session executing a long statement is never idle, so a long query or a slow job is not a candidate. The only Quartz session it can reach is one sitting idle between the statements of a lock-holding transaction, which is milliseconds unless the process is paused — and if one is ever caught there, the commit fails and the store retries. A few minutes is a good backstop next to `EXPIRE_TIME`. |
-| PostgreSQL | [`tcp_keepalives_idle` / `_interval` / `_count`](https://www.postgresql.org/docs/current/runtime-config-connection.html#GUC-TCP-KEEPALIVES-IDLE), and [`idle_in_transaction_session_timeout`](https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-IDLE-IN-TRANSACTION-SESSION-TIMEOUT) | The keepalive settings default to `0`, meaning the operating system's own values; setting them makes the server notice a gone client on its own schedule. `idle_in_transaction_session_timeout` terminates a session idle inside an open transaction, which is exactly the shape a lock-holding ghost has. |
-| SQL Server | [Keep Alive](https://learn.microsoft.com/en-us/sql/tools/configuration-manager/tcp-ip-properties-protocols-tab) on the TCP/IP protocol, in SQL Server Configuration Manager | Enabled on every connection, unlike the operating system default, and [30 seconds with a one-second retransmission interval](https://learn.microsoft.com/en-us/archive/blogs/sql_protocols/understand-special-tcpip-property-keep-alive-in-sql-server-2005) out of the box — so an orphaned connection is usually dropped inside a minute and this case rarely lasts long here. |
-| MySQL | OS keepalive (`net.ipv4.tcp_keepalive_time`), and `wait_timeout` | The dead session lives until the operating system's keepalive gives up — two hours by default on Linux — or until `wait_timeout` (eight hours) closes an idle connection. Tune the keepalive; `innodb_lock_wait_timeout` covers the waiter but nothing else covers the holder. |
+| Oracle | [`SQLNET.EXPIRE_TIME=n`](https://docs.oracle.com/en/database/oracle/oracle-database/21/netrf/parameters-for-the-sqlnet.ora.html) in the **server's** `sqlnet.ora` | `0` (off) |
+| Oracle | [`MAX_IDLE_BLOCKER_TIME`](https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/MAX_IDLE_BLOCKER_TIME.html) (19c and later, minutes, `ALTER SYSTEM`, per-PDB) | — |
+| PostgreSQL | [`tcp_keepalives_idle` / `_interval` / `_count`](https://www.postgresql.org/docs/current/runtime-config-connection.html#GUC-TCP-KEEPALIVES-IDLE) | `0`: the operating system's values |
+| PostgreSQL | [`idle_in_transaction_session_timeout`](https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-IDLE-IN-TRANSACTION-SESSION-TIMEOUT) | — |
+| SQL Server | [Keep Alive](https://learn.microsoft.com/en-us/sql/tools/configuration-manager/tcp-ip-properties-protocols-tab) on the TCP/IP protocol, in SQL Server Configuration Manager | [30 seconds, one-second retransmission interval](https://learn.microsoft.com/en-us/archive/blogs/sql_protocols/understand-special-tcpip-property-keep-alive-in-sql-server-2005) |
+| MySQL | OS keepalive (`net.ipv4.tcp_keepalive_time`), and `wait_timeout` | Two hours on Linux; eight hours |
+
+* **Oracle `EXPIRE_TIME`** is dead connection detection. It probes every *n* minutes and closes the
+  connection when the client is gone, which ends the session and rolls its transaction back. Left at
+  `0`, you depend on the operating system's TCP keepalive, typically two hours. A single-digit number
+  of minutes is usual.
+* **Oracle `MAX_IDLE_BLOCKER_TIME`** ends a session that has been **idle while blocking another
+  session** for that long. A session running a long statement is never idle, so a long query or a
+  slow job is not a candidate. The only Quartz session it can reach is one idle between the
+  statements of a lock-holding transaction, which lasts milliseconds unless the process is paused; if
+  one is caught there, the commit fails and the store retries. A few minutes is a good backstop next
+  to `EXPIRE_TIME`.
+* **PostgreSQL:** setting the keepalives makes the server notice a gone client on its own schedule.
+  `idle_in_transaction_session_timeout` ends a session idle inside an open transaction, which is
+  exactly the shape of a lock-holding ghost.
+* **SQL Server** enables keep-alive on every connection, unlike the operating system default, so an
+  orphaned connection is usually dropped within a minute and this case rarely lasts long.
+* **MySQL:** the dead session lives until the OS keepalive gives up or `wait_timeout` closes the idle
+  connection. Tune the keepalive: `innodb_lock_wait_timeout` covers the waiter, and nothing else
+  covers the holder.
 
 ::: warning
 **Client-side keepalive is not a substitute.** ODP.NET's `Keep Alive=true`, `(ENABLE=BROKEN)` in a
-connect descriptor, and the client-side `EXPIRE_TIME` of newer clients all help the *client* notice a
-dead *server*. None of them can free a lock held by a session on the server, which is the direction this
-failure runs in.
+connect descriptor, and the client-side `EXPIRE_TIME` of newer clients help the *client* notice a
+dead *server*. None of them frees a lock held by a session on the server, which is the direction
+this failure runs in.
 :::
 
 ### Rehearsing it
 
-Reproduce it before you need to. Put a breakpoint after the lock statement in a clustered node — or
-suspend the process — and then disable that machine's network adapter rather than killing the process,
-because killing it sends the reset that makes the server clean up. Every other node stops firing within
-one lock attempt. On 4.x, warning 3716 appears after `LockWaitWarningThreshold` and the lock-wait
-histogram climbs; with the server-side setting in place, the lock is released and the cluster resumes on
-its own once the server drops the session.
+Reproduce it before you need to:
+
+1. In a clustered node, put a breakpoint after the lock statement, or suspend the process.
+2. Disable that machine's network adapter. Do not kill the process: that sends the reset that makes
+   the server clean up.
+3. Every other node stops firing within one lock attempt. On 4.x, warning 3716 appears after
+   `LockWaitWarningThreshold` and the lock-wait histogram climbs.
+4. With the server-side setting in place, the server drops the session, the lock is released and the
+   cluster resumes on its own.
 
 ## The Misfire Sweep Times Out
 
 **Symptoms:** `JobPersistenceException` with an inner timeout from the misfire handler, repeating every
-minute; `Handling the first N triggers of M misfired triggers` in the log and never catching up; the
+minute; `Handling the first N triggers of M misfired triggers` in the log, never catching up; the
 scheduler otherwise alive but firing late.
 
-**Cause:** the sweep is doing too much work per pass for the time it is allowed, or the query that finds
+**Cause:** the sweep does too much work per pass for the time it is allowed, or the query that finds
 misfired triggers is scanning. Three settings and one index decide it.
 
-The sweep runs on every node, and each pass starts with a `COUNT` that takes no cluster-wide lock — the
-double-check that avoids paying for the lock when there is nothing to do. That count is
-`WHERE SCHED_NAME = ? AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= ? AND TRIGGER_STATE = ?`, which the
-4.x acquisition index `IDX_QRTZ_T_NFT_ST` on
-`(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` serves: two equalities,
-a range, and `MISFIRE_INSTR` in the index so the `<> -1` never leaves it. There was a second index for
-this on four dialects, `IDX_QRTZ_T_NFT_ST_MISFIRE`, and 4.0 drops it
-([#3656](https://github.com/quartznet/quartznet/issues/3656)): it led with `MISFIRE_INSTR`, the column
-compared with `<>`, so it could not seek past it — measured on every engine that had it, it is not the
-index any optimizer picks here ([#3608](https://github.com/quartznet/quartznet/issues/3608)). 3.x still
-ships it and still sweeps from it. A schema that predates the
-[3.20 index migration](database/schema-changes.md#version-3-20) has a different index shape, and on a
-large `QRTZ_TRIGGERS` this query is where a slow database first shows.
+The sweep runs on every node. Each pass starts with a `COUNT` that takes no cluster-wide lock, to avoid
+paying for the lock when there is nothing to do:
+`WHERE SCHED_NAME = ? AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= ? AND TRIGGER_STATE = ?`.
+
+* **4.x** serves it from the acquisition index `IDX_QRTZ_T_NFT_ST` on
+  `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)`: two equalities, a
+  range, and `MISFIRE_INSTR` in the index so the `<> -1` never leaves it. 4.0 drops the second index,
+  `IDX_QRTZ_T_NFT_ST_MISFIRE`, that four dialects had
+  ([#3656](https://github.com/quartznet/quartznet/issues/3656)): it led with `MISFIRE_INSTR`, compared
+  with `<>`, so it could not seek, and no measured optimizer picked it
+  ([#3608](https://github.com/quartznet/quartznet/issues/3608)).
+* **3.x** still ships `IDX_QRTZ_T_NFT_ST_MISFIRE` and sweeps from it.
+* A schema older than the [3.20 index migration](database/schema-changes.md#version-3-20) has a
+  different index shape. On a large `QRTZ_TRIGGERS`, this query is where a slow database first shows.
 
 <!-- snippet: sample_troubleshooting_misfire_sweep -->
 ```csharp
@@ -303,97 +336,96 @@ q.UsePersistentStore(s =>
 
 **Resolution:**
 
-* **Apply the current index set.** [`migrations/3.20`](https://github.com/quartznet/quartznet/tree/main/database/migrations/3.20)
+* **Apply the current index set:** [`migrations/3.20`](https://github.com/quartznet/quartznet/tree/main/database/migrations/3.20)
   on 3.x, or section 5 of [`migrations/4.0`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0)
-  on 4.x. This is the fix that helps most and costs least.
-* **Lower `MaxMisfiresToHandleAtATime`** (default 20). It bounds one pass; the loop comes straight back
-  for the rest after a 50 ms pause, so a smaller number means more, shorter transactions rather than less
-  progress.
-* **Raise `CommandTimeout`** — `JobStore:CommandTimeout` in 4.x — if the statements are genuinely slow
-  rather than blocked. It applies to every statement the store issues, so raise it knowing that a node
-  waiting on the cluster-wide lock waits this long before it can fail and retry.
-* **Raise `MisfireThreshold`** if the schedule can tolerate more lateness. Fewer triggers cross the line,
-  so there is less to sweep.
+  on 4.x. This helps most and costs least.
+* **Lower `MaxMisfiresToHandleAtATime`** (default 20). It bounds one pass; the loop comes back for the
+  rest after a 50 ms pause, so a smaller number means more, shorter transactions, not less progress.
+* **Raise `CommandTimeout`** (`JobStore:CommandTimeout` in 4.x) if the statements are slow rather
+  than blocked. It applies to every statement the store issues, so a node waiting on the cluster-wide
+  lock also waits this long before it can fail and retry.
+* **Raise `MisfireThreshold`** if the schedule can tolerate more lateness. Fewer triggers cross the
+  line, so there is less to sweep.
 
 ::: warning
-**A non-clustered scheduler's startup sweep is unbounded on purpose**, on both versions: it handles
+**A non-clustered scheduler's startup sweep is unbounded on purpose**, on both versions. It handles
 *every* misfired trigger in one pass, ignoring `MaxMisfiresToHandleAtATime`, so that a scheduler
-starting after a long outage is caught up before it begins firing. That is the pass most likely to time
-out on a large schedule, and lowering the batch size does not affect it — only the index and the timeout
-do. A clustered scheduler does no such pass: its startup work is the first cluster check-in, which
-recovers fired triggers rather than misfires, and the ordinary bounded sweep catches up afterwards.
+starting after a long outage catches up before it fires. It is the pass most likely to time out on a
+large schedule, and the batch size does not affect it; only the index and the timeout do. A clustered
+scheduler has no such pass: its startup work is the first cluster check-in, which recovers fired
+triggers rather than misfires, and the ordinary bounded sweep catches up afterwards.
 :::
 
 ## Clock Skew Between Nodes
 
 **Symptoms:** jobs run twice; a node logs
 `This scheduler instance (…) is still active but was recovered by another instance in the cluster`;
-nodes flip between `Alive` and `Failed` in the cluster listing with no corresponding outage.
+nodes flip between `Alive` and `Failed` in the cluster listing with no matching outage.
 
-**Cause:** clustered failure detection compares a timestamp one node wrote against another node's clock.
-A node whose clock runs ahead of a peer's by more than the slack in that comparison writes off a healthy
-peer, releases its acquired triggers and re-runs its recovery-requesting jobs — while it is still
-executing them.
+**Cause:** clustered failure detection compares a timestamp one node wrote with another node's clock.
+A node whose clock runs ahead of a peer's by more than the slack writes off a healthy peer, releases
+its acquired triggers and re-runs its recovery-requesting jobs while the peer is still executing them.
 
-**The database's clock plays no part in this.** `LAST_CHECKIN_TIME` holds the writing node's reading of
-its own clock, and nothing in the store ever asks the server what time it is — there is no `GETDATE()`,
-`now()` or `SYSDATE` anywhere in the SQL. So a database server whose clock disagrees with the whole
-cluster's changes nothing at all, and setting its clock is not a fix for this. Only the nodes' clocks
-agreeing with *each other* matters, and the slack they have to agree within is the failed node's own
-stored check-in interval plus the deciding node's check-in misfire threshold.
+**The database's clock plays no part.** `LAST_CHECKIN_TIME` holds the writing node's own clock
+reading, and no SQL in the store asks the server for the time (no `GETDATE()`, `now()` or `SYSDATE`).
+Setting the database server's clock does not fix this. Only the nodes' clocks agreeing with *each
+other* matters, within the failed node's stored check-in interval plus the deciding node's check-in
+misfire threshold.
 
-**Resolution:** run a time-synchronisation service on every node; that is the fix, and ordinary NTP is
-orders of magnitude inside the requirement. Where you cannot guarantee it — or cannot guarantee that the
-process gets CPU promptly, which produces the same symptom with a perfect clock — widen the window with
+**Resolution:** run a time-synchronisation service on every node; ordinary NTP is orders of magnitude
+inside the requirement. If you cannot guarantee that, or that the process gets CPU promptly (a
+starved process shows the same symptom with a perfect clock), widen the window with
 `quartz.jobStore.clusterCheckinMisfireThreshold`.
 
-**What the node that was written off does about it.** In 4.x, a node that finds its own
-`QRTZ_SCHEDULER_STATE` row gone on a check-in that is not its first has been failed out by a peer. It
-writes the row back — until it does, it does not exist as far as the rest of the cluster is concerned —
-and logs the warning above (event id `3501`) together with one naming the peer that recovered it
-(`3515`), or saying that the peer cannot be named because more than one node has a state row and no row
-records who recovered whom (`3516`). It also counts the event on `quartz.cluster.recovery.trigger` with
-`quartz.cluster.recovered.instance.id` set to its **own** instance id, which is the series to alert on:
-a recovery whose recovered node is the node reporting it is a node saying it was written off while it
-was running. The count is 1 rather than a number of triggers — how much the peer took over is not
-knowable from this side, and the peer's own measurement carries that number under the same attribute.
+**What the written-off node does, on 4.x.** A node that finds its own `QRTZ_SCHEDULER_STATE` row gone
+on a check-in other than its first has been failed out by a peer. It:
 
-What it deliberately does not do is recover its own fired triggers. The peer already released,
-rescheduled and deleted them, so a second pass over the same rows would schedule a second recovery
-trigger for a firing that is already being replayed — which is the "jobs run twice" symptom this section
-opens with. On 3.x the node logs the warning and otherwise carries on unchanged. Neither version makes
-this *safe*: the peer took work over from a process that is still running it, and only the clock fixes
-that. The rows left in `ACQUIRED` by the same event are a separate matter and clean themselves up — see
+* writes the row back; until then, the rest of the cluster does not see it;
+* logs the warning above (event id `3501`), plus one naming the peer that recovered it (`3515`), or
+  saying the peer cannot be named because more than one node has a state row and no row records who
+  recovered whom (`3516`);
+* counts the event on `quartz.cluster.recovery.trigger` with `quartz.cluster.recovered.instance.id`
+  set to its **own** instance id. Alert on that series: it is a node reporting that it was written
+  off while running. The count is 1, not a number of triggers; the peer's own measurement carries
+  that number under the same attribute.
+
+It does not recover its own fired triggers. The peer already released, rescheduled and deleted them,
+so a second pass would schedule a second recovery trigger for a firing already being replayed.
+
+On 3.x the node logs the warning and otherwise carries on. Neither version makes this *safe*: the
+peer took over work from a process that is still running it, and only the clock fixes that. Rows
+left in `ACQUIRED` by the same event clean themselves up; see
 [Triggers Stuck in ACQUIRED State](#triggers-stuck-in-acquired-state).
 
-[Clocks in a cluster](best-practices.md#clocks-in-a-cluster) has the arithmetic, the size of the default
-window, and why a pause matters more than an inaccuracy. In 4.x,
-[Operating a Cluster (4.x)](quartz-4.x/operations.md#when-a-peer-takes-over) states the exact predicate, and
-`IScheduler.QueryClusterNodes()` shows what each node currently believes about the others.
+[Clocks in a cluster](best-practices.md#clocks-in-a-cluster) has the arithmetic, the default window,
+and why a pause matters more than an inaccurate clock. On 4.x,
+[Operating a Cluster (4.x)](quartz-4.x/operations.md#when-a-peer-takes-over) states the exact
+predicate, and `IScheduler.QueryClusterNodes()` shows what each node believes about the others.
 
 ## Misfire Handling
 
-A **misfire** occurs when a trigger's scheduled fire time passes without the job being executed. This can happen because the scheduler was shut down, there were no available worker threads, or the system was under heavy load.
+A **misfire** is a trigger whose scheduled fire time passed without the job running. Causes: the
+scheduler was shut down, no worker thread was free, or the system was under heavy load.
 
 ### How It Works
 
-1. On startup (and periodically during operation), Quartz scans for triggers whose `NEXT_FIRE_TIME` is at or older than `now - misfireThreshold`.
-2. For each misfired trigger, Quartz applies the trigger's configured misfire instruction.
-3. The default misfire threshold is 60 seconds for a persistent store — `JobStore:MisfireThreshold` in 4.x,
-   `quartz.jobStore.misfireThreshold` as a flat key on both versions.
+1. On startup, and periodically while running, Quartz finds triggers whose `NEXT_FIRE_TIME` is at or
+   before `now - misfireThreshold`.
+2. It applies each misfired trigger's misfire instruction.
 
-A trigger is misfired when its fire time is at or before `now - misfireThreshold` — the threshold
-instant itself counts as late. In 4.x that is one rule wherever the question is asked: the in-memory
+The default misfire threshold is 60 seconds for a persistent store: `JobStore:MisfireThreshold` in
+4.x, `quartz.jobStore.misfireThreshold` as a flat key on both versions.
+
+The threshold instant itself counts as late. In 4.x the rule is the same everywhere: the in-memory
 store, the persistent store's periodic sweep, and the single-trigger path a resumed or unblocked
-trigger goes through all draw the line in the same place. On 3.x the persistent store's sweep is
-strictly *before* the threshold instant, so a trigger due at exactly `now - misfireThreshold` is
-misfired in memory and, for one tick, not in the database.
+trigger takes. On 3.x the persistent store's sweep uses strictly *before*, so a trigger due at exactly
+`now - misfireThreshold` is misfired in memory and, for one tick, not in the database.
 
 ### Misfire Instructions by Trigger Type
 
-Each family of triggers has its own instructions. Quartz 4.x names them on an enum per family
-(`SimpleTriggerMisfireInstruction`, `CronTriggerMisfireInstruction` and so on); Quartz 3.x names the same
-values as constants under `MisfireInstruction`, sometimes with a longer spelling.
+Quartz 4.x names the instructions on one enum per family (`SimpleTriggerMisfireInstruction`,
+`CronTriggerMisfireInstruction` and so on). Quartz 3.x names the same values as constants under
+`MisfireInstruction`, sometimes spelled longer.
 
 | Trigger Type | 4.x | 3.x | Behavior |
 |-------------|-----|-----|----------|
@@ -407,32 +439,36 @@ values as constants under `MisfireInstruction`, sometimes with a longer spelling
 | **RecurrenceTrigger** | `FireAndProceed` (default) | — | Fire immediately once, then resume schedule |
 | | `DoNothing` | — | Skip missed firings, wait for next scheduled time |
 
-Every family also has `IgnoreMisfires`, which fires every missed firing as fast as it can, and
-`SmartPolicy`, which is the default. What smart policy resolves to varies by trigger type: for
-`CronTrigger` and `RecurrenceTrigger` it fires once now and resumes; for `SimpleTrigger` it depends on the
-repeat count.
+Every family also has:
+
+* `IgnoreMisfires`: fires every missed firing, as fast as it can.
+* `SmartPolicy`: the default. For `CronTrigger` and `RecurrenceTrigger` it fires once now and
+  resumes; for `SimpleTrigger` it depends on the repeat count.
+
+[Choosing a misfire instruction](best-practices.md#choosing-a-misfire-instruction-by-its-consequence)
+covers which to pick.
 
 ### Tuning
 
-If triggers misfire frequently under normal operation, consider:
+If triggers misfire often under normal load:
 
-* Raising the thread pool size to handle more concurrent jobs — `ThreadPool:MaxConcurrency` in 4.x,
-  `quartz.threadPool.threadCount` as a flat key on both versions.
-* Raising the misfire threshold if slight delays are acceptable — `JobStore:MisfireThreshold` in 4.x,
+* Raise the thread pool size: `ThreadPool:MaxConcurrency` in 4.x, `quartz.threadPool.threadCount` as
+  a flat key on both versions.
+* Raise the misfire threshold if small delays are acceptable: `JobStore:MisfireThreshold` in 4.x,
   `quartz.jobStore.misfireThreshold` as a flat key on both.
-* Splitting high-frequency triggers across multiple scheduler instances using clustering.
+* Spread high-frequency triggers across several scheduler instances with clustering.
 
 ## Job Deserialization Failures After Refactoring
 
-**Symptoms:** After renaming a job class, changing its namespace, or moving it to a different assembly, the scheduler throws `TypeLoadException` or `JobPersistenceException` on startup.
+**Symptoms:** after renaming a job class, changing its namespace or moving it to another assembly,
+the scheduler throws `TypeLoadException` or `JobPersistenceException` on startup.
 
-**Cause:** The `QRTZ_JOB_DETAILS` table stores the full type name (including namespace and assembly) in the `JOB_CLASS_NAME` column. When the type moves, the stored reference no longer resolves.
-
-The trigger for such a job goes to `ERROR` rather than firing, because the failure is in *building* the
-job rather than in running it — see
+**Cause:** `QRTZ_JOB_DETAILS.JOB_CLASS_NAME` stores the full type name, including namespace and
+assembly. When the type moves, the stored name no longer resolves. The job's trigger goes to `ERROR`
+rather than firing, because the failure is in *building* the job, not running it; see
 [What the trigger states mean](best-practices.md#what-the-trigger-states-mean).
 
-**Resolution — rewrite the stored name:**
+**Resolution: rewrite the stored name.**
 
 ```sql
 UPDATE QRTZ_JOB_DETAILS
@@ -440,14 +476,12 @@ SET JOB_CLASS_NAME = 'NewNamespace.NewClassName, NewAssembly'
 WHERE JOB_CLASS_NAME = 'OldNamespace.OldClassName, OldAssembly';
 ```
 
-Run it during the deployment that renames the type, and clear the affected triggers with
-`IScheduler.ResetTriggerFromErrorState` afterwards if any reached `ERROR` first.
+Run it during the deployment that renames the type. Afterwards, clear any triggers that reached
+`ERROR` with `IScheduler.ResetTriggerFromErrorState`.
 
-**Resolution — declare the rename (4.x):**
-
-Say what the old name means now, and every stored row carrying it keeps resolving. That is what a
-rolling deployment needs: the nodes still running the old build write the old name while the new ones
-read it, so nothing has to be rewritten while both are running.
+**Resolution: declare the rename (4.x).** Map the old name to the new type, and every stored row
+carrying the old name keeps resolving. This suits a rolling deployment: nodes still on the old build
+write the old name while the new ones read it, so nothing needs rewriting while both run.
 
 <!-- snippet: sample_troubleshooting_type_loader_map -->
 ```csharp
@@ -460,8 +494,8 @@ services.AddQuartz(q => q.UseTypeLoader(loader =>
 ```
 <!-- endSnippet -->
 
-The same map binds from configuration, so a rename can ship in `appsettings.json` with the deployment
-that performs it rather than in a rebuild:
+The same map binds from configuration, so a rename can ship in `appsettings.json` with the
+deployment, without a rebuild:
 
 ```json
 {
@@ -475,32 +509,29 @@ that performs it rather than in a rebuild:
 }
 ```
 
-A few things worth knowing about the map:
+How the map behaves:
 
-* It applies wherever Quartz turns a **string** into a type at run time — a stored `JOB_CLASS_NAME`, a
-  job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type` key. The flat keys naming a
-  scheduler's own components — the job store, thread pool, serializer, lock handler, job factory,
-  instance id generator, time provider and connection provider — are resolved while the service
-  collection is still being built, before any options exist, and are **not** aliased. Each of those
-  names a type in a file you can edit, which is why the feature is not for them.
-* A key matches the whole stored name, or the part of it before the comma that starts the assembly.
-  `Acme.Jobs.NightlyReport` therefore covers however the assembly was spelled after it, and
+* **Where it applies:** wherever Quartz turns a **string** into a type at run time: a stored
+  `JOB_CLASS_NAME`, a job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type` key.
+* **Where it does not:** the flat keys naming a scheduler's own components (job store, thread pool,
+  serializer, lock handler, job factory, instance id generator, time provider, connection provider)
+  are resolved while the service collection is still being built, before any options exist, and are
+  **not** aliased. Each names a type in a file you can edit.
+* **Matching:** a key matches the whole stored name, or the part before the comma that starts the
+  assembly. `Acme.Jobs.NightlyReport` covers any assembly spelling after it;
   `Acme.Jobs.NightlyReport, Acme.Jobs` covers only that one.
-* An alias whose target names no type this application can load **fails at startup**, naming both halves
-  of the entry. An alias that resolves to nothing would otherwise surface as a `TypeLoadException`
-  naming the dead name and nothing about the mapping meant to save it.
-* Type loading is container-wide, so the map is the container's: a rename declared through any
-  scheduler's builder is in force for every scheduler in it.
-* **Nothing is written back.** A job read under an aliased name still has the old spelling in
-  `JOB_CLASS_NAME`, which is what makes the alias safe during a rollout — and what makes the `UPDATE`
-  above the way to eventually retire it. Enable `Debug` logging for `Quartz.Impl.SimpleTypeLoader` to
-  see whether anything is still hitting an alias before you remove it.
+* **Validation:** an alias whose target names no loadable type **fails at startup**, naming both
+  halves of the entry, rather than surfacing later as a `TypeLoadException` about the dead name.
+* **Scope:** type loading is container-wide. A rename declared through any scheduler's builder applies
+  to every scheduler in the container.
+* **Nothing is written back.** A job read under an aliased name keeps the old spelling in
+  `JOB_CLASS_NAME`. That makes the alias safe during a rollout, and makes the `UPDATE` above the way to
+  retire it eventually. Enable `Debug` logging for `Quartz.Impl.SimpleTypeLoader` to see whether
+  anything still hits an alias before you remove it.
 
-**Resolution — a type loader of your own (4.x):**
-
-The map covers a rename. Where the answer is not a table — a name resolved out of a plugin's
-`AssemblyLoadContext`, or a scheme rather than a list — `ITypeLoader` is a single method and a
-replaceable seam, and `UseTypeLoader<T>()` replaces the loader altogether:
+**Resolution: a type loader of your own (4.x).** When the answer is not a table (a name resolved out of
+a plugin's `AssemblyLoadContext`, or a naming scheme rather than a list), implement `ITypeLoader`, a
+single method, and register it with `UseTypeLoader<T>()`:
 
 <!-- snippet: sample_troubleshooting_type_loader_implementation -->
 ```csharp
@@ -542,49 +573,53 @@ services.AddQuartz(q => q.UseTypeLoader<RenameAwareTypeLoader>());
 ```
 <!-- endSnippet -->
 
-Replacing the loader replaces it for the whole container, and takes the declared map with it: the map is
-read by the loader Quartz ships. An implementation must **throw** rather than return `null` for a name it
-cannot resolve — Quartz only asks when it already knows a type is required, so a `null` surfaces later
-with nothing left to point at. `null` is reserved for a null or empty name.
+* It replaces the loader for the whole container, and the declared map with it: the map is read by
+  the loader Quartz ships.
+* It must **throw** for a name it cannot resolve. Quartz asks only when it knows a type is required,
+  so a `null` would fail later with nothing to point at. Return `null` only for a null or empty name.
 
-The loader Quartz ships also carries **Quartz's own** 3.x → 4.0 renames: it retries
-`Quartz.Spi.*` as `Quartz.Extensibility.*`, `Quartz.Simpl.*` as `Quartz.Impl.*`, `Quartz.Job.*` as
-`Quartz.Jobs.*`, `Quartz.Plugin.*` as `Quartz.Plugins.*`, `Quartz.Listener.*` as `Quartz.Listeners.*`,
-the job stores' old names (`JobStoreTX`, `JobStoreCMT`) and the assemblies that were merged into the
-core package, logging a warning each time so the configuration can be corrected. Those are the same
-mechanism the map is, applied to Quartz's own type names rather than to yours.
+The loader Quartz ships also maps **Quartz's own** 3.x → 4.0 renames, logging a warning each time so
+the configuration can be corrected:
+
+* `Quartz.Spi.*` as `Quartz.Extensibility.*`
+* `Quartz.Simpl.*` as `Quartz.Impl.*`
+* `Quartz.Job.*` as `Quartz.Jobs.*`
+* `Quartz.Plugin.*` as `Quartz.Plugins.*`
+* `Quartz.Listener.*` as `Quartz.Listeners.*`
+* the job stores' old names (`JobStoreTX`, `JobStoreCMT`) and the assemblies merged into the core
+  package
 
 **Prevention:**
 
 * Keep job class names and namespaces stable across releases.
-* If you must rename, declare the alias in the deployment that renames the type (4.x), and apply the
-  database update in a later one — once nothing is hitting the alias any more.
-* Name the type in one place — a `public static readonly JobKey` on the job class, and registration
+* To rename, declare the alias in the deployment that renames the type (4.x), and update the database
+  in a later one, once nothing hits the alias.
+* Name the type in one place: a `public static readonly JobKey` on the job class, and registration
   through `AddJob<T>()` rather than a type-name string.
 
 ## Database Connection Issues
 
-**Symptoms:** `JobPersistenceException` with inner `SqlException`/`NpgsqlException`, intermittent "Couldn't obtain triggers" errors, or "Object cannot be cast from DBNull" errors.
+**Symptoms:** `JobPersistenceException` with an inner `SqlException`/`NpgsqlException`, intermittent
+"Couldn't obtain triggers" errors, or "Object cannot be cast from DBNull" errors.
 
-**Common Causes:**
+**Common causes:**
 
-1. **Insufficient connection pool size** — The connection pool is exhausted under load.
-   * Recommended minimum: thread pool size + 3.
-   * For clustered setups, account for the additional cluster management connections.
-
-2. **Connection timeouts** — The database is slow to respond or the network is unreliable.
-   * Set the store's own `CommandTimeout` — `JobStore:CommandTimeout` in 4.x,
-     `quartz.jobStore.commandTimeout` from 3.22 — rather than a connection-string keyword. It bounds
-     every statement the store issues, and it is the only setting that reaches the lock statement; not
-     every driver has a connection-string equivalent, and ODP.NET has none.
-   * Verify network latency between the scheduler and database server.
-   * If the statements are not slow but stuck, and the whole cluster is stuck with them, see
+1. **Connection pool too small.** The pool runs out under load.
+   * Minimum: thread pool size + 3.
+   * Clustered setups need extra connections for cluster management.
+2. **Connection timeouts.** The database is slow or the network unreliable.
+   * Set the store's `CommandTimeout` (`JobStore:CommandTimeout` in 4.x,
+     `quartz.jobStore.commandTimeout` from 3.22), not a connection-string keyword. It bounds every
+     statement the store issues and is the only setting that reaches the lock statement; not every
+     driver has a connection-string equivalent, and ODP.NET has none.
+   * Check network latency between the scheduler and the database server.
+   * If the statements are stuck rather than slow, and the whole cluster with them, see
      [A Lock Held by a Connection That Is Gone](#a-lock-held-by-a-connection-that-is-gone).
-
-3. **Lock contention** — Multiple scheduler instances competing for the same rows.
-   * Two schedulers share a name (`Scheduler:InstanceName`, or `quartz.scheduler.instanceName`) only when
-     they are meant to be one cluster, and then clustering has to be enabled on both.
-   * Never point multiple non-clustered schedulers at the same database tables (see [Best Practices](best-practices.md#one-name-per-cluster-one-id-per-node)).
+3. **Lock contention.** Several scheduler instances compete for the same rows.
+   * Two schedulers share a name (`Scheduler:InstanceName`, or `quartz.scheduler.instanceName`) only
+     when they are meant to be one cluster, and then both must have clustering enabled.
+   * Never point several non-clustered schedulers at the same tables (see
+     [Best Practices](best-practices.md#one-name-per-cluster-one-id-per-node)).
 
 ### Datasource Configuration Example
 
@@ -607,13 +642,12 @@ services.AddQuartz(q =>
 
 ### IIS App Pool Recycling
 
-By default, IIS recycles and stops application pools due to inactivity. This will stop your Quartz scheduler.
+By default IIS recycles and stops idle application pools, which stops the scheduler. Fixes:
 
-**Solutions:**
-
-**IIS 8+:** Configure your site as "Always Running" with preload enabled. See [Microsoft docs on Application Initialization](https://learn.microsoft.com/en-us/iis/get-started/whats-new-in-iis-8/iis-80-application-initialization).
-
-**Use the Hosted Service integration** (recommended) — Register Quartz as a hosted service so it ties into the ASP.NET Core application lifecycle:
+* **IIS 8+:** configure the site as "Always Running" with preload enabled. See
+  [Application Initialization](https://learn.microsoft.com/en-us/iis/get-started/whats-new-in-iis-8/iis-80-application-initialization).
+* **Use the hosted service integration** (recommended), so Quartz follows the ASP.NET Core
+  application lifecycle:
 
 <!-- snippet: sample_troubleshooting_wait_for_jobs -->
 ```csharp
@@ -625,11 +659,12 @@ services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
-**Run as a separate process** — For critical scheduling, consider running the scheduler in a Windows Service or Linux systemd service rather than inside a web application.
+* **Run a separate process.** For critical scheduling, run the scheduler as a Windows Service or a
+  Linux systemd service instead of inside a web application.
 
 ### Graceful Shutdown
 
-When the application shuts down, give jobs time to complete:
+To give jobs time to complete when the application shuts down:
 
 <!-- snippet: sample_troubleshooting_wait_for_jobs_block -->
 ```csharp
@@ -640,14 +675,15 @@ services.AddQuartzHostedService(options =>
 ```
 <!-- endSnippet -->
 
-Jobs should check `IJobExecutionContext.CancellationToken` to respond to shutdown requests promptly.
+Jobs should check `IJobExecutionContext.CancellationToken` so they respond to shutdown promptly. See
+[Shutdown has a deadline](best-practices.md#shutdown-has-a-deadline) for the time limits.
 
 ## Common Error Messages
 
-| Error | Likely Cause | Resolution |
+| Error | Likely cause | Resolution |
 |-------|-------------|------------|
-| `ObjectAlreadyExistsException` | Attempting to schedule a job or trigger with a key that already exists | Use `scheduler.RescheduleJob()` to replace an existing trigger, or check existence first with `scheduler.Exists()` (Quartz 4.x; on Quartz 3.x the method is `scheduler.CheckExists()`) |
-| `JobPersistenceException` | Database error during job store operation | Check database connectivity, connection pool size, and query timeouts |
-| `SchedulerException: Scheduler has been shutdown` | Calling scheduler methods after `Shutdown()` | Ensure your application lifecycle correctly manages the scheduler |
-| `TypeLoadException` on job execution | Job class not found — possibly renamed or moved | Declare the rename on the type loader (4.x), or update `JOB_CLASS_NAME` in `QRTZ_JOB_DETAILS` (see [Job Deserialization Failures](#job-deserialization-failures-after-refactoring)) |
-| `JobExecutionException` | Unhandled exception inside `IJob.Execute()` | Add try-catch in your job's Execute method (see [Best Practices](best-practices.md#what-happens-when-a-job-throws)) |
+| `ObjectAlreadyExistsException` | Scheduling a job or trigger whose key already exists | `scheduler.RescheduleJob()` to replace a trigger, or check first with `scheduler.Exists()` (3.x: `scheduler.CheckExists()`) |
+| `JobPersistenceException` | Database error in a job store operation | Check connectivity, pool size and query timeouts |
+| `SchedulerException: Scheduler has been shutdown` | Calling the scheduler after `Shutdown()` | Fix the application's scheduler lifecycle |
+| `TypeLoadException` on job execution | Job class renamed or moved | Declare the rename (4.x) or update `JOB_CLASS_NAME` in `QRTZ_JOB_DETAILS`; see [Job Deserialization Failures](#job-deserialization-failures-after-refactoring) |
+| `JobExecutionException` | Unhandled exception inside `IJob.Execute()` | Catch it in the job; see [Best Practices](best-practices.md#what-happens-when-a-job-throws) |

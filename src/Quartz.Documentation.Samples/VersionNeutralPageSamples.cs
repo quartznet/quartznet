@@ -312,14 +312,12 @@ public sealed class ChargeInvoicesJob : IJob
 
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        // The key names the occurrence, not the firing. A recovered execution arrives on a new trigger
-        // with a new fire instance id, so a key derived from either of those would never match the
-        // execution it is repeating.
+        // Key the occurrence, not the firing: a recovered execution has a new trigger and a new
+        // fire instance id.
         string period = context.MergedJobDataMap.GetString("period")!;
         string idempotencyKey = $"{context.JobDetail.Key}:{period}";
 
-        // Recording the key and doing the work commit together, and a unique index on the key is what
-        // settles a race between two executions rather than a read followed by a write.
+        // Record the key and do the work in one transaction, with a unique index on the key.
         await ledger.ChargeOnce(idempotencyKey, period, cancellationToken);
     }
 

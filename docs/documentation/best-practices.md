@@ -4,100 +4,67 @@ title: Best Practices
 
 # Best Practices
 
-A scheduler is easy to start and hard to run. The API is small enough that the first job is working
-in an afternoon; what takes longer is deciding how often a job may run, which of two concurrency
-mechanisms bounds it, what a missed firing should do, what the clock does to a schedule, how large
-the two pools should be, and what to look at when it stops.
-
-This page is those decisions. It is organised by the choice a reader is making rather than by the
-type they are calling, and every claim about Quartz.NET's behaviour has been checked against the
-code that ships. Where practice in the wider field diverges, the divergence is named rather than
-averaged.
-
-It applies to **both Quartz 3.x and Quartz 4.x**. Where the two differ — a name, a default, or a
-capability only one of them has — the sentence says so. The C# is 4.x, because that is what the
-samples project compiles; where 3.x needs a different spelling, the prose beside the sample gives
-it.
+These practices apply to **Quartz 3.x and 4.x**; where the two differ, the text says so. The C#
+samples are 4.x, and the text gives the 3.x spelling where it differs.
 
 ## Designing a job
 
 ### Assume the job will run more than once
 
-Start from what Quartz.NET actually promises, because it is narrower than the folklore and wider
-than the Java page's version of it.
+By default a firing runs **at most once**. If a node dies mid-execution, its fired-trigger row is
+cleaned up and that occurrence is lost; the trigger continues from its next scheduled time.
+[Requesting recovery](#what-requestsrecovery-re-runs-and-when) changes this to **at least once**.
 
-By default a firing is **at most once**. If a node dies mid-execution, the fired-trigger row it left
-behind is cleaned up and the occurrence is simply gone; nothing re-runs it, and the trigger carries
-on from its next scheduled time. Ask for recovery — the next section — and you have deliberately
-bought **at least once** instead.
+Work can also run twice in these cases:
 
-That is the guarantee. It is not the whole story, because four ordinary situations produce a second
-run of work you thought ran once:
-
-- **A node wrongly declared dead.** Its peers release its acquired triggers and, for jobs that
-  request recovery, schedule the interrupted executions again — while it is still executing them.
-  See [clocks in a cluster](#clocks-in-a-cluster).
-- **Misfire catch-up.** A trigger set to ignore misfires fires every occurrence it missed, as fast
-  as the pool allows. See [choosing a misfire instruction](#choosing-a-misfire-instruction-by-its-consequence).
+- **A node wrongly declared dead.** Its peers release its acquired triggers and re-schedule its
+  recovery-requesting executions while it is still running them. See
+  [Clocks in a cluster](#clocks-in-a-cluster).
+- **Misfire catch-up.** A trigger set to ignore misfires fires every missed occurrence, as fast as
+  the pool allows. See [Choosing a misfire instruction](#choosing-a-misfire-instruction-by-its-consequence).
 - **A refire.** `JobExecutionException.RefireImmediately` re-runs the same firing on the same worker.
-- **Two schedulers that are not the cluster you think they are.** By far the most common cause in
-  practice, and the subject of [one name per cluster, one id per node](#one-name-per-cluster-one-id-per-node).
+- **Two schedulers that are not one cluster.** The most common cause in practice. See
+  [One name per cluster, one id per node](#one-name-per-cluster-one-id-per-node).
 
-The rest of the field does not hedge on this at all. Sidekiq: "Sidekiq will execute your job at
-least once, not exactly once. Even a job which has completed can be re-run… Sidekiq makes no
-exactly-once guarantee at all." Hangfire: "your background jobs can still be executed several times,
-due to re-queue on shutdown and other compensation logic that guarantees the *at least once*
-processing." Kubernetes says the same of `CronJob`: "the Jobs that you define should be
-*idempotent*." Java Quartz is the outlier, scoping idempotence to jobs marked recoverable, and a
-production deployment sees more than that.
+Sidekiq, Hangfire and Kubernetes `CronJob` make no exactly-once promise either, and all three ask
+for idempotent jobs. Design jobs so that a second run does no harm:
 
-So write the job so a second run is uneventful. The order to try, which Microsoft's *Idempotent
-Consumer* guidance puts well, is to "design for natural idempotency first, and add deduplication
-techniques only for operations that can't be made naturally idempotent". A job that computes an
-absolute state and upserts it — a rollup, a cache refresh, a regenerated report — needs nothing
-else. A job with an external side effect needs a key.
-
-The key names the **occurrence**, not the firing:
+- A job that computes an absolute state and upserts it (a rollup, a cache refresh, a regenerated
+  report) needs nothing more.
+- A job with an external side effect needs an idempotency key.
 
 <!-- snippet: sample_best_practices_idempotent_job -->
 ```csharp
 public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
 {
-    // The key names the occurrence, not the firing. A recovered execution arrives on a new trigger
-    // with a new fire instance id, so a key derived from either of those would never match the
-    // execution it is repeating.
+    // Key the occurrence, not the firing: a recovered execution has a new trigger and a new
+    // fire instance id.
     string period = context.MergedJobDataMap.GetString("period")!;
     string idempotencyKey = $"{context.JobDetail.Key}:{period}";
 
-    // Recording the key and doing the work commit together, and a unique index on the key is what
-    // settles a race between two executions rather than a read followed by a write.
+    // Record the key and do the work in one transaction, with a unique index on the key.
     await ledger.ChargeOnce(idempotencyKey, period, cancellationToken);
 }
 ```
 <!-- endSnippet -->
 
-Two things about that key are worth being deliberate about.
+Rules for the key:
 
-**Do not derive it from `FireInstanceId` or from the trigger.** A recovered execution arrives on a
-newly created trigger in the `RECOVERING_JOBS` group with a fresh fire instance id, so a key built
-from either is different on the run that is repeating the work — which is exactly the run the key
-exists to catch. `FireInstanceId` is the right identifier for *interrupting* a particular execution
-(`IScheduler.InterruptFireInstance`); it is the wrong one for deduplication.
+- **Derive it from the occurrence, not from `FireInstanceId` or the trigger.** A recovered execution
+  runs on a new trigger in the `RECOVERING_JOBS` group with a new fire instance id, so a key built
+  from either would not match the run it repeats. Use `FireInstanceId` to interrupt one execution
+  (`IScheduler.InterruptFireInstance`), not to deduplicate.
+- **Write the key and the effect in one transaction, with a unique index on the key.** A read
+  followed by a write leaves a race between two executions.
+- **Keep the keys for as long as work can be replayed.** A recovery run can arrive minutes after the
+  original; a manual re-trigger can arrive months after.
 
-**Write the key and the effect in one transaction, and let a unique index settle the race.** A read
-followed by a write is not a check, it is a wider window. Microsoft's guidance is blunt about it:
-"Enforce correctness at the data store instead of in application logic… Use a unique constraint on
-the deduplication key… This approach makes the database the single arbiter of the race." Keep the
-records at least as long as work can be replayed — a recovery run can arrive minutes after the
-original, and an operator re-triggering a job by hand can arrive months after it.
-
-On Quartz 3.x the sample's signature is `Task Execute(IJobExecutionContext context)`; everything
-else about it is the same.
+On Quartz 3.x the signature is `Task Execute(IJobExecutionContext context)`; the rest is the same.
 
 ### What RequestsRecovery re-runs, and when
 
-`RequestRecovery` is off by default, and it only means anything with a persistent store —
-`RAMJobStore` loses its state with the process, so there is nothing left to recover from.
+`RequestRecovery` is off by default. It needs a persistent store: `RAMJobStore` loses its state with
+the process.
 
 <!-- snippet: sample_best_practices_request_recovery -->
 ```csharp
@@ -107,25 +74,21 @@ q.AddJob<ChargeInvoicesJob>(j => j
 ```
 <!-- endSnippet -->
 
-What it buys is precise. Recovery runs when a scheduler with a persistent store starts, and again
-whenever a clustered scheduler's cluster manager decides a peer has stopped checking in. Either way
-the store walks the fired-trigger rows the failed instance left behind, and for each one:
+Recovery runs when a scheduler with a persistent store starts, and when a clustered scheduler's
+cluster manager decides a peer has stopped checking in. For each fired-trigger row the failed
+instance left behind:
 
-- A row whose job **requests recovery** becomes a new trigger in the `RECOVERING_JOBS` group,
-  scheduled to fire as soon as the scheduler can run it, carrying the original trigger's job data.
-- A row whose job does not is deleted, and that occurrence is lost.
+- If the job **requests recovery**, the row becomes a new trigger in the `RECOVERING_JOBS` group. It
+  fires as soon as the scheduler can run it and carries the original trigger's job data.
+- Otherwise the row is deleted and that occurrence is lost.
 
-A reservation that never became an execution is not recovered on either path, and the mechanism is
-worth knowing because it is what makes that safe. The fired-trigger row is inserted when a trigger is
-*acquired*, but the job has not been loaded at that point, so the row goes in with no job name and
-`REQUESTS_RECOVERY` false; only when the trigger actually fires is it updated to `EXECUTING` with the
-job's real flags. Recovery therefore selects executions and never reservations. Cluster recovery
-additionally releases the reservation back to `WAITING`, so its own trigger fires it again in the
-ordinary way.
+Recovery re-runs only executions that were interrupted by a process dying or a machine going away.
+It is not a retry: a job that threw has completed its firing.
 
-The re-run is not a retry of a *failure*. A job that threw is a completed firing as far as the store
-is concerned; recovery is only ever about executions that were interrupted, by a process dying or a
-machine going away.
+A trigger that was acquired but never fired is not recovered. The fired-trigger row is inserted at
+acquisition with no job name and `REQUESTS_RECOVERY` false, and is updated to `EXECUTING` with the
+job's real flags only when the trigger fires. Cluster recovery also releases such a reservation back
+to `WAITING`, so its own trigger fires it again in the ordinary way.
 
 A recovered execution can tell that it is one:
 
@@ -145,25 +108,24 @@ if (context.Recovering)
 <!-- endSnippet -->
 
 `SchedulerConstants.FailedJobOriginalTriggerName` and `…OriginalTriggerGroup` are in the same map.
-Note that recovery of a `[DisallowConcurrentExecution]` job is deliberately deferred on first
-detection — for roughly two check-in intervals plus the check-in misfire threshold — because a node
-that has missed one check-in may still be running the job. Both versions do this.
 
-Turning recovery on is a decision about which failure you prefer: a job that ran twice, or work that
-never ran at all. Reports and reconciliations usually want recovery; a job that merely refreshes
-something on a five-minute schedule usually does not, because the next firing is along shortly.
+On both versions, recovery of a `[DisallowConcurrentExecution]` job is deferred on first detection,
+for roughly two check-in intervals plus the check-in misfire threshold, because a node that missed
+one check-in may still be running the job.
+
+Turning recovery on means preferring a job that ran twice to work that never ran. Reports and
+reconciliations usually want it. A job that refreshes something every five minutes usually does
+not, because the next firing is soon.
 
 ### What happens when a job throws
 
 An exception that escapes `Execute` is caught, logged, wrapped in a `JobExecutionException` and
 handed to the trigger, which completes the firing normally. **The job is not re-executed and the
-schedule is not disturbed.** Java Quartz's best-practices page says the opposite — "Quartz will
-typically immediately re-execute it" — and that is not what this code does, on either version.
+schedule is unchanged**, on both versions, whatever Java Quartz's best-practices page says.
 
-You can ask for a re-execution, and it is worth knowing exactly what it is: a loop on the same
-worker, running the same firing again with no delay of any kind, incrementing
-`IJobExecutionContext.RefireCount`. There is no backoff, so an unbounded refire is a tight failure
-loop against whatever just failed. Bound it:
+`RefireImmediately` re-runs the same firing on the same worker, at once, and increments
+`IJobExecutionContext.RefireCount`. It has no backoff, so an unbounded refire is a tight failure
+loop. Bound it:
 
 <!-- snippet: sample_best_practices_bounded_refire -->
 ```csharp
@@ -179,26 +141,25 @@ catch (HttpRequestException ex) when (context.RefireCount < 3)
 ```
 <!-- endSnippet -->
 
-On Quartz 3.x the flag is a constructor argument rather than an init-only property:
+On Quartz 3.x the flag is a constructor argument:
 `throw new JobExecutionException(ex, refireImmediately: true)`.
 
-Two more instructions are available on the same exception, and both are drastic:
-`UnscheduleFiringTrigger` removes the trigger that fired, and `UnscheduleAllTriggers` removes every
-trigger for the job. `RefireImmediately` wins over both if set.
+The same exception has two more flags:
 
-A job that unwinds because its cancellation token fired is **not** treated as a failure: the
-scheduler logs it at information level and completes the firing. That is what makes cooperative
-cancellation safe to use.
+- `UnscheduleFiringTrigger` removes the trigger that fired.
+- `UnscheduleAllTriggers` removes every trigger for the job.
+
+`RefireImmediately` wins over both.
+
+A job that ends because its cancellation token fired is **not** a failure: the scheduler logs it at
+information level and completes the firing.
 
 ### Give the trigger a retry policy
 
-A refire is not the retry most jobs want, and since 4.0 it is not the only one on offer. **Quartz 4.x
-puts a retry policy on the trigger; 3.x has none.** That is the largest behavioural difference between
-the two lines, and it is worth stating rather than papering over.
+**Quartz 4.x puts a retry policy on the trigger; 3.x has none.**
 
-On 4.x a trigger carries a `RetryPolicy` — `Fixed`, `Exponential` or `Explicit`, and those three
-factories are the only ways to make one — and a job that throws is re-fired at the stated waits with
-nothing to opt into:
+On 4.x a trigger carries a `RetryPolicy`, made only by `Fixed`, `Exponential` or `Explicit`. A job
+that throws is re-fired at the stated waits, with nothing else to opt into:
 
 <!-- snippet: sample_best_practices_retry_policy -->
 ```csharp
@@ -219,71 +180,67 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-A retry is a fresh firing of the same occurrence at a later instant: it is written to the job store, it
-survives a restart, every node in the cluster sees it, `IJobExecutionContext.RetryAttempt` counts it,
-and `ScheduledFireTimeUtc` still reports the occurrence the schedule called for rather than the instant
-the retry ran. **It is not `RefireImmediately` with a delay** — that loop runs in process, persists
-nothing and never releases the execution slot, and the two counters move independently.
+A retry is a new firing of the same occurrence at a later time:
 
-Three rules decide whether a policy does anything at all. A retry that would land at, or within a second
-of, the trigger's next scheduled occurrence is dropped and the occurrence wins — so a policy whose waits
-are longer than the gap between occurrences quietly does nothing. Running out of attempts is not an
-error: the trigger goes back to its ordinary schedule rather than into `TriggerState.Error`. And a retry
-burns nothing — no `SimpleTrigger` repeat count, no recurrence `COUNT`, no `TimesTriggered`.
-[Retrying Failed Jobs](/documentation/quartz-4.x/how-tos/retrying-failed-jobs) is the whole of it.
+- It is written to the job store, survives a restart, and every node in the cluster sees it.
+- `IJobExecutionContext.RetryAttempt` counts it.
+- `ScheduledFireTimeUtc` still reports the scheduled occurrence, not the time the retry ran.
 
-**On 3.x there is immediate refire, there is the next scheduled occurrence, and there is nothing in
-between.** A job that wants delayed retry there has to build it, and the way to build it is not a
-`Task.Delay` inside the job — that holds a worker for the whole backoff. Store a one-off trigger for a
-few minutes' time and return, or let the next scheduled occurrence pick the work back up because the
-work is described by its inputs rather than by having been attempted.
-[Rescheduling Jobs](/documentation/quartz-4.x/how-tos/rescheduling-jobs#retrying-inside-the-job) has
-both shapes written out ([3.x](/documentation/quartz-3.x/how-tos/rescheduling-jobs)).
+A retry is not `RefireImmediately` with a delay. A refire runs in process, persists nothing and keeps
+the execution slot, and the two counters move independently.
+
+Three rules decide whether a policy does anything:
+
+- A retry that would land at, or within a second of, the trigger's next occurrence is dropped. A
+  policy whose waits are longer than the gap between occurrences does nothing.
+- Running out of attempts is not an error. The trigger returns to its schedule, not to
+  `TriggerState.Error`.
+- A retry uses up nothing: no `SimpleTrigger` repeat count, no recurrence `COUNT`, no
+  `TimesTriggered`.
+
+See [Retrying Failed Jobs](/documentation/quartz-4.x/how-tos/retrying-failed-jobs).
+
+**On 3.x there is only immediate refire and the next scheduled occurrence.** To retry later, do not
+`Task.Delay` inside the job, which holds a worker for the whole wait. Either store a one-off trigger
+a few minutes ahead and return, or let the next occurrence pick the work up, if the work is defined
+by its inputs. [Rescheduling Jobs](/documentation/quartz-4.x/how-tos/rescheduling-jobs#retrying-inside-the-job)
+shows both ([3.x](/documentation/quartz-3.x/how-tos/rescheduling-jobs)).
 
 ### Keep job data small, string-safe and free of secrets
 
-The three systems in this survey agree on the rule and give three different reasons, all of which
-apply here. Java Quartz says primitives only "to avoid data serialization issues short and
-long-term" — a versioning argument. Hangfire adds that large arguments "can blow up your job
-storage", and that "background jobs may be processed days or weeks after they were enqueued… it may
-become stale". Sidekiq's version is the sharpest: "what happens if your queue backs up and that
-quote object changes in the meantime? Don't save state to Sidekiq, save simple identifiers."
+Put an identifier in the job data and load what it names when the job runs. Job data lives as long
+as the trigger, so a stored object goes stale; large values bloat the store; and serialized types
+break as code changes. Java Quartz, Hangfire and Sidekiq give the same rule.
 
-For a scheduler the staleness argument is the strongest of the three, because a trigger's job data
-is not held for days but for as long as the trigger exists. Put an identifier in the map and read
-the thing it names when the job runs.
+- **No credentials, tokens or connection strings.** Job data appears in every backup, in the
+  dashboard and in the HTTP API. Get secrets from the container.
+- **String-only storage removes the versioning problem.** With it on (`StoreJobDataAsStrings` in
+  4.x, the flat key `quartz.jobStore.useProperties` on both), every value must be a string. Turn it
+  on at the start of a project, not in the middle.
+- **Read `IJobExecutionContext.MergedJobDataMap`**: the job's map with the trigger's laid over it.
+  This lets several triggers drive one job with different inputs. In 4.x the scheduler context is
+  not part of the merge; read scheduler-wide values from `context.Scheduler.Context`.
+- **Spell a job's key once.** Give the job class a `public static readonly JobKey` and use it
+  everywhere. The [job template how-to](/documentation/quartz-4.x/how-tos/job-template) does this
+  ([3.x](/documentation/quartz-3.x/how-tos/job-template)).
 
-Two more rules follow from job data being durable. It appears in every backup, in the dashboard and
-in the HTTP API, so **no credentials, no tokens, no connection strings** — those come from the
-container. And if you turn on string-mode storage (`StoreJobDataAsStrings` in 4.x, the flat key
-`quartz.jobStore.useProperties` on both), every value must be a string, which removes the versioning
-problem entirely; turn it on at the start of a project, not in the middle.
-
-Read job data from `IJobExecutionContext.MergedJobDataMap`, which is the job's map with the
-trigger's laid over it, rather than from either one directly — that is what lets several triggers
-drive one job with different inputs. In 4.x the scheduler context is no longer folded into that
-merge; read scheduler-wide values from `context.Scheduler.Context`.
-
-The full treatment is on
-[Job Data Map (4.x)](/documentation/quartz-4.x/tutorial/job-data-map) and
+See [Job Data Map (4.x)](/documentation/quartz-4.x/tutorial/job-data-map) and
 [More About Jobs (3.x)](/documentation/quartz-3.x/tutorial/more-about-jobs).
-
-Finally, a small convention that pays for itself: give a job class a `public static readonly JobKey`
-and use it everywhere the key is needed, so the key is spelled once. The
-[job template how-to](/documentation/quartz-4.x/how-tos/job-template) does this throughout
-([3.x](/documentation/quartz-3.x/how-tos/job-template)).
 
 ## Deciding what may run at the same time
 
-Quartz.NET has two mechanisms, and they answer different questions. Reaching for the wrong one is a
-common source of both surprise concurrency and surprise serialisation.
+| To limit | Use |
+|---|---|
+| Overlapping executions of one job key | [`[DisallowConcurrentExecution]`](#disallowconcurrentexecution-bounds-one-job-key) |
+| How many of a category of work run at once | [Execution groups](#execution-groups-bound-a-category-of-work) |
+
+Both apply at once; a trigger must satisfy both to be acquired. Neither is a queue: see
+[Held-back work misfires](#held-back-work-misfires-it-does-not-queue).
 
 ### DisallowConcurrentExecution bounds one job key
 
-The attribute stops two executions of **the same job detail** overlapping. Java's tutorial chose its
-words carefully and they are worth repeating: "The constraint is based upon an instance definition
-(JobDetail), not on instances of the job class." Two jobs of the same class with different keys run
-concurrently; one job with three triggers does not.
+The attribute stops two executions of **the same job detail** overlapping. It is not per class: two
+jobs of the same class with different keys run concurrently; one job with three triggers does not.
 
 <!-- snippet: sample_best_practices_disallow_concurrent -->
 ```csharp
@@ -299,38 +256,26 @@ public sealed class RebuildSearchIndexJob : IJob
 ```
 <!-- endSnippet -->
 
-With a persistent store this holds **across the cluster**, not merely within a process. Trigger
-acquisition skips a job that already has a live row in `QRTZ_FIRED_TRIGGERS`, and the fire path
-checks again under the cluster-wide `TRIGGER_ACCESS` lock before committing the firing; the job's
-other triggers are moved to `BLOCKED` for the duration.
+With a persistent store this holds **across the cluster**. Trigger acquisition skips a job that
+already has a live row in `QRTZ_FIRED_TRIGGERS`, and the fire path checks again under the
+cluster-wide `TRIGGER_ACCESS` lock before committing the firing. The job's other triggers are
+`BLOCKED` meanwhile. The check and the firing commit together under one database lock, not a
+client-side lease.
 
-It is worth being honest about where that ends. The ledger is the fired-triggers table, so the
-constraint is exactly as good as that table's account of what is running — and a node that is
-wrongly declared dead has its rows deleted while its job is still executing. That case is deferred
-on first detection precisely because it is the dangerous one, but the residual window is real, which
-is why [clocks in a cluster](#clocks-in-a-cluster) is not an optional section.
+The guarantee is only as good as the fired-triggers table. A node wrongly declared dead has its rows
+deleted while its job is still running. Recovery defers that case on first detection, but a window
+remains; see [Clocks in a cluster](#clocks-in-a-cluster). Use the attribute to keep the normal case
+orderly, and idempotence to keep the abnormal case correct.
 
-The neighbours are more pessimistic about features of this shape. Hangfire says of its own
-`DisableConcurrentExecution` that "there's no reliable way to prevent multiple executions of the
-same background job other than by using transactions in background job method itself", and that the
-filter "may help a bit by narrowing the safety violation surface". Sidekiq declines to ship one at
-all: "Sidekiq will not provide features which hack around a lack of concurrency in your jobs."
-Quartz's version is stronger than a lease, because the check and the firing commit together under
-one database lock rather than depending on a client-side timer — but it is a failure-detection
-system underneath, and a failure detector can be wrong. Treat it as the thing that keeps the normal
-case orderly, and idempotence as the thing that keeps the abnormal case correct.
-
-If a job also carries `[PersistJobDataAfterExecution]`, it should carry this attribute too. Java's
-tutorial: "you should strongly consider also using the `@DisallowConcurrentExecution` annotation, in
-order to avoid possible confusion (race conditions) of what data was left stored when two instances
-of the same job (JobDetail) executed concurrently."
+A job with `[PersistJobDataAfterExecution]` should also carry `[DisallowConcurrentExecution]`.
+Otherwise two concurrent executions race over which job data is stored.
 
 ### Execution groups bound a category of work
 
-An execution group is a tag on a trigger, and an execution limit caps how many triggers of that
-group may be running at once. This is the mechanism for "reindexing must never take more than two
-of my workers", which the attribute cannot express because reindexing is many job keys, and which a
-smaller thread pool cannot express because it would throttle everything else too.
+An execution group is a tag on a trigger. An execution limit caps how many triggers of that group
+run at once. Use it for rules like "reindexing may use at most two workers": the attribute cannot
+express that because reindexing is many job keys, and a smaller thread pool would throttle
+everything else too.
 
 <!-- snippet: sample_best_practices_execution_limits -->
 ```csharp
@@ -347,64 +292,60 @@ q.UseExecutionLimits(limits =>
 ```
 <!-- endSnippet -->
 
-A limit is **per node** by default, so three nodes each configured `2` can be running six. That is
-the right answer for hardware capacity and the wrong one for a quota. Quartz 4.x adds
-`ExecutionLimitScope.Cluster`, counted from the fired-triggers table, for the quota case; 3.x has
-only the per-node form. This is the same trap Celery documents for its own rate limit — "this is a
-*per worker instance* rate limit, and not a global rate limit" — and the one Hangfire only escapes
-in a paid add-on.
+A limit is **per node** by default: three nodes each configured with `2` can run six. That fits
+hardware capacity, not a quota. For a quota, Quartz 4.x adds `ExecutionLimitScope.Cluster`, counted
+from the fired-triggers table; 3.x has only the per-node form.
 
-Both mechanisms apply at once; a trigger has to satisfy both to be acquired. The full treatment,
-including the cluster-scoped ceiling's guarantees and its cost, is on
+The cluster-scoped limit's guarantees and cost are on
 [Execution Groups (4.x)](/documentation/quartz-4.x/tutorial/execution-groups) and
 [Execution Groups (3.x)](/documentation/quartz-3.x/tutorial/execution-groups).
 
 ### Held-back work misfires; it does not queue
 
-Neither mechanism is a queue. A trigger that acquisition skips — because its job is already running,
-or because its group is at its ceiling — stays where it is, keeping its original next fire time.
-If it is held back for longer than the misfire threshold, the ordinary misfire machinery claims it,
-and the **trigger's misfire instruction**, not the concurrency setting, decides whether that
-occurrence is skipped, run late, or run alongside the ones behind it.
+A trigger that acquisition skips, because its job is running or its group is at its limit, keeps its
+original next fire time. If it is held back past the misfire threshold, it misfires, and the
+**trigger's misfire instruction** decides whether that occurrence is skipped, run late, or run
+alongside the ones behind it.
 
-For a `[DisallowConcurrentExecution]` job this is immediate rather than eventual: when the running
-execution completes, the store applies each unblocked trigger's misfire policy on the spot, in the
-same transaction that unblocks it.
+For a `[DisallowConcurrentExecution]` job this happens at once: when the running execution
+completes, the store applies each unblocked trigger's misfire policy in the same transaction that
+unblocks it.
 
-The practical consequence is that limiting concurrency and choosing a misfire instruction are one
-decision. A tightly capped group whose occurrences must not be dropped wants an instruction that
-catches up; one whose occurrences are only meaningful when fresh wants an instruction that skips.
+So choose the concurrency limit and the misfire instruction together:
+
+- Occurrences must not be dropped: use an instruction that catches up.
+- Occurrences only matter when fresh: use an instruction that skips.
 
 ## Choosing a misfire instruction by its consequence
 
-A misfire is a firing whose scheduled time has passed by more than the misfire threshold without the
-job having run — because the scheduler was down, the pool was full, or the trigger was held back.
-[Troubleshooting](troubleshooting.md#misfire-handling) has the mechanics and the table of names in
-both versions' spellings; this section is only about which one to pick.
+A misfire is a firing that did not run within the misfire threshold of its scheduled time. Causes:
+the scheduler was down, the thread pool was full, or the trigger was held back. The mechanics are in
+[Troubleshooting](troubleshooting.md#misfire-handling).
 
-There are three possible consequences, whatever the family calls them:
+| Consequence | Cron, recurrence, calendar-interval, daily-time-interval | Simple |
+|---|---|---|
+| Run every missed occurrence | `IgnoreMisfires` | `IgnoreMisfires` |
+| Run one now, then resume the schedule | `FireAndProceed` | `FireNow` or a `Now…` variant |
+| Skip what was missed; resume at the next scheduled time | `DoNothing` | `NextWithExistingCount` or `NextWithRemainingCount` |
 
-1. **Run every occurrence that was missed.** `IgnoreMisfires`. The trigger catches up as fast as the
-   thread pool allows: a trigger firing every fifteen seconds that was down for five minutes fires
-   twenty times in a row.
-2. **Run one occurrence now, then resume the schedule.** `FireAndProceed` for cron, recurrence,
-   calendar-interval and daily-time-interval triggers; `FireNow` or one of the `Now…` variants for
-   simple triggers.
-3. **Skip what was missed and resume at the next scheduled time.** `DoNothing` for cron, recurrence,
-   calendar-interval and daily-time-interval triggers; `NextWithExistingCount` or
-   `NextWithRemainingCount` for simple triggers.
+`IgnoreMisfires` catches up as fast as the thread pool allows: a trigger firing every fifteen
+seconds that was down for five minutes fires twenty times in a row.
 
-The default on every trigger is `SmartPolicy`, and what that resolves to is worth knowing rather
-than assuming. For cron, recurrence, calendar-interval and daily-time-interval triggers it is always
-**consequence 2** — fire once now, then resume. For a simple trigger it depends on the repeat count:
-a one-shot trigger fires now; a trigger that repeats forever skips to its next occurrence keeping
-its remaining count; a trigger with a finite repeat count fires now and keeps the count it has.
+The default on every trigger is `SmartPolicy`. It resolves to:
 
-So the decision is one question about the work: **is an occurrence about a moment, or about a
-backlog?** A nightly settlement run that missed 02:00 should still happen — late, once — so the
-default is right. An hourly report that missed six hours should produce one report, not six, so
-`DoNothing` is right if the report describes "now" and `IgnoreMisfires` is right if each report
-describes its own hour. A cache refresh that missed anything at all should just do the next one.
+| Trigger | `SmartPolicy` does |
+|---|---|
+| Cron, recurrence, calendar-interval, daily-time-interval | Fire once now, then resume |
+| Simple, one-shot | Fire now |
+| Simple, repeats forever | Skip to the next occurrence, keeping the remaining count |
+| Simple, finite repeat count | Fire now, keeping the count it has |
+
+To choose, ask whether an occurrence is about a moment or about a backlog:
+
+- A nightly settlement that missed 02:00 should still run, late and once: the default is right.
+- An hourly report that missed six hours: `DoNothing` if the report describes "now";
+  `IgnoreMisfires` if each report describes its own hour.
+- A cache refresh that missed anything should just do the next one.
 
 <!-- snippet: sample_best_practices_misfire_do_nothing -->
 ```csharp
@@ -416,33 +357,30 @@ q.AddTrigger<NightlyRollupJob>(t => t
 ```
 <!-- endSnippet -->
 
-On Quartz 3.x that reads `.WithMisfireHandlingInstructionDoNothing()`; 4.x replaced the family of
-named methods with `WithMisfireInstruction` taking a per-family enum.
+On Quartz 3.x that is `.WithMisfireHandlingInstructionDoNothing()`. 4.x replaced the named methods
+with `WithMisfireInstruction`, taking a per-family enum.
 
-Two traps are worth naming explicitly.
+Two traps:
 
-**`IgnoreMisfires` does not mean "ignore the missed firings".** It means ignore the misfire
-*policy*: the trigger is excluded from misfire handling entirely and stays acquirable however stale
-it has become, so every missed occurrence is fired in turn, as quickly as the pool can take them.
-It is the catch-up instruction, not the skip instruction. This misreading is common enough in this
-project's issue history to be worth a sentence of its own.
-
-**The threshold is not the same in both stores.** A persistent store treats a firing as misfired
-sixty seconds late; `RAMJobStore` does so after five seconds. Both versions, both defaults. A
-schedule whose misfire behaviour was only ever exercised against the in-memory store in tests has
-not been tested against the thresholds it will meet in production.
+- **`IgnoreMisfires` catches up; it does not skip.** It ignores the misfire *policy*: the trigger is
+  excluded from misfire handling, stays acquirable however late it is, and fires every missed
+  occurrence in turn.
+- **The threshold differs by store.** A persistent store treats a firing as misfired at sixty
+  seconds late; `RAMJobStore` at five seconds. These are the defaults on both versions. Misfire
+  behaviour tested only against the in-memory store has not met the production threshold.
 
 ### Do not start a trigger in the past
 
-A trigger whose start time is already behind the misfire threshold when it is stored has misfired
-before it has ever fired, and the instruction you chose above decides what happens — which, on the
-default, is "fire immediately". This is the single most common way a schedule fires when nobody
-expected it to.
+A trigger whose start time is already past the misfire threshold when it is stored has misfired
+before its first firing. Its misfire instruction decides what happens; by default it fires
+immediately. This is the most common cause of a schedule firing when nobody expected it.
 
-Two habits cause it. Rebuilding a trigger from `GetTriggerBuilder()` carries the *original* start
-time forward, which may be months old. And re-registering triggers on every deployment with a start
-time of "now plus a few seconds" makes the schedule relative to each process start rather than to
-the calendar.
+Two habits cause it:
+
+- Rebuilding a trigger from `GetTriggerBuilder()` keeps the *original* start time, which may be
+  months old.
+- Re-registering triggers on every deployment with a start time of "now plus a few seconds" ties the
+  schedule to each process start instead of the calendar.
 
 With a persistent store, give a repeating trigger a fixed start time and add it only if it is
 missing:
@@ -462,150 +400,153 @@ q.AddTrigger<HourlySyncJob>(t => t
 
 ### Say the schedule in the trigger type that means it
 
-Most daylight-saving surprises are really a trigger-type choice made without noticing, because the
-families answer "what time is it" in genuinely different ways.
+Most daylight saving surprises come from the choice of trigger type.
 
-| You mean | Trigger | What a daylight saving transition does to it |
+| You mean | Trigger | Across a daylight saving transition |
 |---|---|---|
-| Every N seconds, minutes or hours of real time | `SimpleTrigger` | Nothing. The interval is absolute, so the *name* of the fire time moves — 03:00 becomes 04:00 — while the spacing does not. |
-| At this time of day, in this zone | `CronTrigger`, `RecurrenceTrigger` | The two rules below. |
-| Every N calendar days, months or years | `CalendarIntervalTrigger` | The instant shifts by the transition delta unless `PreserveHourOfDayAcrossDaylightSavings` is set, which is off by default. |
-| Repeatedly inside a daily window | `DailyTimeIntervalTrigger` | The window is wall-clock, so a transition lengthens or shortens the day's run. |
+| Every N seconds, minutes or hours of real time | `SimpleTrigger` | Spacing unchanged; the wall-clock time moves (03:00 becomes 04:00) |
+| At this time of day, in this zone | `CronTrigger`, `RecurrenceTrigger` | [The two rules below](#the-two-daylight-saving-rules) |
+| Every N calendar days, months or years | `CalendarIntervalTrigger` | Shifts by the transition delta, unless `PreserveHourOfDayAcrossDaylightSavings` is set (off by default) |
+| Repeatedly inside a daily window | `DailyTimeIntervalTrigger` | Wall-clock window, so the day's run gets longer or shorter |
 
-Quartz cron says more than most cron dialects, so check it before assuming a pattern needs something
-else: `0 0 0 ? * MON#2` is the second Monday of the month and `0 0 0 LW 3 ?` the last weekday of
-March. What it genuinely cannot state is a position counted from the *end* of a month other
-than the last one — `#` counts forwards, and only as far as 5 — a fortnight, and any cadence its
-fields cannot divide: `0 0 0 1/3 * ?` reads like "every third day" but restarts at the 1st of each
-month, so 31 January is followed by 1 February. `RecurrenceTrigger` and its RFC 5545 rule state all
-three, `FREQ=MONTHLY;BYDAY=-2FR` for the second-to-last Friday, `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO`
-for every other Monday and `FREQ=DAILY;INTERVAL=3` for a three-day cadence that does not reset, on
+Quartz cron states more than most cron dialects: `0 0 0 ? * MON#2` is the second Monday of the month
+and `0 0 0 LW 3 ?` the last weekday of March. It cannot state:
+
+- a position counted from the end of a month, other than the last (`#` counts forwards, up to 5);
+- a fortnight;
+- a cadence its fields cannot divide. `0 0 0 1/3 * ?` restarts on the 1st of each month, so
+  31 January is followed by 1 February.
+
+`RecurrenceTrigger` and its RFC 5545 rule state all three, on
 [4.x](/documentation/quartz-4.x/tutorial/recurrencetrigger) and
-[3.x](/documentation/quartz-3.x/tutorial/recurrencetrigger). Reaching for several cron triggers, or
-for a cron expression with a workaround in it, is usually the sign.
+[3.x](/documentation/quartz-3.x/tutorial/recurrencetrigger). If you need several cron triggers, or a
+workaround inside an expression, use one.
 
-**The one expression that means three different things:** `0 0 0 ? * MON/2` — a textual day-of-week
-with a step. On **3.x** it is every other Monday. On **4.0** it is a `FormatException`. From **4.1**
-it parses and means what `0 0 0 ? * 2/2` means: Monday, Wednesday and Friday, 156 fires a year rather
-than 26, with nothing logged either way. So audit for it before upgrading from 3.x, whichever 4.x you
-are going to:
-[`MON/2` is a step through the week](/documentation/quartz-4.x/cron-expressions#mon-2-is-a-step-through-the-week)
-is the whole story, and
-[Forms the parser refuses](/documentation/quartz-4.x/cron-expressions#forms-the-parser-refuses) lists
-the six shapes 4.x rejects that 3.x accepted and then quietly reinterpreted.
+| Schedule | RFC 5545 rule |
+|---|---|
+| Second-to-last Friday of the month | `FREQ=MONTHLY;BYDAY=-2FR` |
+| Every other Monday | `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO` |
+| Every three days, not reset each month | `FREQ=DAILY;INTERVAL=3` |
 
-The fortnight went because its phase was anchored to whatever last asked the expression a question: a
-misfire, a restart or a failover recomputed it from a different day and moved it.
-`FREQ=WEEKLY;INTERVAL=2;BYDAY=MO` anchors on the trigger's start time instead, so the fortnight is a
-property of the trigger rather than of the caller.
+**`0 0 0 ? * MON/2` means three different things.** It is a textual day-of-week with a step:
+
+| Version | Meaning |
+|---|---|
+| 3.x | Every other Monday |
+| 4.0 | `FormatException` |
+| 4.1 and later | Same as `0 0 0 ? * 2/2`: Monday, Wednesday and Friday. 156 fires a year instead of 26, with nothing logged |
+
+Audit for it before upgrading from 3.x to any 4.x. See
+[`MON/2` is a step through the week](/documentation/quartz-4.x/cron-expressions#mon-2-is-a-step-through-the-week),
+and [Forms the parser refuses](/documentation/quartz-4.x/cron-expressions#forms-the-parser-refuses)
+for the six shapes 4.x rejects that 3.x accepted and reinterpreted.
+
+4.x dropped the fortnight because its phase depended on whatever last evaluated the expression: a
+misfire, a restart or a failover recomputed it from a different day. `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO`
+anchors on the trigger's start time instead.
 
 ### The two daylight saving rules
 
-Java Quartz's page warns that a cron trigger may fire twice or not at all across a transition. That
-is not what this implementation does, and the difference matters enough to state precisely. For a
-**fixed-time** expression such as `0 30 2 * * ?`:
+A cron expression is never skipped by a transition, and never fires twice for one scheduled
+occurrence. Where it fires depends on the expression and the version:
 
-- A wall-clock time that **does not exist** on a spring-forward day fires exactly **once**, and is
-  never skipped. *Where* it fires differs by version. On 4.x it fires at the **end of the gap**, the
-  instant the clocks moved: a daily 02:30 over a 02:00–03:00 gap fires at 03:00. On 3.x the fire is
-  shifted forward by the transition delta instead, to 03:30. In a zone whose delta is not a whole
-  hour — Australia/Lord_Howe, where 02:00 becomes 02:30 — a daily `0 15 2 * * ?` reads 02:30 on 4.x
-  and 02:45 on 3.x. Only 4.x's answer is an instant
-  the expression itself matches: ask `IsSatisfiedBy` about the fire time and 4.x says yes where 3.x
-  says no.
-- A wall-clock time that **occurs twice** on a fall-back day fires **once**, at the first of the two
-  occurrences. This is the same on both versions.
+- A **fixed-time** expression has plain values or comma lists in the second, minute and hour fields:
+  `0 30 2 * * ?`, `0 0,30 2 * * ?`.
+- An **interval** expression has a wildcard, step or range in one of them: `0 * * * * ?`,
+  `0 0/30 * * * ?`.
 
-**Quartz 4.x only:** an *interval* expression — one with a wildcard, step or range in the second,
-minute or hour field, such as `0 * * * * ?` or `0 0/30 * * * ?` — fires through **both** passes of
-the repeated hour. On 3.x the repeated hour is fired once, which means an "every minute" schedule
-silently loses an hour of real time each autumn. Over the fall-back hour, fixed-time expressions —
-including comma lists like `0 0,30 2 * * ?` — are unchanged between the versions. On the
-spring-forward day the gap-end rule shows in an interval expression as an extra fire rather than a
-moved one: 4.x runs `0 30 * * * ?` at 03:00 for the occurrence the gap swallowed and again at 03:30
-for the next hour's, where 3.x resumes from the shifted 03:30 and runs once.
+| Case | 4.x | 3.x |
+|---|---|---|
+| Fixed-time, the time does not exist (spring forward) | Fires once, at the **end of the gap**: a daily 02:30 over a 02:00–03:00 gap fires at 03:00 | Fires once, shifted forward by the delta, at 03:30 |
+| Fixed-time, the time occurs twice (fall back) | Fires once, at the first occurrence | Same as 4.x |
+| Interval, the repeated hour (fall back) | Fires through **both** passes | Fires the hour once; "every minute" loses an hour of real time each autumn |
+| Interval, the gap (spring forward) | `0 30 * * * ?` fires at 03:00, for the occurrence the gap swallowed, and at 03:30 | Fires once, at the shifted 03:30 |
 
-Whatever the family, **name the time zone**. A cron trigger with no zone uses `TimeZoneInfo.Local`,
-which is the developer's machine in development and very often UTC in a container, so the schedule
-means two different things in the two places. `TimeZones.FindById` is the lookup to use rather than
-`TimeZoneInfo.FindSystemTimeZoneById`, because it resolves Windows and IANA identifiers on either
-platform (on 3.x the same type is called `TimeZoneUtil`). The
-[FAQ's daylight saving section](faq.md#daylight-saving-time-and-triggers) has the longer treatment,
-and 4.x's [Time and TimeProvider](/documentation/quartz-4.x/tutorial/time-and-timeprovider) covers
-how the clock and the zone are two separate axes.
+- Where the delta is not a whole hour (Australia/Lord_Howe, where 02:00 becomes 02:30), a daily
+  `0 15 2 * * ?` fires at 02:30 on 4.x and 02:45 on 3.x.
+- Only 4.x's gap fire time matches the expression: `IsSatisfiedBy` says yes on 4.x and no on 3.x.
 
-One more cron trap, since it accounts for more "my job ran fifty times" reports in this project than
-daylight saving does: Quartz cron puts **seconds first**, so `* 0/5 * * * ?` means *every second of
-every fifth minute*, not every five minutes. That is `0 0/5 * * * ?`. The same shift is why a
-five-field line copied from a crontab is not a Quartz expression: prepending a `0` fixes the layout
-but not the day-of-week numbering, which is 0-6 from Sunday in crontab and 1-7 from Sunday here. On
-**4.x**, don't translate it by hand — `CronExpression.Parse(line, CronFormat.Unix)` and
-`CronScheduleBuilder.Create(line, CronFormat.Unix)` read the five-field form as written, renumbering
-included, and store the canonical Quartz spelling. On **3.x** there is no such reader, so the
-translation is manual and the day-of-week digit is the part to check. See
-[Cron Triggers (4.x)](/documentation/quartz-4.x/tutorial/crontriggers) and
+**Name the time zone.** A cron trigger with no zone uses `TimeZoneInfo.Local`: the developer's
+machine in development, and often UTC in a container. Look zones up with `TimeZones.FindById` (on
+3.x, `TimeZoneUtil`) rather than `TimeZoneInfo.FindSystemTimeZoneById`; it resolves Windows and IANA
+identifiers on either platform. See the
+[FAQ's daylight saving section](faq.md#daylight-saving-time-and-triggers), and 4.x's
+[Time and TimeProvider](/documentation/quartz-4.x/tutorial/time-and-timeprovider) on the clock and
+the zone as separate settings.
+
+**Quartz cron puts seconds first.** This causes more "my job ran fifty times" reports than daylight
+saving does. `* 0/5 * * * ?` is every second of every fifth minute; every five minutes is
+`0 0/5 * * * ?`. A five-field crontab line is not a Quartz expression: prepending `0` fixes the
+layout but not the day-of-week numbering, which is 0-6 from Sunday in crontab and 1-7 from Sunday
+here.
+
+- **4.x:** `CronExpression.Parse(line, CronFormat.Unix)` and
+  `CronScheduleBuilder.Create(line, CronFormat.Unix)` read the five-field form as written,
+  renumbering included, and store the canonical Quartz spelling.
+- **3.x:** translate by hand, and check the day-of-week digit.
+
+See [Cron Triggers (4.x)](/documentation/quartz-4.x/tutorial/crontriggers) and
 [Cron Triggers (3.x)](/documentation/quartz-3.x/tutorial/crontriggers).
 
 ### When the clock moves for other reasons
 
-An NTP correction, a manual change or a suspended virtual machine moves the wall clock in either
-direction, and Quartz schedules against the wall clock. Moving it backwards means a trigger whose
-next fire time was already computed waits for the clock to catch up; that is correct, because a fire
-time is a point on the calendar rather than an offset from now.
-
-What matters operationally is that recovery is bounded rather than instantaneous: the firing loop
-re-evaluates within one `IdleWaitTime` (30 seconds by default), misfire handling within one misfire
-handler period, and cluster check-in within one check-in interval. The
-[FAQ's section on clock changes](faq.md#system-clock-changes-ntp-corrections-manual-adjustments)
-has the detail. To test clock movement, fake the clock rather than moving the machine's.
+Quartz schedules against the wall clock, which NTP corrections, manual changes and suspended virtual
+machines all move. A computed fire time is a point on the calendar, so after a backwards move it
+waits for the clock to catch up. Quartz resumes on its own after any change, within one
+`IdleWaitTime` (30 seconds by default) for the firing loop, one misfire handler period for misfire
+handling, and one check-in interval for cluster check-in; see the
+[FAQ](faq.md#system-clock-changes-ntp-corrections-manual-adjustments). To test clock movement, fake
+the clock instead of moving the machine's.
 
 ### Clocks in a cluster
 
-Clustered scheduling compares a timestamp written by one node against the clock of another, so the
-clocks have to agree. Concretely: each node writes its check-in time to the scheduler-state table,
-and a peer decides that node has failed once *its own* clock passes that timestamp plus the failed
-node's check-in interval plus the check-in misfire threshold. Both of those default to 7.5 seconds,
-so a node is written off about fifteen seconds after the timestamp it last wrote — and since it
-writes one every 7.5 seconds, only the other 7.5 is slack. **A node whose clock runs more than about
-seven seconds ahead of a peer's can write off a healthy peer.** Java Quartz states the requirement as
-a precondition for running clustered at all: "the clocks must be within a second of each other."
+Cluster nodes compare a timestamp written by one node with the clock of another, so the clocks must
+agree.
 
-What follows from a false declaration is not subtle. The live node runs cluster recovery against a
-node that is still working: it releases that node's acquired triggers so another node can take them,
-schedules recovery triggers for its recovery-requesting jobs, and deletes its fired-trigger rows —
-which is also what makes `[DisallowConcurrentExecution]` stop holding. The victim eventually logs a
-line worth alerting on:
+- Each node writes its check-in time to the scheduler-state table.
+- A peer declares that node failed once *the peer's* clock passes that timestamp plus the node's
+  check-in interval plus the check-in misfire threshold.
+- Both default to 7.5 seconds. A node is written off about fifteen seconds after its last check-in,
+  and since it checks in every 7.5 seconds, only the other 7.5 seconds are slack.
+
+**A node whose clock runs more than about seven seconds ahead of a peer's can write off a healthy
+peer.** The declaring node then runs cluster recovery against a node that is still working:
+
+- it releases that node's acquired triggers so another node can take them;
+- it schedules recovery triggers for its recovery-requesting jobs;
+- it deletes its fired-trigger rows, so `[DisallowConcurrentExecution]` stops holding.
+
+The victim logs this line; alert on it:
 
 ```text
 This scheduler instance (…) is still active but was recovered by another instance in the cluster.
 ```
 
-The important part is that **a clock is not the only way to miss a check-in**. A node pinned at 100%
-CPU, a long garbage-collection pause, or a paused virtual machine misses check-ins with a perfect
-clock — and Azure documents its virtual machines being paused "for up to 30 seconds" during
-memory-preserving maintenance, which is twice the default detection window. A refused database
-connection used to be another way: before 3.22 and 4.1 a single failed check-in backed off the full
-`DbRetryInterval` (15 seconds) and wrote its next row after the peers had stopped trusting it; since
-then the check-in loop retries inside the window, so a blip shorter than the threshold no longer costs
-the node its row. This is the standard distributed-systems caution rather than a Quartz quirk; the
-literature on leases is unanimous that a missed heartbeat is a decision to act as if a node were dead,
-never evidence that it is, and that the safety margin has to cover the environment's worst *pause*
-rather than its worst clock error.
+**A clock is not the only way to miss a check-in.** With a perfect clock, these miss check-ins too:
 
-Three things to do about it, in order:
+- a node pinned at 100% CPU, or a long garbage collection pause;
+- a paused virtual machine. Azure can pause virtual machines for up to 30 seconds during
+  memory-preserving maintenance, twice the default detection window;
+- before 3.22 and 4.1, a refused database connection. One failed check-in backed off the full
+  `DbRetryInterval` (15 seconds) and wrote its next row after the peers had stopped trusting it.
+  Since then the check-in loop retries inside the window, so a blip shorter than the threshold no
+  longer costs the node its row.
 
-1. **Run a time-synchronisation service on every node**, and give the scheduler enough CPU headroom
-   that it can always take its check-in turn. Ordinary NTP is within a few milliseconds on a LAN,
-   which is far inside the requirement; the failures in practice are unsynchronised machines and
-   starved ones, not inaccurate ones.
-2. **If you cannot guarantee either, widen the window.** Raising
-   `quartz.jobStore.clusterCheckinMisfireThreshold`, or the check-in interval itself
-   (`quartz.jobStore.clusterCheckinInterval`), past your environment's worst pause — a minute is the
-   number this project's maintainer has suggested to people who hit this — stops the false failovers,
-   at the cost of a genuinely dead node's work waiting that much longer to be taken over.
-3. **Keep the jobs idempotent anyway**, because the margin is a probability rather than a proof.
+Size the margin for the environment's worst *pause*, not its worst clock error.
 
-Clustering configuration in full is on
+What to do, in order:
+
+1. **Run time synchronisation on every node**, and give the scheduler enough CPU headroom to check
+   in on time. NTP is within a few milliseconds on a LAN; the failures in practice are
+   unsynchronised or starved machines.
+2. **If you cannot guarantee both, widen the window.** Raise
+   `quartz.jobStore.clusterCheckinMisfireThreshold`, or the check-in interval
+   (`quartz.jobStore.clusterCheckinInterval`), past your environment's worst pause. The maintainer
+   suggests a minute to people who hit this. A dead node's work then waits that much longer to be
+   taken over.
+3. **Keep the jobs idempotent anyway.** The margin lowers the odds; it does not remove them.
+
+Clustering configuration is on
 [Advanced Enterprise Features (4.x)](/documentation/quartz-4.x/tutorial/advanced-enterprise-features)
 and [(3.x)](/documentation/quartz-3.x/tutorial/advanced-enterprise-features).
 
@@ -614,48 +555,43 @@ and [(3.x)](/documentation/quartz-3.x/tutorial/advanced-enterprise-features).
 ### Max concurrency is a permit count, not a thread count
 
 The default thread pool is a semaphore of `MaxConcurrency` permits over the .NET thread pool, not a
-set of dedicated threads. Both versions default it to **10**, and both spell it
-`quartz.threadPool.threadCount` as a flat key (`UseDefaultThreadPool(maxConcurrency)` in code,
-`ThreadPool:MaxConcurrency` in 4.x configuration).
+set of dedicated threads. Both versions default it to **10**.
 
-That distinction changes the advice inherited from Java. A job that `await`s I/O holds its permit
-but releases the thread, so a scheduler running twenty jobs that are all waiting on HTTP calls is
-not holding twenty threads. A job that *blocks* — `.Result`, `.Wait()`, `Thread.Sleep` — holds both,
-and the .NET thread pool replaces a blocked thread at roughly one or two per second, so a burst of
-blocking work degrades the whole application for minutes at almost no CPU. Java Quartz's warning
-that "performance starts to tank as you get into the several hundreds of threads" was written about
-dedicated threads and does not describe this pool; the .NET rule is simply not to block.
+| Where | Spelling |
+|---|---|
+| Flat key, both versions | `quartz.threadPool.threadCount` |
+| Code | `UseDefaultThreadPool(maxConcurrency)` |
+| 4.x configuration | `ThreadPool:MaxConcurrency` |
 
-What Java's advice does still get right is the shape of a job that waits. "If you feel the need to
-call `Thread.sleep()` on the worker thread executing the Job, it is typically a sign that the job is
-not ready to do the rest of its work because it needs to wait for some condition… A better solution
-is to release the worker thread (exit the job) and allow other jobs to execute on that thread." That
-holds for `await Task.Delay` too, because the permit is what is scarce: a job waiting an hour for a
-record to appear occupies a slot for an hour. Exit and let a later firing do the work.
+- **A job that `await`s I/O** holds its permit but releases the thread. Twenty jobs waiting on HTTP
+  calls do not hold twenty threads.
+- **A job that blocks** (`.Result`, `.Wait()`, `Thread.Sleep`) holds both. The .NET thread pool
+  replaces a blocked thread at roughly one or two per second, so a burst of blocking work slows the
+  whole application for minutes at almost no CPU. Do not block.
+- **A job that waits** holds a permit, even with `await Task.Delay`. A job waiting an hour for a
+  record to appear occupies a slot for an hour. Exit, and let a later firing do the work.
 
-Nobody in the field agrees on a number, and the disagreement is informative. Java Quartz refuses to
-default it at all and says "if you only have a few jobs that fire a few times a day, then 1 thread is
-plenty", rising to "more like 50 or 100" for tens of thousands of jobs. Hangfire derives it,
-`Environment.ProcessorCount * 5`, capped at 20. Neither formula transfers, because for a scheduler
-with a persistent store the number that binds is not threads at all — it is connections.
+Java Quartz's thread-count advice is about dedicated threads and does not apply to this pool. With a
+persistent store, size by database connections instead:
+[see below](#the-connection-pool-is-the-thread-pool-plus-three).
 
 ### The connection pool is the thread pool plus three
 
-The old advice — "at least the number of worker threads in the thread pool plus three" — is
-inherited from Java Quartz and still comes out right for Quartz.NET 4.x. The arithmetic, from the
-code:
+Size the connection pool to at least `MaxConcurrency + 3`. The rule comes from Java Quartz and holds
+for Quartz.NET 4.x:
 
-- **One per executing job.** A job holds no connection while it runs; the store is touched before
-  the job starts, on the scheduler thread, and again when it finishes. But every worker can be
-  inside its completion write at the same instant, so `MaxConcurrency` is the burst ceiling.
-- **One for the scheduler thread**, acquiring triggers and firing them.
-- **One for the misfire handler**, which runs on its own loop whether or not the scheduler is
-  clustered.
-- **One for the cluster manager**, when clustering is on.
+| Consumer | Connections |
+|---|---|
+| Executing jobs | `MaxConcurrency` |
+| Scheduler thread, acquiring and firing triggers | 1 |
+| Misfire handler, clustered or not | 1 |
+| Cluster manager, when clustering is on | 1 |
 
-So `MaxConcurrency + 3` clustered and `+ 2` otherwise; the round number covers both. Taking the
-cluster-wide lock does not cost a second connection — the row-lock handler is handed the caller's
-connection rather than opening one of its own.
+A job holds no connection while it runs: the store is used on the scheduler thread before the job
+starts, and again when it finishes. But every worker can be in its completion write at the same
+instant, so `MaxConcurrency` is the burst ceiling. That makes `+ 3` clustered and `+ 2` otherwise.
+Taking the cluster-wide lock does not cost another connection; the row-lock handler uses the
+caller's.
 
 <!-- snippet: sample_best_practices_pool_sizing -->
 ```csharp
@@ -675,47 +611,44 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-The sentence beside that arithmetic on the old page does more work than the arithmetic does, and
-deserves promoting: **everything else in the process draws on the same pool, and none of it is
-bounded by a Quartz setting.** The HTTP API and the dashboard each take a connection per in-flight
-request. A job that calls `IScheduler` takes a second one, concurrently with its own. Every scoped
-`DbContext` a job opens is another. Size for what the process does, not for what the scheduler does.
+**Everything else in the process uses the same pool, and no Quartz setting bounds it:**
 
-It is also worth knowing which direction the defaults push. `Microsoft.Data.SqlClient` and Npgsql
-both default `Max Pool Size` to 100 and both fail, after a fifteen-second wait, with a message
-suggesting you raise it. That is usually the wrong response, because the database's own optimum is
-small — the widely cited HikariCP treatment of pool sizing recommends roughly
-`(core_count × 2) + effective_spindle_count` *active* connections and argues for "a small pool,
-saturated with threads waiting for connections", citing an Oracle demonstration where shrinking the
-pool alone took response times "from ~100ms to ~2ms". That budget belongs to the database and is
-shared by every node: ten schedulers with a modest pool of 25 each present 250 connections to one
-server.
+- the HTTP API and the dashboard take a connection per in-flight request;
+- a job that calls `IScheduler` takes a second one, alongside its own;
+- every scoped `DbContext` a job opens takes another.
 
-Which makes `MaxConcurrency` the admission-control knob. Derive it from the database's connection
-budget divided by the number of nodes, then set the pool just above it. Queueing at the scheduler is
-visible, tunable, and subject to misfire instructions you chose; queueing inside ADO.NET is
-invisible and surfaces as a pool timeout that names the pool rather than the cause.
+Size the pool for what the process does, not only for the scheduler.
+
+**Do not answer a pool timeout by raising the pool.** `Microsoft.Data.SqlClient` and Npgsql both
+default `Max Pool Size` to 100, and both fail after a fifteen-second wait with a message suggesting
+you raise it. A database works best with few active connections: HikariCP's
+[pool-sizing guide](https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing) recommends
+about `(core_count × 2) + effective_spindle_count`. That budget is shared by every node: ten
+schedulers with a pool of 25 each present 250 connections to one server.
+
+**Use `MaxConcurrency` for admission control.** Set it to the database's connection budget divided
+by the number of nodes, and the pool just above it. Queueing at the scheduler is visible, tunable
+and governed by your misfire instructions. Queueing inside ADO.NET is invisible and surfaces as a
+pool timeout that names the pool, not the cause.
 
 ### Batching changes the round trips, not the connections
 
-`MaxBatchSize` — `quartz.scheduler.batchTriggerAcquisitionMaxCount` as a flat key — defaults to 1,
-and raising it acquires several triggers in a single round trip rather than one at a time. It does
-not add connections. What it does change is locking: a round that asks for more than one trigger takes the
-cluster-wide trigger-access lock, which a single-trigger round does not. Java Quartz's warning
-applies to Quartz.NET too — the larger number comes "at the cost of possible imbalanced load between
-cluster nodes", because a node that acquires ten triggers has made them its own until it can run
-them.
+`MaxBatchSize` (flat key `quartz.scheduler.batchTriggerAcquisitionMaxCount`) defaults to 1. Raising
+it acquires several triggers in one round trip. It adds no connections, but:
 
-Quartz 4.x refuses a `MaxBatchSize` larger than `MaxConcurrency` at startup, with a message that
-explains why: triggers acquired beyond the number of workers available to run them are held by that
-node until the pool drains. Widening the batch also needs
-`BatchTriggerAcquisitionFireAheadTimeWindow` to be non-zero to have much effect, since a batch can
-otherwise only contain triggers that are already due.
+- A round that asks for more than one trigger takes the cluster-wide trigger-access lock; a
+  single-trigger round does not.
+- Load across cluster nodes can become uneven: a node that acquires ten triggers holds them until it
+  can run them.
+- Quartz 4.x refuses a `MaxBatchSize` larger than `MaxConcurrency` at startup, because triggers
+  acquired beyond the available workers are held by that node until its pool drains.
+- `BatchTriggerAcquisitionFireAheadTimeWindow` must be non-zero for a larger batch to have much
+  effect; otherwise a batch holds only triggers that are already due.
 
 ### Scheduling many jobs at once
 
-Calling `ScheduleJob` in a loop costs a lock acquisition and a transaction per job. `ScheduleJobs`
-takes a dictionary of jobs and their triggers and does all of it inside one of each:
+`ScheduleJob` in a loop costs one lock acquisition and one transaction per job. `ScheduleJobs` takes
+a dictionary of jobs and their triggers and uses one of each:
 
 <!-- snippet: sample_best_practices_schedule_jobs -->
 ```csharp
@@ -736,25 +669,23 @@ await scheduler.ScheduleJobs(jobsDictionary, new ScheduleJobOptions { Replace = 
 ```
 <!-- endSnippet -->
 
-The same instinct applies on the read side: 4.x's paged, projected queries and bulk
-`GetJobDetails(keys)` / `GetTriggers(keys)` turn a page of keys into one round trip, where fetching
-each key in turn is one round trip each. Java Quartz added the same advice to its own page for 2.5.
+For reads, 4.x's paged, projected queries and the bulk `GetJobDetails(keys)` / `GetTriggers(keys)`
+fetch a page of keys in one round trip instead of one per key.
 
-Before scaling any of this, though, ask whether the schedule needs one trigger per entity at all. A
-trigger per row scales to thousands without difficulty, but a single trigger that scans for the rows
-that are due is usually simpler to operate, and it does not need a migration when the set of
-entities changes.
+Before scaling this, ask whether you need a trigger per entity. A trigger per row scales to
+thousands, but a single trigger that scans for due rows is usually simpler to operate and needs no
+migration when the set of entities changes.
 
 ## Operating a scheduler
 
 ### Shutdown has a deadline
 
-`WaitForJobsToComplete` is off by default, which means a shutdown returns while jobs are still
-running. It is not quite instant even so: from Quartz 4.1 a shutdown that does not wait still stops
-firing before it closes its thread pool, and still gives the executions already in flight a couple of
-seconds to report their completions, so a job that was about to finish leaves nothing behind for a
-peer to recover. Turning `WaitForJobsToComplete` on makes the scheduler wait for the jobs themselves —
-but not indefinitely, and that bound is not a Quartz setting:
+`WaitForJobsToComplete` is off by default, so a shutdown returns while jobs are still running. From
+Quartz 4.1, such a shutdown still stops firing before it closes its thread pool, and gives the
+executions in flight a couple of seconds to report completion, so a job that was about to finish
+leaves nothing for a peer to recover.
+
+With `WaitForJobsToComplete` on, the scheduler waits for the jobs, for as long as the host allows:
 
 <!-- snippet: sample_best_practices_shutdown -->
 ```csharp
@@ -769,211 +700,190 @@ services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true)
 ```
 <!-- endSnippet -->
 
-The hosted service passes the host's shutdown token down into the wait, and
-`HostOptions.ShutdownTimeout` defaults to **30 seconds**. In Quartz 4.x the drain observes that
-token: when the budget runs out the scheduler logs that it gave up waiting, and then finishes
-tearing down the pool, the plugins and the job store rather than abandoning them half-done. On
-Quartz 3.x the pool's shutdown ignores the token and blocks until the jobs finish, so a long job
-makes the whole host's stop take as long as the job does.
+The hosted service passes the host's shutdown token into the wait. `HostOptions.ShutdownTimeout`
+defaults to **30 seconds**.
 
-Interrupting is a separate decision from waiting. Both versions default to **not** interrupting
-running jobs; 4.x says which case you want in one setting, `ShutdownJobInterruption`, while 3.x has
-the two flat keys `quartz.scheduler.interruptJobsOnShutdown` and
-`…interruptJobsOnShutdownWithWait`. Either way it only signals a cancellation token: a job that does
-not check the token, or forward it to what it awaits, runs to completion regardless.
+- **4.x:** the drain observes the token. When the budget runs out, the scheduler logs that it gave up
+  waiting, then finishes tearing down the pool, the plugins and the job store.
+- **3.x:** the pool's shutdown ignores the token and blocks until the jobs finish, so a long job
+  makes the host's stop take as long as the job.
 
-Three things worth planning around:
+Interrupting is a separate setting from waiting. Both versions default to **not** interrupting
+running jobs.
 
-- **The platform's budget has to be larger than the application's.** Kubernetes'
-  `terminationGracePeriodSeconds` also defaults to 30 seconds, so two defaults that both look
-  generous collide exactly. Whatever supervises the process — an orchestrator, a Windows service
-  manager, an app-pool recycle — has a budget of its own, and the application's should fit inside it.
-- **Shutdown is terminal.** A shut-down scheduler cannot be restarted; `Standby()` and `Start()` are
-  the pause-and-resume pair. Do not call `Shutdown` yourself when a hosted service owns the
-  scheduler — the host calls it.
-- **Extending the timeout is rarely the real fix.** Waiting longer makes every deployment slower and
-  still does not help when a node is evicted or a machine dies. The guarantee that survives all of
-  those is the one from the first section: a job that can be interrupted and run again.
+- **4.x:** one setting, `ShutdownJobInterruption`.
+- **3.x:** the flat keys `quartz.scheduler.interruptJobsOnShutdown` and
+  `…interruptJobsOnShutdownWithWait`.
+
+Interrupting only signals the cancellation token. A job that does not check the token, or pass it to
+what it awaits, runs to completion regardless.
+
+Plan for these:
+
+- **The platform's budget must be larger than the application's.** Kubernetes'
+  `terminationGracePeriodSeconds` also defaults to 30 seconds, so the two defaults collide. Whatever
+  supervises the process (an orchestrator, a Windows service manager, an app-pool recycle) has its
+  own budget; fit the application's inside it.
+- **Shutdown is terminal.** A shut-down scheduler cannot restart; `Standby()` and `Start()` pause
+  and resume. Do not call `Shutdown` yourself when a hosted service owns the scheduler; the host
+  calls it.
+- **A longer timeout is rarely the fix.** It slows every deployment and does not help when a node is
+  evicted or a machine dies. What survives all of those is a job that can be interrupted and
+  [run again](#assume-the-job-will-run-more-than-once).
 
 ### One name per cluster, one id per node
 
-The largest single category of "my job ran twice" in this project's history is not a scheduling bug.
-It is two schedulers that were never one cluster. Five rules cover almost all of it:
+The most common cause of "my job ran twice" is two schedulers that were never one cluster. Check
+all five:
 
-- **Every node of a cluster uses the same scheduler name.** The name is what makes rows in the
-  database belong to the same logical scheduler. Giving each node its own name — a natural-looking
-  thing to do — makes each node an independent scheduler that fires every trigger.
-- **Every node has a unique instance id.** `AUTO` generates one; a shared id is as bad as a shared
-  name is good.
-- **Clustering is on for every node.** One node with it off is enough to break the cluster for all
-  of them.
+- **Every node of a cluster uses the same scheduler name.** The name makes rows in the database
+  belong to one logical scheduler. A name per node makes each node an independent scheduler that
+  fires every trigger.
+- **Every node has a unique instance id.** `AUTO` generates one. Never share an id between nodes.
+- **Clustering is on for every node.** One node with it off breaks the cluster for all of them.
 - **The store is persistent.** Two processes with in-memory stores are two schedulers with two
-  copies of the schedule, and both will fire it.
-- **Never point a second, non-clustered scheduler at the same tables.** This is Java Quartz's own
-  warning and it still holds: the outcomes range from triggers that vanish without executing to
-  deadlocks and corrupted state.
+  copies of the schedule, and both fire it.
+- **No second, non-clustered scheduler uses the same tables.** Results range from triggers that
+  vanish without executing to deadlocks and corrupted state.
 
-Deployment topology counts as configuration here. A staging slot, a canary, or a second replica set
-running the same configuration against the same database is a cluster member you did not intend to
-have — and if its scheduler name matches, it will take work.
+Deployment topology counts as configuration. A staging slot, a canary or a second replica set that
+runs the same configuration against the same database is a cluster member; if its scheduler name
+matches, it takes work.
 
-The corollary rule from Java's page is also still true: **never write to Quartz's tables directly.**
-The state machine spans several tables, and a hand-edited row produces exactly the symptoms above.
-When a manual repair really is the last resort,
+**Never write to Quartz's tables directly.** The state machine spans several tables, and a
+hand-edited row causes the symptoms above. If a manual repair is the last resort,
 [Troubleshooting](troubleshooting.md#triggers-stuck-in-acquired-state) has the statements and the
 warning that goes with them.
 
 ### What the trigger states mean
 
-Operators read these out of `QRTZ_TRIGGERS` more often than any API, and two of them are routinely
-misdiagnosed:
+As read from `QRTZ_TRIGGERS`:
 
-| State | What it means |
+| State | Meaning |
 |---|---|
-| `WAITING` | Normal. Eligible to be acquired when its next fire time arrives. |
-| `ACQUIRED` | A node has reserved it and is about to fire it. Rows that stay here belong to a node that stopped between reserving and firing. |
-| `BLOCKED` | Another execution of the same `[DisallowConcurrentExecution]` job is running. **A trigger stuck here almost always means a job that never returned** — a synchronous call that hangs, a deadlock, an unawaited task. |
-| `PAUSED` / `PAUSED_BLOCKED` | Paused explicitly, through the API or a group matcher. |
-| `ERROR` | The job could not be **built**. Its constructor threw, the container could not resolve it, or the store could not read the job detail. A job body that throws does *not* land here — that is an ordinary completed firing. |
+| `WAITING` | Normal. Acquirable when its next fire time arrives. |
+| `ACQUIRED` | A node has reserved it to fire. Stuck here: that node stopped between reserving and firing. |
+| `BLOCKED` | Another execution of the same `[DisallowConcurrentExecution]` job is running. |
+| `PAUSED` / `PAUSED_BLOCKED` | Paused through the API or a group matcher. |
+| `ERROR` | The job could not be **built**. |
 | `COMPLETE` | Nothing left to fire. |
 
-`ERROR` catches people out because it looks like an execution failure and is not: it is a
-composition-root failure, which is why it is usually reproducible from an integration test that
-resolves the job. Recovery is `IScheduler.ResetTriggerFromErrorState(triggerKey)` on both versions,
-and 4.x adds an overload taking a whole set of keys — see
+Two states are often misdiagnosed:
+
+- **A trigger stuck in `BLOCKED`** almost always means a job that never returned: a synchronous call
+  that hangs, a deadlock, an unawaited task.
+- **`ERROR`** means the job's constructor threw, the container could not resolve it, or the store
+  could not read the job detail. A job body that throws does *not* land here; that is an ordinary
+  completed firing. Because it is a composition-root failure, an integration test that resolves the
+  job usually reproduces it.
+
+Reset a trigger with `IScheduler.ResetTriggerFromErrorState(triggerKey)` on both versions; 4.x adds
+an overload taking a set of keys. See
 [Recovering triggers that failed](/documentation/quartz-4.x/how-tos/rescheduling-jobs#recovering-triggers-that-failed),
-which pages through them rather than assuming one query sees the lot.
+which pages through them rather than assuming one query sees them all.
 
 ### Listeners run in the middle of everything
 
-A listener is not an observer running to one side. It runs on the same worker as the job, or on the
-scheduler thread, and its cost is added to every firing it matches — which is also true of the
-history plugins, since those are listeners. Java's advice stands: keep them short, and prefer
+A listener runs on the job's worker or on the scheduler thread, and its cost is added to every
+firing it matches. The history plugins are listeners too. Keep listeners short, and prefer
 listeners matched to specific jobs over global ones.
 
-Handling exceptions inside them is not optional, and the reason is stronger than "it might be
-ignored". A trigger listener or a job listener that throws *before* the job runs means the job does
-not run at all — the scheduler logs "Job will NOT be executed!", tells the scheduler listeners, and
-completes the firing without executing anything. One that throws afterwards stops the remaining
-listeners being notified. The firing itself is completed properly either way, so a throwing listener
-does not wedge a trigger, but it can silently cost you the execution.
+Catch exceptions inside a listener:
+
+- A trigger or job listener that throws *before* the job runs stops the job running. The scheduler
+  logs "Job will NOT be executed!", tells the scheduler listeners, and completes the firing without
+  executing anything.
+- One that throws afterwards stops the remaining listeners being notified.
+
+The firing is completed either way, so a throwing listener does not wedge a trigger, but it can
+silently cost you the execution.
 
 ### Do not let users choose the job type
 
-If an application exposes scheduling to its users, the type of job must not be one of the things
-they choose. `Quartz.Jobs` still ships `NativeJob`, which runs an arbitrary operating-system
-command, and `SendMailJob`; a user who can name a job type and its data can run either. Java's page
-puts it correctly: allowing users to define whatever job they want "effectively opens your system to
-all sorts of vulnerabilities comparable/equivalent to Command Injection Attacks as defined by OWASP
-and MITRE". Offer a fixed set of job types and validate their parameters.
+If an application lets users schedule jobs, the job type must not be one of their choices.
+`Quartz.Jobs` ships `NativeJob`, which runs an arbitrary operating-system command, and
+`SendMailJob`. A user who can name a job type and its data can run either, which amounts to command
+injection. Offer a fixed set of job types and validate their parameters.
 
-The same caution applies to the management surfaces. On 3.x the dashboard has a single authorization
-policy and a single read-only flag, and there is no per-scheduler policy: if different people should
-reach different schedulers, enforce that outside Quartz.NET. On 4.x both surfaces take a
-`SchedulerAuthorizationPolicy` — `QuartzDashboardOptions` and `QuartzHttpApiOptions` — evaluated per
-request against a `SchedulerResource` naming the scheduler, so one
-`AuthorizationHandler<TRequirement, SchedulerResource>` holds each caller to its own scheduler. What
-a caller may *do* to the scheduler it reaches is still process-wide, through the dashboard's read-only
-flag. See
+The management surfaces need the same care:
+
+- **3.x:** the dashboard has a single authorization policy and a single read-only flag, with no
+  per-scheduler policy. If different people should reach different schedulers, enforce that
+  outside Quartz.NET.
+- **4.x:** `QuartzDashboardOptions` and `QuartzHttpApiOptions` both take a
+  `SchedulerAuthorizationPolicy`, evaluated per request against a `SchedulerResource` naming the
+  scheduler. One `AuthorizationHandler<TRequirement, SchedulerResource>` holds each caller to its
+  own scheduler. What a caller may *do* to that scheduler is still process-wide, through the
+  dashboard's read-only flag.
+
+See
 [Authorizing a tenant on its own scheduler](quartz-4.x/multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler)
 and [Tenancy Patterns](tenancy-patterns.md#what-quartz-net-does-not-give-you).
 
 ## What to watch
 
-Be sceptical of a dashboard that only shows what ran. The failures in this page — a starved pool, a
-cluster mis-declaring a node, a group parked at its ceiling — all look like *absence*, and absence
-is what a naive metric cannot distinguish from a quiet night.
+The failures on this page (a starved pool, a node wrongly declared dead, a group stuck at its
+limit) show up as work that did *not* happen. A dashboard that only shows what ran cannot tell that
+from a quiet night.
 
-**Traces**, on both versions, come from an `ActivitySource` named `Quartz`: one activity per job
-execution (`Quartz.Job.Execute`, which records the exception when one is thrown), one for a vetoed
-firing (`Quartz.Job.Veto`), and one per job store operation (`Quartz.JobStore.AcquireNextTriggers`,
-`.TriggersFired` and the rest). The job and trigger name and group, the job type and the fire
-instance id are attributes. Store-operation spans are the ones to watch for the failures above:
-acquisition latency and its exceptions are where a struggling database first shows.
+**Traces**, on both versions, come from an `ActivitySource` named `Quartz`:
 
-**Metrics are 4.x only** — Quartz 3.x publishes none at all — and there are eight instruments, all on
-a meter named `Quartz`. **Every measurement carries `quartz.scheduler.name` and
-`quartz.scheduler.id`**, so a cluster is separable by node and a process running several schedulers by
-scheduler, with no instrumentation of your own. Four of them answer the failures in this page directly:
+| Activity | Emitted for |
+|---|---|
+| `Quartz.Job.Execute` | Each job execution; records a thrown exception |
+| `Quartz.Job.Veto` | A vetoed firing |
+| `Quartz.JobStore.AcquireNextTriggers`, `.TriggersFired` and the rest | Each job store operation |
 
-- `quartz.job.execution.duration` — a histogram in seconds, tagged `error.type` when the execution
-  failed. Its *count* is the number of executions, so execution and failure counts come out of it and
-  do not need counters of their own.
-- `quartz.job.execution.active` — an up-down counter of executions in flight. Parked at a ceiling is
-  what a starved pool and a saturated execution group both look like.
-- `quartz.trigger.misfire` — firings that were owed and did not happen on time. This is the alert to
-  build for "the schedule is slipping", and it is the one that catches a group parked at its limit.
-- `quartz.trigger.acquisition.duration` — how long the scheduling loop waited on its store for the
-  next batch. A struggling database shows here before it shows anywhere else.
+The job and trigger name and group, the job type and the fire instance id are attributes. Watch the
+store-operation spans: acquisition latency and its exceptions are where a struggling database first
+shows.
 
-The other four are `quartz.trigger.acquired`, `quartz.cluster.checkin.duration`,
-`quartz.cluster.recovery.trigger` — a node's work being taken over, which is a cluster mis-declaring a
-node made visible — and `quartz.jobstore.operation.duration`, tagged with the operation's name. The
-[OpenTelemetry page](quartz-4.x/packages/opentelemetry-integration.md#metrics) has the full table with
-each instrument's attributes.
+**Metrics are 4.x only**; Quartz 3.x publishes none. There are eight instruments, on a meter named
+`Quartz`. **Every measurement carries `quartz.scheduler.name` and `quartz.scheduler.id`**, so you
+can split by node and by scheduler with no instrumentation of your own.
 
-**There is still no trigger-state gauge**, so do not build an alert on one. For that the store is the
-source: count `QRTZ_TRIGGERS` grouped by `TRIGGER_STATE` and alert on `ERROR` and on `BLOCKED` rows
-older than your longest job, and count `QRTZ_FIRED_TRIGGERS` to see what the cluster believes is
-running. In 4.x, `IScheduler.QueryFireInstances` answers the latter for the whole cluster without SQL.
+| Instrument | Shows |
+|---|---|
+| `quartz.job.execution.duration` | Histogram in seconds, tagged `error.type` on failure; its count gives execution and failure counts |
+| `quartz.job.execution.active` | Executions in flight; stuck at a ceiling means a starved pool or a saturated group |
+| `quartz.trigger.misfire` | Firings that did not happen on time; alert on it for a slipping schedule or a group stuck at its limit |
+| `quartz.trigger.acquisition.duration` | How long the scheduling loop waited on the store; a struggling database shows here first |
+| `quartz.trigger.acquired` | Triggers acquired |
+| `quartz.cluster.checkin.duration` | Cluster check-in time |
+| `quartz.cluster.recovery.trigger` | A node's work being taken over |
+| `quartz.jobstore.operation.duration` | Store operations, tagged with the operation's name |
 
-**A health check** ships with Quartz, and it asserts less than its name suggests: that the scheduler
-is in a state that can fire, and that the job store answers a query. It does **not** assert that any
-trigger is actually firing, so pair it with an alert on a job you expect to see regularly. In Quartz
-4.x it is in the core package — no web stack required — and you register it explicitly:
-`services.AddHealthChecks().AddQuartz()`, or `q.AddQuartzHealthChecks()` inside a named scheduler's
-`AddQuartz(name, …)` callback. It
-distinguishes the states, reporting a standby scheduler as *degraded* rather than healthy or dead.
-On 3.x it lives in `Quartz.AspNetCore`, is registered for you by `AddQuartzServer()`, and only
-reports healthy or unhealthy, from `IsStarted` alone — which means a scheduler sitting in standby
-passes.
+The [OpenTelemetry page](quartz-4.x/packages/opentelemetry-integration.md#metrics) lists each
+instrument's attributes.
 
-**Logging is the first diagnostic step**, not the last. Misfire handling and every cluster-recovery
-decision are logged at information level when they do anything at all, and trigger acquisition at
-debug — which is what makes "no triggers were acquired" and "someone recovered this node" readable
-after the fact. The great majority of investigations in this project's issue tracker are resolved by
-the first person to turn logging on. Configure it before you need it, not after.
+**There is no trigger-state gauge.** Query the store instead: count `QRTZ_TRIGGERS` by
+`TRIGGER_STATE`, and alert on `ERROR` and on `BLOCKED` rows older than your longest job. Count
+`QRTZ_FIRED_TRIGGERS` to see what the cluster believes is running; in 4.x,
+`IScheduler.QueryFireInstances` answers that without SQL.
 
-Setup for all of the above is on
-[Observability (4.x)](/documentation/quartz-4.x/packages/opentelemetry-integration) and
+**The health check** asserts only that the scheduler is in a state that can fire and that the job
+store answers a query. It does **not** assert that any trigger is firing, so pair it with an alert
+on a job you expect to see regularly.
+
+- **4.x:** in the core package, with no web stack required. Register it explicitly:
+  `services.AddHealthChecks().AddQuartz()`, or `q.AddQuartzHealthChecks()` inside a named
+  scheduler's `AddQuartz(name, …)` callback. A standby scheduler reports *degraded*.
+- **3.x:** in `Quartz.AspNetCore`, registered by `AddQuartzServer()`. It reports healthy or
+  unhealthy from `IsStarted` alone, so a scheduler in standby passes.
+
+**Logging is the first diagnostic step.** Misfire handling and every cluster-recovery decision log
+at information level when they act; trigger acquisition logs at debug. That makes "no triggers were
+acquired" and "someone recovered this node" readable after the fact. Most investigations in this
+project's issue tracker end once logging is on. Configure it before you need it.
+
+Setup is on [Observability (4.x)](/documentation/quartz-4.x/packages/opentelemetry-integration) and
 [OpenTelemetry Integration (3.x)](/documentation/quartz-3.x/packages/opentelemetry-integration).
 
 ## See also
 
-- [Troubleshooting](troubleshooting.md) — symptoms, and what to do about each
-- [FAQ](faq.md) — including the longer treatments of daylight saving and clock changes
-- [Tenancy Patterns](tenancy-patterns.md) — partitioning a scheduler between tenants
+- [Troubleshooting](troubleshooting.md): symptoms, and what to do about each
+- [FAQ](faq.md): daylight saving and clock changes in more detail
+- [Tenancy Patterns](tenancy-patterns.md): partitioning a scheduler between tenants
 - [Configuration Reference (4.x)](/documentation/quartz-4.x/configuration/reference) and
-  [(3.x)](/documentation/quartz-3.x/configuration/reference) — every setting named here, with its default
-
-## Sources
-
-Prior art surveyed in August 2026. Quartz.NET's own behaviour is stated from the source in this
-repository rather than from any of these.
-
-- Quartz (Java), [Best Practices](https://www.quartz-scheduler.org/documentation/quartz-2.5.x/best-practices.html),
-  [Configuration Reference](https://www.quartz-scheduler.org/documentation/quartz-2.3.0/configuration/ConfigMain.html),
-  [JDBC-JobStore clustering](https://www.quartz-scheduler.org/documentation/quartz-2.3.0/configuration/ConfigJDBCJobStoreClustering.html)
-  and [tutorial lessons 3–6](https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/tutorial-lesson-03.html)
-- Hangfire, [Best Practices](https://docs.hangfire.io/en/latest/best-practices.html),
-  [Dealing with exceptions](https://docs.hangfire.io/en/latest/background-processing/dealing-with-exceptions.html),
-  [Throttling](https://docs.hangfire.io/en/latest/background-processing/throttling.html) and
-  [Using cancellation tokens](https://docs.hangfire.io/en/latest/background-methods/using-cancellation-tokens.html)
-- Sidekiq, [Best Practices](https://github.com/sidekiq/sidekiq/wiki/Best-Practices)
-- Kubernetes, [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) and
-  [Pod lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)
-- Microsoft, [Idempotent Consumer pattern](https://learn.microsoft.com/azure/architecture/patterns/idempotent-consumer),
-  [Transient fault handling](https://learn.microsoft.com/azure/architecture/best-practices/transient-faults),
-  [Diagnosing thread pool starvation](https://learn.microsoft.com/dotnet/core/diagnostics/debug-threadpool-starvation),
-  [Generic host shutdown](https://learn.microsoft.com/dotnet/core/extensions/generic-host) and
-  [Time sync for Azure virtual machines](https://learn.microsoft.com/azure/virtual-machines/linux/time-sync)
-- Particular Software, [Outbox](https://docs.particular.net/nservicebus/outbox/) and
-  [What does idempotent mean?](https://particular.net/blog/what-does-idempotent-mean)
-- Celery, [Tasks: `Task.rate_limit`](https://docs.celeryq.dev/en/stable/userguide/tasks.html)
-- HikariCP, [About Pool Sizing](https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing), and
-  PostgreSQL, [Number of database connections](https://wiki.postgresql.org/wiki/Number_Of_Database_Connections)
-- Microsoft, [SQL Server connection pooling](https://learn.microsoft.com/sql/connect/ado-net/sql-server-connection-pooling),
-  and Npgsql, [Connection string parameters](https://www.npgsql.org/doc/connection-string-parameters.html)
-- Martin Kleppmann, [How to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html),
-  and Marc Brooker, [It's About Time](https://brooker.co.za/blog/2023/11/27/about-time.html)
-- David Fowler, [Async Guidance](https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md)
+  [(3.x)](/documentation/quartz-3.x/configuration/reference): every setting named here, with its
+  default

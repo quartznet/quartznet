@@ -14,184 +14,126 @@ Having problems? Check the [Troubleshooting Guide](troubleshooting.md) for commo
 
 ## What is Quartz
 
-Quartz is a job scheduling system that can be integrated with, or used along
-side virtually any other software system. The term "job scheduler" seems to
-conjure different ideas for different people. As you read this tutorial, you
-should be able to get a firm idea of what we mean when we use this term, but
-in short, a job scheduler is a system that is responsible for executing
-(or notifying) other software components when a pre-determined (scheduled)
-time arrives.
+Quartz is a job scheduler: a system that runs (or notifies) other software components when a
+scheduled time arrives. It can be used alongside almost any other software.
 
-Quartz is quite flexible, and contains multiple usage paradigms that can be
-used separately or together, in order to achieve your desired behavior, and
-enable you to write your code in the manner that seems most 'natural' to
-your project.
-
-Quartz is very light-weight, and requires very little setup/configuration -
-it can actually be used 'out-of-the-box' if your needs are relatively basic.
-
-Quartz is fault-tolerant, and can persist ('remember') your scheduled
-jobs between system restarts.
-
-Although Quartz is extremely useful for simply running certain system
-processes on given schedules, the full potential of Quartz can be realized
-when you learn how to use it to drive the flow of your application's
-business processes.
+* It is lightweight, and needs little setup for basic needs.
+* It supports several usage styles, alone or combined, so your code can take the shape that suits
+  your project.
+* It is fault-tolerant, and can persist scheduled jobs across restarts.
+* Beyond running system processes on a schedule, it can drive your application's business processes.
 
 ## What is Quartz - From a Software Component View?
 
-Quartz is distributed as a small dynamically linked library (.dll file)
-that contains all  of the core Quartz functionality. The main interface (API) to this
-functionality is the Scheduler interface. It provides simple operations
-such as scheduling/unscheduling jobs, starting/stopping/pausing the scheduler.
+Quartz is a small library (`.dll`) containing all the core functionality.
 
-If you wish to schedule your own software components for execution they must
-implement the simple Job interface, which contains the method execute().
-If you wish to have components notified when a scheduled fire-time arrives,
-then the components should implement either the TriggerListener or JobListener
+* The main API is the scheduler interface: schedule and unschedule jobs; start, stop and pause the
+  scheduler.
+* Components you want run must implement the job interface and its execute method.
+* Components you want notified when a fire time arrives implement the trigger listener or job
+  listener interface.
+
+The scheduler can run inside your own application, or as a stand-alone application with a remote
 interface.
-
-The main Quartz 'process' can be started and ran within your own application,
-or a stand-alone application (with an remote interface).
 
 # Why not just use System.Timers.Timer?
 
-.NET Framework has "built-in" timer capabilities, through the
-System.Timers.Timer class - why would someone use Quartz rather than these
-standard features?
+`System.Timers.Timer` is .NET's built-in timer. Compared with Quartz:
 
-There are many reasons! Here are a few:
+* Timers have no persistence.
+* Timers schedule inflexibly: a start time and a repeat interval, nothing based on dates or time of
+  day.
+* Timers have no concurrency limit: each `Elapsed` callback runs on the .NET thread pool, and a run
+  that outlasts the interval overlaps the next one.
+* Timers have no management: remembering, organizing and finding tasks by name is up to you.
 
-* Timers have no persistence mechanism.
-* Timers have inflexible scheduling (only able to set start-time & repeat interval, nothing based on dates, time of day, etc.
-* Timers don't utilize a thread-pool (one thread per timer)
-* Timers have no real management schemes - you'd have to write your own mechanism for being able to remember, organize and retrieve your tasks by name, etc.
-
-...of course to some simple applications these features may not be important,
-in which case it may then be the right decision not to use Quartz.NET.
+For a simple application these may not matter, and then Quartz.NET may not be the right choice.
 
 # Miscellaneous Questions
 
 ## How many jobs is Quartz capable of running?
 
-This is a tough question to answer... the answer is basically "it depends".
+It depends on these factors.
 
-I know you hate that answer, so here's some information about what it depends "on".
+**How many can be stored** is limited by the job store's space: RAM for `RAMJobStore`, disk for the
+ADO.NET store.
 
-First off, the JobStore that you use plays a significant factor.
-The RAM-based JobStore is MUCH (1000x) faster than the ADO.NET-based JobStore.
-The speed of AdoJobStore depends almost entirely on the speed of the
-connection to your database, which data base system that you use, and what
-hardware the database is running on. Quartz actually does very little
-processing itself, nearly all of the time is spent in the database. Of course
-RAMJobStore has a more finite limit on how many Jobs & Triggers can be stored,
-as you're sure to have less RAM than hard-drive space for a database.
-You may also look at the FAQ "How do I improve the performance of AdoJobStore?"
+* The RAM-based store is much faster, about 1000x, than the ADO.NET store, but you have less RAM
+  than disk.
+* The ADO.NET store's speed depends almost entirely on the database connection, the database system
+  and the database hardware. Quartz itself does very little processing; nearly all the time is spent
+  in the database. See [How do I improve the performance of AdoJobStore?](#how-do-i-improve-the-performance-of-adojobstore)
 
-So, the limiting factor of the number of Triggers and Jobs Quartz can "store"
-and monitor is really the amount of storage space available to the JobStore
-(either the amount of RAM or the amount of disk space).
+**How many can run at once** is limited by the thread pool's maximum concurrency (default 10): with
+a maximum of five, at most five jobs run at a time.
 
-Now, aside from "how many can I store?" is the question of "how many jobs
-can Quartz be running at the same moment in time?"
+* The default pool is a permit count over the .NET thread pool, not a set of dedicated threads.
+  Blocking jobs still starve it; see
+  [Max concurrency is a permit count](best-practices.md#max-concurrency-is-a-permit-count-not-a-thread-count).
+* Listeners slow the scheduler. Time spent in `TriggerListener`s, `JobListener`s and
+  `SchedulerListener`s is added to each execution. Prefer specific listeners to global ones, avoid
+  expensive work in them, and remember that many plugins (such as the history plugin) are listeners.
+* Long-running or CPU-intensive jobs limit how many run at once and in a given time.
 
-One thing that CAN slow down Quartz itself is using a lot of listeners
-(TriggerListeners, JobListeners, and SchedulerListeners). The time spent in
-each listener obviously adds into the time spent "processing" a job's
-execution, outside of actual execution of the job. This doesn't mean that
-you should be terrified of using listeners, it just means that you should
-use them judiciously - don't create a bunch of "global" listeners if you can
-really make more specialized ones. Also don't do "expensive" things in the
-listeners, unless you really need to. Also be mindful that many
-plug-ins (such as the "history" plugin) are actually listeners.
+If one instance is not enough, load-balance several Quartz instances on separate machines. Each runs
+jobs out of the shared database first-come first-served, as quickly as the triggers need firing.
 
-The actual number of jobs that can be running at any moment in time is
-limited by the size of the thread pool. If there are five threads in
-the pool, no more than five jobs can run at a time. Be careful of making a
-lot of threads though, as the VM, Operating System, and CPU all have a hard
-time juggling lots of threads, and performance degrades just because of all
-of the management. In most cases performance starts to tank as you get into
-the hundreds of threads. Be mindful that if you're running within an
-application server, it probably has created at least a few dozen threads
-of its own!
-
-Aside from those factors, it really comes down to what your jobs DO.
-If your jobs take a long time to complete their work, and/or their work is
-very CPU-intensive, then you're obviously not going to be able to run very
-many jobs at once, nor very many in a given spanse of time.
-
-Finally, if you just can't get enough horse-power out of one Quartz instance,
-you can always load-balance many Quartz instances (on separate machines).
-Each will run the jobs out of the shared database on a first-come first-serve
-basis, as quickly as the triggers need fired.
-
-So here you are this far into the answer of "how many", and I still
-haven't given you a number And I really hate to, because of all of the
-variables mentioned above. So let me just say, there are installments of
-Quartz Java out there that are managing hundreds-of-thousands of Jobs and Triggers,
-and that at any given moment in time are executing dozens of jobs - and this
-excludes using load-balancing. With this in mind, most people should feel
-confident that they can get the performance out of Quartz that they need.
+For scale: some Quartz (Java) installations manage hundreds of thousands of jobs and triggers and
+run dozens of jobs at any moment, without load-balancing.
 
 # Questions About Jobs
 
 ## How can I control the instantiation of Jobs?
 
-Implement `IJobFactory` - `Quartz.Spi.IJobFactory` in Quartz 3.x, `Quartz.Extensibility.IJobFactory`
-in Quartz 4.x - and tell the scheduler to use it.
+Implement `IJobFactory` (`Quartz.Spi.IJobFactory` in Quartz 3.x, `Quartz.Extensibility.IJobFactory`
+in Quartz 4.x) and tell the scheduler to use it:
 
-In Quartz 3.x you assign it to the `IScheduler.JobFactory` property, or name the type in the
-`quartz.scheduler.jobFactory.type` configuration key.
+| Version | How |
+|---|---|
+| 3.x | Assign it to the `IScheduler.JobFactory` property, or name the type in the `quartz.scheduler.jobFactory.type` key |
+| 4.x | `UseJobFactory<MyJobFactory>()` or `UseJobFactory(new MyJobFactory())` on the builder; the `quartz.scheduler.jobFactory.type` key still works. The scheduler has no `JobFactory` property. |
 
-In Quartz 4.x the scheduler has no `JobFactory` property; the factory is chosen where the scheduler
-is configured, with `UseJobFactory<MyJobFactory>()` or `UseJobFactory(new MyJobFactory())` on the
-builder (the same `quartz.scheduler.jobFactory.type` key still works).
-
-In both versions the Microsoft dependency injection integration installs a job factory of its own,
-so if all you want is constructor injection into your jobs you do not need to write one.
+On both versions the Microsoft dependency injection integration installs its own job factory. For
+constructor injection into jobs, you do not need to write one.
 
 ## How do I keep a Job from being removed after it completes?
 
-Build it with `JobBuilder.Create<MyJob>().StoreDurably()`, which instructs Quartz not to
-delete the Job when it becomes an "orphan" (when the Job no longer has a
-Trigger referencing it). `IJobDetail.Durable` reports the flag; it is set when the detail is built.
+Build it with `JobBuilder.Create<MyJob>().StoreDurably()`. Quartz then does not delete the job when it
+becomes an "orphan", with no trigger referencing it. `IJobDetail.Durable` reports the flag; it is set
+when the detail is built.
 
 ## How do I keep a Job from firing concurrently?
 
-**Quartz.NET 2.x, 3.x, and 4.x**
-
-Implement **IJob** and also decorate your job class with `[DisallowConcurrentExecution]` attribute. Read the API
-documentation for `DisallowConcurrentExecutionAttribute` for more information.
-
-**Quartz.NET 1.x**
-
-Make the job class implement `IStatefulJob` rather than `IJob`. Read the API
-documentation for `IStatefulJob` for more information.
+* **Quartz.NET 2.x, 3.x and 4.x:** implement `IJob` and decorate the job class with
+  `[DisallowConcurrentExecution]`. See the API documentation for `DisallowConcurrentExecutionAttribute`.
+* **Quartz.NET 1.x:** implement `IStatefulJob` instead of `IJob`. See the API documentation for
+  `IStatefulJob`.
 
 ## How do I stop a Job that is currently executing?
 
-Quartz 1.x and 2.x: See the `Quartz.IInterruptableJob` interface, and the `IScheduler.Interrupt(string, string)` method.
+**Quartz 1.x and 2.x:** see the `Quartz.IInterruptableJob` interface and the
+`IScheduler.Interrupt(string, string)` method.
 
-Quartz 3.x and 4.x: ask the scheduler to interrupt it — `IScheduler.Interrupt(jobKey)` for every execution of
-a job, or one particular firing by its fire instance id (`InterruptFireInstance(id)` in 4.x, the
-`Interrupt(string)` overload in 3.x). Both cancel the token
-the execution was given, so the job has to co-operate: check
-`IJobExecutionContext.CancellationToken.IsCancellationRequested`, or forward the token to what you await, and
-return early when cancellation is requested. In 4.x the token is also a parameter of `Execute`, so forwarding
-it is the default thing to do.
+**Quartz 3.x and 4.x:** ask the scheduler to interrupt it.
 
-Ask the scheduler to set that token with `IScheduler.Interrupt(jobKey)`, which interrupts every execution of the
-job, or `IScheduler.InterruptFireInstance(fireInstanceId)` for one of them. In 4.x, list the executions to pick
-from with `IScheduler.QueryFireInstances(new FireInstanceQuery())` — with a persistent job store that sees the
-whole cluster, though the interrupt itself is handled by the node running the execution.
+* `IScheduler.Interrupt(jobKey)` interrupts every execution of the job.
+* One firing, by its fire instance id: `InterruptFireInstance(id)` in 4.x, the `Interrupt(string)`
+  overload in 3.x.
+* In 4.x, list the executions to choose from with
+  `IScheduler.QueryFireInstances(new FireInstanceQuery())`. With a persistent job store this sees the
+  whole cluster, though the node running the execution handles the interrupt.
+
+Both cancel the token the execution was given, so the job must co-operate: check
+`IJobExecutionContext.CancellationToken.IsCancellationRequested`, or forward the token to what you
+await, and return early when cancellation is requested. In 4.x the token is also a parameter of
+`Execute`, so forwarding it is the default.
 
 # Questions About Triggers
 
 ## How do I chain Job execution? Or, how do I create a workflow?
 
-For the simple case — when this job finishes, run that one — Quartz ships
-`JobChainingJobListener`. Register it with the pairs you want chained, and it triggers the second job
-when the first completes:
+For "when this job finishes, run that one", Quartz ships `JobChainingJobListener`. Register it with
+the pairs to chain, and it triggers the second job when the first completes:
 
 <!-- snippet: sample_faq_job_chaining -->
 ```csharp
@@ -203,13 +145,12 @@ scheduler.ListenerManager.AddJobListener(chain);
 ```
 <!-- endSnippet -->
 
-The links live in memory with the listener, so they are re-registered on every start, and the
-second job is fired rather than scheduled — there is no trigger to see in the store.
+* The links live in memory with the listener, so register them on every start.
+* The second job is fired, not scheduled: there is no trigger to see in the store.
 
-In 4.x one job can be chained to several follow-ups, which is a fan-out rather than a chain: call
-`AddJobChainLink` again with the same first job, or name them all at once with `AddJobChainLinks`.
-Each follow-up is triggered as a firing of its own, so they run concurrently — as many at a time as
-the thread pool has threads — rather than one after another:
+In 4.x one job can chain to several follow-ups (a fan-out): call `AddJobChainLink` again with the
+same first job, or name them all with `AddJobChainLinks`. Each follow-up is its own firing, so they
+run concurrently, as many at a time as the thread pool has threads:
 
 <!-- snippet: sample_faq_job_chaining_fan_out -->
 ```csharp
@@ -221,198 +162,139 @@ scheduler.ListenerManager.AddJobListener(chain);
 ```
 <!-- endSnippet -->
 
-A follow-up that has to wait for one of its siblings is a link from *that* sibling, not a second link
-from the same job. Chaining the same follow-up to one job twice is rejected, since it would fire that
-job twice for a single completion. On 3.x, a second link from the same first job throws instead.
+* A follow-up that must wait for a sibling is a link from *that* sibling, not a second link from the
+  same job.
+* Chaining the same follow-up to one job twice is rejected, since it would fire twice for one
+  completion.
+* On 3.x, a second link from the same first job throws.
 
-For anything more than that, there is no "direct" way to chain triggers with Quartz, but there are
-several ways to accomplish it without much effort. Below is an outline of a couple of approaches:
+For anything more:
 
-One way is to use a listener (i.e. a TriggerListener, JobListener or
-SchedulerListener) that can notice the completion of a job/trigger and then
-immediately schedule a new trigger to fire. This approach can get a bit
-involved, since you'll have to inform the listener which job follows which,
-and you may need to worry about persistence of this information.
-
-Another way is to build a Job that contains within its JobDataMap the name
-of the next job to fire, and as the job completes (the last step in its
-`Execute()` method) have the job schedule the next job. Several people are
-doing this and have had good luck. Most have made a base (abstract) class
-that is a Job that knows how to get the job name and group out of the
-JobDataMap using special keys (constants) and contains code to schedule the
-identified job. Then they simply make extensions of this class that included
-the additional work the job should do.
-
-In the future, Quartz will provide a much cleaner way to do this, but until
-then, you'll have to use one of the above approaches, or think of yet another
-that works better for you.
+* **A continuation (4.2).** A trigger that waits for another trigger's firing to end and fires on
+  the outcomes you choose. See [Job Continuations](quartz-4.x/how-tos/job-continuations.md).
+* **A listener** (`TriggerListener`, `JobListener` or `SchedulerListener`) notices a job completing
+  and schedules a new trigger at once. You have to tell the listener which job follows which, and
+  may need to persist that.
+* **A job that schedules the next one.** Put the next job's name in the `JobDataMap`, and have the
+  job schedule it as the last step of `Execute()`. A common shape is an abstract base job that reads
+  the next job's name and group from the map under known keys and schedules it; each real job
+  derives from it and adds its own work.
 
 ## Why isn't my trigger firing?
 
-The most common reason for this is not having called `Scheduler.Start()`,
-which tells the scheduler to start firing triggers.
-
-The second most common reason is that the trigger or trigger group
-has been paused.
+1. Most often, `Scheduler.Start()` was not called. Nothing fires until it is.
+2. Next most often, the trigger or its trigger group is paused.
 
 ## Daylight Saving Time and Triggers
 
-CronTrigger and SimpleTrigger each handle daylight savings time in their own
-way - each in the way that is intuitive to the trigger type.
+`SimpleTrigger` and `CronTrigger` each handle daylight saving time in the way natural to the trigger
+type. Transition rules differ by country ([overview](http://webexhibits.org/daylightsaving/g.html)):
+both the date and the time of the shift vary, and many places shift at 2:00 am but others at
+1:00 am, 3:00 am or midnight.
 
-First, as a review of what daylight savings time is, please read this resource:
-<http://webexhibits.org/daylightsaving/g.html> . Some readers may be unaware
-that the rules are different for different nations/contents. For example,
-the 2005 daylight savings time starts in the United States on April 3, but
-in Egypt on April 29. It is also important to know that not only the dates
-are different for different locals, but the time of the shift is different
-as well. Many places shift at 2:00 am, but others shift time at 1:00 am,
-others at 3:00 am, and still others right at midnight.
+**`SimpleTrigger` fires every N milliseconds**, with no relation to the time of day, so a transition
+changes nothing. A trigger firing every 12 hours at 3:00 am and 3:00 pm before a transition fires at
+4:00 am and 4:00 pm after it. That is not a bug: the interval is unchanged, only the wall-clock name
+of the instant moved.
 
-SimpleTrigger allows you to schedule jobs to fire every N milliseconds.
-As such, it has to do nothing in particular with respect to daylight
-savings time in order to "stay on schedule" - it simply keeps firing every
-N milliseconds. Regardless your SimpleTrigger is firing every 10 seconds,
-or every 15 minutes, or every hour or every 24 hours it will continue to do
-so. However the implication of this which confuses some users is that if
-your SimpleTrigger is firing say every 12 hours, before daylight savings
-switches it may be firing at what appears to be 3:00 am and 3:00 pm,
-but after daylight savings 4:00 am and 4:00 pm. This is not a bug
+**`CronTrigger` fires at times of day.** A trigger for 10:00 am every day keeps firing at 10:00 am,
+so the interval across a spring or autumn transition is 23 or 25 hours.
 
-* the trigger has kept firing exactly every N milliseconds, it just that the
-"name" of that time that humans impose on that moment has changed.
+A `CronTrigger` is **never skipped** by a transition, and never fires twice for one scheduled
+occurrence. The transition decides *which instant* a missing or repeated wall-clock time maps to,
+and that depends on the kind of expression:
 
-CronTrigger allows you to schedule jobs to fire at certain moments with
-respect to a "Gregorian calendar". Hence, if you create a trigger to fire
-every day at 10:00 am, before and after daylight savings time switches it
-will continue to do so. However, depending on whether it was the Spring or
-Autumn daylight savings event, for that particular Sunday, the actual time
-interval between the firing of the trigger on Sunday morning at 10:00 am
-since its firing on Saturday morning at 10:00 am will not be 24 hours,
-but will instead be 23 or 25 hours respectively.
+* **Fixed-time:** the second, minute and hour fields are plain values or comma lists of plain values,
+  such as `0 15 2 * * ?` or `0 0,30 2 * * ?`.
+* **Interval:** a wildcard, step or range in the second, minute or hour field, such as a trigger
+  every 15 minutes of every hour.
 
-There is one additional point users must understand about CronTrigger with
-respect to daylight savings, and it is worth reading carefully because Java
-Quartz's own page says something Quartz.NET does not do. A CronTrigger is
-**never skipped** by a daylight saving transition, and never fires twice for
-one scheduled occurrence. What a transition decides is *which instant* a
-wall-clock time that is missing or repeated resolves to, and the answer
-depends on whether the expression names a fixed time of day or an interval.
+For a fixed-time trigger at 2:15 am daily in the United States, where transitions happen at 2:00 am:
 
-A **fixed-time** expression is one whose second, minute and hour fields are
-plain values or comma lists of plain values - `0 15 2 * * ?`, or
-`0 0,30 2 * * ?`. Say you are in the United States, where daylight saving
-events occur at 2:00 am, and you have a CronTrigger that fires every day at
-2:15 am:
+| Day | 4.x | 3.x |
+|---|---|---|
+| Daylight saving **begins**: 2:15 am does not exist | Fires once, at 3:00 am, the end of the gap | Fires once, shifted forward by the delta, at 3:15 am |
+| Daylight saving **ends**: 2:15 am occurs twice | Fires once, at the first occurrence | Same as 4.x |
 
-* On the day daylight saving time **begins**, 2:15 am does not exist. The
-  trigger fires once anyway. On **4.x** it fires at the *end of the gap* -
-  3:00 am, the instant the clocks moved - which is the one in-gap instant the
-  expression itself matches, so `IsSatisfiedBy` agrees with the fire time. On
-  **3.x** the fire is shifted forward by the transition's delta instead, to
-  3:15 am. A zone whose delta is not a whole hour - Australia/Lord_Howe - splits
-  the same two ways, on its own numbers. An expression matching several of the
-  swallowed wall clocks, such as `0 0,15,30,45 2 * * ?`, still fires once: they
-  all name the same instant.
-* On the day daylight saving time **ends**, 2:15 am occurs twice. The trigger
-  fires once, at the first of the two occurrences. This is the same on both
-  versions.
+* On 4.x, the gap-end instant is the one in-gap instant the expression matches, so `IsSatisfiedBy`
+  agrees with the fire time.
+* A zone whose delta is not a whole hour, such as Australia/Lord_Howe, splits the same two ways on
+  its own numbers.
+* An expression matching several of the swallowed times, such as `0 0,15,30,45 2 * * ?`, still fires
+  once: they all name the same instant.
 
-An **interval** expression - one with a wildcard, a step or a range in the
-second, minute or hour field, such as a trigger that fires every 15 minutes of
-every hour of every day - is where the versions differ most. On **4.x** it
-keeps firing through the repeated hour, so both passes of it run. On **3.x**
-the repeated hour is fired only once, so on the day daylight saving time ends
-you have an hour of real time in which no firing occurs: when 2:00 am arrives
-it becomes 1:00 am again, all the firings of the one o'clock hour have already
-happened, and the trigger's next fire time was already 2:00 am. Over a
-spring-forward gap on 4.x the gap-end rule shows as an *extra* fire rather than
-a moved one - an hourly `0 30 * * * ?` fires at 3:00 for the occurrence the gap
-swallowed and again at 3:30 for the next hour's, where 3.x resumes from the
-shifted 3:30 and fires once.
+Interval expressions are where the versions differ most:
 
-In summary, all of this makes perfect sense, and should be easy to remember
-if you keep these two rules in mind:
+* **4.x** keeps firing through the repeated hour, so both passes run.
+* **3.x** fires the repeated hour once. On the day daylight saving ends, an hour of real time passes
+  with no firing: at 2:00 am the clock returns to 1:00 am, the one o'clock firings have already
+  happened, and the next fire time is already 2:00 am.
+* Over a spring-forward gap, 4.x's gap-end rule adds a fire: an hourly `0 30 * * * ?` fires at 3:00
+  for the occurrence the gap swallowed and again at 3:30 for the next hour. 3.x resumes from the
+  shifted 3:30 and fires once.
 
-* SimpleTrigger ALWAYS fires exactly every N seconds, with no relation to the time of day.
-* CronTrigger ALWAYS fires at a given time of day and then computes its next time to fire. If that time of day does not exist on a given day, it fires at the one instant the transition maps that wall clock onto rather than being skipped. If the time occurs twice in a given day, a fixed-time expression fires once, at the first occurrence, because after firing it computes the next time of day to fire on; an interval expression fires through both occurrences on 4.x.
-
-Whatever the schedule, **name the time zone**. A trigger with no zone uses
-`TimeZoneInfo.Local`, so the same expression means two different things on a
-developer's machine and in a container. 4.x's
-[Cron Expression Reference](quartz-4.x/cron-expressions.md#daylight-saving-time)
-states the two rules on their own, and
+Whatever the schedule, **name the time zone**. A trigger with no zone uses `TimeZoneInfo.Local`, so
+the same expression means different things on a developer's machine and in a container. 4.x's
+[Cron Expression Reference](quartz-4.x/cron-expressions.md#daylight-saving-time) states the rules on
+their own, and
 [Daylight saving, clock changes and cluster skew](best-practices.md#daylight-saving-clock-changes-and-cluster-skew)
 covers choosing the trigger family that means what you meant.
 
 ## System clock changes (NTP corrections, manual adjustments)
 
-Daylight saving transitions are not the only way the wall clock can move. An
-NTP correction, a manual clock change, or a virtual machine being suspended
-and resumed can all shift the system clock by an arbitrary amount, in either
-direction.
+An NTP correction, a manual change or a suspended and resumed virtual machine can move the system
+clock by any amount, in either direction.
 
-Quartz always schedules against the wall clock, so moving the clock *backward*
-by an hour means a trigger whose next fire time was already computed will not
-fire until the clock has caught up again - the hour has to be lived through a
-second time. This is expected: the trigger's next fire time is a point on the
-calendar, not an offset from "now".
+Quartz schedules against the wall clock. If the clock moves *backward* an hour, a trigger whose next
+fire time was already computed waits until the clock catches up, living through the hour twice. That
+is expected: a next fire time is a point on the calendar, not an offset from "now".
 
-What is *not* expected is the scheduler failing to notice once the clock is
-restored. Quartz therefore never waits on a single unbounded sleep derived
-from the wall clock; it re-evaluates the current time at bounded intervals, so
-after any clock change it resumes on its own:
+Quartz never waits on one unbounded sleep derived from the wall clock. It re-reads the time at
+bounded intervals, so it resumes on its own after any clock change, within:
 
-* the firing loop recovers within one `quartz.scheduler.idleWaitTime`
-  (30 seconds by default);
-* with AdoJobStore, misfire handling recovers within one
-  `quartz.jobStore.misfireHandlerFrequency`, and cluster check-in within one
-  `quartz.jobStore.clusterCheckinInterval`.
+| Part | Recovers within |
+|---|---|
+| Firing loop | One `quartz.scheduler.idleWaitTime` (30 seconds by default) |
+| Misfire handling (AdoJobStore) | One `quartz.jobStore.misfireHandlerFrequency` |
+| Cluster check-in (AdoJobStore) | One `quartz.jobStore.clusterCheckinInterval` |
 
-Recovery is bounded, not instantaneous - allow up to one of those intervals
-before triggers resume after the clock has been corrected. If you are
-deliberately testing clock changes, prefer faking the clock (see
-`TimeProvider`) over changing the machine clock, so that only the wall clock
-moves and monotonic timers are unaffected.
+Allow up to one of those intervals after the clock is corrected. To test clock changes, fake the
+clock (see `TimeProvider`) rather than changing the machine clock, so only the wall clock moves and
+monotonic timers are unaffected.
 
 # Questions About AdoJobStore
 
 ## How do I improve the performance of AdoJobStore?
 
-There are a few known ways to speed up AdoJobStore, only one of which is
-very practical.
-
-First, the obvious, but not-so-practical:
-
-* Buy a better (faster) network between the machine that runs Quartz, and the machine that runs your RDBMS.
-* Buy a better (more powerful) machine to run your database on.
-* Buy a better RDBMS.
-
-Secondly, use driver delegate implementation that is specific to your database, like `SQLServerDelegate`, for best performance.
-
-::: tip
-You should also always prefer the latest version of the library. Quartz.NET 2.0 is much more efficient than 1.x series and 2.2.x line again has AdoJobStore related performance improvements over earlier 2.x releases.
-:::
+* Use the driver delegate specific to your database, such as `SqlServerDelegate`. This is the
+  practical one.
+* A faster network between the Quartz machine and the database machine.
+* A more powerful database machine.
+* A better RDBMS.
+* Use the latest version of the library.
 
 # Quartz in web environment
 
 ## Scheduler keeps stopping when application pool gets recycled
 
-By default IIS recycles and stops app pools from time to time. This means that even if you have Application_Start event to start Quartz when web app is being first accessed, the scheduler might get disposed later on due to site inactivity.
+By default IIS recycles and stops app pools from time to time. Even if `Application_Start` starts
+Quartz on the first request, the scheduler can be disposed later because the site is idle.
 
-If you have IIS 8 available, you can configure your site to be pre-loaded and kept running. See [this blog post](https://blogs.msdn.microsoft.com/vijaysk/2012/10/11/iis-8-whats-new-website-settings/) for details.
-
-For more detailed guidance on web environments, IIS, and hosted services, see the [Troubleshooting Guide](troubleshooting.md#scheduler-in-web-environments).
+On IIS 8, configure the site to be preloaded and kept running; see
+[this blog post](https://blogs.msdn.microsoft.com/vijaysk/2012/10/11/iis-8-whats-new-website-settings/).
+For web environments, IIS and hosted services in more detail, see the
+[Troubleshooting Guide](troubleshooting.md#scheduler-in-web-environments).
 
 # Quartz.NET 4.x Questions
 
 ## What .NET version does Quartz 4.x require?
 
-Quartz.NET 4.x targets .NET 10.0. You must be running at least .NET 10.0 to use Quartz 4.x.
+.NET 10.0 or later. Quartz.NET 4.x targets .NET 10.0.
 
 ## Can I use Task instead of ValueTask in Quartz 4.x?
 
-Quartz 4.x changed all `Task` return types to `ValueTask`. Your `IJob.Execute` method must now return `ValueTask`:
+No. Quartz 4.x changed all `Task` return types to `ValueTask`, so `IJob.Execute` must return
+`ValueTask`:
 
 <!-- snippet: sample_faq_value_task_execute -->
 ```csharp
@@ -423,17 +305,19 @@ public async ValueTask Execute(IJobExecutionContext context, CancellationToken c
 ```
 <!-- endSnippet -->
 
-If you need `Task` semantics elsewhere (e.g., to await a result multiple times), call `.AsTask()` on the `ValueTask` once and work with the resulting `Task`.
-
-For more details, see the [Migration Guide](/documentation/quartz-4.x/migration-guide.md#tasks-changed-to-valuetask).
+If you need `Task` semantics elsewhere (for example, to await a result several times), call
+`.AsTask()` on the `ValueTask` once and use the resulting `Task`. See the
+[Migration Guide](/documentation/quartz-4.x/migration-guide.md#tasks-changed-to-valuetask).
 
 ## What happened to Quartz.Extensions.DependencyInjection and Quartz.Extensions.Hosting?
 
-These packages have been merged into the main `Quartz` package in 4.x. You can remove the separate package references. The `AddQuartz()` and `AddQuartzHostedService()` extension methods are now available directly from the `Quartz` package.
+They were merged into the main `Quartz` package in 4.x. Remove the separate package references;
+`AddQuartz()` and `AddQuartzHostedService()` come from the `Quartz` package.
 
 ## How do I replace SystemTime in Quartz 4.x?
 
-`SystemTime` was removed in 4.x. Use the .NET `TimeProvider` abstraction instead:
+`SystemTime` was removed in 4.x. Use .NET's `TimeProvider` abstraction instead, for example to
+control time in unit tests:
 
 <!-- Not a compiled sample: `FakeTimeProvider` comes from `Microsoft.Extensions.TimeProvider.Testing`,
      which this repository does not reference outside its test projects. -->
@@ -441,5 +325,3 @@ These packages have been merged into the main `Quartz` package in 4.x. You can r
 ```csharp
 QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q => q.UseTimeProvider(new FakeTimeProvider()));
 ```
-
-This is particularly useful for unit testing where you need to control the passage of time.
