@@ -3,11 +3,9 @@
 title : Jobs
 ---
 
-[Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) provides some useful ready-made jobs for your convenience.
+[Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) provides ready-made jobs.
 
 ## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
 Install-Package Quartz.Jobs
@@ -17,17 +15,15 @@ Install-Package Quartz.Jobs
 
 ### DirectoryScanJob
 
-Inspects a directory and compares whether any files' "last modified dates" have changed since the last time it was inspected.
-If one or more files have been updated (or created), the job invokes a "call-back" method on an `IDirectoryScanListener`that can be found in the `SchedulerContext`.
+Checks whether any file's "last modified date" in a directory has changed since the last inspection. If files were updated (or created), it calls back an `IDirectoryScanListener` found in the `SchedulerContext`.
 
 ### FileScanJob
 
-Inspects a file and compares whether its "last modified dates" have changed since the last time it was inspected.
-If one or more files have been updated (or created), the job invokes a "call-back" method on an `IFileScanListener`that can be found in the `SchedulerContext`.
+Checks whether a file's "last modified date" has changed since the last inspection. If it was updated (or created), it calls back an `IFileScanListener` found in the `SchedulerContext`.
 
 ### NativeJob
 
-Built in job for executing native executables in a separate process.
+Runs a native executable in a separate process.
 
 **Example**
 
@@ -39,8 +35,8 @@ trigger.Name = "dumbTrigger";
 await scheduler.ScheduleJob(job, trigger);
 ```
 
-If PropertyWaitForProcess is true, then the integer exit value of the process will be saved as the job execution result in the `JobExecutionContext`.
+If PropertyWaitForProcess is true, the process's integer exit value is saved as the job execution result in the `JobExecutionContext`.
 
 ### SendMailJob
 
-A Job which sends an e-mail with the configured content to the configured recipient.
+Sends an e-mail with the configured content to the configured recipient.

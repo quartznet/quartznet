@@ -9,7 +9,7 @@ title : 3rd Party Plugins for Quartz
 
 ### [AppAny.Quartz.EntityFrameworkCore.Migrations](https://github.com/appany/AppAny.Quartz.EntityFrameworkCore.Migrations)
 
-This library handles schema creation and migrations for Quartz.NET using EntityFrameworkCore migrations toolkit with one line of configuration
+Schema creation and migrations for Quartz.NET with the EntityFrameworkCore migrations toolkit, in one line of configuration.
 
 ### [Weasel.Quartz](https://github.com/Hawxy/Weasel.Quartz)
 
@@ -23,9 +23,7 @@ JobStore implementation for Quartz.NET scheduler using RavenDB.
 
 ### [QuartzRedisJobStore](https://github.com/icyice80/QuartzRedisJobStore)
 
-A Quartz Scheduler JobStore using Redis via C#
-
-The project was a ported version of quartz-redis-jobstore (<https://github.com/jlinn/quartz-redis-jobstore>), currently it lacks of supporting redis-cluster. It uses StackExchange.Redis as the redis client.
+A Quartz Scheduler JobStore using Redis via C#, ported from quartz-redis-jobstore (<https://github.com/jlinn/quartz-redis-jobstore>). It uses StackExchange.Redis as the Redis client and does not support redis-cluster.
 
 ### [Quartz.NET-CosmosDB](https://github.com/Oriflame/cosmosdb-quartznet)
 

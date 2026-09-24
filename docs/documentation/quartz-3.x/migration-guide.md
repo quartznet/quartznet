@@ -3,18 +3,17 @@
 title: Migration Guide
 ---
 
-*This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the release notes](https://github.com/quartznet/quartznet/releases) for each version.*
+*Check the steps for every version you skip, and [the release notes](https://github.com/quartznet/quartznet/releases) for each version.*
 
 ::: tip
-If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)
+New users starting with the latest version do not need this guide. Go to [the tutorial](tutorial/index.html).
 :::
 
-Quartz jumped to async/await world and added support for .NET Core with 3.0 release so most significant changes
-can be found on APIs and functionality available depending on whether you target full .NET Framework or the .NET Core.
+Quartz 3.0 moved to async/await and added .NET Core support. Most changes are in the APIs, and in which features are available on full .NET Framework versus .NET Core.
 
 ## Packaging changes
 
-Quartz NuGet package was split to more specific packages.
+The Quartz NuGet package was split:
 
 * [Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) is now a separate NuGet dependency you might need
   * DirectoryScanJob
@@ -24,31 +23,30 @@ Quartz NuGet package was split to more specific packages.
 * [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) is now a separate NuGet dependency you might need
   * XMLSchedulingDataProcessorPlugin
 
-Check that you reference the required NuGet packages and that your configuration references also the correct assembly.
+Reference the packages you need, and make sure your configuration names the correct assembly.
 
 ### Database schema changes
 
-2.6 schema should work with 3.0 with no changes.
+The 2.6 schema should work with 3.0 unchanged.
 
 ### Migrating HolidayCalendar binary format
 
-If you have `HolidayCalendar`s stored in database in binary format (just stored with AdoJobStore). You need to first load them with Quartz 2.4 or later 2.x version and then re-store them.
-This will make the serialization use format that is not dependent on presence of C5 library.
+If you have `HolidayCalendar`s stored in the database in binary format (as AdoJobStore stores them), first load them with Quartz 2.4 or a later 2.x version and store them again. The serialization format then no longer depends on the C5 library.
 
 ### Thread pool changes
 
 * `SimpleThreadPool` was removed altogether and it's now a synonym for `DefaultThreadPool`
-* Jobs are now ran in CLR thread pool
-* `ThreadCount` parameter still limits how many items will be queued at most to CLR thread pool
-* Thread priority is no longer supported, you need to remove `threadPriority` parameter
+* Jobs now run in the CLR thread pool
+* `ThreadCount` still limits how many items are queued at most to the CLR thread pool
+* Thread priority is no longer supported; remove the `threadPriority` parameter
 
 ### API Changes
 
-Scheduler and job API methods now are based on Tasks. This reflects how you define your jobs and operate with scheduler.
+Scheduler and job API methods are now Task-based.
 
 #### Scheduler
 
-You now need to make sure that you have proper awaits in place when you operate with the scheduler:
+Await your scheduler calls:
 
 ```csharp
 // operating with scheduler is now Task-based and requires appropriate awaits
@@ -59,7 +57,7 @@ await scheduler.Shutdown(waitForJobsToComplete: true);
 
 #### Jobs
 
-Job's Execute method now returns a Task and can easily contain async code:
+A job's Execute method returns a Task and can contain async code:
 
 ```csharp
 // Jobs now return tasks from their Execute methods
@@ -73,29 +71,29 @@ public class MyJob : IJob
 }
 ```
 
-If you don't have any async'ness in your job, you can just  return `Task.CompletedTask` at the end of Execute method (available from .NET 4.6 onwards).
+A job with no async work can return `Task.CompletedTask` at the end of Execute (available from .NET 4.6 onwards).
 
 ##### IInterruptableJob
 
-`IInterruptableJob` interface has been removed. You need to check for `IJobExecutionContext`'s`CancellationToken.IsCancellationRequested` to determine whether job interruption has been requested.
+The `IInterruptableJob` interface was removed. Check `IJobExecutionContext`'s `CancellationToken.IsCancellationRequested` to see whether interruption was requested.
 
 ##### IStatefulJob
 
-`IStatefulJob` interface that was obsoleted in 2.x has been removed, you should use `DisallowConcurrentExecution` and `PersistJobDataAfterExecution` attributes to achieve your goal.
+The `IStatefulJob` interface, obsolete in 2.x, was removed. Use the `DisallowConcurrentExecution` and `PersistJobDataAfterExecution` attributes instead.
 
 #### Other APIs
 
-If you have created custom implementations of services used by Quartz, you're going to need to adapt your code to be async-based.
+Custom implementations of services Quartz uses must become async-based.
 
 ### Job store serialization configuration changes
 
-You need to now explicitly state whether you want to use binary or json serialization if you are using persistent job store (AdoJobStore) when you configure your scheduler.
+With a persistent job store (AdoJobStore), you must now state whether to use binary or JSON serialization when you configure the scheduler.
 
-* For existing setups you should use the old binary serialization to ensure things work like before (see [Quartz.Serialization.SystemTextJson documentation](packages/system-text-json) for migration path)
-* For new projects the JSON serialization is recommended as it should be marginally faster and more robust as it's not dealing with binary versioning issues
-* JSON is more secure and generally the way to use moving forward
+* Existing setups should keep binary serialization so things work as before (see the [Quartz.Serialization.SystemTextJson documentation](packages/system-text-json) for the migration path).
+* New projects should use JSON: it should be marginally faster, and it is more robust because it avoids binary versioning issues.
+* JSON is more secure and is the way forward.
 
-If you choose to go with JSON serialization, remember to add NuGet package reference to either **[Quartz.Serialization.SystemTextJson](https://www.nuget.org/packages/Quartz.Serialization.SystemTextJson/)** or **[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json/)** to your project.
+For JSON, add a NuGet package reference to **[Quartz.Serialization.SystemTextJson](https://www.nuget.org/packages/Quartz.Serialization.SystemTextJson/)** or **[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json/)**.
 
 Configuring binary serialization strategy:
 
@@ -124,16 +122,16 @@ ISchedulerFactory sf = new StdSchedulerFactory(properties);
 
 ## Simplified job store provider names
 
-ADO.NET provider names have been simplified, the provider names are without version, e.g. `SqlServer-20` => `SqlServer`. They are now bound to whatever version that can be loaded.
+ADO.NET provider names no longer carry a version, e.g. `SqlServer-20` => `SqlServer`. They bind to whatever version can be loaded.
 
 ### C5 Collections
 
-C5 Collections are no longer ILMerged inside Quartz, .NET 4.5 offers the needed collections.
+C5 Collections are no longer ILMerged into Quartz; .NET 4.5 has the needed collections.
 
 ### Logging
 
-Common.Logging has been replaced with [LibLog](https://github.com/damianh/LibLog) to reduce dependencies to none. LibLog should automatically detect your logging framework of choice if it's supported.
+[LibLog](https://github.com/damianh/LibLog) replaced Common.Logging, so there are no logging dependencies. LibLog detects your logging framework automatically if it is supported.
 
 ### Remoting
 
-Remoting is currently only supported when running on full framework version.
+Remoting is only supported on the full framework.

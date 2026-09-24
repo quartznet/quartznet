@@ -3,23 +3,21 @@
 title: Multiple Schedulers with Microsoft DI
 ---
 
-Quartz.NET has always supported running multiple schedulers in a single process -- each `StdSchedulerFactory` instance can create and manage an independent scheduler, and the `SchedulerRepository` tracks them all by name. However, configuring multiple schedulers through the Microsoft DI `AddQuartz()` API required workarounds because the registration model was designed around a single scheduler per container.
-
-The named `AddQuartz(string name, ...)` overload makes this first-class: each named scheduler gets its own isolated configuration, jobs, triggers, listeners, and calendars, all managed through the familiar DI fluent API.
+The named `AddQuartz(string name, ...)` overload registers several schedulers in one Microsoft DI container. Each named scheduler has its own configuration, jobs, triggers, listeners and calendars.
 
 ::: tip
-If you are not using Microsoft DI, you can create multiple schedulers by instantiating multiple `StdSchedulerFactory` instances with different `quartz.scheduler.instanceName` properties and calling `GetScheduler()` on each.
+Without Microsoft DI, create one `StdSchedulerFactory` per scheduler, each with a different `quartz.scheduler.instanceName`, and call `GetScheduler()` on each. The `SchedulerRepository` tracks them by name.
 :::
 
 ## When to Use Named Schedulers
 
-- **Different job stores** -- one scheduler uses in-memory storage for transient jobs, another uses a persistent database store for durable jobs
-- **Workload isolation** -- separate critical jobs from background maintenance tasks with independent thread pools
-- **Different configurations** -- schedulers with different misfire thresholds, batch sizes, or clustering settings
+- **Different job stores:** in-memory storage for transient jobs, a persistent database store for durable jobs.
+- **Workload isolation:** separate thread pools for critical jobs and background maintenance.
+- **Different configurations:** different misfire thresholds, batch sizes or clustering settings.
 
 ## Basic Configuration
 
-Register each scheduler with a unique name using the `AddQuartz(string name, ...)` overload:
+Register each scheduler under a unique name with `AddQuartz(string name, ...)`:
 
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
@@ -63,7 +61,7 @@ builder.Build().Run();
 
 ## Per-Scheduler Listeners and Calendars
 
-Listeners and calendars registered within a named `AddQuartz` call are scoped to that scheduler only:
+Listeners and calendars registered in a named `AddQuartz` call apply to that scheduler only:
 
 ```csharp
 builder.Services.AddQuartz("Scheduler1", q =>
@@ -85,7 +83,7 @@ builder.Services.AddQuartz("Scheduler2", q =>
 
 ## Accessing Named Schedulers Programmatically
 
-Schedulers created through DI are registered in the container's `ISchedulerRepository`. You can retrieve any of them by name using the repository:
+Schedulers created through DI are in the container's `ISchedulerRepository`. Look them up by name:
 
 ```csharp
 public class MyService
@@ -112,7 +110,7 @@ public class MyService
 }
 ```
 
-If you also have a default scheduler (registered via unnamed `AddQuartz()`), you can inject `ISchedulerFactory` and use `GetScheduler(name)`:
+If you also have a default scheduler (unnamed `AddQuartz()`), you can inject `ISchedulerFactory` and call `GetScheduler(name)`:
 
 ```csharp
 public class MyService
@@ -132,21 +130,20 @@ public class MyService
 ```
 
 ::: warning
-Named schedulers are only available after the hosted service has created and started them. During application startup, they may not yet be in the repository.
+Named schedulers are available only after the hosted service has created and started them; during application startup they may not be in the repository yet.
 
-`ISchedulerFactory` is only available from DI when a default (unnamed) `AddQuartz()` call has been made. If you only use named schedulers, inject `ISchedulerRepository` instead.
+`ISchedulerFactory` is in the container only after a default (unnamed) `AddQuartz()` call. With only named schedulers, inject `ISchedulerRepository`.
 
-There are **two** repositories, and they are not the same object. The DI integration registers its own
-`ISchedulerRepository` singleton in the container, while a bare `StdSchedulerFactory` or
-`DirectSchedulerFactory` binds into the process-wide static `SchedulerRepository.Instance`. A
-scheduler created outside the container therefore does not appear in the injected repository — nor in
-the Dashboard, which reads that one. To join them, subclass `StdSchedulerFactory` and override
-`GetSchedulerRepository()` to return the container's instance.
+There are **two** repositories. The DI integration registers its own `ISchedulerRepository` singleton,
+while a bare `StdSchedulerFactory` or `DirectSchedulerFactory` binds into the process-wide static
+`SchedulerRepository.Instance`. A scheduler created outside the container is therefore missing from the
+injected repository and from the Dashboard, which reads it. To join them, subclass
+`StdSchedulerFactory` and override `GetSchedulerRepository()` to return the container's instance.
 :::
 
 ## Mixing Default and Named Schedulers
 
-You can combine the traditional unnamed `AddQuartz()` with named schedulers:
+The unnamed `AddQuartz()` and named schedulers can be combined:
 
 ```csharp
 // Default scheduler (traditional single-scheduler usage)
@@ -170,13 +167,13 @@ builder.Services.AddQuartzHostedService();
 ```
 
 ::: warning
-When using the unnamed default scheduler, call `services.AddQuartz(...)` before `services.AddQuartzHostedService(...)`.
-`AddQuartzHostedService()` only registers the default hosted service when `ISchedulerFactory` is already present in the service collection, so reversing the order prevents the default scheduler from being started.
+With the unnamed default scheduler, call `services.AddQuartz(...)` before `services.AddQuartzHostedService(...)`.
+`AddQuartzHostedService()` registers the default hosted service only when `ISchedulerFactory` is already in the service collection; in the reverse order the default scheduler is not started.
 :::
 
 ## Configuration via appsettings.json
 
-Named scheduler properties can be supplied through the standard options pattern:
+Supply named scheduler properties through the options pattern:
 
 ```csharp
 builder.Services.Configure<QuartzOptions>("DurableScheduler",
@@ -196,13 +193,13 @@ builder.Services.Configure<QuartzOptions>("DurableScheduler",
 
 ## Limitations
 
-- **Hosted service options are global** -- `QuartzHostedServiceOptions` (such as `WaitForJobsToComplete`, `StartDelay`, `AwaitApplicationStarted`) apply to all schedulers uniformly.
-- **Job types are shared** -- job classes are resolved from the shared DI container. The same job type can be used across multiple schedulers.
-- **Scheduler names must be unique** -- each call to `AddQuartz(name, ...)` must use a distinct name.
+- **Hosted service options are global:** `QuartzHostedServiceOptions` (such as `WaitForJobsToComplete`, `StartDelay`, `AwaitApplicationStarted`) apply to all schedulers.
+- **Job types are shared:** job classes are resolved from the shared DI container, so one job type can be used by several schedulers.
+- **Scheduler names must be unique:** each `AddQuartz(name, ...)` call needs a distinct name.
 
 ## See Also
 
-A scheduler per tenant is one of three ways to partition tenants, and not always the right one.
+A scheduler per tenant is one of three ways to partition tenants.
 
-- [Multi-Tenancy](../multi-tenancy.md) -- the three separations 3.x offers, and their honest limits
-- [Tenancy Patterns](../../tenancy-patterns.md) -- how other schedulers partition tenants, and the axes that decide
+- [Multi-Tenancy](../multi-tenancy.md): the three separations 3.x offers, and their limits
+- [Tenancy Patterns](../../tenancy-patterns.md): how other schedulers partition tenants, and how to choose

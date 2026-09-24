@@ -5,25 +5,15 @@ title: 'Job Stores'
 
 # Job Stores
 
-JobStore's are responsible for keeping track of all the "work data" that you give to the scheduler:
-jobs, triggers, calendars, etc. Selecting the appropriate `IJobStore` implementation for your Quartz scheduler instance is an important step.
-Luckily, the choice should be a very easy one once you understand the differences between them.
-You declare which JobStore your scheduler should use (and it's configuration settings) in the properties file (or object) that
-you provide to the SchedulerFactory that you use to produce your scheduler instance.
+A job store keeps track of the scheduler's work data: jobs, triggers, calendars and so on. Choose the `IJobStore` implementation, and its settings, in the properties file (or object) you give the SchedulerFactory.
 
 ::: warning
-Never use a JobStore instance directly in your code. For some reason many people attempt to do this.
-The JobStore is for behind-the-scenes use of Quartz itself. You have to tell Quartz (through configuration) which JobStore to use,
-but then you should only work with the Scheduler interface in your code.
+Never use a JobStore instance directly in your code. Quartz uses it behind the scenes: configure which JobStore to use, then work only with the Scheduler interface.
 :::
 
 ## RAMJobStore
 
-`RAMJobStore` is the simplest JobStore to use, it is also the most performant (in terms of CPU time).
-`RAMJobStore` gets its name in the obvious way: it keeps all of its data in RAM. This is why it's lightning-fast,
-and also why it's so simple to configure. The drawback is that when your application ends (or crashes) all of
-the scheduling information is lost - this means RAMJobStore cannot honor the setting of "non-volatility" on jobs and triggers.
-For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disastrous.
+`RAMJobStore` keeps all its data in RAM. It is the simplest job store to configure and the fastest (in CPU time). When your application ends or crashes, all scheduling information is lost, so RAMJobStore cannot honor "non-volatility" on jobs and triggers. For some applications that is acceptable or even desired; for others it is disastrous.
 
 **Configuring Quartz to use RAMJobStore**
 
@@ -32,30 +22,20 @@ For some applications this is acceptable - or even the desired behavior, but for
  quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
 ```
 
-To use `RAMJobStore` (and assuming you're using `StdSchedulerFactory`) you don't need to do anything special. Default configuration
-of Quartz.NET uses `RAMJobStore` as job store implementation.
+`RAMJobStore` is the default with `StdSchedulerFactory`, so nothing needs configuring.
 
 ## ADO.NET Job Store (AdoJobStore)
 
-AdoJobStore is also aptly named - it keeps all of its data in a database via ADO.NET.
-Because of this it is a bit more complicated to configure than `RAMJobStore`, and it also is not as fast.
-However, the performance draw-back is not terribly bad, especially if you build the database tables with indexes on the primary keys.
+AdoJobStore keeps all its data in a database via ADO.NET. It is harder to configure than `RAMJobStore` and slower, though not by much if the tables have indexes on the primary keys.
 
-To use AdoJobStore, you must first create a set of database tables for Quartz.NET to use.
-You can find table-creation SQL scripts in the "[database/tables](https://github.com/quartznet/quartznet/tree/main/database/tables)" directory of the Quartz.NET distribution.
-If there is not already a script for your database type, just look at one of the existing ones, and modify it in any way necessary for your DB.
-One thing to note is that in these scripts, all the the tables start with the prefix `QRTZ_`
-(such as the tables `QRTZ_TRIGGERS`, and `QRTZ_JOB_DETAIL`). This prefix can actually be anything you'd like, as long as you inform AdoJobStore
-what the prefix is (in your Quartz.NET properties). Using different prefixes may be useful for creating multiple sets of tables,
-for multiple scheduler instances, within the same database.
+1. Create the Quartz.NET tables. Table-creation SQL scripts are in the [database/tables](https://github.com/quartznet/quartznet/tree/main/database/tables) directory of the Quartz.NET distribution. If there is no script for your database, adapt an existing one.
+2. Configure the job store type, driver delegate, table prefix and data source, as below.
 
-`JobStoreTX` creates transactions by itself and is the implementation you normally want. If you need scheduling to
-commit together with your application's own database work, `JobStoreTX` can also be told to join a transaction you
-own - see [Joining an existing transaction](#joining-an-existing-transaction) below.
+The scripts prefix every table with `QRTZ_` (such as `QRTZ_TRIGGERS` and `QRTZ_JOB_DETAIL`). The prefix can be anything, as long as you tell AdoJobStore what it is. Different prefixes let several sets of tables, for several scheduler instances, share one database.
 
-The last piece of the puzzle is setting up a data source from which AdoJobStore can get connections to your database.
-Data sources are defined in your Quartz.NET properties. Data source information contains the connection string
-and ADO.NET delegate information.
+`JobStoreTX` creates its own transactions and is the implementation you normally want. To commit scheduling together with your application's own database work, `JobStoreTX` can also join a transaction you own: see [Joining an existing transaction](#joining-an-existing-transaction).
+
+A data source, defined in your Quartz.NET properties, supplies AdoJobStore's database connections. It holds the connection string and ADO.NET delegate information.
 
 ### Configuring Quartz to use JobStoreTx
 
@@ -63,20 +43,13 @@ and ADO.NET delegate information.
     quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
 ```
 
-Next, you need to select a `IDriverDelegate` implementation for the JobStore to use.
-The DriverDelegate is responsible for doing any ADO.NET work that may be needed for your specific database.
-`StdAdoDelegate` is a delegate that uses "vanilla" ADO.NET code (and SQL statements) to do its work.
-If there isn't another delegate made specifically for your database, try using this delegate -
-special delegates usually have better performance or workarounds for database specific issues.
-Other delegates can be found in the `Quartz.Impl.AdoJobStore` namespace, or in its sub-namespaces.
+Next, select the `IDriverDelegate` implementation, which does the ADO.NET work for your specific database. `StdAdoDelegate` uses "vanilla" ADO.NET code and SQL. Use it only if there is no delegate for your database: specific delegates usually perform better or work around database-specific issues. Other delegates are in the `Quartz.Impl.AdoJobStore` namespace or its sub-namespaces.
 
 ::: tip
-Quartz.NET will issue warning if you are using the default StdAdoDelegate as it has poor performance
-when you have a lot of triggers to select from. Specific delegates have special SQL to limit result
-set length (SqlServerDelegate uses `TOP n`, PostgreSQLDelegate `LIMIT n`, OracleDelegate `ROWCOUNT() <= n` etc.).
+Quartz.NET warns if you use the default StdAdoDelegate, because it performs poorly with many triggers to select from. Specific delegates have SQL that limits result set length (SqlServerDelegate uses `TOP n`, PostgreSQLDelegate `LIMIT n`, OracleDelegate `ROWCOUNT() <= n` etc.).
 :::
 
-Once you've selected your delegate, set its class name as the delegate for AdoJobStore to use.
+Set the delegate's class name:
 
 **Configuring AdoJobStore to use a DriverDelegate**
 
@@ -84,7 +57,7 @@ Once you've selected your delegate, set its class name as the delegate for AdoJo
     quartz.jobStore.driverDelegateType = Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz
 ```
 
-Next, you need to inform the JobStore what table prefix (discussed above) you are using.
+Set the table prefix:
 
 **Configuring AdoJobStore with the Table Prefix**
 
@@ -92,8 +65,7 @@ Next, you need to inform the JobStore what table prefix (discussed above) you ar
     quartz.jobStore.tablePrefix = QRTZ_
 ```
 
-And finally, you need to set which data source should be used by the JobStore. The named data source must also be defined in your Quartz properties.
-In this case, we're specifying that Quartz should use the data source name "myDS" (that is defined elsewhere in the configuration properties).
+Set the data source to use. It must also be defined in your Quartz properties; here it is "myDS":
 
 **Configuring AdoJobStore with the name of the data source to use**
 
@@ -101,9 +73,7 @@ In this case, we're specifying that Quartz should use the data source name "myDS
     quartz.jobStore.dataSource = myDS
 ```
 
-One last thing that is needed for the configuration is to set data source connection string information and database provider. Connection
-string is the standard ADO.NET connection which is driver specific. Database provider is an abstraction of database drivers to create
-loose coupling between database drivers and Quartz.
+Set the data source's connection string and database provider. The connection string is the driver's standard ADO.NET connection string. The provider abstracts the database driver, so Quartz is loosely coupled to it.
 
 **Setting Data Source's Connection String And Database Provider**
 
@@ -112,7 +82,7 @@ loose coupling between database drivers and Quartz.
      quartz.dataSource.myDS.provider = MySql
 ```
 
-Currently following database providers are supported:
+Supported database providers:
 
 * `SqlServer` - SQL Server driver
     * For full framework this is by default System.Data.SqlClient (except in Quartz 3.1)
@@ -128,25 +98,19 @@ Currently following database providers are supported:
 * `Npgsql` - PostgreSQL Npgsql
 
 ::: tip
-There are many community contributed providers, like for NoSQL databases.
-
-They are not supported by Quartz.NET project though.
+The community contributes many other providers, for example for NoSQL databases. The Quartz.NET project does not support them.
 :::
 
-**You can and should use latest version of driver if newer is available, just create an assembly binding redirect**
+**Use the latest driver version when one is available; add an assembly binding redirect.**
 
-If your Scheduler is very busy (i.e. nearly always executing the same number of jobs as the size of the thread pool, then you should
-probably set the number of connections in the data source to be the about the size of the thread pool + 1. This is commonly configured
-in the ADO.NET connection string - see your driver implementation for details.
+If your scheduler is very busy (nearly always running as many jobs as the thread pool size), set the data source's connection count to about the thread pool size + 1. This is usually set in the ADO.NET connection string; see your driver's documentation.
 
-The `quartz.jobStore.useProperties` config parameter can be set to "true" (defaults to false) in order to instruct AdoJobStore that all values in JobDataMaps will be strings,
-and therefore can be stored as name-value pairs, rather than storing more complex objects in their serialized form in the BLOB column. This is much safer in the long term,
-as you avoid the class versioning issues that there are with serializing your non-String classes into a BLOB.
+`quartz.jobStore.useProperties` set to "true" (default false) tells AdoJobStore that all JobDataMap values are strings. They are then stored as name-value pairs instead of serialized objects in the BLOB column. This is safer in the long term, because it avoids the class versioning issues of serializing non-String classes into a BLOB.
 
 ### Configuring AdoJobStore to use strings as JobDataMap values
 
 ::: tip
-This is recommended configuration because it greatly decreases the possibility of type serialization issues.
+Recommended: it greatly reduces the risk of type serialization issues.
 :::
 
 ```text
@@ -155,14 +119,14 @@ This is recommended configuration because it greatly decreases the possibility o
 
 ### Choosing a serializer
 
-Quartz.NET supports both binary and JSON serialization. Using binary serialization is discouraged as it will no longer be supported in future versions.
+Quartz.NET supports binary and JSON serialization. Binary serialization is discouraged: future versions will not support it.
 
- * JSON serialization based on System.Text.Json comes from separate [Quartz.Serialization.SystemTextJson](../packages/system-text-json) NuGet package
- * JSON serialization based on Newtonsoft.Json comes from separate [Quartz.Serialization.Json](../packages/json-serialization) NuGet package
+ * JSON serialization based on System.Text.Json: the [Quartz.Serialization.SystemTextJson](../packages/system-text-json) NuGet package
+ * JSON serialization based on Newtonsoft.Json: the [Quartz.Serialization.Json](../packages/json-serialization) NuGet package
 
  ::: tip
- JSON is recommended persistent format to store data in database for greenfield projects.
- You should also strongly consider setting useProperties to true to restrict key-values to be strings.
+ JSON is the recommended persistent format for greenfield projects.
+ Also strongly consider setting useProperties to true, to restrict key-values to strings.
  :::
 
 #### Using code
@@ -192,12 +156,9 @@ ISchedulerFactory schedulerFactory = config.Build();
 
 ### Joining an existing transaction
 
-Normally AdoJobStore opens a connection of its own and commits as soon as the scheduling operation is done. That means
-saving your own data and scheduling the job that acts on it are two separate transactions, and one can succeed while the
-other fails.
+By default AdoJobStore opens its own connection and commits as soon as the scheduling operation is done. Saving your data and scheduling the job that acts on it are then two transactions, and one can succeed while the other fails.
 
-Setting `quartz.jobStore.acceptEnlistedTransactions` to `true` lets the job store join a transaction your application already
-owns instead, so scheduling commits with the rest of your work or not at all.
+`quartz.jobStore.acceptEnlistedTransactions` set to `true` lets the job store join a transaction your application owns, so scheduling commits with the rest of your work or not at all.
 
 ```csharp
 var config = SchedulerBuilder.Create();
@@ -208,7 +169,7 @@ config.UsePersistentStore(store =>
 });
 ```
 
-You then hand your connection and transaction to the scheduler for the duration of a scope:
+Then hand your connection and transaction to the scheduler for the duration of a scope:
 
 ```csharp
 await using var tx = await dbContext.Database.BeginTransactionAsync();
@@ -223,16 +184,13 @@ using (scheduler.EnlistTransaction(tx.GetDbTransaction()))
 }
 ```
 
-Nothing about this is specific to Entity Framework Core - any `DbConnection` and `DbTransaction` will do, whether they
-come from EF Core, Dapper or plain ADO.NET.
+Any `DbConnection` and `DbTransaction` works, whether from EF Core, Dapper or plain ADO.NET.
 
 ::: warning
-Handing over a connection is the only way to take part. An ambient `TransactionScope` on its own is **not** enough: a
-connection the job store opens for itself is deliberately kept out of it, so that scheduling would commit separately.
-Open the connection inside the scope and enlist that one.
+Handing over a connection is the only way to take part. An ambient `TransactionScope` alone is **not** enough: a connection the job store opens for itself is kept out of it on purpose, so scheduling would commit separately. Open the connection inside the scope and enlist that one.
 :::
 
-Inside a `TransactionScope` the shape is the same, except that the connection carries the transaction for you:
+Inside a `TransactionScope` the shape is the same, except that the connection carries the transaction:
 
 ```csharp
 var options = new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted };
@@ -251,32 +209,16 @@ using (scheduler.EnlistConnection(connection))
 scope.Complete();
 ```
 
-Sharing the one connection is also what keeps the transaction from having to be promoted to a distributed one, which is
-unavailable outside Windows and unsupported by providers such as Npgsql.
+Sharing one connection also keeps the transaction from being promoted to a distributed one, which is unavailable outside Windows and unsupported by providers such as Npgsql.
 
-Things worth knowing before you enable this:
+Before you enable this:
 
-* The enlistment flows with the current asynchronous context, so establish it in the same scope as the scheduler calls it
-  should cover. This is the same rule that makes `TransactionScope` need `TransactionScopeAsyncFlowOption.Enabled`. In
-  particular, enlisting inside an `async` helper does not carry the enlistment back out to the caller.
-* The job store takes its locks in your transaction, so they are only released once you commit or roll back. Keep enlisted
-  transactions short - a long running one blocks trigger acquisition, the misfire handler and cluster check-in. For the
-  same reason starting a scheduler for the first time from inside an enlistment scope is refused, and says so; resuming
-  one that was in standby is not, so avoid that too.
-* With a `DbTransaction` of your own, dispose the enlistment scope after committing: that is when a pending scheduling
-  change is signalled to the scheduler, and doing it earlier would point it at rows it cannot see yet. Under a
-  `TransactionScope` the scope itself reports the outcome, so the enlistment can close first - as in the sample above -
-  and nothing is signalled if the transaction rolls back.
-* Await scheduler calls one at a time inside a scope. A connection carries a single transaction and cannot serve two
-  operations at once.
-* Automatic retries of transient database errors are skipped inside your transaction. On most providers the first failure
-  has already doomed it, so the error is yours to handle - including any of your own work in that transaction.
-* An operation that fails halfway leaves its statements in your transaction; there is no savepoint to roll back to.
-* Because your transaction outlives the scheduling operation, this mode uses database locks even when the scheduler is not
-  clustered - an in-process lock would be released before you commit. SQLite is the exception: it always locks in
-  process, so a concurrent scheduler operation there can fail with "database is locked" until your transaction
-  completes. Quartz logs a warning about it at startup.
-* Work the scheduler does on its own - acquiring triggers, handling misfires, cluster check-in - always uses its own
-  connections and is unaffected.
-* `JobStoreCMT` is the exception to the previous point: running inside a transaction its container manages is that
-  store's whole contract, so its own connections enlist in an ambient transaction as they always have.
+* **The enlistment flows with the current asynchronous context.** Establish it in the same scope as the scheduler calls it covers, for the same reason `TransactionScope` needs `TransactionScopeAsyncFlowOption.Enabled`. Enlisting inside an `async` helper does not carry the enlistment back to the caller.
+* **Locks are held until you commit or roll back**, because the job store takes them in your transaction. Keep enlisted transactions short: a long one blocks trigger acquisition, the misfire handler and cluster check-in. For the same reason, starting a scheduler for the first time inside an enlistment scope is refused with an error. Resuming one from standby is not refused, so avoid that too.
+* **With your own `DbTransaction`, dispose the enlistment scope after committing.** Disposal signals a pending scheduling change to the scheduler; earlier, it would point the scheduler at rows it cannot see yet. Under a `TransactionScope` the scope reports the outcome, so the enlistment can close first (as in the sample above), and nothing is signalled if the transaction rolls back.
+* **Await scheduler calls one at a time inside a scope.** A connection carries one transaction and cannot serve two operations at once.
+* **Transient database errors are not retried inside your transaction.** On most providers the first failure has already doomed it, so the error, and any of your own work in that transaction, is yours to handle.
+* **An operation that fails halfway leaves its statements in your transaction**; there is no savepoint to roll back to.
+* **This mode uses database locks even when the scheduler is not clustered**, because your transaction outlives the scheduling operation and an in-process lock would be released before you commit. SQLite is the exception: it always locks in process, so a concurrent scheduler operation can fail with "database is locked" until your transaction completes. Quartz logs a warning about it at startup.
+* **The scheduler's own work** (acquiring triggers, handling misfires, cluster check-in) always uses its own connections and is unaffected.
+* **`JobStoreCMT` is the exception** to the previous point: running inside a container-managed transaction is that store's contract, so its own connections enlist in an ambient transaction as they always have.

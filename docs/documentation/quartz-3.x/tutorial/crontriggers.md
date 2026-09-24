@@ -5,19 +5,13 @@ title: 'Cron Triggers'
 
 # Cron Triggers
 
-CronTriggers are often more useful than SimpleTrigger, if you need a job-firing schedule that recurs based on calendar-like notions,
-rather than on the exactly specified intervals of SimpleTrigger.
+Use CronTrigger for schedules based on calendar notions rather than the fixed intervals of SimpleTrigger: "every Friday at noon", "every weekday at 9:30 am", or "every 5 minutes between 9:00 am and 10:00 am on every Monday, Wednesday and Friday".
 
-With CronTrigger, you can specify firing-schedules such as "every Friday at noon", or "every weekday and 9:30 am",
-or even "every 5 minutes between 9:00 am and 10:00 am on every Monday, Wednesday and Friday".
-
-Even so, like SimpleTrigger, CronTrigger has a startTime which specifies when the schedule is in force, and an (optional)
-endTime that specifies when the schedule should be discontinued.
+Like SimpleTrigger, CronTrigger has a start time from which the schedule is in force, and an optional end time at which it stops.
 
 ## Cron Expressions
 
-A cron expression is a string comprised of 6 or 7 fields separated by white space.
-Fields can contain any of the allowed values, along with various combinations of the allowed special characters for that field. The fields are as follows:
+A cron expression is a string of 6 or 7 fields separated by white space. Each field takes its allowed values and special characters:
 
 | Field Name   | Mandatory | Allowed Values   | Allowed Special Characters   |
 |--------------|-----------|------------------|------------------------------|
@@ -30,100 +24,65 @@ Fields can contain any of the allowed values, along with various combinations of
 | Year         | NO        | empty, 1970-2099 | `, - * /`                    |
 
 ::: tip
-You do not need an online generator to write one of these. `CronExpressionBuilder` composes an
-expression from typed calls rather than string concatenation - see
-[Building cron expressions programmatically](crontrigger#building-cron-expressions-programmatically) -
+You do not need an online generator. `CronExpressionBuilder` composes an expression from typed calls
+(see [Building cron expressions programmatically](crontrigger#building-cron-expressions-programmatically)),
 and `CronExpression` reads one back: `CronExpression.IsValidExpression` says whether Quartz.NET
 accepts the string, `GetExpressionSummary()` describes it field by field, and
-`GetNextValidTimeAfter` gives the times it will actually fire.
+`GetNextValidTimeAfter` gives the times it will fire.
 
-There are many cron standards and implementations, so a generator you find online may not agree
-with Quartz.NET - it will not know `H`, for one. Check anything it gives you against the library.
+There are many cron standards, so an online generator may not agree with Quartz.NET; it will not
+know `H`, for one. Check anything it gives you against the library.
 :::
 
-An example of a complete cron-expression is the string `0 0 12 ? * WED` - which means "every Wednesday at 12:00 pm".
+`0 0 12 ? * WED` means "every Wednesday at 12:00 pm".
 
-Individual sub-expressions can contain ranges and/or lists. For example, the day of week field in the previous (which reads "WED")
-example could be replaces with "MON-FRI", "MON, WED, FRI", or even "MON-WED,SAT".
+- **Ranges and lists.** The day-of-week field `WED` could be `MON-FRI`, `MON, WED, FRI` or `MON-WED,SAT`.
+- **Wild-card.** `*` means every value of the field: every month in the Month field, every day in the Day-Of-Week field.
+- **Values.** Seconds and minutes 0 to 59; hours 0 to 23; day-of-month 1-31 (mind how many days a month has); months 1 to 12 or JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV and DEC; days-of-week 1 to 7 (1 = Sunday) or SUN, MON, TUE, WED, THU, FRI and SAT.
+- **`/`** sets increments. `0/15` in Minutes means every 15 minutes starting at minute zero. `3/20` means every 20 minutes starting at minute three, the same as `3,23,43`.
+- **`?`** ("no specific value") is allowed in day-of-month and day-of-week, to set one of the two and leave the other open.
+- **`L`** ("last") is allowed in day-of-month and day-of-week, with a different meaning in each. In day-of-month it is the last day of the month: day 31 for January, day 28 for February in non-leap years. In day-of-week on its own it means "7" or "SAT"; after another value it means "the last xxx day of the month", so `6L` and `FRIL` both mean the last Friday of the month. Do not combine `L` with lists or ranges; the results are confusing.
+- **`W`** is the weekday (Monday-Friday) nearest the given day. `15W` in day-of-month means the nearest weekday to the 15th.
+- **`#`** is "the nth" XXX weekday of the month. `6#3` or `FRI#3` in day-of-week means the third Friday of the month.
+- **`H`** (hash) spreads triggers evenly across time. It resolves to a deterministic value derived from the trigger's identity (name and group), so triggers with the same expression fire at different times. `0 H H(0-7) * * ?` fires once per day between midnight and 7:59 AM at a trigger-specific time; `0 H/15 * * * ?` fires every 15 minutes from a hash-derived offset. With the builder API, call `WithIdentity()` so the hash comes from a stable identity.
 
-Wild-cards (the `*` character) can be used to say "every" possible value of this field. Therefore the `*` character in the
-"Month" field of the previous example simply means "every month". A `*` in the Day-Of-Week field would obviously mean "every day of the week".
-
-All of the fields have a set of valid values that can be specified. These values should be fairly obvious - such as the numbers
-0 to 59 for seconds and minutes, and the values 0 to 23 for hours. Day-of-Month can be any value 1-31, but you need to be careful
-about how many days are in a given month! Months can be specified as values between 1 and 12, or by using the strings
-JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV and DEC. Days-of-Week can be specified as values between 1 and 7 (1 = Sunday)
-or by using the strings SUN, MON, TUE, WED, THU, FRI and SAT.
-
-The '/' character can be used to specify increments to values. For example, if you put '0/15' in the Minutes field, it means 'every 15 minutes,
-starting at minute zero'. If you used '3/20' in the Minutes field, it would mean 'every 20 minutes during the hour,
-starting at minute three' - or in other words it is the same as specifying '3,23,43' in the Minutes field.
-
-The '?' character is allowed for the day-of-month and day-of-week fields. It is used to specify "no specific value".
-This is useful when you need to specify something in one of the two fields, but not the other.
-See the examples below (and CronTrigger API documentation) for clarification.
-
-The 'L' character is allowed for the day-of-month and day-of-week fields. This character is short-hand for "last",
-but it has different meaning in each of the two fields. For example, the value "L" in the day-of-month field means
-"the last day of the month" - day 31 for January, day 28 for February on non-leap years. If used in the day-of-week field by itself,
-it simply means "7" or "SAT". But if used in the day-of-week field after another value, it means "the last xxx day of the month" -
-for example "6L" or "FRIL" both mean "the last Friday of the month". When using the 'L' option, it is important not to specify lists,
-or ranges of values, as you'll get confusing results.
-
-The 'W' is used to specify the weekday (Monday-Friday) nearest the given day. As an example, if you were to specify "15W" as the value for the day-of-month field, the meaning is: "the nearest weekday to the 15th of the month".
-
-The '#' is used to specify "the nth" XXX weekday of the month. For example, the value of "6#3" or "FRI#3" in the day-of-week field means "the third Friday of the month".
-
-The 'H' (hash) symbol can be used in place of a specific value to spread scheduled tasks evenly across time.
-`H` resolves to a deterministic value derived from the trigger's identity (name and group), so different triggers
-get different fire times even when using the same cron expression pattern. For example, `0 H H(0-7) * * ?` fires
-once per day between midnight and 7:59 AM at a trigger-specific time. `0 H/15 * * * ?` fires every 15 minutes,
-starting from a hash-derived offset. When using `H` through the builder API, you must call `WithIdentity()` so
-the hash is derived from a stable trigger identity. See the [CronTrigger Tutorial](crontrigger) for full syntax details and usage examples.
+The [CronTrigger Tutorial](crontrigger) has the full syntax and more examples.
 
 ## Example Cron Expressions
 
-Here are a few more examples of expressions and their meanings - you can find even more in the API documentation for CronTrigger
+More examples are in the API documentation for CronTrigger.
 
-**CronTrigger Example 1 - an expression to create a trigger that simply fires every 5 minutes**
+**Every 5 minutes:**
 
 ```text
     "0 0/5 * * * ?"
 ```
 
-**CronTrigger Example 2 - an expression to create a trigger that fires every 5 minutes, at 10 seconds after the minute (i.e. 10:00:10 am, 10:05:10 am, etc.).**
+**Every 5 minutes, at 10 seconds after the minute (10:00:10 am, 10:05:10 am, etc.):**
 
 ```text
     "10 0/5 * * * ?"
 ```
 
-**CronTrigger Example 3 - an expression to create a trigger that fires at 10:30, 11:30, 12:30, and 13:30, on every Wednesday and Friday.**
+**At 10:30, 11:30, 12:30 and 13:30, every Wednesday and Friday:**
 
 ```text
     "0 30 10-13 ? * WED,FRI"
 ```
 
-**CronTrigger Example 4 - an expression to create a trigger that fires every half hour between the hours of 8 am and 10 am on the 5th and 20th of every month.
-Note that the trigger will NOT fire at 10:00 am, just at 8:00, 8:30, 9:00 and 9:30**
+**Every half hour between 8 am and 10 am on the 5th and 20th of every month.** It does NOT fire at 10:00 am, only at 8:00, 8:30, 9:00 and 9:30:
 
 ```text
     "0 0/30 8-9 5,20 * ?"
 ```
 
-Note that some scheduling requirements are too complicated to express with a single trigger - such as "every 5 minutes between 9:00 am and 10:00 am,
-and every 20 minutes between 1:00 pm and 10:00 pm". The solution in this scenario is to simply create two triggers, and register both of them to run the same job.
+Some schedules are too complex for one trigger, such as "every 5 minutes between 9:00 am and 10:00 am, and every 20 minutes between 1:00 pm and 10:00 pm". Create two triggers and register both for the same job.
 
 ## Building CronTriggers
 
-CronTrigger instances are built using `TriggerBuilder` (for the trigger's main properties) and `WithCronSchedule`
-extension method (for the CronTrigger-specific properties).
+Build CronTrigger instances with `TriggerBuilder` (the trigger's main properties) and the `WithCronSchedule` extension method (the CronTrigger-specific properties). `CronScheduleBuilder`'s static methods also create schedules. To compose the expression string itself in code, see [Building cron expressions programmatically](crontrigger.md#building-cron-expressions-programmatically).
 
-You can also use `CronScheduleBuilder`'s static methods to create schedules.
-
-To compose the cron expression string itself programmatically, see
-[Building cron expressions programmatically](crontrigger.md#building-cron-expressions-programmatically).
-
-**Build a trigger that will fire every other minute, between 8am and 5pm, every day:**
+**Every other minute, between 8am and 5pm, every day:**
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
@@ -133,7 +92,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .Build();
 ```
 
-**Build a trigger that will fire daily at 10:42 am:**
+**Daily at 10:42 am:**
 
 ```csharp
 // we use CronScheduleBuilder's static helper methods here
@@ -144,7 +103,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .Build();
 ```
 
-or -
+or:
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
@@ -154,7 +113,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .Build();
 ```
 
-**Build a trigger that will fire on Wednesdays at 10:42 am, in a TimeZone other than the system's default:**
+**Wednesdays at 10:42 am, in a time zone other than the system's default:**
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
@@ -166,7 +125,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .Build();
 ```
 
-or -
+or:
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
@@ -177,7 +136,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .Build();
 ```
 
-**Build a trigger that fires once per day at a hash-derived time between midnight and 7:59 AM, spreading load across triggers:**
+**Once per day at a hash-derived time between midnight and 7:59 AM, spreading load across triggers:**
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
@@ -189,19 +148,15 @@ ITrigger trigger = TriggerBuilder.Create()
 
 ## CronTrigger Misfire Instructions
 
-The following instructions can be used to inform Quartz what it should do when a misfire occurs for CronTrigger.
-(Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in as
-constants (and API documentation has description for their behavior). The instructions include:
+These constants tell Quartz what to do when a CronTrigger misfires (see [More About Triggers](more-about-triggers.md) for misfires; the API documentation describes each one):
 
 - `MisfireInstruction.IgnoreMisfirePolicy`
 - `MisfireInstruction.CronTrigger.DoNothing`
 - `MisfireInstruction.CronTrigger.FireOnceNow`
 
-All triggers have the `MisfireInstrution.SmartPolicy` instruction available for use, and this instruction is also the default for all trigger types.
-The 'smart policy' instruction is interpreted by CronTrigger as MisfireInstruction.CronTrigger.FireOnceNow. The API documentation for the
-`CronTrigger.UpdateAfterMisfire()` method explains the exact details of this behavior.
+Every trigger type also has `MisfireInstruction.SmartPolicy`, the default. CronTrigger interprets it as `MisfireInstruction.CronTrigger.FireOnceNow`; the API documentation for `CronTrigger.UpdateAfterMisfire()` has the details.
 
-When building CronTriggers, you specify the misfire instruction as part of the cron schedule (via `WithCronSchedule` extension method):
+Set the misfire instruction as part of the cron schedule, in `WithCronSchedule`:
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()

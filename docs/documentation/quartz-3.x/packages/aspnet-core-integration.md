@@ -4,15 +4,13 @@ title: ASP.NET Core Integration
 ---
 
 [Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore)
-provides integration with [ASP.NET Core hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
+integrates Quartz with [ASP.NET Core hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
 
 ::: tip
-If you only need the generic host, [generic host integration](hosted-services-integration) might suffice.
+If you only need the generic host, [generic host integration](hosted-services-integration) may be enough.
 :::
 
 ## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
 Install-Package Quartz.AspNetCore
@@ -20,11 +18,10 @@ Install-Package Quartz.AspNetCore
 
 ## Using
 
-You can add Quartz configuration by invoking an extension method `AddQuartzServer` on `IServiceCollection`.
-This will add a hosted Quartz server into ASP.NET Core process that will be started and stopped based on applications lifetime.
+The `AddQuartzServer` extension method on `IServiceCollection` adds a hosted Quartz server to the ASP.NET Core process, started and stopped with the application's lifetime.
 
 ::: tip
-See [Quartz.Extensions.DependencyInjection documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
+The [Quartz.Extensions.DependencyInjection documentation](microsoft-di-integration) covers configuring the scheduler, jobs and triggers.
 :::
 
 **Example Startup.ConfigureServices configuration**
@@ -48,12 +45,11 @@ public void ConfigureServices(IServiceCollection services)
 
 ## Health checks
 
-On target frameworks with health check support `AddQuartzServer` also registers an
+On target frameworks with health check support, `AddQuartzServer` also registers an
 [ASP.NET Core health check](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks)
-named `quartz-scheduler` that reports unhealthy when the scheduler is not running or cannot reach its store.
+named `quartz-scheduler`. It reports unhealthy when the scheduler is not running or cannot reach its store.
 
-You can attach tags to this health check so it can be filtered, for example into separate
-liveness and readiness probes:
+Tags let you filter the check, for example into separate liveness and readiness probes:
 
 ```csharp
 services.AddQuartzServer(
@@ -70,14 +66,9 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 
 ## A practical example of the setup
 
-In the code below you can see a real application of the Quartz package within ASP.NET Core MVC.
+An ASP.NET Core MVC application with the MVC template's `Program.cs` and a `Jobs` folder holding the background tasks for Quartz.
 
-To better illustrate the use of the Quartz library, imagine you have a `Program.cs` file that is always created when you choose the MVC architecture, and then imagine a `Jobs` folder where you have all the tasks you want Quartz to perform in the background when you run your web application.
-
-After that, it's pretty straightforward.
-
-In the `Jobs` folder, you create a class that will perform the tasks you specify.
-The class should extend the `IJob` interface and implement the `Execute` method.
+In the `Jobs` folder, create a class that implements the `IJob` interface and its `Execute` method.
 
 **Example SendEmailJob.cs configuration**
 
@@ -94,7 +85,7 @@ public class SendEmailJob : IJob
 }        
 ```
 
-After that, you just need to build Quartz trigger in `Program.cs`, which guarantees that the job will run according to the preset interval.
+Then add the job and its trigger in `Program.cs`, so the job runs on the trigger's schedule.
 
 **Example Program.cs configuration**
 
@@ -115,4 +106,4 @@ builder.Services.AddQuartz(q =>
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 ```
 
-For more information on cron triggers and their format, you can use the tutorial directly from Quartz - [Cron Triggers](../tutorial/crontriggers.md).
+[Cron Triggers](../tutorial/crontriggers.md) covers cron triggers and their format.

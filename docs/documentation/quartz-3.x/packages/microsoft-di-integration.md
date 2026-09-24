@@ -4,7 +4,7 @@ title: Microsoft DI Integration
 ---
 
 [Quartz.Extensions.DependencyInjection](https://www.nuget.org/packages/Quartz.Extensions.DependencyInjection)
-provides integration with [Microsoft Dependency Injection](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection).
+integrates Quartz with [Microsoft Dependency Injection](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection).
 
 ::: tip
 Quartz 3.1 or later required.
@@ -12,26 +12,22 @@ Quartz 3.1 or later required.
 
 ## Installation
 
-You need to add NuGet package reference to your project which uses Quartz.
-
 ```shell
 Install-Package Quartz.Extensions.DependencyInjection
 ```
 
 ## Using
 
-You can add Quartz configuration by invoking an extension method `AddQuartz` on `IServiceCollection`.
-The configuration building wraps various [configuration properties](../configuration/reference) with strongly-typed API.
-You can also configure properties using standard .NET Core `appsettings.json` inside configuration section `Quartz`.
+Call the `AddQuartz` extension method on `IServiceCollection`. It wraps the [configuration properties](../configuration/reference) in a strongly-typed API. You can also set properties in the `Quartz` section of `appsettings.json`.
 
 ::: tip
-The section should be bound manually to `QuartzOptions` type with `AddOptions` or `Configure` as in [this example](https://github.com/quartznet/quartznet/blob/a4511ef0703206cf483c6331d5b2ac7fb69d26d3/src/Quartz.Examples.AspNetCore/Startup.cs#L71).
+Bind the section to `QuartzOptions` yourself with `AddOptions` or `Configure`, as in [this example](https://github.com/quartznet/quartznet/blob/a4511ef0703206cf483c6331d5b2ac7fb69d26d3/src/Quartz.Examples.AspNetCore/Startup.cs#L71).
 :::
 
 ::: tip
-[Quartz.Extensions.Hosting](hosted-services-integration.md) allows you to have a background service for your application that handles starting and stopping the scheduler.
+[Quartz.Extensions.Hosting](hosted-services-integration.md) adds a background service that starts and stops the scheduler.
 
-Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
+For several independent schedulers in one application, see [Multiple Schedulers](multiple-schedulers.md).
 :::
 
 **Example appsettings.json**
@@ -53,30 +49,27 @@ Need multiple independent schedulers in one application? See [Multiple Scheduler
 
 ## DI aware job factories
 
-Quartz comes with two built-in alternatives for job factory which can be configured via either calling `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory` (deprecated).
+Quartz has two built-in job factories, set with `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory` (deprecated).
 
 ::: tip
-As of Quartz.NET 3.3.2 all jobs produced by the default job factory are scoped jobs, you should no longer use `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory`.
+Since Quartz.NET 3.3.2 the default job factory produces only scoped jobs; do not use `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory` any more.
 :::
 
 ### Job instance construction
 
-By default Quartz will try to resolve job's type from container and if there's no explicit registration Quartz will use `ActivatorUtilities` to construct job and inject it's dependencies
-via constructor. Job should have only one public constructor.
+Quartz resolves the job's type from the container. Without an explicit registration, it constructs the job with `ActivatorUtilities`, injecting dependencies through the constructor. A job should have only one public constructor.
 
 ### Failing fast when job dependencies cannot be resolved
 
-`AddJob<T>()` does **not** register the job type with the container. It only describes the job to the
-scheduler, and the job factory falls back to `ActivatorUtilities` when the container has no
-registration for the type. That means `ValidateOnBuild` — which the host enables by default in the
-Development environment — never sees your job and never checks that its constructor can be satisfied.
+`AddJob<T>()` does **not** register the job type with the container; it only describes the job to the
+scheduler. So `ValidateOnBuild`, which the host enables by default in the Development environment,
+never checks that the job's constructor can be satisfied.
 
-An unresolvable dependency therefore surfaces at fire time rather than at startup, as a failure to
-instantiate the job. The trigger has already fired at that point, so the job never runs and every
-trigger of that job is moved to `TriggerState.Error`, where it stays until
+An unresolvable dependency then fails at fire time, not at startup, as a failure to instantiate the
+job. The job never runs, and every trigger of that job moves to `TriggerState.Error` until
 `IScheduler.ResetTriggerFromErrorState` is called.
 
-Register your job types explicitly and startup validation covers them:
+Register your job types explicitly so startup validation covers them:
 
 ```csharp
 services.AddScoped<SendReportsJob>();   // now ValidateOnBuild checks its constructor
@@ -87,9 +80,9 @@ services.AddQuartz(q =>
 });
 ```
 
-If you need to react to such a failure at fire time rather than prevent it — to fail whatever
-scheduled the work, for instance — `ISchedulerListener.SchedulerError` receives a
-`JobInstantiationException` naming the trigger, the job and the fire instance:
+To react to such a failure at fire time instead, for example to fail whatever scheduled the work,
+handle `ISchedulerListener.SchedulerError`. It receives a `JobInstantiationException` naming the
+trigger, the job and the fire instance:
 
 ```csharp
 public class InstantiationFailureListener : SchedulerListenerSupport
@@ -107,21 +100,18 @@ public class InstantiationFailureListener : SchedulerListenerSupport
 }
 ```
 
-To take part in construction itself — to record the failure, or to add context to it — derive from
-`MicrosoftDependencyInjectionJobFactory` and override `InstantiateJob`. The `TriggerFiredBundle` it
-receives carries the trigger, the job detail and `bundle.Trigger.FireInstanceId`.
+To take part in construction itself, for example to record the failure or add context to it, derive
+from `MicrosoftDependencyInjectionJobFactory` and override `InstantiateJob`. Its `TriggerFiredBundle`
+carries the trigger, the job detail and `bundle.Trigger.FireInstanceId`.
 
 ### Persistent job stores
 
-The scheduling configuration will be checked against database and updated accordingly every time your application starts and schedule is being evaluated.
+Every time your application starts and evaluates the schedule, the scheduling configuration is checked against the database and updated.
 
 ::: warning
-When using persistent job store, make sure you define job and trigger names for your scheduling so that existence checks work correctly against
-the data you already have in your database.
+With a persistent job store, always name your jobs and triggers, so that existence checks match the data already in your database.
 
-Using API to configure triggers and jobs without explicit job identity configuration will cause jobs and triggers to have different generated name each time configuration is being evaluated.
-
-With persistent job stores it's best practice to always declare at least job and trigger name. Omitting the group for them will produce same default group value for every invocation.
+Jobs and triggers configured without an explicit identity get a different generated name each time the configuration is evaluated. An omitted group gets the same default group every time.
 :::
 
 **Example Startup.ConfigureServices configuration**

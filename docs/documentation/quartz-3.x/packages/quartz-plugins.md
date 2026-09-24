@@ -3,11 +3,9 @@
 title : Plugins
 ---
 
-[Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides some useful ready-made plugins for your convenience.
+[Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides ready-made plugins.
 
 ## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
 Install-Package Quartz.Plugins
@@ -15,25 +13,19 @@ Install-Package Quartz.Plugins
 
 ## Configuration
 
-Plugins are configured by using either DI configuration extensions or adding required configuration keys.
-
-Configuration key in in format `quartz.plugin.{name-to-refer-with}.{property}`.
-
-[See configuration reference](../configuration/reference.html#plug-ins) on how to configure each plugin
+Configure plugins with the DI configuration extensions or with configuration keys of the form `quartz.plugin.{name-to-refer-with}.{property}`. The [configuration reference](../configuration/reference.html#plug-ins) shows how to configure each plugin.
 
 ## Features
 
 ### LoggingJobHistoryPlugin
 
-Logs a history of all job executions (and execution vetoes) and writes the entries to configured logging infrastructure.
+Logs every job execution (and execution veto) to the configured logging infrastructure.
 
 ### StructuredLoggingJobHistoryPlugin
 
-Structured logging alternative to `LoggingJobHistoryPlugin`. Uses named message template parameters (e.g. `{JobName}`, `{TriggerGroup}`) instead of index-based placeholders, making log output compatible with structured logging sinks like Serilog and NLog. This avoids template cache memory leaks that can occur with the original plugin.
+Structured logging alternative to `LoggingJobHistoryPlugin`. It uses named message template parameters (e.g. `{JobName}`, `{TriggerGroup}`) instead of index-based placeholders, for structured logging sinks such as Serilog and NLog. It also avoids the template cache memory leaks the original plugin can cause.
 
-Message templates can be customized via properties. When customizing, the parameter names in templates are positionally mapped, so they must appear in the same order as the defaults.
-
-Available template properties:
+Message templates can be customized through properties. Parameters are mapped by position, so a custom template must keep them in the default order:
 
 | Property | Parameters (in order) |
 |---|---|
@@ -57,11 +49,9 @@ Recommended over `LoggingJobHistoryPlugin` when using structured logging provide
 
 ### StructuredLoggingTriggerHistoryPlugin
 
-Structured logging alternative to `LoggingTriggerHistoryPlugin`. Logs trigger firings, misfires, and completions using named message template parameters for structured logging compatibility.
+Structured logging alternative to `LoggingTriggerHistoryPlugin`. Logs trigger firings, misfires and completions with named message template parameters.
 
-Message templates can be customized via properties. When customizing, the parameter names in templates are positionally mapped, so they must appear in the same order as the defaults.
-
-Available template properties:
+Message templates can be customized through properties. Parameters are mapped by position, so a custom template must keep them in the default order:
 
 | Property | Parameters (in order) |
 |---|---|
@@ -84,26 +74,25 @@ Recommended over `LoggingTriggerHistoryPlugin` when using structured logging pro
 
 ### ShutdownHookPlugin
 
-This plugin catches the event of the VM terminating (such as upon a CRTL-C) and tells the scheduler to Shutdown.
+Shuts the scheduler down when the VM terminates (such as on CTRL-C).
 
 ### XMLSchedulingDataProcessorPlugin
 
-This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes.
+Loads XML file(s) and schedules their jobs and triggers when the scheduler initializes. It can also scan the files for changes periodically.
 
 ::: warning
-The periodically scanning of files for changes is not currently supported in a clustered environment.
+Periodic scanning for changes is not supported in a clustered environment.
 :::
 
 ### JobInterruptMonitorPlugin
 
-This plugin catches the event of job running for a long time (more than the configured max time) and tells the scheduler to "try" interrupting it if enabled.
+If enabled, asks the scheduler to try interrupting a job that runs longer than the configured maximum time.
 
 ::: tip
 Quartz 3.3 or later required.
 :::
 
-Each job configuration needs to have `JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable` key's value set to true in order for plugin to monitor the execution timeout.
-Jobs can also define custom timeout value instead of global default by using key `JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime`.
+The plugin monitors only jobs whose `JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable` value is true. A job can override the global default timeout with `JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime`.
 
 ```csharp
 var job = JobBuilder.Create<SlowJob>()
@@ -114,9 +103,9 @@ var job = JobBuilder.Create<SlowJob>()
     .Build();
 ```
 
-Both `AutoInterruptable` and `MaxRunTime` are read from the merged job data map, so a trigger's data map can also enable interruption or override the timeout for its own fires.
-
-Only the execution that exceeded its allowed run time is interrupted — the plugin monitors each fire instance separately, so concurrent executions of the same job are unaffected. Executions vetoed by a trigger listener do not arm the interrupt timer.
+* `AutoInterruptable` and `MaxRunTime` are read from the merged job data map, so a trigger's data map can enable interruption or override the timeout for its own fires.
+* Only the execution that exceeded its run time is interrupted. Each fire instance is monitored separately, so concurrent executions of the same job are unaffected.
+* Executions vetoed by a trigger listener do not start the interrupt timer.
 
 ## Authoring plugin configuration extensions
 
@@ -124,7 +113,7 @@ Only the execution that exceeded its allowed run time is interrupted — the plu
 Quartz 3.19 or later required.
 :::
 
-When you write your own `ISchedulerPlugin`, you can offer the same strongly typed configuration experience as the built-in plugins by creating an extension method that targets `IPropertyConfigurationRoot`. The `UsePlugin` helper takes care of the whole registration: it sets the `quartz.plugin.{name}.type` property and, when the configuration is backed by Microsoft DI (`AddQuartz`), registers the plugin type into the container so it gets constructed with constructor injection.
+To give your own `ISchedulerPlugin` strongly typed configuration like the built-in plugins, write an extension method on `IPropertyConfigurationRoot`. The `UsePlugin` helper does the registration: it sets the `quartz.plugin.{name}.type` property and, when Microsoft DI (`AddQuartz`) backs the configuration, registers the plugin type in the container so it is constructed with constructor injection.
 
 ```csharp
 public static class MyPluginConfigurationExtensions
@@ -144,7 +133,7 @@ public static class MyPluginConfigurationExtensions
 }
 ```
 
-Strongly typed options use the `PropertiesSetter` base class with the plugin's property prefix; each property setter maps to a `quartz.plugin.{name}.{property}` configuration key that gets applied to the plugin's public setters:
+Strongly typed options derive from `PropertiesSetter` with the plugin's property prefix. Each property setter maps to a `quartz.plugin.{name}.{property}` key, which is applied to the plugin's public setter:
 
 ```csharp
 public sealed class MyPluginOptions : PropertiesSetter
@@ -161,7 +150,7 @@ public sealed class MyPluginOptions : PropertiesSetter
 }
 ```
 
-The same extension method then works with all configuration styles:
+The extension method works with every configuration style:
 
 ```csharp
 // Microsoft DI - plugin is constructed by the container, constructor injection available

@@ -5,15 +5,13 @@ title: 'Trigger and Job Listeners'
 
 # Trigger and Job Listeners
 
-Listeners are objects that you create to perform actions based on events occurring within the scheduler.
-As you can probably guess, TriggerListeners receive events related to triggers, and JobListeners receive events related to jobs.
+Listeners act on events in the scheduler. TriggerListeners receive trigger events; JobListeners receive job events. Use them when your application needs to be notified of events without the job notifying it; most users do not need them.
 
-Trigger-related events include: trigger firings, trigger mis-firings (discussed in the "Triggers" section of this document),
-and trigger completions (the jobs fired off by the trigger is finished).
+Trigger events: firings, misfires (see [More About Triggers](more-about-triggers.md)), and completions (the job fired by the trigger has finished).
 
 ::: danger
-Make sure your trigger and job listeners never throw an exception (use a try-catch) and that they can handle internal problems.
-Jobs can get stuck after Quartz is unable to determine whether required logic in listener was completed successfully when listener notification failed.
+Your trigger and job listeners must never throw an exception (use a try-catch) and must handle internal problems themselves.
+When a listener notification fails, Quartz cannot tell whether the listener's required logic completed, and jobs can get stuck.
 :::
 
 __The ITriggerListener Interface__
@@ -33,7 +31,7 @@ public interface ITriggerListener
 }
 ```
 
-Job-related events include: a notification that the job is about to be executed, and a notification when the job has completed execution.
+Job events: the job is about to be executed, and the job has completed execution.
 
 __The IJobListener Interface__
 
@@ -52,19 +50,13 @@ public interface IJobListener
 
 ## Using Your Own Listeners
 
-To create a listener, simply create an object the implements either the `ITriggerListener` and/or `IJobListener` interface.
-Listeners are then registered with the scheduler during run time, and must be given a name (or rather, they must advertise their own
-name via their Name property.
+A listener implements `ITriggerListener` and/or `IJobListener`, or extends `JobListenerSupport` or `TriggerListenerSupport` and overrides only the events it needs. It must return its name from its Name property.
 
-For your convenience, rather than implementing those interfaces, your class could also extend the class `JobListenerSupport` or `TriggerListenerSupport`
-and simply override the events you're interested in.
-
-Listeners are registered with the scheduler's `ListenerManager` along with a Matcher that describes which Jobs/Triggers the listener wants to receive events for.
+Register listeners at run time with the scheduler's `ListenerManager`, together with a Matcher that selects the Jobs/Triggers the listener receives events for.
 
 ::: tip
-Listeners are registered with the scheduler during run time, and are __NOT__ stored in the JobStore along with the jobs and triggers.
-This is because listeners are typically an integration point with your application.
-Hence, each time your application runs, the listeners need to be re-registered with the scheduler.
+Listeners are __NOT__ stored in the JobStore with the jobs and triggers, because they are usually an integration point with your application.
+Register them again each time your application runs.
 :::
 
 __Adding a JobListener that is interested in a particular job:__
@@ -91,6 +83,3 @@ __Adding a JobListener that is interested in all jobs:__
 ```csharp
 scheduler.ListenerManager.AddJobListener(myJobListener, GroupMatcher<JobKey>.AnyGroup());
 ```
-
-Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
-for the notification of events, without the Job itself explicitly notifying the application.

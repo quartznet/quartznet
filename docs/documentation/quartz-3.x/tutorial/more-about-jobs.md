@@ -5,19 +5,9 @@ title: 'More About Jobs'
 
 # More About Jobs
 
-As you saw in Lesson 3, jobs are rather easy to implement. There are a few more things that you need to understand about
-the nature of jobs, about the `Execute(..)` method of the `IJob` interface, and about JobDetails.
+Your job class holds the code that does the work. Quartz.NET also needs the attributes of each job instance; these live in a `JobDetail`, built with the fluent `JobBuilder`.
 
-While a job class that you implement has the code that knows how to do the actual work
-of the particular type of job, Quartz.NET needs to be informed about various attributes
-that you may wish an instance of that job to have. This is done via the `JobDetail` class,
-which was mentioned briefly in the previous section.
-
-JobDetail instances are built using the `JobBuilder` class. `JobBuilder` allows you to describe
-your job's details using a fluent interface.
-
-Let's take a moment now to discuss a bit about the 'nature' of jobs and the life-cycle of job instances within Quartz.NET.
-First lets take a look back at some of that snippet of code we saw in Lesson 1:
+The code from Lesson 1:
 
 ```csharp
 // define the job and tie it to our HelloJob class
@@ -37,7 +27,7 @@ ITrigger trigger = TriggerBuilder.Create()
 await sched.ScheduleJob(job, trigger);
 ```
 
-Now consider the job class **HelloJob**  defined as such:
+with the job class **HelloJob**:
 
 ```csharp
 public class HelloJob : IJob
@@ -49,28 +39,22 @@ public class HelloJob : IJob
 }
 ```
 
-Notice that we give the scheduler a `IJobDetail` instance, and that it refers to the job to be executed by simply
-providing the job's class. Each (and every) time the scheduler executes the job, it creates a new instance of the
-class before calling its `Execute(..)` method. One of the ramifications of this behavior is the fact that jobs must
-have a no-argument constructor. Another ramification is that it does not make sense to have data-fields defined
-on the job class - as their values would not be preserved between job executions.
+The scheduler gets an `IJobDetail` that names the job's class. Every time it executes the job, it creates a new instance of the class before calling `Execute(..)`. So:
+
+- jobs must have a no-argument constructor;
+- data fields on the job class are pointless, because their values are not kept between executions.
 
 :::tip Dependency Injection
-If using Quartz with a dependency injection framework, your constructor can pull in service dependencies just
-like a controller in an ASP.NET MVC.
+With a dependency injection framework, the constructor can take service dependencies, like a controller in ASP.NET MVC.
 :::
 
-You may now be wanting to ask "how can I provide properties/configuration for a Job instance?" and "how can I
-keep track of a job's state between executions?" The answer to these questions are the same: the key is the `JobDataMap`,
-which is part of the JobDetail object.
+To give a job instance configuration, or to keep a job's state between executions, use the `JobDataMap` on the JobDetail.
 
 ## JobDataMap
 
-The `JobDataMap` can be used to hold any number of (serializable) objects which you wish to have made available
-to the job instance when it executes. `JobDataMap` is an implementation of the `IDictionary` interface, and has
-some added convenience methods for storing and retrieving data of primitive types.
+`JobDataMap` holds any number of (serializable) objects for the job instance to use when it executes. It implements `IDictionary` and adds convenience methods for storing and retrieving primitive types.
 
-Here's some quick snippets of putting data into the JobDataMap prior to adding the job to the scheduler:
+Putting data into the JobDataMap before adding the job to the scheduler:
 
 **Setting Values in a JobDataMap**
 
@@ -83,7 +67,7 @@ IJobDetail job = JobBuilder.Create<DumbJob>()
  .Build();
 ```
 
-Here's a quick example of getting data from the `JobDataMap` during the job's execution:
+Reading it during the job's execution:
 
 **Getting Values from a JobDataMap**
 
@@ -105,25 +89,17 @@ public class DumbJob : IJob
 }
 ```
 
-If you use a persistent JobStore (discussed in the JobStore section of this tutorial) you should use some care
-in deciding what you place in the `JobDataMap`, because the object in it will be serialized, and they therefore
-become prone to class-versioning problems. Obviously standard .NET types should be very safe, but beyond that,
-any time someone changes the definition of a class for which you have serialized instances,
-care has to be taken not to break compatibility.
+With a persistent JobStore (see [Job Stores](job-stores.md)), choose carefully what goes in the `JobDataMap`. Its objects are serialized, so they are prone to class-versioning problems. Standard .NET types are safe; for your own classes, any change to a class with serialized instances must not break compatibility.
 
-Optionally, you can put `AdoJobStore` and `JobDataMap` into a mode where only primitives
-and strings can be stored in the map, thus eliminating any possibility of later serialization problems.
+`AdoJobStore` and `JobDataMap` can be put in a mode where the map stores only primitives and strings, which rules out later serialization problems.
 
-If you add properties with a public `set` accessor to your job class that correspond to the names of keys in the `JobDataMap`,  then Quartz's default JobFactory implementation will automatically call those setters when the job is instantiated, thus preventing the need to explicitly get the values out of the map within your execute method. Note this
-functionality is not maintained by default when using a custom `JobFactory`.
+If your job class has properties with a public `set` accessor named like the `JobDataMap` keys, Quartz's default JobFactory calls those setters when it instantiates the job, so `Execute` need not read the map. A custom `JobFactory` does not do this by default.
 
-Triggers can also have `JobDataMap`s associated with them. This can be useful in the case where you have a Job that is stored in the scheduler for regular/repeated use by multiple Triggers, yet with each independent triggering, you want to supply the Job with different data inputs.
+Triggers can have `JobDataMap`s too. Use them when one stored job is fired by several triggers and each trigger should pass different data.
 
-The JobDataMap that is found on the `JobExecutionContext` during Job execution serves as a convenience. It is a merger
-of the `JobDataMap` found on the `JobDetail` and the one found on the `Trigger`, with the values of the trigger overriding
-the same-named values in the job.
+The JobDataMap on the `JobExecutionContext` merges the `JobDataMap` of the `JobDetail` and of the `Trigger`; the trigger's values override same-named values from the job.
 
-Here's a quick example of getting data from the JobExecutionContext's merged JobDataMap during the job's execution:
+Reading the merged JobDataMap during execution:
 
 ```csharp
 public class DumbJob : IJob
@@ -144,7 +120,7 @@ public class DumbJob : IJob
 }
 ```
 
-Or if you wish to rely on the JobFactory "injecting" the data map values onto your class, it might look like this instead:
+Or let the JobFactory inject the data map values into properties:
 
 ```csharp
 public class DumbJob : IJob
@@ -166,69 +142,46 @@ public class DumbJob : IJob
 }
 ```
 
-You'll notice that the overall code of the class is longer, but the code in the `Execute()` method is cleaner.
-One could also argue that although the code is longer, that it actually took less coding, if the programmer's IDE was used to auto-generate the properties,
-rather than having to hand-code the individual calls to retrieve the values from the JobDataMap. The choice is yours.
+The class is longer, but `Execute()` is cleaner.
 
 ## Job "Instances"
 
-Many users spend time being confused about what exactly constitutes a "job instance".
-We'll try to clear that up here and in the section below about job state and concurrency.
+One job class can have many instance definitions in the scheduler: create several JobDetails, each with its own properties and JobDataMap, and add them all.
 
-You can create a single job class, and store many 'instance definitions' of it within the scheduler by creating multiple instances of JobDetails
+For example, a job class "SalesReportJob" reads the sales person's name from its JobDataMap. You create two JobDetails, "SalesReportForJoyce" and "SalesReportForMike", with "Joyce" and "Mike" in their JobDataMaps.
 
-- each with its own set of properties and JobDataMap - and adding them all to the scheduler.
+When a trigger fires, its JobDetail is loaded and the job class is instantiated by the scheduler's JobFactory. The default JobFactory calls the job class's default constructor with `Activator.CreateInstance`, then calls the setter properties that match the JobDataMap's keys. Write your own JobFactory to, for example, have your IoC or DI container create and initialize the job instance.
 
-For example, you can create a class that implements the `IJob` interface called "SalesReportJob".
-The job might be coded to expect parameters sent to it (via the JobDataMap) to specify the name of the sales person that the sales
-report should be based on. They may then create multiple definitions (JobDetails) of the job, such as "SalesReportForJoyce"
-and "SalesReportForMike" which have "Joyce" and "Mike" specified in the corresponding JobDataMaps as input to the respective jobs.
+Terms:
 
-When a trigger fires, the JobDetail (instance definition) it is associated to is loaded,
-and the job class it refers to is instantiated via the JobFactory configured on the Scheduler.
-The default JobFactory simply calls the default constructor of the job class using `Activator.CreateInstance`,
-then attempts to call setter properties on the class that match the names of keys within the JobDataMap.
-You may want to create your own implementation of JobFactory to accomplish things such as having your application's IoC or DI container produce/initialize the job instance.
-
-In "Quartz speak", we refer to each stored JobDetail as a "job definition" or "JobDetail instance",
-and we refer to a each executing job as a "job instance" or "instance of a job definition".
-Usually if we just use the word "job" we are referring to a named definition, or JobDetail.
-When we are referring to the class implementing the job interface, we usually use the term "job type".
+| Term | Means |
+|---|---|
+| "job definition" or "JobDetail instance" | a stored JobDetail |
+| "job instance" or "instance of a job definition" | an executing job |
+| "job" | usually a named definition, or JobDetail |
+| "job type" | the class implementing the job interface |
 
 ## Job State and Concurrency
 
-Now, some additional notes about a job's state data (aka JobDataMap) and concurrency.
-There are a couple attributes that can be added to your Job class that affect Quartz's behaviour with respect to these aspects.
+Two attributes on the job class change how Quartz handles a job's state (its JobDataMap) and concurrency.
 
-`[DisallowConcurrentExecution]` is an attribute that can be added to the Job class that tells Quartz not to execute multiple instances
-of a given job definition (that refers to the given job class) concurrently.
-Notice the wording there, as it was chosen very carefully. In the example from the previous section, if "SalesReportJob" has this attribute,
-then only one instance of "SalesReportForJoyce" can execute at a given time, but it can execute concurrently with an instance of "SalesReportForMike".
-The constraint is based upon an instance definition (JobDetail), not on instances of the job class.
-However, it was decided (during the design of Quartz) to have the attribute carried on the class itself, because it does often make a difference to how the class is coded.
+`[DisallowConcurrentExecution]` tells Quartz not to execute multiple instances of one job definition concurrently. It applies per JobDetail, not per job class: if "SalesReportJob" has it, only one "SalesReportForJoyce" runs at a time, but it can run alongside "SalesReportForMike". The attribute is on the class because it often affects how the class is coded.
 
-`[PersistJobDataAfterExecution]` is an attribute that can be added to the Job class that tells Quartz to update the stored copy of
-the JobDetail's JobDataMap after the Execute() method completes (even if it throws a JobExecutionException), such that the next
-execution of the same job (JobDetail) receives the updated values rather than the originally stored values.
-Like the `[DisallowConcurrentExecution]` attribute, this applies to a job definition instance, not a job class instance,
-though it was decided to have the job class carry the attribute because it does often make a difference to how the class is coded
-(e.g. the 'statefulness' will need to be explicitly 'understood' by the code within the execute method).
+`[PersistJobDataAfterExecution]` tells Quartz to update the stored JobDataMap of the JobDetail after `Execute()` completes, even if it throws a JobExecutionException. The next execution of the same JobDetail then receives the updated values instead of the originally stored ones. It also applies per job definition, and is on the class because the code in `Execute` must be written with the statefulness in mind.
 
-If you use the **PersistJobDataAfterExecution** attribute, you should strongly consider also using the `[DisallowConcurrentExecution]` attribute,
-in order to avoid possible confusion (race conditions) of what data was left stored when two instances of the same job (JobDetail) executed concurrently.
+If you use **PersistJobDataAfterExecution**, strongly consider also using `[DisallowConcurrentExecution]`. Otherwise, when two instances of the same JobDetail run concurrently, which data is left stored is a race.
 
 ## Other Attributes Of Jobs
 
-Here's a quick summary of the other properties which can be defined for a job instance via the JobDetail object:
+Other properties you can set on a JobDetail:
 
-| Attribute | |
+| Attribute | Effect |
 |-|--|
-| `Durability` | if a job is non-durable, it is automatically deleted from the scheduler once there are no longer any active triggers associated with it. In other words, non-durable jobs have a life span bounded by the existence of its triggers. |
-| `RequestsRecovery` | if a job "requests recovery", and it is executing during the time of a 'hard shutdown' of the scheduler (i.e. the process it is running within crashes, or the machine is shut off), then it is re-executed when the scheduler is started again. In this case, the `JobExecutionContext.Recovering` property will return true. |
+| `Durability` | A non-durable job is deleted from the scheduler automatically once no active trigger is associated with it. |
+| `RequestsRecovery` | The job is re-executed when the scheduler starts again, if it was executing during a hard shutdown. |
+
+A hard shutdown means the process crashed or the machine was shut off. When a job is re-executed this way, `JobExecutionContext.Recovering` returns true.
 
 ## JobExecutionException
 
-Finally, we need to inform you of a few details of the `IJob.Execute(..)` method. The only type of exception
-that you should throw from the execute method is the JobExecutionException. Because of this, you should generally wrap the entire contents of the
-execute method with a 'try-catch' block. You should also spend some time looking at the documentation for the JobExecutionException,
-as your job can use it to provide the scheduler various directives as to how you want the exception to be handled.
+The only exception to throw from `IJob.Execute(..)` is JobExecutionException, so generally wrap the whole method body in a try-catch block. A JobExecutionException can also give the scheduler directives on how to handle the exception; see its documentation.

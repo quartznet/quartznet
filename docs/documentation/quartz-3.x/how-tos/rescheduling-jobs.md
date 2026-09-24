@@ -1,14 +1,14 @@
 # Rescheduling Jobs
 
-A few ways to approach a need to reschedule a job.
+Ways to reschedule a job.
 
 ## Manually Retry
 
-When a Quartz job is running, and an unhandled exception escapes the `IJob`, the Quartz system will mark the job in an error state. This would then allow you to reschedule the job using any method that would be work for your system.
+When an unhandled exception escapes a running `IJob`, Quartz marks the job in an error state. You can then reschedule it by whatever method suits your system.
 
 ## Using JobExecutionException
 
-One simple option is to use the `JobExecutionException` to control if the job should refire immediately or not.
+`JobExecutionException` controls whether the job refires immediately.
 
 ```csharp
 public async Task Execute(IJobExecutionContext context)
@@ -29,11 +29,11 @@ public async Task Execute(IJobExecutionContext context)
 
 ## Polly Retries
 
-If your job simply needs to retry its work, then you could wrap the job in a [Polly](https://github.com/App-vNext/Polly) policy, and use the policy definitions to retry it. Note that using Polly to implement long running retries will maintain a job slot, and prevent the job engine for performing more work.
+To retry the job's work, wrap it in a [Polly](https://github.com/App-vNext/Polly) retry policy. Long-running Polly retries hold a job slot, so the scheduler can do less other work.
 
 ## Self-Rescheduling
 
-If your job needs more time, say it needs to wait 5 minutes, the `IJobExecutionContext` has access to the scheduler on it. You could use that to reschedule the job, and let it exit normally.
+If the job needs to wait, say 5 minutes, reschedule it through the scheduler on `IJobExecutionContext` and let it exit normally.
 
 ```csharp
 public async Task Execute(IJobExecutionContext context)
@@ -52,7 +52,7 @@ public async Task Execute(IJobExecutionContext context)
 
 ## Self-Descheduling
 
-Another approach, is to have the job run every 5 minutes (or some other suitable cadence) and after succeeding cancel itself. This has the added benefit of being easier to logically reason about, but could still be making calls to the downstream services.
+Run the job every 5 minutes (or another suitable cadence) and have it unschedule itself after it succeeds. This is easier to reason about, but the job may still be calling the downstream services.
 
 ```csharp
 public async Task Execute(IJobExecutionContext context)
