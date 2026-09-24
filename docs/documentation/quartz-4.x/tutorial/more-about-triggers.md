@@ -5,38 +5,32 @@ title: 'More About Triggers'
 
 # More About Triggers
 
-Like jobs, triggers are relatively easy to work with, but do contain a variety of customizable options that you need to
-be aware of and understand before you can make full use of Quartz.NET. Also, as noted earlier, there are different types of triggers,
-that you can select to meet different scheduling needs.
+Options common to every trigger type. The types themselves have lessons of their own.
 
 ## Common Trigger Attributes
 
-Aside from the fact that all trigger types have `TriggerKey` properties for tracking their identities,
-there are a number of other properties that are common to all trigger types. These common properties are set using the TriggerBuilder
-when you are building the trigger definition (examples of that will follow).
+Every trigger has a `TriggerKey` identity and these properties, set with `TriggerBuilder`:
 
-Here is a listing of properties common to all trigger types:
+| Property | Meaning |
+|---|---|
+| `JobKey` | the job to execute when the trigger fires |
+| `StartTimeUtc` | when the schedule comes into effect, as a `DateTimeOffset` |
+| `EndTimeUtc` | when the schedule stops being in effect |
 
-* The `JobKey` property indicates the identity of the job that should be executed when the trigger fires.
-* The `StartTimeUtc` property indicates when the trigger's schedule first comes into affect.
-The value is a DateTimeOffset object that defines a moment in time on a given calendar date.
-For some trigger types, the trigger will actually fire at the start time, for others it simply marks the time that the schedule should start being followed.
-This means you can store a trigger with a schedule such as "every 5th day of the month" during January, and if the StartTimeUtc property is set to April 1st,
- it will be a few months before the first firing.
-* The `EndTimeUtc` property indicates when the trigger's schedule should no longer be in effect.
-In other words, a trigger with a schedule of "every 5th day of the month" and with an end time of July 1st will fire for it's last time on June 5th.
-The end time is the last instant at which a trigger may fire: a fire time exactly equal to it is one the trigger fires, and the first instant after it is where the schedule stops.
-This is the same rule for every trigger type.
-
-Other properties, which take a bit more explanation are discussed in the following sub-sections.
+* For some trigger types the trigger fires at the start time; for others the start time only marks when
+  the schedule begins. A trigger stored in January with the schedule "every 5th day of the month" and a
+  `StartTimeUtc` of April 1st first fires months later.
+* The end time is the last instant at which the trigger may fire. A fire time exactly equal to it fires;
+  the schedule stops at the first instant after it. With "every 5th day of the month" and an end time of
+  July 1st, the last firing is June 5th. The rule is the same for every trigger type.
 
 ## Priority
 
-Sometimes, when you have many Triggers (or few worker threads in your Quartz.NET thread pool), Quartz.NET may not have enough resources to immediately fire all
-of the Triggers that are scheduled to fire at the same time. In this case, you may want to control which of your Triggers get first crack at the available Quartz.NET worker threads.
-For this purpose, you can set the priority property on a Trigger. If N Triggers are to fire at the same time, but there are only Z worker threads currently available,
-then the first Z Triggers with the highest priority will be executed first. If you do not set a priority on a Trigger, then it will use the default priority of 5.
-Any integer value is allowed for priority, positive or negative.  A larger number indicates a higher priority.  i.e. A trigger with a Priority of 7 will have priority over trigger with a value of 5.
+When more triggers are due at once than there are free worker threads, priority decides which fire
+first. If N triggers are due and Z threads are free, the Z triggers with the highest priority run first.
+
+* Default: 5.
+* Any integer, positive or negative. Larger is higher: 7 beats 5.
 
 ::: tip
 Priorities are only compared when triggers have the same fire time. A trigger scheduled to fire at 10:59 will always fire before one scheduled to fire at 11:00.
@@ -48,15 +42,14 @@ When a trigger's job is detected to require recovery, its recovery is scheduled 
 
 ## Misfire Instructions
 
-Another important property of a Trigger is its "misfire instruction". A misfire occurs if a persistent trigger "misses" its firing time because of the scheduler being shutdown,
-or because there are no available threads in Quartz.NET's thread pool for executing the job.
-When the scheduler starts, it searches for any persistent triggers that have misfired, and it then updates each of them based on their individually
-configured misfire instructions.
+A misfire occurs when a persistent trigger misses its firing time because the scheduler was shut down or
+the thread pool had no free thread. When the scheduler starts, it finds misfired persistent triggers and
+updates each by its own misfire instruction.
 
-Each trigger family has its own set of instructions, and each set is an enum of its own —
-`SimpleTriggerMisfireInstruction`, `CronTriggerMisfireInstruction`, `CalendarIntervalTriggerMisfireInstruction`,
-`DailyTimeIntervalTriggerMisfireInstruction` and `RecurrenceTriggerMisfireInstruction`. You set one on the
-schedule builder for that family, so the only values in scope are the ones that family understands:
+Each trigger family has its own enum of instructions: `SimpleTriggerMisfireInstruction`,
+`CronTriggerMisfireInstruction`, `CalendarIntervalTriggerMisfireInstruction`,
+`DailyTimeIntervalTriggerMisfireInstruction` and `RecurrenceTriggerMisfireInstruction`. Set it on that
+family's schedule builder, so only its values are in scope:
 
 <!-- snippet: sample_more_about_triggers_misfire_instruction -->
 ```csharp
@@ -67,44 +60,45 @@ schedule builder for that family, so the only values in scope are the ones that 
 ```
 <!-- endSnippet -->
 
-Every family has `SmartPolicy`, which is the default, and `IgnoreMisfires`, which fires every missed firing as
-fast as it can once the scheduler is back. `SmartPolicy` is not itself a behaviour: the trigger resolves it
-to one of its own instructions when the misfire is handled, and only `SimpleTrigger` looks at anything to
-decide:
+Every family has:
+
+* `SmartPolicy`, the default. The trigger resolves it to one of its own instructions when the misfire is
+  handled; only `SimpleTrigger` looks at anything to decide.
+* `IgnoreMisfires`, which fires every missed firing as fast as it can once the scheduler is back.
 
 | Trigger family | `SmartPolicy` resolves to | Which means |
 |---|---|---|
 | **Simple**, `RepeatCount = 0` | `SimpleTriggerMisfireInstruction.FireNow` | fire the missed occurrence immediately |
 | **Simple**, repeating forever | `SimpleTriggerMisfireInstruction.NextWithRemainingCount` | skip what was missed and wait for the next scheduled time |
-| **Simple**, a finite repeat count | `SimpleTriggerMisfireInstruction.NowWithExistingCount` | fire now and keep the count that is left, so the series still runs to its full length |
-| **Cron** | `CronTriggerMisfireInstruction.FireAndProceed` | fire once now, then carry on with the schedule |
+| **Simple**, a finite repeat count | `SimpleTriggerMisfireInstruction.NowWithExistingCount` | fire now and keep the remaining count, so the series runs to its full length |
+| **Cron** | `CronTriggerMisfireInstruction.FireAndProceed` | fire once now, then continue the schedule |
 | **Calendar interval** | `CalendarIntervalTriggerMisfireInstruction.FireAndProceed` | the same |
 | **Daily time interval** | `DailyTimeIntervalTriggerMisfireInstruction.FireAndProceed` | the same |
 | **Recurrence (RRULE)** | `RecurrenceTriggerMisfireInstruction.FireAndProceed` | the same |
 
-However many firings were missed, a resolved instruction produces **one** catch-up firing at most — the
-trigger is moved forward, not replayed. `IgnoreMisfires` is the instruction that replays them.
+However many firings were missed, a resolved instruction fires **once** at most: the trigger moves
+forward and is not replayed. Only `IgnoreMisfires` replays them.
 
 ## Retry Policies
 
-A misfire is a firing that never happened. Its opposite — a firing that happened and *failed* — is what a
-**retry policy** is for. A trigger carrying one is re-fired after its job throws, on a fixed, exponential or
-explicitly tabulated schedule of waits:
+A retry policy re-fires a trigger after its job throws, on a fixed, exponential or explicit table of
+waits. (A misfire is a firing that never happened; a retry follows a firing that failed.)
 
 ```csharp
 .WithRetryPolicy(RetryPolicy.Exponential(maxAttempts: 3, initialDelay: TimeSpan.FromSeconds(30)))
 ```
 
-A retry never displaces the trigger's next scheduled occurrence, burns no repeat count, and running out of
-attempts puts the trigger back on its ordinary schedule rather than into an error state. See
-[Retrying Failed Jobs](../how-tos/retrying-failed-jobs.md) for the whole of it — including why
-`RefireImmediately` is not a zero-delay retry.
+* A retry never displaces the trigger's next scheduled occurrence and uses no repeat count.
+* When attempts run out, the trigger returns to its ordinary schedule, not to an error state.
+
+See [Retrying Failed Jobs](../how-tos/retrying-failed-jobs.md), including why `RefireImmediately` is not
+a zero-delay retry.
 
 ## Continuations
 
-A trigger's start time need not be a *time*. `StartAfter` makes it another trigger's firing: the trigger is
-stored in `TriggerState.Awaiting`, nothing acquires it, and the parent's completion either releases it into
-the ordinary schedule or discards it — depending on how that firing ended.
+`StartAfter` makes a trigger start after another trigger's firing instead of at a time. The trigger is
+stored in `TriggerState.Awaiting` and nothing acquires it. Depending on how the parent's firing ended,
+its completion releases the trigger into the ordinary schedule or discards it.
 
 <!-- snippet: sample_continuations_tutorial -->
 ```csharp
@@ -126,24 +120,23 @@ public sealed class TutorialContinuation
 ```
 <!-- endSnippet -->
 
-The condition is flags — `OnSuccess`, `OnFailure`, `OnCancellation`, `OnVeto`, or `OnAnyOutcome` for all
-four — and it composes with the trigger's schedule rather than replacing it, so `StartAfter` plus
-`WithCronSchedule` is "start this cron once the import has finished". The wait is held by the store, so it
-survives a restart and the node that scheduled it need not be the node that settles it.
+* The condition is flags: `OnSuccess`, `OnFailure`, `OnCancellation`, `OnVeto`, or `OnAnyOutcome` for all
+  four.
+* It composes with the trigger's schedule: `StartAfter` plus `WithCronSchedule` is "start this cron once
+  the import has finished".
+* The store holds the wait, so it survives a restart. The node that releases or discards it need not be
+  the node that scheduled it.
+* A continuation is released or discarded **once**. For a recurring conditional chain, such as "run the
+  cleanup whenever the nightly job fails", use `JobChainingJobListener`.
 
-A continuation settles **once**. For a recurring conditional chain — "run the cleanup whenever the nightly
-job fails" — the answer is `JobChainingJobListener` instead. See
-[Job Continuations](../how-tos/job-continuations.md) for the whole of it, including what a deleted parent
-does and why a retry settles nothing.
+See [Job Continuations](../how-tos/job-continuations.md), including what a deleted parent does and why a
+retry releases nothing.
 
 ## Execution Groups
 
-Triggers can optionally be assigned an **execution group** -- a tag that characterizes the resource
-requirements of the associated job (e.g. `"batch-jobs"`, `"high-cpu"`). Execution groups allow each
-scheduler node to limit how many threads a particular category of job may consume concurrently,
-preventing resource-intensive jobs from starving other work.
-
-Set an execution group via `TriggerBuilder`:
+An **execution group** is an optional tag on a trigger that names the job's resource needs (e.g.
+`"batch-jobs"`, `"high-cpu"`). Each scheduler node can limit how many threads a group uses at once, so
+resource-heavy jobs do not starve other work.
 
 <!-- snippet: sample_more_about_triggers_execution_group -->
 ```csharp
@@ -155,18 +148,14 @@ TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-See the [Execution Groups tutorial](execution-groups.md) for full details on configuration and usage.
-
-To control *which cluster node* runs a trigger, rather than how many threads it may use, see the
-[Node Affinity tutorial](node-affinity.md).
+See [Execution Groups](execution-groups.md). To control *which cluster node* runs a trigger, see
+[Node Affinity](node-affinity.md).
 
 ## Calendars
 
-Quartz.NET Calendar objects implementing `ICalendar` interface can be associated with triggers at the time the trigger is stored in the scheduler.
-Calendars are useful for excluding blocks of time from the trigger's firing schedule. For instance, you could
-create a trigger that fires a job every weekday at 9:30 am, but then add a Calendar that excludes all of the business's holidays.
-
-A calendar is any object implementing the `ICalendar` interface, which looks like this:
+A calendar excludes blocks of time from a trigger's schedule: for example, a trigger that fires every
+weekday at 9:30 am, with a calendar that excludes the business's holidays. Calendars are associated with
+triggers when the trigger is stored. A calendar is any object implementing `ICalendar`:
 
 <!-- Quartz's own declaration of the interface, so it is written out here rather than compiled from the
      samples project: a second `Quartz.ICalendar` in that project would shadow the real one. -->
@@ -189,23 +178,19 @@ namespace Quartz
 }
 ```
 
-`CalendarBase` chains calendars: a calendar excludes a time if it excludes it itself *or* if its base does, so
-"not on holidays, and not outside business hours" is two calendars, one based on the other.
+* `CalendarBase` chains calendars: a time is excluded if the calendar or its base excludes it. "Not on
+  holidays and not outside business hours" is two calendars, one based on the other.
+* `RAMJobStore` holds your calendar instance and returns clones.
+* A persistent store writes the calendar as a serialized blob, so the configured serializer must be able
+  to read it back. The calendars in `Quartz.Impl.Calendar` ship with serializers for both JSON serializers;
+  a calendar of your own needs a `CalendarSerializer<T>` registered with it. See
+  [System.Text.Json serialization](../packages/system-text-json.md).
 
-A calendar of your own only has to survive whatever your job store does with it. `RAMJobStore` holds the instance
-and hands back clones. A persistent store writes it as a serialized blob, so a calendar going into one has to be
-something the configured serializer can read back: the calendars in `Quartz.Impl.Calendar` ship with serializers
-for both JSON serializers, and a calendar of your own needs a `CalendarSerializer<T>` registered alongside it —
-see [System.Text.Json serialization](../packages/system-text-json.md).
+Calendars can exclude time as narrow as a millisecond, but usually exclude whole days, which
+`HolidayCalendar` does. Fill it with `AddExcludedDay(DateOnly day)`.
 
-Even though calendars can 'block out' sections of time as narrow as a millisecond, most likely, you'll be interested in
-'blocking-out' entire days. As a convenience, Quartz.NET includes the class HolidayCalendar, which does just that.
-
-Calendars are registered with the scheduler under a name, and triggers refer to them by that name. If you use
-`HolidayCalendar`, use its `AddExcludedDay(DateOnly day)` method to populate it with the days you wish to have
-excluded from scheduling. The same calendar can be used by any number of triggers:
-
-**Calendar Example**
+Calendars are registered with the scheduler under a name, and triggers refer to them by that name. Any
+number of triggers can use one calendar:
 
 <!-- snippet: sample_more_about_triggers_calendar -->
 ```csharp
@@ -241,10 +226,10 @@ ITrigger t3 = TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-Any firing that would have occurred during a period the calendar excludes is skipped.
+A firing that falls in an excluded period is skipped.
 
-Re-registering a calendar under a name that is already taken is refused unless you say so, and saying so has
-two parts, which is what `AddCalendarOptions` is for:
+Registering a calendar under a name that is already taken is refused unless you set both parts of
+`AddCalendarOptions`:
 
 <!-- snippet: sample_more_about_triggers_replace_calendar -->
 ```csharp
@@ -256,10 +241,10 @@ await scheduler.AddCalendar("myHolidays", holidays, new AddCalendarOptions
 ```
 <!-- endSnippet -->
 
-Without `UpdateTriggers`, triggers already scheduled against the old calendar keep the fire times they had
-computed; the new exclusions only take effect the next time each trigger recomputes on its own.
+Without `UpdateTriggers`, triggers already scheduled against the old calendar keep their computed fire
+times; the new exclusions apply the next time each trigger recomputes on its own.
 
-Registering a calendar at configuration time rather than at run time is `q.AddCalendar<T>`:
+To register a calendar at configuration time, use `q.AddCalendar<T>`:
 
 <!-- snippet: sample_more_about_triggers_add_calendar_at_configuration_time -->
 ```csharp
@@ -270,6 +255,6 @@ q.AddCalendar<HolidayCalendar>("myHolidays", new AddCalendarOptions { Replace = 
 ```
 <!-- endSnippet -->
 
-See the `Quartz.Impl.Calendar` namespace for a number of `ICalendar` implementations that may suit your needs:
-`AnnualCalendar` (the same days every year), `CronCalendar`, `DailyCalendar` (a time range each day),
-`HolidayCalendar`, `MonthlyCalendar` and `WeeklyCalendar`.
+Other `ICalendar` implementations in the `Quartz.Impl.Calendar` namespace: `AnnualCalendar` (the same
+days every year), `CronCalendar`, `DailyCalendar` (a time range each day), `HolidayCalendar`,
+`MonthlyCalendar` and `WeeklyCalendar`.

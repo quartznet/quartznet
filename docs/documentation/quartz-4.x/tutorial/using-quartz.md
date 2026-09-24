@@ -3,9 +3,7 @@
 title: 'Using Quartz'
 ---
 
-Quartz runs inside your application. You register a scheduler with the application's service container,
-describe the jobs and triggers it should start with, and let the host start and stop it. This lesson
-wires up a scheduler that runs one job; the lessons that follow explain each piece of it.
+This lesson wires up a scheduler that runs one job; the lessons that follow explain each piece of it.
 
 ## Install the package
 
@@ -13,8 +11,8 @@ wires up a scheduler that runs one job; the lessons that follow explain each pie
 dotnet add package Quartz
 ```
 
-That is the whole install for a hosted application. Dependency injection and the hosted service are part
-of the core package — in 3.x they were the separate `Quartz.Extensions.DependencyInjection` and
+That is the whole install for a hosted application. Dependency injection and the hosted service are in the
+core package; in 3.x they were the separate `Quartz.Extensions.DependencyInjection` and
 `Quartz.Extensions.Hosting` packages.
 
 ## Write a job
@@ -41,10 +39,10 @@ public sealed class HelloJob : IJob
 ```
 <!-- endSnippet -->
 
-The job is constructed from the container for every fire, so it can take whatever the rest of your
-application takes — a logger, a `DbContext`, a typed `HttpClient`. The `cancellationToken` is the same
-token as `context.CancellationToken`; pass it on to everything you await, so a shutdown or an
-`Interrupt` call actually reaches your work.
+* The container constructs the job for every fire, so it can take any service: a logger, a `DbContext`, a
+  typed `HttpClient`.
+* `cancellationToken` is the same token as `context.CancellationToken`. Pass it to everything you await,
+  so a shutdown or an `Interrupt` call reaches your work.
 
 ## Configure the host
 
@@ -72,19 +70,21 @@ await host.RunAsync();
 ```
 <!-- endSnippet -->
 
-`AddQuartz` registers the scheduler and everything it is made of. `AddQuartzHostedService` starts it when
-the host starts and shuts it down when the host stops; `WaitForJobsToComplete` makes shutdown wait for
-jobs that are still running instead of cancelling them.
+| Call | Does |
+|---|---|
+| `AddQuartz` | registers the scheduler and everything it is made of |
+| `AddQuartzHostedService` | starts the scheduler with the host and shuts it down when the host stops |
+| `WaitForJobsToComplete` | makes shutdown wait for running jobs instead of cancelling them |
 
-Both hang off `IHostApplicationBuilder`, so the same two lines work in a web application built with
-`WebApplication.CreateBuilder(args)`. They are also available on `IServiceCollection`
-(`builder.Services.AddQuartz(…)`) when the registration lives in a method that only has the collection.
+Both methods extend `IHostApplicationBuilder`, so they also work with `WebApplication.CreateBuilder(args)`.
+When you only have the collection, use the `IServiceCollection` overloads
+(`builder.Services.AddQuartz(…)`).
 
 ## Describing jobs and triggers
 
-`q.ScheduleJob<TJob>(…)` is the short form for the common case: one job, one trigger, the job's identity
-taken from the trigger's. When a job has several triggers, or when the job is registered somewhere other
-than where its schedule is, name them separately:
+`q.ScheduleJob<TJob>(…)` registers one job with one trigger and takes the job's identity from the
+trigger's. When a job has several triggers, or is registered somewhere other than its schedule, register
+them separately:
 
 <!-- snippet: sample_using_quartz_several_triggers -->
 ```csharp
@@ -109,29 +109,25 @@ builder.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-The type argument on `AddTrigger<TJob>` is the job the trigger fires. It is what lets the trigger's data
-be named as properties of that job — see
-[More About Jobs & JobDetails](more-about-jobs.md#naming-the-property-instead-of-the-key). Use the
-bare `AddTrigger` when the trigger only names its job by key and you do not need that.
+The type argument on `AddTrigger<TJob>` is the job the trigger fires. It lets the trigger's data be named
+as properties of that job; see
+[More About Jobs & JobDetails](more-about-jobs.md#naming-the-property-instead-of-the-key). Use the bare
+`AddTrigger` when the trigger only names its job by key.
 
-`"0 0 2 * * ?"` is a cron expression: second, minute, hour, day-of-month, month, day-of-week, so that one
-is "every day at 02:00". The fields and their special characters are in the
-[Cron Expression Reference](../cron-expressions.md), and cron is only one of five schedule kinds — the
-others are in [Lesson 2](jobs-and-triggers.md).
+`"0 0 2 * * ?"` is a cron expression (second, minute, hour, day-of-month, month, day-of-week): every day
+at 02:00. See the [Cron Expression Reference](../cron-expressions.md). Cron is one of five schedule
+kinds; the others are in [Lesson 2](jobs-and-triggers.md).
 
-Everything registered this way is stored when the scheduler starts. With a persistent job store it is
-also what the store already holds that matters: registrations replace stored definitions of the same
-name by default, which is what makes this list the description of the schedule rather than a one-time
-seed.
+Everything registered this way is stored when the scheduler starts. With a persistent job store,
+registrations replace stored definitions of the same name by default, so this list describes the
+schedule on every start rather than seeding it once.
 
 ## Scheduling at run time
 
-The registrations above are *declarative*: the application describes the schedule it wants, and the
-scheduler makes the store match on every start. That is the shape to prefer for a schedule that is part
-of the application.
+Prefer the declarative registrations above for a schedule that is part of the application: the scheduler
+makes the store match them on every start.
 
-Not every schedule is known at startup, though. `IScheduler` is an ordinary service, so inject it and
-schedule whenever you like:
+For a schedule not known at startup, inject `IScheduler` and schedule whenever you like:
 
 <!-- snippet: sample_using_quartz_scheduling_at_run_time -->
 ```csharp
@@ -162,18 +158,16 @@ public sealed class ReportRequests
 ```
 <!-- endSnippet -->
 
-An application with several schedulers registers each under a name, and injects one by that name with
-`[FromKeyedServices("reporting")] IScheduler scheduler` — see
+With several schedulers, each is registered under a name; inject one with
+`[FromKeyedServices("reporting")] IScheduler scheduler`. See
 [Multiple schedulers](../packages/multiple-schedulers.md).
 
 ## The scheduler's lifecycle
 
-* Triggers do not fire until the scheduler has been started. The hosted service does that for you.
-* `Standby()` stops firing without shutting anything down; `Start()` resumes. Jobs already running keep
-  running.
-* `Shutdown()` is final. A scheduler that has been shut down cannot be started again — build a new one.
-* The scheduler is `IAsyncDisposable`, and disposing it shuts it down and releases what it owns. Under a
-  host, the host does that.
+* Triggers do not fire until the scheduler is started. The hosted service starts it.
+* `Standby()` stops firing without shutting anything down; `Start()` resumes. Running jobs keep running.
+* `Shutdown()` is final. A shut-down scheduler cannot be started again; build a new one.
+* The scheduler is `IAsyncDisposable`. Disposing it shuts it down and releases what it owns. Under a host,
+  the host does that.
 
-In [Lesson 2](jobs-and-triggers.md) we take a quick tour of jobs and triggers, so that the code above
-reads as more than an incantation.
+Next: [Lesson 2](jobs-and-triggers.md), a tour of jobs and triggers.

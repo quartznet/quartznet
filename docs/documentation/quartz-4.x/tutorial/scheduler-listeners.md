@@ -5,11 +5,9 @@ title: 'Scheduler Listeners'
 
 # Scheduler Listeners
 
-SchedulerListeners are much like `ITriggerListener`s and `IJobListener`s, except they receive notification of
-events within the scheduler itself - not necessarily events related to a specific trigger or job.
-
-Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error
-within the scheduler, notification of the scheduler being shutdown, and others.
+SchedulerListeners are like `ITriggerListener`s and `IJobListener`s, but receive events from the scheduler
+itself, not necessarily about a specific trigger or job: a job or trigger added or removed, a serious error
+in the scheduler, the scheduler shutting down, and others.
 
 ::: danger
 Make sure your scheduler listeners never throw an exception (use a try-catch) and that they can handle internal problems.
@@ -52,9 +50,9 @@ A null group in `JobsPaused`, `JobsResumed`, `TriggersPaused` or `TriggersResume
 
 ## Every callback names its scheduler
 
-A listener reaches the scheduler it serves through its execution context, or as its first argument when there
-is no execution. Nothing here runs inside a firing, so every member takes the scheduler — which is what lets
-one listener instance serve several schedulers in one host and still say which of them it is hearing from:
+No scheduler-listener callback runs inside a firing, so every member takes the scheduler as its first
+argument. One listener instance can then serve several schedulers in one host and know which one it is
+hearing from:
 
 ```csharp
 public sealed class AuditSchedulerListener : ISchedulerListener
@@ -67,15 +65,14 @@ public sealed class AuditSchedulerListener : ISchedulerListener
 }
 ```
 
-It is the scheduler itself rather than its name, so a listener that wants to act on what it heard can: pause
-the trigger, read `Status`, ask for the job. `SchedulerName` and `SchedulerInstanceId` are on it when identity
-is all you need.
+The argument is the scheduler itself, so the listener can act on it: pause the trigger, read `Status`,
+ask for the job. For identity only, read `SchedulerName` and `SchedulerInstanceId`.
 
 ## Reporting an error
 
-`SchedulerError` is raised when something goes seriously wrong — a job that could not be built, a job store
-that keeps failing, a job that threw. It receives a `SchedulerErrorContext`, which says what went wrong and,
-where the scheduler knew it, what it went wrong for:
+`SchedulerError` is raised when something goes seriously wrong: a job that could not be built, a job store
+that keeps failing, a job that threw. Its `SchedulerErrorContext` says what went wrong and, where the
+scheduler knows, for which trigger, job and firing:
 
 ```csharp
 public sealed record SchedulerErrorContext
@@ -88,8 +85,8 @@ public sealed record SchedulerErrorContext
 }
 ```
 
-The three keys are null when there is nothing to name — a scan that never reached a trigger, a store retrying
-a connection. Every failure inside a firing fills in all three:
+The three keys are null when there is nothing to name, such as a scan that never reached a trigger or a
+store retrying a connection. Every failure inside a firing fills in all three:
 
 ```csharp
 public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
@@ -104,12 +101,13 @@ public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext erro
 }
 ```
 
-SchedulerListeners are registered with the scheduler's `ListenerManager`.
-SchedulerListeners can be virtually any object that implements the `ISchedulerListener` interface.
+## Registering
+
+Any object implementing `ISchedulerListener` can be registered with the scheduler's `ListenerManager`.
 
 A scheduler listener is identified by its `Name`, which defaults to the type's name. Registering a second
-listener under a name that is already taken replaces the first, so override `Name` if you register several
-instances of one type with the same scheduler.
+listener under a taken name replaces the first, so override `Name` if you register several instances of
+one type with the same scheduler.
 
 __Adding a SchedulerListener:__
 
@@ -127,9 +125,9 @@ scheduler.ListenerManager.RemoveSchedulerListener(mySchedListener.Name);
 ```
 <!-- endSnippet -->
 
-A listener that belongs to the application, rather than to a moment in its run, is better registered where the
-scheduler is configured — it is then constructed from the container, and it is in place before the scheduler
-starts, so it hears the starting and started notifications too:
+Register a listener that belongs to the application where the scheduler is configured. The container
+constructs it, and it is in place before the scheduler starts, so it also hears the starting and started
+notifications:
 
 <!-- snippet: sample_scheduler_listeners_under_di -->
 ```csharp
@@ -140,5 +138,5 @@ builder.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-There are overloads for an instance you built yourself and for a factory over the service provider, matching
+Overloads take an instance you built or a factory over the service provider, like
 [the ones for job and trigger listeners](trigger-and-job-listeners.md#registering-listeners-with-the-container).

@@ -4,15 +4,14 @@ title: 'Declaring Jobs with Attributes'
 
 <ApplicableVersion version="4.2" />
 
-A job and its schedule are two things written in two places: the class, and the `AddQuartz` call that
-registers it. `[QuartzJob]` and `[CronTrigger]` put both on the class, and the source generator that
-ships inside `Quartz.nupkg` writes the registration — the same `AddJob<T>` and `AddTrigger<T>` calls
-you would have written, in a file you can open and read.
+`[QuartzJob]` and `[CronTrigger]` declare a job and its schedule on the job class. The source generator
+inside `Quartz.nupkg` writes the registration: the same `AddJob<T>` and `AddTrigger<T>` calls you would
+have written, in a file you can open and read.
 
-Nothing here is read at run time. There is no scanning, no `Type.GetType`, no reflection of any kind:
-the attributes are read by the compiler, and what reaches the scheduler is ordinary C#. A declared job
-is therefore exactly as trimmable and as native-AOT clean as a hand-written registration, and the
-repository's trimming canary declares one of its jobs this way to keep it that way.
+Nothing is read at run time: no scanning, no `Type.GetType`, no reflection. The compiler reads the
+attributes and the scheduler gets ordinary C#, so a declared job is as trimmable and native-AOT clean as a
+hand-written registration. The repository's trimming canary declares one of its jobs this way to keep it
+so.
 
 ## Declaring a job
 
@@ -33,8 +32,8 @@ public sealed class CleanupJob : IJob
 
 ## Registering what was declared
 
-`AddDeclaredJobs()` adds every job the *current assembly* declares. It is an ordinary registration
-call, so anything the attributes cannot say is written beside it as it always was:
+`AddDeclaredJobs()` adds every job the *current assembly* declares. It is an ordinary registration call,
+so write anything the attributes cannot say beside it:
 
 <!-- snippet: sample_add_declared_jobs -->
 ```csharp
@@ -54,13 +53,12 @@ services.AddQuartzHostedService();
 ```
 <!-- endSnippet -->
 
-The method appears once something in the assembly carries `[QuartzJob]`; a project that declares no
-job gets no generated file and no method to call.
+The method exists once something in the assembly carries `[QuartzJob]`; a project that declares no job
+gets no generated file and no method.
 
-This is what the generator writes for the job above — one `internal` class per assembly, so nothing it
-adds reaches the assembly's public surface. Two assemblies that both declare jobs each get their own, and
-only `InternalsVisibleTo` puts both in scope at once; [`QZ1004`](#qz1004-declaredjobsregistrationrenamed)
-is what happens then:
+The generator writes one `internal` class per assembly, so nothing reaches the assembly's public
+surface. Two assemblies that declare jobs each get their own; only `InternalsVisibleTo` puts both in
+scope at once (see [`QZ1004`](#qz1004-declaredjobsregistrationrenamed)). For the job above it writes:
 
 <!-- The block below is generated output rather than a sample: it is what the compiler writes, so it
      cannot come from a project that compiles it. -->
@@ -96,12 +94,12 @@ namespace Quartz
 }
 ```
 
-A default is left off rather than spelled out, so what the file says is what the attributes asked for. The
-file is plain C# 8 — the namespace is a block rather than file-scoped for that reason — so a project that
-pins an older `LangVersion` compiles it too.
+* Defaults are left out, so the file says only what the attributes asked for.
+* The file is plain C# 8 (a block namespace, not file-scoped), so a project pinned to an older
+  `LangVersion` compiles it.
 
 ::: tip
-To read the file your own build produced rather than the one above, set
+To read the file your own build produced, set
 `<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>` and look in
 `obj/…/generated/Quartz.Analyzers/Quartz.Analyzers.DeclaredJobsGenerator/QuartzDeclaredJobs.g.cs`.
 :::
@@ -117,13 +115,12 @@ To read the file your own build produced rather than the one above, set
 | `RequestRecovery` | `false` | whether a firing interrupted by a hard shutdown is re-fired on recovery |
 | `Scheduler` | every scheduler | the one scheduler this job belongs to — see [One scheduler out of several](#one-scheduler-out-of-several) |
 
-`Durable` is forced on for a job with no `[CronTrigger]` because a non-durable job nothing points at is
-deleted as soon as it is stored: declaring one that vanishes cannot be what was meant. Give such a job
-its trigger later, from code or from a scheduling file.
+`Durable` is forced on for a job with no `[CronTrigger]`, because a non-durable job with no trigger is
+deleted as soon as it is stored. Give such a job its trigger later, from code or a scheduling file.
 
 ## What `[CronTrigger]` says
 
-Write it once per schedule; a job with three of them gets three triggers.
+Write one per schedule; a job with three gets three triggers.
 
 | Property | Default | What it sets |
 |---|---|---|
@@ -136,22 +133,20 @@ Write it once per schedule; a job with three of them gets three triggers.
 | `Description` | none | the description carried on the trigger |
 | `ExecutionGroup` | none | the [execution group](execution-groups.md) the firing counts against |
 
-The first schedule a job declares is named after the job, because that is what a single trigger would
-have been called by hand. The second and later ones count up from it — `cleanup`, `cleanup-2`,
-`cleanup-3` — and a `Name` of its own overrides that for one of them without renumbering the rest.
+The first schedule is named after the job, as a single hand-written trigger would be. Later ones count
+up: `cleanup`, `cleanup-2`, `cleanup-3`. A `Name` of its own overrides one without renumbering the rest.
 
 ## One scheduler out of several
 
-`AddDeclaredJobs()` registers on the builder it is called on, so the simplest way to give a
-[named scheduler](../multi-tenancy.md) its own declared jobs is to call it there — no attribute is
-involved at all:
+`AddDeclaredJobs()` registers on the builder it is called on. To give a
+[named scheduler](../multi-tenancy.md) its declared jobs, call it there; no attribute is needed:
 
 ```csharp
 builder.Services.AddQuartz("reporting", q => q.AddDeclaredJobs());
 ```
 
-When one assembly declares jobs for several schedulers, `Scheduler` on the job says which one it
-belongs to, and the generated registration is wrapped in a check on the builder's name:
+When one assembly declares jobs for several schedulers, set `Scheduler` on the job. The generated
+registration is wrapped in a check on the builder's name:
 
 ```csharp
 [QuartzJob(Name = "nightly-report", Scheduler = "reporting")]
@@ -168,14 +163,14 @@ if (builder.SchedulerName == "reporting")
 }
 ```
 
-A job naming a scheduler is skipped by every other one — the unnamed scheduler included, whose name is
-the empty string. A job naming none is registered on whichever builders `AddDeclaredJobs()` is called
-on.
+* A job naming a scheduler is skipped by every other one, including the unnamed scheduler, whose name is
+  the empty string.
+* A job naming none is registered on every builder `AddDeclaredJobs()` is called on.
 
 ## The compiler checks the cron
 
-The expression on `[CronTrigger]` is read at build time by the parser that reads it at run time, so one
-that cannot parse is a build error rather than an exception while the host starts:
+The expression on `[CronTrigger]` is read at build time by the run-time parser, so one that cannot parse
+is a build error, not an exception at host start:
 
 ```csharp
 // error QZ0001: '0 0 12 * *' is not a valid cron expression: ... has 5 fields, but 6 or 7 are
@@ -185,82 +180,86 @@ that cannot parse is a build error rather than an exception while the host start
 public sealed class CleanupJob : IJob { /* … */ }
 ```
 
-It is reported once, on the attribute — the generated file carries the same literal, and generated code
-is not analysed. An expression that is missing altogether, `[CronTrigger(null!)]` or `[CronTrigger("")]`,
-is reported the same way, and the generator writes no schedule for it. `H` is accepted here, because the schedule is built with `WithCronSchedule`, which
-resolves `H` against the trigger's key. [Compile-Time Checks](compile-time-checks.md) is the rest of
-what the analyzer reads.
+* It is reported once, on the attribute. The generated file carries the same literal, but generated
+  code is not analysed.
+* A missing expression, `[CronTrigger(null!)]` or `[CronTrigger("")]`, is reported the same way, and the
+  generator writes no schedule for it.
+* `H` is accepted, because the schedule is built with `WithCronSchedule`, which resolves `H` against the
+  trigger's key.
+
+[Compile-Time Checks](compile-time-checks.md) has the rest of what the analyzer checks.
 
 ## What the generator reports
 
-Three more build errors, all of them cases where the alternative is a job that was declared and never
-fires, and one warning about a name.
+Three build errors, each for a job that would otherwise be declared and never fire, and one warning
+about a name. `DisableQuartzAnalyzers` removes the generator and these diagnostics with it; see
+[Changing a severity, or turning it off](compile-time-checks.md#changing-a-severity-or-turning-it-off).
 
 ### QZ1001 DeclaredJobTypeNotSchedulable
 
-`[QuartzJob]` on a type that `AddJob<T>` could not take: one that does not implement `IJob`, is
-abstract, is generic, or cannot be named from another file in the assembly — a `private` nested class,
-or a `file`-local one. An `IJob<TInput>` implementer is fine, since it is an `IJob`.
+**Reports** `[QuartzJob]` on a type `AddJob<T>` cannot take: one that does not implement `IJob`, is
+abstract, is generic, or cannot be named from another file in the assembly (a `private` nested class, or
+a `file`-local one). An `IJob<TInput>` implementer is fine; it is an `IJob`.
+
+**Fix** the type so it qualifies, or remove the attribute.
 
 ### QZ1002 DuplicateDeclaredIdentity
 
-Two declarations resolving to one job key, or to one trigger key. A key is an identity: the second
-registration does not sit beside the first, it replaces it. Keys are compared within a scheduler, so
-the same key on two jobs that name different `Scheduler`s is two jobs rather than a clash.
+**Reports** two declarations that resolve to one job key or one trigger key. A key is an identity: the
+second registration replaces the first. Keys are compared within a scheduler, so the same key on two jobs
+naming different `Scheduler`s is two jobs, not a clash.
+
+**Fix** by giving one of them its own `Name` or `Group`.
 
 ### QZ1003 CronTriggerWithoutQuartzJob
 
-`[CronTrigger]` on a class carrying no `[QuartzJob]`. The schedule is read as part of the job the other
-attribute declares, so on its own it registers nothing — and a schedule that silently registers nothing
-is worse than a build error.
+**Reports** `[CronTrigger]` on a class with no `[QuartzJob]`. The schedule is read as part of the job
+`[QuartzJob]` declares, so on its own it would silently register nothing.
+
+**Fix** by adding `[QuartzJob]` to the class.
 
 ### QZ1004 DeclaredJobsRegistrationRenamed
 
-A warning rather than an error, because everything still builds. When an assembly that declares jobs
-grants `InternalsVisibleTo` to another assembly that declares jobs too, both generated
-`QuartzDeclaredJobs` classes are in scope in the second one, and `AddDeclaredJobs()` there would be
-ambiguous — with no spelling that resolves it, since naming the class is ambiguous as well. So the second
-assembly's registration is named after that assembly instead: in `MyApp.Worker` it is
-`QuartzDeclaredJobs_MyApp_Worker.AddDeclaredJobsFromMyApp_Worker()`, with every character an identifier
-cannot hold turned into `_`, and a `_` in front of a name that starts with a digit.
+**Reports**, as a warning because everything still builds, an assembly whose registration was renamed.
+When an assembly that declares jobs grants `InternalsVisibleTo` to another that declares jobs, both
+generated `QuartzDeclaredJobs` classes are in scope in the second. `AddDeclaredJobs()` there would be
+ambiguous, and naming the class would be too. So the second assembly's registration is named after the
+assembly: in `MyApp.Worker` it is `QuartzDeclaredJobs_MyApp_Worker.AddDeclaredJobsFromMyApp_Worker()`.
+Characters an identifier cannot hold become `_`, and a name starting with a digit gets a leading `_`.
 
-`AddDeclaredJobs()` written in that assembly keeps meaning the other assembly's jobs, and the warning, on
-the assembly's first `[QuartzJob]`, says so:
+`AddDeclaredJobs()` in that assembly still means the other assembly's jobs. The warning, on the
+assembly's first `[QuartzJob]`, says so:
 
 ```text
 warning QZ1004: AddDeclaredJobs() in this assembly resolves to 'MyApp.Jobs''s declared jobs, which are
 visible through InternalsVisibleTo; call AddDeclaredJobsFromMyApp_Worker() for this assembly's own
 ```
 
-Call both to register both. An assembly that can see no other assembly's registration — which is every
-assembly no `InternalsVisibleTo` names — keeps `QuartzDeclaredJobs.AddDeclaredJobs()`.
+**Fix** by calling both methods to register both assemblies' jobs. An assembly no `InternalsVisibleTo`
+names sees no other registration and keeps `QuartzDeclaredJobs.AddDeclaredJobs()`.
 
 ## What an attribute does not say
 
-A declared job is a starting point, not a second configuration system. Everything below is still
-written as a registration, beside `AddDeclaredJobs()`:
+Write these as registrations beside `AddDeclaredJobs()`:
 
-- **A start or end time, a calendar, job data, a retry policy, a preferred node.** `AddTrigger<T>` says
-  all of them, and a declared job can be given further triggers by hand — `ForJob` with the key the
-  attribute declared is all it takes.
-- **A schedule that is not cron.** `[SimpleTrigger]` and the other trigger families are deliberately
-  not here: cron is the schedule an attribute can carry without becoming a builder, and the rest are
-  better written where the other trigger settings already are.
-- **A cron expression from configuration.** An attribute argument is a constant by definition, which is
-  what lets the compiler check it. A schedule a deployment changes belongs in
+* **A start or end time, a calendar, job data, a retry policy, a preferred node.** Use `AddTrigger<T>`.
+  To give a declared job more triggers, use `ForJob` with the key the attribute declared.
+* **A schedule that is not cron.** There is no `[SimpleTrigger]` or attribute for another trigger
+  family: cron is the only schedule an attribute can carry without becoming a builder.
+* **A cron expression from configuration.** An attribute argument is a constant, which is what lets the
+  compiler check it. Put a schedule a deployment changes in
   [a scheduling file or the `Quartz:Schedule` section](../configuration/json.md).
-- **Jobs from another assembly.** `AddDeclaredJobs()` is generated per assembly, registers that
-  assembly's jobs, and is `internal`. Without `InternalsVisibleTo`, a library's generated method is
-  invisible to the application that references it, so a library that declares jobs exposes a
-  registration call of its own, or the application writes one. With `InternalsVisibleTo`, the
-  application can call the library's `AddDeclaredJobs()` itself — and if the application declares jobs
-  too, its own registration is named after its assembly instead, as
+* **Jobs from another assembly.** `AddDeclaredJobs()` is generated per assembly, registers that
+  assembly's jobs, and is `internal`. Without `InternalsVisibleTo`, an application cannot see a
+  library's generated method, so the library exposes a registration call of its own, or the application
+  writes one. With `InternalsVisibleTo`, the application can call the library's `AddDeclaredJobs()`; if
+  the application declares jobs too, its own registration is renamed as
   [`QZ1004`](#qz1004-declaredjobsregistrationrenamed) describes.
 
 ## Related
 
-- [Compile-Time Checks](compile-time-checks.md) — the four diagnostics the analyzer reports, `QZ0001`
+* [Compile-Time Checks](compile-time-checks.md) — the four diagnostics the analyzer reports, `QZ0001`
   among them
-- [Cron Triggers](crontriggers.md) and [Cron Expressions](../cron-expressions.md) — what the expression
+* [Cron Triggers](crontriggers.md) and [Cron Expressions](../cron-expressions.md) — what the expression
   on `[CronTrigger]` may say
-- [Using Quartz](using-quartz.md) — the registration calls the generated file is written in terms of
+* [Using Quartz](using-quartz.md) — the registration calls the generated file is written in terms of

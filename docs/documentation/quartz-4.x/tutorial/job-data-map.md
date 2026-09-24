@@ -2,22 +2,18 @@
 title: 'Job Data'
 ---
 
-[More About Jobs](more-about-jobs.md) introduces the `JobDataMap` and shows the two ends of it: putting
-a value in with `UsingJobData`, taking one out with `GetString`. This page is the full inventory —
-which map wins when two of them carry the same key, all the typed accessors, what `PutAsString` writes,
-what survives a persistent store, and what has no business being in there at all.
+The full reference for the `JobDataMap` introduced in [More About Jobs](more-about-jobs.md): merge
+precedence, the typed accessors, `PutAsString` formats, persistent storage, and what to keep out.
 
 ## Two maps and a merge
 
-A job's data can come from two places:
+| Map | Stored with | Use |
+|---|---|---|
+| `IJobDetail.JobDataMap` | the job | the same for every trigger that fires it |
+| `ITrigger.JobDataMap` | the trigger | several triggers drive one job with different inputs |
 
-- `IJobDetail.JobDataMap` — stored with the job, the same for every trigger that fires it
-- `ITrigger.JobDataMap` — stored with the trigger, so several triggers can drive one job with
-  different inputs
-
-`IJobExecutionContext.MergedJobDataMap` is the job's map with the trigger's map laid over it. Same key
-in both, and **the trigger wins**. It is built once per firing, lazily, and it is the map a job should
-read:
+`IJobExecutionContext.MergedJobDataMap` is the job's map with the trigger's map laid over it: for the
+same key, **the trigger wins**. It is built lazily, once per firing. Jobs should read it:
 
 <!-- snippet: sample_job_data_map_merged_map -->
 ```csharp
@@ -36,15 +32,15 @@ public sealed class ReportJob : IJob
 ```
 <!-- endSnippet -->
 
-Writing into the merged map does nothing durable. It is a per-firing copy; values set into it are not
-written back to the job's own map, and a job that wants to persist state across fires uses
-[`[PersistJobDataAfterExecution]`](#persisting-changes-across-fires) on its own map instead.
+The merged map is a per-firing copy. Values written into it are not saved to the job's own map. To
+persist state across fires, use
+[`[PersistJobDataAfterExecution]`](#persisting-changes-across-fires) on the job's own map.
 
 ::: warning Changed in 4.x
 The scheduler context is **no longer merged into the per-fire map**. In 3.x
-`context.MergedJobDataMap` also carried everything in `SchedulerContext`, which meant a scheduler-wide
-key could silently shadow — or be shadowed by — a job's own. The merge is now job over trigger and
-nothing else; read scheduler-wide values from `context.Scheduler.Context`.
+`context.MergedJobDataMap` also carried everything in `SchedulerContext`, so a scheduler-wide key could
+silently shadow a job's own key, or be shadowed by it. The merge is now job over trigger and nothing
+else; read scheduler-wide values from `context.Scheduler.Context`.
 :::
 
 ## Putting values in
@@ -62,11 +58,11 @@ IJobDetail job = JobBuilder.Create<ReportJob>()
 ```
 <!-- endSnippet -->
 
-The expression overload is worth knowing: `UsingJobData(j => j.LookbackDays, 30)` uses the property's
-own name as the key and the property's own type for the value, so a rename or a type change is a
-compile error rather than a silent no-op at fire time. It pairs with property injection, below.
+`UsingJobData(j => j.LookbackDays, 30)` uses the property's name as the key and its type for the value,
+so a rename or a type change is a compile error instead of a silent no-op at fire time. It pairs with
+[property injection](#property-injection-the-other-read-side).
 
-Runtime data for a single firing does not need a trigger at all:
+Data for a single firing does not need a trigger:
 
 <!-- snippet: sample_job_data_map_trigger_job_with_data -->
 ```csharp
@@ -76,37 +72,32 @@ await scheduler.TriggerJob(jobKey, new JobDataMap { ["reason"] = "manual re-run"
 
 ## The read side: typed accessors
 
-`JobDataMap` implements `IDictionary<string, object?>`, so the dictionary surface is all there —
-indexer, `TryGetValue`, `ContainsKey`, `Remove`, `Count`, `Keys`, `Values`, `Clear`, plus
-`ContainsValue` and `IsEmpty`. On top of that come 17 typed accessors, as extension members on
-`DataMapExtensions`. They fall into two families, and both read a value the same way.
+`JobDataMap` implements `IDictionary<string, object?>`: indexer, `TryGetValue`, `ContainsKey`,
+`Remove`, `Count`, `Keys`, `Values`, `Clear`, plus `ContainsValue` and `IsEmpty`. It also has 17 typed
+accessors, as extension members on `DataMapExtensions`, in two families that read values the same way.
 
 ### The seven named types
 
-**Throwing readers** — the value must be there and must be readable:
+| Family | Members | Missing or unreadable value |
+|---|---|---|
+| throwing readers | `GetInt`, `GetLong`, `GetFloat`, `GetDouble`, `GetBoolean`, `GetString`, `GetDateTimeOffset` | throws |
+| try readers | `TryGetInt`, `TryGetLong`, `TryGetFloat`, `TryGetDouble`, `TryGetBoolean`, `TryGetString`, `TryGetDateTimeOffset` | returns `false` |
 
-`GetInt`, `GetLong`, `GetFloat`, `GetDouble`, `GetBoolean`, `GetString`, `GetDateTimeOffset`.
+Each accepts the value **as its own type or as an invariant-culture string**:
 
-**Try readers** — the same seven, returning `false` instead of throwing:
+1. the stored type is matched first;
+2. a string is parsed with `CultureInfo.InvariantCulture`;
+3. any other stored type falls back to `Convert` semantics.
 
-`TryGetInt`, `TryGetLong`, `TryGetFloat`, `TryGetDouble`, `TryGetBoolean`, `TryGetString`,
-`TryGetDateTimeOffset`.
+So the same job code works whether the store kept `30` as an `int` or as `"30"`.
 
-These are the types job data is usually made of, and the ones twenty years of Quartz tutorials teach —
-plus the `DateTimeOffset` Quartz's own times are. Each accepts the value **either as its own type or
-as an invariant-culture string**. The stored type is matched first, a string is parsed with
-`CultureInfo.InvariantCulture`, and only an exotic stored type falls back to `Convert` semantics. That
-is what makes the same job code work whether the store kept `30` as an `int` or as `"30"`.
-
-`GetString` is the one that returns `string?` rather than throwing on a missing key — the rest throw.
-Reach for the `TryGet…` form whenever the key is genuinely optional; there is no performance argument
-either way, it is about whether absence is an error.
+`GetString` returns `string?` instead of throwing on a missing key; the others throw. Use the `TryGet…`
+form when the key is optional. Neither form is faster.
 
 ### The three generic readers, for every other type
 
-For a type the seven do not name — a `Guid`, a `TimeSpan`, a `decimal`, a `DateOnly`, an enum, or an
-options class of your own — there are three more, and they read exactly what a named accessor for
-that type would have read:
+For a type the seven do not name (a `Guid`, a `TimeSpan`, a `decimal`, a `DateOnly`, an enum, or a class
+of your own), use a generic reader:
 
 | Accessor | Entry missing | Entry unreadable as `T` | Entry readable as `T` |
 |---|---|---|---|
@@ -114,11 +105,10 @@ that type would have read:
 | `Get<T>(key)` | `KeyNotFoundException` | `InvalidCastException` naming both types | the value |
 | `GetValueOrDefault<T>(key, defaultValue)` | `defaultValue` | `defaultValue` | the value |
 
-"Readable" is the same rule as above: the stored type first, then the invariant string form for every
-type `PutAsString` writes one of, and an enum by name, case-insensitively. So `Get<Guid>("batchId")`
-reads a `Guid` the store kept as a string, `Get<TimeSpan>("window")` reads `"06:00:00"`, and
-`Get<DayOfWeek>("day")` reads `"Monday"`. A type Quartz has no string form for — your own class — is a
-plain type test, which is all it could ever have been.
+"Readable" means: the stored type first, then the invariant string form for every type `PutAsString`
+writes, and an enum by name, case-insensitively. `Get<Guid>("batchId")` reads a `Guid` stored as a
+string, `Get<TimeSpan>("window")` reads `"06:00:00"`, and `Get<DayOfWeek>("day")` reads `"Monday"`. A
+type with no Quartz string form, such as your own class, is a plain type test.
 
 <!-- snippet: sample_job_data_map_generic_readers -->
 ```csharp
@@ -137,34 +127,41 @@ ReportOptions effective = data.GetValueOrDefault("options", new ReportOptions())
 ```
 <!-- endSnippet -->
 
-`Get<T>` is the one to reach for when the entry is a contract rather than an option: it reads what
-`TryGet<T>` reads, but it says *which* of the two things went wrong instead of answering `false` to
-both. `GetValueOrDefault<T>` deliberately does not distinguish them — an unreadable entry gives the
-fallback exactly as a missing one does, so do not use it where a mistyped key needs to be noticed.
+* Use `Get<T>` when the entry is required: it tells a missing entry from a wrong one.
+* Do not use `GetValueOrDefault<T>` where a mistyped key must be noticed: it returns the fallback for
+  both.
 
 ::: tip
-The same accessors are available on `SchedulerContext`, which is the other string-keyed map in the
-system. `SchedulerContext` gets the readers only — the `PutAsString` writers below belong to
-`JobDataMap`, because they participate in its change tracking.
+`SchedulerContext` has the same readers. The `PutAsString` writers belong to `JobDataMap` only, because
+they take part in its change tracking.
 :::
 
 ::: warning Changed in 4.x
 The `Get*Value` / `Get*ValueFromString` accessor pairs are gone, and so are the nullable getters
-(`GetNullableInt` and friends) — one `Get…`/`TryGet…` pair per type replaces both. The accessors also
-moved off `StringKeyDirtyFlagMap`, which is internal now along with `DirtyFlagMap`; call sites are
-unchanged (`map.GetString(…)` still compiles) but nothing should name the old types, and the
+(`GetNullableInt` and friends). One `Get…`/`TryGet…` pair per type replaces both. The accessors also
+moved off `StringKeyDirtyFlagMap`, which is internal now along with `DirtyFlagMap`. Call sites are
+unchanged (`map.GetString(…)` still compiles), but nothing should name the old types, and the
 `Quartz.Util` namespace is gone.
 
-A named accessor per readable type is a set that only ever grows, so the exotic half of it went and
-`Get<T>` grew the coercion instead: `GetGuid` → `Get<Guid>`, `GetTimeSpan` → `Get<TimeSpan>`,
-`GetDecimal` → `Get<decimal>`, `GetChar` → `Get<char>`, `GetDateTime` → `Get<DateTime>`,
-`GetDateOnly` → `Get<DateOnly>`, `GetTimeOnly` → `Get<TimeOnly>`, `GetEnum<T>` → `Get<T>`, and each
-`TryGet…` likewise. The reading is unchanged, including the string forms `PutAsString` writes.
+The less common named accessors became `Get<T>`, which now does the coercion:
+
+| 3.x | 4.x |
+|---|---|
+| `GetGuid` | `Get<Guid>` |
+| `GetTimeSpan` | `Get<TimeSpan>` |
+| `GetDecimal` | `Get<decimal>` |
+| `GetChar` | `Get<char>` |
+| `GetDateTime` | `Get<DateTime>` |
+| `GetDateOnly` | `Get<DateOnly>` |
+| `GetTimeOnly` | `Get<TimeOnly>` |
+| `GetEnum<T>` | `Get<T>` |
+
+Each `TryGet…` changed likewise. Reading is unchanged, including the string forms `PutAsString` writes.
 :::
 
 ## Storing values as strings
 
-`PutAsString` writes a value in a form that survives anything:
+`PutAsString` writes a value in a form any store can keep:
 
 <!-- snippet: sample_job_data_map_put_as_string -->
 ```csharp
@@ -180,7 +177,7 @@ data.PutAsString("lookbackDays", 30);               // any IFormattable
 |---|---|
 | `PutAsString(string, DateTime)` | round-trip `"O"`, invariant |
 | `PutAsString(string, DateTimeOffset)` | round-trip `"O"`, invariant |
-| `PutAsString(string, DateOnly)` | round-trip `"O"` — `yyyy-MM-dd` |
+| `PutAsString(string, DateOnly)` | round-trip `"O"`: `yyyy-MM-dd` |
 | `PutAsString(string, TimeOnly)` | round-trip `"O"` |
 | `PutAsString(string, TimeSpan)` | invariant default format |
 | `PutAsString(string, Guid)` | invariant default format |
@@ -188,38 +185,43 @@ data.PutAsString("lookbackDays", 30);               // any IFormattable
 | `PutAsString(string, char)` | invariant default format |
 | `PutAsString<T>(string, T) where T : IFormattable` | invariant, default format |
 
-Every one of these round-trips through the matching accessor: `PutAsString("runAt", offset)` then
-`GetDateTimeOffset("runAt")` gives back the same instant, including the offset. The same holds for the
-types read through `Get<T>` — `Get<DateTime>` parses with round-trip semantics, so a `DateTime`
-written as `"O"` comes back with its original `Kind` rather than as an unspecified local time, and
-`Get<Guid>`, `Get<TimeSpan>`, `Get<DateOnly>` and `Get<TimeOnly>` read what `PutAsString` wrote.
+Each round-trips through the matching accessor. `PutAsString("runAt", offset)` then
+`GetDateTimeOffset("runAt")` returns the same instant and offset. `Get<DateTime>` parses with round-trip
+semantics, so a `DateTime` written as `"O"` keeps its original `Kind` instead of becoming an unspecified
+local time. `Get<Guid>`, `Get<TimeSpan>`, `Get<DateOnly>` and `Get<TimeOnly>` read what `PutAsString`
+wrote.
 
 ## Why string-safe storage matters
 
-Two things read job data back out of a database, and neither is your code:
+A persistent store reads job data back through the serializer or, in string mode, as strings.
 
-**The serializer.** With the default settings a persistent store serializes the whole map. Anything in
-it has to be serializable by the configured serializer, and anything you *change the shape of* has to
-stay readable by the new version — a renamed property on a stored options class is a job that throws on
-its next fire, months after the deploy that renamed it. Standard framework types are safe; your own
-types are a versioning commitment.
+**The serializer.** By default a persistent store serializes the whole map.
 
-A persistent store accepts exactly the types the accessors above cover (`string`, `bool`, `char`, the
-numeric types, `DateTime`, `DateTimeOffset`, `TimeSpan`, `Guid`, `DateOnly`, `TimeOnly` and enums) plus
-`Dictionary<string, string>`, and refuses anything else when the job is stored rather than writing a blob
-that fails to load later. Both serializers refuse the same set and write it the same way, so a value you
-can store is one either of them can be switched to. The one name a string map's own entries cannot use is
-`$type`, which is where Json.NET writes a value's type: both readers take it as metadata rather than data,
-so a map storing an entry under it is refused with the rest. To store a type of your own, declare it — with
-`SystemTextJsonSerializerRegistry.AddTypeInfoResolver` on the default serializer, which is the same
-registration a trimmed or native-AOT publish needs, or with
-`NewtonsoftJsonSerializerRegistry.AddJobDataValueType<T>()` on the Newtonsoft one — or serialize it
-yourself and store the result as a string. A declared type is read back by the serializer that wrote it
-and by no other, so the string is the portable answer.
+* Every value must be serializable by the configured serializer.
+* A value whose type changes shape must stay readable by the new version. A renamed property on a stored
+  options class makes the job throw on its next fire, possibly months after the deploy. Standard framework
+  types are safe; your own types are a versioning commitment.
+* A persistent store accepts the types the accessors cover (`string`, `bool`, `char`, the numeric types,
+  `DateTime`, `DateTimeOffset`, `TimeSpan`, `Guid`, `DateOnly`, `TimeOnly` and enums) plus
+  `Dictionary<string, string>`. It refuses anything else when the job is stored, instead of writing a
+  blob that fails to load later.
+* Both serializers refuse the same set and write it the same way, so you can switch between them.
+* A string map's entries cannot use the name `$type`. Json.NET writes a value's type there, and both
+  readers take it as metadata, so a map with an entry under it is refused.
 
-**String mode.** `AdoJobStoreOptions.StoreJobDataAsStrings` (the flat key is still
-`quartz.jobStore.useProperties`) makes the store persist the map as name/value string pairs instead of
-a serialized blob:
+To store a type of your own, do one of:
+
+* declare it with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` on the default serializer (the
+  same registration a trimmed or native-AOT publish needs);
+* declare it with `NewtonsoftJsonSerializerRegistry.AddJobDataValueType<T>()` on the Newtonsoft
+  serializer;
+* serialize it yourself and store the string.
+
+A declared type is read back only by the serializer that wrote it, so the string is the portable choice.
+
+**String mode.** `AdoJobStoreOptions.StoreJobDataAsStrings` (flat key `quartz.jobStore.useProperties`)
+stores the map as name/value string pairs instead of a serialized blob. Its other store options are in
+the [Configuration Reference](../configuration/reference.md).
 
 <!-- snippet: sample_job_data_map_store_as_strings -->
 ```csharp
@@ -231,10 +233,9 @@ q.UsePersistentStore(s =>
 ```
 <!-- endSnippet -->
 
-That removes the versioning problem entirely and makes `QRTZ_JOB_DETAILS.JOB_DATA` readable in a query
-tool — at the cost of a hard rule: **every value must be a string**. Put a `DateTimeOffset` in the map
-under string mode and storing the job fails. This is what `PutAsString` is for, and the accessors are
-what make the reading side identical either way.
+It removes the versioning problem and makes `QRTZ_JOB_DETAILS.JOB_DATA` readable in a query tool. The
+rule: **every value must be a string**. Storing a job with a `DateTimeOffset` in its map fails under
+string mode. Write values with `PutAsString`; the accessors read them the same way in either mode.
 
 ::: tip
 Turn `StoreJobDataAsStrings` on at the start of a project, not in the middle. Switching it on with data
@@ -243,8 +244,8 @@ already in the tables leaves rows the store cannot read.
 
 ## Property injection: the other read side
 
-If a job has settable properties whose names match keys in the merged map, the default job factory
-assigns them before `Execute` runs, and the job never touches the map:
+If a job has settable properties named like keys in the merged map, the default job factory sets them
+before `Execute` runs:
 
 <!-- snippet: sample_job_data_map_property_injection -->
 ```csharp
@@ -263,19 +264,16 @@ public sealed class ReportJob : IJob
 ```
 <!-- endSnippet -->
 
-The conversion rules are the accessors' rules: a `"30"` in the map sets an `int LookbackDays`. What
-happens when a key has no matching property, or the value cannot be converted, is
-`PropertySettingJobFactory.PropertyMismatchBehavior` — `Ignore`, `Warn` or `Throw`. `Warn` is a good
-default in development, because the failure mode this replaces is a property that silently stays at its
-default.
-
-`UsingJobData(j => j.LookbackDays, 30)` is the write side of exactly this: name the property, get the
-key for free.
+* Conversion follows the accessors' rules: `"30"` in the map sets an `int LookbackDays`.
+* A key with no matching property, or a value that cannot be converted, is handled by
+  `PropertySettingJobFactory.PropertyMismatchBehavior`: `Ignore`, `Warn` or `Throw`. Use `Warn` in
+  development; otherwise a property silently stays at its default.
+* `UsingJobData(j => j.LookbackDays, 30)` is the matching write side: name the property, get the key.
 
 ## A typed input: the third read side
 
-A job whose data is really *one payload* — a message, a command, an event — can say so. `IJob<TInput>`
-declares the type, and the payload arrives as a parameter:
+A job whose data is one payload (a message, a command, an event) can declare its type with
+`IJob<TInput>`. The payload arrives as a parameter:
 
 <!-- snippet: sample_job_data_map_typed_input -->
 ```csharp
@@ -309,39 +307,33 @@ public static class TypedInputScheduling
 ```
 <!-- endSnippet -->
 
-`UsingInput` is available on `JobBuilder<TJob>`, `TriggerBuilder<TJob>` and the two configurators
-`AddJob` and `AddTrigger` hand you, and it is only offered for a job that declares an input — putting
-one on a job that takes none is a compile error. The value lands in the ordinary `JobDataMap` under the
-reserved key `SchedulerConstants.JobInput` (`QRTZ_JOB_INPUT`), serialized to a **string** by the
-scheduler as the job or trigger is stored, so it survives `StoreJobDataAsStrings`, the JSON write gate
-above, the blob column and the HTTP API alike. Precedence is the ordinary one: an input on the trigger
-overrides an input on the job.
+* `UsingInput` is on `JobBuilder<TJob>`, `TriggerBuilder<TJob>`, and the `AddJob` and `AddTrigger`
+  configurators. It is only offered for a job that declares an input; using it on any other job is a
+  compile error.
+* The value is stored in the ordinary `JobDataMap` under the reserved key `SchedulerConstants.JobInput`
+  (`QRTZ_JOB_INPUT`). The scheduler serializes it to a **string** when the job or trigger is stored, so it
+  survives `StoreJobDataAsStrings`, the serializer's type check, the blob column and the HTTP API.
+* An input on the trigger overrides an input on the job.
+* A job that is not an `IJob<TInput>` can read the payload with `context.GetInput<SendEmail>()`, which
+  returns `null` when there is none.
+* An `IJob<TInput>` whose input is missing fails the firing with a `SchedulerException` naming the key,
+  instead of running on a default payload.
+* **The input type is inferred from the argument.** A `payload` held as a base type is stored and read as
+  that base type. Pass the type argument when the static type is not the one you mean:
+  `UsingInput<SendEmailJob, SendEmail>(payload)`.
+* **Put a per-firing input on the trigger.** A `[PersistJobDataAfterExecution]` job re-stores its own map
+  after every firing, so an input on the job is written back each time. That is harmless, since it is
+  already a string.
 
-A job that is not an `IJob<TInput>` can read the same payload with `context.GetInput<SendEmail>()`,
-which answers `null` when there is none. An `IJob<TInput>` whose input is missing fails the firing with
-a `SchedulerException` naming the key, rather than running on a default payload.
-
-Two things worth knowing:
-
-- **The input type is inferred from the argument.** `UsingInput(payload)` where `payload` is held as a
-  base type stores and reads it as that base type; pass the type argument explicitly —
-  `UsingInput<SendEmailJob, SendEmail>(payload)` — when the static type is not the one you mean.
-- **Put a per-firing input on the trigger.** A `[PersistJobDataAfterExecution]` job re-stores its own
-  map after every firing, so an input on the *job* is written back each time. That is harmless — it is
-  already the string it will be read as — but the trigger is where an input that differs per firing
-  belongs, and it is where one trigger per payload puts it anyway.
-
-The payload is written by the scheduler's `IJobInputSerializer`, which defaults to
-`SystemTextJsonJobInputSerializer` and is built from the same registry as the store's serializer — see
+The scheduler's `IJobInputSerializer` writes the payload. It defaults to
+`SystemTextJsonJobInputSerializer`, built from the same registry as the store's serializer; see
 [JSON Serialization](../packages/system-text-json.md). A trimmed or native-AOT application declares its
-payload types with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`, exactly as it declares a job
-data value type.
+payload types with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`, as for a job data value type.
 
 ## Persisting changes across fires
 
-By default a job's stored map is written once and read many times. `[PersistJobDataAfterExecution]`
-changes that — the job's own `JobDataMap` is re-persisted after every execution, so a counter or a
-watermark survives:
+By default a job's stored map is written once and read many times. With `[PersistJobDataAfterExecution]`
+the job's own `JobDataMap` is saved after every execution, so a counter or a watermark survives:
 
 <!-- snippet: sample_job_data_map_persist_across_fires -->
 ```csharp
@@ -359,11 +351,11 @@ public sealed class IncrementalSyncJob : IJob
 ```
 <!-- endSnippet -->
 
-Note the second attribute. `[PersistJobDataAfterExecution]` without `[DisallowConcurrentExecution]` is
-a race: two firings read the same map, both write, and one of the writes is lost. Use them together.
+Always add `[DisallowConcurrentExecution]` too. Without it, two firings read the same map, both write,
+and one write is lost.
 
-The map tracks whether it changed and is only written when it did. To force a write the map did not
-notice — an in-place mutation of a stored object, for instance — put the well-known key in it:
+The map tracks changes and is only written when it changed. To force a write the map did not detect,
+such as an in-place change to a stored object, set the well-known key:
 
 <!-- snippet: sample_job_data_map_force_dirty -->
 ```csharp
@@ -373,35 +365,25 @@ data[SchedulerConstants.ForceJobDataMapDirty] = "true";
 
 ## Thread safety
 
-`JobDataMap` is not thread-safe. That matters in one specific place: a job without
-`[DisallowConcurrentExecution]` can have several firings in flight at once, and they share the stored
-`IJobDetail`'s map. Reading it concurrently is fine; mutating it from a job that can run concurrently
-with itself is not.
+`JobDataMap` is not thread-safe. A job without `[DisallowConcurrentExecution]` can have several firings
+running at once, and they share the stored `IJobDetail`'s map. Reading it concurrently is fine; do not
+change it from a job that can run concurrently with itself.
 
-Each firing gets its own `MergedJobDataMap`, so anything scoped to one execution is naturally isolated.
+Each firing gets its own `MergedJobDataMap`, so per-execution data is isolated.
 
 ## What does not belong in job data
 
-Job data is *durable*. On a persistent store it lives in `QRTZ_JOB_DETAILS.JOB_DATA` and
-`QRTZ_TRIGGERS.JOB_DATA`, it is in every backup, it is in the fired-trigger history, and it appears in
-the dashboard and the HTTP API to anyone who can read a job's detail.
+Job data is durable. On a persistent store it is in `QRTZ_JOB_DETAILS.JOB_DATA` and
+`QRTZ_TRIGGERS.JOB_DATA`, in every backup, in the fired-trigger history, and in the dashboard and HTTP
+API for anyone who can read a job's detail. Keep out:
 
-So: **no credentials, no tokens, no connection strings.** The shipped `SendMailJob` makes the point —
-its options type has no user name or password field at all, and the credential is registered with the
-container instead. See
-[Keep the SMTP credential out of job data](../packages/quartz-jobs.md#keep-the-smtp-credential-out-of-job-data)
-for the pattern; it generalizes to every job that needs a secret.
+* **Credentials, tokens, connection strings.** Register the secret with the container instead. The shipped
+  `SendMailJob` does this: its options type has no user name or password field. See
+  [Keep the SMTP credential out of job data](../packages/quartz-jobs.md#keep-the-smtp-credential-out-of-job-data);
+  the pattern applies to any job that needs a secret.
+* **Large payloads.** Job data is read on every fire and, under `[PersistJobDataAfterExecution]`, written
+  on every fire. Store an identifier and fetch the payload in the job.
+* **Live objects.** A `DbConnection`, an `HttpClient` or a logger comes from the container through the
+  job's constructor.
 
-Two more things to keep out:
-
-- **Large payloads.** Job data is read on every fire and, under `[PersistJobDataAfterExecution]`,
-  written on every fire. Put an identifier in the map and fetch the payload in the job.
-- **Live objects.** A `DbConnection`, an `HttpClient`, a logger — these come from the container through
-  the job's constructor. Job data is for the *inputs that distinguish one scheduled instance from
-  another*, and nothing else.
-
-## See also
-
-- [More About Jobs](more-about-jobs.md) — job details, the job factory, and property injection in context
-- [JSON Serialization](../packages/system-text-json.md) — what a persistent store does with the map
-- [Configuration Reference](../configuration/reference.md) — `StoreJobDataAsStrings` and the rest of the store options
+Job data is for the inputs that distinguish one scheduled instance from another.

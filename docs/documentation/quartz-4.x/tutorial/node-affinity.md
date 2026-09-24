@@ -2,33 +2,29 @@
 title: 'Node Affinity (Preferred Node)'
 ---
 
-Node affinity lets you control **which cluster node runs a specific trigger**. This is useful when a job
-maintains in-memory state (such as a cache or a warmed-up connection) between runs and should keep
-executing on the same node.
-
-See also [Execution Groups](execution-groups.md), which limits *how many* threads a category of job may
-use on a node. The two features compose: affinity decides *where* a trigger runs, execution groups decide
-*how much* of a node it may consume.
+Node affinity controls **which cluster node runs a specific trigger**. Use it when a job keeps in-memory
+state between runs, such as a cache or a warmed-up connection, and should keep running on the same node.
+Affinity decides *where* a trigger runs; [Execution Groups](execution-groups.md) decide *how many*
+threads of a node a category of job may use. The two compose.
 
 ## Concepts
 
 A **preferred node** is an optional property of a **trigger** naming the scheduler instance that should
-acquire it. Because the setting lives on the trigger rather than the job, a job with several triggers
-could in principle have different preferred nodes — set the same value on all of a job's triggers if you
-want job-level affinity.
+acquire it. It is per trigger, so for job-level affinity set the same value on all of a job's triggers.
 
-`ITrigger.PreferredNode` is a `PreferredNode` value with three ways to make one:
+`ITrigger.PreferredNode` is a `PreferredNode` value:
 
-- `PreferredNode.For("node-1")` pins the trigger to that scheduler instance id (the `Scheduler:InstanceId`
-  of the node).
-- `PreferredNode.Auto` requests **auto-pin**: the first node to fire the trigger claims it.
-- `PreferredNode.None` (the default) means no preference — standard Quartz behavior.
+| Value | Means |
+|---|---|
+| `PreferredNode.For("node-1")` | pinned to that scheduler instance id (the node's `Scheduler:InstanceId`) |
+| `PreferredNode.Auto` | **auto-pin**: the first node to fire the trigger claims it |
+| `PreferredNode.None` (the default) | no preference; standard Quartz behavior |
 
-Preferred node is a **strong preference with automatic failover**, not a hard constraint. Acquisition
-filters out triggers pinned to *live* nodes, but if the pinned node is not currently checking in, other
-nodes take over. See [Failover behavior](#failover-behavior).
+A preferred node is a **strong preference with automatic failover**, not a hard constraint. Acquisition
+skips triggers pinned to *live* nodes; if the pinned node is not checking in, other nodes take over. See
+[Failover behavior](#failover-behavior).
 
-Two columns back this on `QRTZ_TRIGGERS`:
+Two columns on `QRTZ_TRIGGERS` store it:
 
 | `PREFERRED_NODE` | `PREFERRED_NODE_AUTO` | Meaning |
 |---|---|---|
@@ -37,9 +33,9 @@ Two columns back this on `QRTZ_TRIGGERS`:
 | `'node-1'` | true | Auto-claimed by `node-1` |
 | `'node-1'` | false | Named pin to `node-1` (`PreferredNode.For("node-1")`) |
 
-The node name is stored verbatim and the auto-claim is recorded separately, so **no instance id is
-reserved** — a node may legitimately be called `auto:thing` or `*-west` without confusing Quartz. The
-protocol's own markers (`*`, `_`, `null`) are the only names `PreferredNode.For` refuses.
+The node name is stored verbatim and the auto-claim separately, so **no instance id is reserved**: a
+node may be called `auto:thing` or `*-west`. `PreferredNode.For` refuses only the protocol's markers
+(`*`, `_`, `null`).
 
 ## Setting the preferred node
 
@@ -82,16 +78,15 @@ bool unpinned = pin.IsNone;
 <!-- endSnippet -->
 
 ::: warning
-The value must match the instance id **exactly**. Pin comparisons happen in SQL using the database's
-string collation, so a value differing only in case is a different node — and on a case-sensitive
-database, one that never matches.
+The value must match the instance id **exactly**. Pins are compared in SQL with the database's string
+collation, so a value differing only in case is a different node, and on a case-sensitive database it
+never matches.
 :::
 
 ### In a scheduling file
 
-A pin is as much a statement about a deployment as about a schedule, so a deployment-specific
-scheduling file can make it. In JSON — the `Quartz:Schedule` section of `appsettings.json`, or a
-standalone `quartz_jobs.json` — it is a
+A deployment-specific scheduling file can set a pin. In JSON (the `Quartz:Schedule` section of
+`appsettings.json`, or a standalone `quartz_jobs.json`) it is a
 [common trigger field](../configuration/json.md#common-trigger-fields):
 
 ```json
@@ -103,8 +98,8 @@ standalone `quartz_jobs.json` — it is a
 }
 ```
 
-In `quartz_jobs.xml` it is an optional `<preferred-node>` element, which the schema places after
-`<retry-policy>` and before `<job-data-map>`:
+In `quartz_jobs.xml` it is an optional `<preferred-node>` element, after `<retry-policy>` and before
+`<job-data-map>`:
 
 ```xml
 <trigger>
@@ -117,30 +112,30 @@ In `quartz_jobs.xml` it is an optional `<preferred-node>` element, which the sch
 </trigger>
 ```
 
-Both spell `*` for [an automatic pin](#auto-pin-mode), and both leave the trigger unpinned when the
-value is absent — so re-reading a file clears a pin that was set some other way, exactly as it clears
-an execution group. A node name the pinning protocol reserves is refused as the file is read, naming
-the trigger, rather than scheduling a trigger that could never fire.
+* Both formats spell `*` for [an automatic pin](#auto-pin-mode).
+* Both leave the trigger unpinned when the value is absent, so re-reading a file clears a pin set some
+  other way, as it clears an execution group.
+* A reserved node name is refused when the file is read, naming the trigger.
 
 ::: warning
-A file naming a node that this cluster does not have pins the trigger to nothing, and it stops firing
-until the node appears, the pin is cleared or the file is corrected. Name a node in a file that belongs
-to one deployment; use `*` in a file that is read by more than one.
+A file naming a node that this cluster does not have pins the trigger to a node that is never live, so
+any node fires it and the pin does nothing. Name a node only in a file that belongs to one deployment;
+use `*` in a file read by more than one.
 :::
 
 ## Auto-pin mode
 
-When a trigger's preferred node is `PreferredNode.Auto`:
+With `PreferredNode.Auto`:
 
-1. The trigger is acquirable by any node, as usual.
+1. Any node can acquire the trigger, as usual.
 2. The first node to fire it writes its own instance id to `PREFERRED_NODE` and sets
    `PREFERRED_NODE_AUTO`. The write is a compare-and-swap against the value seen at acquisition, so a
-   concurrent re-pin or clear wins over the claim rather than being clobbered by it.
-3. From then on only that node acquires the trigger — until it stops checking in.
+   concurrent re-pin or clear wins over the claim.
+3. From then on only that node acquires the trigger, until it stops checking in.
 
-This is ideal when you don't know node names at configuration time but still want a trigger to stay put.
+Use it when you do not know node names at configuration time but want a trigger to stay put.
 
-Rebuilding an auto-pinned trigger preserves the auto-claim:
+Rebuilding an auto-pinned trigger keeps the auto-claim:
 
 <!-- snippet: sample_node_affinity_rebuild -->
 ```csharp
@@ -149,8 +144,7 @@ ITrigger rebuilt = trigger.GetTriggerBuilder().WithDescription("updated").Build(
 ```
 <!-- endSnippet -->
 
-The pin carries its own auto-claim flag, so a pin moved from one trigger to another arrives as the pin it
-was. What you write is what you get back:
+The pin carries its own auto-claim flag, so a pin moved to another trigger arrives unchanged:
 
 <!-- snippet: sample_node_affinity_rebuild_with_new_pin -->
 ```csharp
@@ -166,28 +160,28 @@ ITrigger unpinned = trigger.GetTriggerBuilder()
 ```
 <!-- endSnippet -->
 
-`ITrigger.PreferredNode` is read-only, like the rest of a trigger: rebuild the trigger to change it, and hand
-the result to `IScheduler.RescheduleJob` — or, for this one property on its own,
+`ITrigger.PreferredNode` is read-only, like the rest of a trigger. To change it, rebuild the trigger and
+pass it to `IScheduler.RescheduleJob`, or
 [update the trigger in place](#updating-the-preferred-node-at-runtime).
 
 ## Failover behavior
 
 When the preferred node stops checking in:
 
-1. **Acquisition.** The acquisition query treats a node whose last check-in is older than the
-   cluster check-in threshold as dead, so surviving nodes may acquire its pinned triggers immediately —
-   without waiting for cluster recovery.
-2. **Steal on fire.** A node that fires a trigger still auto-claimed by another (stale) node takes the
-   pin over via compare-and-swap. Affinity converges on a live node instead of bouncing.
-3. **Cluster recovery.** When recovery confirms a node dead, auto-claimed pins belonging to it are reset
-   to an unclaimed auto-pin before its state row is deleted, so any *eligible* node can claim them —
-   which correctly respects execution group limits.
-4. **Named pins are preserved.** They are never re-pinned. While the node is down other nodes run the
-   trigger; when it returns and checks in again, it naturally reclaims it.
+1. **Acquisition.** A node whose last check-in is older than the cluster check-in threshold is treated
+   as dead, so surviving nodes can acquire its pinned triggers immediately, without waiting for cluster
+   recovery.
+2. **Steal on fire.** A node that fires a trigger still auto-claimed by a stale node takes the pin over
+   by compare-and-swap, so affinity moves to a live node instead of bouncing.
+3. **Cluster recovery.** When recovery confirms a node dead, its auto-claimed pins are reset to unclaimed
+   auto-pins before its state row is deleted. Any *eligible* node can then claim them, respecting
+   execution group limits.
+4. **Named pins are kept.** They are never re-pinned. Other nodes run the trigger while the node is down;
+   when it checks in again, it takes the trigger back.
 
 ## Updating the preferred node at runtime
 
-You can re-pin without rescheduling:
+Re-pin without rescheduling:
 
 <!-- snippet: sample_node_affinity_move_pin -->
 ```csharp
@@ -197,7 +191,7 @@ await scheduler.UpdateTriggerDetails(
 ```
 <!-- endSnippet -->
 
-Pass `PreferredNode.None` to clear the preference entirely:
+Pass `PreferredNode.None` to clear the preference:
 
 <!-- snippet: sample_node_affinity_clear_pin -->
 ```csharp
@@ -209,23 +203,25 @@ await scheduler.UpdateTriggerDetails(
 
 ## Requirements and limitations
 
-- **Clustering and a stable instance id.** Affinity only means anything in a cluster —
-  `store.UseClustering()`, see [Clustering](advanced-enterprise-features.md) — and only with a *stable*
-  `Scheduler:InstanceId`. With `GenerateInstanceId = true` the id changes on every restart, so a stored pin
-  names a node that no longer exists; Quartz warns at startup when it detects an auto-generated id.
-- **RAMJobStore ignores it.** A pin is stored and returned as metadata but never filters acquisition —
-  a single-node in-memory scheduler always runs the trigger.
-- **Pinned to a node that never registers.** If the target instance id has never checked in, the trigger
-  is eligible everywhere. Affinity is a preference, not a guarantee, so verify the id is spelled right.
-- **A live but saturated node still holds its pin.** If the pinned node is up but its
-  [execution group](execution-groups.md) is at its limit, the trigger waits for that node rather than
-  moving. Failover reacts to node death, not to node busyness.
-- **Brief spread during failover.** Between a node dying and ownership settling, a fast-firing trigger
-  may run on more than one surviving node before converging.
+* **Clustering and a stable instance id.** Affinity only applies in a cluster (`store.UseClustering()`,
+  see [Clustering](advanced-enterprise-features.md)) with a *stable* `Scheduler:InstanceId`. With
+  `GenerateInstanceId = true` the id changes on every restart, so a stored pin names a node that no longer
+  exists. Quartz warns at startup when it detects an auto-generated id.
+* **RAMJobStore ignores it.** The pin is stored and returned but never filters acquisition; a single-node
+  in-memory scheduler always runs the trigger.
+* **Pinned to a node that never registers.** If the target instance id has never checked in, the trigger
+  is eligible everywhere. Affinity is a preference, not a guarantee; check the id's spelling.
+* **A live but saturated node keeps its pin.** If the pinned node is up but its
+  [execution group](execution-groups.md) is at its limit, the trigger waits for that node. Failover
+  reacts to node death, not to busyness.
+* **Brief spread during failover.** Between a node dying and ownership moving, a fast-firing trigger may
+  run on more than one surviving node.
 
 ## Schema
 
-`PREFERRED_NODE` and `PREFERRED_NODE_AUTO` are part of the 4.x `QRTZ_TRIGGERS` schema. Upgrading from
-3.x, apply the script for your database in [`database/migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0);
-if you already ran 3.19's optional node-affinity migration the columns exist and no data migration is
-needed — the two versions store pins identically. See [Database Schema Changes](../../database/schema-changes.md#version-4-0).
+`PREFERRED_NODE` and `PREFERRED_NODE_AUTO` are part of the 4.x `QRTZ_TRIGGERS` schema. When upgrading
+from 3.x, apply the script for your database in
+[`database/migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0).
+If you already ran 3.19's optional node-affinity migration, the columns exist and no data migration is
+needed; both versions store pins identically. See
+[Database Schema Changes](../../database/schema-changes.md#version-4-0).

@@ -5,20 +5,25 @@ title: 'Trigger and Job Listeners'
 
 # Trigger and Job Listeners
 
-Listeners are objects that you create to perform actions based on events occurring within the scheduler.
-As you can probably guess, TriggerListeners receive events related to triggers, and JobListeners receive events related to jobs.
+Listeners are objects you create to act on events in the scheduler. Most applications do not need them;
+use one when the application must hear about events without the job notifying it.
 
-Trigger-related events include: trigger firings, trigger mis-firings (discussed in the "Triggers" section of this document),
-and trigger completions (the jobs fired off by the trigger is finished).
+| Listener | Events |
+|---|---|
+| `ITriggerListener` | trigger firings, misfires, and completions (the job the trigger fired has finished) |
+| `IJobListener` | a job is about to run, was vetoed, or has finished |
 
 ::: danger
 Make sure your trigger and job listeners never throw an exception (use a try-catch) and that they can handle
-internal problems. What a throwing listener costs is the *firing*: one that throws on the way in abandons it,
-so the job does not run, and one that throws on the way out cannot undo it, because the job has already run
-and the trigger has already decided what it wants done. In both cases the failure is reported to the
-scheduler listeners through `ISchedulerListener.SchedulerError`, wrapped in a `JobExecutionProcessException`
-that names the listener and the firing, and the trigger is released either way — including the siblings a
-`[DisallowConcurrentExecution]` job was blocking. Nothing gets stuck; the firing is simply lost.
+internal problems. A throwing listener costs the *firing*:
+
+* one that throws before the job runs abandons the firing, so the job does not run;
+* one that throws after cannot undo it: the job has run and the trigger has decided what it wants done.
+
+Either way the failure is reported to the scheduler listeners through `ISchedulerListener.SchedulerError`,
+wrapped in a `JobExecutionProcessException` that names the listener and the firing. The trigger is
+released, including the siblings a `[DisallowConcurrentExecution]` job was blocking. Nothing gets stuck;
+the firing is lost.
 :::
 
 __The ITriggerListener Interface__
@@ -41,13 +46,11 @@ public interface ITriggerListener
 }
 ```
 
-`triggerInstructionCode` is the `SchedulerInstruction` the trigger returned for this fire — what the scheduler
-is about to do with the trigger, from `NoInstruction` through `SetTriggerComplete` to `DeleteTrigger`.
-
-Every callback leads with the trigger it is about. A listener reaches the scheduler it serves through its
-execution context, or as a second argument when there is no execution. Three of these four callbacks happen
-inside a firing, so they read `context.Scheduler`; `TriggerMisfired` is the exception, because a misfire is
-noticed rather than executed, and it takes the scheduler directly in the place the context has:
+* `triggerInstructionCode` is the `SchedulerInstruction` the trigger returned for this fire: what the
+  scheduler will do with the trigger, from `NoInstruction` through `SetTriggerComplete` to
+  `DeleteTrigger`.
+* Every callback leads with the trigger. Three of them run inside a firing and reach the scheduler
+  through `context.Scheduler`. `TriggerMisfired` has no execution, so it takes the scheduler directly:
 
 ```csharp
 public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
@@ -56,8 +59,6 @@ public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, Cancell
     return default;
 }
 ```
-
-Job-related events include: a notification that the job is about to be executed, and a notification when the job has completed execution.
 
 __The IJobListener Interface__
 
@@ -77,34 +78,33 @@ public interface IJobListener
 }
 ```
 
-`jobException` is null when the job completed without throwing, so a listener that only reacts to failures
-starts with a null check rather than assuming there is an exception to log.
+`jobException` is null when the job completed without throwing, so check for null before logging it.
 
 ## Using Your Own Listeners
 
-To create a listener, simply create an object the implements either the `ITriggerListener` and/or `IJobListener` interface.
-Listeners are then registered with the scheduler during run time under a name, which their `Name` property advertises.
+Implement `ITriggerListener`, `IJobListener`, or both. Listeners are registered with the scheduler at run
+time under the name their `Name` property returns.
 
-Every member of both interfaces has a default implementation — the notifications do nothing, and `Name` returns
-the type's name — so implement only the events you're interested in, and only declare `Name` when you register
+Every member of both interfaces has a default implementation: notifications do nothing, and `Name`
+returns the type's name. Implement only the events you need. Declare `Name` only when you register
 several instances of one type with the same scheduler.
 
 ::: warning
-The price of those defaults is that a method whose *signature* does not match the interface's is not a
-compile error. It simply stops implementing anything, and the default runs in its place — the method is
-never called. Quartz refuses a listener in that shape when it is registered, naming the method and the
-signature it should have, rather than attaching one that will be silent.
+Because of those defaults, a method whose *signature* does not match the interface's is not a compile
+error. It implements nothing, and the default runs instead. Quartz refuses such a listener when it is
+registered, naming the method and the signature it should have.
 :::
 
-Listeners are registered with the scheduler's `ListenerManager` along with a Matcher that describes which Jobs/Triggers the listener wants to receive events for.
+Listeners are registered with the scheduler's `ListenerManager`, with a matcher that selects the jobs or
+triggers the listener hears about.
 
 ::: tip
-Listeners are registered with the scheduler during run time, and are __NOT__ stored in the JobStore along with the jobs and triggers.
-This is because listeners are typically an integration point with your application.
-Hence, each time your application runs, the listeners need to be re-registered with the scheduler.
+Listeners are registered at run time and are __NOT__ stored in the JobStore with the jobs and triggers.
+They are usually an integration point with your application, so re-register them every time the
+application runs.
 :::
 
-__Adding a JobListener that is interested in a particular job:__
+__One job:__
 
 <!-- snippet: sample_job_listeners_match_one_job -->
 ```csharp
@@ -112,7 +112,7 @@ scheduler.ListenerManager.AddJobListener(myJobListener, Matchers.Key(new JobKey(
 ```
 <!-- endSnippet -->
 
-__Adding a JobListener that is interested in all jobs of a particular group:__
+__All jobs of a group:__
 
 <!-- snippet: sample_job_listeners_match_a_group -->
 ```csharp
@@ -120,7 +120,7 @@ scheduler.ListenerManager.AddJobListener(myJobListener, GroupMatcher<JobKey>.Gro
 ```
 <!-- endSnippet -->
 
-__Adding a JobListener that is interested in all jobs of two particular groups:__
+__All jobs of two groups:__
 
 <!-- snippet: sample_job_listeners_match_two_groups -->
 ```csharp
@@ -129,7 +129,7 @@ scheduler.ListenerManager.AddJobListener(myJobListener,
 ```
 <!-- endSnippet -->
 
-__Adding a JobListener that is interested in all jobs:__
+__All jobs:__
 
 <!-- snippet: sample_job_listeners_match_every_job -->
 ```csharp
@@ -137,26 +137,20 @@ scheduler.ListenerManager.AddJobListener(myJobListener, Matchers.AllJobs());
 ```
 <!-- endSnippet -->
 
-Passing no matcher at all means the same thing — a listener with no matchers hears about every job — so
-`AddJobListener(myJobListener)` is the shortest way to say it.
-
-Registration is the only moment matchers are given. A listener that has to start hearing about something
-else is registered again under the same name, with the matchers it needs: the second registration replaces
-the listener and its matchers together, so the two can never be out of step.
-
-Listeners are notified in the order they were registered, and this is a promise rather than an accident of
-the implementation — so two listeners that are not independent, such as one that prepares something the next
-one reads, can be built on it. Registering again under the same name replaces a listener where it stands,
-and one registered after another was removed is notified last rather than in the removed one's place.
-
-The `Matchers` class is the entry point: its static factories build the roots (`Matchers.AllJobs()`,
-`Matchers.AllTriggers()`, `Matchers.Key(key)`, `Matchers.Group<JobKey>(StringOperator.StartsWith, "a")`,
-`Matchers.Name<JobKey>(…)`), and any matcher composes with the `And`, `Or` and `Not` extension methods.
+* No matcher also means every job: `AddJobListener(myJobListener)`.
+* Matchers are given only at registration. To change them, register again under the same name; the new
+  registration replaces the listener and its matchers together.
+* Listeners are notified in registration order, and that order is guaranteed, so one listener can
+  prepare something the next reads. Re-registering under the same name keeps the listener's place. A
+  listener registered after another was removed is notified last.
+* `Matchers` builds the roots: `Matchers.AllJobs()`, `Matchers.AllTriggers()`, `Matchers.Key(key)`,
+  `Matchers.Group<JobKey>(StringOperator.StartsWith, "a")`, `Matchers.Name<JobKey>(…)`. Any matcher
+  composes with the `And`, `Or` and `Not` extension methods.
 
 ## Registering listeners with the container
 
-A listener that belongs to the application rather than to a moment in its run is registered where the
-scheduler is configured, and constructed from the container like anything else:
+Register a listener that belongs to the application where the scheduler is configured. The container
+constructs it:
 
 <!-- snippet: sample_job_listeners_under_di -->
 ```csharp
@@ -176,36 +170,32 @@ builder.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-This is the same registration the `ListenerManager` calls perform, done before the scheduler starts, which is
-what makes it survive a restart of the host without a startup hook of your own.
+This is the same registration the `ListenerManager` calls perform, done before the scheduler starts, so
+it survives a restart of the host without a startup hook of your own.
 
 ## Holding on to a running job's context
 
-A job listener is also the way to keep hold of the executions running in this process. The scheduler does
-not hand them out: `IScheduler.QueryFireInstances` lists firings across the cluster as `FireInstance`
-projections, which carry keys, times and the owning node — but not the job instance, the merged job data
-map, the result or the cancellation handle, because those exist only where the job is running.
+To keep hold of executions running in this process, use a job listener. `IScheduler.QueryFireInstances`
+lists firings across the cluster as `FireInstance` projections with keys, times and the owning node. It
+does not include the job instance, the merged job data map, the result or the cancellation handle,
+because those exist only where the job runs.
 
-A listener is handed the context and can keep it for the duration of the execution, keyed by
-`IJobExecutionContext.FireInstanceId` so that a row the listing returned and a context you are holding can
-be matched up. The migration guide has the whole thing in about thirty lines, under
+A listener gets the context and can keep it for the execution, keyed by
+`IJobExecutionContext.FireInstanceId` to match rows from the listing. The migration guide has the code,
+about thirty lines, under
 [what is running is a listing](/documentation/quartz-4.x/migration-guide.html#what-is-running-is-a-listing-not-a-list-of-contexts).
 
 ## A listener or a middleware?
 
-Listeners are notification-only, and that is the whole distinction. A listener is *told* that a job is
-about to run and *told* what it did; the execution happens between the two notifications rather than
-inside them. So a listener cannot wrap the call in a scope or a stopwatch, cannot decline to make it,
-and cannot catch or translate what it threw — the exception it is handed has already been classified,
-and the trigger's fate has already been decided.
+Listeners only notify. A listener is told a job is about to run and told what it did; the execution
+happens between the notifications. A listener cannot wrap the call in a scope or a stopwatch, skip it, or
+catch or translate its exception: the exception is already classified and the trigger's fate decided.
 
-Code that needs to *surround* the execution is a
-[job execution middleware](job-execution-middleware.md): a log scope, a tenant context, a timing, a
-translation of what a third-party library throws. Code that needs to *observe* one — audit a
-completion, chain the next job, count failures — is a listener, and gets matchers to choose which jobs
-and triggers it hears about, which middleware has no equivalent of. Vetoing stays a listener's job:
-`ITriggerListener.VetoJobExecution` is the scheduler's own refusal, and it raises `JobExecutionVetoed`,
-whereas a middleware that declines to run the job is invisible from outside the pipeline.
+| Need | Use |
+|---|---|
+| *surround* the execution: a log scope, a tenant context, a timing, translating a third-party exception | a [job execution middleware](job-execution-middleware.md) |
+| *observe* it: audit a completion, chain the next job, count failures | a listener, with matchers to choose jobs and triggers (middleware has none) |
+| veto it | `ITriggerListener.VetoJobExecution` |
 
-Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
-for the notification of events, without the Job itself explicitly notifying the application.
+A veto is the scheduler's own refusal and raises `JobExecutionVetoed`. A middleware that skips the job is
+invisible outside the pipeline.
