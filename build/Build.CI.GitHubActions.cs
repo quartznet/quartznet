@@ -7,6 +7,12 @@ using Fallout.Components;
 
 using Quartz.Build;
 
+// Every test workflow skips a change that touches documentation only: the pages under docs/ and
+// apidoc/ (which the docs workflow builds and checks), the npm files that build them, and the
+// markdown no test reads. Markdown a test does read is left out of that list on purpose: AGENTS.md,
+// CLAUDE.md and .github/copilot-instructions.md (AgentInstructionsTest), the packaged
+// src/*/README.md files (PackageReadmeTest) and the analyzer release files. The list is spelled three
+// times below and once in the hand-written sonar.yml; keep the four the same.
 [GitHubActions(
     "pr-tests-unit",
     GitHubActionsImage.WindowsLatest,
@@ -14,7 +20,7 @@ using Quartz.Build;
     GitHubActionsImage.MacOsLatest,
     OnPullRequestBranches = ["main", "3.x"],
     OnPullRequestIncludePaths = ["**/*"],
-    OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
+    OnPullRequestExcludePaths = ["docs/**/*", "apidoc/**/*", "package.json", "package-lock.json", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "database/README.md", ".github/SECURITY.md", ".github/pull_request_template.md"],
     PublishArtifacts = false,
     // PublishAot publishes the trim canary as a native executable and runs it, on every image this
     // workflow covers. macOS is included rather than assumed: the runner image ships the Xcode command
@@ -52,7 +58,7 @@ using Quartz.Build;
     GitHubActionsImage.MacOsLatest,
     OnPushBranches = ["main", "3.x"],
     OnPushIncludePaths = ["**/*"],
-    OnPushExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
+    OnPushExcludePaths = ["docs/**/*", "apidoc/**/*", "package.json", "package-lock.json", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "database/README.md", ".github/SECURITY.md", ".github/pull_request_template.md"],
     PublishArtifacts = true,
     PublishCondition = "${{ runner.os == 'Windows' }}",
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(IPack.Pack), nameof(Publish)],
@@ -135,7 +141,7 @@ namespace Quartz.Build
         {
             OnPullRequestBranches = ["main", "3.x"];
             OnPullRequestIncludePaths = ["**/*"];
-            OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"];
+            OnPullRequestExcludePaths = ["docs/**/*", "apidoc/**/*", "package.json", "package-lock.json", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "database/README.md", ".github/SECURITY.md", ".github/pull_request_template.md"];
             PublishArtifacts = false;
             InvokedTargets = [nameof(ICompile.Compile), "IntegrationTest"];
             CacheKeyFiles = [];

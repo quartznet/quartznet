@@ -20,9 +20,15 @@ on:
     paths:
       - '**/*'
       - '!docs/**/*'
+      - '!apidoc/**/*'
       - '!package.json'
       - '!package-lock.json'
-      - '!readme.md'
+      - '!README.md'
+      - '!CONTRIBUTING.md'
+      - '!CODE_OF_CONDUCT.md'
+      - '!database/README.md'
+      - '!.github/SECURITY.md'
+      - '!.github/pull_request_template.md'
   pull_request:
     branches:
       - main
@@ -30,9 +36,15 @@ on:
     paths:
       - '**/*'
       - '!docs/**/*'
+      - '!apidoc/**/*'
       - '!package.json'
       - '!package-lock.json'
-      - '!readme.md'
+      - '!README.md'
+      - '!CONTRIBUTING.md'
+      - '!CODE_OF_CONDUCT.md'
+      - '!database/README.md'
+      - '!.github/SECURITY.md'
+      - '!.github/pull_request_template.md'
 
 permissions:
   contents: read
