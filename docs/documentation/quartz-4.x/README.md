@@ -6,68 +6,63 @@ next: false
 
 ## Why Quartz.NET
 
-Most of what is written about Quartz.NET is about the trigger model, so the rest of what 4.x ships
-tends to be a surprise. It is all in the box, and none of it needs a third-party package:
+All of this ships in Quartz's own packages; none of it needs a third-party package.
 
-* **The dashboard and the HTTP API are Quartz's own**, and both are
+* **Dashboard and HTTP API.** Thirteen pages and sixty-five routes —
+  [dashboard](packages/dashboard.md), [HTTP API](packages/http-api.md). Both are
   [fail-closed](packages/dashboard.md#production-hardening): a mapping that authorizes nothing refuses
-  to start, rather than serving a mutating surface to anyone who finds the path. Thirteen pages and
-  sixty-five routes — [dashboard](packages/dashboard.md), [HTTP API](packages/http-api.md).
+  to start.
 * **Telemetry without an instrumentation package.** Two job spans, thirty-three store spans and eleven
-  instruments on the `Quartz` activity source and meter, covering job execution, trigger acquisition,
-  cluster check-in and every store round trip —
-  [OpenTelemetry](packages/opentelemetry-integration.md). The scheduler
-  [health check](packages/hosted-services-integration.md#health-checks) is in the core package, and
-  [Quartz.Aspire](packages/aspire.md) turns an Aspire connection name into a persistent store with its
-  telemetry and health check attached.
-* **Trimming and native AOT are tested rather than asserted.** `Quartz` produces no `IL3050` at all, and
-  a canary application is published as a native executable and *run* on Windows, Linux and macOS in
-  every pull request — [Publishing Trimmed and Native AOT](how-tos/trimming-and-native-aot.md).
-* **A cluster is the same scheduler, pointed at one database.** Every node runs it, `UseClustering()`
-  turns the coordination on, and a trigger is acquired under a row lock — so a second node adds
-  throughput and not a second firing.
-  [Clustering](tutorial/advanced-enterprise-features.md) is the page. A firing is at-most-once by default; asking
-  for [recovery](tutorial/advanced-enterprise-features.md#asking-for-recovery) makes a node's death
-  re-run what it was doing.
-* **Concurrency has two bounds, and one of them is the cluster's.** `[DisallowConcurrentExecution]`
-  keeps one job from overlapping itself; an [execution group](tutorial/execution-groups.md) caps a whole
-  category of work, counted per node or across every node sharing the store.
-* **A retry policy lives on the trigger.** `RetryPolicy.Fixed`, `Exponential` and `Explicit` are
-  persisted, survive a restart and are visible to every node, and a policy that runs out says so to a
-  listener, a counter and the history —
-  [Retrying Failed Jobs](how-tos/retrying-failed-jobs.md).
-* **A job can be declared on its class, and the compiler reads it.** `[QuartzJob]` and `[CronTrigger]`
-  put a job and its schedules on the class and a source generator writes the registration; an analyzer
-  shipped inside the package fails the build on a cron expression or a `[JobTimeout]` that would not
-  parse — [Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md),
+  instruments on the `Quartz` activity source and meter. They cover job execution, trigger acquisition,
+  cluster check-in and every store round trip — [OpenTelemetry](packages/opentelemetry-integration.md).
+  The scheduler [health check](packages/hosted-services-integration.md#health-checks) is in the core
+  package. [Quartz.Aspire](packages/aspire.md) turns an Aspire connection name into a persistent store
+  with its telemetry and health check.
+* **Trimming and native AOT are tested.** `Quartz` produces no `IL3050`. Every pull request publishes a
+  canary application as a native executable and runs it on Windows, Linux and macOS —
+  [Publishing Trimmed and Native AOT](how-tos/trimming-and-native-aot.md).
+* **A cluster is the same scheduler pointed at one database.** `UseClustering()` turns coordination on.
+  A trigger is acquired under a row lock, so a second node adds throughput, not a second firing —
+  [Clustering](tutorial/advanced-enterprise-features.md). A firing is at-most-once by default;
+  [asking for recovery](tutorial/advanced-enterprise-features.md#asking-for-recovery) re-runs it when
+  its node dies.
+* **Two concurrency limits.** `[DisallowConcurrentExecution]` stops a job overlapping itself. An
+  [execution group](tutorial/execution-groups.md) caps a category of work, per node or across every
+  node sharing the store.
+* **Retry policies on the trigger.** `RetryPolicy.Fixed`, `Exponential` and `Explicit` are persisted,
+  survive a restart and are visible to every node. A policy that runs out is reported to a listener, a
+  counter and the history — [Retrying Failed Jobs](how-tos/retrying-failed-jobs.md).
+* **Jobs declared on the class, checked by the compiler.** `[QuartzJob]` and `[CronTrigger]` declare a
+  job and its schedules, and a source generator writes the registration. An analyzer in the package
+  fails the build on a cron expression or `[JobTimeout]` that does not parse —
+  [Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md),
   [Compile-Time Checks](tutorial/compile-time-checks.md).
-* **One firing can wait for another.** A continuation is a trigger the store holds until its parent's
-  firing ends, released or discarded by how it ended inside the parent's own transaction, so a crash
-  cannot lose the link — [Job Continuations](how-tos/job-continuations.md).
-* **The history can live in the database, and so can the dashboard's view of it.**
-  `UseExecutionHistory()` keeps one history for a cluster rather than one per node, and a dashboard
-  [pointed at the database](packages/dashboard.md#store-attached-targets) shows every scheduler in it
-  without running any of them.
+* **Continuations.** A continuation is a trigger the store holds until its parent's firing ends. It is
+  released or discarded inside the parent's own transaction, so a crash cannot lose the link —
+  [Job Continuations](how-tos/job-continuations.md).
+* **Execution history in the database.** `UseExecutionHistory()` keeps one history for a cluster
+  instead of one per node. A dashboard [pointed at the database](packages/dashboard.md#store-attached-targets)
+  shows every scheduler in it without running any of them.
 
-How all of that lines up against Hangfire, TickerQ, Wolverine and Coravel is
-[Comparison](comparison.md), which is sourced and says where Quartz loses.
+[Comparison](comparison.md) sets Quartz against Hangfire, TickerQ, Wolverine and Coravel, with sources,
+including where Quartz loses.
 
 ## Reading order
 
 * [Quick Start](quick-start.md) — install the package and run a first job
-* [Tutorial](tutorial/) — the guided tour, from a first scheduler to clustering
-* [How To's](how-tos/) — short recipes for one task each
+* [Tutorial](tutorial/) — from a first scheduler to clustering
+* [How To's](how-tos/) — one recipe per task
 * [Configuration Reference](configuration/reference.md) — every option, typed and legacy
 * [JSON Configuration](configuration/json.md) — the schedule file format
 * [Cron Expression Reference](cron-expressions.md) — the cron syntax
-* [Multi-Tenancy](multi-tenancy.md) — the three ways to separate tenants, and what each one isolates
+* [Multi-Tenancy](multi-tenancy.md) — three ways to separate tenants, and what each isolates
 
 Going to production:
 
-* [Before you go live](production-checklist.md) — the checklist, every line linking the page behind it
+* [Before you go live](production-checklist.md) — the checklist, each line linking its page
 * [Operations](operations.md) — rolling upgrades, failover, sizing, backup, health checks
 * [Database Schema](db/) — what the tables hold and which indexes matter
-* [Log Events](log-events.md) — every event id the scheduler writes, with its level and template
+* [Log Events](log-events.md) — every event id, with its level and template
 
 Coming from 3.x:
 

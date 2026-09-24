@@ -4,251 +4,189 @@ title: 'Operating a Cluster'
 
 # Operating a Cluster
 
-The rest of the documentation says how to build a scheduler. This page is about running one that is
-already built: upgrading it without stopping it, giving each node a name that survives a restart,
-reading what the tables are telling you, and knowing what a restore of the database means for work
-that was in flight when the backup was taken.
-
-It is 4.x, and it assumes a clustered ADO.NET store. [Clustering](tutorial/advanced-enterprise-features.md)
-covers what a cluster is and how to configure one; [Best Practices](../best-practices.md) covers the
-decisions that shape a schedule. Everything here has been checked against the code in this repository,
-and where that code disagrees with received wisdom the sentence says so.
+For a 4.x scheduler with a clustered ADO.NET store. To configure a cluster, see
+[Clustering](tutorial/advanced-enterprise-features.md); for the decisions that shape a schedule, see
+[Best Practices](../best-practices.md).
 
 ## Rolling a new version through a cluster
 
 ### Schema first, then nodes
 
-Quartz.NET never *migrates* its own schema, and creates one only when asked — `ProvisionSchema()`, which
-is [`JobStore:SchemaProvisioning = CreateIfMissing`](tutorial/job-stores.md#creating-the-schema), runs
-the fresh-install DDL for a database that has none and is a no-op for one that already has the tables.
-It never alters a table it finds, so a schema that is merely *behind* is untouched by it — and, since
-creating around such a schema is worse than not starting at all, a database whose Quartz tables 4.x did
-not create is refused rather than filled in. A deployment therefore has two steps in a fixed order, and
-the order is not negotiable in either direction:
+Quartz.NET never *migrates* its schema. `ProvisionSchema()`
+([`JobStore:SchemaProvisioning = CreateIfMissing`](tutorial/job-stores.md#creating-the-schema)) runs the
+fresh-install DDL for a database with no Quartz tables, does nothing to one that has them, and never
+alters a table. Deploy in this order:
 
-1. **Apply the migration**, from [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations),
-   every folder between the version the database is at and the version you are going to, in ascending
-   order.
+1. **Apply the migrations** from
+   [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations): every
+   folder between the database's version and the target, in ascending order.
 2. **Replace the nodes**, one at a time.
 
-The migrations are written to make that safe. Every statement checks before it acts, so a script is a
-no-op the second time and a partially-applied script is safe to re-run — the one exception being
-SQLite's `ADD COLUMN`, which has no conditional DDL. What they do is additive: columns and tables are
-added, never dropped or narrowed, so a node still running the old version keeps working against the
-migrated schema. Indexes are the one thing a migration does remove, and the next section says what that
-costs. That is the [expand phase of parallel change](https://martinfowler.com/bliki/ParallelChange.html)
-applied to a scheduler, and it is why the schema goes first: an old node tolerates a new schema, while
-a new node does not tolerate an old one.
+An old node tolerates a new schema; a new node does not tolerate an old one. The migrations are written
+for this:
 
-A node that meets a schema it cannot use refuses to start rather than misbehaving, which is what you
-want: the store issues a `SELECT 1` against every table it needs, and a `SELECT <column> … WHERE 1 = 0`
-for each column 4.x added to a table 3.x already had, and fails with
-`SchedulerException: Database schema validation failed` if one of them is missing — naming it, and
-naming the migration script to run. Know its limit: it checks that a column resolves, not that it has
-the right type or width, so a hand-built table whose column is declared wrong still fails on the first
-statement that binds it. `JobStore:SchemaProvisioning` set to `None` turns the check off; there is no
-good reason to.
+- Every statement checks before it acts, so a script is a no-op the second time and a partly applied one
+  can be re-run. The exception is SQLite's `ADD COLUMN`, which has no conditional DDL.
+- They are additive: columns and tables are added, never dropped or narrowed. Indexes are the one thing a
+  migration removes; see [A mixed 3.x and 4.0 window](#a-mixed-3-x-and-4-0-window).
 
-`CreateIfMissing` will not paper over that failure either. It asks whose schema this is before it
-creates anything: a table it needs that is already there and short of a column it needs was made by
-something that is not 4.x, so a 3.x schema is refused rather than half-completed. Provisioning is not
-migrating, and a schema with the missing *table* created and the missing *columns* still missing is a
-scheduler that starts, logs itself validated and fires nothing.
+**A node refuses to start against a schema it cannot use.** The store runs `SELECT 1` against every table
+it needs, and `SELECT <column> … WHERE 1 = 0` for each column 4.x added to a table 3.x already had. A
+missing one fails with `SchedulerException: Database schema validation failed`, naming it and the
+migration script to run.
+
+- It checks that a column resolves, not its type or width: a wrongly declared hand-built column still
+  fails on the first statement that binds it.
+- `JobStore:SchemaProvisioning = None` turns the check off. There is no good reason to.
+- `CreateIfMissing` does not fill gaps. A database whose Quartz tables 4.x did not create — a needed table
+  present but missing a needed column, such as a 3.x schema — is refused, not half-completed. Creating
+  only the missing *tables* would give a scheduler that starts, logs itself validated and fires nothing.
 
 ::: warning
 The fresh-install scripts in [`database/tables/`](https://github.com/quartznet/quartznet/tree/main/database/tables)
-are not migrations. **Each one drops the existing Quartz schema before recreating it**, and the switch
-that governs the drops — `@DropDb` on SQL Server and MySQL, `DropDb` elsewhere, declared at the top of
-the file — defaults to **1**, meaning drop. Set it to `0` to get creation only, and on SQLite, which
-has no variables, delete the block between the `BEGIN DROP TABLES` and `END DROP TABLES` markers.
+are not migrations. **Each drops the existing Quartz schema before recreating it.** The drop switch —
+`@DropDb` on SQL Server and MySQL, `DropDb` elsewhere, declared at the top of the file — defaults to
+**1**, meaning drop. Set it to `0` for creation only. SQLite has no variables: delete the block between
+the `BEGIN DROP TABLES` and `END DROP TABLES` markers.
 :::
 
 ### Replacing the nodes
 
-Once the schema is ahead of every node, replace the nodes one at a time. Three things happen as each
-one goes down and comes back that are worth knowing about in advance.
+Once the schema is ahead of every node, replace them one at a time. As each goes down and comes back:
 
-**A clean shutdown gives its reservations back.** The scheduling loop is halted and waited for before
-anything else is torn down, so every trigger it had acquired but not yet fired is released to `WAITING`
-for another node to pick up on its next pass rather than waiting for the failure detector — and a
-firing it had already committed is dispatched rather than dropped. A process that is killed rather than
-stopped does neither, and what it left waits for the check-in machinery below.
-
-**A shutdown that does not wait still settles what it can.** Since 4.1 it gives the executions already
-in flight a couple of seconds to report their completions before the job store is closed, because a
-completion issued after that is refused and leaves the firing `EXECUTING` with its trigger `BLOCKED`.
-It is still not a wait for the jobs — a job still working when the window closes is abandoned, and
-what it leaves is a peer's to recover.
-
-**A clean shutdown does not delete the node's check-in row.** Nothing removes a `QRTZ_SCHEDULER_STATE`
-row on the way down; the row stays, with the timestamp the node last wrote, until a peer notices it has
-gone quiet and recovers it. So a node that stops is declared *failed* about fifteen seconds later on
-the default settings, exactly as if it had crashed — and if it was running jobs that request recovery,
-those jobs are scheduled again on another node. That is correct behaviour for a crash and
-indistinguishable from one here, which is the argument for
-[`WaitForJobsToComplete`](../best-practices.md#shutdown-has-a-deadline): a node that finishes its work
-before it exits has nothing left to recover.
-
-**A node that generates its instance id comes back as a different node.** `GenerateInstanceId` derives
-the id from the host name and a timestamp, so a restart produces a new one. The old id's check-in row
-and any fired-trigger rows it left behind are cleaned up by whichever node next notices them, and the
-new id starts clean. This is fine and is the default for a reason — but it means a node's identity in
-the dashboard, in the `INSTANCE_NAME` of every fired-trigger row, and in a `PREFERRED_NODE` pin does not
-survive the deployment. The next section is about when that matters.
+- **A clean shutdown gives its reservations back.** The scheduling loop is stopped and awaited first.
+  Triggers it acquired but had not fired are released to `WAITING` for another node's next pass, and a
+  firing it had already committed is dispatched, not dropped. A killed process does neither; what it
+  leaves waits for check-in recovery.
+- **A shutdown that does not wait still finishes what it can.** Since 4.1 it gives executions in flight a
+  couple of seconds to report completion before the job store closes, because a later completion is
+  refused and leaves the firing `EXECUTING` with its trigger `BLOCKED`. A job still running when the window
+  closes is abandoned, for a peer to recover.
+- **A clean shutdown leaves the node's check-in row.** The `QRTZ_SCHEDULER_STATE` row keeps its last
+  timestamp until a peer recovers it, so a stopped node is declared *failed* about fifteen seconds later on
+  the default settings, exactly like a crash. Its jobs that request recovery run again on another node.
+  Use [`WaitForJobsToComplete`](../best-practices.md#shutdown-has-a-deadline) so a node has nothing left to
+  recover when it exits.
+- **A node that generates its instance id comes back as a different node.** `GenerateInstanceId` uses the
+  host name and a timestamp, so each restart gets a new id. The old id's check-in row and fired-trigger
+  rows are cleaned up by whichever node notices them. The node's identity in the dashboard, in
+  `INSTANCE_NAME` on fired-trigger rows and in a `PREFERRED_NODE` pin does not survive the deployment —
+  see [Naming a node in a container](#naming-a-node-in-a-container).
 
 ### A mixed 3.x and 4.0 window
 
-Upgrading a cluster from 3.x to 4.0 means the
-[mandatory 4.0 migration](../database/schema-changes.md#version-4-0) and then replacing nodes — so for
-however long the rollout takes, a 3.x node and a 4.0 node are running against one set of tables. Here is
-what has been checked against both branches' code, and what has not.
+Upgrading from 3.x means the [mandatory 4.0 migration](../database/schema-changes.md#version-4-0), then
+replacing nodes, so 3.x and 4.0 nodes share one set of tables during the rollout. Scheduling itself holds:
+neither version fires a trigger the other took, loses one, or refuses to start because of the other.
 
-**A 3.x node keeps working against the migrated schema.** The migration adds columns and one table and
-takes nothing away except optional indexes. 3.x's `INSERT` statements name their columns explicitly, so
-the new `PREFERRED_NODE_AUTO NOT NULL DEFAULT 0` takes its default rather than failing. And 3.x probes
-for `MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP`, `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` at startup:
-finding them present, it turns those features on, which is the state a fully-migrated 3.x database is in
-anyway.
+| Area | Rule during the window |
+|---|---|
+| Calendars | write them from 3.x nodes only |
+| Serializer | JSON on both, and the same serializer |
+| `Dictionary<string, string>` job data on Newtonsoft | write it from 3.x nodes only, or store it as a string |
+| `schema_30_to_40_indexes_<db>.sql` | run it after the last 3.x node is gone |
+| Triggers with a retry policy | do not reschedule them from a 3.x node |
+| Cluster-scoped execution limits, job-type exclusions | treat them as unavailable |
+| Paused job groups | pause, resume and schedule into them from one version |
 
-**The vocabularies the two versions read and write are identical.** The stored trigger states
-(`WAITING`, `ACQUIRED`, `EXECUTING`, `COMPLETE`, `BLOCKED`, `PAUSED`, `PAUSED_BLOCKED`, `ERROR`,
-`DELETED`), the pause-all marker, the trigger-type discriminators (`SIMPLE`, `CRON`, `CAL_INT`,
-`DAILY_I`, `RECUR`, `BLOB` — `RECUR` since 3.18), the lock names and the check-in row's columns are the
-same constants on both branches, and job data serializes to the same JSON but for one value shape, below.
-The failure predicate is the
-same code, so the two versions judge and recover each other by it; the acquisition compare-and-swap is
-the same statement, so neither takes a trigger the other has; the stale-acquired sweep is scoped to the
-sweeping node's own rows on both, so neither disturbs the other's reservations; and node-affinity pins
-are stored identically.
+**Why the core holds:**
 
-So the core of scheduling holds across the window: neither version fires a trigger the other has taken,
-neither loses one, and neither refuses to start because of the other. What does not hold is a short list,
-and it is specific enough to plan around.
+- **A 3.x node works against the migrated schema.** The migration adds columns and one table and removes
+  only optional indexes. 3.x's `INSERT` statements name their columns, so the new
+  `PREFERRED_NODE_AUTO NOT NULL DEFAULT 0` takes its default. 3.x probes for `MISFIRE_ORIG_FIRE_TIME`,
+  `EXECUTION_GROUP`, `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` at startup and turns those features on.
+- **Both use the same stored vocabulary**: trigger states (`WAITING`, `ACQUIRED`, `EXECUTING`, `COMPLETE`,
+  `BLOCKED`, `PAUSED`, `PAUSED_BLOCKED`, `ERROR`, `DELETED`), the pause-all marker, trigger-type
+  discriminators (`SIMPLE`, `CRON`, `CAL_INT`, `DAILY_I`, `RECUR`, `BLOB`; `RECUR` since 3.18), lock
+  names and check-in columns. Job data is the same JSON except one value shape, below.
+- **Both use the same coordination code**: the failure predicate (so each judges and recovers the other),
+  the acquisition compare-and-swap, the stale-acquired sweep scoped to the sweeping node's own rows, and
+  node-affinity pin storage.
 
-**Do not let a 4.0 node write a calendar during the window.** This is the one break that will cost you
-firings rather than accuracy. 4.0 changed how three calendars are serialized: `WeeklyCalendar` and
-`MonthlyCalendar` write day names and day numbers where 3.x wrote a positional array of booleans, and
-`DailyCalendar` writes `RangeStart`/`RangeEnd` where 3.x wrote `RangeStartingTime`/`RangeEndingTime`.
-The compatibility is deliberately **one-way**: 4.0's readers accept either shape, and 3.x's readers accept
-only their own, so a calendar a 4.0 node stores is one a 3.x node throws on every time it reads it. And
-it does read it every time — a clustered store bypasses its calendar cache by design, so the failure is
-per *acquisition pass*, which is a tight loop rather than a schedule. Measured on a two-node 3.20
-cluster, one `AddCalendar` from a 4.0 node put both surviving nodes into
-`Couldn't retrieve calendar: Could not deserialize JSON` at about **sixty error lines a second each** —
-roughly 1,630 lines across the two in under a minute — before an internal backoff dropped it to one
-every twenty seconds, and the trigger naming that calendar fired 18 seconds late. Plan for it to look
-like an incident, not like a handful of failures an hour.
+**Calendars.** This break costs firings. 4.0 writes `WeeklyCalendar` and `MonthlyCalendar` as day names
+and numbers (3.x: a positional boolean array) and `DailyCalendar` with `RangeStart`/`RangeEnd` (3.x:
+`RangeStartingTime`/`RangeEndingTime`). 4.0 reads both shapes; 3.x only its own. A clustered store skips
+its calendar cache, so a 3.x node fails on every *acquisition pass*.
 
-Existing rows are untouched and safe; it is `AddCalendar` from a 4.0 node that does the damage. Route
-calendar changes through the 3.x nodes until the last one is retired. If one does get written, the
-repair is immediate: rewrite that calendar from a 3.x process and the errors stop at the write, with
-misfire handling catching the displaced firings up.
+- Measured on a two-node 3.20 cluster: one `AddCalendar` from a 4.0 node put both 3.x nodes into
+  `Couldn't retrieve calendar: Could not deserialize JSON` at about **sixty error lines a second each** —
+  roughly 1,630 lines in under a minute — before a backoff cut it to one every twenty seconds. The trigger
+  using that calendar fired 18 seconds late. Expect an incident.
+- Existing rows are safe; only `AddCalendar` from a 4.0 node does damage.
+- Repair: rewrite the calendar from a 3.x process. The errors stop at the write, and misfire handling
+  catches up the displaced firings.
 
-**Both versions have to be on JSON, and on the same serializer.** 4.0 refuses `quartz.serializer.type
-= binary` at startup, so a cluster whose 3.x nodes wrote binary job data has no window at all — that is
-a migration to do before the rollout, not during it.
+**Serializer.** 4.0 refuses `quartz.serializer.type = binary` at startup, so a cluster whose 3.x nodes
+wrote binary job data must move to JSON before the rollout.
 
-**A `Dictionary<string, string>` job data value is the one shape whose JSON differs**, and only on the
-Newtonsoft serializer. 4.0 writes it as the plain object System.Text.Json has always written, where 3.x
-wrote the type name Json.NET puts beside a value an `object`-typed slot cannot name — see
+**String dictionaries on Newtonsoft.** 4.0 writes a `Dictionary<string, string>` value as a plain object,
+as System.Text.Json always has; 3.x wrote the Json.NET type name beside it — see
 [A string dictionary is written the same way by both serializers](migration-guide.md#a-string-dictionary-is-written-the-same-way-by-both-serializers).
-The compatibility runs the same way round as the calendars': 4.0 reads both forms, and 3.x's Newtonsoft
-reader reads only its own, handing back a Json.NET `JObject` where the job put a dictionary. A job that
-stores a string map therefore has to keep its writes on the 3.x nodes until the last one is retired, or
-store the map as a string it serializes itself. Nothing else in job data is affected, and a cluster on
-System.Text.Json is not affected at all.
+3.x's Newtonsoft reader cannot read 4.0's form and returns a Json.NET `JObject`. Nothing else in job data
+differs, and a System.Text.Json cluster is unaffected.
 
-**Run `schema_30_to_40_upgrade_<db>.sql` now and `schema_30_to_40_indexes_<db>.sql` when the last 3.x
-node is gone.** The 4.0 migration is two files for exactly this reason: everything in the first is
-additive and safe during the window, and the second realigns the index set, which is not. What it drops
-differs by dialect, because what 3.x created differs by dialect:
+**Indexes.** Run `schema_30_to_40_upgrade_<db>.sql` now: it is additive and safe during the window. Run
+`schema_30_to_40_indexes_<db>.sql`, which realigns indexes, once the last 3.x node is gone. It drops:
 
 | Database | What the index file drops that 3.x had |
 |---|---|
 | SQL Server | Eight: `IDX_QRTZ_T_G_J`, `IDX_QRTZ_T_N_STATE`, `IDX_QRTZ_T_N_G_STATE`, `IDX_QRTZ_T_NEXT_FIRE_TIME`, `IDX_QRTZ_T_NFT_ST_MISFIRE`, `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP`, `IDX_QRTZ_FT_G_J`, `IDX_QRTZ_FT_G_T` |
 | MySQL, Oracle, Firebird | Those two misfire indexes and eight more, including `IDX_QRTZ_J_GRP`, `IDX_QRTZ_J_REQ_RECOVERY`, `IDX_QRTZ_T_JG`, `IDX_QRTZ_FT_JG` and `IDX_QRTZ_FT_TG` |
-| PostgreSQL, SQLite | Two: `IDX_QRTZ_J_REQ_RECOVERY` and `IDX_QRTZ_T_NEXT_FIRE_TIME`. Neither ever created a misfire index at all |
+| PostgreSQL, SQLite | Two: `IDX_QRTZ_J_REQ_RECOVERY` and `IDX_QRTZ_T_NEXT_FIRE_TIME`. Neither ever created a misfire index |
 
-The replacements have the leading columns 4.x's queries want, not 3.x's. On the four dialects that
-have them, two of the drops are read by 3.x alone: `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP` serves a 3.x
-statement with no 4.x counterpart, and `IDX_QRTZ_T_NFT_ST_MISFIRE` is the index 3.x drives its misfire
-sweep from — 4.x reads neither, which is why 4.0 stopped creating the second one at all
-([#3656](https://github.com/quartznet/quartznet/issues/3656)).
+- The replacements lead with the columns 4.x's queries use. Where they exist, two dropped indexes are read
+  only by 3.x: `IDX_QRTZ_T_NFT_ST_MISFIRE_GRP` serves a 3.x statement with no 4.x counterpart, and 3.x runs
+  its misfire sweep from `IDX_QRTZ_T_NFT_ST_MISFIRE`, which 4.0 no longer creates
+  ([#3656](https://github.com/quartznet/quartznet/issues/3656)).
+- **PostgreSQL and SQLite**: the file drops and recreates `IDX_QRTZ_T_NFT_ST`, which *both* versions
+  acquire on; a 3.x node acquiring between the two statements scans the whole trigger table.
+- **Firebird** keeps the 3.x acquisition index, so it waits only for the misfire index.
+- Running it early breaks nothing: 3.x scans where it used to seek, which on a large schedule can make its
+  misfire sweep time out. Both files are guarded and re-runnable.
 
-**PostgreSQL and SQLite wait for a different reason**, since the index the argument above rests on is
-one they never had: the file drops and recreates `IDX_QRTZ_T_NFT_ST`, the index *both* versions acquire
-on, and a 3.x node acquiring in the seconds between the two statements scans the whole trigger table.
-Firebird is the third case: its acquisition index keeps the 3.x shape, so nothing is dropped and
-recreated there, and it waits only for the misfire index.
+**Retry policies.** `RETRY_POLICY` and `RETRY_ATTEMPT` are 4.x columns, so a job failing on a 3.x node is
+not retried and its attempt count does not advance. 3.x implements `IScheduler.RescheduleJob` as a delete
+and an insert that names neither column, so a reschedule from 3.x silently removes the policy. 3.x's
+trigger `UPDATE` leaves both columns alone, so pausing, resuming, deleting and firing are safe.
 
-Nothing breaks either way — a 3.x node scans where it used to seek, which on a large schedule is the
-difference between a misfire sweep that finishes and one that times out. Both files are guarded and
-re-runnable, so running the upgrade now and the index file afterwards costs nothing.
+**Execution limits.** A 4.0 node enforces `ExecutionLimitScope.Cluster` (4.x only) by counting
+`QRTZ_FIRED_TRIGGERS` rows by `EXECUTION_GROUP`, a column 3.x never writes on a fired trigger. Every 3.x
+firing counts as *ungrouped*: a limited group's ceiling misses it and the ungrouped bucket is charged, so a
+group you did not limit can be throttled. Per-node limits are unaffected.
+[Job-type exclusions](how-tos/custom-job-store.md#excluding-job-types-from-acquisition) are 4.x-only and
+per node: a 3.x node runs a job type the 4.0 nodes refuse.
 
-**A retry policy is invisible to a 3.x node, and a 3.x reschedule destroys one.** `RETRY_POLICY` and
-`RETRY_ATTEMPT` are new in 4.x, so a job that fails on a 3.x node is not retried and its attempt count
-is not advanced — that half is only a feature being absent. The half that loses data is rescheduling:
-3.x implements `IScheduler.RescheduleJob` as a delete followed by an insert, and its insert names no
-`RETRY_POLICY` or `RETRY_ATTEMPT` column, so the trigger comes back with both null and the policy is
-gone with no error anywhere. An in-place update is safe — 3.x's trigger `UPDATE` sets a fixed column
-list that omits the two, so it leaves whatever 4.0 wrote alone. So: **do not reschedule a trigger from a
-3.x node during the window if it carries a retry policy.** Pausing, resuming, deleting and firing it are
-all fine.
+**Paused job groups.** `QRTZ_PAUSED_JOB_GRPS` is 4.x-only. Both versions agree on trigger state, which
+decides what fires, so pausing works from either, but the record drifts:
 
-**Treat cluster-scoped execution limits as unavailable during the window, not merely approximate.**
-`ExecutionLimitScope.Cluster` is 4.x only, and a 4.0 node enforces it by counting `QRTZ_FIRED_TRIGGERS`
-grouped by `EXECUTION_GROUP`. 3.x never writes that column on a fired trigger — its own insert has a
-fixed column list that omits it — so every firing a 3.x node owns is counted as *ungrouped*. The effect
-is worse than under-counting: the limited group's ceiling misses the 3.x work entirely, and the
-ungrouped bucket is charged for it, so a group you did not limit can be throttled by work that belongs
-to one you did. Per-node limits are unaffected, because they never crossed nodes.
-[Job-type exclusions](how-tos/custom-job-store.md#excluding-job-types-from-acquisition) are 4.x-only in
-the same way, and are per-node by construction: a 3.x node will happily run a job type the 4.0 nodes
-were told to refuse.
+- A group paused by a 3.x node is not recorded: `JobGroup.Paused` on a 4.0 node says `false`.
+- A group paused by 4.0 and resumed or cleared by 3.x keeps its row: 4.0 reports it paused indefinitely
+  while its triggers run.
+- A trigger a **4.0** node stores for a job in a recorded-paused group is born `PAUSED`; one a **3.x** node
+  stores is born `WAITING`.
 
-**Paused job groups are recorded by 4.0 nodes only.** `QRTZ_PAUSED_JOB_GRPS` is new in 4.x and 3.x has
-no code that touches it. What actually fires is decided by trigger state, which both versions agree
-about, so pausing a job group works in the window whichever node does it — but the *record* drifts, in
-both directions. A group paused by a 3.x node is not recorded, so `JobGroup.Paused` on a 4.0 node says
-`false` for a group whose every trigger is paused. A group paused by a 4.0 node and then resumed — or
-cleared — by a 3.x node leaves its row behind, so the 4.0 node goes on calling a group paused whose
-triggers are running, and goes on doing so indefinitely. Pause and resume from the same version, and
-reconcile the table when the rollout is done.
+Reconcile the table after the rollout.
 
-The row is not only a record on a 4.0 node: it binds what is added to the group. A trigger a **4.0**
-node stores for a job in a recorded-paused group is born `PAUSED`, and one a **3.x** node stores for
-the same job is born `WAITING`, because 3.x does not read that table. So during the window a job group's
-pause reaches what is scheduled into it only when the node scheduling it is a 4.0 one — one more reason
-to keep the pause, the resume and the scheduling on the same version until the rollout is done.
+#### What has not been established
 
-**What has not been established.** Nothing in this repository tests two versions against one schema, and
-no release is validated for it; the findings above come from reading both branches, not from running
-them together. Java Quartz's documentation says nothing about version mixing either, so there is no
-upstream position to appeal to.
+These findings come from reading both branches. Nothing in this repository tests two versions against one
+schema, no release is validated for it, and Java Quartz's documentation does not cover it. The window is
+workable under the rules above but not a supported steady state: keep it short.
 
-The honest shape of the advice, then: the window is **workable under those conditions** and it is not a
-supported steady state. Keep it as short as the rollout needs. Hangfire, which does support this
-explicitly, is worth the comparison — it states that "1.6.X/1.7.X and 1.8.0 servers can co-exist in the
-same environment just fine, thanks to forward compatibility", and gates its risky migrations behind an
-`EnableHeavyMigrations` switch so the operator picks the moment. Quartz.NET makes no such promise, and
-the list above is what it offers instead.
-
-Rolling back is available for the same reason the window works: the migration is additive, so a 3.x node
-starts against the 4.0 schema without anything being undone. Only the index file's drops would need
-putting back, by re-running [`migrations/3.20`](https://github.com/quartznet/quartznet/tree/main/database/migrations/3.20) —
-and any calendar a 4.0 node wrote would need rewriting from a 3.x one.
+**Rolling back** works because the migration is additive: a 3.x node starts against the 4.0 schema as is.
+Put back the index file's drops by re-running
+[`migrations/3.20`](https://github.com/quartznet/quartznet/tree/main/database/migrations/3.20), and rewrite
+from a 3.x node any calendar a 4.0 node wrote.
 
 ## Naming a node in a container
 
 ### What the default gives you, and what it does not
 
-`InstanceId` defaults to the literal string `NON_CLUSTERED`, and the instance id is how a node
-recognises its own check-in row and its own firings. Two nodes that share one are not two members of a
-cluster; they are one member as far as every query is concerned, each one treating the other's rows as
-its own. Nothing in Quartz.NET detects this — there is no validation that a clustered scheduler's id is
-unique, because no node can see what the others were configured with.
+`InstanceId` defaults to the literal `NON_CLUSTERED`. A node recognises its own check-in row and firings by
+its instance id, so two nodes sharing one act as one member, each treating the other's rows as its own.
+Nothing detects this: no node can see what the others were configured with.
 
-So a clustered scheduler has to be told to derive one:
+A clustered scheduler must derive an id:
 
 ```csharp
 q.ConfigureScheduler(options =>
@@ -258,29 +196,28 @@ q.ConfigureScheduler(options =>
 });
 ```
 
-`GenerateInstanceId` runs the registered `IInstanceIdGenerator`, which by default is the host name
-followed by a high-resolution timestamp. The flat key that means the same thing is
-`quartz.scheduler.instanceId = AUTO`. Only a clustered store calls the generator at all: a store with
-clustering switched off has nothing to distinguish itself from, so the id stays `NON_CLUSTERED`
-whatever the setting says.
+- `GenerateInstanceId` runs the registered `IInstanceIdGenerator`; the default returns the host name plus a
+  high-resolution timestamp. The equivalent flat key is `quartz.scheduler.instanceId = AUTO`.
+- Only a clustered store calls the generator. With clustering off, the id stays `NON_CLUSTERED` whatever
+  the setting says.
+- The default is **unique but not stable**: the timestamp prevents collisions even between containers
+  with the same host name, but every restart is a new identity.
 
-That default is **unique but not stable**. The timestamp makes a collision essentially impossible even
-between two containers reporting the same host name — but every restart is a new identity. Three
-things want a stable one:
+A stable id matters for:
 
-- **[Node affinity](tutorial/node-affinity.md)**, which pins a trigger to an instance id. A pin to an
-  id that no longer exists is a pin to nobody.
-- **Correlating a node across a deployment** — in the dashboard's Cluster page, in
-  `FireInstance.SchedulerInstanceId`, in the `quartz.scheduler.id` attribute on every span and log
-  scope.
+- **[Node affinity](tutorial/node-affinity.md)**: a trigger pinned to an id that no longer exists is pinned
+  to nobody.
+- **Correlating a node across deployments**: the dashboard's Cluster page,
+  `FireInstance.SchedulerInstanceId`, and the `quartz.scheduler.id` attribute on every span and log scope.
 - **Reading the check-in table by hand** and expecting yesterday's rows to name the same machines.
 
 ### Taking the id from the pod
 
-The pattern that gives a stable identity in Kubernetes is a **StatefulSet** plus the **Downward API**.
-A StatefulSet names its pods `$(statefulset name)-$(ordinal)`, and the docs are explicit that this
-"identity sticks to the Pod, regardless of which node it's (re)scheduled on". Inject that name and use
-it as the instance id:
+In Kubernetes, use a **StatefulSet** and the
+**[Downward API](https://kubernetes.io/docs/concepts/workloads/pods/downward-api/)**. A
+[StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) names its pods
+`$(statefulset name)-$(ordinal)`, and a pod keeps that name when rescheduled on another node. Inject the
+name and use it as the instance id:
 
 ```yaml
 env:
@@ -324,189 +261,158 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-The fallback matters as much as the assignment: a manifest that has not been updated, or a developer
-running the same image locally, should not silently give every replica the id `NON_CLUSTERED`.
-
-`metadata.uid` is the wrong field to use instead. Kubernetes documents UIDs as existing "to
-distinguish between historical occurrences of similar entities" — a pod recreated under the same name
-gets a new one, which is precisely the churn the pod name avoids.
-
-There is also a generator that reads the id from the environment directly, selected with the flat value
-`quartz.scheduler.instanceId = SYS_PROP`; it reads the environment variable named
-`quartz.scheduler.instanceId`, or another one if
-`quartz.scheduler.instanceIdGenerator.systemPropertyName` names it. It exists for configuration files
-carried over from 3.x. In 4.x, reading the variable in code and assigning `InstanceId` says the same
-thing in one fewer indirection, and lets you write the fallback.
+- Keep the fallback: an outdated manifest, or the image run locally, must not give every replica the id
+  `NON_CLUSTERED`.
+- Do not use `metadata.uid`. A pod recreated under the same name gets a new UID, which is the churn the pod
+  name avoids.
+- `quartz.scheduler.instanceId = SYS_PROP` selects a generator that reads the environment variable
+  `quartz.scheduler.instanceId`, or the one `quartz.scheduler.instanceIdGenerator.systemPropertyName`
+  names. It exists for 3.x configuration files; in 4.x, read the variable in code and assign
+  `InstanceId`, which also lets you write the fallback.
 
 ### When two pods report the same host name
 
-The genuinely dangerous configuration is one where the host name is not unique *and* the id is derived
-from the host name alone. On a Deployment, pod names — and therefore host names — carry a random
-suffix, so they are unique per pod but change on every restart. The cases where two pods really do
-report the same name are `hostNetwork: true`, where every pod on a node reports the node's own host
-name, and a manifest that sets `spec.hostname` to a literal rather than templating it.
+The dangerous case is a host name that is not unique *and* an id derived from the host name alone.
 
-Quartz.NET's default generator survives both, because of the timestamp. What does not survive is a
-configuration that names the host-name-only generator through
-`quartz.scheduler.instanceIdGenerator.type` — that one returns the host name unchanged, by design, for
-the case where "your scheduler instance will be the only one running on a particular machine". Under
-`hostNetwork` it is not.
+- Deployment pod names, and so host names, carry a random suffix: unique per pod, new on every restart.
+- Two pods report the same name under `hostNetwork: true` (every pod on a node reports the node's host
+  name), or when a manifest sets `spec.hostname` to a literal instead of templating it.
+- Quartz.NET's default generator survives both, because of the timestamp. The host-name-only generator,
+  named through `quartz.scheduler.instanceIdGenerator.type`, returns the host name unchanged; it is meant
+  for one scheduler per machine, which `hostNetwork` breaks.
 
-The failure that follows is the one Kubernetes describes for its own StatefulSets, and the wording
-transfers: "Having multiple members with the same identity can be disastrous". Concretely, in a Quartz
-cluster: each node treats the other's fired-trigger rows as its own, so a node's first check-in after a
-restart recovers firings that another node is still executing, and
-`[DisallowConcurrentExecution]` stops holding for exactly the jobs that were running.
-
-The rule the neighbours state the same way is worth repeating for its unanimity. Hangfire derives a
-server id from the machine name and process id and says that "since the defaults values provide
-uniqueness only on a process level, you should handle it manually" beyond that. Kafka: "Every node in a
-KRaft cluster must have a unique `node.id`". Orleans' Kubernetes hosting "sets `SiloOptions.SiloName` to
-the pod name" and requires that "silo names must match pod names". Elasticsearch's Kubernetes operator
-does the same thing implicitly — "Elasticsearch nodes have the same name as the Pod they are running
-on". Every one of them ends up at the pod name.
+With two members sharing an identity, each node treats the other's fired-trigger rows as its own. A
+node's first check-in after a restart recovers firings another node is still executing, and
+`[DisallowConcurrentExecution]` stops holding for the jobs that were running.
 
 ## Check-in, node states and failover
 
 ### What a check-in is
 
-Each node writes a row to `QRTZ_SCHEDULER_STATE` and updates its timestamp every `CheckinInterval` —
-7.5 seconds by default. That write is the whole of what a node claims about itself. There is no
-heartbeat between nodes, no leader, and no election: every judgement one node makes about another is
-that node reading a timestamp somebody else wrote and comparing it against its own clock.
+Each node writes a row to `QRTZ_SCHEDULER_STATE` and updates its timestamp every `CheckinInterval`
+(7.5 seconds by default). There is no heartbeat between nodes, no leader and no election: one node judges
+another by reading the timestamp it wrote and comparing it with its own clock.
 
-The first check-in happens during `Start()`, before the scheduler begins firing, and it is the one that
-does the most work: a node's first check-in also treats *its own* previous row as a failed instance, so
-whatever it left behind on its last run is recovered then. Subsequent check-ins take the cheap path —
-update the timestamp, look for failed peers, and take the cluster-wide locks only if there are any.
-
-Two details of that row are worth knowing because they are not what most people assume:
-
-- **The stored check-in interval is written once.** `CHECKIN_INTERVAL` is set when the row is inserted
-  and never updated afterwards — only `LAST_CHECKIN_TIME` is. A node with a stable instance id that
-  changes its `CheckinInterval` keeps advertising the old value to its peers until its row is deleted
-  and recreated, which happens after a recovery rather than at a restart. If you widen the interval
-  across a cluster, expect the change to take effect for the peers' arithmetic only after each node has
-  been declared failed once, or delete the rows while the cluster is stopped.
-- **Check-in failures are logged sparsely.** The cluster manager logs one line for every
-  `RetryableActionErrorLogThreshold` consecutive failures, which defaults to **4**. A database that is
-  down produces a quarter of the log lines you would expect.
+- **The first check-in** happens during `Start()`, before firing begins. It treats the node's *own*
+  previous row as a failed instance, so whatever the last run left behind is recovered then.
+- **Later check-ins** update the timestamp and look for failed peers, taking the cluster-wide locks only
+  when there are any.
+- **The stored check-in interval is written once.** `CHECKIN_INTERVAL` is set when the row is inserted;
+  only `LAST_CHECKIN_TIME` is updated. A node with a stable instance id that changes its `CheckinInterval`
+  keeps advertising the old value until its row is deleted and recreated, which happens after a recovery,
+  not a restart. When widening the interval across a cluster, expect peers to use the new value only
+  after each node has been declared failed once, or delete the rows while the cluster is stopped.
+- **Check-in failures are logged sparsely**: one line per `RetryableActionErrorLogThreshold` consecutive
+  failures, **4** by default. A database that is down produces a quarter of the lines you might expect.
 
 ### When a peer takes over
 
-A node decides a peer has failed when this is true, all times read from the deciding node's own clock:
+A node declares a peer failed when this is in the past, on the deciding node's own clock:
 
-> the peer's last check-in timestamp, plus the longer of *the peer's own stored check-in interval* and
-> *the time since this node last checked in*, plus this node's check-in misfire threshold, is in the
-> past.
+```text
+  peer's last check-in timestamp
++ max(peer's stored check-in interval, time since this node last checked in)
++ this node's CheckinMisfireThreshold
+```
 
-On the defaults — both intervals 7.5 seconds — that is about fifteen seconds after the last timestamp
-the peer wrote, of which only half is slack, since the peer writes one every 7.5 seconds.
+- On the defaults (both intervals 7.5 seconds) that is about fifteen seconds after the peer's last
+  timestamp.
+- The middle term protects against false verdicts: a node that has been away from its own check-in loop
+  for a minute grants every peer a minute of slack, so a database outage does not end with the first node
+  back declaring all the others dead.
 
-The middle term is the part that is usually left out of the summary, and it is a deliberate piece of
-self-protection: an observer that has itself been away from its check-in loop for a minute grants every
-peer a minute of slack. So a database outage that stops the whole cluster checking in does not end with
-the first node back declaring all the others dead.
+**The judged node retries inside the window.** A failed check-in is retried in half the remaining time
+each attempt, never later than `DbRetryInterval` — on the defaults roughly 11.25, 13.1, 14.1 and 14.5
+seconds after its last row. Only after the window closes does it back off `DbRetryInterval` between
+attempts. A database blip shorter than the threshold costs a few error lines, not the node's row.
 
-The node being judged knows the same arithmetic. A check-in that fails is retried inside what is left of
-the window — half of it each time, never later than `DbRetryInterval`, so on the defaults at roughly
-11.25, 13.1, 14.1 and 14.5 seconds after the last row it wrote — and only once the window has closed
-does the loop back off `DbRetryInterval` between attempts. A database blip shorter than the threshold
-therefore costs a node a few error lines, not its row; before 4.1 a single failed check-in slept the
-full `DbRetryInterval` and wrote its next row 22.5 seconds after the last one, 7.5 seconds after its
-peers had stopped trusting it (#3777). The limit is that a check-in can only be retried inside the
-window if the failure *reports* inside it: a connection attempt that hangs for a 15-second connect
-timeout has spent the window by the time it fails, and no retry cadence can help — that is what the
-threshold is for.
+- Before 4.1 one failed check-in slept the full `DbRetryInterval` and wrote the next row 22.5 seconds after
+  the last, 7.5 seconds after peers stopped trusting it (#3777).
+- Retrying only helps when the failure *reports* inside the window. A connection attempt that hangs for a
+  15-second connect timeout has spent the window by the time it fails; that is what the threshold is for.
 
-Everything else about it is the standard caution about failure detectors, and
-[Clocks in a cluster](../best-practices.md#clocks-in-a-cluster) has it: fifteen seconds is shorter than
-a long garbage-collection pause, shorter than the thirty seconds Azure documents for
-memory-preserving maintenance, and comfortably shorter than the clock skew of a machine with no
-time-synchronisation service. Raise `CheckinMisfireThreshold` past your environment's worst *pause*,
-not its worst clock error.
+**Set `CheckinMisfireThreshold` above your environment's worst pause, not its worst clock error.** Fifteen
+seconds is shorter than a long garbage-collection pause, than the thirty seconds Azure documents for
+memory-preserving maintenance, and than the clock skew of a machine without time synchronisation — see
+[Clocks in a cluster](../best-practices.md#clocks-in-a-cluster).
 
-What a takeover does is release the failed node's acquired triggers, schedule recovery triggers for the
-jobs of its interrupted executions that asked for recovery, delete the rest of its fired-trigger rows,
-release any node-affinity pins it claimed automatically, and delete its check-in row.
+A takeover:
 
-One case is deliberately slower: recovering a `[DisallowConcurrentExecution]` job is held back on first
-detection, because a node that has missed a check-in may still be running it. While anything is held
-back, the failed node's check-in row is left in place with its stale timestamp — so it goes on being
-reported `Failed` rather than disappearing, which is the store keeping the node visible until it is
-finished with it.
+1. releases the failed node's acquired triggers;
+2. schedules recovery triggers for its interrupted executions whose jobs requested recovery;
+3. deletes the rest of its fired-trigger rows;
+4. releases node-affinity pins it claimed automatically;
+5. deletes its check-in row.
+
+Recovering a `[DisallowConcurrentExecution]` job is held back on first detection, because the node that
+missed a check-in may still be running it. While anything is held back, the failed node's row stays with
+its stale timestamp, so it keeps being reported `Failed` instead of disappearing.
 
 ### When the node that was taken over is still running
 
-A takeover is one node's opinion, and it can be wrong: a stalled process, a paused container or a clock
-that drifted is enough for a peer to write off a node that is still working. The node that was written
-off finds out on its next check-in, when its own `QRTZ_SCHEDULER_STATE` row is not there any more. It:
+A takeover can be wrong: a stalled process, a paused container or a drifting clock can get a working node
+written off. That node finds out at its next check-in, when its `QRTZ_SCHEDULER_STATE` row is gone. It:
 
-- **writes the row back**, which is what re-registers it — until then it does not exist as far as its
-  peers are concerned, and it is not listed by `QueryClusterNodes()` on any other node;
-- **logs a warning** — `This scheduler instance (…) is still active but was recovered by another
-  instance in the cluster` (event id `3501`), followed by one naming the peer that did it (`3515`) or
-  saying that it cannot be named (`3516`). The peer can only be named when it is the only other node
-  with a state row, because nothing in the schema records who recovered whom;
+- **writes the row back**, which re-registers it. Until then its peers do not know it, and
+  `QueryClusterNodes()` on another node does not list it.
+- **logs a warning**: `This scheduler instance (…) is still active but was recovered by another instance
+  in the cluster` (event id `3501`), then one naming the peer (`3515`) or saying it cannot (`3516`). The
+  peer can be named only when it is the only other node with a state row; the schema does not record who
+  recovered whom.
 - **counts the event** on `quartz.cluster.recovery.trigger` with `quartz.cluster.recovered.instance.id`
-  set to its own instance id. That equality — recovered node and reporting node the same — is what an
-  alert on "this node is being failed out" matches. It counts 1, because how many firings the peer took
-  over cannot be known from this side; the peer's own measurement carries that number;
-- **does not recover its own fired triggers.** The peer released, rescheduled and deleted them under the
-  trigger-access lock, and running recovery over the same rows again would schedule a second recovery
-  trigger for a firing that is already being replayed.
+  set to its own instance id. Alert on recovered node = reporting node to catch "this node is being
+  failed out". It counts 1; the peer's own measurement carries how many firings it took over.
+- **does not recover its own fired triggers.** The peer already released, rescheduled and deleted them
+  under the trigger-access lock; recovering again would schedule a second recovery trigger for a firing
+  already being replayed.
 
-None of that makes the takeover harmless — the peer has started work this node may still be doing, and
-`[DisallowConcurrentExecution]` is not honoured across a firing the cluster believes has been recovered.
-It is a symptom to fix at its cause, and the cause is nearly always the clock or a pause; see
+The takeover is still harmful: the peer has started work this node may still be doing, and
+`[DisallowConcurrentExecution]` is not honoured across a firing the cluster believes recovered. Fix the
+cause, nearly always the clock or a pause — see
 [Clock Skew Between Nodes](../troubleshooting.md#clock-skew-between-nodes).
 
 ### Reading the cluster
 
-`IScheduler.QueryClusterNodes()` lists the nodes with a verdict on each, decided by the same predicate
-the recovery sweep applies — so the listing and the sweep cannot disagree:
+`IScheduler.QueryClusterNodes()` lists the nodes with a verdict on each, from the same predicate the
+recovery sweep uses, so the two cannot disagree:
 
 | State | Means |
 |---|---|
 | `Alive` | Checked in within its own check-in interval. |
 | `Overdue` | Has missed a check-in. Normal under load; nothing is recovered from an overdue node. |
-| `Failed` | Past the boundary above. The next check-in pass by any node takes its work over and deletes its row, after which it stops being listed. |
+| `Failed` | Past the boundary above. The next check-in pass by any node takes its work over and deletes its row, after which it is no longer listed. |
 
-A `Failed` node is therefore reported for a short while and then vanishes, which is what a healthy
-failover looks like from the outside. A node that stays `Failed` across several minutes of polling is
-one nobody is sweeping — check that at least one other node is running and that its cluster manager is
-not stuck on the database.
-
-The same listing is `GET {ApiPath}/schedulers/{name}/nodes` in the
-[HTTP API](packages/http-api.md#cluster-nodes) and the Cluster page of the
-[dashboard](packages/dashboard.md), which puts the `Acquired` and `Executing` counts for each node
-beside its state. `GET {ApiPath}/schedulers` is the other half of the picture: it lists every scheduler
-the process knows about, including registrations nothing has built yet, so a scheduler that never
-started is distinguishable from one that does not exist.
+- A healthy failover shows a node as `Failed` briefly, then gone.
+- A node that stays `Failed` across several minutes of polling is not being swept: check that another
+  node is running and that its cluster manager is not stuck on the database.
+- The same listing is `GET {ApiPath}/schedulers/{name}/nodes` in the
+  [HTTP API](packages/http-api.md#cluster-nodes), and the Cluster page of the
+  [dashboard](packages/dashboard.md), which adds each node's `Acquired` and `Executing` counts.
+- `GET {ApiPath}/schedulers` lists every scheduler the process knows, including registrations nothing has
+  built, so a scheduler that never started can be told from one that does not exist.
 
 ## What the tables are telling you
 
 ### Fired triggers: backlog or leak
 
-`QRTZ_FIRED_TRIGGERS` is the cluster's account of what is happening right now. A row is written when a
-trigger is **acquired**, updated when the trigger actually **fires**, and deleted when the firing
-completes. So the healthy steady state is a table whose row count tracks concurrency and whose oldest
-row is no older than your longest-running job.
+A `QRTZ_FIRED_TRIGGERS` row is written when a trigger is **acquired**, updated when it **fires**, and
+deleted when the firing completes. Healthy: the row count tracks concurrency, and the oldest row is no
+older than your longest-running job.
 
-Growth is one of two things, and the difference is the age distribution rather than the count:
+Growth is one of two things; the age of the rows tells them apart:
 
-- **A backlog** is many rows, all young, spread across the nodes that are alive. The cluster is running
-  as much as it can and more work is arriving than it finishes. The fix is capacity or a smaller
-  schedule, not a database operation.
-- **A leak** is rows that do not age out. Look at what they say about themselves: an old row in
-  `EXECUTING` state means a job that never returned — a synchronous call that hangs, an unawaited task
-  — and the node is genuinely still holding it. An old row in `ACQUIRED` state means a node reserved a
-  trigger and never fired it, which is [the stale-acquired case](../troubleshooting.md#triggers-stuck-in-acquired-state)
-  and is swept automatically. A row belonging to an instance id the cluster no longer lists is the real
-  orphan, and orphans are only swept when a node performs its *first* check-in — so a cluster that has
-  been up for months has never looked for them.
+- **Backlog**: many rows, all young, spread across live nodes. More work arrives than the cluster
+  finishes. Add capacity or shrink the schedule; this is not a database problem.
+- **Leak**: rows that do not age out.
+  - An old `EXECUTING` row is a job that never returned (a synchronous call that hangs, an unawaited task),
+    and the node is still holding it.
+  - An old `ACQUIRED` row is a trigger reserved and never fired —
+    [the stale-acquired case](../troubleshooting.md#triggers-stuck-in-acquired-state), swept
+    automatically.
+  - A row whose instance id the cluster no longer lists is an orphan. Orphans are swept only on a node's
+    *first* check-in, so a cluster up for months has never looked for them.
 
-`IScheduler.QueryFireInstances` answers all of that without SQL, and joins to the node listing on the
+`IScheduler.QueryFireInstances` answers all of this without SQL, joined to the node listing on the
 instance id:
 
 <!-- snippet: sample_operations_stale_firings -->
@@ -544,98 +450,72 @@ foreach (FireInstance firing in firings.Items)
 ```
 <!-- endSnippet -->
 
-To clear a stale `EXECUTING` row that belongs to a node that is still alive, restart that node: its
-first check-in recovers its own leftovers. Nothing else sweeps a live node's rows, by design — the node
-is the authority on what it is running.
+To clear a stale `EXECUTING` row of a node that is still alive, restart that node: its first check-in
+recovers its own leftovers. Nothing else sweeps a live node's rows; the node is the authority on what it
+is running.
 
 ### Nothing is firing
 
-When the table is empty and jobs are not running, the question is a different one. Work the store is
-deliberately holding back does not appear in `QRTZ_FIRED_TRIGGERS` at all, because it was never
-acquired. The three usual reasons, in the order they are worth checking:
+Work the store is holding back was never acquired, so it is not in `QRTZ_FIRED_TRIGGERS`. Check, in this
+order:
 
-- **The scheduler is in standby.** `IScheduler.Status` says so, and the health check reports it as
-  *degraded* rather than unhealthy — which, as [the Aspire how-to](how-tos/aspire.md) explains, does not
-  survive an HTTP probe, because ASP.NET Core maps degraded to 200.
-- **A group is paused.** Pausing is durable and survives restarts. `QRTZ_PAUSED_TRIGGER_GRPS` holds
-  paused *trigger* groups, and it is the one that changes what happens next: a trigger stored into a
-  paused trigger group is stored `PAUSED`. `QRTZ_PAUSED_JOB_GRPS` is new in 4.x and holds paused *job*
-  groups, which is what makes `JobGroup.Paused` and `GET …/jobs/groups?paused=true` answer truthfully
-  and survive a restart — 3.x pauses a job group by pausing the triggers of the jobs in it at that
-  moment and recording nothing. Note that neither table pauses a *later* arrival into a paused job
-  group: pausing a job group pauses the triggers of the jobs that were in it, and a job added
-  afterwards fires. A group paused during an incident and never resumed is a common and entirely silent
-  cause of "nothing runs"; in the dashboard both listings carry the flag.
-- **Every trigger is blocked or in error.** `BLOCKED` means another firing of the same
-  `[DisallowConcurrentExecution]` job is running — see the leak above. `ERROR` means the job could not
-  be *built*, which is a composition-root failure rather than an execution failure and is fixed in the
-  application, then cleared with `ResetTriggerFromErrorState`.
-  [What the trigger states mean](../best-practices.md#what-the-trigger-states-mean) has the full table.
-
-There is a fourth reason, and it is the nastiest because everything reports healthy: **the node is
-reading the wrong tables.** A mistyped `JobStore:TablePrefix` connects to the right database, finds its
-own empty table set, passes schema validation because those tables exist, starts, answers healthy and
-fires nothing ever again. 4.x notices one shape of this — two schedulers in one container that share a
-database and disagree about the prefix — and logs a warning naming both, which it does rather than
-failing because separate table sets are a legitimate arrangement. It cannot notice the single-scheduler
-case at all. If a scheduler is silent and every other explanation has been ruled out, count the rows in
-the tables it is actually pointed at.
+1. **Standby.** `IScheduler.Status` says so. The health check reports *degraded*, not unhealthy, which an
+   HTTP probe reads as healthy, because ASP.NET Core maps degraded to 200 — see
+   [the Aspire how-to](how-tos/aspire.md).
+2. **A paused group.** Pausing is durable across restarts.
+   - `QRTZ_PAUSED_TRIGGER_GRPS` holds paused *trigger* groups, and a trigger stored into one is stored
+     `PAUSED`.
+   - `QRTZ_PAUSED_JOB_GRPS` (new in 4.x) holds paused *job* groups, so `JobGroup.Paused` and
+     `GET …/jobs/groups?paused=true` answer correctly and survive a restart. 3.x pauses a job group by
+     pausing its jobs' triggers at that moment and records nothing.
+   - On 4.x, a trigger stored later for a job in a paused job group is stored `PAUSED`, as it is for a
+     paused trigger group. On 3.x, pausing a job group pauses only the triggers it has then, and a job
+     added afterwards fires.
+   - A group paused during an incident and never resumed is a common, silent cause. Both dashboard
+     listings show the flag.
+3. **Every trigger blocked or in error.** `BLOCKED`: another firing of the same
+   `[DisallowConcurrentExecution]` job is running — see the leak above. `ERROR`: the job could not be
+   *built*, a composition-root failure; fix the application, then clear it with
+   `ResetTriggerFromErrorState`. See
+   [What the trigger states mean](../best-practices.md#what-the-trigger-states-mean).
+4. **The wrong tables.** A mistyped `JobStore:TablePrefix` connects to the right database, finds an empty
+   table set of its own, passes schema validation because those tables exist, starts, reports healthy and
+   fires nothing. 4.x logs a warning for one case — two schedulers in one container sharing a database
+   with different prefixes — but not an error, since separate table sets are legitimate. It cannot detect
+   the single-scheduler case. Count the rows in the tables the scheduler actually points at.
 
 ## Backup and restore
 
-Back up the Quartz tables with the rest of the application's database, on the same schedule, and expect
-the same recovery point. Nothing about Quartz needs special backup treatment. What needs thought is the
-*restore*, because the Quartz tables are not only data — they are a distributed system's account of
-what is running.
+Back up the Quartz tables with the rest of the application's database, on the same schedule and to the
+same recovery point; they need no special treatment. The restore needs care, because the tables record
+what a distributed system is running.
 
-**Stop every node before restoring, and start them afterwards.** This is the rule every system with a
-shared coordination store states. Kubernetes puts it most plainly for etcd: "If any API servers are
-running in your cluster, you should not attempt to restore instances of etcd. Instead… stop *all* API
-server instances, restore state in all etcd instances, restart all API server instances." The hazard
-etcd's own documentation names is exactly the one here — a live process whose view of the store is
-suddenly older than its own memory of it. Airflow's guidance is milder but the same shape: back up the
-metadata database before any operation that modifies it, and "consider disabling the Airflow cluster
-while you perform such maintenance".
-
-**A point-in-time restore does not restore the work, only the record of it.** Both major engines
-document the semantics without hedging: SQL Server recovers to "the latest transaction commit that
-occurred at or before" the stop time, and PostgreSQL's own worked example is restoring to a minute
-before a mistake and losing everything after it. For a scheduler that means:
-
-- Triggers fire again from where the backup thought they were. A nightly job whose `PREV_FIRE_TIME` has
-  been rolled back will run that night again; jobs written to be
-  [idempotent](../best-practices.md#assume-the-job-will-run-more-than-once) do not care, and jobs that
-  are not, do.
-- Fired-trigger rows come back for firings that have already finished. Until they are swept, the
-  cluster believes those jobs are running, and `[DisallowConcurrentExecution]` holds their job keys.
-  Starting the nodes after the restore is what clears them: each node's first check-in recovers its own
-  rows, and rows belonging to instance ids that are gone are swept as orphans on the same pass.
-- Anything scheduled after the recovery point is gone, including one-off triggers an application
-  created in response to something. If those matter, they have to be re-derivable from whatever created
-  them.
-
-**Prefer redeploying the schedule to restoring it.** The definitions — jobs, triggers, calendars — are
-the part of the store that a deployment can put back. `AddJob` and `AddTrigger` in `AddQuartz`, or a
-scheduling data file, mean the schedule is described in source control and re-applied on every start;
-`SchedulingOptions.OverwriteExistingData` is on by default, so a start after a restore reconciles the
-definitions back to what the code says. That leaves the backup responsible only for runtime state,
-which is the part nobody can reconstruct anyway. This is the split Airflow makes structurally — DAGs
-are Python files under version control and the metadata database holds only runs — and the reason its
-restore guidance never mentions restoring workflow definitions.
-
-Two things a restore does not need: the `QRTZ_LOCKS` rows are written by the lock handler when they are
-missing, so a restore that loses them costs nothing, and Quartz keeps no state outside the database —
-there is no node-local file to restore alongside it.
+- **Stop every node before restoring, and start them afterwards.** A live node would otherwise see a store
+  older than its own memory of it.
+- **A point-in-time restore restores the record of the work, not the work.**
+  - Triggers fire again from where the backup left them. A nightly job whose `PREV_FIRE_TIME` rolled back
+    runs again that night; [idempotent](../best-practices.md#assume-the-job-will-run-more-than-once) jobs
+    do not care.
+  - Fired-trigger rows come back for firings that already finished. Until swept, the cluster believes
+    those jobs are running and `[DisallowConcurrentExecution]` holds their job keys. Starting the nodes
+    clears them: each node's first check-in recovers its own rows, and rows of instance ids that are gone
+    are swept as orphans in the same pass.
+  - Anything scheduled after the recovery point is gone, including one-off triggers an application created
+    in response to something. If those matter, make them re-derivable from their source.
+- **Prefer redeploying the schedule to restoring it.** With `AddJob` and `AddTrigger` in `AddQuartz`, or
+  a scheduling data file, the schedule is in source control and re-applied on every start.
+  `SchedulingOptions.OverwriteExistingData` is on by default, so a start after a restore brings the
+  definitions back to what the code says, and the backup only has to cover runtime state.
+- **Not needed**: `QRTZ_LOCKS` rows, which the lock handler writes when they are missing. Quartz keeps no
+  state outside the database.
 
 ## Timeouts and transient failures
 
 ### CommandTimeout
 
-`JobStore:CommandTimeout` bounds every statement the store issues, including the ones the lock handler
-takes its row lock with. Left unset, each statement gets whatever the ADO.NET provider gives a new
-command — usually 30 seconds. There is deliberately no per-statement override: every statement runs
-inside a lock the rest of the cluster is waiting on, so none of the store's work is more expendable
-than the rest.
+`JobStore:CommandTimeout` bounds every statement the store issues, including the lock handler's row lock.
+Unset, each statement gets the ADO.NET provider's default, usually 30 seconds. There is no per-statement
+override: every statement runs inside a lock the rest of the cluster waits on.
 
 <!-- snippet: sample_operations_store_timeouts -->
 ```csharp
@@ -664,118 +544,98 @@ q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-The case that decides the value is a node blocked on `QRTZ_LOCKS` behind a peer that stopped without
-releasing the lock. Until the command times out, that node's scheduling loop is doing nothing at all.
-A shorter timeout turns a long stall into a fast failure and a retry; too short a timeout turns a
-merely busy database into a retry storm. ADO.NET counts whole seconds, and Quartz rounds a configured
-value **up** — `00:00:01.500` is applied as 2 seconds — because rounding down would turn a sub-second
-value into `0`, which every provider reads as "wait forever".
+- **What decides the value**: a node blocked on `QRTZ_LOCKS` behind a peer that stopped without releasing
+  the lock schedules nothing until the command times out. Shorter turns a long stall into a fast failure
+  and retry; too short turns a busy database into a retry storm.
+- ADO.NET counts whole seconds, and Quartz rounds **up** — `00:00:01.500` is applied as 2 seconds —
+  because rounding a sub-second value down gives `0`, which every provider reads as "wait forever".
+- **A peer need not have stopped.** When a node's network is cut while it holds the lock, the server keeps
+  its session, open transaction and row lock, because no reset reached it. Quartz cannot free another
+  session's lock, so the timeout is all a client can do; a server-side setting ends the dead session —
+  [A Lock Held by a Connection That Is Gone](../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone)
+  has both halves per database.
+- **On Oracle**, which has no session-level DML lock wait timeout, put the wait timeout in the lock
+  statement: `SelectWithLockSql` ending `FOR UPDATE WAIT 20`, which fails with `ORA-30006` and ends the
+  wait in the server instead of cancelling from outside.
 
-The peer does not have to have stopped for that to happen. A node whose network was cut while it held
-the lock leaves a database session behind that the server still believes has a client, still holding the
-open transaction and the row — the client's socket was aborted locally and no reset ever reached the
-server. Quartz cannot free another session's lock, so on this path the timeout is the whole of what a
-client can do, and the rest is a server-side setting that ends the dead session:
-[A Lock Held by a Connection That Is Gone](../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone)
-has both halves, per database. On Oracle, where there is no session-level DML lock wait timeout, the
-tidier client-side answer is a wait timeout in the lock statement itself —
-`SelectWithLockSql` ending `FOR UPDATE WAIT 20`, which fails with `ORA-30006` — because it ends the wait
-in the server rather than cancelling the statement from outside.
-
-While a wait is in progress, `JobStore:LockWaitWarningThreshold` (30 seconds by default, `null` to turn
-it off) logs **warning 3716** once per acquisition, naming the lock, how long it has been waited for and
-the requestor. Every acquisition is also measured on `quartz.jobstore.lock.wait.duration`, tagged with
-`quartz.jobstore.lock` — `TRIGGER_ACCESS` or `STATE_ACCESS`. Alert on the warning: it is the only signal
-a node stalled on a lock produces, because a blocked statement raises nothing at all.
+**Alert on warning 3716.** While a lock wait goes on, `JobStore:LockWaitWarningThreshold` (30 seconds by
+default, `null` to turn off) logs **warning 3716** once per acquisition, naming the lock, the wait so far
+and the requestor. It is the only signal of a node stalled on a lock, because a blocked statement raises
+nothing. Every acquisition is also measured on `quartz.jobstore.lock.wait.duration`, tagged
+`quartz.jobstore.lock` (`TRIGGER_ACCESS` or `STATE_ACCESS`).
 
 ### What counts as transient
 
-A failure the store considers transient is retried `MaxTransientRetries` times (default 3),
-`TransientRetryInterval` apart (default 1 second). What qualifies, on 4.x:
+A transient failure is retried `MaxTransientRetries` times (default 3), `TransientRetryInterval` apart
+(default 1 second). Transient on 4.x means:
 
-- a `TimeoutException`, from anywhere in the exception chain;
-- the driver's own verdict, `DbException.IsTransient`;
-- **a SQLSTATE in class `40`** — the standard's "transaction rollback" class, which covers `40001`
-  serialization failure and PostgreSQL's `40P01` deadlock detected, with `40002` excluded because a
-  deferred constraint violation fails identically on every attempt. This one is **4.x only**, and it is
-  what catches the drivers that do not implement `IsTransient` honestly: Firebird reports
-  `IsTransient: false` for a serialization failure, so before this the store treated the one condition
-  retrying exists for as fatal;
-- SQL Server's transient error numbers, read off `SqlException.Errors`, which is where 1205 (deadlock
+- a `TimeoutException` anywhere in the exception chain;
+- the driver's own `DbException.IsTransient`;
+- **a SQLSTATE in class `40`** ("transaction rollback"): `40001` serialization failure, PostgreSQL's
+  `40P01` deadlock detected, and the rest of the class except `40002`, a deferred constraint violation that
+  fails identically every time. **4.x only.** It catches drivers whose `IsTransient` is wrong: Firebird
+  reports `IsTransient: false` for a serialization failure, the condition retrying exists for;
+- SQL Server's transient error numbers, read from `SqlException.Errors`, which is where 1205 (deadlock
   victim) arrives because both SqlClients leave `SqlState` null;
 - SQLite's busy and locked codes.
 
-`AdoJobStoreOptions.IsTransient` is where you say so when a driver of your own reports something the
-list above misses. It is a `Func<Exception, bool>` set in code, consulted before the list, and it can
-only add — answering `false` is the same as not having one, so it cannot switch off a retry Quartz
-already performs. The exception it is handed is the store's own, so reach the driver's with
+`AdoJobStoreOptions.IsTransient` (a `Func<Exception, bool>` set in code) adds conditions for a driver of
+your own. It is consulted first and can only add: `false` means the same as having none, so it cannot turn
+off a retry Quartz already makes. It receives the store's own exception; reach the driver's with
 `GetBaseException()`.
 
-`DbRetryInterval` (default 15 seconds) is the different knob: it is how long the misfire loop backs off
-after a failure that was *not* transient — a database that is down rather than busy — and how long the
-check-in loop backs off once a failed check-in has spent the window its peers give it, so that a cluster
-does not hammer a dead server every 7.5 seconds. Inside that window the check-in loop retries sooner,
-and `DbRetryInterval` only caps how long it may wait between those retries; see
+`DbRetryInterval` (default 15 seconds) is separate. It is how long the misfire loop backs off after a
+failure that was *not* transient (a database that is down, not busy), and how long the check-in loop backs
+off once a failed check-in has spent its window, so a cluster does not hit a dead server every 7.5 seconds.
+Inside the window the check-in loop retries sooner, and `DbRetryInterval` only caps the wait — see
 [When a peer takes over](#when-a-peer-takes-over).
 
-Retrying is not free of consequence in a cluster. A check-in that fails for longer than the failure
-boundary means the peers write this node off while it is still working, so a database outage long
-enough to exhaust the retries is also long enough to produce spurious failovers. That is the reason the
-first section of [Best Practices](../best-practices.md#assume-the-job-will-run-more-than-once) starts
-where it does.
+A check-in that fails for longer than the failure boundary gets the node written off while it is still
+working, so an outage long enough to exhaust the retries also causes spurious failovers. Hence
+[assume the job will run more than once](../best-practices.md#assume-the-job-will-run-more-than-once).
 
 ## Sizing a cluster
 
-The arithmetic is on Best Practices and is not repeated here:
+The per-node arithmetic is in Best Practices:
 [max concurrency is a permit count](../best-practices.md#max-concurrency-is-a-permit-count-not-a-thread-count),
 and [the connection pool is the thread pool plus three](../best-practices.md#the-connection-pool-is-the-thread-pool-plus-three).
-Four things change when the process is one of several.
+With several nodes:
 
-**The database's connection budget is shared and does not scale with the node count.** Ten nodes with a
-modest pool of 25 each present 250 connections to one server. The number to divide is the database's,
-so `MaxConcurrency` is derived from the budget divided by the number of nodes rather than chosen per
-node — which makes adding a node a decision about the database as much as about the application.
+- **The database's connection budget is shared.** Ten nodes with a pool of 25 each present 250 connections
+  to one server. Derive `MaxConcurrency` from the database's budget divided by the node count; adding a
+  node is a database decision as well.
+- **Every node runs its own misfire handler.** Each scans every `MisfireHandlerFrequency` (default
+  `MisfireThreshold`, one minute). With `DoubleCheckLockMisfireHandler` on (the default) the scan starts
+  with a `COUNT` that takes no lock, and takes the cluster-wide lock only when it finds something. Baseline
+  cost: one count query per minute per node; contended: one lock per minute per node with work.
+- **Every node runs its own cluster manager**: one `SELECT` of the state table and one `UPDATE` per node
+  per `CheckinInterval`. At 7.5 seconds, ten nodes issue 160 statements a minute before any job runs. A
+  shorter interval buys faster failure detection with more of this traffic.
+- **Batching trades round trips for balance.** `MaxBatchSize` above 1 makes every acquisition cycle take the
+  `TRIGGER_ACCESS` lock, even cycles that acquire nothing, and batches nothing unless
+  `BatchTriggerAcquisitionFireAheadTimeWindow` is above zero. Load can become uneven: a node that acquires
+  ten triggers holds them until it can run them. See
+  [Batching trigger acquisition](tutorial/advanced-enterprise-features.md#batching-trigger-acquisition).
 
-**Every node runs its own misfire handler.** The misfire loop is not a cluster singleton: each node
-scans every `MisfireHandlerFrequency` (defaulting to `MisfireThreshold`, one minute), and with
-`DoubleCheckLockMisfireHandler` on — the default — the scan starts with a `COUNT` that takes no lock
-and only escalates to the cluster-wide lock when it finds something. So the baseline cost of a node is
-one count query per minute; the contended cost is one lock per minute per node with work to do.
-
-**Every node runs its own cluster manager.** One `SELECT` of the state table plus one `UPDATE` per node
-per `CheckinInterval`. At the default of 7.5 seconds, a ten-node cluster is 160 statements a minute
-before any job runs. This is the traffic that a shorter interval buys faster failure detection with.
-
-**Batching trades round trips for balance.** `MaxBatchSize` above 1 makes every acquisition cycle take
-the `TRIGGER_ACCESS` lock, including cycles that acquire nothing, and needs
-`BatchTriggerAcquisitionFireAheadTimeWindow` above zero to batch anything at all. Java Quartz's warning
-holds here too: the larger number comes at the cost of possible imbalanced load between nodes, because
-a node that acquires ten triggers has made them its own until it can run them.
-[Batching trigger acquisition](tutorial/advanced-enterprise-features.md#batching-trigger-acquisition)
-has the pair in full.
-
-Adding nodes does not make a single trigger fire faster, and it does not shorten a job. It adds
-capacity for concurrent firings and it adds a node to fail over to. If the schedule is dominated by one
-long job, a second node changes nothing about it.
+More nodes add capacity for concurrent firings and a node to fail over to. They do not make one trigger
+fire faster or one job finish sooner; a schedule dominated by one long job gains nothing.
 
 ## Performance
 
-The numbers below are the only end-to-end firing figures published for 4.0. They come from
+These are the only end-to-end firing figures published for 4.0, summarised from
 [`src/Quartz.Benchmark/README.md`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Benchmark/README.md),
-which carries the full method, the machine, the settings and the caveats; this is the summary, and it
-is here because a page about running a cluster is where somebody asks the question.
+which has the method, machine, settings and caveats.
 
-**Read them as ratios, not as a capacity plan.** One machine, one PostgreSQL container over loopback,
-one node, no clustering. Your storage, your network and your jobs decide the absolute; what carries
-across is how 4.0 compares with 3.20 on the same box on the same day.
+**Read them as ratios, not a capacity plan.** One machine, one PostgreSQL container over loopback, one
+node, no clustering. Your storage, network and jobs decide the absolute numbers; what carries over is how
+4.0 compares with 3.20 on the same machine on the same day.
 
 ### A firing, end to end
 
-One firing means acquire, fire, run a job that does nothing, complete. `MaxBatchSize` tracks
-`MaxConcurrency` in these runs, because the scheduler refuses a batch larger than the pool that would
-have to run it, and `BatchTriggerAcquisitionFireAheadTimeWindow` is one second rather than the shipped
-zero — without a window a batch is one trigger however large `MaxBatchSize` is, which is the shape a
-deployment left at the defaults gets.
+One firing: acquire, fire, run a job that does nothing, complete. `MaxBatchSize` equals `MaxConcurrency` in
+these runs, since the scheduler refuses a batch larger than the pool.
+`BatchTriggerAcquisitionFireAheadTimeWindow` is one second instead of the shipped zero; without a window a
+batch is one trigger however large `MaxBatchSize` is, which is what a deployment at the defaults gets.
 
 | Store         | MaxConcurrency | 3.20               | 4.0                | Per firing  |
 |-------------- |--------------- |------------------- |------------------- |------------ |
@@ -784,29 +644,27 @@ deployment left at the defaults gets.
 | `RAMJobStore` | 10             | 2.58 µs / 3.25 KB  | 2.16 µs / 2.57 KB  | 1.2x faster, 21 % less garbage |
 | `RAMJobStore` | 50             | 2.71 µs / 3.29 KB  | 1.81 µs / 2.57 KB  | 1.5x faster, 21 % less garbage |
 
-That is about 162 firings a second per node on PostgreSQL and about 460,000 to 550,000 on
-`RAMJobStore`, on this machine. The persistent-store gain is the batched fire path: a firing now costs
-**1.27 database commits**, where it used to cost one round trip per statement. The in-memory rows are
-medians of five alternating pairs taken under load rather than the single tight figures the PostgreSQL
-rows are, so read their ratio and not their absolute; the benchmark README carries the ranges.
-
-The `RAMJobStore` rows once went the other way — 4.0 measured 1.4x *slower* there, which
-[#3674](https://github.com/quartznet/quartznet/issues/3674) was filed to explain. It was not the
-per-firing machinery a reader would guess: measured one at a time, the DI scope, the middleware
-pipeline, the execution-group ledger and the retry-policy check are each cheaper than the 3.x code
-they replaced or cost nothing at all. It was two things in the in-memory store — a dictionary
-allocated and discarded on every firing, and a lock taken asynchronously where 3.x takes a monitor, so
-that most store calls on the fire path suspended and cost a thread-pool hop. Both are fixed.
+- About 162 firings a second per node on PostgreSQL, and about 460,000 to 550,000 on `RAMJobStore`, on this
+  machine.
+- The PostgreSQL gain is the batched fire path: a firing costs **1.27 database commits**, where it used to
+  cost one round trip per statement.
+- The in-memory rows are medians of five alternating pairs under load, not tight single figures like the
+  PostgreSQL rows: read the ratio, not the absolute. The benchmark README has the ranges.
+- 4.0 once measured 1.4x *slower* on `RAMJobStore`
+  ([#3674](https://github.com/quartznet/quartznet/issues/3674)). The cause was in the in-memory store: a
+  dictionary allocated and discarded per firing, and a lock taken asynchronously where 3.x took a monitor,
+  so most store calls on the fire path suspended and paid a thread-pool hop. Both are fixed. The DI scope,
+  middleware pipeline, execution-group ledger and retry-policy check each measured cheaper than the 3.x
+  code they replaced, or free.
 
 **A bigger pool does not start firings faster.** Five times the threads bought about 17 % on
 `RAMJobStore` and nothing measurable on PostgreSQL, because a node's store operations serialise on one
-lock — `TRIGGER_ACCESS` on a persistent store, the store's own monitor on the in-memory one. What
-`MaxConcurrency` buys is more *jobs* running at once, which is the point of it — see
-[Sizing a cluster](#sizing-a-cluster) above.
+lock: `TRIGGER_ACCESS` on a persistent store, the store's own monitor in memory. `MaxConcurrency` buys more
+*jobs* running at once — see [Sizing a cluster](#sizing-a-cluster).
 
 ### Scheduling and cron
 
-Also measured against 3.14, and also in the benchmark README:
+Measured against 3.14, also in the benchmark README:
 
 | Operation                                       | 3.14                | 4.0                 |
 |------------------------------------------------ |-------------------- |-------------------- |
@@ -814,18 +672,16 @@ Also measured against 3.14, and also in the benchmark README:
 | `GetNextValidTimeAfter`                         | ~1.29 µs / ~3.2 KB  | 315–373 ns / **0 B** |
 | `ScheduleJob`, cron trigger, into `RAMJobStore` | 31 µs / 38.7 KB     | 10.5 µs / 5 KB      |
 
-Two other measurements live closer to what they are about:
-[the acquisition index](db/index.md#indexes-and-the-acquisition-index-in-particular), over a hundred
-thousand triggers on four engines, and
-[the cluster-wide execution ceiling](tutorial/execution-groups.md#cluster-scoped-limits), which costs
-one aggregate per acquisition attempt.
+Also measured: [the acquisition index](db/index.md#indexes-and-the-acquisition-index-in-particular), over a
+hundred thousand triggers on four engines, and
+[the cluster-wide execution ceiling](tutorial/execution-groups.md#cluster-scoped-limits), which costs one
+aggregate per acquisition attempt.
 
 ### Against other .NET schedulers
 
-Also on one machine in one sitting, and also in the benchmark README:
 [`src/Quartz.Benchmark.Competitors`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Benchmark.Competitors/README.md)
-runs Quartz, **TickerQ 10.4.0** and **Hangfire 1.8.25** over the same workloads with the same worker
-limit, and counts inside the executing job on every side. The summary:
+runs Quartz, **TickerQ 10.4.0** and **Hangfire 1.8.25** on one machine in one sitting, over the same
+workloads with the same worker limit, counting inside the executing job on every side:
 
 | | Quartz.NET | TickerQ 10.4.0 | Hangfire 1.8.25 |
 |--- |--- |--- |--- |
@@ -835,127 +691,102 @@ limit, and counts inside the executing job on every side. The summary:
 | Schedule to execute on an idle node, p50 / p99 | 58-70 µs / 261-441 µs | 14.7 ms / 15.6-16.0 ms | 94-235 µs / 1.0-22.5 ms |
 | Writing one schedule | 7.7-7.9 µs / 3.5 KB | 1.1-1.3 µs / 562 B | 6.5-7.1 µs / 7.2 KB |
 
-The Quartz column is its **shipped defaults** rather than the batched settings the rows above use;
-batching moves the two PostgreSQL rows to 10.2-10.5 ms and 19.6 statements and leaves the rest where
-they are. The latency row is each library's own fastest route for "run this now" — `StartNow` for
-Quartz, a null `ExecutionTime` for TickerQ, `Enqueue` for Hangfire — and the benchmark README also
-carries the row where Hangfire goes through its scheduler instead, which is 30 ms.
-`MaxConcurrency` is ten on all three, which is Quartz's default and neither of the others':
-TickerQ's is `Environment.ProcessorCount` and Hangfire's is `ProcessorCount × 5`, so on this machine
-Hangfire would otherwise have had sixteen times the workers. Both of the others are given a faster
-poll than they ship with. Everything else is each library's own default.
+- The Quartz column uses **shipped defaults**, not the batched settings above; batching moves the two
+  PostgreSQL rows to 10.2-10.5 ms and 19.6 statements.
+- The latency row is each library's fastest "run this now": `StartNow` for Quartz, a null `ExecutionTime`
+  for TickerQ, `Enqueue` for Hangfire. Through Hangfire's scheduler instead it is 30 ms (in the benchmark
+  README).
+- `MaxConcurrency` is ten on all three. That is Quartz's default; TickerQ's is `Environment.ProcessorCount`
+  and Hangfire's `ProcessorCount × 5`, which on this machine would have given Hangfire sixteen times the
+  workers. The other two also get a faster poll than they ship with; everything else is each library's
+  default.
 
-**Quartz starts an execution faster in memory, allocates less doing it, and is an order of magnitude
-quicker to get a job that is wanted now into a worker.** On a one-second recurring schedule at its
-defaults it was the only one of the three to put every one of six thousand firings inside fifty
-milliseconds of the second it was due. **It loses the database rows to TickerQ, and not narrowly** —
-3.5-4× on time and more than tenfold on statements — and it loses the schedule-writing row by six
-to eight times. Some of that is the workload: these rows schedule one-off jobs, which Quartz deletes
-as it completes them and TickerQ leaves in its table. The benchmark README carries the method, the
-settings each engine was given, what one firing does on each side, and both halves of the result.
+**Results.** Quartz starts an execution faster in memory, allocates less, and gets a "run now" job to a
+worker an order of magnitude sooner. On a one-second recurring schedule at its defaults it was the only
+one of the three to fire all six thousand firings within fifty milliseconds of the due second. **It loses
+the database rows to TickerQ clearly** — 3.5-4× on time and more than tenfold on statements — and the
+schedule-writing row by six to eight times. Part of that is the workload: these rows schedule one-off
+jobs, which Quartz deletes on completion and TickerQ leaves in its table.
 
 ### What has been run against a cluster
 
-Two clustered nodes sharing one scheduler name were run for **30 minutes
-against PostgreSQL and 30 minutes against SQL Server**, carrying every trigger family including
-recurrence, a `[DisallowConcurrentExecution]` job behind an overlap detector, a retry policy over a
-job that always fails, a job that overruns the budget `AddJobTimeout` enforces, and induced failures
-along the way: both nodes into standby past the misfire threshold, then one node killed with an
-`EXECUTING` row left behind and its check-in aged, then replaced once the survivor had recovered it.
+**The soak test**: two clustered nodes sharing one scheduler name, 30 minutes per run. The workload covers
+every trigger family including recurrence, a `[DisallowConcurrentExecution]` job behind an overlap
+detector, a retry policy over a job that always fails, and a job that overruns its `AddJobTimeout` budget.
+Induced failures: both nodes in standby past the misfire threshold; one node killed with an `EXECUTING` row
+left and its check-in aged; that node replaced once the survivor had recovered it.
 
-Both runs passed. Each ended with no `ACQUIRED` or `BLOCKED` triggers and an empty
-`QRTZ_FIRED_TRIGGERS`, every trigger family still firing at its schedule, **no overlapping firing of
-the serial job across the two nodes** — peak observed concurrency 1 over 2,662 firings of it on
-PostgreSQL and 2,367 on SQL Server — the retry policy re-firing a failing job 356 and 346 times, the
-timeout middleware interrupting 178 and 175 overruns, exactly one interrupted firing recovered by
-the survivor in each run, no unexpected scheduler error, no unobserved task exception, and a live
-heap and handle count no larger at the end than at the start (5 MB and ~635 handles throughout on
-PostgreSQL; 5 MB and ~730 on SQL Server).
+Every run passed and ended the same way: no `ACQUIRED` or `BLOCKED` triggers, `QRTZ_FIRED_TRIGGERS`
+empty, every trigger family on schedule, **no overlapping firing of the serial job across nodes** (peak
+observed concurrency 1), exactly one interrupted firing recovered by the survivor, no unexpected scheduler
+error or unobserved task exception, and heap and handle counts no larger at the end than at the start. No
+tolerance was widened; the fixture's assertions are the release's.
 
-**The PostgreSQL run was repeated on the release candidate** — 30 minutes on `2e207e37b`, on
-2026-09-03 — because sixteen commits had touched `Quartz` since the runs above. It passed with the
-same shape and, on the same machine, numbers within a firing or two of the first: peak observed
-concurrency **1** over 2,661 firings of the serial job, every family still on its schedule (890
-simple, 591 daily-time-interval, 444 calendar-interval, 355 cron, 296 recurrence), 534 attempts at
-the failing job of which 356 were the retry policy's, 178 overruns interrupted, and the survivor
-replaying the killed node's one interrupted firing a second after the kill. It ended as the others
-did: nothing `ACQUIRED` or `BLOCKED`, `QRTZ_FIRED_TRIGGERS` empty, no unexpected scheduler error, no
-unobserved task exception, and a live heap of 4–5 MB behind 619–640 handles from the first minute to
-the thirtieth.
+| Run | Serial job firings | Retry-policy re-fires | Overruns interrupted | Heap / handles |
+|---|---|---|---|---|
+| beta.1, PostgreSQL | 2,662 | 356 | 178 | 5 MB / ~635 |
+| beta.1, SQL Server | 2,367 | 346 | 175 | 5 MB / ~730 |
+| release candidate `2e207e37b`, PostgreSQL, 2026-09-03 | 2,661 | 356 of 534 attempts | 178 | 4–5 MB / 619–640 |
+| rc.1 `97505ecce`, SQL Server, 2026-09-03 | 2,578 | 355 of 532 attempts | 178 | 4–5 MB / 706–756 |
+| 4.1 runtime tenant `b67f0faa9a`, 2026-09-09 (cluster) | 2,645 | 356 of 534 attempts | 178 | — |
 
-**SQL Server was then run on the rc.1 commit** — 30 minutes on `97505ecce`, on 2026-09-03 —
-because this is the dialect whose schema moved: rc.1 drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, so the run
-provisioned a `tables_sqlServer.sql` the beta.1 run never saw, and the build under it also carries
-the rc.1 store changes — the paused-job-group probe every trigger store now makes, and the
-column-level schema validation each of the three nodes passed through at startup. It passed, and
-firing for firing it is ahead of the beta.1 run rather than behind it: peak observed concurrency
-**1** over 2,578 firings of the serial job, every family within about 1% of what its schedule implies
-(890 simple, 594 daily-time-interval, 446 calendar-interval, 357 cron, 297 recurrence), 532 attempts
-at the failing job of which 355 were the retry policy's, 178 overruns interrupted, and `soak-node-a`
-replaying the killed node's one interrupted firing in the same second as the kill. It ended as the
-others did: nothing `ACQUIRED` or `BLOCKED`, `QRTZ_FIRED_TRIGGERS` empty and the killed node's
-`EXECUTING` row gone with it, no unexpected scheduler error, no unobserved task exception, and a live
-heap of 4–5 MB behind 706–756 handles across all thirty samples. No tolerance was widened for either
-run; the fixture's assertions are the ones the release carries.
+Firings per family (simple / daily-time-interval / calendar-interval / cron / recurrence), and when the
+survivor replayed the killed node's firing:
 
-4.0.0 is a later commit than `97505ecce`, and two commits have touched `Quartz` in between. The store's
-share of them is one statement: `SelectJobForTrigger` now selects `IS_NONCONCURRENT` and
-`IS_UPDATE_DATA`, so that a process without the job's class still reads the job's attribute flags
-(#3705). Rescheduling, editing and deleting a trigger are what reach it, and the soak's workload does
-none of the three — it schedules its triggers once and then runs. The other commit is
-`QuartzHostedService`'s stop path, which the fixture never enters, because it builds its nodes into
-containers of its own rather than from a host. The figures above therefore stand for the release.
+- **Release candidate, PostgreSQL** — 890 / 591 / 444 / 355 / 296; a second after the kill. Repeated
+  because sixteen commits had touched `Quartz` since beta.1.
+- **rc.1, SQL Server** — 890 / 594 / 446 / 357 / 297, within about 1% of the schedule; `soak-node-a`
+  replayed it in the same second, and the killed node's `EXECUTING` row was gone at the end. Run because
+  rc.1 drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, so it provisioned a new `tables_sqlServer.sql`, and to cover
+  rc.1's store changes: the paused-job-group probe every trigger store makes, and column-level schema
+  validation, which all three nodes passed at startup.
+- **4.1 cluster** — 890 / 591 / 444 / 354 / 296; a second after the kill.
 
-**A runtime-added tenant was put through the same half hour** — 30 minutes on `b67f0faa9a`, on
-2026-09-09 — because 4.1 is the first release in which a scheduler can arrive after the container was
-built, and nothing had asked what a hundred rebuilds against a real database leave behind. Beside the
-two nodes, a third scheduler was added to node A's container through
-[`ISchedulerRuntime.Add`](multi-tenancy.md), storing under its own `SCHED_NAME` in the same
-tables, with a `[DisallowConcurrentExecution]` job firing every two seconds and an ordinary one every
-second. It was restarted through `ISchedulerRuntime.Restart` with a thirty-second drain every three
-minutes, and removed and added again from the same recipe every seven: twelve rebuilds, thirteen
-generations.
+4.0.0 is two `Quartz` commits after `97505ecce`, and neither is reached by the soak. `SelectJobForTrigger`
+now also selects `IS_NONCONCURRENT` and `IS_UPDATE_DATA`, so a process without the job's class still reads
+its flags (#3705); only rescheduling, editing and deleting a trigger reach it. `QuartzHostedService`'s stop
+path changed; the fixture builds its nodes in containers of its own and never enters it. The figures stand
+for the release.
 
-It passed, and the cluster beside it landed firing for firing where the 4.0 runs left it — peak
-observed concurrency **1** over 2,645 firings of the serial job, 890 simple, 591
-daily-time-interval, 444 calendar-interval, 354 cron and 296 recurrence, 534 attempts at the failing
-job of which 356 were the retry policy's, 178 overruns interrupted, and the survivor replaying the
-killed node's one interrupted firing a second after the kill. The tenant's own numbers are the new
-ones. Its ordinary trigger had **1,796 scheduled fire times and fired every one of them exactly
-once**: a rebuild is a gap of under a second, far inside the misfire threshold, so each new
-generation caught the missed occurrences up rather than letting them go, and none was skipped. Its
-serial job's peak observed concurrency was **1** over 898 firings across all thirteen generations —
-`[DisallowConcurrentExecution]` is a claim about the job rather than about the generation running it,
-and the trigger rows carry the block over a rebuild. No drain was abandoned, and every rebuild was
-firing again within 0.9 s against a budget of ten. It ended as the cluster did: nothing `ACQUIRED` or
-`BLOCKED` under either scheduler name, `QRTZ_FIRED_TRIGGERS` empty for both, and a live heap of 5 MB
-behind 629–656 handles across all thirty samples.
+**A runtime-added tenant (4.1).** 4.1 is the first release in which a scheduler can arrive after the
+container is built. In the 4.1 run above, a third scheduler was added to node A's container through
+[`ISchedulerRuntime.Add`](multi-tenancy.md), under its own `SCHED_NAME` in the same tables, with a
+`[DisallowConcurrentExecution]` job every two seconds and an ordinary one every second. It was restarted
+through `ISchedulerRuntime.Restart` with a thirty-second drain every three minutes, and removed and re-added
+from the same recipe every seven: twelve rebuilds, thirteen generations.
 
-One thing the run settled rather than measured: **a non-clustered scheduler's instance id is
-`NON_CLUSTERED` in every generation**, because the id generator is not called for a store that shares
-its database with nobody. So the instance id cannot tell one generation of a restarted tenant from
-the next, and anything that has to correlate a record with the generation that wrote it needs
-something else — the fixture stamps an ordinal into the scheduler's `SchedulerContext` as the recipe
-runs, which says the stronger thing anyway, since the number only advances when the recipe is
-replayed.
+- Its ordinary trigger had **1,796 scheduled fire times and fired each exactly once.** A rebuild gap is
+  under a second, far inside the misfire threshold, so each generation caught up what it missed.
+- Its serial job's peak observed concurrency was **1** over 898 firings across the thirteen generations;
+  the trigger rows carry the block over a rebuild.
+- No drain was abandoned, and every rebuild was firing again within 0.9 s against a budget of ten.
+- It ended with nothing `ACQUIRED` or `BLOCKED` under either scheduler name, `QRTZ_FIRED_TRIGGERS` empty for
+  both, and a 5 MB live heap behind 629–656 handles across all thirty samples.
+- **A non-clustered scheduler's instance id is `NON_CLUSTERED` in every generation**, because the id
+  generator is not called for an unshared store. To tell generations apart, use something else: the
+  fixture stamps an ordinal into the scheduler's `SchedulerContext` as the recipe runs.
 
-The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`; it is opt-in
-(`[Category("LongRunning")]`, `QUARTZ_SOAK_MINUTES`) and is run before a tag rather than in CI.
+The harness is `ClusteredSoakTestBase` in `Quartz.Tests.Integration`: opt-in (`[Category("LongRunning")]`,
+`QUARTZ_SOAK_MINUTES`), run before a tag, not in CI.
 
 ## Health checks and probes
 
-The check that ships with `Quartz` asserts three things: that the scheduler is in a state that can fire,
-that its job store answers a query, and — on a clustered scheduler — that this node is still checking
-in. A fourth, that nothing schedulable is badly overdue, is asked only when
-`StaleFiringTolerance` is set. It reports *healthy* for a running scheduler whose store
-responds, *degraded* for one in standby, and *unhealthy* for one that is shutting down, has shut down,
-or whose store threw. A scheduler still in `Created` depends on who was going to start it: *unhealthy*
-when the hosted service was going to and has not, and *degraded* when `AutoStart` is `false` and the
-application starts it itself — the shape [an external leader election](how-tos/external-leader.md) and
-[embedding Quartz in a library](how-tos/embedding-quartz-in-a-library.md) teach, where sitting in
-`Created` is the configuration working rather than failing. It registers on the standard
-`IHealthChecksBuilder` and needs nothing from ASP.NET Core, so a worker on a `dotnet/runtime` image
-carries it too.
+The check in `Quartz` asserts that the scheduler can fire, that its job store answers a query, and, when
+clustered, that this node is still checking in. With `StaleFiringTolerance` set, it also asserts that
+nothing schedulable is badly overdue.
+
+| Scheduler | Reports |
+|---|---|
+| Running, store responds | *healthy* |
+| In standby | *degraded* |
+| Shutting down or shut down, or the store threw | *unhealthy* |
+| In `Created`, and the hosted service should have started it | *unhealthy* |
+| In `Created` with `AutoStart = false`, started by the application | *degraded* |
+
+The last row is the normal state for [an external leader election](how-tos/external-leader.md) and
+[embedding Quartz in a library](how-tos/embedding-quartz-in-a-library.md). The check registers on the
+standard `IHealthChecksBuilder` and needs nothing from ASP.NET Core, so it works on a `dotnet/runtime`
+image.
 
 <!-- snippet: sample_operations_readiness_probe -->
 ```csharp
@@ -966,106 +797,60 @@ services.AddHealthChecks().AddQuartz(options => options.Tags.Add("ready"));
 ```
 <!-- endSnippet -->
 
-Three limits are worth being deliberate about.
+**It does not assert that anything fires, unless you ask.** An empty schedule, a paused group or a starved
+thread pool is healthy.
 
-**It does not assert that anything is firing, unless you ask it to.** A scheduler with an empty
-schedule, a paused group or a starved thread pool is healthy by this definition.
-`QuartzHealthCheckOptions.StaleFiringTolerance` — `null`, so off, unless set — narrows that: with it,
-a schedulable trigger overdue by more than that many of the store's own misfire thresholds is
-*degraded* and one twice as far behind is *unhealthy*, and the report names the trigger and the instant
-it was due. See
-[Saying that a scheduler has stopped firing](packages/hosted-services-integration.md#saying-that-a-scheduler-has-stopped-firing).
-It is a statement about the *queue*, not about a particular job, so pair it with an alert on a job you
-expect to see regularly. `quartz.job.execution.duration` is the instrument to build that from — the
-alert is on its *count*, not its value, because a histogram that received no observations is the
-signal:
+- `QuartzHealthCheckOptions.StaleFiringTolerance` (`null`, so off, by default) changes that: a schedulable
+  trigger overdue by more than that many of the store's misfire thresholds is *degraded*, twice as far is
+  *unhealthy*, and the report names the trigger and when it was due. See
+  [Saying that a scheduler has stopped firing](packages/hosted-services-integration.md#saying-that-a-scheduler-has-stopped-firing).
+- That is about the queue, not a particular job. Also alert on a job you expect to see regularly, from the
+  *count* of `quartz.job.execution.duration` — a histogram with no observations is the signal:
 
 ```promql
 # no execution of the nightly close in the last 25 hours, on any node of the cluster
 sum(increase(quartz_job_execution_duration_count{quartz_job_name="nightly-close"}[25h])) == 0
 ```
 
-Give the window room for the schedule's own jitter and for a retry, and alert per job that matters
-rather than in aggregate: a fleet that is busy hides one job that stopped. The instrument's attributes
-are in [Observability](packages/opentelemetry-integration.md#metrics) — including which of them are
-high-cardinality and should be dropped in a view before they reach the backend. Where the job is one
-whose *absence* is the incident rather than its lateness, the store is a second source: a trigger whose
-`NextFireTimeUtc` is far in the past, or one in `Error`, is a row you can query —
-`new TriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff }` is that query, and it
-is the one the tolerance above issues.
+- Leave room in the window for jitter and a retry, and alert per job that matters: in aggregate, a busy
+  fleet hides one job that stopped. Which attributes are high-cardinality and should be dropped in a view:
+  [Observability](packages/opentelemetry-integration.md#metrics).
+- When a job's *absence* is the incident, query the store too for a trigger whose `NextFireTimeUtc` is far
+  in the past, or one in `Error`. `new TriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff }`
+  is the query the tolerance issues.
 
-**It reports a node that has stopped checking in, and nothing else about the cluster.** A node whose
-cluster manager is wedged on the database while the rest of the process is fine still fires, still
-answers a store query and still says `Running` — while its peers, to whom it looks dead, recover its
-triggers. So a **clustered** scheduler is also asked when it last checked in, and a last check-in older
-than `QuartzHealthCheckOptions.ClusterCheckinTolerance` (`3` by default) times that node's own
-configured check-in interval reports *degraded*, naming the node and how late it is. Set the option to
-`null` or `0` to make no such query. Nothing else about the cluster is asserted — how many peers are
-alive, and whether any of them is behind, is what the
-[node listing](tutorial/advanced-enterprise-features.md) is for.
+**Of the cluster, it reports only a node that has stopped checking in.** A node whose cluster manager is
+wedged on the database can still fire and say `Running` while its peers recover its triggers. So a
+**clustered** scheduler reports *degraded*, naming the node and how late it is, when its last check-in is
+older than `QuartzHealthCheckOptions.ClusterCheckinTolerance` (`3` by default) times its own check-in
+interval. `null` or `0` skips the query. For the state of peers, use the
+[node listing](tutorial/advanced-enterprise-features.md).
 
-**Degraded does not survive an HTTP probe by default.** ASP.NET Core maps `Degraded` to 200, exactly as
-it maps `Healthy`, so a standby scheduler looks healthy to anything that reads the status code. Map
-`Degraded` to 503 in `HealthCheckOptions.ResultStatusCodes` if a standby node should leave the
-rotation. Under Aspire this interacts with `WithHttpHealthCheck`, and
-[the Aspire how-to](how-tos/aspire.md) has the whole table, including the fact that a worker project
-has no health endpoint to poll at all. That is what
-`AddQuartzHealthChecks(options => options.StandbyStatus = HealthStatus.Unhealthy)` is for: it changes
-the verdict itself rather than its status code, so a probe reading the `HealthCheckService` directly
-sees it. It covers standby and nothing else — a scheduler still in `Created` because
-`AutoStart = false` keeps reporting degraded.
+**Degraded passes an HTTP probe by default.** ASP.NET Core maps `Degraded` to 200, like `Healthy`, so a
+standby scheduler looks healthy to anything reading the status code.
 
-For what to watch besides the probe — the `Quartz` activity source, the `quartz` meter and what the
-instruments do and do not cover — see [Observability](packages/opentelemetry-integration.md), which
-lists the instruments, and [What to watch](../best-practices.md#what-to-watch).
+- To take a standby node out of rotation, map `Degraded` to 503 in `HealthCheckOptions.ResultStatusCodes`.
+- Under Aspire this interacts with `WithHttpHealthCheck`; [the Aspire how-to](how-tos/aspire.md) has the
+  table, including that a worker project has no health endpoint to poll.
+- `AddQuartzHealthChecks(options => options.StandbyStatus = HealthStatus.Unhealthy)` changes the verdict
+  itself rather than its status code, so a probe reading the `HealthCheckService` directly sees it too. It
+  covers standby only; a scheduler in `Created` because `AutoStart = false` still reports degraded.
+
+What else to watch — the `Quartz` activity source, the `quartz` meter, and what the instruments cover —
+is in [Observability](packages/opentelemetry-integration.md) and
+[What to watch](../best-practices.md#what-to-watch).
 
 ## See also
 
-- [Before you go live](production-checklist.md) — the decisions this page assumes were made, as a list
-  to walk before the first deploy
+- [Before you go live](production-checklist.md) — the decisions this page assumes, as a pre-deploy list
 - [Upgrading a running deployment](migration-guide.md#upgrading-a-running-deployment) — the ordered
-  sequence this page's rolling upgrade is step four of
+  sequence; the rolling upgrade here is its step four
 - [Log Events](log-events.md) — every event id, its level and its message template
-- [Clustering](tutorial/advanced-enterprise-features.md) — configuring a cluster in the first place
+- [Clustering](tutorial/advanced-enterprise-features.md) — configuring a cluster
 - [Troubleshooting](../troubleshooting.md) — symptoms and what to do about each
-- [Best Practices](../best-practices.md) — the decisions this page assumes have been made
+- [Best Practices](../best-practices.md) — the decisions this page assumes
 - [Database Schema](db/) and [Schema Changes](../database/schema-changes.md) — what the tables hold and
   what each version added
 - [`Quartz.Benchmark`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Benchmark/README.md) — the numbers above, with their method and caveats
 - [Configuration Reference](configuration/reference.md#persistent-job-store) — every setting named here,
   with its default
-
-## Sources
-
-Prior art surveyed in August 2026. Quartz.NET's own behaviour is stated from the source in this
-repository rather than from any of these.
-
-- Kubernetes, [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/),
-  [Force delete StatefulSet Pods](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/),
-  [Pod hostname](https://kubernetes.io/docs/concepts/workloads/pods/pod-hostname/),
-  [Downward API](https://kubernetes.io/docs/concepts/workloads/pods/downward-api/) and
-  [Operating etcd clusters](https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/)
-- etcd, [Disaster recovery](https://etcd.io/docs/v3.6/op-guide/recovery/)
-- Hangfire, [Upgrading to Hangfire 1.8](https://docs.hangfire.io/en/latest/upgrade-guides/upgrading-to-hangfire-1.8.html),
-  [Using SQL Server](https://docs.hangfire.io/en/latest/configuration/using-sql-server.html) and
-  [Running multiple server instances](https://docs.hangfire.io/en/latest/background-processing/running-multiple-server-instances.html)
-- Temporal, [Upgrade Server](https://docs.temporal.io/self-hosted-guide/upgrade-server)
-- Apache Airflow, [Upgrading](https://airflow.apache.org/docs/apache-airflow/stable/installation/upgrading.html)
-  and [Best Practices](https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html)
-- Apache Kafka, [KRaft](https://kafka.apache.org/33/operations/kraft/); Strimzi,
-  [Node ID management](https://strimzi.io/blog/2023/08/23/kafka-node-pools-node-id-management/)
-- Microsoft, [Orleans on Kubernetes](https://learn.microsoft.com/dotnet/orleans/deployment/kubernetes),
-  [Restore a SQL Server database to a point in time](https://learn.microsoft.com/sql/relational-databases/backup-restore/restore-a-sql-server-database-to-a-point-in-time-full-recovery-model)
-  and [Azure SQL recovery using backups](https://learn.microsoft.com/azure/azure-sql/database/recovery-using-backups)
-- PostgreSQL, [Continuous archiving and point-in-time recovery](https://www.postgresql.org/docs/current/continuous-archiving.html)
-- Elastic, [Elastic Cloud on Kubernetes orchestration](https://www.elastic.co/guide/en/cloud-on-k8s/master/k8s-orchestration.html)
-- Camunda, [Restore a backup](https://docs.camunda.io/docs/self-managed/operational-guides/backup-restore/restore/)
-- Quartz (Java), [JDBC-JobStore clustering](https://www.quartz-scheduler.org/documentation/quartz-2.3.0/configuration/ConfigJDBCJobStoreClustering.html)
-- Martin Fowler, [Parallel Change](https://martinfowler.com/bliki/ParallelChange.html)
-- Oracle, [`SQLNET.EXPIRE_TIME`](https://docs.oracle.com/en/database/oracle/oracle-database/21/netrf/parameters-for-the-sqlnet.ora.html),
-  [`MAX_IDLE_BLOCKER_TIME`](https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/MAX_IDLE_BLOCKER_TIME.html)
-  and ODP.NET [`OracleCommand.CommandTimeout`](https://docs.oracle.com/en/database/oracle/oracle-database/26/odpnt/CommandCommandTimeout.html)
-- PostgreSQL, [connection settings](https://www.postgresql.org/docs/current/runtime-config-connection.html)
-  and [client connection defaults](https://www.postgresql.org/docs/current/runtime-config-client.html)
-- Microsoft, [TCP/IP properties for SQL Server](https://learn.microsoft.com/en-us/sql/tools/configuration-manager/tcp-ip-properties-protocols-tab)
-- MySQL, [InnoDB parameters](https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html#sysvar_innodb_lock_wait_timeout)

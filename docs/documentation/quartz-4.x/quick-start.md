@@ -3,29 +3,23 @@
 title: Quartz 4 Quick Start
 ---
 
-Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect to see details of:
-
-* Installing Quartz.NET
-* Configuring Quartz to your own particular needs
-* Running a first job, in a console application and under a host
-
 ## Install
 
 ```shell
 dotnet add package Quartz
 ```
 
-That is everything a scheduler needs. Dependency injection, hosting, the scheduler
+That is all a scheduler needs. Dependency injection, hosting, the scheduler
 [health check](packages/hosted-services-integration.md#health-checks) and System.Text.Json serialization
-are part of the core package — 3.x shipped them as `Quartz.Extensions.DependencyInjection`,
-`Quartz.Extensions.Hosting`, `Quartz.AspNetCore` and `Quartz.Serialization.Json`.
+are in the core package. (3.x shipped them as `Quartz.Extensions.DependencyInjection`,
+`Quartz.Extensions.Hosting`, `Quartz.AspNetCore` and `Quartz.Serialization.Json`.)
 
-The optional packages, added the same way when you want them:
+Optional packages:
 
 | Package | For |
 |---|---|
 | [Quartz.Serialization.Newtonsoft](packages/json-serialization.md) | persisting with Newtonsoft.Json instead of System.Text.Json |
-| [Quartz.Jobs](packages/quartz-jobs.md) | the ready-made jobs — file scanning, sending mail, running a process |
+| [Quartz.Jobs](packages/quartz-jobs.md) | ready-made jobs — file scanning, sending mail, running a process |
 | [Quartz.Plugins](packages/quartz-plugins.md) | history logging, JSON (and XML) schedule files, the interrupt monitor |
 | [Quartz.Plugins.TimeZoneConverter](packages/timezoneconverter-integration.md) | Windows and IANA time zone ids resolving on either operating system |
 | [Quartz.AspNetCore](packages/aspnet-core-integration.md) | the HTTP API |
@@ -36,9 +30,8 @@ The optional packages, added the same way when you want them:
 
 ## The shortest thing that works
 
-Two registration calls put a scheduler in the container and start it with the host. A third line
-schedules one firing of a job with a payload, and both types are the compiler's business rather than a
-string's:
+Two calls register a scheduler and start it with the host. A third schedules one firing of a job with a
+payload; the compiler checks both the job type and the payload type.
 
 <!-- snippet: sample_quick_start_shortest -->
 ```csharp
@@ -59,9 +52,8 @@ await host.WaitForShutdownAsync();
 ```
 <!-- endSnippet -->
 
-The job is an ordinary class with one method. `IJob<TInput>` is the typed form of `IJob`: the payload
-arrives as a parameter instead of being fished out of a `JobDataMap`, and the `ScheduleJob<TJob, TInput>`
-call above is what puts it there.
+`IJob<TInput>` is the typed form of `IJob`: the payload arrives as a parameter instead of through a
+`JobDataMap`.
 
 <!-- snippet: sample_quick_start_typed_job -->
 ```csharp
@@ -75,16 +67,14 @@ public sealed class SendWelcomeEmail : IJob<string>
 ```
 <!-- endSnippet -->
 
-`AddQuartz()` with nothing in it takes the defaults — the in-memory store, a thread pool of ten, and
-System.Text.Json for anything that has to be serialized — so there is nothing to configure until one of
-those is wrong for you. What gets stored is one durable job per job type plus one trigger per call, and
-the `ScheduledOneOffJob` the call answers with carries the `TriggerKey` to cancel or replace the firing
-by; [One-Off Job](how-tos/one-off-job.md) is the whole of it, including how to name and group a firing so
-a whole conversation can be called off at once.
+`AddQuartz()` with no arguments uses the defaults: the in-memory store, a thread pool of ten, and
+System.Text.Json for anything serialized. Each call stores one durable job per job type and one trigger.
+The returned `ScheduledOneOffJob` carries the `TriggerKey` to cancel or replace the firing by.
+[One-Off Job](how-tos/one-off-job.md) covers the rest, including naming and grouping firings so a whole
+conversation can be cancelled at once.
 
-That form covers "run this once, soon". A recurring job can be just as short, declared on its class,
-with the schedule read by the compiler — an expression that will not parse is a build error, not an
-exception at start-up:
+A recurring job can be declared on its class. The compiler reads the schedule, so an expression that does
+not parse is a build error, not a start-up exception:
 
 <!-- snippet: sample_declared_job -->
 ```csharp
@@ -101,7 +91,7 @@ public sealed class CleanupJob : IJob
 ```
 <!-- endSnippet -->
 
-One call registers every job the assembly declares, beside anything else you configure by hand:
+One call registers every job the assembly declares:
 
 <!-- snippet: sample_add_declared_jobs -->
 ```csharp
@@ -121,27 +111,23 @@ services.AddQuartzHostedService();
 ```
 <!-- endSnippet -->
 
-[Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md) covers what the attributes
-can say and what the generator writes. A database behind the schedule, a misfire instruction, a
-calendar or a retry policy are things a trigger says, and saying them is the rest of this page.
+See [Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md).
 
 ## Configuration
 
-Quartz is configured with strongly typed options. An option has the same name in code and in
-configuration files, so there is one vocabulary to learn.
+Options are strongly typed, and an option has the same name in code and in configuration files.
 
 ### In an application with a host
 
-Most applications register Quartz into their service collection. The host itself is not Quartz's:
 `Host.CreateApplicationBuilder` and `WebApplication.CreateBuilder` come from
-`Microsoft.Extensions.Hosting`, which the `worker` and `web` project templates already reference and a
-plain `console` project does not.
+`Microsoft.Extensions.Hosting`. The `worker` and `web` templates reference it; a plain `console` project
+needs it added:
 
 ```shell
 dotnet add package Microsoft.Extensions.Hosting
 ```
 
-A job is an ordinary class with one method. This one is the `HelloJob` the registration below schedules:
+The job the registration below schedules:
 
 <!-- snippet: sample_quick_start_job -->
 ```csharp
@@ -155,8 +141,7 @@ public sealed class HelloJob : IJob
 ```
 <!-- endSnippet -->
 
-This is a whole `Program.cs` — a worker service, a persistent store, and one job that runs every ten
-seconds:
+A whole `Program.cs` — a worker service, a persistent store, and one job that runs every ten seconds:
 
 <!-- snippet: sample_quick_start_host -->
 ```csharp
@@ -201,33 +186,31 @@ await host.RunAsync();
 ```
 <!-- endSnippet -->
 
-A job registered this way is constructed from the container for every fire, so it can take a logger, a
-`DbContext` or a typed `HttpClient` in its constructor. `WebApplication.CreateBuilder(args)` works
-exactly the same way — both `AddQuartz` and `AddQuartzHostedService` hang off `IHostApplicationBuilder`.
-The hosted service starts the scheduler with the application and shuts it down with it.
+* A job registered this way is built from the container for every fire, so its constructor can take a
+  logger, a `DbContext` or a typed `HttpClient`.
+* `WebApplication.CreateBuilder(args)` works the same way: `AddQuartz` and `AddQuartzHostedService` are
+  extensions on `IHostApplicationBuilder`.
+* The hosted service starts the scheduler with the application and shuts it down with it.
 
-The ADO.NET driver for whichever database you named is a package reference of your own: Quartz names the
-types and your project brings them. `UseSqlServer` above names Microsoft's SQL Server driver, so that
-application needs one more line:
+**Add the ADO.NET driver package yourself.** Quartz names the driver's types; your project references
+the package. `UseSqlServer` needs:
 
 ```shell
 dotnet add package Microsoft.Data.SqlClient
 ```
 
-Without it the application still compiles, and fails as the scheduler initializes with
-`Could not load file or assembly 'Microsoft.Data.SqlClient'`. The table of dialect methods and the
-package each one needs is in
-[Job Stores](tutorial/job-stores.md#configuring-a-persistent-store). Nothing here says which serializer to use,
-because System.Text.Json is what a store gets when nothing else claims the slot.
+Without it the application compiles, then fails as the scheduler initializes with
+`Could not load file or assembly 'Microsoft.Data.SqlClient'`. The package for each database is in
+[Job Stores](tutorial/job-stores.md#configuring-a-persistent-store). No serializer needs naming:
+System.Text.Json is the default.
 
-The store is also the one part of this sample that needs something outside the process. Swapping
-`UsePersistentStore(…)` for `UseInMemoryStore()` — no database, no driver package, no connection string —
-makes the rest of it run as printed, and is the shortest way to see a job fire; the cheapest persistent
-store to try after that is [a SQLite file](tutorial/job-stores.md#the-cheapest-persistent-store-to-try).
+To run the sample without a database, replace `UsePersistentStore(…)` with `UseInMemoryStore()` — no
+driver package, no connection string. The cheapest persistent store to try next is
+[a SQLite file](tutorial/job-stores.md#the-cheapest-persistent-store-to-try).
 
-`ScheduleJob`, `AddJob` and `AddTrigger` are the whole of the schedule for most applications, and
-[Lesson 1](tutorial/using-quartz.md) is where they are taught properly. A schedule that has to change
-without a rebuild can come from a file instead — that needs the `Quartz.Plugins` package:
+`ScheduleJob`, `AddJob` and `AddTrigger` cover the schedule for most applications;
+[Lesson 1](tutorial/using-quartz.md) teaches them. A schedule that has to change without a rebuild can
+come from a file, which needs the `Quartz.Plugins` package:
 
 <!-- snippet: sample_quick_start_host_json_file -->
 ```csharp
@@ -240,8 +223,7 @@ q.UseJsonSchedulingConfiguration(x =>
 ```
 <!-- endSnippet -->
 
-The file declares the jobs and the triggers that fire them. `quartz_jobs.json`, scheduling one job every
-ten seconds:
+`quartz_jobs.json`, scheduling one job every ten seconds:
 
 ```json
 {
@@ -267,16 +249,14 @@ ten seconds:
 }
 ```
 
-[JSON Configuration](configuration/json.md) has the whole format — every trigger kind, the
-pre-processing commands and the processing directives. XML files are read too, by
-`UseXmlSchedulingConfiguration`, and keep working; the XML schema is
-[frozen](packages/quartz-plugins.md#xmlschedulingdataprocessorplugin) at what it can already express,
-so JSON is the format to write a new schedule in.
+[JSON Configuration](configuration/json.md) has the whole format: every trigger kind, the pre-processing
+commands and the processing directives. `UseXmlSchedulingConfiguration` still reads XML files, but the
+XML schema is [frozen](packages/quartz-plugins.md#xmlschedulingdataprocessorplugin), so write new
+schedules in JSON.
 
 ### Without a host
 
-Console applications and tests build a scheduler directly. The configuration API is the same, and the
-whole chain is one expression:
+Console applications and tests build a scheduler directly, with the same configuration API:
 
 <!-- snippet: sample_quick_start_standalone -->
 ```csharp
@@ -293,8 +273,7 @@ await scheduler.Start();
 
 ### From configuration files
 
-Settings can come from `appsettings.json`, or anywhere else `IConfiguration` reads from, using the
-same names:
+Settings can come from `appsettings.json`, or anywhere else `IConfiguration` reads, under the same names:
 
 ```json
 {
@@ -305,7 +284,7 @@ same names:
 }
 ```
 
-`builder.AddQuartz(...)` reads that section by itself. On a bare `IServiceCollection`, name it:
+`builder.AddQuartz(...)` reads that section by itself. On a bare `IServiceCollection`, pass it:
 
 <!-- snippet: sample_quick_start_from_configuration -->
 ```csharp
@@ -313,26 +292,24 @@ services.AddQuartz(configuration.GetSection("Quartz"));
 ```
 <!-- endSnippet -->
 
-Flat `quartz.*` keys from earlier versions are still accepted and mean the same thing. Full details are
-in the [Quartz Configuration Reference](configuration/reference.md).
+This configuration gives a scheduler that:
 
-The scheduler created by this configuration has the following characteristics:
+* is named "MyScheduler" (`Scheduler:InstanceName`);
+* runs at most 3 jobs at once (`ThreadPool:MaxConcurrency`; the default is 10);
+* keeps jobs, triggers and their state in memory, because no job store is configured.
 
-* `Scheduler:InstanceName` - This scheduler's name will be "MyScheduler".
-* `ThreadPool:MaxConcurrency` - Maximum of 3 jobs can be run simultaneously (default is 10).
-* No job store is configured, so Quartz's data — jobs, triggers and their state — is held in memory
-  rather than in a database.
+Flat `quartz.*` keys from earlier versions are still accepted and mean the same thing — see the
+[Quartz Configuration Reference](configuration/reference.md).
 
-Even if you intend to use a database, it is worth getting Quartz working with the in-memory store
-first, before adding a second thing that can go wrong.
+Get Quartz working with the in-memory store before adding a database.
 
 ::: tip
-Actually you don't need to define these properties if you don't want to, Quartz.NET comes with sane defaults
+Every one of these settings is optional; the defaults work.
 :::
 
 ## A first console application
 
-The following program builds a scheduler with the default configuration, starts it, and shuts it down:
+This program builds a scheduler with the default configuration, starts it, and shuts it down:
 
 **Program.cs**
 
@@ -356,21 +333,18 @@ await Task.Delay(TimeSpan.FromSeconds(10));
 await scheduler.Shutdown();
 ```
 
-Your application terminates once there is no code left to execute after `scheduler.Shutdown()`: a running
-scheduler does not keep the process alive on its own. Block explicitly — or use the host, which does the
-blocking for you — if the scheduler should keep running.
+A running scheduler does not keep the process alive. The program ends when no code is left after
+`scheduler.Shutdown()`; block explicitly, or use the host, to keep it running.
 
-Run it now and nothing happens: ten seconds pass and the program ends. Let us add some logging.
+Run it now and nothing happens: ten seconds pass and the program ends. Add logging next.
 
 ## Adding logging
 
-Quartz logs through `Microsoft.Extensions.Logging`. Under a host it uses whatever the application already
-configured, and there is nothing to do. A console application like this one has no container of its own
-to configure, so it tells Quartz where to log by handing `LogProvider` a logger factory — before building
-the scheduler, since that is when the loggers are created.
+Quartz logs through `Microsoft.Extensions.Logging`. Under a host it uses the application's logging with
+no setup. A console application without a container hands `LogProvider` a logger factory, before
+building the scheduler, since that is when the loggers are created.
 
-`AddSimpleConsole` is a console *provider*, which lives in its own package and is not one of Quartz's
-dependencies:
+`AddSimpleConsole` is in its own package:
 
 ```shell
 dotnet add package Microsoft.Extensions.Logging.Console
@@ -393,7 +367,7 @@ LogProvider.SetLogProvider(loggerFactory);
 
 ## Trying out the application and adding jobs
 
-Now starting the application says considerably more:
+Starting the application now logs:
 
 ```log
 12:51:10 info: Quartz.Core.QuartzScheduler[0] Quartz Scheduler created
@@ -404,21 +378,8 @@ Now starting the application says considerably more:
 12:51:10 info: Quartz.Core.QuartzScheduler[0] Scheduler MyScheduler_$_NON_CLUSTERED started.
 ```
 
-We need a simple test job to try the scheduler out; let's create a HelloJob that greets the console.
-
-<!-- snippet: sample_quick_start_job -->
-```csharp
-public sealed class HelloJob : IJob
-{
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
-    {
-        await Console.Out.WriteLineAsync("Greetings from HelloJob!");
-    }
-}
-```
-<!-- endSnippet -->
-
-To do something interesting, add code just after `Start()`, before the `Task.Delay`:
+Using the `HelloJob` from [above](#in-an-application-with-a-host), add this just after `Start()`, before
+the `Task.Delay`:
 
 <!-- snippet: sample_quick_start_scheduling -->
 ```csharp
@@ -443,7 +404,7 @@ await scheduler.ScheduleJob(job, trigger);
 ```
 <!-- endSnippet -->
 
-The complete console application now looks like this:
+The complete console application:
 
 ```csharp
 using Microsoft.Extensions.Logging;
@@ -496,11 +457,11 @@ public sealed class HelloJob : IJob
 
 ## Creating and initializing the database
 
-To use SQL persistence, and features such as clustering that depend on it, create a database for Quartz.
-Its tables and indexes can then either be created by the scheduler or created by you.
+SQL persistence, and features that depend on it such as clustering, need a database for Quartz. The
+scheduler can create the tables and indexes, or you can.
 
-The quickest way to a working database is to let the store do it. `ProvisionSchema()` runs the DDL for
-whichever database you named, creating whatever is missing before the scheduler starts:
+**Let the store create them.** `ProvisionSchema()` runs the DDL for the configured database and creates
+whatever is missing before the scheduler starts:
 
 <!-- snippet: sample_quick_start_provision_schema -->
 ```csharp
@@ -512,24 +473,25 @@ q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-It only ever creates: nothing is dropped and nothing is altered, so it is safe against a database that
-already has the tables, and a second node starting at the same time is fine. It is equally **not** an
-upgrade — a schema built by an earlier Quartz version is moved forward by the migration scripts, not by
-this. It is off by default because creating tables needs a permission a production database is usually
-right not to grant; when the account has none, startup fails naming the script to run instead.
+* It only creates; it never drops or alters. It is safe against a database that already has the
+  tables, and with a second node starting at the same time.
+* It is not an upgrade. A schema from an earlier Quartz version is moved forward by the migration
+  scripts.
+* It is off by default, because creating tables needs a permission production databases usually do not
+  grant. Without that permission, startup fails and names the script to run.
 
-Running that script yourself is the other way, and the one production usually wants. The DDL is in
-[the Quartz.NET repository](https://github.com/quartznet/quartznet/tree/main/database/tables), one file per
-database. Each one drops an existing Quartz schema before it recreates it; the header of every script
-says how to turn that off. Upgrading a schema created by an earlier version is a different script — see
-[Database Schema Changes](../database/schema-changes.md). What the tables hold, and why one route is
-automatic and the other is not, is described in [Database Schema](db/); the setting behind the first,
-and which databases can use it, is in [Creating the schema](tutorial/job-stores.md#creating-the-schema).
+**Run the script yourself** — what production usually wants. The DDL is in
+[the Quartz.NET repository](https://github.com/quartznet/quartznet/tree/main/database/tables), one file
+per database. Each script drops an existing Quartz schema before recreating it; its header says how to
+turn that off. To upgrade a schema from an earlier version, see
+[Database Schema Changes](../database/schema-changes.md). [Database Schema](db/) describes the tables,
+and [Creating the schema](tutorial/job-stores.md#creating-the-schema) covers the setting and which
+databases support it.
 
 ## Something to run
 
-The repository carries a console tour: thirteen small programs, each of which schedules something,
-starts a scheduler and then waits while it fires, so the thing being taught happens in front of you.
+The repository has a console tour: thirteen small programs, each of which schedules something, starts a
+scheduler and waits while it fires.
 
 ```shell
 git clone https://github.com/quartznet/quartznet.git
@@ -537,7 +499,8 @@ cd quartznet
 dotnet run --project src/Quartz.Examples
 ```
 
-Pick one from the menu, or name it — `-- 5` runs the misfire example. What each one shows is listed in
-[the tour's readme](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Examples/README.md).
+Pick one from the menu, or name it — `-- 5` runs the misfire example.
+[The tour's readme](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Examples/README.md) lists
+what each one shows.
 
-Now go have some fun exploring Quartz.NET. Continue with [the tutorial](tutorial/).
+Continue with [the tutorial](tutorial/).

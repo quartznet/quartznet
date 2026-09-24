@@ -4,13 +4,9 @@ title: 'Multi-Tenancy'
 
 # Multi-Tenancy
 
-Quartz has no `Tenant` concept, and it is not going to get one. What it has instead are three
-separations you can build one out of — a scheduler, a group, and a `SCHED_NAME` — and this page is
-about picking the right one and knowing exactly what it does and does not isolate.
-
-If you have not yet chosen a model, read [Tenancy Patterns](../tenancy-patterns.md) first: it surveys
-how other schedulers partition tenants and names the axes that decide. This page is the 4.x
-mechanics.
+Quartz has no `Tenant` concept and will not get one. Build tenancy from three separations: a scheduler,
+a group, or a `SCHED_NAME` (with an optional table prefix). [Tenancy Patterns](../tenancy-patterns.md)
+compares how other schedulers partition tenants, and which factors decide between the models.
 
 ## Choosing a model
 
@@ -25,20 +21,18 @@ mechanics.
 | **Cost per tenant** | a scheduling loop, a connection pool, a thread pool | ~nothing | a schema |
 | **Fits** | tens of tenants, strong isolation needs | hundreds or thousands of tenants | regulatory separation of data |
 
-They compose. The common shape for a SaaS with many small tenants is *one* scheduler, groups per
-tenant, one database — and a second scheduler for the handful of tenants that bought isolation.
+The models compose. A common SaaS shape: *one* scheduler with a group per tenant and one database, plus a
+second scheduler for the few tenants that bought isolation.
 
-The question that usually decides it is no longer "can a tenant appear while the process is running?" —
-[`ISchedulerRuntime`](#adding-a-tenant-while-the-process-is-running) adds one to a container that has
-already been built. What decides it is **cost per tenant**: the scheduler-per-tenant model gives each
-tenant a scheduling loop, a thread pool and — with a persistent store — a connection pool and a cluster
-check-in, which is fine for tens of tenants and not for thousands, however they arrive.
+**Cost per tenant usually decides.** A scheduler per tenant gives each one a scheduling loop, a thread
+pool and, with a persistent store, a connection pool and a cluster check-in: fine for tens of tenants, not
+for thousands. Whether tenants appear at runtime no longer decides it:
+[`ISchedulerRuntime`](#adding-a-tenant-while-the-process-is-running) adds one to a built container.
 
 ## Scheduler per tenant
 
 `AddQuartz(name, …)` registers a named scheduler. The name is its instance name, the key its components
-are registered under, and the name of its options — so its registrations and its configuration always
-agree.
+are registered under, and the name of its options, so registrations and configuration always agree.
 
 <!-- snippet: sample_tenancy_scheduler_per_tenant -->
 ```csharp
@@ -61,27 +55,21 @@ builder.Services.AddQuartzHostedService(o => o.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
-One `AddQuartzHostedService` starts them all. Calling the named overload —
-`AddQuartzHostedService(tenant, o => …)` — configures *that* scheduler's start options and still
-registers only one hosted service; two would each start every scheduler in the container.
+One `AddQuartzHostedService` starts them all. The named overload, `AddQuartzHostedService(tenant, o => …)`,
+configures *that* scheduler's start options and still registers only one hosted service; two would each
+start every scheduler in the container.
 
 ### Starting and stopping all of them
 
-The hosted service builds every scheduler in the container while the host starts, and then starts
-them: immediately under `AwaitApplicationStarted = false`, and otherwise — which is the default —
-once `ApplicationStarted` fires. So a tenant's scheduler exists before the application runs and is
-firing shortly after it does.
+The hosted service builds every scheduler while the host starts, then starts them: immediately under
+`AwaitApplicationStarted = false`, otherwise (the default) once `ApplicationStarted` fires.
 
-Two things about that follow the tenant count rather than the code:
-
-- **A start that fails takes the tenants already created down with it.** The schedulers built before
-  the failure are already bound to the repository, so the hosted service shuts them down before it
-  rethrows rather than leaving them running with nothing left to stop them.
-- **Shutdown is one deadline for every tenant, not one each.** The schedulers are shut down
-  concurrently, so `HostOptions.ShutdownTimeout` bounds the whole set — with
-  `WaitForJobsToComplete = true` the host waits as long as the slowest tenant's jobs take, not as long
-  as all of them added together. Each scheduler owns its own thread pool, job store and scheduler
-  thread, so there is nothing for them to serialize behind.
+- **A failed start stops the tenants already created.** Schedulers built before the failure are already
+  bound to the repository, so the hosted service shuts them down before it rethrows.
+- **Shutdown is one deadline for all tenants.** Schedulers shut down concurrently, so
+  `HostOptions.ShutdownTimeout` bounds the whole set. With `WaitForJobsToComplete = true` the host waits
+  for the slowest tenant's jobs, not the sum. Each scheduler has its own thread pool, job store and
+  scheduler thread, so nothing serializes them.
 
 ### Injecting one
 
@@ -100,38 +88,31 @@ IScheduler scheduler = provider.GetRequiredKeyedService<IScheduler>(tenant);
 <!-- endSnippet -->
 
 ::: warning
-The unkeyed `IScheduler` is **the default scheduler** — the one registered by `AddQuartz(q => …)` with
-no name. In a container holding only named schedulers there is no unkeyed registration at all, and
-`GetRequiredService<IScheduler>()` throws. Resolve by key, or register a default scheduler as well.
+The unkeyed `IScheduler` is **the default scheduler**, registered by `AddQuartz(q => …)` with no name. A
+container with only named schedulers has no unkeyed registration, and `GetRequiredService<IScheduler>()`
+throws. Resolve by key, or also register a default scheduler.
 :::
 
-Trying to give a named scheduler and the default scheduler the same name is caught at registration:
-`AddQuartz(o => o.InstanceName = "acme")` beside `AddQuartz("acme", …)` fails with a message naming both
-calls, rather than as a duplicate-name `ArgumentException` from somewhere inside host start.
+Giving a named scheduler and the default scheduler the same name fails at registration:
+`AddQuartz(o => o.InstanceName = "acme")` beside `AddQuartz("acme", …)` throws with a message naming both
+calls, not a duplicate-name `ArgumentException` during host start.
 
 ::: warning A scheduler name is compared two different ways
-Not one, and knowing which is which saves an afternoon:
 
-- **Case-insensitive**: the duplicate-name check, and every `ISchedulerRepository` lookup. So
-  `AddQuartz("Acme", …)` beside `AddQuartz("acme", …)` is refused as one name, `repository.Lookup("acme")`
-  finds the scheduler registered as `Acme`, and so does the HTTP API route `…/schedulers/acme/…`, which
-  resolves through that repository.
-- **Ordinal**: keyed resolution out of the container, and named options. So for a scheduler registered
-  as `Acme`, `GetRequiredKeyedService<IScheduler>("acme")` throws — the container compares service keys
-  by equality, and string equality is ordinal — and `Configure<QuartzOptions>("acme", …)` configures
-  nothing, because the options framework matches instance names ordinally too.
+- **Case-insensitive**: the duplicate-name check and every `ISchedulerRepository` lookup. `AddQuartz("Acme", …)`
+  beside `AddQuartz("acme", …)` is refused as one name, and `repository.Lookup("acme")` finds `Acme`, as
+  does the HTTP API route `…/schedulers/acme/…`, which resolves through the repository.
+- **Ordinal**: keyed resolution and named options. For a scheduler registered as `Acme`,
+  `GetRequiredKeyedService<IScheduler>("acme")` throws (service keys compare by equality, and string
+  equality is ordinal), and `Configure<QuartzOptions>("acme", …)` configures nothing.
 
-Neither comparison is wrong for what it does; they are simply different, and only the first one is
-forgiving. Spell the name once, put it in a constant, and use that constant everywhere.
+Spell the name once, in a constant, and use it everywhere.
 :::
 
 ### Listing them
 
-`ISchedulerFactory.GetAllSchedulers()` lists the schedulers something has already *created*. Under this
-model that is the wrong question: a tenant nobody has asked for yet is still a tenant, and building every
-one of them to find out what exists is exactly the cost you were avoiding.
-
-`ISchedulerRegistry` reads the registrations instead:
+`ISchedulerFactory.GetAllSchedulers()` lists only schedulers already *created*, and building every tenant
+to find out what exists is the cost this model avoids. `ISchedulerRegistry` reads the registrations:
 
 <!-- snippet: sample_tenancy_scheduler_registry -->
 ```csharp
@@ -144,82 +125,70 @@ foreach (SchedulerRegistration tenant in await registry.QuerySchedulers())
 ```
 <!-- endSnippet -->
 
-`Status` is `null` when no scheduler exists under that name, and asking does not build one. A scheduler
-that has been *shut down* reads as `null` too rather than as `Shutdown`, because the repository drops a
-shut-down scheduler as soon as a read notices it — and a shut-down scheduler cannot be rebuilt in the same
-container anyway, so "not yet" and "not any more" are the same answer here: not a name you can get a
-working scheduler out of. A scheduler whose state cannot be read at all — a remote one from
-`AddQuartzHttpClient`, when the other process is unreachable — is reported as `SchedulerStatus.Unknown`
-rather than dropped from the listing or allowed to throw: an inventory of tenants is exactly the call
-that must not fail because one of them is down.
+- `Status` is `null` when no scheduler exists under that name; asking does not build one.
+- A *shut-down* scheduler also reads `null`, not `Shutdown`: the repository drops it on the next read,
+  and it cannot be rebuilt in the same container.
+- A scheduler whose state cannot be read, such as an unreachable remote one from `AddQuartzHttpClient`,
+  is `SchedulerStatus.Unknown`; the listing neither drops it nor throws.
 
 `Origin` says where the scheduler came from:
 
 | `Origin` | What it is |
 |---|---|
 | `Container` | One `AddQuartz` registered. The default scheduler appears under its configured `InstanceName` |
-| `Runtime` | One in the repository with no registration behind it — a `QuartzSchedulerBuilder` scheduler bound by hand, or one [added while the process was running](#adding-a-tenant-while-the-process-is-running) |
-| `Remote` | One reached through a proxy: an `HttpScheduler` from `AddQuartzHttpClient`. Nothing in this process runs it, its history is kept where it runs, and this process has no live event stream from it |
+| `Runtime` | In the repository with no registration: a `QuartzSchedulerBuilder` scheduler bound by hand, or one [added while the process was running](#adding-a-tenant-while-the-process-is-running) |
+| `Remote` | An `HttpScheduler` from `AddQuartzHttpClient`. Runs in another process, keeps its history there, and has no live event stream here |
 
-`Remote` is what tells a reader that an action on that scheduler lands in somebody else's process. It
-was reported as `Runtime` before 4.1, which said only that no registration of this container owned it.
+Before 4.1, `Remote` schedulers were reported as `Runtime`.
 
-Under `AddQuartzHostedService()` every registration is *built* while the host starts, so once the host is
-up the distinction matters less than it looks. It matters while the host is still starting, when you
-resolve schedulers yourself, when a start failed, and whenever you want an inventory rather than a list
-of live objects.
+Under `AddQuartzHostedService()` every registration is built during host start, so registered-but-not-built
+matters while the host is starting, when you resolve schedulers yourself, after a failed start, and for
+an inventory.
 
-The dashboard and the HTTP API read the same registry, so a tenant nothing has built is listed by both.
-`GET {ApiPath}/schedulers` reports it with a `null` status and no instance id, and the dashboard's
-**Schedulers** page at `/quartz/schedulers` gives it a row saying **not created** — beside, for every
-tenant that does exist, what its job store and thread pool are, when it started, how many jobs it has
-executed and how many nodes it has. The header's scheduler picker offers it too, greyed out.
+The dashboard and the HTTP API read the same registry, so both list tenants nothing has built:
+
+- `GET {ApiPath}/schedulers` reports one with a `null` status and no instance id.
+- The dashboard's **Schedulers** page at `/quartz/schedulers` shows it as **not created**; for tenants
+  that exist it shows the job store, thread pool, start time, jobs executed and node count. The header's
+  scheduler picker lists it greyed out.
 
 ::: warning A tenant's own routes still resolve through the repository
-The listing is the one read that goes through the registry. Everything addressed *at* a scheduler —
-`GET {ApiPath}/schedulers/acme`, its jobs, its triggers — resolves through `ISchedulerRepository`, which
-holds the schedulers something has already built, so those routes answer `404` for a tenant nothing has
-created. Not because the name is unknown: the listing is where you see that it is not. Under
-`AddQuartzHostedService()` that window closes as the host starts; outside it — a scheduler resolved
-lazily, or one whose start failed — it stays open.
+Only the listing reads the registry. Routes addressed *at* a scheduler — `GET {ApiPath}/schedulers/acme`,
+its jobs, its triggers — resolve through `ISchedulerRepository`, which holds built schedulers only, so
+they answer `404` for a tenant nothing has created. Under `AddQuartzHostedService()` that window closes as
+the host starts; for a lazily resolved scheduler or a failed start it stays open.
 :::
 
 ### What is per scheduler
 
-Almost everything. Each named scheduler gets its own keyed registration of the job factory, the
-signaler, the thread pool, the job store, the driver delegate, the object serializer, the instance-id
-generator, the scheduler itself and its factory — plus its own listeners, plugins, calendars, jobs and
-triggers.
+Almost everything. Each named scheduler has its own keyed job factory, signaler, thread pool, job store,
+driver delegate, object serializer, instance-id generator, scheduler and factory, plus its own listeners,
+plugins, calendars, jobs and triggers.
 
-::: warning Listeners and plugins are not symmetrical about the unkeyed registration
-A listener and a plugin are both "registered per scheduler", and they treat a plain
-`IServiceCollection` registration in opposite ways.
+::: warning Listeners and plugins treat an unkeyed registration differently
 
-- **An unkeyed `ISchedulerListener`, `IJobListener` or `ITriggerListener` service reaches every
-  scheduler in the container.** A scheduler unions the unkeyed listener services with the ones keyed to
-  it, so `services.AddSingleton<IJobListener, AuditListener>()` is a container-wide listener — not the
-  default scheduler's. Keyed registrations belong to the scheduler they name.
-- **An unkeyed `ISchedulerPlugin` service reaches only the default scheduler.** A named scheduler reads
-  the plugins keyed to it and nothing else, and [the properties probe](#plugins-named-by-properties) has
-  no unkeyed fallback either.
+- **An unkeyed `ISchedulerListener`, `IJobListener` or `ITriggerListener` reaches every scheduler.** A
+  scheduler combines the unkeyed listener services with those keyed to it, so
+  `services.AddSingleton<IJobListener, AuditListener>()` is container-wide, not the default scheduler's.
+  Keyed registrations belong to the scheduler they name.
+- **An unkeyed `ISchedulerPlugin` reaches only the default scheduler.** A named scheduler reads only the
+  plugins keyed to it, and [the properties probe](#plugins-named-by-properties) has no unkeyed fallback.
 
-The asymmetry is the difference between a listener, which is told which scheduler it is hearing from on
-every callback, and a plugin, which is *bound* to one when it is initialized. So several schedulers
-cannot share a plugin instance; each needs its own, and
-[`ConfigureAllQuartzSchedulers`](#giving-every-scheduler-the-same-thing) is how to ask for that once.
+A listener is told on every callback which scheduler is calling; a plugin is *bound* to one scheduler
+when initialized. So schedulers cannot share a plugin instance; use
+[`ConfigureAllQuartzSchedulers`](#giving-every-scheduler-the-same-thing) to give each its own.
 :::
 
-Options are **named options** whose name is the scheduler's name, and the container rewrites
-`IOptions<T>` for a scheduler's own components so that `.Value` means *that* scheduler's settings.
-Quartz's own option types — `QuartzSchedulerOptions`, `ThreadPoolOptions`, `InMemoryJobStoreOptions`,
-`AdoJobStoreOptions`, `ClusteringOptions` and `QuartzOptions` — are declared that way once, in the
-container; every other options type opts in by being *declared*, which is what
-`ConfigureOptions<TOptions>()` does. That is also how `JobFactoryOptions` becomes per-scheduler:
-`ConfigureJobScope(…)` is a `ConfigureOptions<JobFactoryOptions>` call, so the declaration arrives with
-the hook rather than being built in. `AddPlugin<T, TOptions>()` does the same for a plugin's own
-options type.
+Options are **named options** under the scheduler's name, and the container rewrites `IOptions<T>` for
+the scheduler's own components so `.Value` is *that* scheduler's settings.
 
-A clock is per scheduler too, when you set one:
+- Quartz's option types — `QuartzSchedulerOptions`, `ThreadPoolOptions`, `InMemoryJobStoreOptions`,
+  `AdoJobStoreOptions`, `ClusteringOptions` and `QuartzOptions` — are declared that way by the container.
+- Any other options type opts in by being declared with `ConfigureOptions<TOptions>()`.
+  `ConfigureJobScope(…)` is a `ConfigureOptions<JobFactoryOptions>` call, which makes `JobFactoryOptions`
+  per scheduler. `AddPlugin<T, TOptions>()` does the same for a plugin's options type.
+
+A clock is per scheduler when you set one:
 
 <!-- snippet: sample_tenancy_time_provider -->
 ```csharp
@@ -227,16 +196,14 @@ builder.Services.AddQuartz("acme", q => q.UseTimeProvider(acmeClock));
 ```
 <!-- endSnippet -->
 
-A scheduler with no clock of its own inherits the container's, which is what lets an application-wide
-`TimeProvider` reach all of them without being told about each.
+A scheduler with no clock inherits the container's, so an application-wide `TimeProvider` reaches every
+scheduler.
 
 ### Job types
 
-`AddJob<T>` registers the job type with the container so that a dependency it cannot be given is
-reported when the container is validated. That registration is unkeyed and `TryAdd`, which is right for
-one scheduler and not enough for several: the first registration would be what every scheduler got.
-
-`AddJobType` gives one scheduler its own:
+`AddJob<T>` registers the job type with the container, unkeyed and with `TryAdd`, so a missing dependency
+is reported when the container is validated. With several schedulers, the first registration is what
+every scheduler gets. `AddJobType` gives one scheduler its own:
 
 <!-- snippet: sample_tenancy_job_types -->
 ```csharp
@@ -251,24 +218,19 @@ builder.Services.AddQuartz("acme", q =>
 ```
 <!-- endSnippet -->
 
-The job factory looks for this scheduler's registration first and falls back to the container's, so a
-scheduler given nothing of its own resolves what the container holds and the default scheduler — which
-has no service key — resolves in one lookup as it always has.
+The job factory looks for the scheduler's registration first, then the container's. The default
+scheduler has no service key and resolves in one lookup.
 
-Two things worth knowing before reaching for it:
-
-- The lifetime the job factory is built around is **scoped**: a scope is opened per fire, the job is
-  resolved from it, and the scope is disposed when the job returns. `ServiceLifetime.Singleton` means
-  one instance serves every fire of that job on that scheduler, so it must be thread-safe and must not
-  capture scoped dependencies.
-- A job type per tenant is usually the wrong shape at more than a handful of tenants. One job type that
-  reads its tenant from the firing and resolves what it needs — by key, if you like — inside `Execute`
-  scales where a registration per tenant does not.
+- The job factory is built around **scoped** lifetime: a scope per fire, the job resolved from it, the
+  scope disposed when the job returns. `ServiceLifetime.Singleton` means one instance serves every fire
+  of that job on that scheduler, so it must be thread-safe and must not capture scoped dependencies.
+- Past a handful of tenants, prefer one job type that reads its tenant from the firing and resolves what
+  it needs (by key, if you like) inside `Execute` over a job type per tenant.
 
 ### Plugins named by properties
 
-A `quartz.plugin.<name>.*` entry is read from the property bag of the scheduler it was configured on,
-so two tenants each configuring a scheduling-data plugin get two instances with their own files:
+A `quartz.plugin.<name>.*` entry is read from the property bag of its own scheduler, so two tenants each
+configuring a scheduling-data plugin get two instances with their own files:
 
 <!-- snippet: sample_tenancy_plugin_by_properties -->
 ```csharp
@@ -280,22 +242,22 @@ builder.Services.AddQuartz("acme", new NameValueCollection
 ```
 <!-- endSnippet -->
 
-Before the instance is built, the container is asked whether that type is registered as a service —
-and that question is asked **under this scheduler's key**. So a named scheduler gets the registration
-made for it, an unkeyed registration belongs to the default scheduler, and a scheduler with no
-registration of its own gets a fresh instance built from its own properties. There is deliberately no
-fallback from one scheduler's key to the unkeyed registration: a plugin is told which scheduler it
-extends when it is initialized, so handing one instance to two schedulers means the second
-initialization overwrites the first.
+Before building the instance, Quartz asks the container whether the type is registered **under this
+scheduler's key**:
 
-To give a named scheduler a plugin instance you built yourself, register it under that scheduler —
-`q.AddPlugin<T>(provider => …)` — rather than unkeyed on `IServiceCollection`.
+- a named scheduler gets the registration made for it;
+- an unkeyed registration belongs to the default scheduler;
+- a scheduler with no registration gets a fresh instance built from its own properties.
+
+There is no fallback from a scheduler's key to the unkeyed registration: a plugin is told its scheduler
+when initialized, so one instance given to two schedulers is overwritten by the second initialization. To
+give a named scheduler a plugin you built, register it under that scheduler with
+`q.AddPlugin<T>(provider => …)`, not unkeyed on `IServiceCollection`.
 
 ### Giving every scheduler the same thing
 
-Writing the same three lines inside every `AddQuartz(tenant, …)` is what a `foreach` over the tenants
-saves you, right up until the tenants come from configuration and the loop is not yours to write.
-`ConfigureAllQuartzSchedulers` applies one configuration callback to every scheduler in the container:
+`ConfigureAllQuartzSchedulers` applies one configuration callback to every scheduler in the container —
+useful when tenants come from configuration and there is no loop of yours to put the lines in:
 
 <!-- snippet: sample_tenancy_configure_all -->
 ```csharp
@@ -311,72 +273,57 @@ builder.Services.ConfigureAllQuartzSchedulers(q =>
 ```
 <!-- endSnippet -->
 
-Four things it promises:
+- **Order does not matter.** It runs after each scheduler's own callback, whether that scheduler was
+  registered before or after this call, so a package can use it without knowing when schedulers are
+  registered.
+- **Precedence:** registration is first-wins, so a job store or thread pool a tenant chose stays; options
+  are last-wins, so a value set here overrides a tenant's, as `ConfigureAll<TOptions>` overrides a named
+  `Configure`.
+- **Each scheduler gets its own instance** of what the callback adds, under its key: a plugin added to
+  three schedulers is three instances, each initialized with its scheduler's name.
+- **It reaches `AddQuartz()`, `AddQuartz(name, …)` and `AddQuartzSchedulers(…)`**, not remote schedulers
+  from `AddQuartzHttpClient`, which have no builder in this process. With no scheduler registered it
+  applies to nothing, without error.
 
-- **Order does not matter.** It runs after each scheduler's own configuration callback either way: a
-  scheduler registered before this call is configured here, one registered after it is configured by its
-  own `AddQuartz`, and both get it *after* their own callback. So a scheduler's own configuration is
-  what a shared callback refines whichever order the two calls were written in — which is the point,
-  since a package that adds something to every scheduler cannot know when the application registers its
-  schedulers.
-- **The usual precedence follows from that.** Registration is first-wins, so a job store or thread pool
-  a tenant chose for itself is not replaced by one chosen here; options are last-wins, so a value set
-  here overrides the same option set on one tenant, exactly as `ConfigureAll<TOptions>` overrides an
-  earlier named `Configure`.
-- **Every scheduler gets its own instance of whatever the callback adds.** The delegate is handed a
-  builder *per scheduler*, so what it registers lands under that scheduler's key: a plugin added this
-  way to three schedulers is three plugin instances, each initialized with the name of the scheduler it
-  extends — which is exactly what a plugin registered unkeyed cannot be.
-- **It reaches `AddQuartz()`, `AddQuartz(name, …)` and `AddQuartzSchedulers(…)` alike**, because all
-  three register a builder. Remote schedulers from `AddQuartzHttpClient` are skipped: they live in
-  another process, so there is no builder here to configure and nothing this callback adds could reach
-  them. Calling it when no scheduler is registered at all is not an error — the delegate applies to
-  nothing.
-
-It is the options pattern's `ConfigureAll` for schedulers, and it is how `AddQuartzDashboard` gives
-every scheduler the dashboard's own plugins rather than only the default one — which is what stops a
-named scheduler's live view and history pages from being permanently empty. The [migration
-guide](migration-guide.md#every-scheduler-in-the-container-can-be-configured-at-once) states the same
-rules for a reader arriving from 3.x.
+`AddQuartzDashboard` uses it to give every scheduler the dashboard's plugins, without which a named
+scheduler's live view and history pages stay empty. See also the
+[migration guide](migration-guide.md#every-scheduler-in-the-container-can-be-configured-at-once).
 
 ### What is not
 
-A handful of things are container-wide, shared by every scheduler in the process:
+Shared by every scheduler in the process:
 
 | | |
 |---|---|
-| `ITypeLoader` | type loading is a container-wide concern; `UseTypeLoader<T>()` **replaces** it for everyone, and the renames `UseTypeLoader(configure)` declares are in force for everyone |
-| `ISchedulerRepository` | one per container — that is what makes `GetAllSchedulers` and the dashboard see all of them |
-| `ISchedulerRegistry` | one per container — it answers for every registration in it, which is what makes it an inventory rather than a scheduler's own view |
-| `IJobExecutionContextAccessor` | one per container, and the firing it reports is a property of the asynchronous flow rather than of a scheduler — a flow is inside at most one firing, whichever scheduler started it |
-| `SystemTextJsonSerializerRegistry` | one per container by default — the HTTP API and the HTTP client serialize triggers without knowing which scheduler they came from. A named scheduler *can* be given its own, see below |
+| `ITypeLoader` | `UseTypeLoader<T>()` **replaces** it for all schedulers, and the renames `UseTypeLoader(configure)` declares apply to all |
+| `ISchedulerRepository` | one per container, so `GetAllSchedulers` and the dashboard see every scheduler |
+| `ISchedulerRegistry` | one per container; it answers for every registration in it |
+| `IJobExecutionContextAccessor` | one per container; the firing it reports belongs to the asynchronous flow, which is inside at most one firing |
+| `SystemTextJsonSerializerRegistry` | one per container by default, since the HTTP API and client serialize triggers without knowing their scheduler. A named scheduler *can* have its own — see below |
 | `Meters` | built from the container's `IMeterFactory` |
-| `DataSourceOptions` | named after the **data source**, not the scheduler, so several schedulers can read through the same one |
-| `QuartzHttpApiOptions`, `QuartzDashboardOptions` | one of each per process: they describe the surfaces, and every scheduler is reached through them. *Which* schedulers a caller reaches is per scheduler — see [Authorizing a tenant on its own scheduler](#authorizing-a-tenant-on-its-own-scheduler) — but what they may do once there is not |
+| `DataSourceOptions` | named after the **data source**, not the scheduler, so several schedulers can share one |
+| `QuartzHttpApiOptions`, `QuartzDashboardOptions` | one each per process. *Which* schedulers a caller reaches is per scheduler — see [Authorizing a tenant on its own scheduler](#authorizing-a-tenant-on-its-own-scheduler) — but what they may do there is not |
 
-Logging is one per container rather than one per scheduler: every scheduler's parts are injected the
-container's `ILoggerFactory`, and a line says which tenant wrote it through the logging scope the
-scheduling loop opens — `quartz.scheduler.name` and `quartz.scheduler.id`, the same attribute names the
-traces and the measurements use. Filter or enrich on those rather than looking for a logger per tenant.
+**Logging** is per container. Every scheduler's parts get the container's `ILoggerFactory`; a log line
+names its tenant through the scope the scheduling loop opens, `quartz.scheduler.name` and
+`quartz.scheduler.id` — the attribute names traces and metrics use. Filter or enrich on those.
 
-And one thing that is not a container service at all: **`LogProvider`** is process-wide static state.
-`SetLogProvider(loggerFactory)` sets it for everything in the process, deliberately. It no longer has
-anything to do with whether a scheduler logs; what it reaches is the types no container builds — a
+**`LogProvider`** is process-wide static state: `SetLogProvider(loggerFactory)` sets it for the whole
+process. It does not decide whether a scheduler logs; it reaches the types no container builds — a
 listener or trigger you constructed, the static helpers, the jobs in `Quartz.Jobs`.
 
-The serializer registry is the one row in that table with a way out. A named scheduler resolves its
-registry by key and falls back to the container's, so `services.AddKeyedSingleton(schedulerName, registry)`
-— or the per-store `UseSystemTextJsonSerializer(json => …)` callback, which is the same thing — gives one
-tenant its own custom trigger and calendar serializers. What that changes is what *that scheduler's job
-store* persists and reads. Everything that serializes without a scheduler in hand — the HTTP API's
-responses, the dashboard, `Quartz.HttpClient` — still reads the container's registry, so a custom type
-those must render has to be registered there as well. See
+**The serializer registry** can be per scheduler. A named scheduler resolves its registry by key and
+falls back to the container's, so `services.AddKeyedSingleton(schedulerName, registry)`, or the per-store
+`UseSystemTextJsonSerializer(json => …)` callback, gives one tenant its own trigger and calendar
+serializers. That changes what *that scheduler's job store* persists and reads. The HTTP API responses,
+the dashboard and `Quartz.HttpClient` still read the container's registry, so register a custom type
+they must render there too. See
 [System.Text.Json serialization](packages/system-text-json.md#making-custom-serializers-visible-outside-the-job-store).
 
 ### Health checks per tenant
 
-`AddQuartzHealthChecks` called on a *scheduler's* builder checks that scheduler, and defaults its name
-to `quartz-scheduler-<scheduler name>` so several can be registered side by side:
+`AddQuartzHealthChecks` on a *scheduler's* builder checks that scheduler, named
+`quartz-scheduler-<scheduler name>` by default so several can coexist:
 
 <!-- snippet: sample_tenancy_health_checks -->
 ```csharp
@@ -384,15 +331,16 @@ builder.Services.AddQuartz("acme", q => q.AddQuartzHealthChecks(o => o.Tags.Add(
 ```
 <!-- endSnippet -->
 
-Called on `IServiceCollection` instead, it checks the default scheduler only.
+From the health-checks builder, `services.AddHealthChecks().AddQuartz("acme")` checks one named
+scheduler and `AddQuartz()` checks the default one.
 
 ### Authorizing a tenant on its own scheduler
 
 `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` and `QuartzDashboardOptions.SchedulerAuthorizationPolicy`
-each name a policy that is evaluated once per request against the scheduler that request is for. Quartz
-supplies the resource — a `SchedulerResource` carrying the scheduler's name — and the application writes
-the handler. This is ASP.NET Core's own resource-based authorization rather than anything Quartz invented,
-so there is no callback type to implement and no claim name Quartz decides for you:
+each name a policy evaluated once per request against the scheduler the request is for. Quartz supplies
+the resource, a `SchedulerResource` carrying the scheduler's name; the application writes the handler.
+This is ASP.NET Core's resource-based authorization, so there is no Quartz callback type and no claim
+name Quartz picks for you:
 
 <!-- snippet: sample_tenancy_scheduler_authorization_handler -->
 ```csharp
@@ -422,7 +370,7 @@ public sealed class SchedulerOwnerHandler : AuthorizationHandler<SchedulerOwnerR
 ```
 <!-- endSnippet -->
 
-Register the policy, the handler, and the two options — one handler answers for both surfaces:
+Register the policy, the handler and the two options; one handler serves both surfaces:
 
 <!-- snippet: sample_tenancy_scheduler_authorization -->
 ```csharp
@@ -438,27 +386,31 @@ builder.Services.AddQuartzDashboard(options => options.SchedulerAuthorizationPol
 ```
 <!-- endSnippet -->
 
-**On the HTTP API**, every route that carries `{schedulerName}` is checked before the scheduler is looked
-up, so a caller who fails is answered `403` with problem details and cannot tell "not yours" from "no such
-scheduler": a `404` only ever answers a name the caller was allowed to ask about. `GET {ApiPath}/schedulers`
-names no scheduler, so it filters itself — a tenant is told about its own schedulers and learns nothing
-about the others, registrations included. The check is authorization and never authentication: an
-anonymous caller gets whatever the policy says, which is a `403` when it refuses, so keep
-`RequireAuthorization()` on the mapped group if anonymous callers should be challenged with a `401` first.
+**On the HTTP API:**
 
-**On the dashboard**, the scheduler picker and the Schedulers page offer only the schedulers the visitor
-passes for; a page opened on one they do not renders a "not authorized" frame and reads nothing about that
-scheduler; and the live-events hub refuses to subscribe a connection to its group. It composes with what
-was already there: `AuthorizationPolicy` decides who reaches the dashboard at all, this decides which
-schedulers they see once they are in, and `ReadOnly` still decides what anyone may change. That frame is
-the dashboard's own layout, so read
-[Standalone hosting is where this applies today](packages/dashboard.md#one-scheduler-at-a-time) before
-relying on it in an application that hosts the components under a layout of its own.
+- Every route with `{schedulerName}` is checked before the scheduler is looked up. A caller who fails gets
+  `403` with problem details and cannot tell "not yours" from "no such scheduler"; `404` only answers a
+  name the caller was allowed to ask about.
+- `GET {ApiPath}/schedulers` names no scheduler, so it filters: a tenant sees only its own schedulers,
+  registrations included.
+- The check is authorization, not authentication: an anonymous caller gets whatever the policy says, a
+  `403` when it refuses. Keep `RequireAuthorization()` on the mapped group if anonymous callers should
+  get a `401` challenge first.
 
-Null — the default — is the behaviour every earlier release had, so nothing changes for an application
-that does not set it. Setting it in a container with no authorization services fails at startup rather
-than quietly enforcing nothing; a policy name no `IAuthorizationPolicyProvider` knows fails the way it
-does everywhere else in ASP.NET Core, at the first request that names it.
+**On the dashboard:**
+
+- The scheduler picker and the Schedulers page offer only schedulers the visitor passes for.
+- A page opened on another scheduler renders a "not authorized" frame and reads nothing about it.
+- The live-events hub refuses to subscribe a connection to that scheduler's group.
+- `AuthorizationPolicy` decides who reaches the dashboard at all, this policy which schedulers they see,
+  and `ReadOnly` what anyone may change.
+- The frame is the dashboard's own layout; read
+  [Standalone hosting is where this applies today](packages/dashboard.md#one-scheduler-at-a-time) before
+  relying on it under a layout of your own.
+
+`null` (the default) keeps the behaviour of earlier releases. Setting it in a container with no
+authorization services fails at startup; a policy name no `IAuthorizationPolicyProvider` knows fails, as
+elsewhere in ASP.NET Core, at the first request that uses it.
 
 ## Group per tenant
 
@@ -471,7 +423,7 @@ TriggerKey trigger = new("nightly", tenantId);
 ```
 <!-- endSnippet -->
 
-Everything that takes a matcher then becomes tenant-scoped:
+Everything that takes a matcher is then tenant-scoped:
 
 <!-- snippet: sample_tenancy_group_matchers -->
 ```csharp
@@ -493,11 +445,10 @@ bool suspended = group.Items is [{ Paused: true }];
 ```
 <!-- endSnippet -->
 
-Pause state is real and queryable for both trigger groups and job groups — the ADO store persists a
-paused job group in `QRTZ_PAUSED_JOB_GRPS`, so `QueryJobGroups(new JobGroupQuery { Name = tenantId,
-Take = 1 })` answers for a tenant partitioned by job group just as well. Still suspend by **trigger**
-group where the suspension has to reach work scheduled after it: a paused trigger group starts a later
-trigger paused on either store, where a paused job group does so only in the in-memory one.
+Pause state can be queried for trigger groups and job groups. The ADO store persists a paused job group in
+`QRTZ_PAUSED_JOB_GRPS`, so `QueryJobGroups(new JobGroupQuery { Name = tenantId, Take = 1 })` works for a
+tenant partitioned by job group. On either store, a paused trigger group or a paused job group starts a
+later trigger in it paused.
 
 Listeners take matchers too, so a per-tenant listener is one registration:
 
@@ -509,25 +460,21 @@ q.AddJobListener<AuditListener>(Matchers.Group<JobKey>(StringOperator.Equality, 
 
 ### What the group model does not partition
 
-The matcher reaches everything that takes one — and the two operator surfaces do not take one. **Quartz
-authorizes a scheduler, never a group**: the resource a policy is evaluated against is a
-`SchedulerResource` carrying a scheduler's name, so under this model every tenant's jobs, triggers and
-history are visible to anyone who reaches the dashboard or the HTTP API at all. There is no
-group-shaped equivalent of
+**Quartz authorizes a scheduler, never a group.** A policy is evaluated against a `SchedulerResource`
+carrying a scheduler's name, so under this model every tenant's jobs, triggers and history are visible to
+anyone who reaches the dashboard or the HTTP API. There is no group equivalent of
 [`SchedulerAuthorizationPolicy`](#authorizing-a-tenant-on-its-own-scheduler), and a group matcher in a
-query string is a filter rather than a boundary — a caller can simply pass a different one.
+query string is a filter a caller can change, not a boundary.
 
-If tenants must not see each other on those surfaces, that is the argument for giving them schedulers,
-or for putting your own API in front of Quartz's and never exposing Quartz's to them. It is not an
-argument against the group model for everything else: the isolation the group model *does* give —
-scheduling, pausing, quotas, listeners — is real, and most deployments never expose the dashboard to
-tenants in the first place.
+If tenants must not see each other there, give them schedulers, or put your own API in front of Quartz's
+and never expose Quartz's. Scheduling, pausing, quotas and listeners are still isolated per group, and
+most deployments never expose the dashboard to tenants.
 
 ### Per-tenant concurrency quotas
 
-Execution groups cap how many threads a category of work may use. When the schedule already partitions
-work by trigger group — a tenant per group — the trigger group can stand in for the execution group, so
-a quota is one line per tenant and no change to any trigger:
+Execution groups cap how many threads a category of work may use. When the schedule has a tenant per
+trigger group, the trigger group can stand in for the execution group, so a quota is one line per tenant
+and no trigger changes:
 
 <!-- snippet: sample_tenancy_execution_limits -->
 ```csharp
@@ -539,56 +486,49 @@ q.UseExecutionLimits(limits => limits
 ```
 <!-- endSnippet -->
 
-`ExecutionLimitScope.Cluster` is what makes these quotas rather than capacity settings: the number is
-what every node sharing the job store may run **between them**, counted from the reservations the store
-itself is holding. Leave the scope off and each limit is per node instead, which on a three-node cluster
-means `ForGroup("acme", 8)` allows 24 concurrent Acme jobs. Both scopes are legitimate — node-scoped for
-"this machine can stand eight", cluster-scoped for "this tenant is entitled to eight" — and one set of
-limits can hold both.
+- **`ExecutionLimitScope.Cluster`** makes the number a quota: what every node sharing the job store may
+  run **between them**, counted from the reservations the store holds in `QRTZ_FIRED_TRIGGERS`.
+- **Without a scope**, each limit is per node: on three nodes, `ForGroup("acme", 8)` allows 24 concurrent
+  Acme jobs. Use node scope for "this machine can take eight" and cluster scope for "this tenant is
+  entitled to eight"; one set of limits can mix both.
 
-`UseTriggerGroupWhenUnset()` changes nothing about the data — the trigger still carries no execution
-group, and the store still persists none. It changes only how a limit is looked up. Three consequences:
+`UseTriggerGroupWhenUnset()` changes only how a limit is looked up; the trigger still carries no execution
+group and the store persists none.
 
 - An explicit `ExecutionGroup` on a trigger always wins.
-- `ForDefaultGroup` stops catching anything, because with this on nothing is ungrouped.
-  Unlisted tenants fall under `ForOtherGroups`.
-- Each unlisted group gets **its own** allowance from `ForOtherGroups`, not a shared one. Three unlisted
-  tenants under `ForOtherGroups(1)` can run three jobs, one each.
+- `ForDefaultGroup` catches nothing, because nothing is ungrouped. Unlisted tenants fall under
+  `ForOtherGroups`.
+- Each unlisted group gets **its own** `ForOtherGroups` allowance: three unlisted tenants under
+  `ForOtherGroups(1)` run three jobs, one each.
+- `Unlimited(group)` differs from leaving a group out: an unlisted group falls back to `ForOtherGroups`,
+  an unlimited one does not.
 
-`Unlimited(group)` is not the same as leaving a group out: an unlisted group falls back to
-`ForOtherGroups`, an explicitly unlimited one does not.
-
-Limits can also be changed at runtime with `SetExecutionLimits` / `GetExecutionLimits` — they take
-effect on the next acquisition cycle, and `null` clears them. The call is per node whichever scope the
-limits use: it replaces what *this* scheduler enforces, so a cluster-scoped quota you mean every node to
-honour has to be set on every node, or configured rather than set.
+`SetExecutionLimits` / `GetExecutionLimits` change limits at runtime, from the next acquisition cycle;
+`null` clears them. The call is per node whatever the scope: set a cluster-scoped quota on every node, or
+configure it.
 
 ::: warning What a cluster-scoped quota does and does not promise
-The ceiling holds **within one acquisition round**, and by default acquisition takes no cluster lock, so
-a brief overshoot is possible while several nodes acquire at once — at most `limit + (nodes − 1)`, until
-the losers notice. The lock-free path exists only when a round acquires a single trigger: the ADO store
-takes the `TRIGGER_ACCESS` lock whenever it is asked for more than one, so a node acquiring without the
-lock can add at most one over the ceiling. `AcquireTriggersWithinLock = true` makes it exact and
-serializes acquisition cluster-wide.
 
-It **fails closed**: the quota ledger and the work queue are the same database, so a node that cannot
-reach the store fires nothing at all rather than firing unmetered. Plan for a database outage stopping
-work, not for it removing the ceiling.
-
-A group held at its ceiling for longer than `MisfireThreshold` (one minute by default) feeds its backlog
-into misfire handling. Pair a tight quota with `MisfireInstruction.IgnoreMisfirePolicy` or a larger
-threshold. See [Execution Groups](tutorial/execution-groups.md#clustering-considerations) for the
-full statement.
+- The ceiling holds **within one acquisition round**. Acquisition takes no cluster lock by default, so
+  several nodes acquiring at once can briefly overshoot, to at most `limit + (nodes − 1)`. The lock-free
+  path is only taken when a round acquires one trigger — the ADO store takes the `TRIGGER_ACCESS` lock
+  for more — so each node adds at most one. `AcquireTriggersWithinLock = true` makes it exact and
+  serializes acquisition cluster-wide.
+- It **fails closed**: the quota ledger and the work queue are the same database, so a node that cannot
+  reach the store fires nothing. A database outage stops work; it does not remove the ceiling.
+- A group held at its ceiling longer than `MisfireThreshold` (one minute by default) sends its backlog to
+  misfire handling. Pair a tight quota with `MisfireInstruction.IgnoreMisfirePolicy` or a larger
+  threshold. See [Execution Groups](tutorial/execution-groups.md#clustering-considerations).
 :::
 
 ## Shared database
 
-Every Quartz table has `SCHED_NAME` as the first column of its primary key, and every statement filters
-on it. Two schedulers with different names therefore share tables without seeing each other's rows, and
-that is a property of the schema rather than of the code paths — there is no query that forgets.
+Every Quartz table has `SCHED_NAME` as the first primary-key column, and every statement filters on it.
+Schedulers with different names share tables without seeing each other's rows; this is a property of the
+schema, so no query can forget it.
 
-Table prefix is the other axis. `AdoJobStoreOptions.TablePrefix` (default `QRTZ_`) is a per-scheduler
-option, so two tenants can have entirely separate table *sets* in one database:
+`AdoJobStoreOptions.TablePrefix` (default `QRTZ_`) is per scheduler, so two tenants can have separate
+table *sets* in one database:
 
 <!-- snippet: sample_tenancy_table_prefix -->
 ```csharp
@@ -600,49 +540,42 @@ builder.Services.AddQuartz("acme", q => q.UsePersistentStore(s =>
 ```
 <!-- endSnippet -->
 
-Four rules:
-
-- **Different scheduler name is enough.** Prefixes are for keeping tenants in separate *tables*, which
-  is a backup-and-restore or a permissions decision, not an isolation one.
-- **The prefix has to match the DDL.** Nothing derives one from the other; you run the DDL with the
-  prefix substituted.
-- **A prefix pointing at tables that do not exist is caught at startup.**
-  `SchemaProvisioning.Validate` is the default, and a missing or mis-prefixed table is reported once, by
-  name, with a message telling you to run the schema scripts — rather than surfacing as the first failing
-  operation an hour later.
-- **A prefix pointing at the *wrong* tables is reported too, as a warning.** Schema validation cannot
-  catch that one: the tables exist, they are simply somebody else's, and the scheduler starts, reports
-  healthy and never sees its own data. So creating a scheduler records its database and its table prefix,
-  and a scheduler that shares a database with one already created but disagrees about the prefix produces
-  a `Warning` naming both schedulers and both prefixes. Prefixes are compared **ignoring case**, because
-  every database Quartz supports folds an unquoted identifier to one case — `qrtz_` and `QRTZ_` are one
-  table set, and two tenants told apart only by the casing of their prefix are one tenant.
+- **A different scheduler name is enough to isolate tenants.** Separate tables are a backup, restore or
+  permissions decision.
+- **The prefix must match the DDL.** Run the DDL with the prefix substituted; nothing derives one from
+  the other.
+- **A prefix naming tables that do not exist fails at startup.** `SchemaProvisioning.Validate` is the
+  default and reports each missing or mis-prefixed table once, by name, telling you to run the schema
+  scripts.
+- **A prefix naming the *wrong* tables logs a warning.** Schema validation cannot catch it: the tables
+  exist but are another scheduler's, so the scheduler starts, reports healthy and never sees its data.
+  Each scheduler created records its database and table prefix, and one that shares a database with an
+  existing scheduler but disagrees about the prefix logs a `Warning` naming both schedulers and both
+  prefixes. Prefixes compare **ignoring case**, because every supported database folds an unquoted
+  identifier to one case: `qrtz_` and `QRTZ_` are one table set.
 
 ::: tip Why that one is a warning and not an error
-Separate table sets in one database are legal, and the arrangement above is exactly how you ask for them.
-Nothing Quartz can see tells a deliberate `ACME_QRTZ_` apart from a mistyped `QRTZ2_`, and an error that
-fires on a legitimate arrangement is worse than the silence it replaces. If the two prefixes are meant to
-differ, the warning is expected and can be filtered out on the
+Separate table sets in one database are legal; the sample above asks for one. Quartz cannot tell a
+deliberate `ACME_QRTZ_` from a mistyped `QRTZ2_`, and an error on a legitimate arrangement is worse than
+silence. If the prefixes are meant to differ, filter the warning out on the
 `Quartz.Configuration.SharedDatabaseValidator` category.
 
-It also only sees what one container can see. Two processes — or two containers in one process — sharing
-a database are invisible to each other, and so is a database reached through a provider that reports
-neither a connection string nor a `DbDataSource`. Being wrong in that direction is deliberate: a check
-that stays quiet when it cannot tell costs you nothing.
+It only sees one container. Two processes, or two containers in one process, sharing a database are
+invisible to each other, as is a database reached through a provider that reports neither a connection
+string nor a `DbDataSource`. When it cannot tell, it stays quiet.
 :::
 
 ::: warning
-Two schedulers sharing a database with the **same** `SCHED_NAME` are, by construction, indistinguishable
-from two nodes of one cluster — because that is exactly what they look like to the schema. Schema
-validation will not catch it, and they will steal each other's triggers. The duplicate-name check
-protects you only within one container; across processes, the name is a contract you keep.
+Two schedulers sharing a database with the **same** `SCHED_NAME` look exactly like two nodes of one
+cluster to the schema. Schema validation does not catch it, and they will steal each other's triggers.
+The duplicate-name check works only within one container; across processes, keeping names unique is up
+to you.
 :::
 
 ## Per-tenant services inside a job
 
-A job needs to reach *its* tenant's database, its tenant's configuration, its tenant's feature flags.
-The scheduler builds jobs from a DI scope, and `ConfigureJobScope` prepares that scope before the job
-and everything it injects are constructed:
+A job needs *its* tenant's database, configuration and feature flags. The scheduler builds jobs from a DI
+scope, and `ConfigureJobScope` prepares that scope before the job and its dependencies are constructed:
 
 <!-- snippet: sample_tenancy_ambient_tenant -->
 ```csharp
@@ -668,39 +601,34 @@ q.ConfigureJobScope((scope, bundle, scheduler) =>
 ```
 <!-- endSnippet -->
 
-Two things make this work, and both are deliberate:
-
-- **The hook is synchronous.** An asynchronous hook would be awaited, and the `ExecutionContext`
-  restored on the way back would discard exactly the `AsyncLocal<T>` values it exists to set.
+- **The hook is synchronous.** An asynchronous hook would be awaited, and the `ExecutionContext` restored
+  afterwards would discard the `AsyncLocal<T>` values it set.
 - **The job is created on the execution path**, not during initialization, so values set here flow into
   `Execute`.
+- Callbacks combine rather than replace, and run in the order added.
 
-Callbacks combine rather than replace, and run in the order they were added.
-
-The `TriggerFiredBundle` gives you the whole firing to derive the tenant from — `Trigger.Key.Group`,
-`JobDetail.Key.Group`, or a value out of `Trigger.JobDataMap` — plus the `IScheduler` that fired it,
-which is the tenant itself under the scheduler-per-tenant model.
+The `TriggerFiredBundle` carries the whole firing to derive the tenant from — `Trigger.Key.Group`,
+`JobDetail.Key.Group`, or a value from `Trigger.JobDataMap` — plus the `IScheduler` that fired it, which
+is the tenant under the scheduler-per-tenant model.
 
 ::: tip
-The context does not exist yet when the hook runs — it takes the job instance, and the job has not been
-built. So the two patterns *for seeding construction* are the `AsyncLocal` above, and resolving a scoped
-holder object from `scope.ServiceProvider` and populating it. The second is easier to test and does not
-depend on execution context flow. For everything that reads the tenant when it is *used* rather than
-when it is constructed, `IJobExecutionContextAccessor` below is neither.
+The context does not exist when the hook runs: it takes the job instance, which has not been built. To
+seed *construction*, use the `AsyncLocal` above, or resolve a scoped holder object from
+`scope.ServiceProvider` and populate it; the holder is easier to test and does not depend on execution
+context flow. For code that reads the tenant when it is *used*, use `IJobExecutionContextAccessor`,
+below.
 :::
 
 ### Which scheduler's parts a job is built from
 
-A **registered** job is built by the *container*, and the container resolves constructor parameters
-**unkeyed** — it knows nothing about which scheduler is firing the job. A job on scheduler `acme` taking
-`IScheduler`, `ISchedulerFactory`, `IJobStore`, `IThreadPool` or `IOptions<QuartzSchedulerOptions>`
-would therefore be handed the *default* scheduler's, and in a container holding only named schedulers
-there would be no unkeyed registration to hand it at all.
+A **registered** job is built by the *container*, which resolves constructor parameters **unkeyed** and
+does not know which scheduler is firing. A job on scheduler `acme` taking `IScheduler`,
+`ISchedulerFactory`, `IJobStore`, `IThreadPool` or `IOptions<QuartzSchedulerOptions>` would get the
+*default* scheduler's, or, in a container with only named schedulers, nothing.
 
-So **a registered job may not take a scheduler's parts by constructor, and startup says so.**
-`AddJob<T>`, `AddJob(type, …)`, `ScheduleJob<T>` and `AddJobType<T>` each record the job type against
-the scheduler they were called on, and validating that scheduler's options walks the public
-constructors of the type the container would build:
+So **a registered job may not take a scheduler's parts by constructor, and startup says so.** `AddJob<T>`,
+`AddJob(type, …)`, `ScheduleJob<T>` and `AddJobType<T>` record the job type against their scheduler, and
+validating that scheduler's options checks the public constructors of the type the container would build:
 
 ```text
 Job type ArchiveJob is registered on scheduler 'acme', and its constructor takes ISchedulerFactory
@@ -713,21 +641,16 @@ the firing it is part of, or register the job with AddJobType<ArchiveJob>(provid
 the part by key inside that factory.
 ```
 
-Every public constructor is examined, not the one the container would pick: which one that is depends on
-what else the container holds — a constructor is only chosen when every parameter of it can be
-resolved — so a job whose clean constructor is picked today is picked differently the moment an
-unrelated registration appears. `TimeProvider` is the deliberate exception to the list: a scheduler
-given no clock of its own inherits the container's, and injecting a clock is what the rest of Quartz
-asks you to do.
+- **Every public constructor is checked**, not only the one chosen today: the container picks a
+  constructor whose parameters it can all resolve, so an unrelated registration can change the pick.
+- **`TimeProvider` is allowed**: a scheduler with no clock inherits the container's, and injecting a
+  clock is what Quartz asks you to do.
+- **A job type the container does not hold is not checked.** The job factory activates it through the
+  scheduler-scoped provider, so its dependencies resolve to *its own* scheduler's parts. That covers a job
+  scheduled at runtime with `ScheduleJob(jobDetail, …)` and one named only by an XML or JSON schedule.
 
-**A job type the container does not hold is unaffected**, and is not examined. It is activated by the
-job factory, through the scheduler-scoped provider, and its dependencies resolve to *its own*
-scheduler's parts — that is any job the container was never told about: one scheduled at runtime with
-`ScheduleJob(jobDetail, …)`, and one named only by an XML or JSON schedule.
-
-There are three ways to write the job instead, and the first covers nearly every case. **The scheduler
-running the fire is `IJobExecutionContext.Scheduler`**, which is that scheduler whichever path built the
-job:
+Three alternatives; the first covers nearly every case. **`IJobExecutionContext.Scheduler` is the
+scheduler running the fire**, however the job was built:
 
 <!-- snippet: sample_tenancy_job_reads_its_scheduler -->
 ```csharp
@@ -747,12 +670,12 @@ public sealed class RotateTenantKeysJob : IJob
 ```
 <!-- endSnippet -->
 
-**Code the context is not handed** — a scoped service, a repository three calls below `Execute` — reads
-the firing from [`IJobExecutionContextAccessor`](#reading-the-firing-from-anywhere-in-it).
+**Code that is not handed the context** — a scoped service, a repository three calls below `Execute` —
+reads the firing from [`IJobExecutionContextAccessor`](#reading-the-firing-from-anywhere-in-it).
 
-**A job that genuinely has to be *constructed* with something of its scheduler's** is registered with a
-factory of its own, which resolves that part by key. A registration built by a factory is not examined,
-because the factory is where the key goes:
+**A job that must be *constructed* with a scheduler's part** is registered with its own factory, which
+resolves the part by key. Factory registrations are not checked, since the factory is where the key
+goes:
 
 <!-- snippet: sample_tenancy_job_built_by_its_scheduler -->
 ```csharp
@@ -771,9 +694,8 @@ builder.Services.AddQuartz("acme", q =>
 
 ### Reading the firing from anywhere in it
 
-A great deal of code that wants the tenant is not the job and cannot be handed the context: a scoped
-service, a logging enricher, a repository three calls below `Execute`. `IJobExecutionContextAccessor` is
-the firing that code is part of:
+`IJobExecutionContextAccessor` gives code that is not the job — a scoped service, a logging enricher, a
+repository — the firing it is part of:
 
 <!-- snippet: sample_tenancy_execution_context_accessor -->
 ```csharp
@@ -788,47 +710,37 @@ public sealed class TenantConnectionFactory(
 ```
 <!-- endSnippet -->
 
-It is registered by `AddQuartz` as a singleton, and it exposes the whole `IJobExecutionContext` rather
-than a tenant-shaped projection of it — Quartz has no tenant concept, so a narrower type here would be
-inventing one, and it would have to grow a member every time somebody needed one more fact the context
-already carries.
+`AddQuartz` registers it as a singleton. It exposes the whole `IJobExecutionContext`, not a tenant-shaped
+projection, since Quartz has no tenant concept.
 
-Four things about the window it is set for, all of them worth knowing before relying on it:
+- **Set from when the context exists** (before trigger and job listeners are notified) **until the job
+  is returned to the job factory.** Otherwise `null`: on the scheduling thread, in code that calls
+  `ScheduleJob`, in an `ISchedulerListener` reacting to a scheduling call.
+- **Never another firing's.** It flows with the `ExecutionContext`, not the thread; a pooled thread
+  picking up other work inherits nothing.
+- **Survives `await` and `Task.Run`; ends with the firing.** Work left running past `Execute` (a detached
+  `Task.Run`, an unawaited continuation) reads `null` once the execution ends, when the job's DI scope is
+  disposed. `ExecutionContext.SuppressFlow` hides it, as it hides every ambient value.
+- **No setter**, so it cannot be left pointing at a finished firing. Substitute the interface in tests.
 
-- **It is set from the moment the context exists** — before the trigger and job listeners are notified —
-  **until the job has been returned to the job factory.** Outside that it is `null`: on the scheduling
-  thread, in application code that merely calls `ScheduleJob`, and in an `ISchedulerListener` reacting to
-  a scheduling call rather than to a firing. Treat `null` as a real answer rather than an impossible one.
-- **It is never another firing's.** The value travels with the `ExecutionContext`, so it belongs to the
-  logical flow and not to the thread; a pooled thread picking up unrelated work inherits nothing.
-- **It survives `await` and `Task.Run`, and stops at the end of the firing.** Work started inside the job
-  and left running past `Execute` — a detached `Task.Run`, a continuation nobody awaits — reads `null`
-  from the moment the execution ends, not the finished context. That is deliberate: by then the job's DI
-  scope has been disposed and the context's cancellation handle is going. `ExecutionContext.SuppressFlow`
-  hides it, as it hides every ambient value.
-- **There is no setter.** An ambient context anyone can assign is one that can be left pointing at a
-  firing that is over, which would be worse than having no accessor at all. Substitute the interface in
-  a test instead.
+It does **not** replace `ConfigureJobScope`: the context does not exist while the job is constructed, so
+anything needing the tenant *at construction time* — a `DbContext` given a tenant connection string in its
+constructor — still gets it from the hook.
 
-It does **not** replace `ConfigureJobScope`: the context does not exist while the job is being
-constructed, so anything that needs the tenant *at construction time* — a `DbContext` given a
-tenant connection string in its constructor — still gets it from the hook.
-
-For anything more involved — resolving jobs from a tenant-owned container, say — implement `IJobFactory`
+For more involved cases, such as resolving jobs from a tenant-owned container, implement `IJobFactory`
 and register it with `UseJobFactory<T>()`, or derive from `MicrosoftDependencyInjectionJobFactory` and
-override `protected virtual void ConfigureScope(...)`. An override that does not call `base` takes the
-delegate's place.
+override `protected virtual void ConfigureScope(...)`. An override that does not call `base` replaces the
+delegate.
 
-Per-fire options are a snapshot: read what the tenant's configuration says *inside* the hook or the job,
-not once at startup, if tenants can be reconfigured while the process runs.
+Per-fire options are a snapshot: if tenants can be reconfigured while the process runs, read the tenant's
+configuration *inside* the hook or the job, not once at startup.
 
 ## Adding a tenant while the process is running
 
-`AddQuartz(name, …)` registers a scheduler against `IServiceCollection`, which is closed once the
-container is built, so a tenant that appears afterwards has no registrations to be built from.
-`ISchedulerRuntime` is the other door. It takes a name the container never heard of, builds a scheduler
-for it into a container of its own — its own thread pool, job store, connection provider, plugins and
-listeners — binds it into the same `ISchedulerRepository` as every other scheduler, and starts it:
+`AddQuartz(name, …)` registers against `IServiceCollection`, which is closed once the container is built.
+`ISchedulerRuntime` takes a name the container never saw, builds a scheduler for it in a container of its
+own (its own thread pool, job store, connection provider, plugins and listeners), binds it into the same
+`ISchedulerRepository` as every other scheduler, and starts it:
 
 <!-- snippet: sample_tenancy_runtime_onboarding -->
 ```csharp
@@ -844,12 +756,11 @@ IScheduler tenant = await runtime.Add(tenantId, q =>
 ```
 <!-- endSnippet -->
 
-The callback is the same `IQuartzBuilder` an `AddQuartz(name, …)` callback is given, applied in the same
-order to the same phases, and whatever `ConfigureAllQuartzSchedulers` said about every scheduler in the
-container reaches it too — a package that adds something to every scheduler cannot know which door a
-scheduler came through. Everything that reads the repository sees the tenant without knowing it arrived
-late: `GetAllSchedulers`, `ISchedulerFactory.LookupScheduler`, the HTTP API, and the dashboard, which
-lists it as `SchedulerOrigin.Runtime` beside the container's registrations.
+- The callback gets the same `IQuartzBuilder` as an `AddQuartz(name, …)` callback, applied in the same
+  order, and `ConfigureAllQuartzSchedulers` applies to it too.
+- Everything that reads the repository sees the tenant: `GetAllSchedulers`,
+  `ISchedulerFactory.LookupScheduler`, the HTTP API, and the dashboard, which lists it as
+  `SchedulerOrigin.Runtime`.
 
 Offboarding is `Remove`:
 
@@ -863,38 +774,34 @@ bool removed = await runtime.Remove(tenantId, waitForJobsToComplete: true);
 ```
 <!-- endSnippet -->
 
-It shuts the scheduler down, unbinds it and releases the container built for it. A name this runtime did
-not add answers `false` rather than throwing, so removing twice — or removing a tenant something else
-shut down — says what happened.
+It shuts the scheduler down, unbinds it and releases its container. A name this runtime did not add
+returns `false` instead of throwing, so removing twice, or removing a tenant something else shut down,
+reports what happened.
 
 ::: warning Removing a tenant deletes none of its data
-A removed tenant's rows under its `SCHED_NAME` stay exactly where they are, and its `SCHEDULER_STATE`
-row expires the way a stopped node's does. Deleting a tenant's data is the application's decision, not a
-side effect of removing its scheduler — and a tenant added again under the same name picks up everything
-that was left.
+The tenant's rows under its `SCHED_NAME` stay, and its `SCHEDULER_STATE` row expires like a stopped
+node's. Deleting a tenant's data is the application's decision. A tenant added again under the same name
+picks up everything left behind.
 :::
 
 ### What `Add` refuses
 
-It fails soft: a name it cannot take is refused with a `SchedulerConfigException` saying which rule and
-what to do about it, only the caller hears about it, and nothing is left behind — no half-built scheduler
-in the repository and nothing in the listing.
+A refused name throws a `SchedulerConfigException` saying which rule and what to do. Only the caller sees
+it, and nothing is left behind — no half-built scheduler in the repository or the listing.
 
 | Refused | Because |
 |---|---|
-| a name `AddQuartz(name, …)` registered | its parts are registered under that name already; build it with `GetRequiredKeyedService<ISchedulerFactory>(name).GetScheduler()` |
-| the default scheduler's `InstanceName` | the same, for the one registration that has no service key of its own |
+| a name `AddQuartz(name, …)` registered | its parts are already registered under that name; build it with `GetRequiredKeyedService<ISchedulerFactory>(name).GetScheduler()` |
+| the default scheduler's `InstanceName` | the same, for the registration with no service key |
 | a name already added at runtime | `Remove` it first; a scheduler's thread pool and job store cannot be replaced underneath it |
-| a name already bound in the repository | a scheduler bound by hand, or one `AddQuartzHttpClient` bound, occupies the name as surely as a registration does |
-| any name, once the host is stopping | it would be created after the shutdown that would have stopped it |
+| a name already bound in the repository | a scheduler bound by hand, or by `AddQuartzHttpClient`, occupies the name like a registration |
+| any name, once the host is stopping | it would be created after the shutdown meant to stop it |
 
 ### Restarting a scheduler
 
-`Restart` shuts a scheduler down and builds another one from the recipe that built it — for a tenant this
-runtime added, and for one `AddQuartz(name, …)` registered, whose recipe is recorded when the
-registration is made. Nothing is restarted in place: a scheduler's thread pool, job store, connection
-provider, plugins and listeners all refuse work once they have been shut down, so the second scheduler is
-a second set of instances and the name is the only thing the two share.
+`Restart` shuts a scheduler down and builds a new one from its recipe: for a tenant this runtime added, or
+one `AddQuartz(name, …)` registered (the recipe is recorded at registration). The new scheduler is a new
+set of instances sharing only the name, since shut-down parts refuse work.
 
 <!-- snippet: sample_tenancy_restart -->
 ```csharp
@@ -925,100 +832,76 @@ catch (SchedulerRestartException e)
 ```
 <!-- endSnippet -->
 
-The order is build, drain, create, and each step is where it is for a reason:
+1. **Build.** A recipe that no longer works — a connection string gone from configuration, a setting a
+   later version rejects — fails with `SchedulerConfigException` and leaves the running scheduler alone.
+   Building opens no connection and starts no thread.
+2. **Drain.** The old scheduler shuts down waiting for its jobs, always. On start, a persistent scheduler
+   sweeps its whole `SCHED_NAME` for crash recovery — acquired and blocked triggers back to waiting,
+   `COMPLETE` triggers and every fired-trigger row deleted — with no instance-id filter, so it must not
+   start beside a running job.
+3. **Create.** The store is initialized, the schema checked, declared jobs and triggers applied, and the
+   recovery sweep run.
 
-- **Build first.** The new scheduler's container is built before the old one is touched, so a recipe that
-  no longer works — a connection string gone from configuration, a setting a later version rejects —
-  fails with a `SchedulerConfigException` and leaves the scheduler that is running exactly where it was.
-  Construction is not initialization: nothing opens a connection or starts a thread until the last step.
-- **Drain second.** The old scheduler is shut down waiting for its jobs, and waiting is not optional.
-  A persistent scheduler's first act on start is a crash-recovery sweep over its whole `SCHED_NAME` —
-  acquired and blocked triggers back to waiting, triggers left in `COMPLETE` deleted, every fired-trigger
-  row deleted — and none of it is filtered by instance id. A new generation started beside a job the old
-  one is still running would tear that job's bookkeeping out from under it.
-- **Create last.** The store is initialized, its schema checked, the declared jobs and triggers applied
-  and the recovery sweep run only once the drain has finished.
+`SchedulerRestartOptions.DrainTimeout` bounds the drain: thirty seconds by default, or
+`Timeout.InfiniteTimeSpan` to wait until the jobs finish or the cancellation token fires. On expiry it
+throws `SchedulerRestartException`: the old scheduler is **shut down**, the new one **never built**, and
+the tenant is listed with `Status: null`. Nothing needs undoing. Retry once the work has finished; the
+next attempt waits for the abandoned generation, and starts the new scheduler if the old one was running.
 
-`SchedulerRestartOptions.DrainTimeout` is how long that wait may take — thirty seconds by default,
-`Timeout.InfiniteTimeSpan` to wait until the jobs finish or the cancellation token fires. A wait that
-expires throws `SchedulerRestartException`, and the state it leaves is worth knowing precisely: the old
-scheduler is **shut down**, the new one was **never built**, and the tenant is listed with `Status: null`
-until a restart completes. Nothing has to be undone. Ask again once the work has finished — the next
-attempt waits for the abandoned generation before it builds anything, and starts the new scheduler if the
-one the failed attempt shut down was running.
-
-Making a drain finish is the job's business rather than the restart's:
-[`ShutdownJobInterruption`](configuration/reference.md#scheduler) asks running jobs to stop when the
-scheduler shuts down, and `[JobTimeout]` plus `AddJobTimeout` bounds one from the inside. Without either,
-a job that ignores its cancellation token will outlive any deadline.
+To make a drain finish, use [`ShutdownJobInterruption`](configuration/reference.md#scheduler) (asks
+running jobs to stop on shutdown) or `[JobTimeout]` with `AddJobTimeout`. Without either, a job that
+ignores its cancellation token outlives any deadline.
 
 ::: warning A job that outlives the drain is at-least-once
-If a job survives the timeout, the restart fails and the old generation goes on running it — but if you
-force the issue by restarting again once it has finished, the new generation's recovery re-fires anything
-it finds marked for recovery, exactly as it would after a crash. A restart is a node failure as far as
-recovery is concerned, because that is what it is.
+It keeps running on the old generation and the restart fails. Restart again after it finishes, and the
+new generation's recovery re-fires anything marked for recovery, as after a crash: to recovery, a
+restart is a node failure.
 :::
 
-Four things a restart is observably not invisible about:
+What a restart changes:
 
-- **Clustering.** With a fixed `InstanceId` the new generation's first check-in finds its own
-  `SCHEDULER_STATE` row and recovers nothing. With `AUTO` it takes a new id and the old row is left to
-  expire the way a stopped node's does, after which a peer — or the new generation — recovers it. Either
-  way a peer sees a restart the way it sees a node being restarted.
-- **Declared content is re-applied**, under the recipe's own `OverwriteExistingData`, which defaults to
-  `true`. A declared trigger's state in the database is reset by the restart; set
-  `Scheduling.IgnoreDuplicates` if that is not what you want.
-- **`RAMJobStore` keeps only what the recipe declares.** Anything scheduled through the API at runtime
-  goes away with the store the old generation owned. This is the one place where the store choice changes
-  what a restart means.
-- **Configuration written beside `AddQuartz` is not part of the recipe.** A
-  `services.Configure<QuartzSchedulerOptions>("acme", …)`, a keyed registration made directly against the
-  application's collection, an `AddQuartzHostedService("acme", …)` — these belong to the application's
-  container, and the next generation is built in a container of its own from what `AddQuartz` itself was
-  handed. Move the line inside the `AddQuartz("acme", …)` callback and both generations read it.
-
-Three refusals are worth reading before reaching for this:
+- **Clustering.** With a fixed `InstanceId`, the new generation finds its own `SCHEDULER_STATE` row and
+  recovers nothing. With `AUTO` it takes a new id, and the old row expires like a stopped node's, to be
+  recovered by a peer or the new generation.
+- **Declared content is re-applied** under the recipe's `OverwriteExistingData` (`true` by default),
+  resetting a declared trigger's stored state. Set `Scheduling.IgnoreDuplicates` to avoid that.
+- **`RAMJobStore` keeps only what the recipe declares**; anything scheduled at runtime is lost.
+- **Configuration beside `AddQuartz` is not in the recipe.** A
+  `services.Configure<QuartzSchedulerOptions>("acme", …)`, a keyed registration on the application's
+  collection, or an `AddQuartzHostedService("acme", …)` is not replayed. Move such lines into the
+  `AddQuartz("acme", …)` callback.
 
 | Refused | Because |
 |---|---|
-| the default scheduler | its parts are the container's unkeyed registrations, which nothing can tell apart from the application's own, so there is no recipe to replay. Register it with `AddQuartz("name", …)` to make it restartable; `Standby()`/`Start()` pause and resume it |
-| a recipe that supplies a part as an instance | `UseJobStore(IJobStore)`, `UseThreadPool(IThreadPool)`, `UseJobFactory(instance)` and `UseInstanceIdGenerator(instance)` hand the new scheduler the object the old one is about to shut down. Register a type or a factory instead — `UseJobStore<T>()` or `UseJobStore(provider => new …)` builds a new instance each time the recipe runs. Refused before anything is built, so the scheduler that is running is not touched at all |
-| a factory that returns the running scheduler's part | `UseJobStore(provider => sharedInstance)` is a factory by its shape and an instance by its effect, and only building the next generation and comparing tells them apart. **A factory registration must return a new instance per generation**: it is replayed once for each, and the container built for a refused generation is released, taking whatever the factory returned with it |
+| the default scheduler | its parts are the container's unkeyed registrations, so there is no recipe. Register it with `AddQuartz("name", …)` to make it restartable; `Standby()`/`Start()` pause and resume it |
+| a recipe that supplies a part as an instance | `UseJobStore(IJobStore)`, `UseThreadPool(IThreadPool)`, `UseJobFactory(instance)` and `UseInstanceIdGenerator(instance)` would reuse the part being shut down. Register a type or factory, e.g. `UseJobStore<T>()` or `UseJobStore(provider => new …)`. Refused before anything is built |
+| a factory that returns the running scheduler's part | e.g. `UseJobStore(provider => sharedInstance)`, detected by building the next generation. **A factory must return a new instance per generation**; a refused generation's container is released with what the factory returned |
 
-A name neither this runtime nor the container knows is a `SchedulerNotFoundException`. A name it knows
-whose scheduler has already been shut down — by hand, by the host, or by a restart whose drain gave up —
-is not an error at all: there is nothing to stop first, so restarting it starts it again.
+- An unknown name throws `SchedulerNotFoundException`.
+- A known name whose scheduler is already shut down (by hand, by the host, or by a failed drain) is
+  started again.
+- `Remove` offboards a tenant; `Restart` keeps it and replaces its instances.
 
-`Remove` is still the way to offboard a tenant. `Restart` keeps the tenant; it replaces the instances
-behind its name.
+### Runtime tenants and the application's container
 
-### Three things worth knowing
-
-**`IQuartzBuilder.Services` means the tenant's own collection**, not the application's. What the callback
-registers there belongs to this tenant and goes away with it. The one thing it may not register is how
-the tenant builds a job — `AddJobType` — because a job is built by the *application's* container, which
-is where its dependencies are; a recipe that tries is refused rather than quietly ignored. Register the
-job type in the application's container and let the recipe schedule it with `AddJob<T>(…)`.
-
-**`[FromKeyedServices("acme")] IScheduler` cannot reach a tenant added at runtime.** That is a container
-registration, and the point of `Add` is a name the container was never told about. Reach it through the
-scheduler `Add` returned, through `ISchedulerFactory.LookupScheduler(name)`, or through
-`ISchedulerRepository.Lookup(name)`.
-
-**A health check for a tenant is registered at build time**, with
-`services.AddHealthChecks().AddQuartz("acme")` — a check cannot be added to a built container any more
-than a scheduler can. Written before the tenant exists it reports unhealthy, and once the tenant is added
-it finds it through the repository. `AddQuartzHostedService("acme", o => o.WaitForJobsToComplete = true)`
-works the same way: registered at build time, read when the host stops, and applied to whichever tenant
-is running under that name — which is also what shuts a runtime tenant down inside the host's graceful
-shutdown window rather than at container disposal, after it has closed.
+- **`IQuartzBuilder.Services` is the tenant's own collection**; what the callback registers there goes
+  away with the tenant. It may not call `AddJobType`: jobs are built by the *application's* container,
+  where their dependencies are, so a recipe that tries is refused. Register the job type in the
+  application's container and schedule it with `AddJob<T>(…)`.
+- **`[FromKeyedServices("acme")] IScheduler` cannot reach a runtime tenant**; the container never saw the
+  name. Use the scheduler `Add` returned, `ISchedulerFactory.LookupScheduler(name)` or
+  `ISchedulerRepository.Lookup(name)`.
+- **Register a tenant's health check at build time** with `services.AddHealthChecks().AddQuartz("acme")`;
+  a built container takes no new checks. It reports unhealthy until the tenant is added, then finds it
+  through the repository. `AddQuartzHostedService("acme", o => o.WaitForJobsToComplete = true)` works the
+  same way, applied when the host stops to whichever tenant runs under that name — which shuts a runtime
+  tenant down inside the graceful shutdown window rather than at container disposal, after it.
 
 ### Without an application container
 
-`QuartzSchedulerBuilder` builds a scheduler from a container of its own, at any point in the process's
-life, and `ISchedulerRepository.Bind` makes the result visible to `GetAllSchedulers`, the dashboard and
-the HTTP API. This is the path for a process that has no application container for a tenant to resolve
-from — and it is what `ISchedulerRuntime` is made of:
+`QuartzSchedulerBuilder` builds a scheduler from its own container at any time, and
+`ISchedulerRepository.Bind` makes it visible to `GetAllSchedulers`, the dashboard and the HTTP API. This
+is for a process with no application container; `ISchedulerRuntime` is built on it.
 
 <!-- snippet: sample_tenancy_standalone_onboarding -->
 ```csharp
@@ -1038,27 +921,21 @@ app.Services.GetRequiredService<ISchedulerRepository>().Bind(tenant);
 ```
 <!-- endSnippet -->
 
-Keep the factory for as long as the tenant exists — `tenantFactories` above is a dictionary keyed by
-tenant id — because it owns the container and is the only handle that can shut the tenant down again.
-`BuildScheduler()` is the shorter spelling that drops it on the floor, which is fine for a scheduler
-that lives as long as the process and wrong for one that has to be offboarded.
+- Keep the factory as long as the tenant exists (`tenantFactories` is a dictionary by tenant id).
+  `BuildScheduler()` discards it, which suits only a scheduler that lives as long as the process.
+- *You* start the scheduler and dispose the factory; the hosted service does not.
+- Its jobs resolve from its own container, unless you give it an `IJobFactory` that bridges to the
+  application's.
+- Health checks registered at startup do not cover it.
 
-What you take on by doing this: the returned `StandaloneSchedulerFactory` owns the container, so *you*
-start the scheduler and dispose the factory — the hosted service will not; the scheduler's jobs resolve
-from its own container rather than the application's unless you give it an `IJobFactory` that bridges;
-and health checks registered at startup do not cover it. `ISchedulerRuntime.Add` is the same shape with
-all three answered, which is the reason to prefer it wherever there is an application container.
+`ISchedulerRuntime.Add` handles the last three, so prefer it wherever there is an application container.
 
-`Bind` refuses a duplicate **(name, instance id)** pair, not a duplicate name: two schedulers of one
-name and different instance ids coexist by design, which is how proxies to several nodes of one cluster
-are held. In practice the common case still throws, because a scheduler that has not opted into
-clustering takes the default instance id `NON_CLUSTERED` — so two non-clustered tenants sharing a name
-collide on the pair. Give each tenant's scheduler a distinct `InstanceName` and the question does not
-arise.
+`Bind` refuses a duplicate **(name, instance id)** pair, not a duplicate name, so proxies to several
+nodes of one cluster can coexist. Two non-clustered tenants with one name still collide, since both have
+the instance id `NON_CLUSTERED`; give each tenant a distinct `InstanceName`.
 
-Offboarding is disposing the factory, which shuts the tenant's scheduler down and then disposes its
-container. Unbind it too, so the application's repository stops listing it at once rather than at its
-next read:
+To offboard, dispose the factory (which shuts the scheduler down and disposes its container) and unbind
+it, so the repository stops listing it at once:
 
 <!-- snippet: sample_tenancy_offboarding_standalone -->
 ```csharp
@@ -1075,96 +952,72 @@ app.Services.GetRequiredService<ISchedulerRepository>().Remove(tenantId);
 <!-- endSnippet -->
 
 ::: warning Disposal does not wait for running jobs
-`StandaloneSchedulerFactory.DisposeAsync` shuts down with `waitForJobsToComplete: false`, so a tenant's
-jobs are cut short — which is the same default `IScheduler.Shutdown()` and `QuartzHostedServiceOptions`
-both carry, and two Quartz-owned shutdown paths that disagreed about it would be a trap. Waiting is a
-call you make first, as above: `await scheduler.Shutdown(waitForJobsToComplete: true)` leaves the
-factory with nothing left to shut down, so the two compose and the disposal only releases the container.
+`StandaloneSchedulerFactory.DisposeAsync` shuts down with `waitForJobsToComplete: false`, cutting a
+tenant's jobs short — the same default as `IScheduler.Shutdown()` and `QuartzHostedServiceOptions`. To
+wait, call `await scheduler.Shutdown(waitForJobsToComplete: true)` first, as above; the disposal then
+only releases the container.
 :::
 
 ::: warning Unbinding is not offboarding
-`Remove` makes a tenant invisible; only the disposal stops it. A recipe that unbinds without disposing
-takes the tenant out of `GetAllSchedulers`, off the dashboard and out of the HTTP API while it goes on
-firing its triggers for the rest of the process's life, with nothing left able to reach it. Disposing
-the factory shuts its scheduler down, which is what makes the two steps above safe in either order.
+`Remove` makes a tenant invisible; only disposal stops it. Unbinding without disposing removes the tenant
+from `GetAllSchedulers`, the dashboard and the HTTP API while it keeps firing for the rest of the
+process's life, with nothing able to reach it. Because disposal shuts the scheduler down, the two steps
+above are safe in either order.
 :::
 
-Weigh all of it against the group-per-tenant model, where onboarding a tenant is a `ScheduleJob` call
-and none of the above applies.
+Under the group-per-tenant model, onboarding is a `ScheduleJob` call and none of this applies.
 
-## Honest limits
+## Limits
 
-Things multi-tenant deployments ask Quartz for and do not get:
+What multi-tenant deployments ask for and Quartz does not provide. [Tenancy Patterns](../tenancy-patterns.md#what-quartz-net-does-not-give-you)
+covers the same list for both 3.x and 4.x.
 
-**A cluster-wide concurrency ceiling is approximate, not exact, unless you pay for exactness.**
-`ExecutionLimitScope.Cluster` counts a group's in-flight work from `QRTZ_FIRED_TRIGGERS`, which is
-transactional and cluster-wide, but the default acquisition path takes no cluster lock — so the ceiling
-holds within one acquisition round and can transiently overshoot by up to `nodes − 1` while several
-nodes acquire at once. The overshoot is one trigger per node and no more, because the lock-free path is
-only taken when a round acquires a single trigger: asking for a batch takes the `TRIGGER_ACCESS` lock,
-which is the same lock `AcquireTriggersWithinLock = true` takes on every round. That setting removes the
-overshoot and serializes acquisition for every group, limited or not. There is no third setting that
-gives you both.
-
-**There is no rate limiting.** Execution limits cap *concurrency*, not throughput. "This tenant may run
-100 jobs an hour" is not something Quartz can express; build it in the job, or in the thing the job
-calls. It is worth asking whether concurrency is what you actually meant: "at most four of this tenant's
-jobs at once" is usually the real requirement behind "100 an hour", and it is the one Quartz can enforce
-honestly.
-
-**Read-only is per process, and there is no per-operation policy.** A tenant *can* be held to its own
-scheduler on both surfaces — see
-[Authorizing a tenant on its own scheduler](#authorizing-a-tenant-on-its-own-scheduler) — but what a
-tenant may *do* to the scheduler it reaches is still one setting for the whole process: the dashboard's
-`ReadOnly` flag. "acme may look, globex may act" is not something either surface expresses, and neither
-is "this tenant may pause but not delete". The resource-based shape leaves room for it — the policy is
-evaluated against a `SchedulerResource`, and an operation requirement could join it later without another
-option — but that is not built.
-
-**A scheduler is never restarted in place.** The container owns its parts' lifetimes, and
-`GetScheduler()` throws rather than resurrecting a thread pool and a job store underneath a scheduler
-that can never run again. `Standby()` / `Start()` is the pause-and-resume pair.
-[`ISchedulerRuntime.Restart`](#restarting-a-scheduler) is the other answer: it builds a *new* set of
-parts from the recipe that built the old ones, which is what a restart can honestly mean. What it cannot
-replay is configuration written beside `AddQuartz` rather than inside it, and the default scheduler has
-no recipe at all.
-
-**A per-tenant thread pool is a real cost.** Under the scheduler-per-tenant model each tenant gets a
-scheduling loop that wakes on its own idle timer, a thread pool, and — with a persistent store — a
-connection pool and a cluster check-in. That is fine for tens of tenants and not for thousands.
+- **A cluster-wide concurrency ceiling is exact only with `AcquireTriggersWithinLock = true`**, which
+  serializes acquisition for every group, limited or not. Otherwise it can briefly overshoot by up to
+  `nodes − 1`. No setting gives both — see
+  [What a cluster-scoped quota does and does not promise](#per-tenant-concurrency-quotas).
+- **No rate limiting.** Execution limits cap *concurrency*, not throughput. "100 jobs an hour" cannot be
+  expressed; build it into the job or what it calls. Often "at most four at once" is the real
+  requirement, and Quartz can enforce that.
+- **No per-operation policy.** A tenant can be held to its own scheduler on both surfaces, but what it may
+  *do* there is one process-wide setting, the dashboard's `ReadOnly` flag. "acme may look, globex may
+  act" or "may pause but not delete" is not expressible. An operation requirement could later join the
+  `SchedulerResource` policy without a new option; it is not built.
+- **A scheduler is never restarted in place.** `GetScheduler()` throws rather than reviving a shut-down
+  thread pool and job store, because the container owns their lifetimes. `Standby()` / `Start()` pause
+  and resume; [`ISchedulerRuntime.Restart`](#restarting-a-scheduler) builds new parts from the recipe.
+- **A scheduler per tenant costs** a scheduling loop on its own idle timer, a thread pool, and with a
+  persistent store a connection pool and a cluster check-in — see [Choosing a model](#choosing-a-model).
 
 ## Observability
 
-Both signals carry the scheduler name *and* the scheduler id, so per-tenant dashboards work under the
-scheduler-per-tenant model with no extra instrumentation — and a tenant running clustered can still be
-read one node at a time:
+Traces and metrics carry the scheduler name *and* id, so per-tenant dashboards work under the
+scheduler-per-tenant model with no extra instrumentation, and a clustered tenant can be read one node at a
+time.
 
-- **Traces.** `quartz.scheduler.name` and `quartz.scheduler.id` are on every span, and the execution
-  span adds `quartz.job.group`, `quartz.job.name`, `quartz.trigger.group`, `quartz.trigger.name` and
+- **Traces.** `quartz.scheduler.name` and `quartz.scheduler.id` are on every span. The execution span adds
+  `quartz.job.group`, `quartz.job.name`, `quartz.trigger.group`, `quartz.trigger.name` and
   `quartz.fire.instance.id`.
-- **Metrics.** `quartz.scheduler.name` and `quartz.scheduler.id` are on **every** measurement, on every
-  instrument — which is what makes a per-tenant metrics dashboard a `group by` rather than extra
-  instrumentation. `quartz.job.execution.active` and `quartz.job.execution.duration` add
-  `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group` and `quartz.job.name`. The whole set
-  of instruments, and which attributes each carries, is on the
+- **Metrics.** `quartz.scheduler.name` and `quartz.scheduler.id` are on **every** measurement of every
+  instrument, so a per-tenant dashboard is a `group by`. `quartz.job.execution.active` and
+  `quartz.job.execution.duration` add `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`
+  and `quartz.job.name`. All instruments and their attributes are on the
   [OpenTelemetry page](packages/opentelemetry-integration.md#metrics).
 
-Under the group-per-tenant model, `quartz.trigger.group` and `quartz.job.group` **are** the tenant, so
-the same dashboards work by grouping on those instead. That is a good reason to make the group the raw
-tenant id rather than a decorated string.
+Under the group-per-tenant model, `quartz.trigger.group` and `quartz.job.group` **are** the tenant; group
+by those instead. Use the raw tenant id as the group, not a decorated string.
 
 ::: warning Cardinality
-`quartz.job.name` and `quartz.trigger.name` are per job and per trigger. Multiply that by a tenant
-dimension and a metrics backend can find itself with a series per tenant per trigger. Drop the name tags
-in a view before they reach the backend unless you know you need them.
+`quartz.job.name` and `quartz.trigger.name` are per job and per trigger. Multiplied by tenants, a metrics
+backend can get a series per tenant per trigger. Drop the name tags in a view unless you need them.
 :::
 
 The tag names are public constants — `ActivityTags.SchedulerName`, `ActivityTags.TriggerGroup` and the
-rest — so a view or a filter can reference them rather than repeat the strings.
+rest — for views and filters.
 
 ## See also
 
-- [Multiple Schedulers](packages/multiple-schedulers.md) — the mechanics of naming and keying schedulers
+- [Multiple Schedulers](packages/multiple-schedulers.md) — naming and keying schedulers
 - [Execution Groups](tutorial/execution-groups.md) — per-node and cluster-wide thread limits in full
 - [Querying Jobs and Triggers](tutorial/querying-jobs-and-triggers.md) — group-filtered listings
 - [Clustering](tutorial/advanced-enterprise-features.md) — what a shared database gives you
