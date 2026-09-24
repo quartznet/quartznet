@@ -4,9 +4,8 @@ title: 'Rescheduling Jobs'
 
 # Rescheduling Jobs
 
-Three quite different things get called *rescheduling*, and they use three different APIs. Picking the
-wrong one is how a trigger loses its fire history, or how a "just change the priority" edit silently
-resets the next fire time.
+Three operations get called rescheduling. Pick the wrong one and a trigger loses its fire history, or a
+priority change resets the next fire time.
 
 | You want to | Use | Fire times |
 |---|---|---|
@@ -16,8 +15,7 @@ resets the next fire time.
 
 ## Changing the schedule: RescheduleJob
 
-`RescheduleJob` is delete-and-store in one call. The old trigger goes, the new one is stored, and the
-new one must name the same job:
+`RescheduleJob` deletes the old trigger and stores the new one, which must name the same job:
 
 <!-- snippet: sample_rescheduling_replace_trigger -->
 ```csharp
@@ -34,13 +32,10 @@ DateTimeOffset? firstFire = await scheduler.RescheduleJob(
 ```
 <!-- endSnippet -->
 
-The new trigger does **not** have to keep the old name — passing a different `WithIdentity` renames it
-— but it does have to carry a job key, because the old trigger is gone before the new one is stored
-and there is nothing left to inherit it from.
-
-The return value is the new trigger's first fire time, or **`null` if the old trigger was not found**.
-A null return means nothing was stored: the call is not "create if missing". If you are recovering
-from a state where the trigger may or may not exist, check the result:
+* A different `WithIdentity` renames the trigger.
+* The new trigger must carry a job key; the old one is gone before it is stored.
+* It returns the first fire time, or **`null` if the old trigger was not found**, in which case nothing is
+  stored. To handle a missing trigger:
 
 <!-- snippet: sample_rescheduling_missing_trigger -->
 ```csharp
@@ -53,23 +48,19 @@ if (next is null)
 ```
 <!-- endSnippet -->
 
-Because the trigger is replaced, everything derived from the old one is recomputed. `PreviousFireTimeUtc`
-starts empty, a `SimpleTrigger`'s repeat count starts over, and a paused trigger comes back in whatever
-state the new trigger's group implies. Use it when the *schedule* changed.
+Everything derived from the old trigger resets: `PreviousFireTimeUtc` is empty, a `SimpleTrigger`'s repeat
+count starts over, and a paused trigger takes whatever state its new group implies.
 
-What is *not* touched is any execution already under way. A firing of the old trigger keeps running and
-completes as itself, and in a persistent store its fired-trigger record stays until it does — so a job
-that requested recovery is still recovered if the node dies mid-execution, even when the trigger was
-rescheduled in between. That matters more than it sounds: the jobs and triggers you declare with
-`AddJob` and `AddTrigger` are re-applied as a reschedule every time the process starts, before the
-scheduler starts and recovery runs. Unscheduling a trigger is the other case: it takes the records of its
-executions with it, and nothing is recovered for a trigger you removed on purpose.
+A firing already running is not touched: it completes as the old trigger, and in a persistent store its
+fired-trigger record stays until then, so a job that requested recovery is still recovered if the node dies.
+This matters because `AddJob` and `AddTrigger` registrations are re-applied as a reschedule on every process
+start, before the scheduler starts and recovery runs. Unscheduling, by contrast, removes its executions'
+records, and nothing is recovered.
 
 ## Changing metadata in place: UpdateTriggerDetails
 
-`UpdateTriggerDetails` patches a stored trigger without rescheduling it. Fire times and trigger state
-are preserved — a paused trigger stays paused, a trigger due in ten minutes is still due in ten
-minutes.
+`UpdateTriggerDetails` patches a stored trigger; fire times and state are kept (paused stays paused, due in
+ten minutes stays due in ten minutes):
 
 <!-- snippet: sample_rescheduling_update_details -->
 ```csharp
@@ -82,10 +73,8 @@ bool applied = await scheduler.UpdateTriggerDetails(
 ```
 <!-- endSnippet -->
 
-`TriggerDetailsUpdate` is a **patch**, not a snapshot: each `With…` call marks one property as
-"change this", and everything you do not call is left alone. That is what makes `null` meaningful —
-`WithCalendarName(null)` disassociates the calendar, where *not calling* `WithCalendarName` leaves the
-existing association in place.
+`TriggerDetailsUpdate` is a **patch**: only properties you set change. `WithCalendarName(null)` removes the
+calendar; not calling `WithCalendarName` keeps it.
 
 | Method | Changes |
 |---|---|
@@ -98,18 +87,15 @@ existing association in place.
 | `WithExecutionGroup(string?)` | the execution group; `null` removes it from every group |
 | `WithPreferredNode(PreferredNode)` | the cluster node pin |
 
-The return value is `true` when the trigger was found and updated, `false` when the key names nothing.
-
-Two of these do affect firing, just not the fire *times*: the misfire instruction changes what happens
-the next time the trigger is late, and the execution group changes which limit the job counts against —
-from the next acquisition cycle, so a job already running keeps counting against the group it was
-acquired under.
+* Returns `true` if the trigger was found and updated, `false` if the key names nothing.
+* A new misfire instruction applies the next time the trigger is late.
+* A new execution group applies from the next acquisition cycle; a running job keeps counting against the
+  group it was acquired under.
 
 ### Misfire instructions are validated against the trigger's family
 
-The same numeric code means a different policy in each trigger family: `1` is `FireNow` on a simple
-trigger and `FireOnceNow` on a cron trigger. The typed overloads carry the family with the value, and
-the store rejects an update whose family is not the stored trigger's:
+The same code means different policies per family (`1` is `FireNow` on a simple trigger, `FireOnceNow` on a
+cron trigger). The typed overloads carry the family, and the store rejects a mismatch:
 
 <!-- snippet: sample_rescheduling_typed_misfire_instruction -->
 ```csharp
@@ -123,31 +109,27 @@ await scheduler.UpdateTriggerDetails(cronKey, new TriggerDetailsUpdate()
 ```
 <!-- endSnippet -->
 
-`WithMisfireInstructionCode(int)` exists for callers holding a bare number — a value read off the
-wire, out of configuration, or from `ITrigger.MisfireInstructionCode`. It skips the family check,
-which is exactly why the typed overloads are the ones to reach for.
+`WithMisfireInstructionCode(int)`, for a bare number from the wire, configuration or
+`ITrigger.MisfireInstructionCode`, skips the check. Prefer the typed overloads.
 
 ::: warning Changed in 4.x
-The builders spell this `WithMisfireInstruction` now, on all five schedule builders —
-`WithMisfireHandlingInstruction…` and the `MisfireInstruction.*` constant class are gone. The typed
-enums (`SimpleTriggerMisfireInstruction`, `CronTriggerMisfireInstruction`, and the three others) are
-the public vocabulary.
+All five schedule builders spell this `WithMisfireInstruction`. `WithMisfireHandlingInstruction…` and the
+`MisfireInstruction.*` constant class are gone. The typed enums (`SimpleTriggerMisfireInstruction`,
+`CronTriggerMisfireInstruction`, and the three others) are the public vocabulary.
 :::
 
 ## Choosing between them
 
-- The **schedule** changed — a different cron expression, a different interval, a new end date:
-  `RescheduleJob`. There is no way to edit a schedule in place, because a schedule is the trigger.
-- Anything on the table above changed: `UpdateTriggerDetails`. It is one statement rather than a
-  delete and an insert, it does not disturb the fire times, and it does not need you to rebuild the
-  trigger to change its description.
+* The **schedule** changed (cron expression, interval, end date): `RescheduleJob`. A schedule cannot be
+  edited in place; it is the trigger.
+* Anything in the table above: `UpdateTriggerDetails`, one statement, no fire-time change, no rebuilt
+  trigger.
 
-The tempting middle path — read the trigger, `GetJobBuilder`-style rebuild it, store it back — is a
-`RescheduleJob` with extra steps, and it quietly resets the same state.
+Reading, rebuilding `GetJobBuilder`-style and storing back is a `RescheduleJob` and resets the same state.
 
 ## Retrying inside the job
 
-A job that failed for a transient reason can ask to be run again immediately:
+A job can ask to run again immediately after a transient failure:
 
 <!-- snippet: sample_rescheduling_refire -->
 ```csharp
@@ -168,14 +150,13 @@ public sealed class ImportJob(IImportService importer) : IJob
 ```
 <!-- endSnippet -->
 
-`RefireImmediately` re-executes the same firing straight away, on the same thread-pool slot, and
-`context.RefireCount` counts how many times that has happened — guard on it, or a permanently failing
-job becomes a hot loop.
+`RefireImmediately` re-runs the same firing at once, on the same thread-pool slot. Guard on
+`context.RefireCount`, or a job that always fails becomes a hot loop.
 
-The same exception carries two unschedule flags for the failures that are not worth retrying:
+For failures not worth retrying:
 
-- `UnscheduleFiringTrigger = true` removes the trigger that fired
-- `UnscheduleAllTriggers = true` removes every trigger of the job
+* `UnscheduleFiringTrigger = true` removes the trigger that fired
+* `UnscheduleAllTriggers = true` removes every trigger of the job
 
 <!-- snippet: sample_rescheduling_unschedule_all_triggers -->
 ```csharp
@@ -195,11 +176,9 @@ write `new JobExecutionException(ex) { RefireImmediately = true }`.
 
 ### Backoff without holding a thread
 
-`RefireImmediately` means *immediately*, and an in-job retry loop — `Task.Delay`, Polly, a
-`while` with a sleep — holds a thread-pool slot for the whole backoff. On a scheduler with a pool of
-ten, three jobs backing off for a minute each have taken a third of the scheduler for a minute.
-
-When the retry can wait, store a one-off trigger and return normally:
+An in-job retry loop (`Task.Delay`, Polly, a sleeping `while`) holds a pool slot through the backoff: three
+jobs backing off for a minute on a pool of ten take a third of the scheduler. If the retry can wait, schedule
+a one-off trigger and return:
 
 <!-- snippet: sample_rescheduling_retry_trigger -->
 ```csharp
@@ -223,18 +202,15 @@ public async ValueTask Execute(IJobExecutionContext context, CancellationToken c
 ```
 <!-- endSnippet -->
 
-The trigger name matters. Reuse one fixed retry name and the second retry collides with the first —
-`ObjectAlreadyExistsException`, from inside a job, which is a confusing place to debug it. The fire
-instance id is unique per firing and makes a good suffix.
-
-A one-off trigger that has fired and has no next fire time is removed by the store, and the job with
-it if the job is not durable, so retries do not accumulate.
+* Name each retry trigger uniquely (the fire instance id is a good suffix). A fixed name makes the second
+  retry throw `ObjectAlreadyExistsException` inside the job.
+* The store removes a fired one-off trigger with no next fire time, and a non-durable job with it, so
+  retries do not pile up.
 
 ## Recovering triggers that failed
 
-A trigger whose job threw in a way the scheduler could not recover from lands in
-`TriggerState.Error` and stops firing. Finding them is a query — and it pages, so a recovery script
-must loop rather than assume one call sees everything:
+A trigger whose job failed in a way the scheduler could not handle goes to `TriggerState.Error` and stops.
+Query for them, looping over pages:
 
 <!-- snippet: sample_rescheduling_reset_error_state -->
 ```csharp
@@ -260,25 +236,20 @@ while (true)
 ```
 <!-- endSnippet -->
 
-`ResetTriggerFromErrorState(key)` returns `true` when the trigger existed *and* was in the error state,
-`false` for a key that names nothing or a trigger that was not in error — the same missing-key rule
-`PauseTrigger`, `ResumeTrigger` and `UnscheduleJob` follow.
-
-`ResetTriggersFromErrorState(keys)` does the whole set in one pass, under one lock and one transaction
-on the ADO store, and returns the keys it actually reset, in the order they were given. Keys it did not
-apply to are absent, never an error. Resetting raises no scheduler-listener event and signals no
-scheduling change; the reset triggers are picked up by the next acquisition cycle.
-
-The reset puts the trigger back to `Normal`, or to `Paused` if its group is paused.
+* `ResetTriggerFromErrorState(key)` returns `true` only if the trigger exists *and* was in error; `false`
+  otherwise, the same missing-key rule as `PauseTrigger`, `ResumeTrigger` and `UnscheduleJob`.
+* `ResetTriggersFromErrorState(keys)` resets the set in one pass (one lock and transaction on the ADO store)
+  and returns the keys it reset, in the given order; others are simply absent.
+* A reset raises no scheduler-listener event and signals nothing; the next acquisition cycle picks it up.
+* The trigger returns to `Normal`, or `Paused` if its group is paused.
 
 ::: tip
-Reset is not a fix. A trigger goes into the error state because something about it could not be
-processed — most often a job type that no longer resolves. Resetting it without addressing that just
-puts it back into error on the next fire.
+Reset is not a fix. Fix the cause first (most often a job type that no longer resolves), or the trigger
+returns to error on its next fire.
 :::
 
 ## See also
 
-- [Job Template](job-template.md) — the job skeleton these snippets fit into
-- [Querying Jobs and Triggers](../tutorial/querying-jobs-and-triggers.md) — paging, filters and the counting idiom
-- [More About Triggers](../tutorial/more-about-triggers.md) — misfire instructions in full
+* [Job Template](job-template.md) — the job skeleton these snippets fit into
+* [Querying Jobs and Triggers](../tutorial/querying-jobs-and-triggers.md) — paging, filters and the counting idiom
+* [More About Triggers](../tutorial/more-about-triggers.md) — misfire instructions in full

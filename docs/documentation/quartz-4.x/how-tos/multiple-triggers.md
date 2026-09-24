@@ -5,11 +5,10 @@ title: Multiple Triggers
 
 # Multiple Triggers
 
-A job can have any number of triggers. The job carries the data every firing shares; each trigger carries the
-data that firing needs. Quartz merges the two before the job runs, and the trigger's values win where the keys
-are the same.
+A job can have any number of triggers. Put the data every firing shares on the job, and each firing's own
+data on its trigger. Quartz merges the two before the job runs; on a shared key the trigger's value wins.
 
-Our example job reads both:
+The example job reads both:
 
 <!-- snippet: sample_multiple_triggers_job -->
 ```csharp
@@ -69,11 +68,10 @@ builder.Services.AddQuartz(q =>
 
 The hourly firing logs `CustomerId=1 batch-size=50`; the nightly one logs `CustomerId=2 batch-size=500`.
 
-`StoreDurably()` is what lets the job be registered on its own rather than alongside one trigger. Without it a
-job is deleted as soon as its last trigger is gone, which for a job with several triggers is rarely what you
-want.
+`StoreDurably()` lets the job be registered on its own rather than alongside one trigger. Without it the job
+is deleted as soon as its last trigger is gone.
 
-The same two triggers built at run time, for a job whose customers are not known at startup:
+The same triggers built at run time, for customers not known at startup:
 
 <!-- snippet: sample_multiple_triggers_at_run_time -->
 ```csharp
@@ -105,13 +103,13 @@ public async ValueTask ScheduleFor(
 ```
 <!-- endSnippet -->
 
-`ScheduleJob(trigger)` — the overload that takes no job detail — schedules a trigger against a job that is
-already stored, which is why the job was added durably first.
+`ScheduleJob(trigger)`, the overload without a job detail, schedules a trigger against a job that is already
+stored. That is why the job is added durably first.
 
 ## Firing once, with data of its own
 
-`TriggerJob` fires a stored job immediately, with a data map that is merged the same way a trigger's would be.
-It creates no trigger, so this is the way to run a job on demand rather than the way to schedule it:
+`TriggerJob` fires a stored job immediately, with a data map merged the same way a trigger's is. It creates no
+trigger: use it to run a job on demand, not to schedule it.
 
 <!-- snippet: sample_multiple_triggers_ad_hoc -->
 ```csharp
@@ -121,9 +119,8 @@ await scheduler.TriggerJob(CustomerProcessJob.Key, data, cancellationToken);
 <!-- endSnippet -->
 
 ::: warning `GetString` is the strict one
-The numeric accessors are forgiving: `GetInt` parses `"50"` as happily as it returns `50`. `GetString` is not —
-given a value stored as an `int` it returns null rather than `"50"`, and `TryGetString` returns false. So a job
-that reads its data with `GetString` has to be given strings, which is worth remembering when the data comes
-from somewhere loosely typed. On a persistent store with `StoreJobDataAsStrings` the question does not arise,
-because everything is stored, and read back, as a string.
+The numeric accessors are forgiving: `GetInt` returns `50` for both `50` and `"50"`. `GetString` is not: for
+a value stored as an `int` it returns null rather than `"50"`, and `TryGetString` returns false. A job that
+reads with `GetString` must be given strings. On a persistent store with `StoreJobDataAsStrings` this cannot
+happen, because everything is stored and read back as a string.
 :::

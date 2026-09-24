@@ -4,8 +4,8 @@ title: 'Extending Quartz: what is open, what is closed, and how to ask'
 
 # Extending Quartz: what is open, what is closed, and how to ask
 
-Quartz is extended by implementing an interface or deriving from an open base class, never by
-reflection over its internals. This page is the index of the seams, and the policy for the rest.
+Extend Quartz by implementing an interface or deriving from an open base class, never by reflection
+over its internals.
 
 ## The open seams
 
@@ -24,69 +24,59 @@ reflection over its internals. This page is the index of the seams, and the poli
 | Keep what a scheduler has run and missed | `IExecutionHistoryStore` | [Execution history](../packages/http-api.md#execution-history) |
 | Serve the dashboard from somewhere else | `IQuartzApiClient` | [Dashboard](../packages/dashboard.md) |
 
-Every one of these is registered through a `Use*` or `Add*` method on `IQuartzBuilder` or
-`IPersistentStoreBuilder`. Registration is **first-wins** (`TryAdd`): register yours *instead of* the
-shipped one, not after it — which for the persistent store means before the `UseSqlServer`,
-`UsePostgres` or `UseGenericDatabase` call, because each of those names a driver delegate of its own.
+Register each through a `Use*` or `Add*` method on `IQuartzBuilder` or `IPersistentStoreBuilder`.
+Registration is **first-wins** (`TryAdd`): register yours *instead of* the shipped one, and for the
+persistent store before `UseSqlServer`, `UsePostgres` or `UseGenericDatabase`, each of which names its own
+driver delegate.
 
-`src/Quartz.Documentation.Samples` is not a friend assembly, and it compiles a `StdAdoDelegate`
-subclass and a whole `ITriggerPersistenceDelegate` written from scratch. That is the compile-time
-proof behind "the `Quartz.Impl.AdoJobStore` namespace is an authoring kit rather than the leftovers of
-an implementation": a sample that stops compiling means the public kit lost a type.
+`src/Quartz.Documentation.Samples` is not a friend assembly, yet compiles a `StdAdoDelegate` subclass and a
+complete `ITriggerPersistenceDelegate`, so the build fails if the public `Quartz.Impl.AdoJobStore` kit loses
+a type.
 
 ## Two promises that make a seam safe to extend
 
-Both hold across 4.x, and both are what let a future release give a collaborator something more to
-work with without breaking the ones that already exist.
+Both hold across 4.x, so later releases can give a collaborator more without breaking yours:
 
-**A collaborator is handed a context object, never a parameter list.** `DriverDelegateContext`,
-`LockHandlerContext`, `TriggerPersistenceDelegateContext`, `TriggerAcquisitionRequest`,
-`TriggerAcquisitionCriteria`, `TriggerFiredBundle` and `SchedulerIdentity` all have a public
-parameterless constructor and `init` properties. A new datum is a new non-`required` property, which
-is source- and binary-compatible — so "the scheduler needs one more thing from a store" is an
-afternoon rather than a major version.
+- **A collaborator is handed a context object, never a parameter list.** `DriverDelegateContext`,
+  `LockHandlerContext`, `TriggerPersistenceDelegateContext`, `TriggerAcquisitionRequest`,
+  `TriggerAcquisitionCriteria`, `TriggerFiredBundle` and `SchedulerIdentity` have a public parameterless
+  constructor and `init` properties. A new datum is a new non-`required` property: source- and
+  binary-compatible.
+- **A member added to a public interface arrives as a default interface member (DIM).** `IJobStore` has
+  nine, `IScheduler` one, `ILockHandler` and `ITriggerPersistenceDelegate` one each. Your implementation
+  keeps compiling and gets the default. The public API baselines mark every DIM.
 
-**A member added to a public interface arrives as a default interface member.** `IJobStore` carries
-nine of them, `IScheduler` one, and `ILockHandler` and `ITriggerPersistenceDelegate` one each; an
-implementation of yours goes on compiling and gets the default. The public API baselines mark them,
-so the promise is checkable rather than asserted.
-
-Two things follow for a decorator. A default interface member is not inherited into a class's member
-set, so it is callable only through an interface-typed reference unless the class declares it — and a
-forwarding type that does not declare one lets the default body run *on the forwarder*, asking the
-inner instance whatever that default decomposes into rather than the question that was put to it.
-`DelegatingJobStore` and `DelegatingScheduler` therefore declare every member of their contract, and a
-reflection sweep in the test suite holds them to it. Do the same in a forwarder of your own.
+**A forwarder must declare every DIM of its contract.** A DIM is not part of a class's members, so it is
+callable only through the interface unless the class declares it. A forwarder that omits one runs the
+default body *on the forwarder*, asking the inner instance whatever the default decomposes into rather than
+the original question. `DelegatingJobStore` and `DelegatingScheduler` declare every member, checked by a
+reflection sweep in the tests; do the same.
 
 ## What is closed, and why
 
-- **`RAMJobStore` is sealed and the two ADO.NET stores are internal.** They hold locks across several
-  index mutations in a fixed order; no override can be asked to preserve that. Decorate instead.
-- **The SQL statement text is internal (`StdAdoConstants`).** The schema is the contract, and it is
-  public in `AdoConstants`. Override the delegate method that issues a statement, not the string —
-  every `IDriverDelegate` member on `StdAdoDelegate` is `virtual`.
-- **How an instant and a duration are stored is not a delegate's choice.** `GetDbDateTimeValue`,
-  `GetDateTimeFromDbValue`, `GetDbTimeSpanValue` and `GetTimeSpanFromDbValue` are deliberately not
-  `virtual`: UTC ticks and whole milliseconds are part of the schema contract, and the preferred-node
-  liveness SQL does raw arithmetic on them. The boolean pair *is* a seam, because Oracle has no
-  boolean column type.
-- **Read-replica routing is not expressible.** `IDbProvider.CreateConnection()` takes no argument, so
-  the store cannot say whether the coming statement reads or writes. If it is ever opened, the move is
-  a default interface member — `DbConnection CreateReadConnection() => CreateConnection();` — and not
-  a parameter on `CreateConnection`, which would break both public `IDbProvider` implementations.
-- **The HTTP wire DTOs, the health-check predicate and the dashboard's default services are
-  internal.** Each has a public interface or an options object in front of it; write your own
-  endpoint, check or service rather than editing ours.
-- **The scheduling file formats (XML, JSON) know four schedule types.** A custom trigger is scheduled
-  in code or through the API.
+- **`RAMJobStore` is sealed; the ADO.NET stores are internal.** They lock across several index mutations in
+  a fixed order no override could preserve. Decorate instead.
+- **`StdAdoConstants`, the SQL text, is internal.** The schema is the contract, public in `AdoConstants`.
+  Override the delegate method that issues a statement; every `IDriverDelegate` member on `StdAdoDelegate`
+  is `virtual`.
+- **Instant and duration storage is fixed.** `GetDbDateTimeValue`, `GetDateTimeFromDbValue`,
+  `GetDbTimeSpanValue` and `GetTimeSpanFromDbValue` are not `virtual`: UTC ticks and whole milliseconds are
+  schema contract, and the preferred-node liveness SQL does arithmetic on them. The boolean pair *is*
+  virtual, because Oracle has no boolean column type.
+- **Read-replica routing is not expressible**: `IDbProvider.CreateConnection()` takes no argument. If it is
+  ever opened, it will be a DIM, `DbConnection CreateReadConnection() => CreateConnection();`, never a
+  parameter on `CreateConnection`, which would break both public `IDbProvider` implementations.
+- **The HTTP wire DTOs, the health-check predicate and the dashboard's default services are internal**,
+  each behind a public interface or options object. Write your own endpoint, check or service.
+- **The XML and JSON scheduling files know four schedule types.** Schedule a custom trigger in code or
+  through the API.
 
 ## How to ask for a seam
 
-Open an issue **describing the integration, not the member**. "Make `X` public" cannot be judged;
-"our store shards `QRTZ_TRIGGERS` by tenant and we need the acquisition predicate to carry a tenant
-id" can. Say what you are building, what you tried, and what stopped you. Opening a seam is
-deliberately easier than closing one, so a good case is usually granted — but the shape it is granted
-in is chosen from the problem, not from the workaround.
+Open an issue that **describes the integration, not the member**: what you are building, what you tried,
+what stopped you. "Make `X` public" cannot be judged; "our store shards `QRTZ_TRIGGERS` by tenant and we need
+the acquisition predicate to carry a tenant id" can. Good cases are usually granted, in a shape chosen from
+the problem rather than the workaround.
 
 ## See also
 

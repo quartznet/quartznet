@@ -4,12 +4,8 @@ title: 'A Job Store of Your Own'
 
 # A Job Store of Your Own
 
-`IJobStore` is where scheduling data lives. Quartz ships two implementations — in memory, and ADO.NET
-over a relational database — and the interface is public so a third can keep it somewhere else: a
-document database, a key-value store, a service.
-
-Before writing one, be clear about which of three jobs you are doing, because they have different
-answers.
+`IJobStore` holds scheduling data. Quartz ships an in-memory store and an ADO.NET store; implement the public
+interface to keep the data elsewhere (a document database, a key-value store, a service).
 
 | You want to | Do this |
 |---|---|
@@ -20,7 +16,7 @@ answers.
 
 ## Decorating a store
 
-`DelegatingJobStore` forwards every operation to another store, and every member is `virtual`:
+`DelegatingJobStore` forwards every operation to another store; every member is `virtual`:
 
 <!-- snippet: sample_custom_job_store_decorator -->
 ```csharp
@@ -56,21 +52,18 @@ q.UseJobStore(sp => new MetricsJobStore(
 ```
 <!-- endSnippet -->
 
-`protected IJobStore InnerJobStore` reaches the real store through however many layers are in the way.
+`protected IJobStore InnerJobStore` reaches the real store through any number of layers. A store that keeps
+data somewhere new implements `IJobStore` instead.
 
 ::: tip
-None of the shipped stores can be derived from — `RAMJobStore` is sealed, the two ADO.NET stores are
-internal — and decoration is why. `RAMJobStore` holds a lock while it mutates several indexes in a
-fixed order and raises notifications after releasing it, none of which an override can be asked to
-preserve. Wrap it, and change what you meant to change.
+The shipped stores cannot be derived from: `RAMJobStore` is sealed and the ADO.NET stores are internal.
+`RAMJobStore` mutates several indexes under one lock in a fixed order and notifies after releasing it, which
+no override could preserve. Wrap it instead.
 :::
-
-A store that keeps scheduling data somewhere new should implement `IJobStore` directly rather than
-derive from this.
 
 ## Registering a store
 
-Four overloads, all singleton and all keyed by scheduler name for a named scheduler:
+All four overloads register a singleton, keyed by scheduler name for a named scheduler:
 
 <!-- A listing of the four overloads rather than code, so it is written out here rather than
      compiled. -->
@@ -82,9 +75,8 @@ q.UseJobStore(existingInstance);                   // one you built
 q.UseJobStore(sp => new MyStore(…));               // a factory, e.g. for a decorator
 ```
 
-The generic forms construct the store with `ActivatorUtilities` through a *scheduler-scoped* view of
-the container, so a store written against the scheduler's own collaborators behaves the same under a
-named scheduler as under the default one. Take what you need:
+The generic forms construct the store with `ActivatorUtilities` from a *scheduler-scoped* view of the
+container, so it behaves the same under a named scheduler. Take what you need:
 
 <!-- An illustration of the constructor rather than a whole store, so it is written out here
      rather than compiled: the class as shown does not implement `IJobStore`. -->
@@ -103,11 +95,11 @@ public sealed class DocumentJobStore(
 ```
 
 ::: warning
-Registration is `TryAdd`, so **first wins**. `UseInMemoryStore()` and `UsePersistentStore(…)` register a
-store too — call `UseJobStore<MyStore>()` instead of them, not after them.
+Registration is `TryAdd`, so **first wins**. `UseInMemoryStore()` and `UsePersistentStore(…)` also register
+a store: call `UseJobStore<MyStore>()` instead of them, not after.
 
-A `TOptions` resolved through `IOptions<TOptions>` must keep its public parameterless constructor when
-the application is trimmed.
+A `TOptions` resolved through `IOptions<TOptions>` must keep its public parameterless constructor when the
+application is trimmed.
 :::
 
 ## Initialize and identity
@@ -118,43 +110,35 @@ the application is trimmed.
 ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default);
 ```
 
-Nearly everything a store needs — the type loader, the signaler, the time provider — is supplied
-through its constructor. What remains here is the scheduler's identity, which is not settled until the
-container has built the graph, plus work that has to happen before the scheduler runs and cannot be
-done during construction: verifying a schema, opening a connection, starting a background scan.
+Called once, after the scheduler is built and before plugins initialize. The constructor supplies the type
+loader, signaler and time provider; `Initialize` supplies the identity, which is settled only after the
+graph is built, and is where to verify a schema, open a connection or start a background scan.
 
-`SchedulerIdentity` carries `SchedulerName` and `InstanceId`, both required. **Record the instance id
-against the firings this node owns**, so `QueryFireInstances` can say which node is running what.
-
-It is called once, after the scheduler is built and before plugins initialize.
+`SchedulerIdentity` carries `SchedulerName` and `InstanceId`, both required. **Record the instance id against
+the firings this node owns**, so `QueryFireInstances` can say which node runs what.
 
 ## The contract that is easy to get wrong
 
 ### The fire cycle
 
-Three members run in a fixed sequence, once per acquisition batch:
+Once per acquisition batch, in order:
 
-1. **`AcquireNextTriggers(TriggerAcquisitionRequest request, ct)`** — reserve triggers for this node.
-   Never return a trigger that would fire later than `request.NoLaterThan`, and never return more than
-   `request.MaxCount`.
-2. **`TriggersFired(triggers, ct)`** — the scheduler is about to run them. **The returned list must be
-   the same length as the input and index-aligned with it.** The caller reads `results[i]` against
-   `triggers[i]`. Return `TriggerFiredResult.NotFired` for a trigger that should not fire after all and
-   `TriggerFiredResult.Failed(exception)` for one that could not be processed; both are handled, a
-   ragged list is not.
-3. **`TriggeredJobComplete(trigger, jobDetail, instruction, ct)`** — the firing is over. This is what
-   releases a `[DisallowConcurrentExecution]` job's siblings, and the scheduler calls it even on paths
-   where the job never ran. `ReleaseAcquiredTrigger` is only for a trigger that was acquired and never
-   fired.
+1. **`AcquireNextTriggers(TriggerAcquisitionRequest request, ct)`** — reserve triggers. Never return one
+   firing later than `request.NoLaterThan`, or more than `request.MaxCount`.
+2. **`TriggersFired(triggers, ct)`** — **return a list the same length as the input, index-aligned**; the
+   caller reads `results[i]` against `triggers[i]`. Use `TriggerFiredResult.NotFired` for a trigger that
+   should not fire after all and `TriggerFiredResult.Failed(exception)` for one that could not be processed.
+3. **`TriggeredJobComplete(trigger, jobDetail, instruction, ct)`** — the firing is over. This releases a
+   `[DisallowConcurrentExecution]` job's siblings, and is called even when the job never ran.
+   `ReleaseAcquiredTrigger` is only for a trigger acquired and never fired.
 
-Also implement `TimeSpan GetAcquireRetryDelay(int failureCount)`, called when `AcquireNextTriggers`
-fails more than once in succession. Return something between 20 milliseconds and 10 minutes.
+`TimeSpan GetAcquireRetryDelay(int failureCount)` is called after repeated `AcquireNextTriggers` failures.
+Return between 20 milliseconds and 10 minutes.
 
 ### Trigger state
 
-Every store keeps its triggers in one vocabulary — `StoredTriggerState`, nine members — and resolves
-to the `TriggerState` callers see through one function, so two stores cannot report different states
-for the same situation:
+Every store stores `StoredTriggerState` (nine members) and reports `TriggerState` through one function, so
+stores agree:
 
 <!-- snippet: sample_custom_job_store_trigger_state_resolver -->
 ```csharp
@@ -162,70 +146,51 @@ TriggerState reported = TriggerStateResolver.Resolve(stored, isExecuting);
 ```
 <!-- endSnippet -->
 
-The precedence is **`None > Error > Paused > Executing > Blocked > Complete > Normal`**. Paused and
-error outrank executing because they are the facts an operator has to act on, and both remain true
-while a previously started execution finishes. Executing outranks blocked so that the trigger which
-actually started the running job stays distinguishable from the siblings gated behind it.
-
-Two more rules to inherit rather than reinvent:
-
-- A stored value this version does not recognise reads as `Waiting`, and is reported as `Normal` —
-  schedulable.
-- A trigger that does not exist reads as `Deleted`, which resolves to `TriggerState.None`.
-
-`StoredTriggerStates.ToStoredValue()` / `FromStoredValue()` map to and from the persisted strings, and
-are public for exactly this.
+* Precedence: **`None > Error > Paused > Executing > Blocked > Complete > Normal`**. Paused and error win
+  because an operator must act on them; executing beats blocked to tell the running trigger from siblings
+  gated behind it.
+* An unrecognised stored value reads as `Waiting`, reported as `Normal`.
+* A missing trigger reads as `Deleted`, reported as `TriggerState.None`.
+* `StoredTriggerStates.ToStoredValue()` / `FromStoredValue()` map to and from the persisted strings.
 
 ### Queries
 
-The six paged `Query…` members are abstract, and three rules keep them consistent with the shipped
-stores:
+The six paged `Query…` members are abstract:
 
-- **Order by group, then name, ordinal.** Fire instances add fire instance id as a third key, because
-  one trigger can have several firings in flight and group plus name would not order them.
-- **`HasMore` is exact.** Read one row past `Take`.
-- **`TotalCount` only when asked.** `Take = 0` with `IncludeTotalCount = true` must skip the row query
-  entirely — that is the counting idiom.
+* **Order by group, then name, ordinal.** Fire instances add fire instance id as a third key, since one
+  trigger can have several in flight.
+* **`HasMore` is exact.** Read one row past `Take`.
+* **`TotalCount` only when asked.** `Take = 0` with `IncludeTotalCount = true` skips the row query.
 
-`QueryFireInstances` answers for the whole cluster if the store keeps firings durably, and for its own
-process otherwise, which is the whole of an in-memory store's world. `FireInstance.JobKey` is `null`
-while a firing is only `Acquired` — the job is not loaded until it starts.
+`QueryFireInstances` covers the cluster if firings are stored durably, otherwise this process.
+`FireInstance.JobKey` is `null` while a firing is only `Acquired`.
 
 ### Cluster nodes
 
-`QueryClusterNodes(ct)` lists the scheduler nodes the store knows about, as `ClusterNode`s. It is not
-paged — a cluster is a handful of nodes, not a data set — and two rules bind it:
+`QueryClusterNodes(ct)` returns `ClusterNode`s, unpaged:
 
-- **The current node is always in the list, first, and is the only one with `IsCurrentNode = true`.**
-  It is listed whether or not the store has a record of it yet. The rest follow by instance id, ordinal.
-- **A store that keeps no membership answers with that one node**, `ClusterNodeState.Alive`, with
-  `LastCheckInUtc` and `CheckInInterval` both `null`. That is the honest answer for a store that cannot
-  cluster, and it means a caller never has to branch on `Clustered` before asking.
-
-A store that *does* keep membership reports every node it has a record of, including ones that are dead
-but not yet swept, and decides `State` with **the same predicate its own failover pass uses** — write
-that once and call it from both, so the listing can never disagree with the recovery it predicts.
-`Overdue` is a missed check-in and nothing more; `Failed` is the point at which the store takes the
-node's work over.
+* **The current node is always first, and the only one with `IsCurrentNode = true`**, whether or not the
+  store has a record of it. The rest follow by instance id, ordinal.
+* **A store without membership returns only that node**, `ClusterNodeState.Alive`, with `LastCheckInUtc` and
+  `CheckInInterval` `null`, so callers need not check `Clustered` first.
+* A store with membership lists every recorded node, including dead ones not yet swept, and decides
+  `State` with **the same predicate as its failover pass**. `Overdue` is a missed check-in; `Failed` is
+  when the store takes over the node's work.
 
 ### Bulk members
 
-Many key-set members — `PauseJobs(keys)`, `ResumeTriggers(keys)`, `DeleteJobs(keys)` and so on — have
-default interface implementations that loop the single-key member. Correct for any store, and one lock
-or round trip per key. Override the ones your store can do in one pass, and keep the default for the
-rest.
+Key-set members such as `PauseJobs(keys)`, `ResumeTriggers(keys)` and `DeleteJobs(keys)` default to looping
+the single-key member (one lock or round trip per key). Override those your store can do in one pass.
 
 ### Two properties that are answers, not settings
 
-`bool Clustered` and `bool SupportsPersistence` are read-only because they describe what the store *is*.
-A store that cannot cluster answers `false` and means it.
+`bool Clustered` and `bool SupportsPersistence` are read-only: they describe what the store *is*. A store
+that cannot cluster returns `false`.
 
 ## Narrowing what a node picks up
 
-Some decorators want *less* work rather than different work: a node that takes at most five triggers at
-a time, or one that declines a whole class of job while a maintenance window is open. Both are
-decisions about the acquisition **request**, and `TriggerAcquisitionRequest` is a record — so a
-`DelegatingJobStore` rewrites it with `with` and hands it on:
+`TriggerAcquisitionRequest` is a record, so a `DelegatingJobStore` can rewrite it with `with`, for example to
+take at most five triggers at a time:
 
 <!-- snippet: sample_custom_job_store_acquisition_budget -->
 ```csharp
@@ -244,22 +209,18 @@ public sealed class BudgetedJobStore(IJobStore inner, int nodeBudget) : Delegati
 <!-- endSnippet -->
 
 ::: warning The MaxCount rule
-An override may **lower** `MaxCount` but must never raise it above what it was given. The choice
-between lock-free and locked acquisition is made from the request before the store reads it, so a
-raised count is caught only by post-acquisition validation: the surplus is released and retried. A
-performance hazard rather than corruption, but a silent one.
+**Lower** `MaxCount`, never raise it. Lock-free or locked acquisition is chosen from the original request,
+so a raised count is caught only afterwards and the surplus released and retried: a silent performance
+cost, not corruption.
 :::
 
-`AcquireNextTriggers` is called once per acquisition attempt, so a decorator runs again for every
-attempt rather than once per batch. Anything time-derived is recomputed, which is what makes the
-maintenance-window shape below work without restarting anything.
+The decorator runs on every acquisition attempt, so time-based rules (like the maintenance window below)
+take effect without a restart.
 
 ### Excluding job types from acquisition
 
-`ExcludedJobTypeNames` is how a node declines whole classes of work, and **every shipped store honours
-the request-level property**: the ADO.NET store threads the names into its driver delegate's criteria
-so the rows never leave the database, and `RAMJobStore` skips the candidate. Rewriting the request is
-therefore not a post-filter — an excluded job type never occupies one of the `MaxCount` rows.
+Set `ExcludedJobTypeNames` to decline whole job types. **Every shipped store honours it** before rows count
+against `MaxCount`: the ADO.NET store in SQL, `RAMJobStore` by skipping candidates.
 
 <!-- snippet: sample_custom_job_store_excluded_job_types -->
 ```csharp
@@ -289,34 +250,23 @@ public sealed class MaintenanceWindowJobStore(IJobStore inner, IMaintenanceWindo
 ```
 <!-- endSnippet -->
 
-Two things to get right:
-
-- **Name the type the way the store persists it.** That is `JobType.FullName` —
-  `Namespace.TypeName, AssemblyName`, the same string `TriggerAcquireResult.JobTypeName` carries and
-  the same one the ADO schema keeps in `JOB_CLASS_NAME`. `Type.FullName` has no assembly name and will
-  never match a stored row.
-- **Matching is exact.** There is no prefix or wildcard form. The SQL comparison follows the
-  `JOB_CLASS_NAME` column's collation, so its case sensitivity is the database's, not .NET's; the
-  in-memory store compares ordinally. Rows written by Quartz 2.x or 3.x can carry an older spelling,
-  and the read side never rewrites a stored name, so an exclusion will not match those.
-
-Entries must be non-blank and there may be at most 1000 of them, both checked when the request is
-constructed; 1000 is Oracle's ceiling on an `IN` list.
+* **Use `JobType.FullName`** (`Namespace.TypeName, AssemblyName`), the string in
+  `TriggerAcquireResult.JobTypeName` and `JOB_CLASS_NAME`. `Type.FullName` lacks the assembly and never
+  matches.
+* **Matching is exact**, with no prefix or wildcard. In SQL it follows the `JOB_CLASS_NAME` collation; in
+  memory it is ordinal.
+* Rows written by Quartz 2.x or 3.x may use an older spelling, which is never rewritten and will not match.
+* At most 1000 non-blank entries (Oracle's `IN` list limit), checked when the request is built.
 
 ## The ADO.NET store is not a base class
 
-`AdoJobStoreBase`, `LocalTransactionJobStore` and `ExternalTransactionJobStore` are internal. They are
-still what `quartz.jobStore.type` names and still what `UsePersistentStore` builds, so a configuration
-file needs no change — but they are not something to derive from, and in code the choice between the two
-is a call rather than a type argument: `UsePersistentStore()` gives you the local-transaction store, and
-`store.UseAmbientTransactions()` inside its callback gives you the other.
+`AdoJobStoreBase`, `LocalTransactionJobStore` and `ExternalTransactionJobStore` are internal.
+`quartz.jobStore.type` still names them, so configuration files need no change. In code, `UsePersistentStore()`
+builds the local-transaction store and `store.UseAmbientTransactions()` inside its callback the other.
 
-Deriving from the base was never the seam it looked like. Every `protected` member below its two
-abstract ones is the connection-taking twin of the public member above it — `AddJob(conn, …)` beside
-`AddJob(job, …)` — because the public one takes the lock and the twin does the work. Overriding one of
-those changes half of an operation.
-
-What to reach for instead depends on what the override did:
+Deriving never worked well: each `protected` member below the two abstract ones is the connection-taking twin
+of a public member (`AddJob(conn, …)` beside `AddJob(job, …)`); the public one locks and the twin does the
+work, so overriding one changes half an operation.
 
 | What you were overriding for | What to do |
 |---|---|
@@ -324,34 +274,30 @@ What to reach for instead depends on what the override did:
 | Logging, metrics, tenant routing, fault injection | `DelegatingJobStore` — see [Decorating a store](#decorating-a-store) |
 | A relational database Quartz ships no dialect for | [A Driver Delegate for a New Database](dialect-delegate.md) |
 | Classifying one more of your driver's failures as retryable | `AdoJobStoreOptions.IsTransient` — see [What counts as transient](../operations.md#what-counts-as-transient) |
-| A different transaction model from either shipped store | Implement `IJobStore`, which is public and stays public. If the two shipped stores nearly fit, [open an issue](https://github.com/quartznet/quartznet/issues) — that is a gap worth hearing about rather than working around |
+| A different transaction model from either shipped store | implement `IJobStore`; if the shipped stores nearly fit, [open an issue](https://github.com/quartznet/quartznet/issues) |
 
 ## Rebuilding jobs and triggers
 
-A store that reads its data back has to reconstruct `IJobDetail` and `IOperableTrigger`. The two are
-not symmetric:
+A store that reads data back reconstructs `IJobDetail` and `IOperableTrigger`:
 
-- **Jobs go through `JobBuilder`.** `JobDetailImpl` is internal, so `JobBuilder` is the only supported
-  construction path — which is what the ADO store does too.
-- **Triggers can be constructed directly.** `Quartz.Impl.Triggers.*TriggerImpl` are public, and
-  `TriggerBase` is public and abstract. All five are subclassable — three of them were sealed during
-  4.x's development and reopened for exactly this. Pair a subclassed trigger with a serializer derived
-  from that trigger's built-in serializer, which is public and unsealed for the same reason;
-  `BuiltInTriggerSerializerDerivationTest` guards both halves, in both JSON packages. See
-  [Persisting a Custom Trigger Type](trigger-persistence-delegate.md).
+* **Jobs go through `JobBuilder`**, the only supported path (`JobDetailImpl` is internal), as in the ADO
+  store.
+* **Triggers can be constructed directly.** `Quartz.Impl.Triggers.*TriggerImpl` and the abstract
+  `TriggerBase` are public, and all five are subclassable. Pair a subclassed trigger with a serializer
+  derived from its public, unsealed built-in serializer; `BuiltInTriggerSerializerDerivationTest` guards
+  both, in both JSON packages. See [Persisting a Custom Trigger Type](trigger-persistence-delegate.md).
 
 ## Testing one
 
-- **Behaviour**: run a real scheduler over your store with `UseJobStore<MyStore>()` and assert through
-  `IScheduler`. That is the only way to exercise the fire cycle's ordering.
-- **The contract**: the query rules above — ordering, `HasMore`, the `Take = 0` count — are all
-  testable against the store directly, with no scheduler.
-- **Fault handling**: `DelegatingJobStore` wrapping *your* store lets a test make one member fail.
+* **Behaviour**: run a real scheduler over your store with `UseJobStore<MyStore>()` and assert through
+  `IScheduler`; only this exercises the fire cycle's ordering.
+* **The contract**: ordering, `HasMore` and the `Take = 0` count are testable on the store alone.
+* **Fault handling**: wrap *your* store in a `DelegatingJobStore` to make one member fail.
 
 See [Testing](../tutorial/testing.md).
 
 ## See also
 
-- [Job Stores](../tutorial/job-stores.md) — the shipped stores and what they guarantee
-- [A Driver Delegate for a New Database](dialect-delegate.md) — the right seam for a relational database
-- [Querying Jobs and Triggers](../tutorial/querying-jobs-and-triggers.md) — the query contract, from the caller's side
+* [Job Stores](../tutorial/job-stores.md) — the shipped stores and what they guarantee
+* [A Driver Delegate for a New Database](dialect-delegate.md) — the right seam for a relational database
+* [Querying Jobs and Triggers](../tutorial/querying-jobs-and-triggers.md) — the query contract, from the caller's side

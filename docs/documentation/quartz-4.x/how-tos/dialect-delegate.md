@@ -4,20 +4,18 @@ title: 'A Driver Delegate for a New Database'
 
 # A Driver Delegate for a New Database
 
-Quartz ships driver delegates for SQL Server, PostgreSQL, MySQL, Oracle, SQLite and Firebird. A
-database that is not one of those — or one of those behind a provider that behaves differently — needs
-a delegate of its own.
+Quartz ships driver delegates for SQL Server, PostgreSQL, MySQL, Oracle, SQLite and Firebird. Another
+database, or one of those behind a provider that behaves differently, needs its own.
 
 ::: tip Start here
-**Do not implement `IDriverDelegate`.** Nothing in the product does; it is a hundred-odd members, and
-almost all of them are the same SQL on every database. Subclass `StdAdoDelegate` and override the
-handful that differ. The six shipped dialects override **ten distinct members between them**, out of
-roughly a hundred and ten — and Firebird and PostgreSQL need only two each.
+**Do not implement `IDriverDelegate`**: nothing in the product does, and most of its roughly hundred and ten
+members are the same SQL everywhere. Subclass `StdAdoDelegate` and override what differs. The six shipped
+dialects override **ten distinct members between them**; Firebird and PostgreSQL need two each.
 :::
 
 ## The seam
 
-`StdAdoDelegate` is `public` and unsealed, with a public parameterless constructor:
+`StdAdoDelegate` is `public`, unsealed, with a public parameterless constructor:
 
 <!-- snippet: sample_dialect_delegate_subclass -->
 ```csharp
@@ -28,14 +26,14 @@ public sealed class MyDatabaseDelegate : StdAdoDelegate
 ```
 <!-- endSnippet -->
 
-Ten members are the dialect contract. Everything else on `StdAdoDelegate` is an implementation step
-that happens to be `protected virtual` so the class can be composed — treat them as private.
+These ten members are the dialect contract. Treat its other `protected virtual` members as private
+implementation steps.
 
 | Member | Override when |
 |---|---|
-| `protected virtual string? SchemaResourceName` | you want `ProvisionSchema()` to be able to create your tables — see [Also needed](#also-needed-a-dbmetadata-and-a-schema) |
+| `protected virtual string? SchemaResourceName` | you want `ProvisionSchema()` to create your tables — see [Also needed](#also-needed-a-dbmetadata-and-a-schema) |
 | `protected virtual SqlRowLimit GetRowLimit(int count)` | your database can limit the rows a statement returns |
-| `protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)` | the acquisition statement needs something else besides — MySQL's index hint is the only shipped case |
+| `protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)` | the acquisition statement needs more than a row limit (MySQL's index hint is the only shipped case) |
 | `protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count)` | the same, for the misfire scan; `count == -1` means "no limit" |
 | `protected virtual string GetCountMisfiredTriggersInStateSql()` | the counting form needs a different shape |
 | `protected virtual string ApplyPaging(string sql, bool takeLimited)` | `OFFSET … FETCH NEXT …` is not understood |
@@ -46,9 +44,8 @@ that happens to be `protected virtual` so the class can be composed — treat th
 
 ### Row limiting
 
-There is no ANSI row limit, so `StdAdoDelegate` applies none and a dialect that can limit rows says
-where its clause goes. Two statements carry one — trigger acquisition and the misfire scan — and both
-ask the same member, so a dialect says it once:
+There is no ANSI row limit, so `StdAdoDelegate` applies none. Trigger acquisition and the misfire scan both
+ask `GetRowLimit`:
 
 <!-- snippet: sample_dialect_delegate_row_limiting -->
 ```csharp
@@ -61,35 +58,25 @@ protected override SqlRowLimit GetRowLimit(int count)
 ```
 <!-- endSnippet -->
 
-`SqlRowLimit` names the three places a limit can sit, and the statement is built with the clause
-already in it. Nothing is spliced into finished SQL, so a dialect no longer depends on the statement
-starting with a particular keyword or ending with a particular clause. `count` is always at least
-one: the `-1` that means "every row" is turned into `SqlRowLimit.Unlimited` before the member is
-called, so an override never has to test for it.
-
-`TriggerAcquisitionSqlShape` carries everything about an acquisition attempt that changes the text of
-the statement — the row limit's count, and how many job-type exclusion terms the `NOT IN` clause
-needs. It is also the key the finished statement is cached under, which is why it holds the bucketed
-exclusion count rather than the caller's exact one. Override
-`GetSelectNextTriggerToAcquireSql(shape)` only for something a row limit cannot express; MySQL is the
-one shipped dialect that does, for its `FORCE INDEX` hint, and it still calls `base` and leaves the
-limit alone.
+* `SqlRowLimit` names the three places a limit can go; the statement is built with it, not spliced.
+* `count` is always at least one: "every row" (`-1`) arrives as `SqlRowLimit.Unlimited`.
+* `TriggerAcquisitionSqlShape` carries what changes the statement text (the row limit, and how many
+  job-type exclusion terms `NOT IN` needs). It is also the statement's cache key, so it holds a bucketed
+  exclusion count, not the exact one.
+* Override `GetSelectNextTriggerToAcquireSql(shape)` only for what a row limit cannot express, as MySQL does
+  for `FORCE INDEX`, still calling `base` and leaving the limit alone.
 
 ### Paging
 
-The default is the ANSI form, understood by SQL Server 2012+, Oracle 12c+, PostgreSQL and Firebird 3+:
+The default is ANSI, understood by SQL Server 2012+, Oracle 12c+, PostgreSQL and Firebird 3+:
 
 ```sql
  OFFSET @pageSkip ROWS FETCH NEXT @pageTake ROWS ONLY
 ```
 
-MySQL and SQLite have no such clause, so they override both members — and they must override
-`AddPagingParameters` too, because their clause names the parameters in the other order and providers
-that bind positionally take them in the order the statement mentions them.
-
-The two parameter names are the one thing the two overrides have to agree about, so they are constants
-rather than literals: `AdoConstants.ParameterPageSkip` and `AdoConstants.ParameterPageTake`, spliced
-into the statement with an `@` and bound by the bare name.
+MySQL and SQLite override `ApplyPaging` and `AddPagingParameters`: their clause names the parameters in the
+other order, and positional providers bind in statement order. Use `AdoConstants.ParameterPageSkip` and
+`AdoConstants.ParameterPageTake`, prefixed with `@` in SQL and bare when binding:
 
 <!-- snippet: sample_dialect_delegate_paging -->
 ```csharp
@@ -110,17 +97,13 @@ protected override void AddPagingParameters(DbCommand cmd, int skip, int take, b
 ```
 <!-- endSnippet -->
 
-`takeLimited` is `false` when the caller asked for an unbounded page (`Take = int.MaxValue`), which is
-the case a database with no offset-only form has to spell some other way — MySQL uses a `LIMIT` of the
-largest `BIGINT UNSIGNED`, SQLite uses `LIMIT -1`.
-
-One detail to preserve: the `take` the base class passes is **one more than the page size**. That extra
-row is what tells the caller whether anything follows the page, which is how `PagedResult<T>.HasMore`
-is exact without a second query.
+* `takeLimited` is `false` for an unbounded page (`Take = int.MaxValue`). Without an offset-only form, MySQL
+  uses a `LIMIT` of the largest `BIGINT UNSIGNED`, SQLite `LIMIT -1`.
+* The base passes `take` as **the page size plus one**; the extra row makes `PagedResult<T>.HasMore` exact.
 
 ### Booleans
 
-Oracle has no boolean column type, so its delegate maps both directions:
+Oracle has no boolean column type, so its delegate maps both ways:
 
 <!-- snippet: sample_dialect_delegate_booleans -->
 ```csharp
@@ -130,65 +113,51 @@ public override bool GetBooleanFromDbValue(object columnValue) => Convert.ToInt3
 ```
 <!-- endSnippet -->
 
-`GetDbBooleanValue` is what every `IS_DURABLE`, `REQUESTS_RECOVERY` and similar column is bound
-through, so the two must agree exactly.
+`IS_DURABLE`, `REQUESTS_RECOVERY` and similar columns bind through `GetDbBooleanValue`; the two must agree.
 
 ### Parameters
 
-`AddCommandParameter` is the last resort, and SQL Server's delegate shows why it is sometimes
-necessary: it converts booleans to `1`/`0`, sets `size = -1` for varbinary, and pins string parameters
-to `size = 4000` to stop the server inferring a size from the value and building a separate query plan
-per length.
+`AddCommandParameter` is the last resort. SQL Server's delegate converts booleans to `1`/`0`, sets
+`size = -1` for varbinary, and pins strings to `size = 4000` so the server does not build a query plan per
+string length.
 
 ## What the delegate cannot reach
 
 ::: warning
-The SQL statement constants — `StdAdoConstants` — are **internal**. The exact text of a statement is
-not a contract; the schema it addresses is, and that lives in `AdoConstants`, which is public.
+`StdAdoConstants` (the SQL text) is **internal**. The schema is the contract, public in `AdoConstants`.
 :::
 
-For a delegate in your own assembly this means two things:
-
-- You cannot write `StdAdoConstants.SqlSelectNextTriggerToAcquire`. Derive your statement from what the
-  base returns — `base.GetSelectNextTriggerToAcquireSql(shape)` — and transform the string, which is
-  exactly what MySQL's `.Replace("{0}TRIGGERS t", …)` does. Or write the statement whole.
-- You *can* name tables, columns, trigger types and state values: `AdoConstants.TableTriggers`,
-  `AdoConstants.ColumnTriggerName`, `AdoConstants.StateWaiting` and the rest are public precisely so a
-  dialect can build its own SQL against the schema.
-
-`{0}` is the table-prefix placeholder, and `protected string ReplaceTablePrefix(string query)`
-substitutes it. Statements the base class returns still contain it; the caller substitutes.
+* You cannot write `StdAdoConstants.SqlSelectNextTriggerToAcquire`. Transform
+  `base.GetSelectNextTriggerToAcquireSql(shape)` (as MySQL's `.Replace("{0}TRIGGERS t", …)` does), or write
+  the statement whole.
+* You can name the schema: `AdoConstants.TableTriggers`, `AdoConstants.ColumnTriggerName`,
+  `AdoConstants.StateWaiting` and the rest.
+* `{0}` is the table-prefix placeholder; `protected string ReplaceTablePrefix(string query)` substitutes
+  it. Statements from the base still contain it; the caller substitutes.
 
 ::: tip
-"Customize one statement" is not a supported operation, and that is deliberate. The six SQL hooks
-above cover the statements that actually differ between databases; the other ~76 are inlined
-`ReplaceTablePrefix(StdAdoConstants.X)` call sites, and the delegate *is* the seam — override the
-method that issues the statement. Every `IDriverDelegate` member on `StdAdoDelegate` is `virtual` for
-that reason, including `UpdateTriggerStateFromOtherStateWithNextFireTime`, which is how the lock-free
-acquisition path claims a trigger. Additional `GetXxxSql()` hooks can be added later without breaking
-anyone, so if you need one, ask.
+"Customize one statement" is not supported. The six SQL hooks cover what differs between databases; the
+other ~76 statements are inlined `ReplaceTablePrefix(StdAdoConstants.X)` calls. Override the method that
+issues the statement instead: every `IDriverDelegate` member on `StdAdoDelegate` is `virtual`, including
+`UpdateTriggerStateFromOtherStateWithNextFireTime`, which the lock-free acquisition path uses to claim a
+trigger. More `GetXxxSql()` hooks can be added compatibly; ask if you need one.
 :::
 
 ::: warning The value conversions are not all seams
-`GetDbBooleanValue` / `GetBooleanFromDbValue` are `virtual` — Oracle has no boolean column type — but
-`GetDbDateTimeValue`, `GetDateTimeFromDbValue`, `GetDbTimeSpanValue` and `GetTimeSpanFromDbValue` are
-not, and that is deliberate. UTC ticks and whole milliseconds are part of the schema contract: the
-preferred-node liveness SQL does raw tick arithmetic against `LAST_CHECKIN_TIME` and
-`CHECKIN_INTERVAL`, so a delegate that changed how an instant is stored would silently break cluster
-failover for pinned triggers. A database that must store `DATETIME` natively implements
-`IDriverDelegate` directly and owns its SQL.
+`GetDbBooleanValue` / `GetBooleanFromDbValue` are `virtual`. `GetDbDateTimeValue`, `GetDateTimeFromDbValue`,
+`GetDbTimeSpanValue` and `GetTimeSpanFromDbValue` are not: UTC ticks and whole milliseconds are schema
+contract, and the preferred-node liveness SQL does tick arithmetic on `LAST_CHECKIN_TIME` and
+`CHECKIN_INTERVAL`, so changing them would silently break failover for pinned triggers. A database that must
+store `DATETIME` natively implements `IDriverDelegate` directly and owns its SQL.
 :::
 
 ## Initialization
 
-`StdAdoDelegate.Initialize(DriverDelegateContext context)` is `public virtual`, and a dialect normally
-does not override it — none of the six shipped ones do. Override it only to register extra trigger
-persistence delegates or to capture something from the context, and call `base.Initialize(context)`
-first.
+`StdAdoDelegate.Initialize(DriverDelegateContext context)` is `public virtual`; no shipped dialect overrides
+it. Override it only to register extra trigger persistence delegates or capture something from the context,
+and call `base.Initialize(context)` first.
 
-`DriverDelegateContext` carries everything the delegate needs to issue statements:
-
-| Member | |
+| `DriverDelegateContext` member | |
 |---|---|
 | `TablePrefix`, `SchedulerName`, `InstanceId` | required |
 | `DbProvider`, `TypeLoader` | required |
@@ -197,13 +166,9 @@ first.
 | `TimeProvider` | the scheduler's clock |
 | `CommandTimeout` | from `AdoJobStoreOptions.CommandTimeout` |
 
-It arrives after construction rather than through the constructor because `InstanceId` is not settled
-until the scheduler starts — a generated instance id does not exist when the container builds the
-delegate.
-
-Two of those the base class then hands back, so a delegate writing a statement of its own does not
-override `Initialize` merely to keep a second copy: `protected string SchedulerName { get; }`, which
-nearly every statement is scoped by, and `protected IDbProvider DbProvider { get; }`.
+It arrives after construction because a generated `InstanceId` does not exist when the container builds the
+delegate. The base exposes `protected string SchedulerName { get; }` (which scopes nearly every statement)
+and `protected IDbProvider DbProvider { get; }`, so you need no copies.
 
 ## Registering it
 
@@ -221,43 +186,35 @@ builder.Services.AddQuartz(q =>
 <!-- endSnippet -->
 
 ::: warning Order matters
-Registration is **first-wins** (`TryAdd`). `UseSqlServer`, `UsePostgres` and the rest each call
-`UseDriverDelegate<…>()` internally, so `UseDriverDelegate<MyDatabaseDelegate>()` must come **before**
-the database method or it is silently ignored.
+Registration is **first-wins** (`TryAdd`). `UseSqlServer`, `UsePostgres` and the rest call
+`UseDriverDelegate<…>()` internally, so `UseDriverDelegate<MyDatabaseDelegate>()` must come **before** the
+database method or it is silently ignored.
 :::
 
-The delegate is constructed with `ActivatorUtilities`, so **constructor dependencies work** — take an
-`ILogger<MyDatabaseDelegate>` or anything else in the container.
-
-For a delegate that needs more than the container can supply — a constructor argument only the caller
-has, or a property set before it is handed over — `UseDriverDelegate(factory)` takes the delegate you
-built. The factory is given a provider that resolves this scheduler's own parts, which is what
-registering `IDriverDelegate` against `Services` would not do: a named scheduler resolves its delegate
-under its own key and would never see an unkeyed registration. `UseSerializer`, `UseLockHandler`,
-`UseConnectionProvider` and `UseTriggerPersistenceDelegate` all take a factory the same way.
-
-The legacy `quartz.jobStore.driverDelegateType` key still selects a delegate by type name, and stands
-on its own: an application that has moved store selection into code can still name its delegate in a
-configuration file.
+* The delegate is built with `ActivatorUtilities`, so **constructor dependencies work** (an
+  `ILogger<MyDatabaseDelegate>`, anything in the container).
+* `UseDriverDelegate(factory)` takes a delegate you build. The factory's provider resolves this scheduler's
+  own parts; an `IDriverDelegate` registered on `Services` would be invisible to a named scheduler, which
+  resolves under its own key. `UseSerializer`, `UseLockHandler`, `UseConnectionProvider` and
+  `UseTriggerPersistenceDelegate` take factories the same way.
+* The legacy `quartz.jobStore.driverDelegateType` key still selects a delegate by type name, even when the
+  store is selected in code.
 
 ## Also needed: a DbMetadata and a schema
 
-The delegate is one of three things a new database needs:
-
 1. **The delegate** — this page.
-2. **A provider registration.** `UseGenericDatabase(provider, connectionString, describeMetadata)`
-   takes a `Func<DbMetadata>` describing the ADO.NET provider: its connection, command and parameter
-   types, the parameter prefix, and how it spells a `DbType`. The provider name and the delegate are
-   independent axes — the `Use…` shortcut methods just set both at once.
+2. **A provider registration.** `UseGenericDatabase(provider, connectionString, describeMetadata)` takes a
+   `Func<DbMetadata>` describing the ADO.NET provider: connection, command and parameter types, parameter
+   prefix, and `DbType` spelling. Provider and delegate are independent; the `Use…` shortcuts set both.
 3. **DDL.** Copy the closest `database/tables/tables_<dialect>.sql` and adjust the column types.
 
-Running that DDL by hand is enough for the default `SchemaProvisioning.Validate`. To let
-`ProvisionSchema()` create the tables instead, embed the script in your own assembly
-(`<EmbeddedResource Include="MyDatabase.sql" />`) and name it from `SchemaResourceName`, using the
-manifest resource name the compiler gives it — `<RootNamespace>.<folder path>.<file name>`.
-Statements are separated by a line reading `--;;` rather than by a semicolon, because a semicolon
-ends a statement on one dialect and a line inside a stored-procedure body on another, and `{0}`
-stands where the table prefix goes:
+Running the DDL by hand satisfies the default `SchemaProvisioning.Validate`. For `ProvisionSchema()` to
+create the tables:
+
+1. Embed the script (`<EmbeddedResource Include="MyDatabase.sql" />`).
+2. Return its manifest resource name, `<RootNamespace>.<folder path>.<file name>`, from `SchemaResourceName`.
+3. Separate statements with a line reading `--;;` (a semicolon may be inside a stored-procedure body), and
+   write `{0}` for the table prefix.
 
 <!-- snippet: sample_dialect_delegate_schema_resource -->
 ```csharp
@@ -268,13 +225,11 @@ protected override string? SchemaResourceName => "MyCompany.Quartz.MyDatabase.sq
 ```
 <!-- endSnippet -->
 
-The name is looked for in the assembly of the delegate's own type and then in each assembly up its
-base chain, so a delegate that subclasses a shipped dialect to change a statement or two inherits
-that dialect's script without carrying a copy. Left unset, `ProvisionSchema()` fails with a message
-naming this member rather than with a SQL error.
+The name is looked up in the delegate type's assembly, then up its base chain, so a subclass of a shipped
+dialect inherits its script. Unset, `ProvisionSchema()` fails with a message naming this member.
 
 ## See also
 
-- [Job Stores](../tutorial/job-stores.md) — how the ADO store is put together
-- [A Job Store of Your Own](custom-job-store.md) — the layer above this one
-- [Persisting a Custom Trigger Type](trigger-persistence-delegate.md) — the other delegate seam
+* [Job Stores](../tutorial/job-stores.md) — how the ADO store is put together
+* [A Job Store of Your Own](custom-job-store.md) — the layer above this one
+* [Persisting a Custom Trigger Type](trigger-persistence-delegate.md) — the other delegate seam

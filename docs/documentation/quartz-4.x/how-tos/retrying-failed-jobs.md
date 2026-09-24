@@ -5,13 +5,13 @@ title: Retrying Failed Jobs
 
 # Retrying Failed Jobs
 
-A trigger can carry a **retry policy**: how many times, and how far apart, the scheduler re-fires it when
-its job fails. Give a trigger one and there is nothing else to do — a job that throws is retried, and a job
-that succeeds is not.
+A trigger's **retry policy** says how many times, and how far apart, the scheduler re-fires it when its job
+fails. With a policy set, a job that throws is retried and one that succeeds is not.
 
 ## Give the trigger a policy
 
-Three shapes, and the only three ways to make one:
+There are exactly three kinds: fixed, exponential and explicit. A fixed policy waits the same time
+between retries:
 
 <!-- snippet: sample_retry_fixed -->
 ```csharp
@@ -47,9 +47,8 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-An exponential policy can also be **jittered**, so that triggers which failed together do not come back
-together. Each wait is multiplied by a value drawn uniformly from `[1 - jitter, 1 + jitter]`, and the
-ceiling still bounds the result:
+An exponential policy can be **jittered**, so triggers that failed together do not return together. Each
+wait is multiplied by a value drawn uniformly from `[1 - jitter, 1 + jitter]`, still bounded by the ceiling:
 
 <!-- snippet: sample_retry_jitter -->
 ```csharp
@@ -73,17 +72,16 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-A jitter of `0` — the default — is the four-argument overload: the same waits, and the same bytes in the
-`RETRY_POLICY` column.
+A jitter of `0` (the default) equals the four-argument overload, down to the bytes in the `RETRY_POLICY`
+column.
 
 ::: warning A jittered policy is not readable by a node older than 4.2
-The jitter is stored as a `;j<value>` token appended to the policy's stored form, and **only when it is
-not zero**. A 4.1 node reading a trigger whose policy carries one meets a field it cannot parse and
-reports the row as unreadable. So in a mixed cluster the order is the usual one: roll every node to 4.2
-first, and only then start giving triggers jitter.
+A non-zero jitter is stored as a `;j<value>` token appended to the policy's stored form. A 4.1 node cannot
+parse it and reports the row as unreadable. In a mixed cluster, roll every node to 4.2 before using jitter.
 :::
 
-Or spell the waits out. The table's length is the number of attempts, and its last entry repeats:
+An explicit policy lists the waits; the list's length is the number of attempts, and its last entry
+repeats:
 
 <!-- snippet: sample_retry_explicit -->
 ```csharp
@@ -102,25 +100,20 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-`MaxAttempts` counts retries *after* the first failure, not fires: `Fixed(3, …)` means a persistently
-failing job runs four times in all.
+`MaxAttempts` counts retries *after* the first failure: `Fixed(3, …)` runs a job that keeps failing four
+times.
 
 ## What counts as a failure
 
-A job fails, for retry purposes, when `Execute` throws — anything at all. There is no interface to
-implement and no attribute to add.
+A job fails when `Execute` throws anything; there is nothing to implement or annotate. Not failures:
 
-Three things are deliberately not failures:
+* A `JobExecutionException` asking for `RefireImmediately`, `UnscheduleFiringTrigger` or
+  `UnscheduleAllTriggers`: the job's own decision wins over the policy.
+* A cancellation on the scheduler's own token (shutdown, interrupt). For a node vanishing mid-execution, use
+  [`RequestsRecovery`](../tutorial/more-about-jobs.md).
+* Anything, on a trigger with no policy (the default, unchanged behaviour).
 
-* A `JobExecutionException` that asks for something itself. `RefireImmediately`, `UnscheduleFiringTrigger`
-  and `UnscheduleAllTriggers` are decisions the job made, and they win over the trigger's policy.
-* A cancellation on the scheduler's own token. Shutdown and interrupt are operator decisions; a node that
-  vanishes mid-execution is what [`RequestsRecovery`](../tutorial/more-about-jobs.md) is for.
-* Anything at all, on a trigger with no policy. That is the default, and it behaves exactly as it always
-  did.
-
-A job that knows a failure is not worth retrying can say so, and keep its attempts for the failures that
-are:
+A job can catch a failure that retrying cannot fix and return, saving its attempts:
 
 <!-- snippet: sample_retry_not_worth_retrying -->
 ```csharp
@@ -192,27 +185,27 @@ public sealed class RetryAwareImportJob : IJob
 ```
 <!-- endSnippet -->
 
-`ScheduledFireTimeUtc` is the same on every one of those firings — a retry is another attempt at one
-occurrence, so it reports the occurrence the schedule called for rather than the instant it actually ran.
+`ScheduledFireTimeUtc` is the same on every retry: the occurrence the schedule called for, not when the retry
+ran.
 
 ::: warning RetryAttempt is not RefireCount
-`RefireCount` counts iterations of the in-process refire loop: same context, same thread, no delay, no
-ceiling, nothing persisted, and the execution slot never released. `RetryAttempt` counts retries of an
-occurrence: a fresh firing at a later instant, recorded in the job store, surviving a restart and visible
-to every node in a cluster. **`RefireImmediately` is not a zero-delay retry**, and the two counters move
-independently.
+
+| | `RefireCount` | `RetryAttempt` |
+|---|---|---|
+| Counts | iterations of the in-process refire loop | retries of an occurrence |
+| Runs in | the same context and thread; the execution slot is never released | a fresh firing |
+| Delay | none | until a later instant |
+| Ceiling | none | the policy |
+| Persisted | no | in the job store; survives a restart, visible to every node in a cluster |
+
+**`RefireImmediately` is not a zero-delay retry**; the two counters are independent.
 :::
 
 ## When the policy gives up
 
-Running out of attempts used to be silent. A listener could work it out, but only by comparing
-`TriggerComplete`'s instruction against `SchedulerInstruction.RetryTrigger` and knowing what the trigger's
-policy said. Three things now say it outright.
-
-**The execution context says how the firing ended.** `IJobExecutionContext.Outcome` is what the scheduler
-classified the firing as, and `IJobExecutionContext.RetryScheduled` is whether the trigger answered it
-with another attempt. Both are set before the completion notifications go out, so `JobWasExecuted` and
-`TriggerComplete` read them:
+**1. The execution context.** `IJobExecutionContext.Outcome` is how the firing ended;
+`IJobExecutionContext.RetryScheduled` is whether another attempt follows. Both are set before completion
+notifications, so `JobWasExecuted` and `TriggerComplete` can read them:
 
 <!-- snippet: sample_retry_reading_the_outcome -->
 ```csharp
@@ -245,24 +238,21 @@ public sealed class OutcomeReadingListener : IJobListener
 ```
 <!-- endSnippet -->
 
-A job that ran and threw is `ExecutionOutcome.Failed` whether or not it is going to be retried — the
-outcome says what the firing *did*. `RetryScheduled` is what says whether the occurrence is finished.
+A job that threw is `ExecutionOutcome.Failed` whether or not it will be retried; `RetryScheduled` says
+whether the occurrence is finished.
 
-**A trigger listener is told once per occurrence that gave up.**
-`ITriggerListener.TriggerRetriesExhausted` is raised between `JobWasExecuted` and `TriggerComplete`, and
-only when the trigger has a policy, the job ran and threw, and there is no further attempt coming. That is
-three situations, not one:
+**2. `ITriggerListener.TriggerRetriesExhausted`**, raised once per occurrence, between `JobWasExecuted` and
+`TriggerComplete`, when the trigger has a policy, the job threw, and no attempt follows because:
 
-* the policy's attempts are **spent** — the case the name describes;
-* a retry was **declined for lack of room** — it would have landed at or within a second of the next
-  scheduled occurrence, after the trigger's end time, or past the end of representable time (see
-  [the rules](#the-rules-worth-knowing) below) — so the occurrence settles with attempts still left;
-* the job's `JobExecutionException` asked for **`UnscheduleFiringTrigger` or `UnscheduleAllTriggers`**, an
-  explicit directive that wins over the policy, so no retry is attempted at all.
+* the policy's attempts are **spent**;
+* a retry was **declined for lack of room**: it would land at or within a second of the next occurrence,
+  after the trigger's end time, or past the end of representable time ([the rules](#the-rules-worth-knowing)),
+  so attempts are left;
+* the job's `JobExecutionException` asked for **`UnscheduleFiringTrigger` or `UnscheduleAllTriggers`**, so no
+  retry was attempted.
 
-A listener that needs to tell them apart can: `context.RetryAttempt` against the policy's `MaxAttempts`
-says whether attempts were left, and `TriggerComplete`'s instruction says whether the trigger was
-unscheduled.
+Tell them apart with `context.RetryAttempt` against the policy's `MaxAttempts`, and `TriggerComplete`'s
+instruction.
 
 <!-- snippet: sample_retry_listener_gave_up -->
 ```csharp
@@ -309,49 +299,38 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-A failure on a trigger with **no** policy never raises it: nothing gave up, because nothing was going to
-try again. Neither does a failure that is being retried, nor a firing that was cancelled, vetoed or
-succeeded. `RefireImmediately` re-runs the job inside the same firing, so only the run that ends the firing
-can raise it. Like every other member of `ITriggerListener` it is a default interface member, so a
-listener written against 4.0 or 4.1 compiles and runs unchanged.
+Never raised for a trigger with **no** policy, a failure being retried, a cancelled, vetoed or successful
+firing, or a `RefireImmediately` run other than the one that ends the firing. It is a default interface
+member, so listeners written for 4.0 or 4.1 are unchanged.
 
-**The history says which row was the last word.** Every execution the history records carries
-`RetryAttempt` — which attempt at the occurrence it was — and `RetryScheduled`. A row that did not succeed
-and has `RetryScheduled` false is a *final* failure, and `ExecutionHistoryQuery.FailedFinally` selects
-exactly those. It is a question `Succeeded` alone cannot ask: a job under a policy of three writes four
-failed rows for one bad night, and a page filtered on failure shows the same occurrence four times over.
-The HTTP API takes it as `failedFinally` on `GET …/history/executions`.
+**3. The execution history.** Each row carries `RetryAttempt` and `RetryScheduled`. A failed row with
+`RetryScheduled` false is a *final* failure, selected by `ExecutionHistoryQuery.FailedFinally` (HTTP API:
+`failedFinally` on `GET …/history/executions`). `Succeeded` alone cannot do this: a policy of three writes
+four failed rows for one bad night.
 
-The dashboard's **History** page is built on all three: a row says *Failed (retrying)* or *Failed*, the
-**Outcome** filter offers *Failed after retries*, and a final failure carries a **Run again** button that
-fires the job by hand — recorded in the action log like every other mutation, and absent when the
-dashboard is read-only.
+The dashboard's **History** page shows *Failed (retrying)* or *Failed*, has a *Failed after retries* option
+in its **Outcome** filter, and gives a final failure a **Run again** button (recorded in the action log;
+absent when read-only).
 
 ## The rules worth knowing
 
-**A retry never displaces the trigger's next scheduled occurrence.** If the retry would land at, or within
-a second of, the next fire time, it is dropped and the occurrence wins. So a policy whose waits are longer
-than the gap between occurrences quietly does nothing — an hourly trigger with a 90-minute retry wait is
-never retried, because the next hour comes first. A retry is not scheduled past the trigger's `EndTimeUtc`
-either, nor past the end of the calendar: an exponential policy's waits grow until one of them is longer
-than the room left in a `DateTimeOffset`, and a retry with nowhere to land is declined for the same reason
-as one that would land too late. In every case the occurrence settles and the trigger keeps its ordinary
-schedule.
+**A retry never displaces the trigger's next occurrence.** One that would land at, or within a second of,
+the next fire time is dropped: an hourly trigger with a 90-minute wait is never retried. Nor is a retry
+scheduled past `EndTimeUtc` or the end of the calendar (an exponential wait can outgrow `DateTimeOffset`).
+The occurrence ends and the schedule continues.
 
-**A retry burns nothing.** It does not consume a `SimpleTrigger` repeat count, a recurrence rule's `COUNT`
-slot, or a `TimesTriggered`. The schedule after a retry is exactly the schedule there would have been if
-nothing had failed.
+**A retry burns nothing**: no `SimpleTrigger` repeat count, recurrence `COUNT` slot or `TimesTriggered`. The
+schedule afterwards is the one there would have been without the failure.
 
-**Running out of attempts is not an error.** The trigger goes back to its ordinary schedule with the
-attempt reset — it is not moved to `TriggerState.Error`, because one bad hour must not kill a cron trigger.
+**Running out of attempts is not an error.** The trigger returns to its schedule with the attempt reset, not
+to `TriggerState.Error`.
 
-**A missed retry is an ordinary misfire.** If the scheduler never got to the retry, the trigger's own
-misfire instruction decides what happens, and the attempt is cleared: the occurrence it belonged to is
-gone. There is no separate retry-misfire policy.
+**A missed retry is an ordinary misfire.** The trigger's misfire instruction decides, and the attempt is
+cleared with its occurrence. There is no separate retry-misfire policy.
 
 ## Changing a policy on a stored trigger
 
-`UpdateTriggerDetails` changes the policy without rescheduling the trigger:
+`UpdateTriggerDetails` changes the policy without rescheduling:
 
 <!-- snippet: sample_retry_update_stored_trigger -->
 ```csharp
@@ -362,7 +341,7 @@ await scheduler.UpdateTriggerDetails(
 ```
 <!-- endSnippet -->
 
-Passing `null` stops it retrying:
+`null` stops retries:
 
 <!-- snippet: sample_retry_clear_stored_trigger -->
 ```csharp
@@ -373,27 +352,22 @@ await scheduler.UpdateTriggerDetails(
 ```
 <!-- endSnippet -->
 
-The new policy applies from the next failure. An occurrence already waiting on a retry keeps the schedule
-it was given, and there is deliberately no way to set the *attempt* through an update: it belongs to the
-occurrence in flight, and setting it would either grant a running job extra attempts or take away ones it
-has already spent.
+The change applies from the next failure; a pending retry keeps its time. The *attempt* cannot be set: it
+belongs to the occurrence in flight.
 
 ## Watching it happen
 
-* Meter `quartz.trigger.retry` counts each retry the scheduler schedules, tagged with the scheduler, the
-  trigger group and the execution group — the same tags `quartz.trigger.misfire` carries.
-* Meter `quartz.trigger.retries_exhausted` counts each occurrence that gave up, under the same tags. The
-  two divide: a group whose retries are nearly all exhausted is a group the policy is buying nothing for.
-* Log event `1056` reports the trigger, the attempt and the retry instant at `Information`, and `1057`
-  reports the occurrence that gave up, the attempts it spent and what the last one threw.
-* `ITriggerListener.TriggerComplete` is called with `SchedulerInstruction.RetryTrigger`, and
-  `ITriggerListener.TriggerRetriesExhausted` once when the occurrence gives up — its attempts spent, a
-  retry declined for lack of room, or the job asking to be unscheduled.
-* On a persistent store the two columns are on `QRTZ_TRIGGERS`: `RETRY_POLICY` holds the policy's stored
-  string form and `RETRY_ATTEMPT` how far through it the current occurrence is. Both are queryable, and
-  the dashboard's trigger page shows them.
-* Where the history is kept in the database, `QRTZ_EXECUTION_HISTORY` carries `RETRY_ATTEMPT` and
-  `RETRY_SCHEDULED` per row.
+* Meter `quartz.trigger.retry`: each scheduled retry, tagged with scheduler, trigger group and execution
+  group (the same tags as `quartz.trigger.misfire`).
+* Meter `quartz.trigger.retries_exhausted`: each occurrence that gave up, same tags. Compare the two to see
+  where a policy gains nothing.
+* Log event `1056` (`Information`): trigger, attempt and retry instant. `1057`: the occurrence that gave up,
+  attempts spent, and the last exception.
+* `ITriggerListener.TriggerComplete` with `SchedulerInstruction.RetryTrigger`, and
+  `ITriggerListener.TriggerRetriesExhausted` once per occurrence that gives up.
+* `QRTZ_TRIGGERS` columns: `RETRY_POLICY` (the policy's stored string form) and `RETRY_ATTEMPT` (progress of
+  the current occurrence). Both queryable; shown on the dashboard's trigger page.
+* `QRTZ_EXECUTION_HISTORY`, where history is in the database: `RETRY_ATTEMPT` and `RETRY_SCHEDULED` per row.
 
 ## See also
 
