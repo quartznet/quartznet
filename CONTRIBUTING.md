@@ -45,6 +45,34 @@ The documentation website is built and published from this **`main`** branch. Al
 
 Both branches carry a `src/<Project>/README.md` per packable project, and each one describes the package as that branch builds it. When a change spans both — a 3.x page under `docs/documentation/quartz-3.x/packages/` and its `3.x` readme, say — update them in a companion PR so the published page and the shipped package README stay consistent.
 
+### Writing style
+
+The pages are reference material. Readers arrive from a search with one question and scan for the
+answer, so write for scanning.
+
+* **Answer first.** A section's first sentence says what to do or what happens. Add a reason only if
+  it changes what the reader does, and keep it to a sentence or two.
+* **Short sentences.** One idea each, rarely over 25 words. No chains of dashes and asides.
+* **Structure over paragraphs.** Use a table for options, defaults and comparisons, a numbered list
+  for steps, and bullets for conditions. Keep table cells to a phrase, a value or a link.
+* **Show, then stop.** When a sample shows something, do not narrate the sample line by line.
+* **Say it once.** Link to the page that owns a topic instead of explaining it again.
+* **No meta-text.** Do not announce what a page or section is about to do.
+* **No quotations and no "Sources" sections.** If another product's behaviour matters, say it in one
+  line and link to it.
+* **Plain words.** Prefer "use", "set", "runs", "fails" to metaphor.
+* **Keep every fact.** Defaults, limits, version differences and warnings stay. Cut words, not facts.
+
+An example from [#3856](https://github.com/quartznet/quartznet/issues/3856). Before:
+
+> A misfire is a firing whose scheduled time has passed by more than the misfire threshold without the
+> job having run — because the scheduler was down, the pool was full, or the trigger was held back.
+
+After:
+
+> A misfire is a firing that did not run within the misfire threshold of its scheduled time. Causes:
+> the scheduler was down, the thread pool was full, or the trigger was held back.
+
 ### Package readmes
 
 Every packable project carries its own `src/<Project>/README.md`. That file is what `dotnet pack` puts in

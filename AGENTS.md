@@ -346,11 +346,12 @@ Pluggable serialization for job store persistence:
 ## Documentation and generated artifacts
 
 - **`docs/documentation/quartz-3.x/` must keep the old names.** Only update `quartz-4.x/`.
-- **Heading fragments are checked with the site's own slugger, not GitHub's.** `npm run docs:check-links`
-  parses the docs with the markdown-it instance VuePress renders them with, so the ids it validates
-  against are the ids the published pages carry — `Quartz.Core` is `#quartz-core`, not `#quartzcore`.
-  It runs on every docs pull request. markdownlint's MD051 is off for exactly this reason; do not
-  take its fragment suggestions, they 404. `npm run docs:check-links-test` is the checker's control.
+- **Pages are reference, not essays.** Follow `CONTRIBUTING.md`'s "Writing style": answer first, short
+  sentences, tables over paragraphs, no quotations. Cut words, never facts.
+- **Heading fragments are checked with VuePress's slugger, not GitHub's.** `npm run docs:check-links`
+  checks them on every docs pull request: `Quartz.Core` is `#quartz-core`, not `#quartzcore`.
+  markdownlint's MD051 is off, and its fragment suggestions 404. `npm run docs:check-links-test` is
+  the checker's control.
 - **C# in a documentation page is generated, not typed.** Samples live as `#region sample_*` blocks in
   `src/Quartz.Documentation.Samples` — an ordinary project in the solution, so a rotted sample fails
   `Compile` — and a page carries `<!-- snippet: name -->` / `<!-- endSnippet -->` markers that
