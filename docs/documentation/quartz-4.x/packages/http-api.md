@@ -2,10 +2,9 @@
 title: HTTP API
 ---
 
-Quartz HTTP API is provided by [Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) and exposes scheduler management endpoints for ASP.NET Core apps.
-
-This page is the server half and the wire format. For driving one of these endpoints from .NET, see
-[HTTP Client](http-client.md), whose `HttpScheduler` implements `IScheduler` over exactly this contract.
+[Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) serves scheduler management endpoints from
+an ASP.NET Core application. This page covers the server and the wire format; to call the endpoints from .NET,
+see [HTTP Client](http-client.md), whose `HttpScheduler` implements `IScheduler` over this contract.
 
 ## Installation
 
@@ -29,14 +28,9 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
-The API serves every scheduler in the container through one set of endpoints — a request names the
-scheduler it is for — so it is added to the container rather than to a scheduler. There is deliberately
-no `IQuartzBuilder` form: written inside `AddQuartz(name, …)` it would look like that scheduler's API
-while configuring everybody's.
-
-The order of those three calls does not matter. Every `Add…` here registers services and configuration
-callbacks, and nothing is built until the provider is; `AddQuartzHttpApi()` before `AddQuartz()` means
-what it means after. The pages show one order for the sake of showing one.
+- One set of endpoints serves every scheduler in the container; each request names its scheduler. So the API
+  is added to the container, and there is no `IQuartzBuilder` form.
+- The order of the three calls does not matter: nothing is built until the service provider is.
 
 Map endpoints:
 
@@ -51,55 +45,46 @@ app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 ```
 <!-- endSnippet -->
 
-`UseAuthentication` there is the application's, and it needs a scheme the application registered —
-`AddAuthentication(…).AddJwtBearer()`, an API-key handler, whatever you already use. Quartz supplies
-none: it authorizes, and something else authenticates. Calling `UseAuthentication()` in an application
-that registered no scheme fails at startup, resolving `IAuthenticationSchemeProvider`.
+Quartz authorizes but does not authenticate. `UseAuthentication` needs a scheme the application registered, such
+as `AddAuthentication(…).AddJwtBearer()` or an API-key handler. Calling `UseAuthentication()` with no scheme
+registered fails at startup, resolving `IAuthenticationSchemeProvider`.
 
 ::: danger A mapping that says nothing about authorization does not start
-`RequireAuthorization()` there is not decoration. The API adds no authentication and no authorization of
-its own, every endpoint below mutates the scheduler it names — `shutdown` and `clear` among them — and a
-job scheduled through it carries its type as a **string the request supplies**, stored unresolved and
-resolved later with `Type.GetType` against whatever is on the host's probing path. With
-[`Quartz.Jobs`](quartz-jobs.md) on that path the string reaches `NativeJob`, which starts a process named
-in job data: an unauthenticated endpoint here is remote code execution rather than an information leak.
-`Quartz.Plugins` depends on `Quartz.Jobs`, so an application that installed the plugins has `NativeJob`
-on its probing path without a line naming `Quartz.Jobs` in its own project file.
+The API has no authentication or authorization of its own, and its endpoints mutate schedulers, `shutdown` and
+`clear` included. A scheduled job's type is a **string from the request**, resolved later with `Type.GetType`
+against the host's probing path. With [`Quartz.Jobs`](quartz-jobs.md#nativejob) there (`Quartz.Plugins` depends
+on it), the string can name `NativeJob`, which starts a process: an unauthenticated endpoint is remote code
+execution.
 
-`app.MapQuartzHttpApi()` with nothing else said therefore fails at startup — in
-`IHostedLifecycleService.StartingAsync`, which runs before the server binds its listener — with a message
-naming the three ways to say what you meant:
+So `app.MapQuartzHttpApi()` with no authorization statement fails at startup, in
+`IHostedLifecycleService.StartingAsync` (before the server binds its listener). The message names the three
+statements:
 
 - `app.MapQuartzHttpApi().RequireAuthorization()` authorizes the whole API;
-- `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` authorizes each scheduler on its own — see
+- `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` authorizes each scheduler; see
   [Authorizing per scheduler](#authorizing-per-scheduler);
 - `app.MapQuartzHttpApi().AllowAnonymous()` serves it to anyone, deliberately.
 
-A non-null `AuthorizationOptions.FallbackPolicy` satisfies the check as well, since it covers every
-endpoint that states nothing, and so does a `RequireAuthorization()` on a `MapGroup` the API is mapped
-into — group metadata flows into the endpoints. An application that calls `AddQuartzHttpApi()` and never
-maps anything serves nothing and is left alone.
+Also accepted: a non-null `AuthorizationOptions.FallbackPolicy`, or `RequireAuthorization()` on a `MapGroup` the
+API is mapped into (group metadata flows into the endpoints). An application that calls `AddQuartzHttpApi()` and
+maps nothing is not checked.
 
-**An `AllowAnonymous()` on a group counts as the statement, and it wins.** `app.MapGroup("/ops").AllowAnonymous()`
-with `MapQuartzHttpApi()` mapped into it starts cleanly and serves the whole mutating API to anyone,
-*even if* the mapping also says `RequireAuthorization()` — ASP.NET Core's authorization middleware gives
-`IAllowAnonymous` precedence over any `IAuthorizeData` on the same endpoint, whatever order the
-conventions were added in. That is the framework's rule rather than Quartz's, and it is the reason
-`AllowAnonymous()` is listed above as a way of saying what you meant: the guard cannot tell a deliberate
-one from an inherited one.
+**`AllowAnonymous()` on a group counts, and it wins.** With `app.MapGroup("/ops").AllowAnonymous()`, the API
+mapped into it starts and serves the whole mutating API to anyone, *even if* the mapping also says
+`RequireAuthorization()`. ASP.NET Core's authorization middleware gives `IAllowAnonymous` precedence over any
+`IAuthorizeData`, in any order. The guard cannot tell a deliberate `AllowAnonymous()` from an inherited one.
 
-**For a mapping the guard cannot see before start-up, the refusal comes a moment late.** The check runs
-in `IHostedLifecycleService.StartingAsync`, before the server binds its listener — but it can only see
-endpoints reachable from the route builder `Map*` was called on, and a `RouteGroupBuilder`'s endpoints do
-not carry the group's conventions yet. So a `MapGroup(...).MapQuartzHttpApi()`, and anything mapped from
-`Startup.Configure`/`UseEndpoints`, is checked in `StartedAsync` instead. The host still stops, but an
-unauthorized API of that shape answers requests for the window between the web host starting and the
-guard throwing. Map it on the application directly if that window matters to you.
+**Some mappings are checked a moment late.** At `StartingAsync` the guard sees only endpoints reachable from the
+route builder `Map*` was called on, and a `RouteGroupBuilder`'s endpoints do not yet carry the group's
+conventions. A `MapGroup(...).MapQuartzHttpApi()`, and anything mapped from `Startup.Configure`/`UseEndpoints`,
+is checked in `StartedAsync` instead. The host still stops, but an unauthorized API of that shape answers
+requests between the web host starting and the guard throwing. Map it on the application directly to avoid that
+window.
 :::
 
 ### Where the API is served
 
-`/quartz-api` is the default, and there are two ways to say something else:
+The default is `/quartz-api`. Change it at the map site or at registration:
 
 <!-- snippet: sample_httpapi_path -->
 ```csharp
@@ -111,46 +96,42 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 ```
 <!-- endSnippet -->
 
-Naming the path where the endpoints are mapped is how the rest of ASP.NET Core reads —
-`MapHealthChecks("/health")` — and it keeps the route with the application's other routes. If both are
-given, **the pattern passed to `MapQuartzHttpApi` wins**; the parameterless overload uses whatever
-`ApiPath` says. A pattern given at the map site has to start with `/`, the same rule `ApiPath` is
-validated against.
+- If both are given, **the pattern passed to `MapQuartzHttpApi` wins**. The parameterless overload uses
+  `ApiPath`.
+- A map-site pattern must start with `/`, the same rule as `ApiPath`.
 
 ## Every endpoint
 
-Sixty-five routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
-`{name}` is the scheduler the request is for — every route but the first carries one, and every route
-that carries one is subject to
-[`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when it is set.
+Sixty-five routes in four groups.
 
-The **Answers** column is shorthand for the [response-shape
-conventions](#response-shape-conventions): *empty* means `200` with no body, `{ applied }` is the
-one-flag form, `{ groups }` / `{ jobs }` / `{ triggers }` are the key-set and group-matcher forms, and
-*paged* is the [paged envelope](#listing-endpoints-are-paged). An unknown scheduler is `404` on every
-one of them.
+- `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
+- Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
+- An unknown scheduler is `404` on every route.
+- **Answers** uses the [response-shape conventions](#response-shape-conventions): *empty* is `200` with no body;
+  `{ applied }` is the one-flag form; `{ groups }` / `{ jobs }` / `{ triggers }` are the group-matcher and
+  key-set forms; *paged* is the [paged envelope](#listing-endpoints-are-paged).
 
 ### Schedulers — 17
 
 | Method | Path | Answers |
 |---|---|---|
-| `GET` | `{ApiPath}/schedulers` | Every scheduler the container knows about, built or merely registered — [see below](#the-scheduler-listing-carries-registrations). The one route that names no scheduler, so it filters itself |
+| `GET` | `{ApiPath}/schedulers` | Every scheduler the container knows, built or only registered ([below](#the-scheduler-listing-carries-registrations)); names no scheduler, so it filters itself |
 | `GET` | `{ApiPath}/schedulers/{name}` | The scheduler and its `SchedulerMetadata` |
-| `GET` | `{ApiPath}/schedulers/{name}/context` | `{ context }` — [every value as text](#the-scheduler-context-travels-as-text) |
-| `POST` | `{ApiPath}/schedulers/{name}/start` | empty. `?delay=00:00:30` starts it delayed; a negative delay is a `400`, and so is a [store-attached window](dashboard.md#what-a-window-can-and-cannot-do) |
-| `POST` | `{ApiPath}/schedulers/{name}/standby` | empty. A store-attached window is a `400` |
-| `POST` | `{ApiPath}/schedulers/{name}/shutdown` | empty. `?waitForJobsToComplete=true` waits for running jobs; a store-attached window is a `400` |
-| `POST` | `{ApiPath}/schedulers/{name}/clear` | empty — deletes every job, trigger and calendar |
+| `GET` | `{ApiPath}/schedulers/{name}/context` | `{ context }`, [every value as text](#the-scheduler-context-travels-as-text) |
+| `POST` | `{ApiPath}/schedulers/{name}/start` | empty; `?delay=00:00:30` delays; `400` for a negative delay or a [store-attached window](dashboard.md#what-a-window-can-and-cannot-do) |
+| `POST` | `{ApiPath}/schedulers/{name}/standby` | empty; `400` for a store-attached window |
+| `POST` | `{ApiPath}/schedulers/{name}/shutdown` | empty; `?waitForJobsToComplete=true` waits for running jobs; `400` for a store-attached window |
+| `POST` | `{ApiPath}/schedulers/{name}/clear` | empty; deletes every job, trigger and calendar |
 | `POST` | `{ApiPath}/schedulers/{name}/pause-all` | empty |
 | `POST` | `{ApiPath}/schedulers/{name}/resume-all` | empty |
-| `GET` | `{ApiPath}/schedulers/{name}/nodes` | The cluster's nodes — [see below](#cluster-nodes) |
-| `GET` | `{ApiPath}/schedulers/{name}/events` | The scheduler's events as they happen, as `text/event-stream` — [see below](#the-event-stream) |
-| `GET` | `{ApiPath}/schedulers/{name}/history/executions` | A page of what the scheduler has run — [see below](#execution-history) |
-| `GET` | `{ApiPath}/schedulers/{name}/history/misfires` | A page of the firings it missed |
-| `GET` | `{ApiPath}/schedulers/{name}/history/misfires/count` | `{ count }` since `?since=` — the one a summary tile asks for |
+| `GET` | `{ApiPath}/schedulers/{name}/nodes` | The cluster's nodes ([below](#cluster-nodes)) |
+| `GET` | `{ApiPath}/schedulers/{name}/events` | Live events as `text/event-stream` ([below](#the-event-stream)) |
+| `GET` | `{ApiPath}/schedulers/{name}/history/executions` | A page of what the scheduler ran ([below](#execution-history)) |
+| `GET` | `{ApiPath}/schedulers/{name}/history/misfires` | A page of missed firings |
+| `GET` | `{ApiPath}/schedulers/{name}/history/misfires/count` | `{ count }` since `?since=` |
 | `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited |
-| `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty — replaces the whole set |
-| `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty — the same as posting an empty set |
+| `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; replaces the whole set |
+| `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; same as posting an empty set |
 
 ### Jobs — 21
 
@@ -163,21 +144,21 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/{jobGroup}/{jobName}` | The job detail |
 | `GET` | `…/jobs/{jobGroup}/{jobName}/exists` | `{ exists }` |
 | `GET` | `…/jobs/{jobGroup}/{jobName}/triggers` | Every trigger pointing at that job |
-| `GET` | `…/jobs/fire-instances` | paged fire instances — [see below](#fire-instances) |
+| `GET` | `…/jobs/fire-instances` | paged fire instances ([below](#fire-instances)) |
 | `POST` | `…/jobs/{jobGroup}/{jobName}/pause` | `{ applied }` |
-| `POST` | `…/jobs/pause` | `{ groups }` — selects by group matcher in the query string |
-| `POST` | `…/jobs/keys/pause` | `{ jobs }` — selects by key set in the body |
+| `POST` | `…/jobs/pause` | `{ groups }`; group matcher in the query string |
+| `POST` | `…/jobs/keys/pause` | `{ jobs }`; key set in the body |
 | `POST` | `…/jobs/{jobGroup}/{jobName}/resume` | `{ applied }` |
 | `POST` | `…/jobs/resume` | `{ groups }` |
 | `POST` | `…/jobs/keys/resume` | `{ jobs }` |
-| `POST` | `…/jobs/{jobGroup}/{jobName}/trigger` | empty — fires the job now; body may carry a `JobDataMap` for the one firing |
-| `POST` | `…/jobs/{jobGroup}/{jobName}/interrupt` | `{ applied }` — every execution of that job |
-| `POST` | `…/jobs/interrupt/{fireInstanceId}` | `{ applied }` — the one firing |
+| `POST` | `…/jobs/{jobGroup}/{jobName}/trigger` | empty; fires the job now; body may carry a `JobDataMap` for this firing |
+| `POST` | `…/jobs/{jobGroup}/{jobName}/interrupt` | `{ applied }`; every execution of the job |
+| `POST` | `…/jobs/interrupt/{fireInstanceId}` | `{ applied }`; the one firing |
 | `DELETE` | `…/jobs/{jobGroup}/{jobName}` | `{ applied }` |
 | `POST` | `…/jobs/delete` | `{ jobs }` |
-| `POST` | `…/jobs/delete-by-group` | `{ jobs }` — selects by group matcher in the query string |
-| `POST` | `…/jobs` | empty — adds the job; `replace` and `storeNonDurableWhileAwaitingScheduling` are body fields |
-| `GET` | `…/jobs/groups` | paged job groups: the four `name*` filters, `paused` |
+| `POST` | `…/jobs/delete-by-group` | `{ jobs }`; group matcher in the query string |
+| `POST` | `…/jobs` | empty; adds the job; `replace` and `storeNonDurableWhileAwaitingScheduling` are body fields |
+| `GET` | `…/jobs/groups` | paged job groups; the four `name*` filters, `paused` |
 | `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused }` |
 
 ### Triggers — 22
@@ -188,7 +169,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/fetch` | Whole triggers for a page of keys, at most 1000 |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}` | The trigger |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}/exists` | `{ exists }` |
-| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state }` — the `TriggerState` name |
+| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state }`, the `TriggerState` name |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reset-from-error-state` | `{ applied }` |
 | `POST` | `…/triggers/keys/reset-from-error-state` | `{ triggers }` |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/pause` | `{ applied }` |
@@ -197,15 +178,15 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/resume` | `{ applied }` |
 | `POST` | `…/triggers/resume` | `{ groups }` |
 | `POST` | `…/triggers/keys/resume` | `{ triggers }` |
-| `GET` | `…/triggers/groups` | paged trigger groups: the four `name*` filters, `paused` |
+| `GET` | `…/triggers/groups` | paged trigger groups; the four `name*` filters, `paused` |
 | `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused }` |
-| `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }` — one job and its trigger |
-| `POST` | `…/triggers/schedule-multiple` | empty — several jobs and their triggers in one call |
+| `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }`; one job and its trigger |
+| `POST` | `…/triggers/schedule-multiple` | empty; several jobs and their triggers |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/unschedule` | `{ applied }` |
 | `POST` | `…/triggers/unschedule` | `{ triggers }` |
-| `POST` | `…/triggers/unschedule-by-group` | `{ triggers }` — selects by group matcher in the query string |
-| `POST` | `…/triggers/{triggerGroup}/{triggerName}/reschedule` | `{ firstFireTimeUtc }`, **`null`** when the trigger did not exist |
-| `POST` | `…/triggers/{triggerGroup}/{triggerName}/update-details` | `{ applied }` — edits the trigger in place, [as a patch](#editing-a-trigger-in-place) |
+| `POST` | `…/triggers/unschedule-by-group` | `{ triggers }`; group matcher in the query string |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/reschedule` | `{ firstFireTimeUtc }`; **`null`** when the trigger did not exist |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/update-details` | `{ applied }`; edits the trigger [as a patch](#editing-a-trigger-in-place) |
 
 ### Calendars — 5
 
@@ -214,20 +195,18 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/calendars` | paged calendar names |
 | `GET` | `…/calendars/{calendarName}` | The calendar |
 | `GET` | `…/calendars/{calendarName}/exists` | `{ exists }` |
-| `POST` | `…/calendars` | empty — adds or replaces; `replace` and `updateTriggers` are body fields |
+| `POST` | `…/calendars` | empty; adds or replaces; `replace` and `updateTriggers` are body fields |
 | `DELETE` | `…/calendars/{calendarName}` | `{ applied }` |
 
 ::: tip Why `schedule-multiple` is not `schedule`
-`POST …/triggers/schedule` computes one first fire time and answers with it. The plural form cannot —
-there is one per job — so it is a separate route with an empty body rather than an overload that
-sometimes answers and sometimes does not.
+`POST …/triggers/schedule` answers with one first fire time. Several jobs have several, so the plural form is a
+separate route with an empty body.
 :::
 
 ## The scheduler listing carries registrations
 
-`GET {ApiPath}/schedulers` answers with every scheduler the container knows about, ordered by name — the
-ones something has *registered* as well as the ones something has *built*. It is not paged: a process
-runs a handful of schedulers, not a data set.
+`GET {ApiPath}/schedulers` lists every scheduler the container has *registered* or *built*, ordered by name. It is
+not paged.
 
 ```json
 [
@@ -246,41 +225,36 @@ runs a handful of schedulers, not a data set.
 ]
 ```
 
-`status` and `schedulerInstanceId` are `null` together, for a registration nothing has built: there is
-no scheduler to be in a state or to have an instance id, and listing it did not create one. That is the
-only way to tell "this tenant has not started" from "there is no such tenant" — the scheduler's own
-routes answer `404` for both.
-
-`origin` says where the scheduler came from: `Container` for one `AddQuartz()` or `AddQuartz(name, …)`
-registered, `Runtime` for one that is in the repository without a registration behind it — a scheduler
-bound by hand, or a remote one from `AddQuartzHttpClient`.
+- `status` and `schedulerInstanceId` are both `null` for a registration nothing has built; listing does not
+  build it. This is the only way to tell "this tenant has not started" from "no such tenant": the scheduler's
+  own routes answer `404` for both.
+- `origin` is `Container` for a scheduler registered by `AddQuartz()` or `AddQuartz(name, …)`, and `Runtime` for
+  one in the repository without a registration (bound by hand, or remote from `AddQuartzHttpClient`).
 
 ## Enums travel as names
 
-Every enum the API puts on the wire — a scheduler's `status`, a trigger's `state`, a trigger's
-`repeatIntervalUnit`, a `daysOfWeek` entry — is spelled with its name, matching the C# member:
+Every enum on the wire (`status`, `state`, `repeatIntervalUnit`, a `daysOfWeek` entry, …) is spelled as its C#
+member name:
 
 ```json
 { "status": "Running" }
 { "state": "Paused" }
 ```
 
-The names are the contract, so they are stable across versions; the numeric form is still *accepted* on
-input, which is what makes an older client's `?state=1` keep working. Filters given in the query string
-take a name too: `?state=Paused`.
+- The names are the contract and are stable across versions.
+- Numeric forms are still *accepted* on input, so an older client's `?state=1` works.
+- Query-string filters take a name too: `?state=Paused`.
 
 ## A job type is a name, and its two attribute flags may be absent
 
-`jobType` is an assembly-qualified type name and the API treats it as text. The server does not resolve
-a name that arrived with a request, and it does not resolve one on the way out either: the type is
-loaded where it is needed — when the job fires, and when a store derives a job's attributes — and
-nowhere else.
+`jobType` is an assembly-qualified type name, treated as text. The server resolves neither incoming nor outgoing
+names; the type is loaded only when the job fires and when a store derives the job's attributes.
 
 `concurrentExecutionDisallowed` and `persistJobDataAfterExecution` are therefore **nullable**:
 
-- **stated** (`true` / `false`) — your value, and it wins over the type's attributes;
-- **omitted or `null`** — whatever `[DisallowConcurrentExecution]` and `[PersistJobDataAfterExecution]`
-  on the type say, decided by the side that resolves the type.
+- **stated** (`true` / `false`): your value, overriding the type's attributes;
+- **omitted or `null`**: whatever `[DisallowConcurrentExecution]` and `[PersistJobDataAfterExecution]` on the
+  type say, decided by the side that resolves the type.
 
 ```json
 {
@@ -294,18 +268,16 @@ nowhere else.
 }
 ```
 
-That request adds a job whose `[DisallowConcurrentExecution]` is intact. Before 4.0 rc.1 the two fields
-were plain booleans, so an omitted field arrived as `false` and stored a job its author had declared
-unsafe to run concurrently as safe to.
+That request keeps the job's `[DisallowConcurrentExecution]`. Before 4.0 rc.1 the fields were plain booleans,
+so an omitted field stored `false` and a job declared unsafe to run concurrently was stored as safe.
 
-On the way out, a job whose type the answering process cannot resolve reports both flags as `null` —
-which is what an operator on a node without the job's assembly sees, rather than a `500`.
+A job whose type the answering process cannot resolve reports both flags as `null`, instead of a `500`, for
+example on a node without the job's assembly.
 
 ## Durations travel as `TimeSpan`
 
-Every duration on the wire is a `TimeSpan` in its invariant form, both ways: a trigger body says
-`"repeatIntervalTimeSpan": "120.02:30:59.9990000"`, and the one duration in a query string is spelled
-the same way.
+Every duration, in bodies and query strings, is a `TimeSpan` in its invariant form, for example
+`"repeatIntervalTimeSpan": "120.02:30:59.9990000"`:
 
 ```text
 POST {ApiPath}/schedulers/{name}/start?delay=00:00:30
@@ -313,9 +285,8 @@ POST {ApiPath}/schedulers/{name}/start?delay=00:00:30
 
 ## The scheduler context travels as text
 
-`GET {ApiPath}/schedulers/{name}/context` answers with the scheduler's context, and **every value in it
-goes out as a string**. The context is the application's own map of `string` to `object`, so a value
-that is not one is rendered as its invariant text; a null stays null.
+`GET {ApiPath}/schedulers/{name}/context` returns **every value as a string**: a non-string value as its invariant
+text, a null as null.
 
 ```json
 {
@@ -328,56 +299,46 @@ that is not one is rendered as its invariant text; a null stays null.
 }
 ```
 
-Two rules make that body the same one everywhere: an instant — a `DateTimeOffset` or a `DateTime` —
-is rendered in the round-trip `"O"` format, the ISO-8601 spelling every other instant on this wire
-carries, and the entries are ordered by key ordinally rather than in the order a concurrent dictionary
-happens to enumerate them.
-
-Text is all a remote reader has — the endpoint hands out a snapshot of a live in-process map, and a
-client reading it back gets every entry as a string whatever it was in the scheduler's process. An
-entry whose type a caller has to act on belongs in an endpoint of its own rather than in the context.
+- Instants (`DateTimeOffset`, `DateTime`) use the round-trip `"O"` format, as elsewhere on the wire.
+- Entries are ordered by key, ordinally.
+- A client gets strings whatever the types were in the scheduler's process. A value whose type a caller must act
+  on belongs in its own endpoint.
 
 ::: warning The scheduler context is not a secret store
-**Every** entry is returned, and the fallback rendering is `Convert.ToString` — which for a record or a
-struct with a compiler-generated `ToString` is every field it has. One authorized `GET` therefore dumps
-the application's own map, connection strings and API keys included, and
-[Jobs](quartz-jobs.md#directoryscanjob) teaches putting shared instances there. The context is exactly as
-secret as a job's data map, which is to say not at all: an authorized caller reads both. Keep secrets in
-`IConfiguration`, a key vault or the container, and put a *name* in the context if a job needs to find
-one.
+**Every** entry is returned, falling back to `Convert.ToString`. For a record or struct with a compiler-generated
+`ToString`, that is every field. One authorized `GET` dumps the whole map, including any connection strings or
+API keys, and [Jobs](quartz-jobs.md#directoryscanjob) puts shared instances there. Any authorized caller can read
+the context, as with a job's data map. Keep secrets in `IConfiguration`, a key vault or the container, and put a
+*name* in the context if a job needs to find one.
 :::
 
 ## Response-shape conventions
 
-**A `200` carries a body exactly when the operation has something to say that the caller could not
-have worked out for itself** — the value it computed, or whether it applied. The rule is the same for
-every endpoint, so the body follows from what the operation *is* rather than from which endpoint it
-was:
+A `200` has a body only when the operation has something to report that the caller could not work out: a
+computed value, or whether it applied.
 
 | Operation | Answers |
 |---|---|
 | A read that found its target | `200` with the object |
 | A read whose target does not exist | `404` with RFC 7807 problem details |
-| A mutation that always acts | `200` with an **empty body** — `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`, `AddCalendar`, `Start`, `Standby`, `Shutdown`, `Clear`, the execution-limit writes |
-| A mutation whose effect may be a no-op | `200` with one flag, **named for what it reports** — `{ "applied": … }` |
-| …the same, aimed at a group matcher or a key set | `200` with what it applied to — `{ "groups": [ … ] }`, `{ "jobs": [ … ] }`, `{ "triggers": [ … ] }` |
-| A mutation that computed something | `200` with that value — `{ "firstFireTimeUtc": … }` from schedule and reschedule |
+| A mutation that always acts | `200` with an **empty body** |
+| A mutation that may be a no-op | `200` with `{ "applied": … }` |
+| …the same, for a group matcher or key set | `200` with what it applied to: `{ "groups": [ … ] }`, `{ "jobs": [ … ] }`, `{ "triggers": [ … ] }` |
+| A mutation that computed something | `200` with that value, e.g. `{ "firstFireTimeUtc": … }` |
+| Any operation on an unknown scheduler | `404` |
 
-An unknown scheduler is `404` whatever the operation was.
-
-The flag is always one boolean, and it is **named for the fact it reports**: `applied` — the entity
-existed and the operation changed it. There is no second spelling; an operation that cannot answer
-that question about a single entity is a key-set form, and answers with the keys instead.
-
-A partial hit on a key-set form **still deletes or unschedules the keys it found**, which is why those
-two answer with the keys rather than with a flag: a boolean could only say that not all of them were
-found, and a caller could not tell that from nothing having happened.
+- Always-acting mutations: `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`, `AddCalendar`, `Start`, `Standby`,
+  `Shutdown`, `Clear`, the execution-limit writes.
+- `{ "firstFireTimeUtc": … }` comes from schedule and reschedule.
+- `applied` is the only flag: the entity existed and the operation changed it. An operation that cannot answer
+  that about one entity is a key-set form and answers with keys.
+- A key-set delete or unschedule **still acts on the keys it found** on a partial hit, so it answers with those
+  keys; a boolean could not tell "some missing" from "nothing happened".
 
 ### Errors are one shape per kind
 
-Every error the API produces is RFC 7807 problem details. A **client-actionable** error — every `400`
-and every `404` — carries `type`, `title`, `status`, `detail` and `Quartz-ExceptionType` naming the
-exception the server raised, whichever layer raised it:
+Every error is RFC 7807 problem details. A **client-actionable** error (every `400` and `404`) carries `type`,
+`title`, `status`, `detail` and `Quartz-ExceptionType`, the exception the server raised:
 
 ```json
 {
@@ -389,15 +350,12 @@ exception the server raised, whichever layer raised it:
 }
 ```
 
-A client maps the Quartz exception names — `SchedulerException`, `JobPersistenceException`,
-`ObjectAlreadyExistsException`, … — back to typed exceptions, and treats any other value as opaque;
-`HttpScheduler` does exactly that. `Quartz-ExceptionStackTrace` joins them only when
-`IncludeStackTraceInProblemDetails` is on.
+A client maps Quartz exception names (`SchedulerException`, `JobPersistenceException`,
+`ObjectAlreadyExistsException`, …) back to typed exceptions and treats other values as opaque; `HttpScheduler`
+does this. `Quartz-ExceptionStackTrace` is added only when `IncludeStackTraceInProblemDetails` is on.
 
-A **`500` carries neither `Quartz-ExceptionType` nor the exception's message.** It is a fault the caller
-cannot act on, so naming what produced it says something about the server's internals and nothing a
-client could use — and a driver's message names the server, the database, the login or the constraint as
-readily as it names anything else. The `detail` is one fixed sentence, and the real message is logged:
+A **`500` carries neither `Quartz-ExceptionType` nor the exception's message**, because a driver's message can
+name the server, database, login or constraint. `detail` is a fixed sentence; the real message is logged:
 
 ```json
 {
@@ -408,25 +366,20 @@ readily as it names anything else. The `detail` is one fixed sentence, and the r
 }
 ```
 
-Turning on `IncludeStackTraceInProblemDetails` — the switch that already says "I am debugging this" —
-puts the message back beside the stack trace.
+`IncludeStackTraceInProblemDetails` puts the message back beside the stack trace.
 
 ::: warning
-The `detail` is a constant, so it is not something to match a client on beyond the status code itself.
-A driver fault's own message names the server, the database, the login or the constraint, and none of
-that leaves the process.
+The `500` `detail` is a constant: match a client on the status code only.
 :::
 
-There is one case where a `400` has **no** body at all, and it is not the API's doing: a query
-parameter the framework could not bind — `?skip=not-a-number`, `?includeTotalCount=maybe` — is
-rejected before the request reaches an endpoint. A request the endpoint itself rejected —
-`?skip=-1`, `?take=lots`, `?state=not-a-state`, a job with no name, unparseable JSON — always answers
-with the problem details above.
+One `400` has **no** body: a query parameter the framework cannot bind (`?skip=not-a-number`,
+`?includeTotalCount=maybe`) is rejected before the endpoint. Anything the endpoint rejects (`?skip=-1`,
+`?take=lots`, `?state=not-a-state`, a job with no name, unparseable JSON) answers with problem details.
 
 ## Listing endpoints are paged
 
-Every listing endpoint — jobs, triggers, calendars, and the two group listings — takes `skip`, `take` and
-`includeTotalCount` query parameters and returns a paged envelope:
+Every listing (jobs, triggers, calendars, the two group listings) takes `skip`, `take` and `includeTotalCount` and
+returns a paged envelope:
 
 ```json
 {
@@ -436,98 +389,95 @@ Every listing endpoint — jobs, triggers, calendars, and the two group listings
 }
 ```
 
-`take` defaults to 250 (`PagedQuery.DefaultTake`) when the request names none — ask for as many as the
-server will give with **`?take=all`** (`PagedQuery.All` is how it is spelled in code) — `hasMore` is
-exact, and `totalCount` is `null` unless `includeTotalCount=true` was asked for, because computing it
-costs a second database query. A count with no rows is `?take=0&includeTotalCount=true`, which the stores
-answer with the count query alone.
+| Parameter | Default | Notes |
+|---|---|---|
+| `take` | 250 (`PagedQuery.DefaultTake`) | **`?take=all`** (`PagedQuery.All` in code) asks for as many as the server allows |
+| `includeTotalCount` | `false` | `totalCount` is `null` unless requested; it costs a second query |
 
-`QuartzHttpApiOptions.MaxPageSize` bounds how many items one request may return, and defaults to
-**1000** — the same limit the [bulk key fetch](#a-whole-set-of-keys-in-one-call) has always had. The two
-spellings of `take` are answered differently on purpose:
+- `hasMore` is exact.
+- A count without rows: `?take=0&includeTotalCount=true`, answered with the count query alone.
 
-- a **number** above the cap is a `400` naming the cap and the setting that would raise it. `?take=2147483647`
-  is one of those: the number behind the sentinel is no longer accepted at the default cap;
-- **`all`** is *bounded* by the cap rather than refused by it, because it does not name a number — it says
-  "as many as you will give me". A listing whose matches fit under the cap therefore answers exactly as it
-  would with no cap at all, and `hasMore` says when it did not. This is what keeps the 3.x-compatible
-  listings (`GetJobKeys` and its neighbours) working through
-  [`HttpScheduler`](http-client.md): they ask for everything whether the answer is three rows or three
-  million. `HttpScheduler` turns a truncated answer to one of those into an exception rather than a short
-  list.
+`QuartzHttpApiOptions.MaxPageSize` bounds one request, default **1000**, the same as the
+[bulk key fetch](#a-whole-set-of-keys-in-one-call).
 
-Set `MaxPageSize` to `0` where an export or a migration really has to take everything in one call.
+- A **number** above the cap is a `400` naming the cap and the setting that raises it. That includes
+  `?take=2147483647`, the number behind the old sentinel.
+- **`all`** is *capped*, not refused. A listing under the cap answers as if there were no cap; `hasMore` says when
+  it was cut. This keeps the 3.x-compatible listings (`GetJobKeys` and its neighbours) working through
+  [`HttpScheduler`](http-client.md), which throws on a truncated answer instead of returning a short list.
+- Set `MaxPageSize` to `0` for an export or migration that must take everything in one call.
 
 ::: tip `take` is a string in the OpenAPI document
-Because `all` is one of the two values it takes. A generated document types the parameter the way the
-endpoint binds it, and no generator infers `an integer or the word "all"` from a CLR type, so the six
-listing operations describe `take` as `"A page size, or \"all\" for everything up to MaxPageSize"` —
-which is what says it is a string on purpose rather than a parameter someone forgot to type. A generated
-client therefore takes a string here; pass the number as its text.
+It accepts a number or `all`, so the six listing operations describe `take` as
+`"A page size, or \"all\" for everything up to MaxPageSize"`. A generated client takes a string: pass the number
+as text.
 :::
 
 | Endpoint | Returns | Filters (besides paging) |
 |---|---|---|
-| `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, `jobType` (the same assembly-qualified name the detail body carries), durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith`, and the four `name*` filters |
+| `GET {ApiPath}/schedulers/{name}/jobs` | Job headers¹ | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith`, and the four `name*` filters |
 | `GET {ApiPath}/schedulers/{name}/jobs/groups` | Job groups: `name`, `paused` | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith`, `paused` |
-| `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group, retry policy and attempt, and [what the trigger is waiting for](#continuations) | the four `group*` and four `name*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
+| `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers² | the four `group*` and four `name*` filters, `jobName` + `jobGroup` (both or neither), `calendarName`, `state` |
 | `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith`, `paused` |
 | `GET {ApiPath}/schedulers/{name}/calendars` | Calendar names | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith` |
-| `GET {ApiPath}/schedulers/{name}/jobs/fire-instances` | Fire instances: `fireInstanceId`, trigger key, job key (`null` while only reserved), `schedulerInstanceId`, `state`, `fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup` | the four `group*` and four `name*` filters (they match the *trigger*), plus `jobName` + `jobGroup` (give both or neither), `schedulerInstanceId`, `state` |
+| `GET {ApiPath}/schedulers/{name}/jobs/fire-instances` | Fire instances³ | the four `group*` and four `name*` filters (on the *trigger*), `jobName` + `jobGroup` (both or neither), `schedulerInstanceId`, `state` |
 
-Results are ordered by group and then name, and every page uses the same ordering, so paging through a
-result is consistent. Fire instances add a third ordering key, the fire instance id, because one trigger
-can have several firings at once and group plus name would not order them. At most one `name*` filter may be given per request; more than one is a `400`.
-The filter's text is a literal — a calendar named `50%` is matched by `?nameStartsWith=50%25` and is
-not a wildcard.
+¹ Key, description, `jobType` (the assembly-qualified name the detail body carries), durable,
+concurrent-execution-disallowed, persist-job-data, requests-recovery.
+² Key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority,
+execution group, retry policy and attempt, and [what the trigger is waiting for](#continuations).
+³ `fireInstanceId`, trigger key, job key (`null` while only reserved), `schedulerInstanceId`, `state`,
+`fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup`.
+
+- Results are ordered by group, then name, on every page. Fire instances add the fire instance id, since one
+  trigger can have several firings at once.
+- At most one `name*` filter per request; more is a `400`.
+- Filter text is literal, not a wildcard: a calendar named `50%` matches `?nameStartsWith=50%25`.
 
 ### Fire instances
 
-`GET {ApiPath}/schedulers/{name}/jobs/fire-instances` lists firings rather than job-execution contexts,
-and it is store-backed, so with a persistent job store it covers the whole cluster rather than the node
-that answered.
+`GET {ApiPath}/schedulers/{name}/jobs/fire-instances` lists firings, not job-execution contexts. It is
+store-backed, so with a persistent store it covers the whole cluster.
 
-Its `state` filter is the one listing filter with a non-empty default: naming no `state` lists what is
-running (`Executing`), because that is the question the endpoint is usually asked. Ask for everything with
-`?state=Any`, or for reservations with `?state=Acquired`. Anything else is a `400`.
+| `state` | Lists |
+|---|---|
+| none (default) | running firings (`Executing`) |
+| `Any` | everything |
+| `Acquired` | reservations |
+| anything else | `400` |
 
-Three caveats belong on any UI built over this:
+Caveats for a UI:
 
-- A firing an `ITriggerListener` vetoes does not linger — applying the veto completes it. It can be listed
-  for the instant between the store recording the firing and the veto being decided, and never after.
-- Elapsed time is your clock minus `fireTimeUtc`, and `fireTimeUtc` was written by the firing node's
-  clock. On a cluster with skewed clocks the difference can be negative; clamp it at zero.
-- `scheduledFireTimeUtc` is the schedule as the owning node recorded it, which after a misfire is the
-  *rescheduled* time. It is not the fire time that was missed, and the gap to `fireTimeUtc` is not misfire
-  lateness.
+- A firing an `ITriggerListener` vetoes completes when the veto is applied. It can be listed only between the
+  store recording the firing and the veto decision.
+- Elapsed time is your clock minus `fireTimeUtc`, written by the firing node's clock. With skewed clocks it can be
+  negative; clamp at zero.
+- `scheduledFireTimeUtc` is the schedule the owning node recorded; after a misfire, the *rescheduled* time. Its gap
+  to `fireTimeUtc` is not misfire lateness.
 
-`POST {ApiPath}/schedulers/{name}/jobs/interrupt/{fireInstanceId}` interrupts one of them, where
-`POST …/jobs/{group}/{name}/interrupt` interrupts every execution of that job. Both are node-local on the
-server side: a firing owned by another node is interrupted by asking that node.
+`POST {ApiPath}/schedulers/{name}/jobs/interrupt/{fireInstanceId}` interrupts one firing;
+`POST …/jobs/{group}/{name}/interrupt` interrupts every execution of the job. Both are node-local on the server:
+interrupt a firing owned by another node through that node.
 
-A listing gives you headers, not whole objects. To get the full detail for a page, post the keys back:
+To get whole objects for a page of headers, post the keys back:
 
-- `POST {ApiPath}/schedulers/{name}/jobs/fetch` — body is an array of `{ "name": …, "group": … }`, response is the job details
-- `POST {ApiPath}/schedulers/{name}/triggers/fetch` — the same, returning triggers
+- `POST {ApiPath}/schedulers/{name}/jobs/fetch`: body is an array of `{ "name": …, "group": … }`; returns job
+  details;
+- `POST {ApiPath}/schedulers/{name}/triggers/fetch`: the same, returning triggers.
 
-Keys that do not exist are simply absent from the response, and at most 1000 keys can be fetched per call.
-
-These two are `POST` because the keys are a body, not because they change anything: they are the only
-non-`GET` routes this API serves that are reads. `ReadOnly` serves them for that reason — see
-[Serving reads only](#serving-reads-only).
+Missing keys are absent from the response. At most 1000 keys per call. These are the only non-`GET` routes that
+are reads, so `ReadOnly` serves them; see [Serving reads only](#serving-reads-only).
 
 ::: warning Changed in 4.x
-These endpoints previously returned bare arrays of keys, or a `{ "names": [ … ] }` object for the group and
-calendar listings. Both shapes are gone; every listing returns the paged envelope above.
-`GET {ApiPath}/schedulers/{name}/triggers/groups/paused` was removed — use
+Listings used to return bare arrays of keys, or `{ "names": [ … ] }` for group and calendar listings. All now
+return the paged envelope. `GET {ApiPath}/schedulers/{name}/triggers/groups/paused` was removed; use
 `GET {ApiPath}/schedulers/{name}/triggers/groups?paused=true`.
 :::
 
 ## Cluster nodes
 
-`GET {ApiPath}/schedulers/{name}/nodes` answers with the scheduler's nodes — the node that handled the
-request first, then the rest by instance id. It is not paged: a cluster is a handful of nodes, not a
-data set.
+`GET {ApiPath}/schedulers/{name}/nodes` returns the scheduler's nodes: the node that handled the request first,
+then the rest by instance id. It is not paged.
 
 ```json
 [
@@ -548,27 +498,26 @@ data set.
 ]
 ```
 
-`state` is `Alive`, `Overdue` or `Failed`, and is decided by the same predicate the store's recovery
-sweep applies — a node reported `Failed` is a node whose in-flight work the cluster is about to take
-over, after which it stops being listed. `Overdue` means a missed check-in and nothing more.
+| `state` | Meaning |
+|---|---|
+| `Alive` | Checking in |
+| `Overdue` | Missed a check-in; nothing more |
+| `Failed` | The store's recovery sweep will take over its in-flight work; then it is no longer listed |
 
-`checkInInterval` is a `TimeSpan` like every other duration here, and it is the interval *that* node
-was configured with rather than the reader's. Both times are `null` when the store keeps no check-in
-history — an in-memory store, or a persistent one with clustering switched off — which is what a
-single-node answer looks like: one node, `isCurrentNode: true`, `Alive`, and no times. `null` is not
-zero, so a reader must not fall back to `DateTimeOffset.MinValue` here.
-
-The verdicts are what the answering node believes, read off its own clock, so on a cluster with skewed
-clocks two nodes can disagree. Join the listing to
-`GET {ApiPath}/schedulers/{name}/jobs/fire-instances` on `schedulerInstanceId` to see what each node is
-running.
+- `checkInInterval` is a `TimeSpan`, the interval *that* node was configured with.
+- Both times are `null` when the store keeps no check-in history (in-memory store, or persistent without
+  clustering). The answer is then one node: `isCurrentNode: true`, `Alive`, no times. `null` is not zero; do not
+  fall back to `DateTimeOffset.MinValue`.
+- The verdicts are the answering node's, on its own clock; with skewed clocks two nodes can disagree.
+- Join to `GET {ApiPath}/schedulers/{name}/jobs/fire-instances` on `schedulerInstanceId` to see what each node
+  runs.
 
 ## The event stream
 
-`GET {ApiPath}/schedulers/{name}/events` is what the scheduler is doing, as it does it:
-[server-sent events](https://developer.mozilla.org/docs/Web/API/Server-sent_events), one frame per
-event, held open until the caller goes away. It is what makes a live view of a scheduler in another
-process possible — a dashboard, a terminal, an `EventSource` in a browser.
+`GET {ApiPath}/schedulers/{name}/events` streams the scheduler's events as
+[server-sent events](https://developer.mozilla.org/docs/Web/API/Server-sent_events), one frame per event, until
+the caller disconnects. Use it for a live view from another process: a dashboard, a terminal, a browser
+`EventSource`.
 
 ```text
 event: JobExecuted
@@ -577,72 +526,64 @@ id: 7
 
 ```
 
-The `event:` name is the event's **kind**, so a reader can subscribe to what it cares about without
-parsing a body — `EventSource.addEventListener("JobExecuted", …)`. The `data:` is one line of the same
-JSON every other body on this API is written as. The `id:` counts this stream's frames; it is **not** a
-cursor, because nothing is replayed.
+- `event:` is the event's **kind**, so a reader can subscribe by kind without parsing:
+  `EventSource.addEventListener("JobExecuted", …)`.
+- `data:` is one line of the API's usual JSON.
+- `id:` counts this stream's frames. It is **not** a cursor: nothing is replayed.
 
-Fourteen kinds travel:
+Fourteen kinds:
 
-| Kind | What happened | What it carries beyond the four below |
+| Kind | What happened | Carries, beyond the common four |
 |---|---|---|
-| `JobExecuting` | a job has begun running | `jobKey`, `triggerKey`, `fireTimeUtc`, `fireInstanceId` |
-| `JobExecuted` | a job finished, threw, or was vetoed before it ran | the same, plus `runTime`, `vetoed` and `exceptionMessage` |
+| `JobExecuting` | a job began running | `jobKey`, `triggerKey`, `fireTimeUtc`, `fireInstanceId` |
+| `JobExecuted` | a job finished, threw, or was vetoed before it ran | the same, plus `runTime`, `vetoed`, `exceptionMessage` |
 | `TriggerFired` | a trigger fired | `triggerKey`, `jobKey`, `fireTimeUtc`, `fireInstanceId` |
 | `TriggerCompleted` | its firing completed | the same |
-| `TriggerMisfired` | a firing was missed and the misfire instruction applied | `triggerKey`, `jobKey`; no `fireTimeUtc` — there was no firing to time |
+| `TriggerMisfired` | a firing was missed and the misfire instruction applied | `triggerKey`, `jobKey`; no `fireTimeUtc` |
 | `TriggerPaused`, `TriggerResumed` | a trigger was paused or resumed | `triggerKey` |
-| `JobPaused`, `JobResumed` | a job was paused or resumed, and with it every trigger that fires it | `jobKey` |
+| `JobPaused`, `JobResumed` | a job, and every trigger that fires it, was paused or resumed | `jobKey` |
 | `JobInterrupted` | one firing of a job was interrupted | `jobKey`, `fireInstanceId` |
-| `TriggerInError` | a trigger was parked in the error state and will not fire until it is reset | `triggerKey` |
+| `TriggerInError` | a trigger entered the error state; it will not fire until reset | `triggerKey` |
 | `SchedulerStateChanged` | one node's scheduler entered a new lifecycle state | `status` |
-| `SchedulerError` | the scheduler reported an error it handled itself | `message`, `cause`, and the `triggerKey` / `jobKey` it was about where it could say |
-| `Heartbeat` | nothing happened, and the connection is still open | nothing; see below |
+| `SchedulerError` | the scheduler handled an error itself | `message`, `cause`, and the `triggerKey` / `jobKey` where known |
+| `Heartbeat` | nothing; the connection is still open | nothing; see below |
 
-Every event carries four things: its `kind`, the `schedulerName` and `schedulerInstanceId` of the node
-that raised it, and `occurredAtUtc`. **The node matters**: a cluster is one scheduler running in several
-processes, each raising its own events, so without the id a reader cannot tell an event from the machine
-it is looking at from an event from a peer. Every member of the body is always present — the facets a
-kind does not carry are `null` — so a reader can read a field without checking whether it exists.
+- Every event carries `kind`, the raising node's `schedulerName` and `schedulerInstanceId`, and `occurredAtUtc`.
+  In a cluster each node raises its own events, so the instance id tells a local event from a peer's.
+- Every member is always present; facets a kind does not carry are `null`.
 
-**A heartbeat is not an event.** One goes out the moment the stream opens, and another whenever
-[`EventStreamHeartbeatInterval`](#configuration-options) — fifteen seconds — passes with nothing to send.
-The first is what sends the response's headers, since nothing reaches a caller until a body is written;
-the rest keep an idle connection from being closed by whatever is between the API and its reader, and let
-that reader tell a quiet scheduler from a socket that went away. A reader consumes them rather than
-showing them; `Quartz.HttpClient` does that for you.
+**Heartbeats are not events.** One is sent when the stream opens (which sends the response headers), then one
+whenever [`EventStreamHeartbeatInterval`](#configuration-options) (fifteen seconds) passes with nothing to send.
+They keep intermediaries from closing an idle connection and let the reader tell a quiet scheduler from a dead
+socket. A reader should drop them; `Quartz.HttpClient` does.
 
 **Authorized once, when the stream opens.** The route names `{schedulerName}`, so
-[`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) is evaluated before the handler runs: a
-caller who fails it gets `403` with problem details and no frame at all, and an unknown scheduler is the
-same `404` it is on every other route. Neither answer is a stream. Once open, the stream is not
-re-authorized — close it and open another if the caller's rights have to be re-checked.
+[`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) runs before the handler. A refused caller gets `403`
+with problem details and no frames; an unknown scheduler gets `404`. The open stream is not re-authorized: close
+it and reopen to re-check rights.
 
-**No replay, and no `Last-Event-ID`.** A subscription carries what happens after it is made. A reader
-that reconnects has a gap, and what fell into it is the [execution history](#execution-history)'s
-question rather than this route's.
+**No replay, and no `Last-Event-ID`.** A subscription gets only later events. After a reconnect, read the gap
+from the [execution history](#execution-history).
 
 ::: warning A reverse proxy must not buffer this
-A proxy that buffers responses will hold the frames until its buffer fills, which turns a live view into
-a view that arrives in bursts — or, with an idle timeout shorter than the heartbeat, into a connection
-that keeps being cut. nginx needs `proxy_buffering off;` and a `proxy_read_timeout` above the heartbeat
-interval for this route; the response already carries `Cache-Control: no-cache,no-store` and
-`Content-Encoding: identity`, which is what asks everything else politely.
+A buffering proxy delivers frames in bursts, and an idle timeout shorter than the heartbeat keeps cutting the
+connection. For nginx, set `proxy_buffering off;` and a `proxy_read_timeout` above the heartbeat interval for this
+route. The response already sends `Cache-Control: no-cache,no-store` and `Content-Encoding: identity`.
 :::
 
-Reading it from .NET takes no code of your own: `AddQuartzHttpClient` registers a reader of this route
-which reconnects on its own — see [Events](http-client.md#events).
+From .NET, `AddQuartzHttpClient` registers a reader for this route that reconnects by itself; see
+[Events](http-client.md#events).
 
 ## Execution history
 
-A job store holds what is *scheduled*. What *happened* — what ran, how long it took, whether it threw,
-and what was missed — is kept by the container's `IExecutionHistoryStore`, and three routes serve it:
+A job store holds what is *scheduled*. What *happened* (what ran, for how long, whether it threw, what was
+missed) is in the container's `IExecutionHistoryStore`, served by three routes:
 
 | Path | Query | Answers |
 |---|---|---|
 | `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains` | A page of executions, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/misfires` | the same, minus `jobContains` | A page of misfires, newest first |
-| `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since` — a `DateTimeOffset`, required | `{ "count": 3 }` |
+| `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since`: a `DateTimeOffset`, required | `{ "count": 3 }` |
 
 ```json
 {
@@ -664,44 +605,38 @@ and what was missed — is kept by the container's `IExecutionHistoryStore`, and
 }
 ```
 
-The scheduler's own name is not on the rows — the route named it — while the **node's** id is on every
-one of them, because a cluster's history is several nodes' and a reader has to be able to tell them
-apart. `schedulerInstanceId` narrows to one of them; `jobContains` and `triggerContains` match a key's
-group, its name, or the two joined as `group.name`, case-insensitively. Paging is the same envelope
-every other listing uses, and [`MaxPageSize`](#listing-endpoints-are-paged) bounds it the same way.
+- Rows carry the **node's** id, not the scheduler name (the route has it). `schedulerInstanceId` narrows to one
+  node.
+- `jobContains` and `triggerContains` match a key's group, name, or `group.name`, case-insensitively.
+- Paging uses the usual envelope, bounded by [`MaxPageSize`](#listing-endpoints-are-paged).
 
-**`AddQuartzHttpApi()` records that history.** It calls `AddQuartzExecutionHistory()`, so a worker that
-maps the API answers these routes rather than answering them empty with nothing to say why. What records
-it is one recorder installed into every scheduler in the container; what holds it is an in-memory store
-bounded by age and by count, as the dashboard's has always been. To opt out, record nothing:
+**`AddQuartzHttpApi()` records the history.** It calls `AddQuartzExecutionHistory()`, which installs one recorder
+into every scheduler in the container and keeps history in an in-memory store bounded by age and count, as the
+dashboard's always has. To record nothing:
 
 ```csharp
 services.AddQuartzExecutionHistory(options => options.MaxEntriesPerScheduler = 0);
 ```
 
-**A scheduler on a persistent store can keep it in the database instead.**
+**A scheduler on a persistent store can keep history in the database.**
 [`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database)
-puts both feeds in `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY`, where they survive a restart
-and where a whole cluster writes into one history — so these three routes answer for every node rather
-than for the one that happens to serve the request.
+writes both feeds to `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY`. They survive a restart, and a whole
+cluster writes one history, so the routes answer for every node.
 
-The routes read the history of the scheduler they name, from wherever that scheduler keeps it, by the
-same rule the [dashboard](dashboard.md#execution-history-and-misfires) reads it by. A named scheduler
-that called `UseExecutionHistory()` is read from its own database; every other scheduler from the
-container's shared store. A [store-attached window](dashboard.md#store-attached-targets) is read from the
-database it is a window onto, and when that store keeps no history the routes answer `400` with the
-dashboard's own explanation, rather than an empty page from this process's history.
+Which history a route reads follows the [dashboard's rule](dashboard.md#execution-history-and-misfires):
 
-To keep history somewhere else again, register an `IExecutionHistoryStore` of your own before
-`AddQuartzHttpApi()`; the shipped registration is a `TryAdd`, and `UseExecutionHistory()` replaces only
-the in-memory default. A dashboard in the same process reads the same store — see
-[Execution history and misfires](dashboard.md#execution-history-and-misfires).
+- a named scheduler that called `UseExecutionHistory()`: its own database;
+- any other scheduler: the container's shared store;
+- a [store-attached window](dashboard.md#store-attached-targets): the database it is a window onto. If that
+  store keeps no history, the routes answer `400` with the dashboard's explanation, not an empty page.
+
+To keep history elsewhere, register your own `IExecutionHistoryStore` before `AddQuartzHttpApi()`. The shipped
+registration is a `TryAdd`, and `UseExecutionHistory()` replaces only the in-memory default. A dashboard in the
+same process reads the same store.
 
 ## Pause and resume report what they did
 
-Pause and resume are the mutations most often aimed at a key that has gone, so they are worth spelling
-out — but the rule is the general one above, and every single-key mutation that can be a no-op answers
-the same way:
+Every single-key mutation that can be a no-op answers `{ "applied": … }`:
 
 - `POST …/jobs/{group}/{name}/pause`, `…/resume`
 - `POST …/triggers/{group}/{name}/pause`, `…/resume`
@@ -715,27 +650,24 @@ the same way:
 { "applied": true }
 ```
 
-(`POST …/jobs/delete` and `POST …/triggers/unschedule` take a key set, so they answer with the keys
-they applied to, [like every other key-set form](#a-whole-set-of-keys-in-one-call).)
+`applied` is `false` when the key does not exist or nothing changed (pausing a paused trigger, resuming one that
+was not paused, resetting one not in the error state). `POST …/jobs/delete` and `POST …/triggers/unschedule` take
+a key set and answer with keys, [like every key-set form](#a-whole-set-of-keys-in-one-call).
 
-`applied` is `false` when the key does not exist or the operation was a no-op (pausing an already
-paused trigger, resuming a trigger that was not paused, resetting a trigger that is not in the error
-state). The group-matcher forms — `POST …/jobs/pause`, `…/jobs/resume`, `…/triggers/pause`,
-`…/triggers/resume` — return the names of the groups the operation affected:
+The group-matcher forms, `POST …/jobs/pause`, `…/jobs/resume`, `…/triggers/pause` and `…/triggers/resume`, are
+the wire form of `PauseJobGroups`, `ResumeJobGroups`, `PauseTriggerGroups` and `ResumeTriggerGroups`. They return
+the groups they recorded:
 
 ```json
 { "groups": [ "reporting", "imports" ] }
 ```
 
-Those four are the wire form of `PauseJobGroups`, `ResumeJobGroups`, `PauseTriggerGroups` and
-`ResumeTriggerGroups`: a group operation, answering with the groups it recorded, where the
-`…/keys/pause` and `…/keys/resume` routes beside them answer with the keys they moved.
+The `…/keys/pause` and `…/keys/resume` routes beside them return the keys they moved.
 
 ### A whole set of keys in one call
 
-Pausing forty triggers one request at a time is forty round trips, forty scheduling signals and forty
-chances to get half of them done. The key-set forms take the keys in the body and answer with the keys
-they applied to:
+The key-set forms take many keys in one request (one round trip and one scheduling signal) and answer with the
+keys they applied to:
 
 | Endpoint | Body | Answers |
 |---|---|---|
@@ -745,58 +677,46 @@ they applied to:
 | `POST …/jobs/delete` | `{ "jobs": [ { "name": …, "group": … } ] }` | `{ "jobs": [ … ] }` |
 | `POST …/triggers/unschedule` | `{ "triggers": [ { "name": …, "group": … } ] }` | `{ "triggers": [ … ] }` |
 
-The answer is the plural of `{ "applied": … }`: a key the operation did not apply to — one that names
-nothing, one that was already paused, one that was not in the error state — is simply **absent** from
-the list, never an error. The order is the order the keys were given in. `answer.length ===
-request.length` is the "every key was found" question, and when it is not, the list says which ones
-were.
-
-The pause, resume and reset forms live under `keys/` because the collection-level `pause` and
-`resume` already belong to the group-matcher forms, which select by query string rather than by body.
-`delete` and `unschedule` had no group-matcher form when they were named, so the plain path is theirs
-and the group form says which one it is: `delete-by-group` and `unschedule-by-group`.
-
-The server does the whole set in one pass — one lock and one transaction for the ADO store — and
-signals the scheduling change once for the call. Listener events stay per key: one `TriggerPaused` /
-`JobPaused` / `TriggerResumed` / `JobResumed` / `JobDeleted` / `JobUnscheduled` for each key the
-operation applied to, and nothing at all for the rest. There is no key-set listener event,
-deliberately: `TriggersPaused(null)` means *every group*, and a monitoring listener would read it as
-a total outage.
+- A key the operation did not apply to (names nothing, already paused, not in the error state) is **absent**
+  from the answer, never an error.
+- The answer keeps the request's order. `answer.length === request.length` means every key applied; otherwise
+  the list shows which did.
+- Pause, resume and reset are under `keys/` because the collection-level `pause` and `resume` are the
+  group-matcher forms. `delete` and `unschedule` keep the plain path; their group forms are `delete-by-group` and
+  `unschedule-by-group`.
+- The server applies the whole set in one pass (one lock and one transaction on the ADO store) and signals the
+  scheduling change once.
+- Listener events stay per key: one `TriggerPaused` / `JobPaused` / `TriggerResumed` / `JobResumed` /
+  `JobDeleted` / `JobUnscheduled` per applied key, none for the rest. There is no key-set listener event:
+  `TriggersPaused(null)` means *every group*, and a monitoring listener would read it as a total outage.
 
 ### A whole group in one call
 
-Deleting by group is how a caller calls off a correlation — a saga, a tenant, a conversation, all of
-whose firings share a trigger group — without listing its keys first, which is a window in which
-another node can add one more.
+Delete by group to cancel everything sharing a trigger group (a saga, a tenant, a conversation) without listing
+keys first, which would leave a window for another node to add one.
 
 | Endpoint | Selects by | Answers |
 |---|---|---|
 | `POST …/jobs/delete-by-group` | `?groupEquals=`, `?groupStartsWith=`, `?groupEndsWith=`, `?groupContains=` | `{ "jobs": [ … ] }` |
 | `POST …/triggers/unschedule-by-group` | the same four | `{ "triggers": [ … ] }` |
 
-The four query parameters are the ones `…/jobs/pause` and `…/triggers/pause` take, and naming none of
-them means *every group*. The answer is the keys, not the group names the pause endpoints return: a
-deleted group has nothing left to remember about it, so what a caller can act on is what went. A job
-left with no triggers and no durability goes with its triggers and is not named — the answer to an
-unschedule is about triggers.
-
-The server resolves the group inside the same lock that empties it, and signals the scheduling change
-once. Listener events are per key here too: one `JobDeleted` or `JobUnscheduled` for each key removed,
-and nothing when the group was empty.
+- The parameters are those of `…/jobs/pause` and `…/triggers/pause`. None given means *every group*.
+- The answer is the removed keys, not group names.
+- A non-durable job left with no triggers is removed with them but not named: an unschedule answers with
+  triggers.
+- The group is resolved inside the lock that empties it, and the scheduling change is signalled once.
+- Listener events are per key: one `JobDeleted` or `JobUnscheduled` per removed key, none for an empty group.
 
 ## Editing a trigger in place
 
 `POST …/triggers/{triggerGroup}/{triggerName}/update-details` changes a trigger's metadata and settings without
-rescheduling it. Fire times, fire count and state are exactly what they were; only the fields the body
-names change. It is the wire form of
-[`IScheduler.UpdateTriggerDetails`](../how-tos/rescheduling-jobs.md), and it answers `{ "applied": … }`,
-with `false` when the key resolved to no trigger — not a `404`, for the reason
-[every other single-trigger mutation](#response-shape-conventions) answers that way.
+rescheduling it. Fire times, fire count and state are unchanged; only the fields in the body change. It is the
+wire form of [`IScheduler.UpdateTriggerDetails`](../how-tos/rescheduling-jobs.md). It answers
+`{ "applied": … }`, `false` (not `404`) when no trigger has the key, as for
+[every single-trigger mutation](#response-shape-conventions).
 
-**The body is a patch, and absence is not the same as `null`.** A member the body omits leaves the
-trigger's value alone; a member present as `null` clears it. That is what lets one call set a
-description and another take one away, and it is why sending every member as `null` is a request to
-clear every one of them.
+**The body is a patch: an omitted member is left alone; a member present as `null` is cleared.** Sending every
+member as `null` clears them all.
 
 ```json
 {
@@ -806,47 +726,43 @@ clear every one of them.
 }
 ```
 
-sets the description and the priority, disassociates the calendar, and leaves the job data, the misfire
-instruction, the node pin, the execution group and the retry policy where they were.
+This sets the description and priority, removes the calendar, and leaves job data, misfire instruction, node
+pin, execution group and retry policy unchanged.
 
 | Member | Type | Meaning |
 |---|---|---|
 | `description` | string or `null` | The trigger's description |
 | `priority` | number | The trigger's priority |
 | `jobDataMap` | object or `null` | Replaces the trigger's job data; `null` empties it |
-| `calendarName` | string or `null` | The calendar to observe; `null` disassociates. The calendar must already exist |
-| `misfireInstruction` | number | The misfire instruction code, as a trigger body's `misfireInstruction` carries it |
-| `misfireInstructionFamily` | string or `null` | The schedule family the code is stated in — see below |
-| `preferredNode` | string or `null` | The node pin, as the triggers table holds it: `null` clears it, `"*"` asks for an automatic pin, anything else is a scheduler instance id |
-| `preferredNodeAuto` | bool | Sent beside `preferredNode`; whether the pin was handed out automatically rather than named |
-| `executionGroup` | string or `null` | The [execution group](../tutorial/execution-groups.md) whose thread limit this trigger's job counts against; `null` leaves every group |
-| `retryPolicy` | string or `null` | The [retry policy](../how-tos/retrying-failed-jobs.md) in its stored form, such as `"fixed;3;00:00:30"`; `null` stops retrying |
+| `calendarName` | string or `null` | Calendar to observe (must exist); `null` removes it |
+| `misfireInstruction` | number | Misfire instruction code, as in a trigger body |
+| `misfireInstructionFamily` | string or `null` | The schedule family of the code; see below |
+| `preferredNode` | string or `null` | Node pin: `null` clears, `"*"` requests an automatic pin, else a scheduler instance id |
+| `preferredNodeAuto` | bool | Sent with `preferredNode`: whether the pin was assigned automatically |
+| `executionGroup` | string or `null` | The [execution group](../tutorial/execution-groups.md) whose thread limit applies; `null` leaves every group |
+| `retryPolicy` | string or `null` | The [retry policy](../how-tos/retrying-failed-jobs.md) in stored form, e.g. `"fixed;3;00:00:30"`; `null` stops retrying |
 
-**Name the misfire instruction's family.** `misfireInstructionFamily` is one of `Simple`, `Cron`,
-`CalendarInterval`, `DailyTimeInterval` or `Recurrence`, and it is what lets the scheduler refuse an
-instruction aimed at a trigger of another family: the same number means a different policy in each, so
-`2` is *do nothing* for a cron trigger and *reschedule now with existing repeat count* for a simple one.
-Omit it and the code is applied without that check, which is also the only way to set one on a trigger
-type of your own — such a trigger belongs to none of the five families, so naming any of them would be
-refused.
+**Name the misfire instruction's family.** `misfireInstructionFamily` is `Simple`, `Cron`, `CalendarInterval`,
+`DailyTimeInterval` or `Recurrence`. The same number means a different policy per family (`2` is *do nothing*
+for cron, *reschedule now with existing repeat count* for simple), so the scheduler refuses a code aimed at
+another family. Omit the family to skip that check; that is the only way to set a code on a custom trigger type,
+which belongs to none of the five.
 
 ::: warning A calendar name or a misfire instruction changes firing
-The rest of these fields are metadata, but the calendar and the misfire instruction are not: they change
-when the trigger fires. Neither recomputes fire times when it is set — the new value takes effect at the
-next scheduling evaluation.
+Unlike the other fields, these change when the trigger fires. Neither recomputes fire times; the new value
+applies at the next scheduling evaluation.
 :::
 
-A continuation is deliberately not among the members: what a trigger waits for is decided when it is
-scheduled, and moving a trigger from one parent's firing to another's after the fact is a reschedule.
+A continuation cannot be edited here: what a trigger waits for is set when it is scheduled, and changing it is a
+reschedule.
 
 ## Continuations
 
-A [continuation](../how-tos/job-continuations.md) is an ordinary trigger that waits for another trigger's
-firing, so it travels on every route a trigger travels: a trigger body carries it, the listing header
-reports it, and a trigger scheduled with `POST …/schedule-job` keeps it.
+A [continuation](../how-tos/job-continuations.md) is a trigger that waits for another trigger's firing. It
+travels wherever a trigger does: in a trigger body, in the listing header, and through `POST …/schedule-job`.
 
-On a trigger body — the shape `GET …/triggers/{group}/{name}` returns and `schedule-job` accepts — the
-three members sit beside `retryPolicy`:
+In a trigger body (what `GET …/triggers/{group}/{name}` returns and `schedule-job` accepts), three members sit
+beside `retryPolicy`:
 
 ```json
 {
@@ -856,12 +772,11 @@ three members sit beside `retryPolicy`:
 }
 ```
 
-`continuationCondition` is the stored integer there, because a trigger body is the serialized trigger and
-the column holds an integer: `1` on success, `2` on failure, `4` on cancellation, `8` on veto, `15`
-however it ends. All three are `null` on a trigger that waits for nothing.
+`continuationCondition` is the stored integer there: `1` on success, `2` on failure, `4` on cancellation, `8` on
+veto, `15` however it ends. All three are `null` on a trigger that waits for nothing.
 
-A **listing header** says the same thing in the same words, except that the condition goes out as its
-names, like [every other enum](#enums-travel-as-names) in a body the API composes itself:
+A **listing header** uses the same members, with the condition as names, like
+[every enum](#enums-travel-as-names) in a body the API composes:
 
 ```json
 {
@@ -873,35 +788,34 @@ names, like [every other enum](#enums-travel-as-names) in a body the API compose
 }
 ```
 
-`?state=Awaiting` narrows the listing to what is waiting, and `GET …/triggers/{group}/{name}/state`
-answers `{ "state": "Awaiting" }` for one of them.
+`?state=Awaiting` lists waiting triggers; `GET …/triggers/{group}/{name}/state` answers `{ "state": "Awaiting" }`
+for one.
 
 ::: warning `Awaiting` is a state a 4.1 client does not know
-`TriggerState` travels as its name, so a **4.1** client parsing a trigger listing or a trigger state from
-a **4.2** host meets `"Awaiting"` and throws — the same way a 4.0 client met
-`SchedulerOrigin.Remote` from a 4.1 host. It only arises once something schedules a continuation, so the
-order is the [rolling-upgrade order](../how-tos/job-continuations.md#upgrading-a-running-cluster)
-anyway: migrate, roll every node and every client, then start scheduling continuations.
+A **4.1** client reading a trigger listing or state from a **4.2** host meets `"Awaiting"` and throws, as a 4.0
+client did with `SchedulerOrigin.Remote` from a 4.1 host. It only happens once continuations are scheduled, so
+follow the [rolling-upgrade order](../how-tos/job-continuations.md#upgrading-a-running-cluster): migrate, roll
+every node and client, then schedule continuations.
 :::
 
 ## Configuration options
 
-`QuartzHttpApiOptions` supports:
+`QuartzHttpApiOptions`:
 
 | Option | Default | What it does |
 |---|---|---|
-| `ApiPath` | `/quartz-api` | The base path every endpoint is served under — see [Where the API is served](#where-the-api-is-served) |
-| `IncludeStackTraceInProblemDetails` | `false` | Adds `Quartz-ExceptionStackTrace` to RFC 7807 error payloads, and puts a `500`'s real message back in `detail` |
-| `MaxPageSize` | `1000` | The most items one paged request may return; `0` leaves them unbounded — see [Listing endpoints are paged](#listing-endpoints-are-paged) |
-| `ReadOnly` | `false` | Refuses every route that changes something with `403` — see [Serving reads only](#serving-reads-only) |
-| `SchedulerAuthorizationPolicy` | none | The policy every route that names a scheduler is held to, evaluated against that scheduler — see [Authorizing per scheduler](#authorizing-per-scheduler) |
-| `IsJobTypeAllowed` | none | A predicate over the job type *name* a request carries; a name it refuses is `403` — see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
-| `EventStreamHeartbeatInterval` | `00:00:15` | How long the [event stream](#the-event-stream) may say nothing before it sends a `Heartbeat` frame. Set it below the idle read timeout of whatever proxy is in front of the API — nginx's `proxy_read_timeout` is 60 seconds by default, Azure's front doors 90 — and a stream that would have been cut stays open |
+| `ApiPath` | `/quartz-api` | Base path of every endpoint; see [Where the API is served](#where-the-api-is-served) |
+| `IncludeStackTraceInProblemDetails` | `false` | Adds `Quartz-ExceptionStackTrace` to errors, and a `500`'s real message to `detail` |
+| `MaxPageSize` | `1000` | Most items one paged request returns; `0` is unbounded; see [Listing endpoints are paged](#listing-endpoints-are-paged) |
+| `ReadOnly` | `false` | Refuses every mutating route with `403`; see [Serving reads only](#serving-reads-only) |
+| `SchedulerAuthorizationPolicy` | none | Policy for every route naming a scheduler, evaluated against it; see [Authorizing per scheduler](#authorizing-per-scheduler) |
+| `IsJobTypeAllowed` | none | Predicate over a request's job type *name*; refused is `403`; see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
+| `EventStreamHeartbeatInterval` | `00:00:15` | Idle time before the [event stream](#the-event-stream) sends a `Heartbeat` |
 
-There is one set of these per process, not one per scheduler: `ApiPath` describes the endpoints, and
-every scheduler is reached under it. Calling `services.AddQuartzHttpApi(configure)` twice therefore
-configures the same options twice, and the callback registered last wins for any setting both of them
-touch.
+- Set `EventStreamHeartbeatInterval` below the idle read timeout of any proxy in front of the API: nginx's
+  `proxy_read_timeout` defaults to 60 seconds, Azure's front doors to 90.
+- There is one set of options per process, not per scheduler. Calling `services.AddQuartzHttpApi(configure)`
+  twice configures the same options; the last callback wins for settings both touch.
 
 ### Serving reads only
 
@@ -911,51 +825,40 @@ touch.
 services.AddQuartzHttpApi(options => options.ReadOnly = true);
 ```
 
-A refused request is `403` with problem details reading *The Quartz HTTP API is configured as
-read-only.*, decided **before** the handler runs — so no body is read and no scheduler is looked up, and
-a caller cannot map the schedulers of a process by which refusal comes back. It carries no
-`Quartz-ExceptionType`, like every other refusal: nothing failed, a rule the operator configured said
-no.
-
-It is one switch for the whole mutating surface, which route-level authorization can only match by
-naming thirty-odd routes and keeping the list current. Reach for it where a process maps the API to feed
-a dashboard, a monitoring tool or a report and nothing should be able to write through it.
-
-**Mutation is a property of the route, not of its verb.** The two bulk fetches —
-`POST {ApiPath}/schedulers/{name}/jobs/fetch` and `POST …/triggers/fetch` — are reads that take a body of
-keys, and they are served. Everything else that is not a `GET` is refused, pausing, resuming,
-interrupting and resetting a trigger from its error state included: each of them changes what the
-scheduler will do next.
-
-It binds this API and nothing else. The scheduler in the process goes on firing jobs, and a dashboard
-mapped beside it has its own [`QuartzDashboardOptions.ReadOnly`](dashboard.md#read-only-mode) — neither
-setting binds the other surface. A dashboard *fronting* this API from another process is bound by this
-one, and reports the refusal it gave.
+- A refusal is `403` with problem details reading *The Quartz HTTP API is configured as read-only.* It is decided
+  **before** the handler: no body is read and no scheduler looked up, so refusals reveal nothing about which
+  schedulers exist. It carries no `Quartz-ExceptionType`.
+- Use it where the API only feeds a dashboard, a monitoring tool or a report. Route-level authorization would have
+  to name thirty-odd routes.
+- **Mutation is decided per route, not per verb.** The bulk fetches, `POST {ApiPath}/schedulers/{name}/jobs/fetch`
+  and `POST …/triggers/fetch`, are reads and are served. Every other non-`GET` is refused, including pause,
+  resume, interrupt and reset-from-error-state.
+- It binds only this API. The scheduler keeps firing, and a dashboard mapped beside it has its own
+  [`QuartzDashboardOptions.ReadOnly`](dashboard.md#read-only-mode). A dashboard *fronting* this API from another
+  process is bound by this setting and reports its refusal.
 
 ### Authorizing per scheduler
 
-`RequireAuthorization(...)` on what `MapQuartzHttpApi()` returns covers the whole API uniformly, which is
-the right shape when everyone who reaches the API may reach every scheduler in the process. When they may
-not, name a policy in `SchedulerAuthorizationPolicy` and it is evaluated per request as
-`IAuthorizationService.AuthorizeAsync(user, new SchedulerResource(name), policy)`, against the
-`{schedulerName}` the route carries. A caller who fails gets `403` with problem details,
-decided **before** the scheduler is looked up — so a `404` only ever answers a name the caller was allowed
-to ask about — and `GET {ApiPath}/schedulers` is filtered to the schedulers they may act on. The
-application writes one `AuthorizationHandler<TRequirement, SchedulerResource>`; Quartz supplies the
-resource and asks. `QuartzDashboardOptions.SchedulerAuthorizationPolicy` takes the same policy against the
-same resource, so one handler answers for both. The worked example, with the handler, is in
-[Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
+`RequireAuthorization(...)` on the mapping covers the whole API, which fits when every caller may reach every
+scheduler. Otherwise, set `SchedulerAuthorizationPolicy`. Each request is then evaluated as
+`IAuthorizationService.AuthorizeAsync(user, new SchedulerResource(name), policy)` against the route's
+`{schedulerName}`.
 
-Setting it in a container with no authorization services fails at startup. The check is authorization and
-never authentication: an anonymous caller gets whatever the policy says, which is a `403` when it refuses,
-so keep `RequireAuthorization()` on the mapped group if they should be challenged with a `401` first.
+- A refused caller gets `403` with problem details, decided **before** the scheduler lookup, so a `404` only
+  answers names the caller may ask about.
+- `GET {ApiPath}/schedulers` is filtered to the schedulers the caller may act on.
+- The application writes one `AuthorizationHandler<TRequirement, SchedulerResource>`.
+  `QuartzDashboardOptions.SchedulerAuthorizationPolicy` uses the same resource, so one handler serves both. Worked
+  example: [Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
+- Setting it without authorization services in the container fails at startup.
+- It authorizes and never authenticates: an anonymous caller gets whatever the policy says (a `403` if refused).
+  Keep `RequireAuthorization()` on the mapped group to challenge with a `401` first.
 
 ### Narrowing which job types may be named
 
-Three endpoints take a job in their body — add-job, schedule and schedule-multiple — and the job's type is
-a name the request carries. A caller who passes authorization can therefore name any type that implements
-`IJob`, and with `Quartz.Jobs` on the probing path that includes `NativeJob`, which starts the executable
-its job data names. `IsJobTypeAllowed` is where an operator says which names a request may use:
+Add-job, schedule and schedule-multiple take a job type name in the body. An authorized caller can name any
+`IJob`, including `NativeJob` (which starts the executable its job data names) when `Quartz.Jobs` is on the
+probing path. `IsJobTypeAllowed` restricts the names:
 
 <!-- snippet: sample_httpapi_job_type_allow_list -->
 ```csharp
@@ -969,33 +872,22 @@ builder.Services.AddQuartzHttpApi(options =>
 ```
 <!-- endSnippet -->
 
-A name the predicate refuses is answered `403` with problem details whose `detail` names the type the
-request asked for and nothing else — that name is the caller's own input, so repeating it says which job
-was refused without saying anything about what the server has. The refusal is per *request*, so
-`schedule-multiple` stores none of its batch when one job in it names a type that is not allowed, and it is
-recorded as event `9005` at `Warning`.
-
-Three things are worth knowing before writing one:
-
-- **The predicate sees a name, not a `Type`.** Nothing resolves it first, which is the point: a name that
-  arrived over HTTP is data until the side that runs the job loads it, and resolving one here to compare
-  types would be exactly the assembly probe this API avoids ([A job type is a name](#a-job-type-is-a-name-and-its-two-attribute-flags-may-be-absent)).
-- **One type has several spellings.** `Acme.Jobs.Nightly, Acme.Jobs` and the same name carrying `Version`,
-  `Culture` and `PublicKeyToken` both name it, so a set of exact strings is easy to get wrong; a namespace
-  prefix covers them all at once.
-- **A malformed name is still a `400`.** An allow-list narrows what may be named; it does not turn a
-  request the caller should fix into a permission they should ask for.
-
-It is one predicate for the process, like every other setting here, so it cannot say that one scheduler
-may run a type another may not — the scheduler's name is not passed to it. `QuartzDashboardOptions.IsJobTypeAllowed`
-is the same setting for the [dashboard](dashboard.md#narrowing-which-job-types-may-be-named), configured
-separately because a deployment can map one surface and not the other.
+- A refused name is `403` with problem details whose `detail` names only the requested type.
+- The refusal is per *request*: `schedule-multiple` stores none of its batch if one job is refused.
+- Each refusal is logged as event `9005` at `Warning`.
+- **The predicate sees a name, not a `Type`.** Nothing resolves it first, which would be the assembly probe this
+  API avoids ([A job type is a name](#a-job-type-is-a-name-and-its-two-attribute-flags-may-be-absent)).
+- **One type has several spellings**: `Acme.Jobs.Nightly, Acme.Jobs`, or with `Version`, `Culture` and
+  `PublicKeyToken`. A namespace prefix covers them all; a set of exact strings is easy to get wrong.
+- **A malformed name is still a `400`**, not a `403`.
+- It is one predicate per process and does not receive the scheduler name, so it cannot allow a type for one
+  scheduler only. The [dashboard](dashboard.md#narrowing-which-job-types-may-be-named) has its own
+  `QuartzDashboardOptions.IsJobTypeAllowed`, configured separately.
 
 ## Calling it from .NET
 
-`Quartz.HttpClient` is the client half of this contract. Its `HttpScheduler` implements `IScheduler` over
-these endpoints, so code that schedules jobs against a remote scheduler looks like code that schedules them
-against a local one:
+`Quartz.HttpClient` is the client half of this contract. Its `HttpScheduler` implements `IScheduler` over these
+endpoints:
 
 ```shell
 dotnet add package Quartz.HttpClient
@@ -1008,12 +900,11 @@ await scheduler.TriggerJob(new JobKey("nightly-report"));
 ```
 <!-- endSnippet -->
 
-In an application with a container, register it instead and inject `IScheduler` as usual — naming the
-`IHttpClientFactory` client that carries the base address and the authentication.
+With a container, register it and inject `IScheduler`, naming the `IHttpClientFactory` client that carries the base
+address and authentication.
 
-**The base address is the site root plus `ApiPath`, and it must end with `/`.** The endpoint paths this
-page documents are relative to it, so a base address of the site root alone answers `404` on every call,
-and one without the trailing slash is refused by the `HttpScheduler` constructor.
+**The base address is the site root plus `ApiPath`, ending with `/`.** A base address of the site root alone
+answers `404` on every call; one without the trailing slash is refused by the `HttpScheduler` constructor.
 
 <!-- snippet: sample_httpapi_client_registration -->
 ```csharp
@@ -1023,56 +914,49 @@ builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientNam
 ```
 <!-- endSnippet -->
 
-The wire format is the one documented on this page, so any HTTP client speaks it; the package is the
-convenience of not writing that yourself. [HTTP Client](http-client.md) covers registration,
-authentication, serializer matching and what does not travel.
+Any HTTP client can speak this wire format. [HTTP Client](http-client.md) covers registration, authentication,
+serializer matching and what does not travel.
 
 ## The wire contract is source-generated
 
-The bodies on this page are a closed set, and Quartz states them as a source-generated
-`JsonSerializerContext`: a scheduler, a job detail, a page of triggers, a problem-details error and every
-request that goes the other way are described at compile time rather than discovered by reflecting over
-the type. The server and `Quartz.HttpClient` share the one context, so both ends of a call are generated,
-and adding a body to the API means adding it there too.
+The API's bodies are a closed set, described by a source-generated `JsonSerializerContext` shared by the server
+and `Quartz.HttpClient`: schedulers, job details, trigger pages, problem details and every request body. A new
+body must be added there.
 
-Three things on the wire are deliberately left open. An `ITrigger` and an `ICalendar` are read and
-written by converters that consult the scheduler's serializer registry — which is what lets a custom
-trigger or calendar type travel at all — and the values inside a `JobDataMap` are whatever the
-application put there, so nothing generated can name them ahead of time. The generated contract is asked
-first and reflection second, so a body never reflects on its way to those converters, and the reflection
-that remains is over the payload rather than over the contract.
+Three things stay open:
+
+- `ITrigger` and `ICalendar` are read and written by converters that consult the scheduler's serializer
+  registry, so custom trigger and calendar types can travel;
+- the values in a `JobDataMap` are whatever the application stored.
+
+The generated contract is asked first and reflection second, so reflection covers only the payload, never the
+contract.
 
 ## Production hardening
 
-- Require authentication/authorization on `MapQuartzHttpApi()`. Startup refuses a mapping that states
-  nothing, but `AllowAnonymous()` is a way to say nothing that startup accepts — do not reach for it to
-  make the message go away
-- Do not expose either this or the [dashboard](dashboard.md) to a network you would not hand a shell on:
-  a job's type is a string the request names, and `Quartz.Jobs` puts `NativeJob` within reach of it.
-  `IsJobTypeAllowed` narrows *which* names a request may use — see
-  [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) — and is worth setting
-  wherever the jobs a deployment schedules are known ahead of time
-- Keep `IncludeStackTraceInProblemDetails` disabled in production — it returns the stack trace *and* a
-  `500`'s real message
-- Restrict mutating operations (schedule, delete, pause/resume, shutdown) to trusted operator roles.
-  Quartz has no per-operation permission model to do it with: **a caller who passes authorization is
-  trusted with the whole API**, down to reading every job's data map. `SchedulerAuthorizationPolicy`
-  narrows *which schedulers* a caller reaches and `IsJobTypeAllowed` narrows *which job types* they may
-  name; anything finer than those two belongs in the policy or in a gateway in front of this
-- **Every successful mutation is logged**, at `Information`, as event `9007`
-  (`"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"`) — the caller's
-  `HttpContext.User.Identity.Name`, or `(anonymous)` where nothing authenticated, the endpoint's name, the
-  scheduler and the request's path, which is where a route's target key is spelled. One line per request,
-  written after the handler and only for an answer in the `2xx` range: a refusal is the `9005` beside it
-  and a failure is a `9003` or a `9004`, so what is in this line is what actually changed. It is the
-  record of who did what — authenticate the API if the name is to say anything — and it is *this*
-  process's log: an action taken through the API is not in the [dashboard](dashboard.md#action-log)'s
-  Action Log, and the dashboard's own actions are not here. All of them are in
-  [Log Events](../log-events.md)
-- Set `ReadOnly` where nothing should write through this API at all — a process that maps it to feed a
-  dashboard, a monitoring tool or a report. It refuses every mutating route in one setting, whoever
-  asks; see [Serving reads only](#serving-reads-only)
-- Leave `MaxPageSize` set. One request cannot then materialize an unbounded result
-- In clustered setups, treat API calls as scheduler control operations that affect cluster-wide behavior
-- There is **no rate limiting** on this surface. ASP.NET Core's own rate limiter middleware applies to it
-  like any other endpoint, and nothing in Quartz configures one
+- Require authentication and authorization on `MapQuartzHttpApi()`. Startup refuses a mapping that states
+  nothing, but also accepts `AllowAnonymous()`: do not use it just to silence the error.
+- Do not expose this API or the [dashboard](dashboard.md) to a network you would not give a shell. A job's type
+  is a string from the request, and `Quartz.Jobs` puts `NativeJob` within reach. Set `IsJobTypeAllowed` wherever
+  the deployment's job types are known in advance; see
+  [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named).
+- Keep `IncludeStackTraceInProblemDetails` off in production: it returns the stack trace *and* a `500`'s real
+  message.
+- Restrict mutating operations (schedule, delete, pause/resume, shutdown) to trusted operator roles. Quartz has
+  no per-operation permissions: **a caller who passes authorization is trusted with the whole API**, including
+  every job's data map. `SchedulerAuthorizationPolicy` limits *which schedulers*, `IsJobTypeAllowed` *which job
+  types*; anything finer belongs in the policy or a gateway.
+- **Every successful mutation is logged** at `Information` as event `9007`:
+  `"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"`.
+  - `{User}` is `HttpContext.User.Identity.Name`, or `(anonymous)`; authenticate the API for it to mean anything.
+  - `{Operation}` is the endpoint's name; `{Route}` is the request path, which spells the target key.
+  - One line per request, after the handler, for `2xx` answers only. A refusal is `9005`; a failure is `9003` or
+    `9004`.
+  - It is this process's log. API actions are not in the [dashboard](dashboard.md#action-log)'s Action Log, and
+    dashboard actions are not here. All events: [Log Events](../log-events.md).
+- Set `ReadOnly` where nothing should write through the API, such as a process that only feeds a dashboard,
+  monitoring or reports; see [Serving reads only](#serving-reads-only).
+- Leave `MaxPageSize` set, so one request cannot load an unbounded result.
+- In a cluster, API calls are scheduler control operations with cluster-wide effect.
+- There is **no rate limiting**. ASP.NET Core's rate limiter middleware applies as to any endpoint; Quartz
+  configures none.

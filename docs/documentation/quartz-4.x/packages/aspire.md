@@ -5,7 +5,7 @@ title: Aspire Integration
 # Aspire Integration
 
 [Quartz.Aspire](https://www.nuget.org/packages/Quartz.Aspire) is the Quartz.NET **client integration** for
-[Aspire](https://aspire.dev/). It turns an Aspire connection name into a persistent job store, in one call:
+[Aspire](https://aspire.dev/). One call turns an Aspire connection name into a persistent job store:
 
 <!-- snippet: sample_aspire_add_persistent_store -->
 ```csharp
@@ -15,14 +15,17 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
-That reads the connection string the AppHost injected under `quartz`, works out which database it is for,
-chooses the driver delegate that speaks that database's SQL, takes connections from a `DbDataSource` the
-container already holds, registers the scheduler's health check, and names Quartz's activity source and
-meter to the OpenTelemetry pipeline `AddServiceDefaults()` built.
+The call:
 
-This page is the reference: every setting, where it is read from, and every rule the package decides
-something by. [Running Quartz under Aspire](../how-tos/aspire.md) is the recipe — the AppHost beside this
-worker, what the dashboard shows, and how to write any part of this call out by hand instead.
+1. reads the connection string the AppHost injected under `quartz`;
+2. infers the database and chooses its driver delegate;
+3. takes connections from a `DbDataSource` already in the container, if there is one;
+4. registers the scheduler's health check;
+5. adds Quartz's activity source and meter to the OpenTelemetry pipeline `AddServiceDefaults()` built.
+
+The recipe (the AppHost, the dashboard, and each step written out by hand) is
+[Running Quartz under Aspire](../how-tos/aspire.md). Every store setting is in
+[Job Stores](../tutorial/job-stores.md) and the [Configuration Reference](../configuration/reference.md#persistent-job-store).
 
 ::: tip
 Quartz 4.0 or later required. Documented against **Aspire 13.5**.
@@ -34,23 +37,19 @@ Quartz 4.0 or later required. Documented against **Aspire 13.5**.
 dotnet add package Quartz.Aspire
 ```
 
-The ADO.NET driver for whichever database the connection string turns out to name is still the
-application's own reference, exactly as it is without Aspire — `Npgsql` for a PostgreSQL string,
-`Microsoft.Data.SqlClient` for SQL Server, and so on
-([the full table](../tutorial/job-stores.md#configuring-a-persistent-store)). An Aspire client
-integration such as `Aspire.Npgsql` brings its driver with it, which is why a worker that already has one
-needs nothing more; a worker that only reads a connection string out of configuration does not:
+The application still references the ADO.NET driver for its database, as without Aspire: `Npgsql` for
+PostgreSQL, `Microsoft.Data.SqlClient` for SQL Server, and so on
+([the full table](../tutorial/job-stores.md#configuring-a-persistent-store)). An Aspire client integration such
+as `Aspire.Npgsql` brings its driver; a worker that only reads a connection string from configuration needs it
+added:
 
 ```shell
 dotnet add package Npgsql
 ```
 
-The package takes **no `Aspire.*` package reference**. `IHostApplicationBuilder` is the whole of its
-contract, so it is not tied to Aspire's release cadence and works in any generic-host application that has
-a `ConnectionStrings:` entry — an AppHost is where the string usually comes from, not something the package
-requires. That is the ordinary shape for a client integration rather than a peculiarity of this one:
-`Aspire.Npgsql` 13.5.3, the first-party integration this package sits beside, has no `Aspire.*` dependency
-either.
+The package has **no `Aspire.*` package reference**; `IHostApplicationBuilder` is its whole contract. It is not
+tied to Aspire's release cadence and works in any generic-host application with a `ConnectionStrings:` entry.
+`Aspire.Npgsql` 13.5.3 has no `Aspire.*` dependency either.
 
 ## The call
 
@@ -61,70 +60,54 @@ public static IHostApplicationBuilder AddQuartzPersistentStore(
     Action<QuartzAspireSettings>? configureSettings = null);
 ```
 
-`connectionName` is the name the AppHost gave the database resource. It is the name its connection string
-arrives under (`ConnectionStrings:<connectionName>`), and the service key a keyed `DbDataSource` would be
-registered with — so naming the resource once in the AppHost names it everywhere.
+`connectionName` is the AppHost's name for the database resource. The connection string arrives under
+`ConnectionStrings:<connectionName>`, and a keyed `DbDataSource` would use it as its service key.
 
-The call is **additive and order-independent**. The store is contributed through
-`ConfigureAllQuartzSchedulers`, so it may be written before or after `AddQuartz` and the container comes out
-the same. `AddQuartz` still reads the `Quartz` configuration section and still configures the scheduler;
-nothing here replaces it. What this call decides is only what an Aspire *connection* is evidence of.
-
-One ordering does matter, and only one: **a client integration that registers a `DbDataSource` has to be
-called first.** Where connections come from is decided at this call site, against the service collection as
-it stands, rather than inside the per-scheduler callback — because when that callback runs depends on
-whether `AddQuartz` has already been called, which is exactly the ordering everything else here is
-indifferent to.
+- **Additive and order-independent.** The store is contributed through `ConfigureAllQuartzSchedulers`, so the
+  call can come before or after `AddQuartz`. `AddQuartz` still reads the `Quartz` configuration section and
+  configures the scheduler.
+- **One ordering matters: call a client integration that registers a `DbDataSource` first.** The connection
+  source is decided at this call, against the service collection as it is then.
 
 ## Settings
 
-`QuartzAspireSettings` is deliberately small. It is not a second spelling of Quartz's own configuration:
-`Quartz:Scheduler`, `Quartz:JobStore` and the rest still say what they always said, and `AddQuartz` still
-reads them. What these settings decide is the handful of things that follow from an Aspire connection.
+`QuartzAspireSettings` covers only what follows from an Aspire connection. `Quartz:Scheduler`, `Quartz:JobStore`
+and the rest still apply through `AddQuartz`.
 
 | Setting | Type | Default | What it decides |
 |---|---|---|---|
-| `ConnectionString` | `string?` | `ConnectionStrings:<name>` | The connection string, when it is not the one Aspire injected |
+| `ConnectionString` | `string?` | `ConnectionStrings:<name>` | The connection string, when not the one Aspire injected |
 | `Provider` | `string?` | inferred from the connection string | Which ADO.NET driver reaches the database |
 | `SchedulerName` | `string?` | every scheduler in the container | Which scheduler this store belongs to |
-| `TablePrefix` | `string?` | whatever `AdoJobStoreOptions.TablePrefix` already had | The prefix on the Quartz table names |
-| `SchemaProvisioning` | `SchemaProvisioning?` | unset — creates under `Development`, says nothing everywhere else | What the store does about its schema as it starts |
-| `Clustered` | `bool` | `false` | Whether this scheduler joins a cluster on the database, deriving an instance id to do it with |
-| `DisableHealthChecks` | `bool` | `false` | Leaves the scheduler's health check unregistered |
-| `DisableTracing` | `bool` | `false` | Leaves the `Quartz` activity source unsubscribed |
-| `DisableMetrics` | `bool` | `false` | Leaves the `Quartz` meter unsubscribed |
+| `TablePrefix` | `string?` | whatever `AdoJobStoreOptions.TablePrefix` already had | Prefix on the Quartz table names |
+| `SchemaProvisioning` | `SchemaProvisioning?` | unset: creates under `Development`, nothing elsewhere | What the store does about its schema at start |
+| `Clustered` | `bool` | `false` | Join a cluster on the database, deriving an instance id |
+| `DisableHealthChecks` | `bool` | `false` | Leave the scheduler's health check unregistered |
+| `DisableTracing` | `bool` | `false` | Leave the `Quartz` activity source unsubscribed |
+| `DisableMetrics` | `bool` | `false` | Leave the `Quartz` meter unsubscribed |
 
-The three flags are spelled `Disable*` rather than `Enable*` because Aspire's rule for a settings type is
-that a fresh instance — which is what binding an absent section produces — must already hold the
-recommended values. A `bool` bound from nothing is `false`, so the useful default has to be the `false` one.
-Every first-party integration has been spelled this way since Aspire 8.0.
-
-`SchemaProvisioning` is the one nullable, for the same rule read the other way: the recommended value is
-not the same in every environment, so no non-nullable value could hold it. Unset is an answer rather than
-a missing one — *ask the environment* — and naming a `SchemaProvisioning` is how an application that knows
-better says so. It is the same enum `AdoJobStoreOptions.SchemaProvisioning` takes, so this end of the
-setting and the store's end are one vocabulary.
-
-Every setting here says something or says nothing; none of them says *no*. `TablePrefix` left unset keeps
-whatever `Quartz:JobStore:TablePrefix` or an earlier `ConfigureStore` said, rather than resetting it, and
-`Clustered = false` means "this call is not what makes it a cluster" rather than "un-cluster it" — a
-scheduler that `Quartz:JobStore:Clustering:Enabled` or a `UseClustering()` call already clustered stays
-clustered.
+- The flags are `Disable*` because Aspire requires a fresh settings instance (what an absent section binds to)
+  to hold the recommended values, and an unbound `bool` is `false`. First-party integrations have used this
+  spelling since Aspire 8.0.
+- `SchemaProvisioning` is nullable because the recommended value depends on the environment. Unset means "ask
+  the environment". It is the same enum as `AdoJobStoreOptions.SchemaProvisioning`.
+- No setting undoes existing configuration. `TablePrefix` unset keeps what `Quartz:JobStore:TablePrefix` or an
+  earlier `ConfigureStore` set. `Clustered = false` does not un-cluster a scheduler that
+  `Quartz:JobStore:Clustering:Enabled` or `UseClustering()` already clustered.
 
 ### Where the settings come from
 
-Four sources, each more specific than the one before it:
+Each source overrides the one before:
 
-1. `Aspire:Quartz` — what is true of every Quartz connection in the application.
-2. `Aspire:Quartz:<connectionName>` — bound over it, for that connection alone.
-3. `ConnectionStrings:<connectionName>` — supplies `ConnectionString` when there is one.
-4. The `configureSettings` callback, which has the last word.
+1. `Aspire:Quartz`: every Quartz connection in the application.
+2. `Aspire:Quartz:<connectionName>`: that connection only.
+3. `ConnectionStrings:<connectionName>`: supplies `ConnectionString`, when present.
+4. The `configureSettings` callback.
 
-This is the order every first-party client integration uses, and step 3 sitting where it does is deliberate:
-`ConnectionStrings:<name>` is what the AppHost's `WithReference` actually injected, so a stale
-`ConnectionString` left in an `appsettings.json` should not beat it.
+Every first-party client integration uses this order. `ConnectionStrings:<name>` is what the AppHost's
+`WithReference` injected, so it beats a stale `ConnectionString` in `appsettings.json`.
 
-An application with a single database never writes the inner section:
+With one database, only the outer section is needed:
 
 ```json
 {
@@ -137,7 +120,7 @@ An application with a single database never writes the inner section:
 }
 ```
 
-An application with two writes both, and the inner one wins where they overlap:
+With two, the inner section wins where they overlap:
 
 ```json
 {
@@ -152,9 +135,9 @@ An application with two writes both, and the inner one wins where they overlap:
 }
 ```
 
-Both stores are clustered; the billing one alone reads `BILLING_QRTZ_` tables.
+Both stores are clustered; only billing reads `BILLING_QRTZ_` tables.
 
-Code beats both:
+Code overrides both:
 
 <!-- snippet: sample_aspire_settings -->
 ```csharp
@@ -166,136 +149,113 @@ builder.AddQuartzPersistentStore("quartz", settings =>
 ```
 <!-- endSnippet -->
 
-The package ships a `ConfigurationSchema.json` at its root, wired up by a `buildTransitive` targets file, so
-an IDE completes and validates the `Aspire` section in `appsettings.json`. That file is written by hand and
-held to the settings type by a test: the generator Aspire uses for its own integrations
+The package ships a `ConfigurationSchema.json` at its root, wired up by a `buildTransitive` targets file, so an
+IDE completes and validates the `Aspire` section of `appsettings.json`. It is hand-written and held to the
+settings type by a test, because Aspire's generator for it
 ([microsoft/aspire#3309](https://github.com/microsoft/aspire/issues/3309)) has never shipped.
 
 ## Which database the connection string is for
 
-Left unset, `Provider` is inferred from the connection string's **keywords** — parsed with
-`DbConnectionStringBuilder`, never substring-matched, and compared with spaces and underscores removed so
-that `User ID`, `userid` and `User_Id` are one keyword.
+Unset, `Provider` is inferred from the connection string's **keywords**. They are parsed with
+`DbConnectionStringBuilder` (never substring-matched) and compared without spaces and underscores, so
+`User ID`, `userid` and `User_Id` are one keyword.
 
 | Provider | Inferred when the connection string |
 |---|---|
 | `Npgsql` | has `Host` and `Database`, and no `Uid` |
-| `SqlServer` | has `Server`, `Data Source`, `Address`, `Addr` or `Network Address`, together with `Initial Catalog`, `Database`, `Integrated Security` or `Trusted_Connection` — and has no `Port` and no `Host`, neither of which `Microsoft.Data.SqlClient` accepts |
-| `MySqlConnector` | has `Server`, `Data Source`, `Address`, `Addr` or `Network Address` but not `Host`, together with `Port` and one of `Uid`, `User Id`, `Username` or `User` |
-| `SQLite-Microsoft` | has `Data Source` whose value is `:memory:` or ends in `.db`, `.db3`, `.sqlite` or `.sqlite3`, or has `Mode=Memory` |
-| `OracleODPManaged` | has `Data Source` holding a TNS descriptor or an EZ-connect `host:port/service` string, and no `Host` or `Port` |
+| `SqlServer` | has a server keyword¹ and one of `Initial Catalog`, `Database`, `Integrated Security`, `Trusted_Connection`; and no `Port` or `Host` |
+| `MySqlConnector` | has a server keyword¹ but not `Host`, plus `Port` and one of `Uid`, `User Id`, `Username`, `User` |
+| `SQLite-Microsoft` | has `Data Source` of `:memory:` or ending in `.db`, `.db3`, `.sqlite`, `.sqlite3`; or has `Mode=Memory` |
+| `OracleODPManaged` | has `Data Source` holding a TNS descriptor or EZ-connect `host:port/service`, and no `Host` or `Port` |
+
+¹ `Server`, `Data Source`, `Address`, `Addr` or `Network Address`. `Microsoft.Data.SqlClient` accepts neither
+`Port` nor `Host`.
 
 ::: warning An ambiguous or unrecognised string throws
-Zero matches and two matches are both a `SchedulerConfigException` at startup, naming
-`QuartzAspireSettings.Provider` and `DataSourceOptions.Providers`. The failure a guess produces instead is a
-scheduler that starts, connects, and then issues SQL the database cannot run — discovered at the first
-trigger acquisition rather than at startup, and not obviously about the connection string when it is.
+Zero or two matches throw a `SchedulerConfigException` at startup, naming `QuartzAspireSettings.Provider` and
+`DataSourceOptions.Providers`. A guess would instead start a scheduler that issues SQL the database cannot run,
+found only at the first trigger acquisition.
 :::
 
-Three of the eight shipped provider names are **never inferred**, because nothing in a connection string
-distinguishes them: `MySql` and `SQLite` accept the same strings as `MySqlConnector` and `SQLite-Microsoft`
-above them, so which of each pair to use is the application's choice rather than the string's, and a
-Firebird string looks like several of the others. Naming one in `Provider` is how an application chooses.
-
-A name Quartz ships no description for is still usable. It reaches `UseGenericDatabase`, which selects the
-generic SQL dialect and leaves the description to whatever `DbMetadataFactory` the application registered —
-so a driver Quartz has never heard of is a configuration this supports rather than an error it reports.
-[A Driver Delegate for a New Database](../how-tos/dialect-delegate.md) is the rest of that story.
-
-Two blind spots are worth knowing, and both are refusals rather than wrong answers: a MySQL connection
-string written with `Host=` and `Username=` matches nothing, and a bare Oracle TNS alias
-(`Data Source=orcl`) is indistinguishable from a SQL Server instance name and so is not recognised. Set
-`Provider` in either case.
+- Three of the eight shipped provider names are **never inferred**. `MySql` and `SQLite` accept the same strings
+  as `MySqlConnector` and `SQLite-Microsoft`, and a Firebird string looks like several others. Name them in
+  `Provider`.
+- A provider name Quartz has no description for goes to `UseGenericDatabase`: the generic SQL dialect, with the
+  description from the application's registered `DbMetadataFactory`. See
+  [A Driver Delegate for a New Database](../how-tos/dialect-delegate.md).
+- Not recognised (set `Provider`): a MySQL string written with `Host=` and `Username=`, and a bare Oracle TNS
+  alias (`Data Source=orcl`), which looks like a SQL Server instance name.
 
 ## Where connections come from
 
-Once the database is known, the store still needs a connection. The package sets one of the settings on
-`DataSourceOptions`, choosing by what the service collection already holds. The rows are tried in order, and
-the first that matches wins:
+The package sets one connection setting on `DataSourceOptions`. The first matching row wins:
 
-| Condition | The store is configured with | Why |
-|---|---|---|
-| The provider is `SqlServer` | `ConnectionString` and `ConnectionStringName` | See below — the probe is skipped entirely |
-| A keyed `DbDataSource` under `connectionName` | `DataSourceServiceKey = connectionName` | Two databases cannot both be the container's one unkeyed data source |
-| An unkeyed `DbDataSource` | `UseRegisteredDataSource = true` | The application registered exactly one, and this is it |
-| Anything else | `ConnectionString` and `ConnectionStringName` | Nothing to take a connection from, so open one |
+| Condition | The store is configured with |
+|---|---|
+| The provider is `SqlServer` | `ConnectionString` and `ConnectionStringName` (no probe) |
+| A keyed `DbDataSource` under `connectionName` | `DataSourceServiceKey = connectionName` |
+| An unkeyed `DbDataSource` | `UseRegisteredDataSource = true` |
+| Anything else | `ConnectionString` and `ConnectionStringName` |
 
-`builder.AddKeyedNpgsqlDataSource("quartz")` produces the second row and `builder.AddNpgsqlDataSource("quartz")`
-the third — both register a singleton `System.Data.Common.DbDataSource`, which is the service type this
-probes for, keyed in the first case and unkeyed in the second.
+`builder.AddKeyedNpgsqlDataSource("quartz")` gives the second row and `builder.AddNpgsqlDataSource("quartz")` the
+third. Both register a singleton `System.Data.Common.DbDataSource`, the service type probed for. A keyed source
+is used because two databases cannot both be the container's one unkeyed data source.
 
-A data source is preferred because whatever it was built with is then in play for Quartz's own statements —
-its type mappers, its logging, its connection multiplexing — since commands are made by the connection
-rather than from a driver description. It is also the answer that keeps a trimmed application honest: the
-connection-string path is what makes `AddQuartzPersistentStore` carry `[RequiresUnreferencedCode]`, because
-that path names the driver's connection, command and parameter types as strings.
-
-**SQL Server never takes the data-source path.** `Microsoft.Data.SqlClient` ships no `DbDataSource`
-implementation at all, and Aspire's SQL Server client integration registers a scoped `SqlConnection`
-instead — so probing for an unkeyed `DbDataSource` would find some *other* database's, or nothing, and would
-fail at first use rather than at startup.
+- A data source is preferred: commands are made by its connection, so its type mappers, logging and connection
+  multiplexing apply to Quartz's statements.
+- The connection-string path names the driver's connection, command and parameter types as strings, which is
+  why `AddQuartzPersistentStore` carries `[RequiresUnreferencedCode]`.
+- **SQL Server never uses a data source.** `Microsoft.Data.SqlClient` has no `DbDataSource` implementation, and
+  Aspire's SQL Server integration registers a scoped `SqlConnection`. A probe would find another database's
+  data source, or none, and fail at first use.
 
 ## What happens to the schema
 
-The store is configured with `SchemaProvisioning.CreateIfMissing` when the application is running in
-`Development`, and left at the `Validate` default everywhere else. `builder.Environment` is read at the
-`AddQuartzPersistentStore` call rather than when the scheduler starts, so the answer is the environment
-the container was built in.
-
 | `SchemaProvisioning` | `AdoJobStoreOptions.SchemaProvisioning` becomes |
 |---|---|
-| unset (the default) | `CreateIfMissing` under `Development`, untouched in every other environment |
-| `CreateIfMissing` | `CreateIfMissing`, whatever the environment |
-| `Validate` | `Validate`, whatever the environment — which is what it already is, so nothing is set |
-| `None` | `None`, whatever the environment — the startup check is skipped entirely |
+| unset (the default) | `CreateIfMissing` under `Development`; untouched elsewhere |
+| `CreateIfMissing` | `CreateIfMissing`, in any environment |
+| `Validate` | `Validate`, in any environment (already the default, so nothing is set) |
+| `None` | `None`, in any environment; the startup check is skipped |
 
-An AppHost's database container comes up empty whenever its volume is new, which makes a first run that
-fails schema validation the ordinary outcome rather than an edge case; a production account, on the other
-hand, usually holds no DDL permission and is right not to. Neither is a fact about *this* application,
-which is why the environment answers rather than a default that would be wrong on one side.
+- `builder.Environment` is read at the `AddQuartzPersistentStore` call, not at scheduler start.
+- Why by environment: an AppHost's database container starts empty with a new volume, while a production
+  account usually has no DDL permission.
+- A `SchemaProvisioning` the application set (through `ConfigureStore` or `Quartz:JobStore:SchemaProvisioning`)
+  is left alone. The exception is `Validate`, which cannot be told apart from the default: in `Development`,
+  set `SchemaProvisioning = SchemaProvisioning.Validate` here instead.
 
-The store keeps its own word. A `SchemaProvisioning` the application set — through `ConfigureStore`, or
-through `Quartz:JobStore:SchemaProvisioning` — is read as a decision about this store and left alone,
-because this call runs from `ConfigureAllQuartzSchedulers` and would otherwise win merely by being last.
-`Validate` is the exception, being what an unconfigured store already holds and so indistinguishable from
-silence: `SchemaProvisioning = SchemaProvisioning.Validate` is how an application in `Development` says it.
-
-Everything else about provisioning is the store's, not this package's:
-[Creating the schema](../tutorial/job-stores.md#creating-the-schema) covers what it runs, why it is safe
-under a cluster starting at once, and the two configurations that cannot provision or would provision the
-wrong schema. [Running Quartz under Aspire](../how-tos/aspire.md#getting-the-tables-there) has the
-production recipe.
+What provisioning runs, why it is safe when a cluster starts at once, and the two configurations that cannot
+provision or would provision the wrong schema are in
+[Creating the schema](../tutorial/job-stores.md#creating-the-schema). The production recipe is in
+[Running Quartz under Aspire](../how-tos/aspire.md#getting-the-tables-there).
 
 ## Clustering
 
-`Clustered = true` calls `UseClustering()`, which turns database locking on with it, **and makes the
-scheduler derive its `InstanceId`**.
+`Clustered = true` calls `UseClustering()`, which also turns on database locking, **and makes the scheduler
+derive its `InstanceId`**.
 
-The second half is not a convenience. A cluster's nodes recognise their own check-in row and their own fired
-triggers by `InstanceId`; every scheduler starts life carrying `QuartzSchedulerOptions.DefaultInstanceId`,
-which is `NON_CLUSTERED`; and under Aspire a replica set is one call — `WithReplicas(2)` — with no identity
-of its own to borrow. A cluster whose nodes all answer to one id is the worst failure this area has, so the
-setting supplies both halves rather than documenting the trap beside one of them.
+Cluster nodes recognise their own check-in row and fired triggers by `InstanceId`. Every scheduler starts with
+`QuartzSchedulerOptions.DefaultInstanceId`, which is `NON_CLUSTERED`, and an Aspire replica set
+(`WithReplicas(2)`) gives replicas no identity of their own. Without a derived id, all nodes would share one,
+the worst failure a cluster can have.
 
-It fills a gap and never overrides. An application that already set `GenerateInstanceId`, or that named its
-nodes by setting `InstanceId` — from code or from `Quartz:Scheduler:InstanceId` — keeps what it said.
+It never overrides: an application that set `GenerateInstanceId`, or set `InstanceId` in code or in
+`Quartz:Scheduler:InstanceId`, keeps it.
 
 ## Health and telemetry
 
-The health check is `IQuartzBuilder.AddQuartzHealthChecks()` from the core `Quartz` package, registered on the same
-`IHealthChecksBuilder` an Aspire ServiceDefaults project put its own `self` check on, so
-`MapDefaultEndpoints()` serves both. It is registered per scheduler, so two schedulers get two checks under
-two names. What the check reports, and what survives an HTTP probe, is
-[the how-to's Health section](../how-tos/aspire.md#health).
+- **Health check:** `IQuartzBuilder.AddQuartzHealthChecks()` from the core `Quartz` package, on the same
+  `IHealthChecksBuilder` as ServiceDefaults' `self` check, so `MapDefaultEndpoints()` serves both. One check per
+  scheduler, each under its own name. What it reports and what survives an HTTP probe:
+  [the how-to's Health section](../how-tos/aspire.md#health).
+- **Telemetry:** `AddSource("Quartz")` and `AddMeter("Quartz")` on the existing `AddOpenTelemetry()` builder.
+- **No exporter is added.** `AddServiceDefaults()` calls `UseOtlpExporter()` when `OTEL_EXPORTER_OTLP_ENDPOINT`
+  is set (the AppHost sets it). `UseOtlpExporter` may be called only once and cannot be combined with a
+  signal-specific `AddOtlpExporter()`; either mistake throws `NotSupportedException`. Aspire also rules
+  exporters out of a client integration's scope.
 
-Telemetry is `AddSource("Quartz")` and `AddMeter("Quartz")` on the application's existing
-`AddOpenTelemetry()` builder. **No exporter is ever added**, and that is not tidiness: `AddServiceDefaults()`
-calls `UseOtlpExporter()` whenever `OTEL_EXPORTER_OTLP_ENDPOINT` is set, the AppHost sets it, and
-OpenTelemetry's `UseOtlpExporter` may be called only once and cannot be combined with a signal-specific
-`AddOtlpExporter()` — either mistake throws `NotSupportedException`. Aspire says the same thing more
-generally: defining exporters is outside a client integration's scope.
-
-Turn any of the three off individually:
+Turn any of the three off:
 
 <!-- snippet: sample_aspire_disable_signals -->
 ```csharp
@@ -312,9 +272,8 @@ builder.AddQuartzPersistentStore("quartz", settings =>
 
 ## More than one scheduler
 
-Left unset, `SchedulerName` gives the store to every scheduler in the container — right for the single
-scheduler an application normally has, and wrong the moment two of them talk to two databases. Naming it
-scopes the call to one scheduler, by the name `AddQuartz(name, …)` registered:
+Unset, `SchedulerName` gives the store to every scheduler in the container. With two schedulers on two
+databases, set it to the name `AddQuartz(name, …)` registered:
 
 <!-- snippet: sample_aspire_two_schedulers -->
 ```csharp
@@ -326,44 +285,26 @@ builder.AddQuartzPersistentStore("billing-db", settings => settings.SchedulerNam
 ```
 <!-- endSnippet -->
 
-See [Multiple Schedulers](multiple-schedulers.md) for what a named scheduler is and how its parts are keyed.
+Named schedulers and how their parts are keyed: [Multiple Schedulers](multiple-schedulers.md).
 
 ## What this package deliberately does not do
 
-* **There is no `Quartz.Aspire.Hosting`.** A hosting integration would add resources to the AppHost — an
-  `AddQuartz()` resource, a `WithQuartzDashboard()` — and there is nothing for one to orchestrate: Quartz
-  runs *inside* an existing project resource rather than as a process of its own. The AppHost declares the
-  database and hands it over, which it can already do.
-* **There is no `AddKeyedQuartzPersistentStore`.** Every other client integration has a keyed form, and it
-  exists so an application can hold two of a thing. Quartz already has an axis for that which is not the
-  container's — a second scheduler, registered by name — so `SchedulerName` is how a second call says which
-  one it means, and two databases end up on two schedulers rather than on two keyed copies of one. Aspire's
-  own guidance makes the keyed form a "consider, if applicable" rather than a requirement.
-* **It maps no health-check status codes.** `HealthCheckOptions.ResultStatusCodes` is an ASP.NET Core type
-  and a decision about *this application's* probe, not about Quartz;
-  [the how-to](../how-tos/aspire.md#health) explains why the default mapping loses a standby scheduler and
-  what to write instead.
-* **It creates no tables in production.** The store provisions its own schema under `Development` and
-  validates it everywhere else, because that is what an AppHost's empty container and a production
-  account's permissions respectively call for — and it migrates a schema nowhere, because nothing in a
-  Quartz schema records which version it is.
-  [The how-to](../how-tos/aspire.md#getting-the-tables-there) has the migration-service recipe that
-  answers the production half.
-* **It adds no OpenTelemetry exporter**, for the reason above.
+- **No `Quartz.Aspire.Hosting`.** A hosting integration adds AppHost resources (an `AddQuartz()` resource, a
+  `WithQuartzDashboard()`). Quartz runs *inside* an existing project resource, so there is nothing to
+  orchestrate; the AppHost already declares the database and passes it on.
+- **No `AddKeyedQuartzPersistentStore`.** A second database goes to a second, named scheduler, selected with
+  `SchedulerName`. Aspire's guidance makes a keyed form "consider, if applicable", not a requirement.
+- **No health-check status codes.** `HealthCheckOptions.ResultStatusCodes` is an ASP.NET Core type and the
+  application's decision. [The how-to](../how-tos/aspire.md#health) explains why the default mapping loses a
+  standby scheduler, and what to write instead.
+- **No tables in production.** The store creates its schema under `Development` and validates it elsewhere. It
+  never migrates a schema, because nothing in a Quartz schema records its version.
+  [The how-to](../how-tos/aspire.md#getting-the-tables-there) has the migration-service recipe for production.
+- **No OpenTelemetry exporter**, for the reason above.
 
-One convention this package knowingly diverges from: Aspire's contributor guidance asks a client
-integration to support every supported .NET version at the time of the Aspire release it targets, which for
-13.x means `net8.0`. `Quartz.Aspire` targets `net10.0` alone, because
-[every Quartz 4.0 package does](../migration-guide.md).
+Aspire's contributor guidance asks client integrations to support every supported .NET version at the Aspire
+release, which for 13.x means `net8.0`. `Quartz.Aspire` targets `net10.0` only, like
+[every Quartz 4.0 package](../migration-guide.md).
 
-## See also
-
-* [Running Quartz under Aspire](../how-tos/aspire.md) — the AppHost, the worker, the dashboard, and every
-  line of this call written out by hand
-* [Observability](opentelemetry-integration.md) — the spans, instruments and attributes the package
-  subscribes
-* [Hosted Services Integration](hosted-services-integration.md) — `AddQuartzHostedService`, and the health
-  check outside Aspire
-* [Job Stores](../tutorial/job-stores.md) and
-  [Configuration Reference](../configuration/reference.md#persistent-job-store) — every store setting this
-  call sets, and the ones it does not touch
+`AddQuartzHostedService`, and the health check outside Aspire, are in
+[Hosted Services Integration](hosted-services-integration.md).

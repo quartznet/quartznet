@@ -3,12 +3,11 @@
 title: Microsoft DI Integration
 ---
 
-The scheduler is built by [Microsoft's dependency injection container](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
-There is no reflective assembly of a scheduler from type names any more: `AddQuartz` registers the object graph,
-and everything in it — the job store, the thread pool, listeners, plugins, your jobs — is resolved from the
-container like any other service.
+[Microsoft's dependency injection container](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection)
+builds the scheduler. `AddQuartz` registers the object graph; the job store, thread pool, listeners, plugins and
+your jobs are resolved from the container. Nothing is built reflectively from type names.
 
-This is part of the core [Quartz](https://www.nuget.org/packages/Quartz) package; 3.x had it in the separate
+This is in the core [Quartz](https://www.nuget.org/packages/Quartz) package; 3.x had it in the separate
 `Quartz.Extensions.DependencyInjection` package.
 
 ::: tip
@@ -19,21 +18,20 @@ Need several independent schedulers in one application? See [Multiple Schedulers
 
 ## Registering a scheduler
 
-Two packages. Quartz itself:
+Install Quartz:
 
 ```shell
 dotnet add package Quartz
 ```
 
-and the host, which is not Quartz's — `Host.CreateApplicationBuilder` and
-`WebApplication.CreateBuilder` come from `Microsoft.Extensions.Hosting`, which the `worker` and `web`
-project templates already reference and a plain `console` project does not:
+`Host.CreateApplicationBuilder` and `WebApplication.CreateBuilder` come from `Microsoft.Extensions.Hosting`. The
+`worker` and `web` templates reference it; a plain `console` project needs it added:
 
 ```shell
 dotnet add package Microsoft.Extensions.Hosting
 ```
 
-`ExampleJob`, referred to throughout this page, is an ordinary class:
+`ExampleJob`, used throughout this page, is an ordinary class:
 
 <!-- snippet: sample_di_example_job -->
 ```csharp
@@ -82,19 +80,16 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
-That is `using Microsoft.Extensions.Hosting;` and `using Quartz;` at the top of the file. The ten-second
-schedule is deliberate: a first registration should say whether it worked while you are still looking at
-the console.
+The file needs `using Microsoft.Extensions.Hosting;` and `using Quartz;`. The ten-second schedule shows quickly
+whether a first registration works.
 
-`AddQuartz` and `AddQuartzHostedService` hang off `IHostApplicationBuilder`, so the same two calls work in a
-web application built with `WebApplication.CreateBuilder(args)`. Both are also available on
-`IServiceCollection` — `builder.Services.AddQuartz(q => …)` — for registration code that only has the
-collection to work with.
+`AddQuartz` and `AddQuartzHostedService` are on `IHostApplicationBuilder`, so they also work with
+`WebApplication.CreateBuilder(args)`. Both are on `IServiceCollection` too (`builder.Services.AddQuartz(q => …)`),
+for code that has only the collection.
 
 ## Configuration from appsettings.json
 
-Everything configurable in code is bindable from the `Quartz` configuration section, under the option's own
-name:
+Everything configurable in code binds from the `Quartz` configuration section, under the option's own name:
 
 ```json
 {
@@ -110,8 +105,8 @@ name:
 }
 ```
 
-The `Quartz` section is bound automatically when the scheduler is registered through `IHostApplicationBuilder`.
-On `IServiceCollection`, where there is no configuration to hand, pass the section:
+Registration through `IHostApplicationBuilder` binds the `Quartz` section automatically. On `IServiceCollection`,
+pass the section:
 
 <!-- snippet: sample_di_configuration_section -->
 ```csharp
@@ -123,22 +118,22 @@ services.AddQuartz(configuration.GetSection("Quartz"), q =>
 ```
 <!-- endSnippet -->
 
-The section names, the options under each and the whole schedule-in-configuration format are in
-[Configuration Reference](../configuration/reference.md) and
-[JSON configuration](../configuration/json.md). The flat `quartz.scheduler.instanceName` style keys 3.x used
-still work, and are translated to the same options, but they are not the spelling to reach for in a new
-application.
+Section names, their options and the schedule-in-configuration format are in
+[Configuration Reference](../configuration/reference.md) and [JSON configuration](../configuration/json.md). The
+3.x flat keys (`quartz.scheduler.instanceName` style) still work and map to the same options; do not use them in
+a new application.
 
 ## How jobs are constructed
 
-A job is resolved from the container. `AddJob<T>()`, `AddJob(type, …)` and `ScheduleJob<T>()` register
-the job type for you, as a **scoped** service — the job factory opens a dependency injection scope per
-fire, resolves the job from it, and disposes the scope when the job returns, so a job can take scoped
-dependencies such as a database context. A job type the container has no registration for at all is
-still built with `ActivatorUtilities`, which is what makes a job scheduled from an XML or JSON file
-work. A job should have only one public constructor.
+Jobs are resolved from the container.
 
-The registration is a `TryAdd`, so your own registration always wins:
+- `AddJob<T>()`, `AddJob(type, …)` and `ScheduleJob<T>()` register the job type as a **scoped** service.
+- The job factory opens a scope per fire, resolves the job from it, and disposes the scope when the job
+  returns, so a job can take scoped dependencies such as a database context.
+- A job type with no registration is built with `ActivatorUtilities`, so jobs from XML or JSON files work.
+- A job should have only one public constructor.
+
+The registration is a `TryAdd`, so your own registration wins:
 
 <!-- snippet: sample_di_registration_wins -->
 ```csharp
@@ -153,29 +148,30 @@ services.AddQuartz(q =>
 <!-- endSnippet -->
 
 ::: warning
-A singleton job serves every fire from one instance, so it must be thread-safe and it cannot take
-scoped dependencies. Prefer scoped, which is what `AddJob` registers.
+A singleton job serves every fire from one instance: it must be thread-safe and cannot take scoped
+dependencies. Prefer scoped, which is what `AddJob` registers.
 :::
 
 ::: warning A registered job may not take a scheduler's parts by constructor
-`IScheduler`, `ISchedulerFactory`, `IJobStore`, `IThreadPool` and `IOptions<QuartzSchedulerOptions>`
-belong to one scheduler, and the container that builds the job resolves them unkeyed — it knows nothing
-about which scheduler is firing it. Startup therefore refuses such a constructor, naming the job and the
-parameter. The scheduler running the fire is `IJobExecutionContext.Scheduler`; code the context is not
-handed to reads the firing from `IJobExecutionContextAccessor`; and a job that really has to be
-*constructed* with something of its scheduler's is registered with `AddJobType<T>(provider => …)`, which
-resolves that part by key and is not examined. See
-[which scheduler's parts a job is built from](../multi-tenancy.md#which-scheduler-s-parts-a-job-is-built-from).
+`IScheduler`, `ISchedulerFactory`, `IJobStore`, `IThreadPool` and `IOptions<QuartzSchedulerOptions>` belong to
+one scheduler, but the container resolves them unkeyed, without knowing which scheduler fires the job. Startup
+refuses such a constructor, naming the job and the parameter. Instead:
+
+- use `IJobExecutionContext.Scheduler` for the scheduler running the fire;
+- read the firing from `IJobExecutionContextAccessor` where the context is not passed in;
+- register a job that must be *constructed* with a scheduler part with `AddJobType<T>(provider => …)`, which
+  resolves the part by key and is not checked.
+
+See [which scheduler's parts a job is built from](../multi-tenancy.md#which-scheduler-s-parts-a-job-is-built-from).
 :::
 
-To add to the scope the factory opens rather than to replace the factory — to seed an ambient tenant, say —
-use `q.ConfigureJobScope((scope, bundle, scheduler) => …)`.
+To add to the factory's scope without replacing the factory (to seed an ambient tenant, say), use
+`q.ConfigureJobScope((scope, bundle, scheduler) => …)`.
 
 ### Failing fast when job dependencies cannot be resolved
 
-Because the job type is registered, `ValidateOnBuild` — which the host enables by default in the
-Development environment — sees it and checks that its constructor can be satisfied. A job asking for
-something nobody registered therefore fails when the container is built, naming the job and the
+The job type is registered, so `ValidateOnBuild` (on by default in the Development environment) checks its
+constructor. A job with an unregistered dependency fails when the container is built, naming the job and the
 dependency:
 
 <!-- snippet: sample_di_validate_on_build -->
@@ -186,16 +182,14 @@ services.AddQuartz(q => q.AddJob<SendReportsJob>(j => j.WithIdentity("send-repor
 ```
 <!-- endSnippet -->
 
-Before 4.0 the job type was not registered, so validation never saw it and the failure arrived at fire
-time instead: the trigger had already fired, the job never ran, and every trigger of that job was
-moved to `TriggerState.Error`, where it stayed until `IScheduler.ResetTriggerFromErrorState` was
-called.
+Before 4.0 the job type was not registered, so the failure came at fire time: the trigger fired, the job never
+ran, and every trigger of the job moved to `TriggerState.Error` until `IScheduler.ResetTriggerFromErrorState`
+was called.
 
-Jobs that are not registered — those named by an XML or JSON schedule, or built by a job factory of
-your own — can still fail that way. If you need to react to such a failure at fire time rather than
-prevent it — to fail whatever scheduled the work, for instance — `ISchedulerListener.SchedulerError`
-receives a `SchedulerErrorContext` naming the trigger, the job and the fire instance, wrapped around a
-`JobInstantiationException` that carries the same three:
+Unregistered jobs (named by an XML or JSON schedule, or built by your own job factory) can still fail that way.
+To react at fire time, for example to fail whatever scheduled the work, handle
+`ISchedulerListener.SchedulerError`. Its `SchedulerErrorContext` names the trigger, the job and the fire
+instance, and wraps a `JobInstantiationException` carrying the same three:
 
 <!-- snippet: sample_di_instantiation_failure_listener -->
 ```csharp
@@ -215,23 +209,20 @@ public sealed class InstantiationFailureListener(ILogger<InstantiationFailureLis
 ```
 <!-- endSnippet -->
 
-`ISchedulerListener.TriggersInError` is raised alongside it, and reports the same thing from the job
-store's side: every trigger of that job is now in the error state.
+`ISchedulerListener.TriggersInError` is raised too: every trigger of that job is now in the error state.
 
-To take part in construction itself — to record the failure, or to add context to it — derive from
-`MicrosoftDependencyInjectionJobFactory` and override `CreateJobInstance`. The `TriggerFiredBundle` it
-receives carries the trigger, the job detail and `bundle.Trigger.FireInstanceId`.
+To take part in construction (to record the failure or add context), derive from
+`MicrosoftDependencyInjectionJobFactory` and override `CreateJobInstance`. Its `TriggerFiredBundle` carries the
+trigger, the job detail and `bundle.Trigger.FireInstanceId`.
 
 ## Persistent job stores
 
-What you register is evaluated against the database every time the application starts, and the stored
-schedule is updated to match.
+On every start, what you register is compared with the database and the stored schedule is updated to match.
 
 ::: warning
-With a persistent job store, always give your jobs and triggers explicit names. Configuring them without an
-identity gives each one a freshly generated name on every start, so the existence check finds nothing and the
-schedule accumulates duplicates. Naming only the job and the trigger is enough — the group then defaults to
-the same value every time.
+With a persistent job store, always give jobs and triggers explicit names. Without one, each gets a new
+generated name on every start, the existence check finds nothing, and the schedule accumulates duplicates. A
+name is enough; the group defaults to the same value every time.
 :::
 
 <!-- snippet: sample_di_persistent_store -->
@@ -260,9 +251,8 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Settings of the store itself go through `store.ConfigureStore(...)`, which configures `AdoJobStoreOptions`; the
-database call and the clustering call are the ones that hang off the builder. How duplicate scheduling data is
-treated is a setting of its own:
+Store settings go through `store.ConfigureStore(...)`, which configures `AdoJobStoreOptions`; the database and
+clustering calls are on the builder. Duplicate scheduling data has its own setting:
 
 <!-- snippet: sample_di_duplicate_scheduling_data -->
 ```csharp
@@ -278,10 +268,10 @@ services.Configure<QuartzOptions>(options =>
 
 ## A worked configuration
 
-The rest of this page is one registration, broken into the things you might want from it.
+One registration, in parts.
 
-**Jobs and triggers.** `ScheduleJob<T>` is a job and its one trigger; `AddJob` plus `AddTrigger` is a job that
-several triggers share, each able to carry its own data.
+**Jobs and triggers.** `ScheduleJob<T>` registers a job with one trigger. `AddJob` plus `AddTrigger` registers a
+job shared by several triggers, each with its own data.
 
 <!-- snippet: sample_di_jobs_and_triggers -->
 ```csharp
@@ -325,14 +315,15 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-`UsingJobData(x => x.InjectedString, "Hello")` is not only a typed spelling of a map key. Before each
-fire, `MicrosoftDependencyInjectionJobFactory` — which derives from `PropertySettingJobFactory` — copies
-every entry of the firing's merged job data map onto the job property of the same name, so `ExampleJob`
-above sees `InjectedString` set without ever reading `context.MergedJobDataMap`. A property therefore
-needs a **setter**, and its type has to match the value; an entry that matches no property is ignored by
-default, and [`PropertyMismatchBehavior`](../tutorial/job-data-map.md#property-injection-the-other-read-side)
-turns that into a warning or a failure. Reading the map directly still works and is what a job that takes
-values it has no property for does.
+Before each fire, `MicrosoftDependencyInjectionJobFactory` (derived from `PropertySettingJobFactory`) copies each
+entry of the merged job data map onto the job property of the same name. `ExampleJob` sees `InjectedString` set
+without reading `context.MergedJobDataMap`; `UsingJobData(x => x.InjectedString, "Hello")` writes that entry.
+
+- A property needs a **setter**, and its type must match the value.
+- An entry that matches no property is ignored by default;
+  [`PropertyMismatchBehavior`](../tutorial/job-data-map.md#property-injection-the-other-read-side) makes it a
+  warning or a failure.
+- Reading the map directly still works, for values with no property.
 
 **Calendars**, to exclude days from a schedule:
 
@@ -353,9 +344,9 @@ q.AddTrigger<ExampleJob>(t => t
 ```
 <!-- endSnippet -->
 
-The generic overloads construct the calendar with `new T()`, so a calendar that needs a dependency —
-a holiday list read from a database, a clock — takes a factory instead. It is handed the
-scheduler-scoped service provider, so a named scheduler's calendar is given that scheduler's parts:
+The generic overloads construct the calendar with `new T()`. For a calendar with a dependency (a holiday list
+from a database, a clock), pass a factory. It receives the scheduler-scoped service provider, so a named
+scheduler's calendar gets that scheduler's parts:
 
 <!-- snippet: sample_di_calendar_factory -->
 ```csharp
@@ -390,10 +381,9 @@ q.UseTimeZoneConverter();
 ```
 <!-- endSnippet -->
 
-Every plugin Quartz ships has an extension like these; they are listed in
-[Plugins](quartz-plugins.md).
+Every shipped plugin has such an extension; see [Plugins](quartz-plugins.md).
 
-**A timeout**, which is middleware rather than a plugin and lives in the core package:
+**A timeout**, a middleware in the core package:
 
 <!-- snippet: sample_di_job_timeout -->
 ```csharp
@@ -410,10 +400,10 @@ q.ScheduleJob<SlowJob>(
 ```
 <!-- endSnippet -->
 
-See [Job Execution Middleware](../tutorial/job-execution-middleware.md#timing-a-job-out) for what a
-timeout does to the trigger, and how a timed-out firing becomes a retryable failure.
+[Job Execution Middleware](../tutorial/job-execution-middleware.md#timing-a-job-out) covers what a timeout does to
+the trigger and how a timed-out firing becomes a retryable failure.
 
-**Listeners**, constructed from the container and in place before the scheduler starts:
+**Listeners**, built by the container and in place before the scheduler starts:
 
 <!-- snippet: sample_di_listeners -->
 ```csharp
@@ -423,9 +413,8 @@ q.AddTriggerListener<SampleTriggerListener>();
 ```
 <!-- endSnippet -->
 
-**Registration that depends on your own configuration.** Whether something is scheduled at all is decided
-here, in ordinary code; a value needed to build the trigger is read from the container when the trigger is
-built:
+**Registration that depends on your own configuration.** Decide whether to schedule in ordinary code; read
+values the trigger needs from the container when the trigger is built:
 
 <!-- snippet: sample_di_registration_from_options -->
 ```csharp
@@ -448,11 +437,10 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-**Configuration that depends on a service.** The builder's callback runs while the service collection is
-still being described, so there is no container to ask yet. Every member that *builds* something takes a
-shape that is handed one when the scheduler is built instead — `AddJob`, `AddTrigger`, `ScheduleJob`,
-`AddCalendar`, `UseJobStore`, `AddPlugin`, the three `Add*Listener` methods, `AddJobMiddleware`,
-`UseExecutionLimits` and `AddJobTimeout`:
+**Configuration that depends on a service.** The builder callback runs before the container exists. These
+members have an overload that receives the service provider when the scheduler is built: `AddJob`, `AddTrigger`,
+`ScheduleJob`, `AddCalendar`, `UseJobStore`, `AddPlugin`, the three `Add*Listener` methods, `AddJobMiddleware`,
+`UseExecutionLimits` and `AddJobTimeout`.
 
 <!-- snippet: sample_di_configuration_from_services -->
 ```csharp
@@ -475,13 +463,11 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Reading the configuration section yourself instead — `configuration.GetSection("Sample").Get<SampleOptions>()`
-— would have skipped every `Configure`, `PostConfigure` and validation registered against those options,
-and handed the scheduler the raw section.
+Reading the section yourself (`configuration.GetSection("Sample").Get<SampleOptions>()`) would skip every
+`Configure`, `PostConfigure` and validation registered for those options.
 
-A setting that is not built by any of those members is configured through the options pattern, from
-whatever service it depends on. A scheduler's options are its own named instance, and the scheduler's
-name is that instance's name:
+For any other setting, use the options pattern with the service it depends on. A scheduler's options are a named
+instance whose name is the scheduler's name:
 
 <!-- snippet: sample_di_quartz_option_from_service -->
 ```csharp

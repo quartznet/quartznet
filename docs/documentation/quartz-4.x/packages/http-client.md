@@ -3,9 +3,10 @@ title: 'HTTP Client'
 ---
 
 [Quartz.HttpClient](https://www.nuget.org/packages/Quartz.HttpClient) is the client half of the
-[HTTP API](http-api.md). `HttpScheduler` is a full `IScheduler` implementation whose calls go over the
-wire, so an operator process, a control panel or a deployment script schedules jobs against a remote
-scheduler with the same code it would use against a local one.
+[HTTP API](http-api.md). `HttpScheduler` implements `IScheduler` over HTTP, so an operator process, control
+panel or deployment script drives a remote scheduler with the same code as a local one. The
+[dashboard](dashboard.md#fronting-a-scheduler-in-another-process-over-http) can render and drive a scheduler
+registered this way.
 
 ```shell
 dotnet add package Quartz.HttpClient
@@ -13,7 +14,7 @@ dotnet add package Quartz.HttpClient
 
 ## What it pairs with
 
-The server has to be running the Quartz HTTP API, from `Quartz.AspNetCore`:
+The server must run the Quartz HTTP API, from `Quartz.AspNetCore`:
 
 <!-- snippet: sample_httpclient_server_side -->
 ```csharp
@@ -23,20 +24,19 @@ app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 ```
 <!-- endSnippet -->
 
-Two things must line up:
+Two things must match:
 
-- **The path.** The client's `HttpClient.BaseAddress` plus the API path must reach the endpoints. The
-  simplest arrangement is a base address that already includes the API path.
-- **The scheduler name.** Every request names the scheduler it is for, and the name the client is
-  registered with must be the remote scheduler's own `SchedulerName`. A mismatch is a `404`, not a
-  connection error.
+- **The path.** `HttpClient.BaseAddress` plus the API path must reach the endpoints. Simplest: a base address
+  that includes the API path.
+- **The scheduler name.** The client's scheduler name must be the remote scheduler's `SchedulerName`. A
+  mismatch is a `404`, not a connection error.
 
-`BaseAddress` must end in `/`; the constructor rejects one that does not, because relative endpoint
-paths would otherwise resolve against the wrong segment.
+`BaseAddress` must end in `/`, or the constructor rejects it; otherwise relative endpoint paths would resolve
+against the wrong segment.
 
 ## Registering the client
 
-The recommended shape names an `IHttpClientFactory` client, so the handler is pooled and recycled:
+Name an `IHttpClientFactory` client, so the handler is pooled and recycled:
 
 <!-- snippet: sample_httpclient_registration -->
 ```csharp
@@ -50,28 +50,24 @@ builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientNam
 ```
 <!-- endSnippet -->
 
-There are three overloads:
-
 | Overload | Use when |
 |---|---|
-| `AddQuartzHttpClient(string schedulerName, string httpClientName, JsonSerializerOptions?)` | the client is registered with `AddHttpClient` — the normal case |
-| `AddQuartzHttpClient(string schedulerName, Func<IServiceProvider, HttpClient> createHttpClient, JsonSerializerOptions?)` | the client is assembled from other services, or from something the factory does not know about |
-| `AddQuartzHttpClient(Action<HttpClientOptions> configure)` | you want to set several things at once |
+| `AddQuartzHttpClient(string schedulerName, string httpClientName, JsonSerializerOptions?)` | the client is registered with `AddHttpClient` (normal case) |
+| `AddQuartzHttpClient(string schedulerName, Func<IServiceProvider, HttpClient> createHttpClient, JsonSerializerOptions?)` | the client is built from other services, or from something the factory does not know |
+| `AddQuartzHttpClient(Action<HttpClientOptions> configure)` | setting several options at once |
 
-`HttpClientOptions` carries `SchedulerName`, `HttpClientName`, `CreateHttpClient` and
-`JsonSerializerOptions`. **Exactly one** of `HttpClientName` and `CreateHttpClient` must be set; giving
-neither or both fails validation at registration, with the same `OptionsValidationException` every other
-Quartz options type throws.
+`HttpClientOptions` has `SchedulerName`, `HttpClientName`, `CreateHttpClient` and `JsonSerializerOptions`.
 
-`CreateHttpClient` runs once, when the scheduler is first resolved, and is handed the container. The
-client it returns belongs to whoever created it — the scheduler never disposes it. That is why the
-option is a factory rather than an `HttpClient`: an options object is bound, cached and shared, and a
-live client sitting in one has no owner.
+- Set **exactly one** of `HttpClientName` and `CreateHttpClient`. Neither or both fails validation at
+  registration with `OptionsValidationException`.
+- `CreateHttpClient` runs once, when the scheduler is first resolved, and receives the container.
+- The scheduler never disposes the client `CreateHttpClient` returns; its creator owns it. (The option is a
+  factory because an options object is bound, cached and shared, and a live client in it would have no owner.)
 
 ### Injecting it
 
-A remote scheduler is registered exactly like a local one: **keyed by its name**, and unkeyed as well
-while it is the only scheduler in the container.
+A remote scheduler is registered like a local one: **keyed by its name**, and also unkeyed while it is the only
+scheduler in the container. See [Multiple Schedulers](multiple-schedulers.md) for naming and keying.
 
 <!-- snippet: sample_httpclient_controller -->
 ```csharp
@@ -79,7 +75,7 @@ public sealed class OpsController(IScheduler scheduler);                        
 ```
 <!-- endSnippet -->
 
-Once a second scheduler joins the container, name the one you meant:
+With a second scheduler in the container, name the one you mean:
 
 <!-- snippet: sample_httpclient_keyed_controller -->
 ```csharp
@@ -93,13 +89,13 @@ IScheduler reporting = provider.GetRequiredKeyedService<IScheduler>("reporting")
 ```
 <!-- endSnippet -->
 
-The unkeyed registration is `TryAdd`, so a second remote scheduler does not quietly take over what
-"the scheduler" means — with two of them, inject by key.
+The unkeyed registration is `TryAdd`, so a second remote scheduler does not replace the first. With two, inject
+by key.
 
 ### Beside a local scheduler
 
-`AddQuartz()` registers the local default scheduler in the same unkeyed slot, so in a container that has
-both, **call `AddQuartz()` first**:
+`AddQuartz()` registers the local default scheduler in the same unkeyed slot. With both, **call `AddQuartz()`
+first**:
 
 <!-- snippet: sample_httpclient_beside_local -->
 ```csharp
@@ -108,25 +104,23 @@ builder.Services.AddQuartzHttpClient("MyScheduler", "quartz");  // reachable by 
 ```
 <!-- endSnippet -->
 
-The local scheduler then owns `GetRequiredService<IScheduler>()`, and the remote one is reached with
-`GetRequiredKeyedService<IScheduler>("MyScheduler")` or `[FromKeyedServices("MyScheduler")]` — which is
-where it always is, whichever order the two calls are written in.
-
-The other order throws an `InvalidOperationException` at registration. Registration is first-wins, so
-`AddQuartzHttpClient(...)` followed by `AddQuartz()` would leave "the scheduler" meaning the remote one
-with nothing said about it, and a program that thought it held its own scheduler would be scheduling jobs
-in somebody else's process. A named local scheduler — `AddQuartz("Local", …)` — is keyed by its name and
-never wanted the unkeyed slot, so it can be registered on either side.
+- The local scheduler owns `GetRequiredService<IScheduler>()`.
+- The remote one is always `GetRequiredKeyedService<IScheduler>("MyScheduler")` or
+  `[FromKeyedServices("MyScheduler")]`.
+- The other order throws `InvalidOperationException` at registration. Registration is first-wins, so the unkeyed
+  scheduler would silently be the remote one, and code expecting its own scheduler would schedule jobs in
+  another process.
+- A named local scheduler (`AddQuartz("Local", …)`) is keyed by name and does not use the unkeyed slot, so its
+  order does not matter.
 
 ::: warning Changed in 4.x
-Driving two remote schedulers used to need a marker interface of its own, implemented by a type emitted
-at runtime. The service key says the same thing without the reflection, so the generic
-`AddQuartzHttpClient<TScheduler>()` overloads are gone.
+The generic `AddQuartzHttpClient<TScheduler>()` overloads are gone. Two remote schedulers used to need a marker
+interface implemented by a runtime-emitted type; the service key replaces it.
 :::
 
-Registration also binds the scheduler into the container's `ISchedulerRepository`, so it shows up in
-`GetAllSchedulers`, in the dashboard and in a locally hosted HTTP API. Under a host that happens at
-startup rather than on first injection; a container with no host stays exactly as lazy as it was.
+Registration also binds the scheduler into the container's `ISchedulerRepository`, so it appears in
+`GetAllSchedulers`, the dashboard and a locally hosted HTTP API. Under a host this happens at startup; without a
+host it happens on first injection, as before.
 
 ### Constructing one directly
 
@@ -143,8 +137,7 @@ await scheduler.TriggerJob(new JobKey("nightly-report", "reports"));
 
 ## Authentication
 
-The client carries no authentication of its own — it is an `HttpClient`, so whatever you would do for
-any other API works here:
+The client has no authentication of its own. Configure the `HttpClient` as for any other API:
 
 ```csharp
 builder.Services.AddHttpClient("quartz", client =>
@@ -155,18 +148,16 @@ builder.Services.AddHttpClient("quartz", client =>
     .AddStandardResilienceHandler();
 ```
 
-Match it on the server with `app.MapQuartzHttpApi("/quartz-api").RequireAuthorization()`. The API is
-scheduler *control* — shutdown, delete, pause-all are all in it — so an unauthenticated endpoint is a
-remote kill switch.
+On the server, use `app.MapQuartzHttpApi("/quartz-api").RequireAuthorization()`. The API can shut down, delete
+and pause everything, so an unauthenticated endpoint is a remote kill switch.
 
 ## Serialization must match the server
 
-Both ends speak the Quartz wire format, which is System.Text.Json with Quartz's own converters. The
-client builds its options from a copy of whatever you pass in, adds those converters to the copy, and
-leaves your instance untouched — so sharing one `JsonSerializerOptions` across several clients is safe.
+The wire format is System.Text.Json with Quartz's converters. The client copies the options you pass and adds
+the converters to the copy, so one `JsonSerializerOptions` can be shared across clients.
 
-Custom trigger and calendar types need their serializers registered **on both sides**. The remote
-scheduler's registrations are invisible from this process, so the client cannot discover them:
+Register custom trigger and calendar serializers **on both sides**; the client cannot see the remote
+scheduler's registrations:
 
 <!-- snippet: sample_httpclient_custom_serializers -->
 ```csharp
@@ -177,71 +168,54 @@ IScheduler scheduler = new HttpScheduler("MyScheduler", http, jsonSerializerOpti
 ```
 <!-- endSnippet -->
 
-Registering through the container instead — the same `AddQuartz`-side serializer registration the
-server uses — is picked up automatically, because `AddQuartzHttpClient` resolves the container-wide
-registry.
+A serializer registered in the container (the same registration the server uses with `AddQuartz`) is picked up
+automatically, because `AddQuartzHttpClient` resolves the container-wide registry.
 
 ## What travels, and what does not
 
-The wire carries data, not objects. Three consequences are worth knowing before you build on this:
+The wire carries data, not objects.
 
-**Job details are rebuilt.** A `JobDetailDto` carries name, group, job type name, description,
-`Durable`, `RequestsRecovery`, `ConcurrentExecutionDisallowed`, `PersistJobDataAfterExecution` and the
-job data map. `GetJobDetail` reconstructs a standard job detail from those fields, so a custom
-`IJobDetail` implementation on the server comes back as the ordinary one and any behaviour that lived
-in your type stays on the server.
-
-**The job type is a name.** It is the assembly-qualified type name as the server has it. The client
-treats it as text: it never resolves it, never loads an assembly for it and never probes for one, in
-either direction. So the client does not need the type to exist locally to list, pause, trigger,
-schedule or add a job — only to reason about the type itself, which is your own call to make.
-
-**The two attribute-derived flags can be absent.** `concurrentExecutionDisallowed` and
-`persistJobDataAfterExecution` are nullable on the wire: a value means the sender stated it, `null`
-means "whatever `[DisallowConcurrentExecution]` / `[PersistJobDataAfterExecution]` on the type says".
-Omit them when adding a job and the side that resolves the type decides; state them and your value
-wins. A job whose type the answering process cannot resolve reports them as `null` rather than
-`false`, so reading such a job answers with what is known instead of failing.
-
-**Enums are names.** `status`, `state`, `repeatIntervalUnit`, `daysOfWeek` — all of them travel as the
-C# member name, and the names are the contract. Numeric forms are still accepted on input, which is
-what keeps an older client working.
+- **Job details are rebuilt.** A `JobDetailDto` carries name, group, job type name, description, `Durable`,
+  `RequestsRecovery`, `ConcurrentExecutionDisallowed`, `PersistJobDataAfterExecution` and the job data map.
+  `GetJobDetail` builds a standard job detail from them; a custom `IJobDetail` and its behaviour stay on the
+  server.
+- **The job type is a name**: the server's assembly-qualified type name, treated as text. The client never
+  resolves it or loads or probes an assembly for it. The type need not exist locally to list, pause, trigger,
+  schedule or add a job.
+- **The two attribute-derived flags can be absent.** `concurrentExecutionDisallowed` and
+  `persistJobDataAfterExecution` are nullable. `null` means "whatever `[DisallowConcurrentExecution]` /
+  `[PersistJobDataAfterExecution]` on the type says"; a value overrides it. Omit them when adding a job to let
+  the side that resolves the type decide. A job whose type the answering process cannot resolve reports `null`,
+  not `false`, instead of failing.
+- **Enums are names.** `status`, `state`, `repeatIntervalUnit`, `daysOfWeek` and the rest travel as the C#
+  member name; the names are the contract. Numeric forms are still accepted on input, for older clients.
 
 ## What is not supported remotely
 
-Both throw `NotSupportedException`, with a message that names the member and says why. Neither is a
-missing route: both are things a process boundary makes impossible.
+Both throw `NotSupportedException`, naming the member and the reason.
 
 | Member | Why not |
 |---|---|
-| `Context` | the scheduler context is a live object in the scheduler's own process; a copy fetched over HTTP could not be written back |
+| `Context` | a live object in the scheduler's process; a copy over HTTP could not be written back |
 | `ListenerManager` | listeners run in the process that executes jobs |
 
-Listeners are the important one: a `TriggerListener` registered on a client would never see anything,
-because nothing fires here. Register listeners where the scheduler actually runs.
-
-That is about *registering* one. **Reading what a scheduler's listeners report is supported**: the target
-streams its events and this client reads them — see [Events](#events) — so "tell me when this job runs"
-is answerable from here, while "run this code when it does" is not.
-
-Read scheduler-wide state from the endpoint (`GET {apiPath}/schedulers/{name}/context`) where you would
-have reached for `Context`.
+- A `TriggerListener` registered on a client would never see anything, because nothing fires here. Register
+  listeners where the scheduler runs.
+- **Reading what the listeners report is supported**: the client reads the target's event stream; see
+  [Events](#events).
+- Instead of `Context`, read `GET {apiPath}/schedulers/{name}/context`.
 
 ## Blocking members
 
-`IScheduler` has three members that are properties rather than methods, and over HTTP two of them are
-a request:
+`SchedulerInstanceId` and `Status` call the remote scheduler **synchronously**, blocking the thread for the round
+trip. `SchedulerName` is free; the client already knows it. (`Context` never reaches the remote scheduler; see
+above.)
 
-`SchedulerInstanceId` and `Status` call the remote scheduler **synchronously**, blocking the calling
-thread for the round trip. `SchedulerName` is the one that is free — the client already knows it.
-`Context` is not in this list because it does not reach the remote scheduler at all; see above.
+`Status` is one request, replacing `IsStarted` / `InStandbyMode` / `IsShutdown`, which were three requests to
+the same endpoint.
 
-`Status` is one request for the whole lifecycle, where the `IsStarted` / `InStandbyMode` / `IsShutdown`
-it replaces were three requests to the same endpoint, each reading a different field of the same answer.
-
-Do not touch the two properties on a request path. Both have an asynchronous twin on `IScheduler` —
-`GetStatus()` and `GetSchedulerInstanceId()` — which ask the same question in the same one request and
-await the answer instead of holding a thread while it arrives. These are the members to call:
+Do not read the two properties on a request path. Call their asynchronous twins on `IScheduler`, `GetStatus()`
+and `GetSchedulerInstanceId()`, which make the same one request without holding a thread:
 
 <!-- snippet: sample_httpclient_status -->
 ```csharp
@@ -250,27 +224,27 @@ string instanceId = await scheduler.GetSchedulerInstanceId(cancellationToken);
 ```
 <!-- endSnippet -->
 
-They are default interface members that answer the property, so a scheduler in this process reports
-exactly what it did before and pays nothing for the indirection; only a proxy overrides them. The
-properties stay, and stay blocking — `IScheduler` declares them, and a property cannot be awaited.
+They are default interface members that return the property, so a local scheduler behaves as before at no cost;
+only a proxy overrides them. The properties remain, and remain blocking: `IScheduler` declares them, and a
+property cannot be awaited.
 
-**Quartz itself no longer reads either property off a scheduler in another process.** Two places used
-to. `ISchedulerRepository` read `Status` under its lock on every lookup, to notice a scheduler that had
-shut down, so one unreachable target stalled every lookup in the process for as long as the client's
-timeout — including the HTTP API's own scheduler resolution. It skips a proxy now: unreachable is not
-shut down, and a proxy that had shut down names a scheduler this process cannot restart anyway. And the
-scheduler listing asks `GetStatus()` and `GetSchedulerInstanceId()` under a two-second deadline for the
-whole listing, reporting a target that does not answer as `SchedulerStatus.Unknown` with no instance id.
-Give the client a short `Timeout` regardless: every other read waits for it.
+**Quartz no longer reads either property from a scheduler in another process.**
 
-**The event stream is the one thing the timeout does not bound.** `HttpClient.Timeout` covers the
-request and the reading of a response the client reads to its end; the [event
-stream](#events) is opened with `HttpCompletionOption.ResponseHeadersRead`, so the timeout bounds getting
-the response and not the hours of frames that follow it. A ten-second `Timeout` and a stream open all
-afternoon are both fine, and neither costs the other anything.
+- `ISchedulerRepository` used to read `Status` under its lock on every lookup, so one unreachable target
+  stalled every lookup in the process, including the HTTP API's scheduler resolution, for the client timeout. It
+  now skips proxies: unreachable is not shut down, and this process cannot restart a remote scheduler anyway.
+- The scheduler listing asks `GetStatus()` and `GetSchedulerInstanceId()` under a two-second deadline for the
+  whole listing. A target that does not answer is `SchedulerStatus.Unknown` with no instance id.
 
-`GetMetadata()` answers both and the rest of the scheduler's details in one request, so prefer it where
-more than the status is wanted:
+Give the client a short `Timeout` anyway: every other read waits for it.
+
+**The timeout does not bound the event stream.** `HttpClient.Timeout` covers the request and reading a
+response to its end. The [event stream](#events) opens with `HttpCompletionOption.ResponseHeadersRead`, so the
+timeout covers only getting the response headers. A ten-second `Timeout` and a stream open all afternoon work
+together.
+
+`GetMetadata()` returns both values and the rest of the scheduler's details in one request; prefer it when you
+need more than the status:
 
 <!-- snippet: sample_httpclient_metadata -->
 ```csharp
@@ -278,17 +252,15 @@ SchedulerMetadata metadata = await scheduler.GetMetadata(cancellationToken);
 ```
 <!-- endSnippet -->
 
-Its `IsProxy` is `true` for an HTTP scheduler, and the three type properties — `SchedulerTypeName`,
-`JobStoreTypeName`, `ThreadPoolTypeName` — are **strings**, not `System.Type`. That is what lets the
-metadata describe a remote scheduler whose types do not exist in this process.
+`IsProxy` is `true` for an HTTP scheduler. `SchedulerTypeName`, `JobStoreTypeName` and `ThreadPoolTypeName` are
+**strings**, not `System.Type`, so they can describe types that do not exist in this process.
 
 ## History
 
-`AddQuartzHttpClient` registers one more thing beside the scheduler: an `IExecutionHistoryStore` keyed by
-the scheduler's name, which reads what the target has **run** and what it has **missed** through the
-API's [history routes](http-api.md#execution-history). That is a different question from anything a job
-store answers — a job store holds what is scheduled — and it is why a dashboard fronting a scheduler
-over HTTP has a History page at all.
+`AddQuartzHttpClient` also registers an `IExecutionHistoryStore`, keyed by the scheduler's name. It reads what
+the target has **run** and **missed** through the API's [history routes](http-api.md#execution-history); a job
+store holds only what is scheduled. It is what gives a dashboard fronting a scheduler over HTTP its History
+page.
 
 ```csharp
 IExecutionHistoryStore history = provider.GetRequiredKeyedService<IExecutionHistoryStore>("QuartzScheduler");
@@ -299,17 +271,17 @@ PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(new Exec
 });
 ```
 
-It reads and does not write: history is recorded where the jobs run, so `AddExecution` and `AddMisfire`
-raise `NotSupportedException`. So does every read when the target's API predates the history routes —
-it answers `404` for them, and "this target serves no history" is a fact a caller can render, where an
-exception about a missing route is not. The `404` that names an unknown scheduler is unaffected and
-still arrives as `HttpClientException`.
+- Read-only: history is recorded where jobs run, so `AddExecution` and `AddMisfire` throw
+  `NotSupportedException`.
+- Every read also throws `NotSupportedException` when the target's API predates the history routes (it answers
+  `404`), so a caller can show "this target serves no history".
+- A `404` naming an unknown scheduler still arrives as `HttpClientException`.
 
 ## Events
 
-`AddQuartzHttpClient` registers one more thing beside those two: a reader of the target's [event
-stream](http-api.md#the-event-stream), keyed by the scheduler's name. It is how a live view of a scheduler
-in another process is possible at all — the dashboard's Live Logs page reads exactly this.
+`AddQuartzHttpClient` also registers a reader of the target's [event stream](http-api.md#the-event-stream),
+keyed by the scheduler's name. It gives a live view of a scheduler in another process; the dashboard's Live Logs
+page reads it.
 
 ```csharp
 ISchedulerEventSource events = provider.GetRequiredKeyedService<ISchedulerEventSource>("QuartzScheduler");
@@ -321,32 +293,32 @@ await foreach (SchedulerEvent raised in events.Subscribe("QuartzScheduler", canc
 ```
 
 ::: tip Internal in 4.1
-`ISchedulerEventSource`, `SchedulerEvent` and `SchedulerEventKind` are **internal** in 4.1: the sample
-above is what the dashboard does, not yet API you can call. The [wire
-format](http-api.md#the-event-stream) is public and stable, so a reader of your own reads the route
-directly — with `SseParser`, with an `EventSource` in a browser, or with anything else that speaks
-server-sent events. A public seam over the reader can be added later without moving any of it.
+`ISchedulerEventSource`, `SchedulerEvent` and `SchedulerEventKind` are **internal** in 4.1: the sample shows what
+the dashboard does, not callable API. The [wire format](http-api.md#the-event-stream) is public and stable, so
+read the route directly with `SseParser`, a browser `EventSource`, or any server-sent events client. A public
+seam over the reader may be added later.
 :::
 
-One subscription is one enumeration, however many connections it takes. A stream that drops is reopened
-after a delay that doubles from a second to thirty, so a target that restarts is a gap rather than the end
-of the feed; a connection that delivers anything resets the wait. Nothing is replayed across a
-reconnection, because the route serves no history — what fell into the gap is the [history
-routes](http-api.md#execution-history)' question.
+- One subscription is one enumeration, however many connections it takes.
+- A dropped stream is reopened after a delay that doubles from one second to thirty; a connection that delivers
+  anything resets it. A restarting target is a gap, not the end of the feed.
+- Nothing is replayed across a reconnection. For what fell into the gap, use the
+  [history routes](http-api.md#execution-history).
+- Heartbeats are consumed by the reader (to tell a quiet scheduler from a dead connection), not passed on.
 
-The heartbeats the route sends are consumed here rather than handed on: they exist so that this reader can
-tell a quiet scheduler from a dead connection, which is its question rather than its caller's.
+Retried: a refused connection, a dropped socket, a gateway error, the client's own timeout. Reported, ending the
+enumeration:
 
-Only the failures that say nothing about the request are retried — a refused connection, a socket that
-went away, a gateway in between, and the client's own timeout. The three that are answers rather than
-outages are reported and stop the enumeration: a target whose API predates the route answers `404` with no
-body, which arrives as `NotSupportedException` saying the target serves no event stream; an unknown
-scheduler arrives as `HttpClientException`; and a caller the target's policy refuses arrives as the `403`
-it is. Asking any of those again every thirty seconds for ever would be the wrong kind of patience.
+| Response | Arrives as |
+|---|---|
+| `404` with no body (API predates the route) | `NotSupportedException`: the target serves no event stream |
+| Unknown scheduler | `HttpClientException` |
+| Refused by the target's policy | the `403` |
 
 ## Paging and bulk fetch over the wire
 
-The query family maps straight onto query-string parameters:
+The query family (see [Querying Jobs and Triggers](../tutorial/querying-jobs-and-triggers.md)) maps onto
+query-string parameters:
 
 <!-- snippet: sample_httpclient_query_triggers -->
 ```csharp
@@ -361,16 +333,14 @@ PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
 ```
 <!-- endSnippet -->
 
-`Skip`, `Take` and `IncludeTotalCount` become `skip`, `take` and `includeTotalCount`; matchers become
-`groupStartsWith`, `nameEquals` and their siblings. `take` defaults to 250 at both ends, so a client
-that leaves it unset gets the same page size the server would have chosen.
-
-`QueryFireInstances` works the same way and is how a remote console shows what is running — across the
-whole cluster, since the listing is store-backed. `QueryClusterNodes` is its companion and takes no
-query at all: it reads `GET …/schedulers/{name}/nodes` and answers with the nodes themselves, the one
-that served the request first. "Current node" therefore means current on the *server*, not on the
-client — the client has no identity in the cluster — so the order arrives as the server chose it and is
-not re-sorted here.
+- `Skip`, `Take` and `IncludeTotalCount` become `skip`, `take` and `includeTotalCount`.
+- Matchers become `groupStartsWith`, `nameEquals` and their siblings.
+- `take` defaults to 250 at both ends.
+- `QueryFireInstances` works the same way and shows what is running across the whole cluster (the listing is
+  store-backed).
+- `QueryClusterNodes` takes no query. It reads `GET …/schedulers/{name}/nodes` and returns the nodes, the one that
+  served the request first. "Current" means current on the *server* (the client has no cluster identity); the
+  order is not re-sorted.
 
 Bulk fetch posts the keys back:
 
@@ -384,9 +354,8 @@ The endpoint accepts **at most 1000 keys per call**; page the keys if you have m
 
 ## Errors
 
-**What the server rejects arrives as the exception it named.** The API's problem details carry the type
-the failure came from, and the client rebuilds it — so a `catch` written against a local scheduler fires
-the same way against a remote one. Eight names are mapped back:
+**A server-side exception is rethrown as the same type.** The problem details name the exception type and the
+client rebuilds it, so a `catch` written for a local scheduler works against a remote one:
 
 | The server raised | The client rethrows |
 |---|---|
@@ -400,58 +369,41 @@ the same way against a remote one. Eight names are mapped back:
 | `ObjectAlreadyExistsException` | `ObjectAlreadyExistsException` |
 | anything else | `HttpClientException` |
 
-`ObjectAlreadyExistsException` is the one most code depends on: it is what `ScheduleJob` and `AddJob`
-raise for a duplicate, and catching it works over HTTP exactly as it does in process.
+`ObjectAlreadyExistsException` is what `ScheduleJob` and `AddJob` raise for a duplicate; catching it works over
+HTTP as in process.
 
-Everything else is an `HttpClientException` — a request the endpoint rejected before it reached a
-scheduler, a scheduler name the server does not hold, a response carrying no problem details, a body
-that could not be read. It derives from `SchedulerException`, so a single `catch (SchedulerException)`
-covers both halves, and it carries the RFC 7807 problem details in its message. Turning on
-`QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` on the server puts the server's stack trace in
-there too — useful in development, and not something to ship.
+`HttpClientException` covers the rest: a request rejected before it reached a scheduler, an unknown scheduler
+name, a response without problem details, an unreadable body.
 
-A `500` is the exception. Its problem-details `detail` is one fixed sentence —
-*"The scheduler failed to handle the request. The failure is recorded in the server's log."* — rather than
-the exception's message, so an `HttpClientException` raised by a server fault says only that and points
-at the server's log. `IncludeStackTraceInProblemDetails` puts the message back.
+- It derives from `SchedulerException`, so one `catch (SchedulerException)` covers both.
+- Its message carries the RFC 7807 problem details. `QuartzHttpApiOptions.IncludeStackTraceInProblemDetails` on
+  the server adds the server's stack trace; use it in development only.
+- For a `500`, `detail` is a fixed sentence, *"The scheduler failed to handle the request. The failure is
+  recorded in the server's log."*, not the exception's message. `IncludeStackTraceInProblemDetails` restores the
+  message.
 
-The 3.x-compatible listings — `GetJobKeys`, `GetTriggerKeys`, `GetCalendarNames`, `GetJobGroupNames`,
-`GetTriggerGroupNames`, `GetPausedTriggerGroups` — ask the server for every match, and a server with
-`QuartzHttpApiOptions.MaxPageSize` set (it defaults to 1000) answers with at most that many. Below the cap
-they behave exactly as they always have; above it the client raises an `HttpClientException` naming
-`MaxPageSize` rather than handing back a page that would read as the whole store. Read a large listing
-with the `Query*` members and a `Take` of your own, or raise the cap on the server.
+The 3.x-compatible listings (`GetJobKeys`, `GetTriggerKeys`, `GetCalendarNames`, `GetJobGroupNames`,
+`GetTriggerGroupNames`, `GetPausedTriggerGroups`) request every match. The server returns at most
+`QuartzHttpApiOptions.MaxPageSize` (default 1000). Above that cap the client throws an `HttpClientException`
+naming `MaxPageSize` instead of returning a partial list. For large listings, use the `Query*` members with your
+own `Take`, or raise the cap on the server.
 
-A `404` for a read is not an error: `GetJobDetail` and `GetTrigger` return `null`, exactly as a local
-scheduler would.
+A `404` on a read is not an error: `GetJobDetail` and `GetTrigger` return `null`, as a local scheduler would.
 
 ## Security: what the server can and cannot make the client do
 
 The client trusts the server for *data*, and for nothing else.
 
-- **Names stay names.** A job type name in a response is never resolved, so a server cannot choose an
-  assembly simple name that your runtime then goes looking for — which would run a module initializer
-  in whatever matched and steer any `AssemblyResolve` handler your application registered. Nothing in
-  the client calls `Type.GetType` on a server-supplied string.
-- **Error bodies are matched against a closed list.** The server names the exception type in the
-  problem details, and the client rebuilds one of eight known Quartz exceptions from that name.
-  Anything else becomes an `HttpClientException` carrying the server's `detail` as text. No type is
-  loaded and none is activated by name.
-- **The transport is yours.** Quartz takes an `HttpClient` you configured. TLS and certificate
-  validation, redirect following (`HttpClientHandler.AllowAutoRedirect`, on by default), the response
-  buffer cap (`HttpClient.MaxResponseContentBufferSize`) and the timeout are all settings on that
-  client or its handler, and Quartz changes none of them. A server you do not control is a server whose
-  responses you should bound: set `MaxResponseContentBufferSize` and a `Timeout`, and turn redirects
-  off if your credentials travel in a header.
-- **Credentials are yours too.** Whatever `DelegatingHandler` or default header you attach goes on
-  every request to that `BaseAddress`; see [Authentication](#authentication).
+- **Names stay names.** Nothing in the client calls `Type.GetType` on a server-supplied string. A server cannot
+  make your runtime look for an assembly it names, which would run a module initializer in whatever matched and
+  steer your `AssemblyResolve` handlers.
+- **Error bodies are matched against a closed list** of eight known Quartz exceptions. Anything else becomes an
+  `HttpClientException` with the server's `detail` as text. No type is loaded or activated by name.
+- **The transport is yours.** Quartz changes none of your `HttpClient` settings: TLS and certificate
+  validation, redirects (`HttpClientHandler.AllowAutoRedirect`, on by default), the response buffer cap
+  (`HttpClient.MaxResponseContentBufferSize`) and the timeout. For a server you do not control, set
+  `MaxResponseContentBufferSize` and a `Timeout`, and turn redirects off if credentials travel in a header.
+- **Credentials are yours.** Any `DelegatingHandler` or default header you attach goes on every request to that
+  `BaseAddress`; see [Authentication](#authentication).
 
-The API's own trust boundary is on the server side and is documented with it: see
-[Production hardening](http-api.md#production-hardening).
-
-## See also
-
-- [HTTP API](http-api.md) — the server half, and the full endpoint and wire-format reference
-- [Querying Jobs and Triggers](../tutorial/querying-jobs-and-triggers.md) — the query family these calls implement
-- [Multiple Schedulers](multiple-schedulers.md) — naming and keying schedulers in one container
-- [Dashboard](dashboard.md#fronting-a-scheduler-in-another-process-over-http) — a scheduler registered this way rendered and driven from a browser
+The server's trust boundary is in [Production hardening](http-api.md#production-hardening).

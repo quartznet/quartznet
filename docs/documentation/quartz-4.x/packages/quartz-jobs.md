@@ -3,16 +3,12 @@
 title: Jobs
 ---
 
-[Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) provides some useful ready-made jobs for your convenience.
-
-Quartz provides a number of utility jobs that you can use in your application for doing things like sending
-e-mails and invoking native processes. These out-of-the-box jobs live in the `Quartz.Jobs` namespace, which is
-also the assembly and NuGet package name. In 3.x the namespace was the singular `Quartz.Job`; a configuration
-string or a stored `JOB_CLASS_NAME` naming the old spelling still resolves, with a warning.
+[Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) provides ready-made utility jobs, such as sending
+e-mail and running native processes. The namespace, assembly and NuGet package are all `Quartz.Jobs`. In 3.x
+the namespace was the singular `Quartz.Job`; a configuration string or stored `JOB_CLASS_NAME` with the old
+spelling still resolves, with a warning.
 
 ## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
 dotnet add package Quartz.Jobs
@@ -20,13 +16,11 @@ dotnet add package Quartz.Jobs
 
 ## How these jobs are configured
 
-Each of these jobs reads its settings from its `JobDataMap`, under the keys listed with it below. Those keys
-are the persisted form: they are what a job store writes, what a cluster shares, and what an XML or JSON
-scheduling file names.
+Each job reads its settings from its `JobDataMap`, under the keys listed with it below. The keys are the
+persisted form: what a job store writes, a cluster shares, and an XML or JSON scheduling file names.
 
-Each job also has an options type that maps onto exactly those keys, and an extension that writes it. It is
-the same stored job either way — but the key cannot be misspelled, the value cannot be of the wrong type, and
-every setting the job honours is a named property you can find by typing a dot.
+Each job also has an options type that maps to exactly those keys, and an extension that writes it. The stored
+job is the same; the options type prevents misspelled keys and wrongly typed values.
 
 | Job | Options | Extension |
 |---|---|---|
@@ -35,17 +29,16 @@ every setting the job honours is a named property you can find by typing a dot.
 | `NativeJob` | `NativeJobOptions` | `UsingNativeJobOptions(…)` |
 | `SendMailJob` | `SendMailOptions` | `UsingSendMailOptions(…)` |
 
-The extensions work on both configuration surfaces — `JobBuilder.Create<TJob>()` and the configurator
-`AddJob<TJob>(…)` hands you — and each leaves you with what you started with, so the chain continues as usual.
-`Options.FromJobData(map)` reads the same settings back out of a job's data.
+The extensions work on `JobBuilder.Create<TJob>()` and on the configurator `AddJob<TJob>(…)` passes you, and
+return the same builder so the chain continues. `Options.FromJobData(map)` reads the settings back from a job's
+data.
 
 ## Features
 
 ### DirectoryScanJob
 
-Inspects a directory and compares whether any files' "last modified dates" have changed since the last time it
-was inspected. If one or more files have been updated, created or deleted, the job invokes a call-back method
-on an `IDirectoryScanListener`.
+Scans directories for files whose last-modified time changed since the previous scan. When files were updated,
+created or deleted, it calls an `IDirectoryScanListener`.
 
 <!-- snippet: sample_jobs_directory_scan -->
 ```csharp
@@ -72,22 +65,21 @@ IJobDetail job = JobBuilder.Create<DirectoryScanJob>()
 | `IncludeSubDirectories` | `INCLUDE_SUB_DIRECTORIES` | `false` |
 | `MinimumUpdateAge` | `MINIMUM_UPDATE_AGE`, in milliseconds | 5 seconds |
 
-`MinimumUpdateAge` is how long a file must have been left alone before the job reports it. Without it a file
-another process is still writing would be handed to the listener half-finished.
+`MinimumUpdateAge` is how long a file must be unchanged before it is reported, so a file another process is
+still writing is not handed over half-finished.
 
-The listener is found in one of three ways, in this order:
+The listener is resolved in this order:
 
 1. **A keyed registration**: `AddKeyedSingleton<IDirectoryScanListener>("inbox", …)`, and
    `ScanListenerName = "inbox"`.
-2. **Dependency injection by type name**: register your implementation **as `IDirectoryScanListener`** —
-   `AddSingleton<IDirectoryScanListener, InboxListener>()` — and name its type,
-   `ScanListenerName = nameof(InboxListener)`.
+2. **Dependency injection by type name**: register your implementation **as `IDirectoryScanListener`**
+   (`AddSingleton<IDirectoryScanListener, InboxListener>()`) and set `ScanListenerName = nameof(InboxListener)`.
 3. **`SchedulerContext`**: store the instance under a key, and name that key.
 
 ::: warning Registering the concrete type alone is no longer enough
 Until 4.0 rc.1 the name was resolved by sweeping every loaded assembly with `GetTypes()`, so
-`AddSingleton<InboxListener>()` was found. It is not any more, and neither is a same-named type from an
-assembly you did not mean. Register the listener under `IDirectoryScanListener`, or key it.
+`AddSingleton<InboxListener>()` was found, and so was a same-named type from any other assembly. Neither is
+found now. Register the listener as `IDirectoryScanListener`, or key it.
 :::
 
 <!-- snippet: sample_jobs_scan_listener_context -->
@@ -97,29 +89,26 @@ scheduler.Context["inboxListener"] = new InboxListener();
 <!-- endSnippet -->
 
 ::: warning The scheduler context is not a secret store
-`GET {ApiPath}/schedulers/{name}/context` returns **every** entry, rendered with `Convert.ToString` as
-the fallback — which for a record or a struct with a compiler-generated `ToString` is every field it has.
-So the context is exactly as secret as a job's data map, which is to say not at all: an authorized caller
-reads both. Put a shared *instance* there, or a name; keep the connection string and the API key in
-`IConfiguration`, a key vault or the container.
+`GET {ApiPath}/schedulers/{name}/context` returns **every** entry, falling back to `Convert.ToString`. For a
+record or struct with a compiler-generated `ToString`, that is every field. Any authorized caller can read the
+context, as with a job's data map. Store a shared *instance* or a name there; keep connection strings and API
+keys in `IConfiguration`, a key vault or the container.
 :::
 
-Where the directories come from can be decided at run time instead of being listed: implement
-`IDirectoryProvider`, put the instance in the `SchedulerContext`, and name that key as
-`DirectoryProviderName`. It is handed the merged job data and returns the paths to scan.
+To choose directories at run time, implement `IDirectoryProvider`, store the instance in the
+`SchedulerContext`, and set `DirectoryProviderName` to that key. It receives the merged job data and returns the
+paths to scan.
 
-The job keeps its own bookkeeping — the last modification time it saw and the file list it saw it in — in the
-job detail's data map, which is why it is `[PersistJobDataAfterExecution]`. The file list is stored as a
-`Dictionary<string, string>` of full path to last-write ticks under `CURRENT_FILE_LIST`, which is a shape both
-shipped serializers accept; before 4.0 rc.1 it was a `List<FileInfo>`, which neither can read back, so the
-first firing against a persistent store failed to persist and reading the job's data map over the HTTP API
-refused it.
+The job keeps the last modification time and file list it saw in the job detail's data map, so it is
+`[PersistJobDataAfterExecution]`. The file list is a `Dictionary<string, string>` of full path to last-write
+ticks under `CURRENT_FILE_LIST`, which both shipped serializers accept. Before 4.0 rc.1 it was a
+`List<FileInfo>`, which neither can read back: the first firing against a persistent store failed to persist,
+and the HTTP API refused to read the job's data map.
 
 ### FileScanJob
 
-Inspects a single file and compares whether its "last modified date" has changed since the last time it was
-inspected. If it has, the job invokes a call-back method on an `IFileScanListener` found in the
-`SchedulerContext`.
+Checks one file's last-modified time. When it changed since the previous check, the job calls an
+`IFileScanListener` found in the `SchedulerContext`.
 
 <!-- snippet: sample_jobs_file_scan -->
 ```csharp
@@ -173,33 +162,29 @@ await scheduler.ScheduleJob(job, trigger);
 | `ConsumeStreams` | `consumeStreams` | `false` |
 | `WorkingDirectory` | `workingDirectory` | the scheduler's |
 
-When `WaitForProcess` is on, the integer exit code of the process is saved as the job execution result in the
-`IJobExecutionContext`. Turn `ConsumeStreams` on for a chatty process: one that writes more output than its
-pipe holds blocks until someone reads it.
+- With `WaitForProcess` on, the process exit code is the job execution result in the `IJobExecutionContext`.
+- Turn `ConsumeStreams` on for a process with a lot of output: one that fills its pipe blocks until the output
+  is read.
 
 ::: danger Referencing this package changes what an open scheduling endpoint means
-Both HTTP surfaces — the [HTTP API](http-api.md) and the [dashboard](dashboard.md) — schedule a job whose
-type is a **string the request supplies**. The name is stored unresolved and resolved later with
-`Type.GetType` against whatever is on the host's probing path; there is no allow-list, and the only
-validation is on the shape of the name. `NativeJob` is on that path as soon as `Quartz.Jobs` is
-referenced, and it starts the executable its job data names with the arguments its job data names. So an
-unauthenticated Quartz endpoint in a process that references this package is remote code execution rather
-than an information leak.
+The [HTTP API](http-api.md) and the [dashboard](dashboard.md) schedule a job whose type is a **string from the
+request**. It is resolved later with `Type.GetType` against the host's probing path. There is no allow-list;
+only the shape of the name is validated. Once `Quartz.Jobs` is referenced, `NativeJob` is on that path, and it
+runs the executable and arguments its job data names. An unauthenticated Quartz endpoint in such a process is
+remote code execution.
 
-**You may have this package without a line for it in your project.** `Quartz.Plugins` takes a plain
-package dependency on `Quartz.Jobs`, so an application that installed the plugins — for XML scheduling,
-say — has `NativeJob` on its probing path with nothing in its own csproj that names `Quartz.Jobs`. Check
-your restored graph, not your project file.
+**You may have this package without referencing it.** `Quartz.Plugins` depends on `Quartz.Jobs`, so an
+application using the plugins (for XML scheduling, say) has `NativeJob` on its probing path. Check your restored
+package graph, not your project file.
 
-Neither surface will start when its mapping says nothing about authorization, which
-is what closes the common way into this. `DirectoryScanJob` and `FileScanJob` read the paths they scan
-from job data the same way, and `SendMailJob` reads an SMTP credential from job data unless one is
-registered — see [Keep the SMTP credential out of job data](#keep-the-smtp-credential-out-of-job-data).
+Neither surface starts when its mapping says nothing about authorization. `DirectoryScanJob` and `FileScanJob`
+also take their paths from job data, and `SendMailJob` reads an SMTP credential from job data unless one is
+registered; see [Keep the SMTP credential out of job data](#keep-the-smtp-credential-out-of-job-data).
 :::
 
 ### SendMailJob
 
-Sends an e-mail with the configured content to the configured recipient.
+Sends an e-mail.
 
 <!-- snippet: sample_jobs_send_mail -->
 ```csharp
@@ -231,29 +216,24 @@ IJobDetail job = JobBuilder.Create<SendMailJob>()
 | `Encoding` | `encoding` | the default |
 | `EnableSsl` | `smtp_enable_ssl` | `false` |
 
-Override `Send(MailInfo, CancellationToken)` to route the mail through something other than `SmtpClient`, or
-`BuildMessage(SendMailOptions)` to add to the message — an attachment, a header — before it goes.
+Override `Send(MailInfo, CancellationToken)` to send through something other than `SmtpClient`, or
+`BuildMessage(SendMailOptions)` to add an attachment or header before sending.
 
 ::: warning This job is an authenticated relay for whoever can schedule it
-`Sender`, `Recipient`, `Subject` and `Message` are all caller data, and so is `SmtpHost`. Anyone who can
-schedule a job can therefore send mail claiming to be from any address, to any address, through your
-server. That is the same trust boundary the rest of this page describes — an authorized caller is trusted
-— but it is worth naming, because "send mail" reads as harmless in a way that "start a process" does not.
+`Sender`, `Recipient`, `Subject`, `Message` and `SmtpHost` are all caller data. Anyone who can schedule a job
+can send mail from any address to any address through your server.
 :::
 
-`EnableSsl` is off by default, which is `SmtpClient`'s own default: turning it on fails outright against a
-server that does not offer TLS, and a relay on the same host that has been taking this job's mail for
-years would stop. Turn it on for anything that crosses a network you do not own, and for anything that
-authenticates — SMTP `AUTH LOGIN` is base64, not encryption.
+`EnableSsl` is off by default, as in `SmtpClient`. Turning it on fails against a server that does not offer TLS,
+such as an existing relay on the same host. Turn it on for anything that crosses a network you do not own, and
+for anything that authenticates: SMTP `AUTH LOGIN` is base64, not encryption.
 
 #### Keep the SMTP credential out of job data
 
-`SendMailOptions` has no user name or password on purpose. Job data is durable: a persistent job store writes
-it to `QRTZ_JOB_DETAILS`, every node in the cluster reads it, the dashboard shows it, and any export of that
-table carries it. A password put there is a password in all of those places.
+`SendMailOptions` has no user name or password on purpose. A persistent job store writes job data to
+`QRTZ_JOB_DETAILS`; every cluster node reads it, the dashboard shows it, and any export of the table carries it.
 
-Register the credential with the container instead, **bound to the server it belongs to**, and the job
-authenticates with it:
+Register the credential with the container instead, **bound to its server**:
 
 <!-- snippet: sample_jobs_smtp_credentials -->
 ```csharp
@@ -266,38 +246,32 @@ services.AddSingleton<ICredentialsByHost>(credentials);
 ```
 <!-- endSnippet -->
 
-`CredentialCache` is the **security** choice here, not merely the multi-server convenience. `smtp_host` is
-job data, so the host to authenticate to is chosen by whoever scheduled the job; a bare `NetworkCredential`
-answers `ICredentialsByHost.GetCredential` with itself for *every* host, so pairing the two would hand the
-registered login to whatever host that job data names — as base64 `AUTH LOGIN`, to a listener the caller
-controls. So:
+Use `CredentialCache`, for security. `smtp_host` is job data, chosen by whoever scheduled the job. A bare
+`NetworkCredential` answers `ICredentialsByHost.GetCredential` with itself for *every* host, which would send
+the login, as base64 `AUTH LOGIN`, to any host the job data names.
 
-- a `CredentialCache` with an entry for the host in job data → that entry is used;
-- a `CredentialCache` with **no** entry for it → the mail goes out unauthenticated, rather than
-  authenticating to a stranger;
-- a bare `NetworkCredential` → the job **refuses to send**, with a message naming the host and how to bind
-  the credential to it.
+| Registered | Result |
+|---|---|
+| `CredentialCache` with an entry for the job's host | That entry is used |
+| `CredentialCache` with **no** entry for it | Mail is sent unauthenticated |
+| Bare `NetworkCredential` | The job **refuses to send**, naming the host and how to bind the credential |
+| Your own `ICredentialsByHost` | Asked `GetCredential(host, port, "Basic")`, then `"login"`; its answer is used |
 
-Any other `ICredentialsByHost` of your own is asked `GetCredential(host, port, "Basic")` and then
-`"login"`, and its answer is taken as its author's decision.
+Keep the password with your other secrets (user secrets in development, a key vault or environment variable in
+production) and pass it in through `IConfiguration`.
 
-The password itself belongs wherever the rest of your secrets live — user secrets in development, a key vault
-or an environment variable in production — and reaches this registration through `IConfiguration`.
-
-The `smtp_username` and `smtp_password` job data keys are still read when nothing is registered, so a job
-scheduled by an earlier version keeps sending; that path is unaffected by the rule above, because whoever
-wrote the user name wrote the host beside it. The job logs a warning when it uses them, and a credential from
-the container wins.
+When nothing is registered, the `smtp_username` and `smtp_password` job data keys are still read, so jobs from
+earlier versions keep sending. The rule above does not apply to them, since the same data names the host. The
+job logs a warning when it uses them, and a registered credential wins.
 
 ### NoOpJob
 
-A job that does nothing. Useful as a placeholder, and for triggering listeners on a schedule without any work
-attached.
+Does nothing. Use it as a placeholder, or to fire listeners on a schedule with no work attached.
 
 ## Registering these jobs with the container
 
-The jobs take their dependencies — a `TimeProvider`, an `IServiceProvider`, an `ICredentialsByHost` — from the
-container, so register them the same way you register your own:
+The jobs take their dependencies (`TimeProvider`, `IServiceProvider`, `ICredentialsByHost`) from the container.
+Register them like your own jobs:
 
 <!-- snippet: sample_jobs_native_under_di -->
 ```csharp

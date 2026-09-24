@@ -4,9 +4,8 @@ title: JSON Serialization
 ---
 
 ::: tip
-JSON is the recommended format for data a job store persists. Consider also setting
-`StoreJobDataAsStrings`, which keeps job data out of the serializer altogether by restricting it to
-strings.
+JSON is the recommended format for job store data. Also consider `StoreJobDataAsStrings`, which restricts job
+data to strings and keeps it out of the serializer.
 :::
 
 ::: tip
@@ -16,12 +15,10 @@ System.Text.Json serialization is built into the `Quartz` package and is the def
 
 ## JSON.NET
 
-[Quartz.Serialization.Newtonsoft](https://www.nuget.org/packages/Quartz.Serialization.Newtonsoft) provides JSON serialization support for job stores using
-[Json.NET](https://www.newtonsoft.com/json) to handle the actual serialization process.
+[Quartz.Serialization.Newtonsoft](https://www.nuget.org/packages/Quartz.Serialization.Newtonsoft) serializes job
+store data with [Json.NET](https://www.newtonsoft.com/json).
 
 ### Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
 dotnet add package Quartz.Serialization.Newtonsoft
@@ -46,7 +43,7 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-Without a host, the same calls go inside `QuartzSchedulerBuilder.Create(q => …)`:
+Without a host, put the same calls inside `QuartzSchedulerBuilder.Create(q => …)`:
 
 <!-- snippet: sample_newtonsoft_standalone -->
 ```csharp
@@ -61,12 +58,12 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
 ```
 <!-- endSnippet -->
 
-`Build()` returns a `StandaloneSchedulerFactory`, which owns the container it built: dispose it — with
-`await using`, as above — and the scheduler shuts down with it.
+`Build()` returns a `StandaloneSchedulerFactory`, which owns the container it built. Disposing it (`await using`,
+as above) shuts the scheduler down.
 
 **Classic property-based configuration**
 
-The flat keys 3.x used still work, and mean the same thing:
+The 3.x flat keys still work, with the same meaning:
 
 <!-- snippet: sample_newtonsoft_properties -->
 ```csharp
@@ -82,28 +79,30 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
 ```
 <!-- endSnippet -->
 
-`UseGenericDatabase` is the right method only for a database Quartz has no specific support for; use
-`UseSqlServer`, `UsePostgres` and the rest otherwise. If Quartz ships no description of your ADO.NET
-driver either, describe it in the same call — see
-[the configuration reference](../configuration/reference.md#describing-a-driver-quartz-does-not-know).
+Use `UseGenericDatabase` only for a database Quartz has no specific support for; otherwise use `UseSqlServer`,
+`UsePostgres` and the rest. If Quartz has no description of your ADO.NET driver either, describe it in the same
+call; see [the configuration reference](../configuration/reference.md#describing-a-driver-quartz-does-not-know).
 
 ### What a job data map may hold
 
-A job data value has to be one of the types `JobDataMap` declares an accessor for — `string`, `bool`,
-`char`, the numeric types, `DateTime`, `DateTimeOffset`, `TimeSpan`, `Guid`, `DateOnly`, `TimeOnly`, an
-enum — or a `Dictionary<string, string>`; anything else is refused when the job or trigger is stored,
-with a `Quartz.JsonSerializationException` naming the entry and the type, rather than written as a blob
-that fails to load on the next fire. That is the same set the System.Text.Json serializer accepts, and
-literally the same declaration, so a value one of them writes is a value the other's reader has an answer
-for — down to the bytes: a `Dictionary<string, string>` is written as a plain JSON object here as well,
-where this serializer used to name the type it had written the map under.
+A job data value must be one of the types `JobDataMap` has an accessor for, or a `Dictionary<string, string>`:
 
-The one name a string map's own entries cannot use is `$type`. That is where Json.NET writes a value's
-type, so both readers take it as metadata rather than data, and a map that stores an entry under it is
-refused along with everything else neither reader could hand back.
+- `string`, `bool`, `char`, the numeric types;
+- `DateTime`, `DateTimeOffset`, `TimeSpan`, `Guid`, `DateOnly`, `TimeOnly`;
+- an enum.
 
-To store a type of your own, declare it — which is your word that Json.NET can build it back, and a
-versioning commitment for as long as the value sits in the database:
+Anything else is refused when the job or trigger is stored, with a `Quartz.JsonSerializationException` naming
+the entry and the type. It is not written as a blob that fails to load on the next fire.
+
+- The System.Text.Json serializer accepts the same set, from the same declaration, so either reader can read
+  what the other wrote.
+- A `Dictionary<string, string>` is written as a plain JSON object. This serializer used to record the map's
+  type name.
+- A string map entry cannot be named `$type`. Json.NET writes a value's type there, so both readers treat it as
+  metadata; a map with such an entry is refused.
+
+To store a type of your own, declare it. You then guarantee that Json.NET can build it back, and must keep it
+readable for as long as the value is in the database:
 
 <!-- snippet: sample_newtonsoft_job_data_value_type -->
 ```csharp
@@ -118,50 +117,52 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-A `JobKey` or `TriggerKey` held as a job data value takes the same declaration. A `TimeZoneInfo` and a
-nested `JobDataMap` are past declaring, because Json.NET cannot read either back out of what it writes —
-store a zone's `Id`, and serialize a nested structure in the job and keep the result as a string. A
-string is also the answer when the value has to survive a change of serializer, since a declared type is
-read back by the serializer that wrote it and by no other.
+A `JobKey` or `TriggerKey` job data value needs the same declaration. `TimeZoneInfo` and a nested `JobDataMap`
+cannot be declared, because Json.NET cannot read them back:
+
+- store a zone's `Id` instead of the zone;
+- serialize a nested structure in the job and store the result as a string.
+
+Use a string too when the value must survive a change of serializer: a declared type is read back only by the
+serializer that wrote it.
 
 ### Migrating from binary serialization
 
-Quartz 4 no longer ships the `BinaryObjectSerializer`: the underlying `BinaryFormatter`
-has been removed from modern .NET and throws on .NET 9 and later. If you still have
-binary-serialized data in your database you need to migrate it to JSON.
+Quartz 4 no longer ships the `BinaryObjectSerializer`. `BinaryFormatter` is removed from modern .NET and throws
+on .NET 9 and later, so binary data in the database must be migrated to JSON.
 
-The recommended path is to perform the migration **while you are still on Quartz 3.x**,
-which still includes `BinaryObjectSerializer` - see the Quartz 3.x version of this page
-for a ready-made hybrid serializer. Either let the system migrate gradually as it runs,
-or write a small program that loads and writes back every serialized asset in the
-database.
+Migrate **while still on Quartz 3.x**, which still has `BinaryObjectSerializer`; the Quartz 3.x version of this
+page has a ready-made hybrid serializer. Either let the system migrate gradually as it runs, or write a small
+program that loads and writes back every serialized asset.
 
 #### Which blobs rewrite themselves, and which never do
 
-"Let the system migrate gradually as it runs" is only half a plan, because two of the four blob columns
-are never written by running. What the store actually writes, on 3.x and 4.x alike:
+A gradual migration does not finish on its own: running reliably rewrites only one of the four blob
+columns. On 3.x and 4.x alike:
 
 | Column | Rewritten by running? |
 |---|---|
-| `QRTZ_BLOB_TRIGGERS.BLOB_DATA` | **Yes.** The whole trigger is re-serialized on every write to the trigger, firings included. |
-| `QRTZ_TRIGGERS.JOB_DATA` | **Only if the map changed.** The trigger `UPDATE` leaves the column out entirely when `JobDataMap.Dirty` is false, so a trigger whose data nobody touches fires forever without rewriting it. |
-| `QRTZ_JOB_DETAILS.JOB_DATA` | **Only if the job is stored again**, or after a firing when the job carries `[PersistJobDataAfterExecution]` *and* the map was modified. Both conditions, not either. |
-| `QRTZ_CALENDARS.CALENDAR` | **Never.** Only `AddCalendar` writes it, so a calendar added once at deployment is never rewritten however long the scheduler runs. |
+| `QRTZ_BLOB_TRIGGERS.BLOB_DATA` | **Yes**, on every write to the trigger, firings included |
+| `QRTZ_TRIGGERS.JOB_DATA` | **Only if the map changed** (`JobDataMap.Dirty`) |
+| `QRTZ_JOB_DETAILS.JOB_DATA` | **Only if the job is stored again**, or fires with `[PersistJobDataAfterExecution]` *and* a modified map |
+| `QRTZ_CALENDARS.CALENDAR` | **Never**; only `AddCalendar` writes it |
 
-So the calendars are the ones a gradual migration silently leaves behind, and the job data maps are the
-ones it leaves behind for every job that does not write to its own map. Anything belonging to a
-**paused** trigger, or to one whose next fire time is months out, is not touched until it resumes or
-fires either. A program that loads and writes back every asset is the only approach that finishes; the
-`SchedulerConstants.ForceJobDataMapDirty` key is the lever that makes a loaded map look modified, so a
-re-store writes it.
+- The trigger `UPDATE` omits `JOB_DATA` when `JobDataMap.Dirty` is false, so a trigger whose data nobody
+  touches fires forever without rewriting it.
+- A calendar added once at deployment is never rewritten.
+- Anything belonging to a **paused** trigger, or one whose next fire is months out, is untouched until it
+  resumes or fires.
 
-`BLOB_TRIGGERS.BLOB_DATA` migrates itself as the scheduler runs and still has to be done on 3.x — see
-[below](#blob-triggers-cannot-be-migrated-from-4-x) — because on 4.x it cannot be read at all.
+Only a program that loads and writes back every asset finishes the job. Set the
+`SchedulerConstants.ForceJobDataMapDirty` key to make a loaded map count as modified, so a re-store writes it.
+
+`BLOB_TRIGGERS.BLOB_DATA` rewrites itself as the scheduler runs, but must still be migrated on 3.x: 4.x cannot
+read it at all ([below](#blob-triggers-cannot-be-migrated-from-4-x)).
 
 #### Finding what is left
 
-A `BinaryFormatter` payload begins `0x00 0x01 0x00 0x00 0x00`; a JSON one begins `{`, which is `0x7B`.
-One byte is enough to tell them apart, so each dialect can count what is still binary:
+A `BinaryFormatter` payload begins `0x00 0x01 0x00 0x00 0x00`; a JSON one begins `{` (`0x7B`). The first byte
+tells them apart. Count what is still binary per dialect:
 
 **SQL Server**
 
@@ -217,15 +218,15 @@ UNION ALL SELECT 'QRTZ_CALENDARS',     COUNT(*) FROM QRTZ_CALENDARS     WHERE CA
 UNION ALL SELECT 'QRTZ_BLOB_TRIGGERS', COUNT(*) FROM QRTZ_BLOB_TRIGGERS WHERE CAST(SUBSTRING(BLOB_DATA FROM 1 FOR 1) AS VARCHAR(1) CHARACTER SET OCTETS) = x'00';
 ```
 
-Replace `QRTZ_` with your configured table prefix. A null column is neither binary nor JSON, so no clause
-counts it. Zero everywhere means the gradual migration finished; anything else names the table to go and
-rewrite by hand, and in practice `QRTZ_CALENDARS` is the one still holding rows.
+- Replace `QRTZ_` with your table prefix.
+- A null column is neither binary nor JSON and is not counted.
+- Zero everywhere: the migration finished. Otherwise the result names the table to rewrite; in practice it is
+  `QRTZ_CALENDARS`.
 
-If you must read legacy binary data after upgrading to Quartz 4 on .NET 9 or later, you
-can re-enable `BinaryFormatter` with Microsoft's unsupported
+To read legacy binary data on Quartz 4 with .NET 9 or later, re-enable `BinaryFormatter` with Microsoft's
+unsupported
 [compatibility package](https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-migration-guide/compatibility-package).
-Because the package does not change `BinaryFormatter`'s type identity, only your
-**application project** needs it - Quartz itself does not reference it:
+It keeps `BinaryFormatter`'s type identity, so only your **application project** references it; Quartz does not:
 
 ```xml
 <PropertyGroup>
@@ -237,27 +238,22 @@ Because the package does not change `BinaryFormatter`'s type identity, only your
 </ItemGroup>
 ```
 
-The package restores a working - but still unsafe - `BinaryFormatter`, so read the Microsoft
-guidance before relying on it and remove it once the migration is complete. The Quartz types a
-blob can be made of - the job data maps, the keys that can sit in them as values, the calendars
-and the trigger classes - keep their `[Serializable]` / `ISerializable` support, so the hybrid
-serializer below can read the old binary payloads and write everything back as JSON. Types that
-could never be part of a blob lost those attributes in 4.0; see
-[the migration guide](../migration-guide.md#serializable-survives-only-where-a-database-blob-needs-it)
-for the full list.
-
-A blob whose job data holds a key, or a class of the application's own, needs that type declared with
-`AddJobDataValueType<T>()` on the registry the migrator's inner serializer is built from — otherwise the
-value reads out of the binary payload and is refused on the way back in, which is
-[the gate described above](#what-a-job-data-map-may-hold) doing its job at the one moment it is unwelcome.
+- The package restores a working but still unsafe `BinaryFormatter`. Read Microsoft's guidance first and
+  remove the package once the migration is complete.
+- The Quartz types a blob can contain (job data maps, keys stored in them, calendars, trigger classes) keep
+  their `[Serializable]` / `ISerializable` support, so the hybrid serializer below reads binary payloads and
+  writes JSON. Other types lost those attributes in 4.0; see
+  [the migration guide](../migration-guide.md#serializable-survives-only-where-a-database-blob-needs-it).
+- If a blob's job data holds a key or an application class, declare that type with `AddJobDataValueType<T>()`
+  on the registry of the migrator's inner serializer. Otherwise the value is read from the binary payload and
+  then refused on write, by [the rule above](#what-a-job-data-map-may-hold).
 
 #### Blob triggers cannot be migrated from 4.x
 
-One column is the exception: `BLOB_TRIGGERS.BLOB_DATA` holds whole trigger objects, and
-`BinaryFormatter` records private base-class fields under the base class's *name* - which 4.0
-renamed (`AbstractTrigger` is `TriggerBase`) and whose field set 4.0 extended. Migrate binary
-blob triggers while still on 3.x; the hybrid serializer on 4.x is for the job data map, key and
-calendar payloads.
+Migrate binary `BLOB_TRIGGERS.BLOB_DATA` while still on 3.x. It holds whole trigger objects, and
+`BinaryFormatter` records private base-class fields under the base class's *name*. 4.0 renamed that class
+(`AbstractTrigger` is `TriggerBase`) and extended its fields. On 4.x the hybrid serializer handles job data map,
+key and calendar payloads only.
 
 **Example hybrid serializer**
 
@@ -307,7 +303,7 @@ public sealed class MigratorSerializer : IObjectSerializer
 
 ### Customizing JSON.NET
 
-If you need to customize JSON.NET settings, you need to inherit custom implementation and override `CreateSerializerSettings`.
+Subclass the serializer and override `CreateSerializerSettings`:
 
 <!-- snippet: sample_newtonsoft_custom_serializer -->
 ```csharp
@@ -339,8 +335,7 @@ quartz.serializer.type = MyProject.CustomJsonSerializer, MyProject
 
 ### Customizing calendar serialization
 
-If you have implemented a custom calendar, you need to implement a `ICalendarSerializer` for it.
-There's a convenience base class `CalendarSerializer` that you can use the get strongly-typed experience.
+A custom calendar needs an `ICalendarSerializer`. The base class `CalendarSerializer` gives a strongly-typed one.
 
 **Custom calendar and serializer**
 
@@ -391,11 +386,10 @@ class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
 ```
 <!-- endSnippet -->
 
-A serializer can optionally override `CalendarTypeName` to give the calendar a serializer-neutral
-name — the same discriminator the System.Text.Json package would use for it. The registry then finds
-the serializer under that name as well as under the calendar's assembly-qualified type name, so a
-payload written by either package resolves. Leave it unset and the serializer answers only to the
-assembly-qualified name, which is what payloads written by 3.x carry.
+Optionally override `CalendarTypeName` to give the calendar a serializer-neutral name, the same discriminator
+the System.Text.Json serializer uses. The registry then finds the serializer by that name and by the
+assembly-qualified type name, so payloads from either serializer resolve. Unset, only the assembly-qualified
+name (what 3.x payloads carry) matches.
 
 **Configuring custom calendar serializer**
 
@@ -412,16 +406,13 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 <!-- endSnippet -->
 
 ::: warning Changed in 4.0
-`NewtonsoftJsonObjectSerializer.AddCalendarSerializer` and `AddTriggerSerializer` were static in 3.x, so
-every scheduler in the process shared one set of custom serializers and registration order silently
-decided which one won. They have been removed. Register through the `UseNewtonsoftJsonSerializer`
-callback as above: what the callback registers belongs to that scheduler alone, so two schedulers in one
-container can serialize different custom types.
+`NewtonsoftJsonObjectSerializer.AddCalendarSerializer` and `AddTriggerSerializer` were static in 3.x: every
+scheduler in the process shared one set, and registration order decided which won. They are removed. Register
+through the `UseNewtonsoftJsonSerializer` callback as above; what it registers belongs to that scheduler alone.
 :::
 
-If you build a serializer yourself rather than through the store builder, hand it a
-`NewtonsoftJsonSerializerRegistry`. A new registry already knows every built-in trigger and calendar type,
-so registering a custom one adds to that set:
+To build a serializer yourself, pass it a `NewtonsoftJsonSerializerRegistry`. A new registry knows every
+built-in trigger and calendar type; custom registrations add to that set:
 
 <!-- snippet: sample_newtonsoft_registry_directly -->
 ```csharp
