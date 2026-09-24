@@ -1,15 +1,16 @@
 # JSON Configuration
 
-Quartz.NET supports hierarchical JSON configuration in `appsettings.json`, providing a modern alternative to flat property keys. This includes both scheduler properties and declarative job/trigger definitions.
+`appsettings.json` can hold both scheduler settings, as nested JSON instead of flat property keys, and
+job and trigger definitions.
 
 ::: tip
-JSON configuration support is included in the core `Quartz` package.
-See the [Configuration Reference](reference.md) for the full option index.
+JSON configuration is in the core `Quartz` package. The [Configuration Reference](reference.md) lists
+every option.
 :::
 
 ## Hierarchical Properties
 
-Instead of flat property keys like `"quartz.threadPool.maxConcurrency": "10"`, you can use a natural nested JSON structure:
+Instead of flat keys like `"quartz.threadPool.maxConcurrency": "10"`, nest the settings:
 
 ```json
 {
@@ -46,7 +47,8 @@ Instead of flat property keys like `"quartz.threadPool.maxConcurrency": "10"`, y
 
 ### Mapping Rules
 
-Each JSON path segment becomes a dot-separated segment in the flat property key, with PascalCase automatically converted to camelCase:
+Each JSON path segment becomes a dot-separated segment of the flat key, with PascalCase converted to
+camelCase:
 
 | JSON Path | Flat Property Key |
 |---|---|
@@ -69,9 +71,8 @@ services.AddQuartz(Configuration.GetSection("Quartz"), q =>
 
 ### Usage without DI
 
-`QuartzSchedulerBuilder` reads the same section. There is no flattening step to write: hand it the
-`IConfiguration` and it binds the typed options and translates the flat keys itself, exactly as
-`AddQuartz` does.
+`QuartzSchedulerBuilder` reads the same section: hand it the `IConfiguration`, and it binds the typed
+options and translates the flat keys, as `AddQuartz` does.
 
 <!-- snippet: sample_configuration_json_without_di -->
 ```csharp
@@ -81,12 +82,12 @@ ISchedulerFactory factory = QuartzSchedulerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-A `NameValueCollection` you built yourself — from a properties file, from environment variables —
-still goes in through `UseProperties(properties)`.
+A `NameValueCollection` you built yourself (from a properties file, from environment variables) goes in
+through `UseProperties(properties)`.
 
 ### Backward Compatibility
 
-Flat property keys still work. You can mix both styles in the same section:
+Flat property keys still work, and both styles can be mixed in one section:
 
 ```json
 {
@@ -101,7 +102,7 @@ Flat property keys still work. You can mix both styles in the same section:
 
 ## JSON Scheduling Data
 
-Jobs and triggers can be defined declaratively in `appsettings.json` under a `Schedule` sub-section:
+Jobs and triggers can be declared in `appsettings.json` under a `Schedule` sub-section:
 
 ```json
 {
@@ -143,8 +144,8 @@ Jobs and triggers can be defined declaratively in `appsettings.json` under a `Sc
 
 ### Trigger Types
 
-Exactly one schedule type must be specified per trigger — `Simple`, `Cron`, `CalendarInterval`,
-`DailyTimeInterval` or `Recurrence`. The trigger type is determined by which nested object is present.
+Each trigger has exactly one schedule object — `Simple`, `Cron`, `CalendarInterval`, `DailyTimeInterval`
+or `Recurrence` — and that object decides the trigger type.
 
 #### Simple Trigger
 
@@ -160,8 +161,8 @@ Exactly one schedule type must be specified per trigger — `Simple`, `Cron`, `C
 }
 ```
 
-- `RepeatCount`: Number of times to repeat. Use `-1` for indefinite, `0` for fire once.
-- `Interval`: TimeSpan string (e.g., `"00:00:10"` for 10 seconds, `"01:00:00"` for 1 hour).
+- `RepeatCount`: how many times to repeat; `-1` for indefinite, `0` to fire once.
+- `Interval`: a TimeSpan string, e.g. `"00:00:10"` for 10 seconds, `"01:00:00"` for 1 hour.
 
 #### Cron Trigger
 
@@ -226,26 +227,23 @@ Exactly one schedule type must be specified per trigger — `Simple`, `Cron`, `C
 }
 ```
 
-- `Rule`: the RFC 5545 recurrence rule, required. See [Recurrence Triggers](../tutorial/recurrencetrigger.md) for what a rule can say.
-- `TimeZone`: the zone the rule's days and times are read in. Defaults to the machine's local zone, so name it if the schedule has to mean the same thing wherever it runs.
+- `Rule`: the RFC 5545 recurrence rule, required. See [Recurrence Triggers](../tutorial/recurrencetrigger.md).
+- `TimeZone`: the zone the rule's days and times are read in. Defaults to the machine's local zone, so
+  name it if the schedule must mean the same thing wherever it runs.
 - `MisfireInstruction`: `SmartPolicy` (the default), `FireOnceNow`, `DoNothing` or `IgnoreMisfirePolicy`.
 
-The rule says how the firings repeat; the trigger's own `StartTime` says what they repeat **from**, the
-way `DTSTART` anchors an iCalendar rule. `FREQ=WEEKLY;INTERVAL=2` therefore means "every second week
-counted from the start time", and a trigger given no `StartTime` is anchored to the moment its
-scheduler read the declaration. A rule that cannot be parsed is refused as the file is read, naming
-the rule, rather than at the first firing.
+The trigger's `StartTime` anchors the rule, as `DTSTART` does in iCalendar: `FREQ=WEEKLY;INTERVAL=2` is
+every second week counted from the start time. Without a `StartTime`, the anchor is the moment the
+scheduler read the declaration. A rule that does not parse is refused, naming the rule, when the file is
+read.
 
 ::: tip
 This trigger kind is JSON only. The XML format is
-[frozen](../packages/quartz-plugins.md#the-xml-trigger-kinds-are-frozen) at the three trigger kinds its
-schema already declares and will not gain a `<recurrence>` element, so a recurrence rule is declared in
-JSON or written in code.
+[frozen](../packages/quartz-plugins.md#the-xml-trigger-kinds-are-frozen) at its three trigger kinds and
+will not gain a `<recurrence>` element; declare a recurrence rule in JSON or in code.
 :::
 
 ### Common Trigger Fields
-
-All trigger types support these optional fields:
 
 | Field | Description |
 |---|---|
@@ -257,18 +255,17 @@ All trigger types support these optional fields:
 | `Priority` | Trigger priority (integer) |
 | `CalendarName` | Calendar to apply |
 | `ExecutionGroup` | The trigger's [execution group](../tutorial/execution-groups.md) |
-| `RetryPolicy` | The trigger's [retry policy](../how-tos/retrying-failed-jobs.md) in its stored form, for example `fixed;3;00:00:30` |
-| `PreferredNode` | The cluster node the trigger [prefers](../tutorial/node-affinity.md): a scheduler instance id, or `"*"` to pin it to whichever node fires it first. Omitted leaves it unpinned |
-| `ContinuesAfter` | The trigger whose firing this one waits for, as a `Name`/`Group` pair — a [continuation](../how-tos/job-continuations.md). Omitted, the trigger fires on its own schedule |
-| `ContinuationCondition` | Which outcomes of that firing release the wait: `OnSuccess`, `OnFailure`, `OnCancellation`, `OnVeto` or `OnAnyOutcome`, joined with `\|` for more than one. Omitted means `OnSuccess` |
+| `RetryPolicy` | The trigger's [retry policy](../how-tos/retrying-failed-jobs.md) in stored form, e.g. `fixed;3;00:00:30` |
+| `PreferredNode` | The cluster node the trigger [prefers](../tutorial/node-affinity.md): a scheduler instance id, or `"*"` for whichever node fires it first. Omitted: unpinned |
+| `ContinuesAfter` | The trigger this one waits for, as a `Name`/`Group` pair — a [continuation](../how-tos/job-continuations.md). Omitted: fires on its own schedule |
+| `ContinuationCondition` | Which outcomes release the wait: `OnSuccess`, `OnFailure`, `OnCancellation`, `OnVeto` or `OnAnyOutcome`, joined with `\|`. Omitted: `OnSuccess` |
 | `StartTime` | ISO 8601 start time (e.g., `"2024-01-01T00:00:00Z"`) |
 | `StartTimeSecondsInFuture` | Start time as seconds from now (mutually exclusive with StartTime) |
 | `EndTime` | ISO 8601 end time |
 | `JobDataMap` | Key-value pairs for the trigger's data map |
 
-`PreferredNode` is the one that says something about the deployment rather than about the schedule, and
-declaring it in a file is what a deployment-specific file is for: every machine that reads the file pins
-the trigger to the node it names, which is the point of pinning it at all.
+`PreferredNode` describes the deployment, not the schedule: every machine that reads the file pins the
+trigger to the node it names.
 
 ```json
 {
@@ -280,21 +277,19 @@ the trigger to the node it names, which is the point of pinning it at all.
 ```
 
 ::: warning
-The name is a scheduler instance id and must match one **exactly** — pin comparisons happen in SQL using
-the database's string collation, so a value differing only in case is a different node, and on a
-case-sensitive database one that never matches. A file naming a node that no longer exists pins the
-trigger to nothing, and the trigger stops firing until the node comes back, the pin is cleared or the
-file is corrected. `"*"` avoids naming a node at all: the first node to fire the trigger claims it and
-keeps it, and the pin is released if that node stops checking in.
+The value must match a scheduler instance id **exactly**. Pins are compared in SQL with the database's
+collation, so a value differing only in case is a different node on a case-sensitive database. A pin
+to a node that is not checking in is ignored: any node fires the trigger until the named node is live
+again. `"*"` names no node: the first node to
+fire the trigger claims it, and the pin is released if that node stops checking in.
 :::
 
-The same field is spelled `<preferred-node>` in the XML format.
+In the XML format the field is `<preferred-node>`.
 
 ### Waiting for another trigger
 
-`ContinuesAfter` names a trigger the way a delete command names one — a `Name` and an optional `Group`,
-defaulting to `DEFAULT` — and the trigger declared with it is stored
-[waiting](../how-tos/job-continuations.md) rather than scheduled:
+`ContinuesAfter` names a trigger by `Name` and optional `Group` (default `DEFAULT`), as a delete command
+does. The trigger declared with it is stored [waiting](../how-tos/job-continuations.md), not scheduled:
 
 ```json
 {
@@ -307,18 +302,17 @@ defaulting to `DEFAULT` — and the trigger declared with it is stored
 }
 ```
 
-The parent is **named, not resolved as the file is read**, so it may be declared later in the same file —
-the file's triggers are stored parent first, whatever their order — or be in the store already. One that
-is in neither is refused when the file is scheduled, with the `ObjectDoesNotExistException` any
-continuation of a missing trigger gets. An outcome that is not one, and a
-`ContinuationCondition` with no `ContinuesAfter` beside it, are refused as the file is read, naming the
-trigger — a condition nothing satisfies would discard the trigger whatever its parent did.
+- The parent is looked up when the file is scheduled, not read. It may be declared later in the same file
+  (the file's triggers are stored parent first) or already be in the store.
+- A parent in neither is refused when the file is scheduled, with `ObjectDoesNotExistException`.
+- An unknown outcome, or a `ContinuationCondition` without `ContinuesAfter`, is refused when the file is
+  read, naming the trigger.
 
-The same pair is spelled `<continues-after>` and `<continuation-condition>` in the XML format.
+In the XML format the pair is `<continues-after>` and `<continuation-condition>`.
 
 ## Multiple Named Schedulers
 
-When the `Quartz` section contains a `Schedulers` sub-section, each child is automatically registered as a named scheduler:
+Each child of a `Schedulers` sub-section is registered as a named scheduler:
 
 ```json
 {
@@ -366,11 +360,11 @@ services.AddQuartzHostedService();
 ```
 <!-- endSnippet -->
 
-Each named scheduler section supports the same hierarchical properties, `Schedule` sub-section with `Jobs`/`Triggers`, and code-based overrides.
+Each named section supports the same properties, a `Schedule` sub-section with `Jobs`/`Triggers`, and
+code-based overrides.
 
-You can also register a single named scheduler explicitly. The named overload accepts either the
-scheduler's own section or the root `Quartz` section — when given the root section it resolves the
-matching `Schedulers:{name}` sub-section automatically:
+To register one named scheduler explicitly, pass either its own section or the root `Quartz` section;
+given the root, the overload finds `Schedulers:{name}` itself:
 
 <!-- snippet: sample_configuration_json_one_named_scheduler -->
 ```csharp
@@ -381,14 +375,18 @@ services.AddQuartz("Primary", Configuration.GetSection("Quartz:Schedulers:Primar
 <!-- endSnippet -->
 
 ::: warning
-Defining both a `Schedulers` sub-section and direct scheduler configuration (e.g., `Scheduler`, `ThreadPool` at the top level) is an error. Use one or the other. A top-level `Schedule`/`Scheduling` section cannot be combined with `Schedulers` either — move it under the appropriate `Schedulers:{name}` entry.
+A `Schedulers` sub-section cannot be combined with top-level scheduler configuration (`Scheduler`,
+`ThreadPool`, …) or with a top-level `Schedule`/`Scheduling` section. Move those under the matching
+`Schedulers:{name}` entry.
 :::
 
 ## Standalone JSON Files (quartz_jobs.json)
 
-For file-based scheduling with hot-reload support, use `JsonSchedulingDataProcessorPlugin` from the `Quartz.Plugins` package. See [Quartz Plugins](../packages/quartz-plugins.md) for plugin configuration.
+For file-based scheduling with hot reload, use `JsonSchedulingDataProcessorPlugin` from the
+`Quartz.Plugins` package — see [Quartz Plugins](../packages/quartz-plugins.md).
 
-Standalone JSON files use the same `Jobs` and `Triggers` format as the `Schedule` section above, wrapped in an envelope with optional `PreProcessingCommands` and `ProcessingDirectives`:
+A standalone file uses the same `Jobs` and `Triggers` format as the `Schedule` section, in an envelope
+with optional `PreProcessingCommands` and `ProcessingDirectives`:
 
 ```json
 {
@@ -430,12 +428,12 @@ Standalone JSON files use the same `Jobs` and `Triggers` format as the `Schedule
 
 ### PreProcessingCommands
 
-Commands executed before scheduling. All fields are optional:
+Run before scheduling. All fields are optional:
 
 | Field | Description |
 |---|---|
-| `DeleteJobsInGroup` | Array of group names. Use `"*"` to delete jobs in all groups. |
-| `DeleteTriggersInGroup` | Array of group names. Use `"*"` to delete triggers in all groups. |
+| `DeleteJobsInGroup` | Array of group names. `"*"` deletes jobs in all groups. |
+| `DeleteTriggersInGroup` | Array of group names. `"*"` deletes triggers in all groups. |
 | `DeleteJobs` | Array of `{ "Name": "...", "Group": "..." }` objects. Group is optional. |
 | `DeleteTriggers` | Array of `{ "Name": "...", "Group": "..." }` objects. Group is optional. |
 
@@ -444,53 +442,50 @@ Commands executed before scheduling. All fields are optional:
 | Field | Default | Description |
 |---|---|---|
 | `OverwriteExistingData` | `true` | Replace existing jobs/triggers with the same identity. The default applies only when the file does not carry `IgnoreDuplicates`. |
-| `IgnoreDuplicates` | `false` | Silently skip duplicates instead of erroring. A file that carries this and no `OverwriteExistingData` directive gets overwriting turned off. |
-| `ScheduleTriggerRelativeToReplacedTrigger` | `false` | Adjust new trigger timing based on old trigger's last fire time. |
+| `IgnoreDuplicates` | `false` | Skip duplicates instead of failing. A file with this and no `OverwriteExistingData` gets overwriting turned off. |
+| `ScheduleTriggerRelativeToReplacedTrigger` | `false` | Time a replacing trigger from the old trigger's last fire time. |
 
 ::: warning Declaring one key twice in a file is an error
-Every directive above describes how the file relates to the scheduler. None of them describes how the
-file relates to itself, so none of them suppresses the error a file gets for declaring one job or
-trigger key — name **and** group — twice:
+The directives describe how the file relates to the scheduler, not to itself. None of them suppresses the
+error for a job or trigger key (name **and** group) declared twice in one file:
 
 ```text
 Trigger 'DEFAULT.myTrigger' is defined more than once in the scheduling data.
 ```
 
 The same holds for the XML format's `<overwrite-existing-data>` and `<ignore-duplicates>`. Before
-Quartz.NET 4, the last definition of a repeated key won and said so only at `Debug`.
+Quartz.NET 4, the last definition won, logged only at `Debug`.
 :::
 
 ## When a file is wrong
 
-Two settings on the plugin decide what a bad file does, and they answer different questions.
-Both are on [`FileSchedulingOptions`](../packages/quartz-plugins.md#configuration), and everything below
-is the same for the XML format.
+Two settings on [`FileSchedulingOptions`](../packages/quartz-plugins.md#configuration) decide what a bad
+file does. Everything below applies to the XML format too.
 
-**A file that is not there.** `FailOnFileNotFound` is **`true`** by default, so a named file that does
-not exist stops the scheduler being built, with a `SchedulerException` naming it:
+| Setting | Default | Effect |
+|---|---|---|
+| `FailOnFileNotFound` | **`true`** | A named file that does not exist stops the scheduler being built, with a `SchedulerException` naming it. `false` logs it and skips it, for an optional overlay file. |
+| `FailOnSchedulingError` | **`false`** | A file that exists but is wrong is logged and reported; `true` rethrows so the deployment stops. |
+
+The missing-file error:
 
 ```text
 File named 'quartz_jobs.json' does not exist.
 ```
 
-Set it to `false` and the file is logged as missing and skipped, which is what an optional overlay file
-wants.
+**A file that is there and is wrong** — malformed JSON, a trigger with two schedule blocks, a `JobType`
+that will not load, a key declared twice. The plugin logs it, wraps it in a `SchedulerException` naming
+the file, and passes it to every registered `ISchedulerListener` through `SchedulerError`. Unless
+`FailOnSchedulingError` is `true`, the scheduler starts without that file's schedule.
 
-**A file that is there and is wrong.** Whatever went wrong — malformed JSON, a trigger with two schedule
-blocks, a `JobType` that will not load, a key declared twice — the processor raises it, the plugin logs
-it, wraps it in a `SchedulerException` naming the file, and hands that to every registered
-`ISchedulerListener` through `SchedulerError`. It is rethrown only when `FailOnSchedulingError` is
-`true`, and that setting is **`false`** by default: the scheduler otherwise starts without the schedule
-the file was carrying. Turn it on where a schedule that failed to load should stop the deployment
-instead of running a scheduler with nothing in it.
+**Which exception you get:**
 
-**Which exception, and why it matters.** `Quartz.SchedulingDataValidationException` — a
-`SchedulerException` — is the one that carries **every** violation it found rather than the first:
-`ValidationExceptions` is the list and `Message` is every message, one per line. A document is checked
-against the schema, and its keys checked for duplicates, before any of it is applied, so a file with
-three mistakes in it reports three. Everything else a file can get wrong is an ordinary
-`SchedulerException` raised where it happens — a `JobType` that will not load, a non-durable job with no
-trigger — so it names the one thing that failed.
+- `Quartz.SchedulingDataValidationException`, a `SchedulerException`, carries **every** violation found:
+  `ValidationExceptions` is the list, and `Message` has one message per line. A document is checked
+  against the schema, and for duplicate keys, before any of it is applied, so three mistakes report
+  three.
+- Anything else — a `JobType` that will not load, a non-durable job with no trigger — is an ordinary
+  `SchedulerException` raised where it happens, naming the one thing that failed.
 
-Neither makes the file a transaction against the store. `PreProcessingCommands` have already run by the
-time a job is stored, and a document with several jobs applies them one at a time.
+A file is not a transaction against the store: `PreProcessingCommands` have run by the time a job is
+stored, and several jobs are applied one at a time.

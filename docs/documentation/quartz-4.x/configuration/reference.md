@@ -7,8 +7,7 @@ title: Configuration Reference
 
 [[toc]]
 
-Quartz is configured with strongly typed options. Every option has the same name whether you set it in
-code or in a configuration file, so there is one vocabulary to learn rather than two:
+Options are strongly typed, and each has the same name in code and in a configuration file:
 
 <!-- snippet: sample_reference_one_option -->
 ```csharp
@@ -25,11 +24,9 @@ services.AddQuartz(q => q.ConfigureScheduler(options => options.MaxBatchSize = 5
 ```
 
 Options are bound from the `Quartz` section by section name and validated at startup, so a bad value is
-reported against the setting that is wrong rather than failing later during scheduling. The binding is
-source-generated — the compiler writes a binder for each options type rather than reflecting over it at
-startup — which is what makes configuring from a file as safe under `PublishTrimmed` and `PublishAot`
-as configuring in code. Nothing is asked of your application for that; it is how `Quartz` is built. The
-sections are:
+reported against the setting that is wrong. The binding is source-generated, so configuring from a file
+is as safe under `PublishTrimmed` and `PublishAot` as configuring in code, with nothing asked of your
+application.
 
 | Section | Options | |
 |---|---|---|
@@ -38,14 +35,14 @@ sections are:
 | `JobStore` | `InMemoryJobStoreOptions` or `AdoJobStoreOptions` | [below](#in-memory-job-store) |
 | `JobStore:Clustering` | `ClusteringOptions` | [below](#clustering) |
 | `DataSource` | `DataSourceOptions`, one per named data source | [below](#data-source) |
-| `Scheduling` | `SchedulingOptions` — what happens when registered jobs and triggers already exist in the store | [below](#scheduling) |
-| `TypeLoader` | `TypeLoaderOptions` — the container's, not a scheduler's | [below](#type-loader) |
+| `Scheduling` | `SchedulingOptions`: when registered jobs and triggers already exist in the store | [below](#scheduling) |
+| `TypeLoader` | `TypeLoaderOptions`, the container's rather than a scheduler's | [below](#type-loader) |
 | `Schedulers` | one sub-section per named scheduler | [below](#several-schedulers) |
 | `Schedule`, `ProcessingDirectives` | jobs and triggers declared in configuration | [JSON configuration](json.md) |
 
 ::: tip
-Everything on this page can also be written as flat `quartz.*` keys, which earlier versions used and
-which Quartz still accepts. See [Legacy property keys](#legacy-property-keys).
+Everything on this page can also be written as the flat `quartz.*` keys earlier versions used; Quartz
+still accepts them. See [Legacy property keys](#legacy-property-keys).
 :::
 
 ## Scheduler
@@ -54,24 +51,29 @@ which Quartz still accepts. See [Legacy property keys](#legacy-property-keys).
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `InstanceName` | string | `QuartzScheduler` | Distinguishes schedulers in the same process. Every node in a cluster must share one name. |
+| `InstanceName` | string | `QuartzScheduler` | Distinguishes schedulers in one process. Every node in a cluster must share it. |
 | `InstanceId` | string | `NON_CLUSTERED` | Must be unique among the nodes of a cluster. |
-| `GenerateInstanceId` | bool | `false` | Derives `InstanceId` at startup from the registered `IInstanceIdGenerator` instead of using the literal value. |
-| `IdleWaitTime` | TimeSpan | `00:00:30` | How long to wait before re-querying the job store when nothing is due. Must be at least one second. |
-| `MaxBatchSize` | int | `1` | How many triggers may be acquired at once. Only an upper bound — `BatchTriggerAcquisitionFireAheadTimeWindow` decides how many are actually taken — and it may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
-| `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may be included in the current batch. The other half of `MaxBatchSize`: at the default of zero, neither batches anything. |
-| `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to the jobs still executing. |
-| `PropagateTraceContext` | bool | `true` | Leaves the ambient trace context on a trigger scheduled inside an `Activity`, under two reserved job-data keys, so the firing's span links back to the call that scheduled it. The two entries are visible wherever trigger data is — `MergedJobDataMap`, the dashboard, `GET /triggers`, `QRTZ_TRIGGERS.JOB_DATA` — so turn it off to keep them out of the store. See [OpenTelemetry integration](../packages/opentelemetry-integration.md). |
-| `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`) rather than assigning a new dictionary. |
+| `GenerateInstanceId` | bool | `false` | Derives `InstanceId` at startup from the registered `IInstanceIdGenerator`. |
+| `IdleWaitTime` | TimeSpan | `00:00:30` | How long to wait before re-querying the job store when nothing is due. At least one second. |
+| `MaxBatchSize` | int | `1` | Upper bound on triggers acquired at once; may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
+| `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may join the current batch. At zero, nothing batches. |
+| `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to running jobs. |
+| `PropagateTraceContext` | bool | `true` | Stores the ambient trace context on a trigger scheduled inside an `Activity`, so the firing's span links back. See below. |
+| `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`). |
 
-`ShutdownJobInterruption` has four values, because a shutdown either waits for running jobs or it
-does not and interrupting them is a reasonable thing to want in either case, or in only one of them:
+- `MaxBatchSize` is only an upper bound: `BatchTriggerAcquisitionFireAheadTimeWindow` decides how many
+  triggers are actually taken.
+- `PropagateTraceContext` writes two reserved job-data keys. They are visible wherever trigger data is:
+  `MergedJobDataMap`, the dashboard, `GET /triggers`, `QRTZ_TRIGGERS.JOB_DATA`. Turn it off to keep
+  them out of the store. See [OpenTelemetry integration](../packages/opentelemetry-integration.md).
+
+`ShutdownJobInterruption` values:
 
 | Value | Meaning |
 |---|---|
 | `Never` | Running jobs are never interrupted. |
 | `WhenNotWaitingForJobs` | Interrupted only on a shutdown that does not wait for them. |
-| `WhenWaitingForJobs` | Interrupted only on a shutdown that waits — the wait still happens, so a job that checks its cancellation token gets to unwind cleanly. |
+| `WhenWaitingForJobs` | Interrupted only on a shutdown that waits. The wait still happens, so a job that checks its cancellation token can unwind cleanly. |
 | `Always` | Interrupted on every shutdown. |
 
 <!-- snippet: sample_reference_scheduler_options -->
@@ -100,7 +102,7 @@ services.AddQuartz(q => q.UseDefaultThreadPool(maxConcurrency: 20));
 ```
 <!-- endSnippet -->
 
-To supply your own implementation:
+Your own implementation:
 
 <!-- snippet: sample_reference_thread_pool_of_your_own -->
 ```csharp
@@ -108,15 +110,18 @@ services.AddQuartz(q => q.UseThreadPool<MyThreadPool>());
 ```
 <!-- endSnippet -->
 
-Two shipped pools are worth knowing by name, because `UseThreadPool<T>()` is how you reach either:
+Two shipped pools are reached through `UseThreadPool<T>()`:
 
-| Type | For |
-|---|---|
-| `Quartz.Impl.ZeroSizeThreadPool` | a scheduler that exists only to *write* the schedule and is never started. `UseThreadPool<ZeroSizeThreadPool>()` creates no worker threads at all, and both of the members a running scheduler would call throw `NotSupportedException` — so calling `Start()` on such a scheduler fails loudly rather than sitting there firing nothing. Such a process needs no reference to the assemblies its job classes live in, and no `ITypeLoader` of its own: the persistent store edits the schedule on the stored type name alone |
-| `Quartz.Impl.TaskSchedulingThreadPool` | the open base of `DefaultThreadPool`. A pool of your own derives from it and overrides one member, `GetDefaultScheduler()`, rather than implementing `IThreadPool`'s six from scratch |
+- **`Quartz.Impl.ZeroSizeThreadPool`** — for a scheduler that only *writes* the schedule and is never
+  started. It creates no threads, and the two members a running scheduler calls throw
+  `NotSupportedException`, so `Start()` fails loudly. Such a process needs no reference to the job
+  classes' assemblies and no `ITypeLoader` of its own: the persistent store edits the schedule by stored
+  type name alone.
+- **`Quartz.Impl.TaskSchedulingThreadPool`** — the open base of `DefaultThreadPool`. Derive from it and
+  override one member, `GetDefaultScheduler()`, instead of implementing all six of `IThreadPool`'s.
 
-`ThreadPoolOptions` belongs to the built-in pools — they are what read `MaxConcurrency` — so
-`UseThreadPool<T>()` takes no callback for it. A pool of your own has options of its own:
+`ThreadPoolOptions` belongs to the built-in pools (they read `MaxConcurrency`), so `UseThreadPool<T>()`
+takes no callback for it. Your own pool has its own options:
 
 <!-- snippet: sample_reference_thread_pool_options -->
 ```csharp
@@ -129,15 +134,14 @@ services.AddQuartz(q =>
 <!-- endSnippet -->
 
 `ConfigureOptions<TOptions>` registers the callback under this scheduler's options name and declares the
-type as the scheduler's own, so a component that takes `IOptions<MyThreadPoolOptions>` through its
-constructor is handed what was configured for *its* scheduler rather than the unnamed instance. It works
-for any container-built component — a job store, a lock handler, a listener, a job factory — and
-`AddPlugin<T, TOptions>()` is sugar over it.
+type as the scheduler's own. A component that takes `IOptions<MyThreadPoolOptions>` then gets the values
+configured for *its* scheduler, not the unnamed instance. It works for any container-built component — a
+job store, a lock handler, a listener, a job factory — and `AddPlugin<T, TOptions>()` builds on it.
 
 ## In-memory job store
 
-`InMemoryJobStoreOptions`, bound from `Quartz:JobStore`. The in-memory store is the default and does not
-survive process restarts.
+`InMemoryJobStoreOptions`, bound from `Quartz:JobStore`. The default store; it does not survive a
+process restart.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
@@ -152,7 +156,7 @@ services.AddQuartz(q => q.UseInMemoryStore(options => options.MisfireThreshold =
 ## Persistent job store
 
 `AdoJobStoreOptions`, bound from `Quartz:JobStore`. Choosing a database also selects the driver delegate
-that speaks its SQL dialect, so a connection string is all you normally supply:
+for its SQL dialect, so a connection string is usually all you supply:
 
 <!-- snippet: sample_reference_persistent_store -->
 ```csharp
@@ -166,31 +170,57 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `TablePrefix` | string | `QRTZ_` | Prefix on every Quartz table name. |
-| `StoreJobDataAsStrings` | bool | `false` | Persists job data as name/value strings rather than serialized objects, which keeps stored data readable and version tolerant. |
+| `StoreJobDataAsStrings` | bool | `false` | Persists job data as name/value strings, not serialized objects, so it stays readable and version tolerant. |
 | `MisfireThreshold` | TimeSpan | `00:01:00` | How late a trigger may fire before it counts as misfired. |
 | `MisfireHandlerFrequency` | TimeSpan? | `MisfireThreshold` | How often misfires are handled. |
-| `MaxMisfiresToHandleAtATime` | int | `20` | How many misfired triggers are handled per pass. |
-| `CommandTimeout` | TimeSpan? | provider default | How long a statement may run before the provider cancels it, applied to every statement the store issues including the lock handler's. Unset leaves each provider's own default, usually 30 seconds. ADO.NET counts whole seconds, so the value is rounded **up** — `00:00:01.500` is applied as 2 seconds, because rounding down would turn a sub-second value into `0`, which means "no timeout". |
-| `LockWaitWarningThreshold` | TimeSpan? | `00:00:30` | How long one attempt to take a job store lock may go on before it is logged as slow — warning **3716**, once per acquisition, naming the lock and the wait so far. A blocked lock statement returns nothing and throws nothing, so nothing else reports a node that has stopped scheduling; this only reports, and `CommandTimeout` or a wait timeout in the lock statement is what ends the wait. `null` turns it off; zero is refused, because a warning on every lock is the same as no signal. See [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone). |
-| `DbRetryInterval` | TimeSpan | `00:00:15` | How long the misfire loop waits before retrying after a database failure, and the check-in loop once a failed check-in has spent the window its peers give it (`CheckinInterval` + `CheckinMisfireThreshold`); inside that window it retries sooner and this only caps the wait. |
-| `MaxTransientRetries` | int | `3` | How many times a transient failure such as a deadlock is retried. Transient means the driver's own `DbException.IsTransient`, a SQLSTATE in class `40` — the standard's "transaction rollback", covering a serialization failure or a deadlock whichever provider reports it, with `40002` excepted because a deferred constraint violation fails identically on every retry — SQL Server's transient error numbers, SQLite's busy and locked codes, or a timeout. |
+| `MaxMisfiresToHandleAtATime` | int | `20` | Misfired triggers handled per pass. |
+| `CommandTimeout` | TimeSpan? | provider default | Timeout for every statement the store issues, the lock handler's included. See below. |
+| `LockWaitWarningThreshold` | TimeSpan? | `00:00:30` | How long one attempt to take a job store lock may wait before warning **3716** is logged. See below. |
+| `DbRetryInterval` | TimeSpan | `00:00:15` | Back-off after a database failure, for the misfire loop and the check-in loop. See below. |
+| `MaxTransientRetries` | int | `3` | How many times a transient failure, such as a deadlock, is retried. See below. |
 | `TransientRetryInterval` | TimeSpan | `00:00:01` | Delay between transient retries. |
-| `RetryableActionErrorLogThreshold` | int | `4` | How many consecutive failures before they are logged as errors. |
-| `IsTransient` | `Func<Exception, bool>?` | `null` | An extra answer to the question above, for a driver that reports a retryable condition none of those signals recognise. Consulted first and only additive — returning `false` falls through to the built-in list, so it cannot make Quartz stop retrying something it already retries. The exception handed over is the store's own, so reach the driver's with `GetBaseException()`. Code only; there is no `quartz.*` key for a delegate. |
+| `RetryableActionErrorLogThreshold` | int | `4` | Consecutive failures before they are logged as errors. |
+| `IsTransient` | `Func<Exception, bool>?` | `null` | Extra transient test for a driver the built-in list misses. Code only. See below. |
 | `UseDbLocks` | bool | `false` | Uses database row locks. Required for clustering, and implied by `UseClustering()`. |
 | `LockOnInsert` | bool | `true` | Takes a lock when inserting rows. |
 | `AcquireTriggersWithinLock` | bool | `false` | Acquires triggers inside the database lock. |
-| `TransactionIsolationLevel` | IsolationLevel? | none | The isolation level the store begins its own transactions at. Unset means `ReadCommitted` — Quartz's default rather than the provider's, which vary. Forced to `Serializable` on SQLite, and ignored for a connection the application enlisted, which was begun at whatever level the application chose. |
-| `AcceptEnlistedTransactions` | bool | `false` | Lets the job store use a connection the application enlisted with `SchedulerEnlistmentExtensions.EnlistTransaction`, so scheduling commits with the application's own work. See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction). |
+| `TransactionIsolationLevel` | IsolationLevel? | none | Isolation level of the store's own transactions. Unset: `ReadCommitted`. See below. |
+| `AcceptEnlistedTransactions` | bool | `false` | Lets the store use a connection the application enlisted with `SchedulerEnlistmentExtensions.EnlistTransaction`, so scheduling commits with the application's work. See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction). |
 | `DoubleCheckLockMisfireHandler` | bool | `true` | Re-checks the lock before handling misfires. |
-| `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. These two are the only real threads Quartz creates. |
-| `SchemaProvisioning` | `SchemaProvisioning` | `Validate` | What the store does about its schema at startup: `None` does nothing, `Validate` verifies the expected tables exist, `CreateIfMissing` creates whatever is missing and then verifies. |
-| `SelectWithLockSql` | string? | none | Overrides the row-lock statement, defaulted to SQL Server's `WITH (UPDLOCK,ROWLOCK)` form when that is the database. Read only when the store builds a database-locking handler for itself — see [Locking](#locking). |
-| `OpenConnection` | bool | `false` | Whether the ambient-transaction store — `ExternalTransactionJobStore`, the one `UsePersistentStore(store => store.UseAmbientTransactions())` selects — opens the connections it creates. Read only by that store, and written by `quartz.jobStore.openConnection` as well as by the section entry. |
+| `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. They are the only real threads Quartz creates. |
+| `SchemaProvisioning` | `SchemaProvisioning` | `Validate` | At startup: `None` does nothing, `Validate` checks the expected tables exist, `CreateIfMissing` creates what is missing and then checks. |
+| `SelectWithLockSql` | string? | none | Overrides the row-lock statement; defaults to SQL Server's `WITH (UPDLOCK,ROWLOCK)` form on SQL Server. See [Locking](#locking). |
+| `OpenConnection` | bool | `false` | Whether the ambient-transaction store opens the connections it creates. See below. |
+
+- **`CommandTimeout`**: unset leaves each provider's default, usually 30 seconds. ADO.NET counts whole
+  seconds, so the value is rounded **up** — `00:00:01.500` becomes 2 seconds — because rounding down
+  would turn a sub-second value into `0`, which means "no timeout".
+- **`LockWaitWarningThreshold`**: logged once per acquisition, naming the lock and the wait so far. It is
+  the only report of a node stalled on a lock, since a blocked statement neither returns nor throws. It
+  does not end the wait; `CommandTimeout` or a wait timeout in the lock statement does. `null` turns it
+  off; zero is refused. See
+  [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
+- **`DbRetryInterval`**: the check-in loop waits this long once a failed check-in has spent the window its
+  peers give it (`CheckinInterval` + `CheckinMisfireThreshold`). Inside that window it retries sooner,
+  and this only caps the wait.
+- **`MaxTransientRetries`**: transient means the driver's own `DbException.IsTransient`; a SQLSTATE in
+  class `40` ("transaction rollback": a serialization failure or deadlock, whichever provider reports
+  it), except `40002`, a deferred constraint violation that fails the same way every time; SQL Server's
+  transient error numbers; SQLite's busy and locked codes; or a timeout.
+- **`IsTransient`**: consulted first and only additive — `false` falls through to the built-in list, so
+  it cannot stop a retry Quartz already makes. It receives the store's own exception; reach the driver's
+  with `GetBaseException()`. There is no `quartz.*` key for a delegate.
+- **`TransactionIsolationLevel`**: the `ReadCommitted` default is Quartz's, not the provider's (providers
+  vary). Forced to `Serializable` on SQLite. Ignored for a connection the application enlisted, which
+  runs at the application's level.
+- **`SelectWithLockSql`** is read only when the store builds a database-locking handler for itself.
+- **`OpenConnection`** is read only by `ExternalTransactionJobStore`, the store
+  `UsePersistentStore(store => store.UseAmbientTransactions())` selects. It is written by
+  `quartz.jobStore.openConnection` as well as by the section entry.
 
 A custom trigger persistence delegate is registered with
-`UsePersistentStore(s => s.UseTriggerPersistenceDelegate<T>())` rather than through an option; the
-legacy `quartz.jobStore.driverDelegateInitString` key still translates to the same registrations.
+`UsePersistentStore(s => s.UseTriggerPersistenceDelegate<T>())`, not an option; the legacy
+`quartz.jobStore.driverDelegateInitString` key translates to the same registrations.
 
 ### Databases
 
@@ -204,14 +234,13 @@ legacy `quartz.jobStore.driverDelegateInitString` key still translates to the sa
 | `UseFirebird` | Firebird | `FirebirdSql.Data.FirebirdClient` |
 | `UseSqlite` | SQLite, using the Microsoft.Data.Sqlite driver | `Microsoft.Data.Sqlite` |
 | `UseSystemDataSqlite` | SQLite, using the legacy System.Data.SQLite driver | `System.Data.SQLite.Core` |
-| `UseGenericDatabase` | Anything else, using the generic SQL dialect — and the only one that can [describe its own driver](#describing-a-driver-quartz-does-not-know) | the one your driver ships in |
+| `UseGenericDatabase` | Anything else, with the generic SQL dialect; the only one that can [describe its own driver](#describing-a-driver-quartz-does-not-know) | the one your driver ships in |
 
-Quartz references none of them, so the package is `dotnet add package`'d by the application; a method
-called without its driver present compiles and fails at startup with
-`Could not load file or assembly`. [Job Stores](../tutorial/job-stores.md#configuring-a-persistent-store)
-has the whole story.
+Quartz references none of these packages; the application adds its own. A method called without its
+driver present compiles, then fails at startup with `Could not load file or assembly`. See
+[Job Stores](../tutorial/job-stores.md#configuring-a-persistent-store).
 
-Each takes either a connection string or a callback over `DataSourceOptions`:
+Each takes a connection string or a callback over `DataSourceOptions`:
 
 <!-- snippet: sample_reference_connection_string -->
 ```csharp
@@ -220,20 +249,19 @@ store.UseSqlServer(db => db.ConnectionStringName = "Scheduler");
 ```
 <!-- endSnippet -->
 
-Where the connection comes from is the data source's own setting, so to connect through a
-`DbDataSource` registered in the container rather than a connection string of Quartz's own, say
+To connect through a `DbDataSource` registered in the container instead, set
 `store.UseSqlServer(db => db.UseRegisteredDataSource = true)`.
 
 #### Naming a driver, or handing over its factory
 
-Both spellings above name the driver: `SqlServer` names a description that says which connection,
-command and parameter types to instantiate, and Quartz resolves those types from strings, because it
-references no driver package. That is how it has always worked and it is what most applications want.
+Both spellings above name the driver. `SqlServer` names a description of which connection, command and
+parameter types to instantiate, and Quartz resolves those types from strings, since it references no
+driver package. Most applications want this.
 
-A **trimmed or native AOT** application cannot rely on it. The trimmer does not follow a type name, so
-it removes what the name pointed at, and the registration fails while the container is being built with
-`Cannot instantiate type which has no empty constructor`. Every method above therefore also takes the
-`DbProviderFactory` the driver ships:
+A **trimmed or native AOT** application cannot rely on it: the trimmer does not follow a type name and
+removes what it pointed at, and the registration fails while the container is built with
+`Cannot instantiate type which has no empty constructor`. Every method above also takes the driver's
+`DbProviderFactory`:
 
 <!-- Not a compiled sample: the driver factories below come from packages this repository's samples
      project does not reference, and naming the real ones is the point. -->
@@ -248,22 +276,18 @@ store.UseFirebird(FirebirdClientFactory.Instance, connectionString);
 store.UseMySql(MySqlClientFactory.Instance, connectionString);
 ```
 
-A factory hands back an instance of every type the store uses — a connection, and the connection makes
-the command, and the command makes its parameters — so nothing is named and nothing is constructed by
-reflection. The provider name is still chosen for you, because it decides how the driver spells a
-parameter, but only the half of its description that names no type is read.
-
-Which to use:
+The factory creates the connection, the connection the command, and the command its parameters, so
+nothing is named or built by reflection. The provider name is still chosen for you, since it decides how
+the driver spells a parameter, but only the part of its description that names no type is read.
 
 | Registration | When |
 |---|---|
 | `Use<Db>(connectionString)` | The ordinary case. Carries `[RequiresUnreferencedCode]`, so a trimmed publish reports it. |
-| `Use<Db>(factory, connectionString)` | Publishing `PublishTrimmed` or `PublishAot`, or anywhere you would rather not have a type resolved from a string. |
-| `db.UseRegisteredDataSource = true` | A `DbDataSource` in the container already carries the connection details — pooling, type mappers, logging. Equally free of type names. |
+| `Use<Db>(factory, connectionString)` | `PublishTrimmed` or `PublishAot`, or anywhere you do not want a type resolved from a string. |
+| `db.UseRegisteredDataSource = true` | A `DbDataSource` in the container already holds the connection details — pooling, type mappers, logging. Also free of type names. |
 
-Oracle is the one driver that needs more than a factory, because Quartz reaches two things on its own
-types by reflection and a factory names neither. Both are said in code, by the application, which does
-reference the driver:
+Oracle needs more than a factory, because Quartz reaches two things on its types by reflection and a
+factory names neither. Say both in code:
 
 <!-- Not a compiled sample, for the same reason as the one above. -->
 
@@ -275,24 +299,22 @@ store.UseOracle(
     configureBinaryParameter: parameter => ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob);
 ```
 
-Without the first, ODP.NET binds every statement's parameters by position and the store reads the wrong
-columns. Without the second, a job data map larger than two kilobytes will not go in, because
-`DbType.Binary` means `OracleDbType.Raw` to that driver and not `Blob`. Naming the driver instead of
-handing over its factory says both of these for you.
+- Without `configureCommand`, ODP.NET binds parameters by position and the store reads the wrong columns.
+- Without `configureBinaryParameter`, a job data map over two kilobytes will not fit, because that driver
+  maps `DbType.Binary` to `OracleDbType.Raw`, not `Blob`.
 
-The factory overloads take the connection string directly, so `ConnectionStringName` does not apply to
-them; read the connection string from `IConfiguration` where you have it and pass it in.
+Naming the driver instead of passing its factory sets both for you.
+
+The factory overloads take the connection string directly, so `ConnectionStringName` does not apply; read
+the connection string from `IConfiguration` and pass it in.
 
 #### PostgreSQL: `DISCARD ALL` on every connection return
 
-Npgsql resets a pooled connection when it is returned, by sending `DISCARD ALL`. That is one round
-trip per return, and because it runs outside any transaction of ours the server records it as a
-transaction of its own — so PostgreSQL counts roughly twice as many transactions as Quartz opens.
-
-At the shipped defaults one firing borrows and returns three connections: the acquisition, the fire
-and the completion are each their own transaction. So a firing costs three `DISCARD ALL` round trips
-and three extra commits, which is what a `pg_stat_database` reading of a Quartz deployment is mostly
-made of.
+Npgsql resets a pooled connection on return by sending `DISCARD ALL`: one round trip per return, recorded
+by the server as a transaction of its own, so PostgreSQL counts about twice the transactions Quartz
+opens. At the shipped defaults a firing borrows three connections (acquisition, fire and completion are
+separate transactions), so it costs three `DISCARD ALL` round trips and three extra commits — most of a
+`pg_stat_database` reading of a Quartz deployment.
 
 `No Reset On Close=true` on the connection string turns it off:
 
@@ -308,23 +330,20 @@ Measured on a drain of 500 one-off firings against PostgreSQL 15.1 with `fsync=o
 | shipped defaults | 6.01 | 23.0 |
 | with `No Reset On Close=true` | 3.01 | 20.0 |
 
-**It is a connection-string decision, not a Quartz default, and Quartz does not change it for you.**
-Over loopback the firings-per-second figure did not move outside run-to-run variance — the round trip
-is nearly free when the database is on the same machine — so what the setting buys depends entirely on
-what a round trip costs you. Across a network, or on a managed database with a connection proxy in
-front of it, three fewer per firing is worth measuring.
+**It is a connection-string decision, and Quartz does not change it for you.**
 
-What it costs is that a connection goes back into the pool carrying whatever session state it
-acquired: `SET` statements, prepared statements, listen/notify registrations, temporary tables. Quartz
-sets none of those, so for a data source Quartz alone uses it is safe; a data source shared with
-application code that does set session state is not a place to turn the reset off.
+- Over loopback, firings per second did not move beyond run-to-run variance. Across a network, or behind
+  a managed database's connection proxy, measure what three fewer round trips per firing buy.
+- A connection returns to the pool carrying its session state: `SET` statements, prepared statements,
+  listen/notify registrations, temporary tables. Quartz sets none, so it is safe for a data source only
+  Quartz uses — not for one shared with application code that sets session state.
 
 #### Describing a driver Quartz does not know
 
-The provider name each method passes — `SqlServer`, `Npgsql` and so on — names a description of an
-ADO.NET driver: which connection, command and parameter types to instantiate, how parameters are named,
-and which enum value means "binary column". Quartz ships descriptions for the drivers of every database
-listed above. For anything else, describe the driver in the `UseGenericDatabase` call:
+A provider name (`SqlServer`, `Npgsql`, …) names a description of an ADO.NET driver: which connection,
+command and parameter types to instantiate, how parameters are named, and which enum value means "binary
+column". Quartz ships descriptions for every database above. For anything else, describe the driver in
+the `UseGenericDatabase` call:
 
 <!-- snippet: sample_reference_generic_database -->
 ```csharp
@@ -346,11 +365,10 @@ store.UseGenericDatabase("MyDatabase", connectionString, () => new DbMetadata
 ```
 <!-- endSnippet -->
 
-There is a four-argument overload taking a `DataSourceOptions` callback instead of a connection string,
-for a driver described in code that also uses a named connection string.
+A four-argument overload takes a `DataSourceOptions` callback instead of a connection string, for a
+described driver with a named connection string.
 
-A driver reached through its own factory is described the same way, and needs no provider name at all —
-there is nothing left to look a description up by:
+A driver reached through its own factory is described the same way and needs no provider name:
 
 <!-- Not a compiled sample: `MyFactory` stands in for a driver's own `DbProviderFactory`. -->
 
@@ -365,22 +383,17 @@ store.UseGenericDatabase(MyFactory.Instance, connectionString, new DbMetadata
 });
 ```
 
-`ConfigureCommand` and `ConfigureBinaryParameter` are the two typed seams on `DbMetadata`: they say what
-the name path would otherwise reach by reflecting over `CommandType` and `ParameterType`, and they are
-how a description that names no type stays complete. Either may be left unset — a binary parameter with
-neither a seam nor a described parameter type is bound as `DbType.Binary`, which every driver that ships
-a factory maps for itself.
+- `ConfigureCommand` and `ConfigureBinaryParameter` are the two typed seams on `DbMetadata`. They say what
+  the name path reaches by reflecting over `CommandType` and `ParameterType`, so a description that names
+  no type is still complete. Either may be unset: a binary parameter with neither a seam nor a described
+  parameter type is bound as `DbType.Binary`, which every driver that ships a factory maps itself.
+- A description is a container registration, not process-wide state, so two containers in one process
+  need not agree on a provider name. Within one container a name means one thing; two schedulers needing
+  two drivers use two names.
+- Describing a name Quartz already ships replaces it. A description registered in code wins over
+  `quartz.dbprovider.*` keys. Several drivers mean several calls, one per name.
 
-A description is a registration in the container rather than process-wide state, so two containers in one
-process no longer have to agree on what a provider name means. Within one container a provider name means
-one thing, since a name is what a data source points at — two schedulers that need two different drivers
-give them two different names.
-
-Describing a name Quartz already ships a description for replaces it, and a description registered in code
-wins over one written as `quartz.dbprovider.*` keys. Several drivers means several calls, one per name.
-
-The same thing can be said as properties, which is the form 3.x used and which now arrives through
-`IConfiguration` like everything else:
+The same description as properties, the 3.x form, now read through `IConfiguration`:
 
 ```json
 {
@@ -400,35 +413,27 @@ The same thing can be said as properties, which is the form 3.x used and which n
 }
 ```
 
-A store's data source is named after the scheduler that owns it, or `quartz` for the default scheduler,
-so the name never has to be invented or kept in step by hand. Name one explicitly with
-`store.UseDataSource("reporting-db")` — before choosing the database, since the name is fixed once
-the data source is configured — when two stores should read the same `Quartz:DataSource:<name>`
-settings, or when the settings live under a name of the application's choosing.
-
 ### Locking
 
-Leave the lock handler unset and the store chooses one for itself once it knows which database it is
-talking to: database row locks when clustered or when `UseDbLocks` is on, and an in-process monitor
-otherwise. `UseLockHandler<T>()` overrides that choice, and `UseLockHandler(factory)` does the same for a
-handler that needs building — as `UseRedisLockHandler()` does.
+Leave the lock handler unset and the store picks one once it knows the database: database row locks when
+clustered or when `UseDbLocks` is on, an in-process monitor otherwise. `UseLockHandler<T>()` overrides
+that; `UseLockHandler(factory)` does the same for a handler that needs building, as
+`UseRedisLockHandler()` does.
 
-`SelectWithLockSql` belongs to the handler the store builds for itself. A handler chosen with
-`UseLockHandler` takes its statement through its own constructor instead, so setting both leaves the
-option doing nothing — the store logs a warning at startup when it finds that combination. It is also
-where a server-side lock wait timeout goes, which on Oracle is the only place one can go: a statement
-ending `FOR UPDATE WAIT 20` fails with `ORA-30006` rather than waiting behind a lock nobody is going to
-release — see [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
-
-Both this and `UseSerializer` register against the scheduler that owns the store. Registering
-`ILockHandler` or `IObjectSerializer` directly against `Services` registers it for the container, which a
-named scheduler will not see.
-
-Whichever handler is in use, the store tells it which scheduler it locks for and the environment it
-locks in — its clock and the `CommandTimeout` above — through `ILockHandler.Initialize(LockHandlerContext)`,
-before the first lock is taken. A handler of your own does not need configuring for any of it. The
-timeout is worth setting for a clustered store: a node waiting on `QRTZ_LOCKS` behind a peer that
-stopped without releasing the row cannot schedule anything until the lock statement gives up.
+- `SelectWithLockSql` belongs to the handler the store builds for itself. A handler from `UseLockHandler`
+  takes its statement through its own constructor, so setting both leaves the option unused, and the
+  store logs a warning at startup.
+- `SelectWithLockSql` is also where a server-side lock wait timeout goes — on Oracle, the only place. A
+  statement ending `FOR UPDATE WAIT 20` fails with `ORA-30006` instead of waiting behind a lock nobody
+  will release — see [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
+- This and `UseSerializer` register against the scheduler that owns the store. `ILockHandler` or
+  `IObjectSerializer` registered directly on `Services` is registered for the container, and a named
+  scheduler does not see it.
+- The store tells any handler which scheduler it locks for, and its clock and `CommandTimeout`, through
+  `ILockHandler.Initialize(LockHandlerContext)` before the first lock; a handler of your own needs no
+  configuring for them.
+- Set the timeout on a clustered store: a node waiting on `QRTZ_LOCKS` behind a peer that stopped
+  without releasing the row schedules nothing until the lock statement gives up.
 
 ### Data source
 
@@ -436,15 +441,14 @@ stopped without releasing the row cannot schedule anything until the lock statem
 
 | Option | Type | Description |
 |---|---|---|
-| `Provider` | string | Names the description of the ADO.NET driver to use. Set for you by the database methods above; the names Quartz ships a description for are constants on `DataSourceOptions.Providers`, and see [Describing a driver Quartz does not know](#describing-a-driver-quartz-does-not-know) for anything else. |
+| `Provider` | string | The driver description to use. Set by the database methods; see the constants below, and [Describing a driver Quartz does not know](#describing-a-driver-quartz-does-not-know). |
 | `ConnectionString` | string? | The connection string. Takes precedence over `ConnectionStringName`. |
 | `ConnectionStringName` | string? | A connection string to resolve from `IConfiguration`. |
 | `UseRegisteredDataSource` | bool | Connections come from the container's unkeyed `DbDataSource`. Wins over both connection string settings. |
-| `DataSourceServiceKey` | object? | The service key the `DbDataSource` is registered under, for a container that holds more than one. Implies `UseRegisteredDataSource`. Code only — a binder cannot produce a service key. |
+| `DataSourceServiceKey` | object? | The service key of the `DbDataSource`, for a container holding several. Implies `UseRegisteredDataSource`. Code only. |
 | `DataSourceFactory` | Func&lt;IServiceProvider, DbDataSource&gt;? | Supplies the `DbDataSource` directly. Wins over both of the above. Code only. |
 
-The provider names Quartz ships a description for, as constants rather than as strings to copy out of
-this table:
+The provider names Quartz ships a description for, as constants on `DataSourceOptions.Providers`:
 
 | Constant | Value | Driver |
 |---|---|---|
@@ -457,8 +461,8 @@ this table:
 | `DataSourceOptions.Providers.SystemDataSqlite` | `SQLite` | `System.Data.SQLite` |
 | `DataSourceOptions.Providers.Firebird` | `Firebird` | `FirebirdSql.Data.FirebirdClient` |
 
-`Provider` stays a string rather than becoming an enum because the set is not closed: a driver Quartz
-knows nothing about is describable, which is what `UseGenericDatabase` is for.
+`Provider` is a string, not an enum, because the set is open: `UseGenericDatabase` describes drivers
+Quartz does not know.
 
 To connect through a `DbDataSource` registered in the container, for example by `AddNpgsqlDataSource`:
 
@@ -473,10 +477,9 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 }));
 ```
 
-`UseRegisteredDataSource` asks for the container's one unkeyed `DbDataSource`, which is exactly right
-for an application with one database. A container that holds several — a scheduler per tenant, or a
-reporting scheduler beside the application's own — keys them apart, and `DataSourceServiceKey` says
-which key is this store's:
+`UseRegisteredDataSource` asks for the container's one unkeyed `DbDataSource`, which fits an application
+with one database. A container with several (a scheduler per tenant, or a reporting scheduler beside the
+application's) keys them, and `DataSourceServiceKey` names this store's key:
 
 <!-- Not a compiled sample, for the same reason as the one above: `AddNpgsqlDataSource` is Npgsql's. -->
 
@@ -490,7 +493,7 @@ services.AddQuartz("tenant-b", q => q.UsePersistentStore(store =>
     store.UsePostgres(db => db.DataSourceServiceKey = "tenant-b")));
 ```
 
-A data source that is built rather than registered goes in `DataSourceFactory`, which wins over both:
+A data source you build rather than register goes in `DataSourceFactory`, which wins over both:
 
 <!-- snippet: sample_reference_data_source_factory -->
 ```csharp
@@ -498,25 +501,29 @@ store.UsePostgres(db => db.DataSourceFactory = _ => BuildDataSource());
 ```
 <!-- endSnippet -->
 
-Both are set from code rather than from configuration, because a service key can be any object and a
-factory is a delegate — neither is something a configuration binder can produce. Either one means Quartz
-needs no connection string of its own, so neither is asked for.
+- Both are set in code: a service key can be any object and a factory is a delegate, neither of which a
+  configuration binder can produce. With either, Quartz needs no connection string.
+- On this path the connection makes the commands, not the driver description, so whatever the data source
+  configured — an `NpgsqlDataSource`'s type mappers, logging, composite type registrations — applies to
+  Quartz's statements too.
 
-Commands on this path are made by the connection rather than from the driver description, so whatever
-the data source configured on its connections — an `NpgsqlDataSource`'s type mappers, its logging, its
-composite type registrations — is in play for Quartz's statements too.
+A store's data source is named after the scheduler that owns it, or `quartz` for the default scheduler.
+To name it explicitly, call `store.UseDataSource("reporting-db")` **before** choosing the database (the
+name is fixed once the data source is configured) — when two stores should read the same
+`Quartz:DataSource:<name>` settings, or the settings live under a name of your choosing.
 
-There are three entry points for a data source and they say different things.
-`UseDataSource(configure)` **defines** one — which driver, and how to reach the database — and the
-database methods above are shorthands for it. `UseDataSource(name)` **refers to** one by name, which is
-how a store picks up settings registered elsewhere, such as a `Quartz:DataSource:<name>` section — one
-concept, so one name, told apart by whether it is handed a name or a callback. Where the connection
-itself comes from is `DataSourceOptions`' to say, not a fourth method's.
+The three data-source entry points:
+
+- `UseDataSource(configure)` **defines** one: which driver, and how to reach the database. The database
+  methods are shorthands for it.
+- `UseDataSource(name)` **refers to** one by name, to pick up settings registered elsewhere, such as a
+  `Quartz:DataSource:<name>` section.
+- Where the connection comes from is set on `DataSourceOptions`, not by another method.
 
 #### Bringing your own connection provider
 
-When connections cannot be described at all — a pooled or credential-rotating factory, or a driver
-whose connections need setting up after they are created — hand Quartz the object that makes them:
+When connections cannot be described — a pooled or credential-rotating factory, or a driver whose
+connections need setting up after creation — hand Quartz the object that makes them:
 
 <!-- snippet: sample_reference_connection_provider -->
 ```csharp
@@ -528,16 +535,15 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-`UseConnectionProvider(factory)` does the same for a provider that needs building first. This is the
-one method on the builder that **replaces** rather than defers: it wins over the provider the database
-method registered, in either order, so there is no call sequence to get right. It also names this
-store's data source, so `UseConnectionProvider` on its own is a complete configuration — the database
-method above it is only there to select the driver delegate.
+- `UseConnectionProvider(factory)` does the same for a provider that needs building.
+- It is the one builder method that **replaces** rather than defers: it wins over the database method's
+  provider in either order.
+- It also names the store's data source, so it is a complete configuration on its own; the database
+  method only selects the driver delegate.
+- The provider belongs to the scheduler that owns the store. `IDbProvider` registered on `Services` is
+  the container's, and a named scheduler does not see it.
 
-The provider belongs to the scheduler that owns the store. Registering `IDbProvider` against `Services`
-instead registers it for the container, which a named scheduler will not see.
-
-The same thing as properties, which is the 3.x spelling and still read:
+As properties, the 3.x spelling, still read:
 
 ```json
 {
@@ -550,17 +556,16 @@ The same thing as properties, which is the 3.x spelling and still read:
 
 ### Clustering
 
-Clustering lets several schedulers share one database, so that if a node dies its triggers are recovered
-by another. Every node must use the same `InstanceName` and a different `InstanceId`.
+Several schedulers share one database, and a node's triggers are recovered by another if it dies. Every
+node uses the same `InstanceName` and a different `InstanceId`.
 
-`ClusteringOptions`, bound from `Quartz:JobStore:Clustering`. This is the only place clustering is
-configured: the job store reports whether it is clustered, it does not offer a second place to say so.
+`ClusteringOptions`, bound from `Quartz:JobStore:Clustering` — the only place clustering is configured.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `Enabled` | bool | `false` | Takes part in a cluster sharing this database. `UseClustering()` sets it. |
 | `CheckinInterval` | TimeSpan | `00:00:07.5` | How often a node records that it is alive. |
-| `CheckinMisfireThreshold` | TimeSpan | `00:00:07.5` | Grace period before a node is treated as failed; also the window the node's own failed check-in is retried inside, so a database blip shorter than it does not get the node written off. |
+| `CheckinMisfireThreshold` | TimeSpan | `00:00:07.5` | Grace period before a node is treated as failed. The node's own failed check-in is retried inside it, so a shorter database blip does not get the node written off. |
 
 <!-- snippet: sample_reference_clustering -->
 ```csharp
@@ -585,14 +590,13 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-`UseClustering()` enables database locking as well, because clustering has never worked without it.
+`UseClustering()` also enables database locking; clustering does not work without it.
 
 ## Serialization
 
-Whatever a persistent store cannot write as a string goes through an `IObjectSerializer`.
-**A store that names none gets `SystemTextJsonObjectSerializer`**, registered as the fallback the way
-the driver delegate is — so `UseSystemTextJsonSerializer()` with no argument selects what the store
-already had, and only two things are worth writing:
+What a persistent store cannot write as a string goes through an `IObjectSerializer`. **A store that
+names none gets `SystemTextJsonObjectSerializer`**, registered as a fallback like the driver delegate, so
+`UseSystemTextJsonSerializer()` with no argument changes nothing. Two calls do change something:
 
 <!-- snippet: sample_reference_serializers -->
 ```csharp
@@ -609,18 +613,18 @@ store.UseSystemTextJsonSerializer(json =>
 
 ## Scheduling
 
-`SchedulingOptions`, bound from `Quartz:Scheduling`. These decide what happens when the jobs and triggers
-registered in code, or declared in a file, already exist in the store under the same names.
+`SchedulingOptions`, bound from `Quartz:Scheduling`: what happens when jobs and triggers registered in
+code, or declared in a file, already exist in the store under the same names.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `OverwriteExistingData` | bool | `true` | A registration replaces the stored job or trigger of the same name. The default is a default rather than a statement: setting `IgnoreDuplicates` turns it off. |
-| `IgnoreDuplicates` | bool | `false` | A name that already exists is skipped instead of throwing. Enough on its own — it turns `OverwriteExistingData` off. Setting both explicitly is refused at startup. |
-| `ScheduleTriggerRelativeToReplacedTrigger` | bool | `false` | A replaced trigger's next fire time is computed from the old trigger's last fire time rather than from now. |
+| `OverwriteExistingData` | bool | `true` | A registration replaces the stored job or trigger of the same name. Setting `IgnoreDuplicates` turns this default off. |
+| `IgnoreDuplicates` | bool | `false` | An existing name is skipped instead of throwing. Turns `OverwriteExistingData` off; setting both explicitly is refused at startup. |
+| `ScheduleTriggerRelativeToReplacedTrigger` | bool | `false` | A replaced trigger's next fire time is computed from the old trigger's last fire time, not from now. |
 
-All three are about a *file or registration versus the store*. None of them can say anything about one
-scheduling data file that declares the same job or trigger key twice, so none of them suppresses the
-error that file gets — see [ProcessingDirectives](json.md#processingdirectives).
+These compare a file or registration with the store. None of them covers one scheduling data file that
+declares the same job or trigger key twice, which is always an error — see
+[ProcessingDirectives](json.md#processingdirectives).
 
 <!-- snippet: sample_reference_scheduling_options -->
 ```csharp
@@ -630,8 +634,8 @@ services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates
 
 ## Job factory
 
-By default jobs are resolved from the container, in a scope created per firing, so a job may take scoped
-dependencies. To replace it:
+By default jobs are resolved from the container, in a scope per firing, so a job may take scoped
+dependencies. To replace the factory:
 
 <!-- snippet: sample_reference_job_factory -->
 ```csharp
@@ -639,7 +643,7 @@ services.AddQuartz(q => q.UseJobFactory<MyJobFactory>());
 ```
 <!-- endSnippet -->
 
-To keep it and only add to the scope it opens:
+To keep it and add to the scope it opens:
 
 <!-- snippet: sample_reference_job_scope -->
 ```csharp
@@ -649,13 +653,12 @@ services.AddQuartz(q => q.ConfigureJobScope((scope, bundle, scheduler) => { /* �
 
 ## Type loader
 
-`TypeLoaderOptions`, bound from `Quartz:TypeLoader`. This is the one options type that is the
-**container's** rather than a scheduler's, because the loader it configures is: one `ITypeLoader` serves
-every scheduler in the container.
+`TypeLoaderOptions`, bound from `Quartz:TypeLoader`. The one options type that is the **container's**,
+because one `ITypeLoader` serves every scheduler in the container.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `Aliases` | `Dictionary<string, string>` | empty | What a type name that no longer names anything means today: the name as it was stored or configured, mapped to the name of the type that replaced it. |
+| `Aliases` | `Dictionary<string, string>` | empty | Maps a type name that no longer exists, as stored or configured, to the type that replaced it. |
 
 <!-- snippet: sample_reference_type_loader_aliases -->
 ```csharp
@@ -676,51 +679,50 @@ services.AddQuartz(q => q.UseTypeLoader(loader =>
 }
 ```
 
-An alias applies wherever Quartz turns a string into a type at run time — a stored `JOB_CLASS_NAME`, a
-job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type` key. The flat keys naming a
-scheduler's own components are read while
-the service collection is still being built, before any options exist, and are not aliased. An alias
-whose target names no type this application can load fails options validation at startup, and nothing is
-ever written back, so retiring one is still the SQL `UPDATE`; see [Job deserialization failures after
-refactoring](../../troubleshooting.md#job-deserialization-failures-after-refactoring) for the whole
-story.
+- An alias applies wherever Quartz turns a string into a type at run time: a stored `JOB_CLASS_NAME`, a
+  job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type` key.
+- Flat keys naming a scheduler's own components are read while the service collection is built, before
+  options exist, and are not aliased.
+- An alias whose target names no loadable type fails options validation at startup.
+- Nothing is written back, so retiring an alias still needs the SQL `UPDATE` — see
+  [Job deserialization failures after refactoring](../../troubleshooting.md#job-deserialization-failures-after-refactoring).
 
 ## The other seams
 
-Each of these replaces one collaborator of the scheduler. All are `IQuartzBuilder` members, so they work
-identically under `AddQuartz` and inside `QuartzSchedulerBuilder.Create(q => …)`.
+Each replaces one collaborator of the scheduler. All are `IQuartzBuilder` members, so they work the same
+under `AddQuartz` and `QuartzSchedulerBuilder.Create(q => …)`.
 
 | Method | Replaces | Default |
 |---|---|---|
-| `UseTimeProvider(timeProvider)` | the clock every trigger, store and misfire calculation reads | `TimeProvider.System`, or the container's registration when there is one |
-| `UseTypeLoader<T>()` | how a type named by a string — a stored `JOB_CLASS_NAME`, a `.type` key — is resolved | resolution through the container's assemblies, with the 3.x namespace fallbacks |
-| `UseTypeLoader(configure)` | *configures* that loader rather than replacing it: `loader.Map(oldName, typeof(NewType))` declares what a renamed type is called now, and `Quartz:TypeLoader:Aliases` is the same map from configuration. See [Job deserialization failures after refactoring](../../troubleshooting.md#job-deserialization-failures-after-refactoring) | no aliases |
-| `UseSimpleTypeLoader()` | asks for the built-in loader by name. `SimpleTypeLoader` is internal — a type-loading strategy is not something to derive from — so there is no `UseTypeLoader<SimpleTypeLoader>()` to write; this is it. It is already the default, so it matters only where something else registered a loader first | this is the default |
+| `UseTimeProvider(timeProvider)` | the clock every trigger, store and misfire calculation reads | `TimeProvider.System`, or the container's registration if any |
+| `UseTypeLoader<T>()` | how a type named by a string (a stored `JOB_CLASS_NAME`, a `.type` key) is resolved | resolution through the container's assemblies, with the 3.x namespace fallbacks |
+| `UseTypeLoader(configure)` | *configures* the loader instead: `loader.Map(oldName, typeof(NewType))`, the same map as `Quartz:TypeLoader:Aliases` | no aliases |
+| `UseSimpleTypeLoader()` | selects the built-in loader, which is internal, so there is no `UseTypeLoader<SimpleTypeLoader>()`. Matters only if something else registered a loader first | this is the default |
 | `UseInstanceIdGenerator<T>()` | how `InstanceId` is derived when `GenerateInstanceId` is on | `SimpleInstanceIdGenerator`: host name plus a timestamp |
-| `UseJobStore<T>()`, `UseJobStore<T, TOptions>()` | the job store, for one that is neither of the two Quartz ships | the in-memory store |
-| `UseDriverDelegate<T>()`, `UseDriverDelegate(factory)` (on the persistent store builder) | the SQL dialect the ADO.NET store speaks | selected by the database method — `UseSqlServer` picks `SqlServerDelegate`, and so on |
+| `UseJobStore<T>()`, `UseJobStore<T, TOptions>()` | the job store, for one Quartz does not ship | the in-memory store |
+| `UseDriverDelegate<T>()`, `UseDriverDelegate(factory)` (persistent store builder) | the SQL dialect of the ADO.NET store | chosen by the database method: `UseSqlServer` picks `SqlServerDelegate`, and so on |
 
-`UseTimeProvider` is the one to reach for in a test: a `FakeTimeProvider` makes `TriggerBuilder`,
-`GetFireTimeAfter` and misfire calculations see the time you set. It does not drive the scheduler's own
-waiting, which is on the real clock.
+`UseTimeProvider` is for tests: a `FakeTimeProvider` makes `TriggerBuilder`, `GetFireTimeAfter` and
+misfire calculations see the time you set. The scheduler's own waiting still uses the real clock.
 
 ## Health check
 
-`QuartzHealthCheckOptions`, configured by `AddHealthChecks().AddQuartz(configure)` or by the scheduler's
-own `AddQuartzHealthChecks(configure)`. The options are per scheduler name, like every other setting
-here.
+`QuartzHealthCheckOptions`, set by `AddHealthChecks().AddQuartz(configure)` or the scheduler's own
+`AddQuartzHealthChecks(configure)`. Options are per scheduler name.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `Name` | string? | `quartz-scheduler`, or `quartz-scheduler-<scheduler name>` | What the check is registered as. |
-| `Tags` | List&lt;string&gt; | empty | What a probe filters on. Add to it rather than assigning; a blank or repeated tag is refused at startup. |
+| `Name` | string? | `quartz-scheduler`, or `quartz-scheduler-<scheduler name>` | The check's registered name. |
+| `Tags` | List&lt;string&gt; | empty | What a probe filters on. Add to it; a blank or repeated tag is refused at startup. |
 | `FailureStatus` | HealthStatus? | `Unhealthy` | What a failed check reports. |
-| `StandbyStatus` | HealthStatus? | `Degraded` | What a scheduler in standby reports. Standby alone — a scheduler waiting for the application to press start keeps reporting degraded. |
-| `ClusterCheckinTolerance` | double? | `3` | How many of its own check-in intervals a **clustered** node may miss before the check reports degraded. `null` or `0` makes no such query. Nothing is read on an unclustered scheduler. |
-| `StaleFiringTolerance` | double? | `null` | How many of the store's own misfire thresholds a schedulable trigger may be overdue before the check reports degraded, and half of how many before it reports unhealthy. `null` or `0` makes no such query — the default, because what counts as overdue is the application's to say. `3` is the value to start from. Standby and paused schedulers report as they always did. |
+| `StandbyStatus` | HealthStatus? | `Degraded` | What a scheduler in standby reports. Standby only: a scheduler waiting for the application to start it stays degraded. |
+| `ClusterCheckinTolerance` | double? | `3` | How many of its own check-in intervals a **clustered** node may miss before the check reports degraded. `null` or `0`: no query. Unclustered schedulers read nothing. |
+| `StaleFiringTolerance` | double? | `null` | How many of the store's misfire thresholds a schedulable trigger may be overdue before degraded; twice that is unhealthy. `null` or `0`: no query. `3` is a starting value. |
 
-See [Health checks and probes](../operations.md#health-checks-and-probes) for what each verdict means to
-a probe, and what the check deliberately does not assert.
+`StaleFiringTolerance` is off by default because what counts as overdue is the application's call.
+Standby and paused schedulers report as usual with it on. See
+[Health checks and probes](../operations.md#health-checks-and-probes) for what each verdict means to a
+probe and what the check does not assert.
 
 ## Listeners, calendars and plugins
 
@@ -736,13 +738,12 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Listeners and plugins are ordinary services, so they take their dependencies through their constructors.
+Listeners and plugins are ordinary services and take dependencies through their constructors.
 
 ## Several schedulers
 
-Registering a scheduler under a name gives it its own job store, thread pool, jobs and configuration.
-The name is the scheduler's instance name, the key its services are registered under, and the name of
-its options.
+A scheduler registered under a name has its own job store, thread pool, jobs and configuration. The name
+is its instance name, the key its services are registered under, and the name of its options.
 
 <!-- snippet: sample_reference_named_schedulers -->
 ```csharp
@@ -776,9 +777,8 @@ In configuration, use a `Schedulers` section:
 
 ## Without a container
 
-Console applications and tests that have no host build a scheduler with `QuartzSchedulerBuilder`. It
-does not take *a second* configuration API: `Create` hands the callback an `IQuartzBuilder`, the very
-one `AddQuartz(q => …)` hands out, over a container it creates itself.
+Console applications and tests without a host use `QuartzSchedulerBuilder`. `Create` hands the callback
+the same `IQuartzBuilder` that `AddQuartz(q => …)` does, over a container it creates itself:
 
 <!-- snippet: sample_reference_without_a_container -->
 ```csharp
@@ -791,12 +791,11 @@ IScheduler scheduler = await QuartzSchedulerBuilder
 ```
 <!-- endSnippet -->
 
-What it adds is the two terminal methods a standalone caller needs, `Build()` for the factory and
-`BuildScheduler()` for the scheduler. Everything else — `AddJob`, `AddTrigger`, `ScheduleJob`,
-`AddCalendar`, every extension a package contributes — is written inside the callback, where it is
-the same call it would be under a host.
+It adds only the terminal methods: `Build()` for the factory and `BuildScheduler()` for the scheduler.
+`AddJob`, `AddTrigger`, `ScheduleJob`, `AddCalendar` and every package's extensions go inside the
+callback, as under a host.
 
-A scheduler configured entirely by flat `quartz.*` keys is built the same way:
+A scheduler configured entirely by flat `quartz.*` keys:
 
 <!-- snippet: sample_reference_from_flat_properties -->
 ```csharp
@@ -806,39 +805,35 @@ IScheduler scheduler = await QuartzSchedulerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-`UseProperties` checks the keys against the ones Quartz reads, so a misspelling is reported rather
-than silently ignored; set `quartz.checkConfiguration` to `false` to allow keys of your own.
-Configuration written in code wins over the properties whichever order the two are applied in.
+`UseProperties` checks keys against the ones Quartz reads and reports a misspelling; set
+`quartz.checkConfiguration` to `false` to allow keys of your own. Code wins over properties, whichever
+is applied first.
 
-**The check applies to a property bag you wrote, not to `appsettings.json`.** It runs for
-`UseProperties` and the `AddQuartz(services, properties, …)` overloads — the shape a 3.x application
-migrates in, and the one the removed-key advice is written for. Keys that came out of an
-`IConfiguration` section are deliberately not checked, because there every key under `Quartz:` becomes
-a `quartz.*` key whether Quartz reads it or not, so a section holding your own settings would be
-rejected. A misspelled key in `appsettings.json` is therefore read by nobody and reported by nothing —
-`Quartz:Scheduler:IdelWaitTime` leaves the scheduler idling for the default thirty seconds and says so
-nowhere — so check a key you have just typed against the tables above. Casing is not the risk:
-configuration keys are matched case-insensitively, so `Quartz:Jobstore:TablePrefix` is the same key as
-`Quartz:JobStore:TablePrefix`.
+**The check covers a property bag you wrote, not `appsettings.json`.**
 
-**The job store is the exception, and it is checked either way.** A persistent store refuses a
-`quartz.jobStore.*` key that nothing reads — see [Unknown job store keys](#unknown-job-store-keys) —
-whether the key was written flat or as `Quartz:JobStore:TabelPrefix`, because the settings under that
-one prefix are known exhaustively: the store's own options, its clustering sub-section, its lock
-handler's keys, and the two keys that select a type.
+- It runs for `UseProperties` and the `AddQuartz(services, properties, …)` overloads, the shape a 3.x
+  application migrates in.
+- Keys from an `IConfiguration` section are not checked: every key under `Quartz:` becomes a `quartz.*`
+  key whether Quartz reads it or not, so your own settings there would be rejected.
+- So a misspelled key in `appsettings.json` is silently ignored: `Quartz:Scheduler:IdelWaitTime` leaves
+  the default thirty seconds in force. Check a new key against the tables above.
+- Casing is not the risk: configuration keys are case-insensitive, so `Quartz:Jobstore:TablePrefix` is
+  `Quartz:JobStore:TablePrefix`.
+
+**The job store is checked either way.** A persistent store refuses a `quartz.jobStore.*` key that
+nothing reads, written flat or as `Quartz:JobStore:TabelPrefix` — see
+[Unknown job store keys](#unknown-job-store-keys). The keys under that prefix are known exhaustively: the
+store's options, its clustering sub-section, its lock handler's keys, and the two keys that select a type.
 
 ## Legacy property keys
 
-Earlier versions configured Quartz with flat `quartz.*` string keys. They still work, and mean exactly
-the same as the options above — they are translated into them. Both spellings of a setting always
-produce the same result.
+Earlier versions used flat `quartz.*` string keys. They still work: each is translated into the option
+above and produces the same result.
 
-Two differences are worth knowing:
-
-- Durations in the flat format are integer **milliseconds** (`quartz.scheduler.idleWaitTime = 30000`).
-  As typed options they are `TimeSpan` (`"00:00:30"`).
-- A `.type` key names an implementation. In code you select implementations with the matching `Use*`
-  method instead, which is checked at compile time.
+- Flat-format durations are integer **milliseconds** (`quartz.scheduler.idleWaitTime = 30000`); typed
+  options are `TimeSpan` (`"00:00:30"`).
+- A `.type` key names an implementation. In code, use the matching `Use*` method, which the compiler
+  checks.
 
 | Flat key | Option |
 |---|---|
@@ -852,7 +847,7 @@ Two differences are worth knowing:
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
 | `quartz.threadPool.maxConcurrency` (or `threadCount`) | `ThreadPool:MaxConcurrency` |
 | `quartz.threadPool.type` | `UseThreadPool<T>()` |
-| `quartz.jobStore.type` | `UseInMemoryStore()` / `UsePersistentStore()`, with `UseAmbientTransactions()` inside it for the store 3.x called `JobStoreCMT`; `UsePersistentStore<T>()` takes a persistent store of your own |
+| `quartz.jobStore.type` | `UseInMemoryStore()` / `UsePersistentStore()`, with `UseAmbientTransactions()` inside it for the store 3.x called `JobStoreCMT`; `UsePersistentStore<T>()` for a persistent store of your own |
 | `quartz.jobStore.misfireThreshold` | `JobStore:MisfireThreshold` |
 | `quartz.jobStore.tablePrefix` | `JobStore:TablePrefix` |
 | `quartz.jobStore.useProperties` | `JobStore:StoreJobDataAsStrings` |
@@ -865,30 +860,30 @@ Two differences are worth knowing:
 | `quartz.jobStore.clustering.enabled` | `JobStore:Clustering:Enabled` — the hierarchical spelling of `quartz.jobStore.clustered` |
 | `quartz.jobStore.clustering.checkinInterval` | `JobStore:Clustering:CheckinInterval` |
 | `quartz.jobStore.clustering.checkinMisfireThreshold` | `JobStore:Clustering:CheckinMisfireThreshold` |
-| `quartz.jobStore.driverDelegateType` | `JobStore:DriverDelegateType`; the `UseSqlServer()` family sets it for you |
+| `quartz.jobStore.driverDelegateType` | `JobStore:DriverDelegateType`; the `UseSqlServer()` family sets it |
 | `quartz.jobStore.schemaProvisioning` | `JobStore:SchemaProvisioning` — `None`, `Validate` or `Create` |
 | `quartz.jobStore.performSchemaValidation` | `JobStore:SchemaProvisioning` — `true` means `Validate`, `false` means `None`; the key above says all three |
-| `quartz.jobStore.executionHistory` | `UseExecutionHistory()` — keeps the execution history in this scheduler's database rather than in the process that ran each job. Needs the two tables `database/migrations/4.2/add_execution_history_<db>.sql` creates, and the store refuses to start without them |
+| `quartz.jobStore.executionHistory` | `UseExecutionHistory()` — keeps the execution history in this scheduler's database. Needs the two tables `database/migrations/4.2/add_execution_history_<db>.sql` creates; the store refuses to start without them |
 | `quartz.jobStore.useDBLocks` | `JobStore:UseDbLocks` |
 | `quartz.jobStore.lockOnInsert` | `JobStore:LockOnInsert` |
 | `quartz.jobStore.acquireTriggersWithinLock` | `JobStore:AcquireTriggersWithinLock` |
 | `quartz.jobStore.selectWithLockSQL` | `JobStore:SelectWithLockSql` |
-| `quartz.jobStore.txIsolationLevelSerializable` | `JobStore:TransactionIsolationLevel` — `true` means `Serializable`; unset says nothing rather than `ReadCommitted` |
+| `quartz.jobStore.txIsolationLevelSerializable` | `JobStore:TransactionIsolationLevel` — `true` means `Serializable`; unset says nothing, not `ReadCommitted` |
 | `quartz.jobStore.misfireHandlerFrequency` | `JobStore:MisfireHandlerFrequency` |
 | `quartz.jobStore.maxMisfiresToHandleAtATime` | `JobStore:MaxMisfiresToHandleAtATime` |
 | `quartz.jobStore.doubleCheckLockMisfireHandler` | `JobStore:DoubleCheckLockMisfireHandler` |
 | `quartz.jobStore.maxTransientRetries` | `JobStore:MaxTransientRetries` |
 | `quartz.jobStore.transientRetryInterval` | `JobStore:TransientRetryInterval` |
 | `quartz.jobStore.dbRetryInterval` | `JobStore:DbRetryInterval` |
-| `quartz.jobStore.commandTimeout` | `JobStore:CommandTimeout` — the key 3.22 added, in milliseconds; `0` means the provider's own default, which here is leaving the option unset |
+| `quartz.jobStore.commandTimeout` | `JobStore:CommandTimeout` — added in 3.22, in milliseconds; `0` means the provider's default, i.e. the option left unset |
 | `quartz.jobStore.retryableActionErrorLogThreshold` | `JobStore:RetryableActionErrorLogThreshold` |
-| `quartz.jobStore.dataSource` | set for you by the database methods |
+| `quartz.jobStore.dataSource` | set by the database methods |
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |
 | `quartz.dataSource.NAME.connectionString` | `DataSource:NAME:ConnectionString` |
 | `quartz.dataSource.NAME.connectionStringName` | `DataSource:NAME:ConnectionStringName` |
 | `quartz.dbprovider.NAME.*` | the metadata factory on `UseGenericDatabase`; the keys still work |
 | `quartz.serializer.type` | `UseSystemTextJsonSerializer()` / `UseNewtonsoftJsonSerializer()` |
-| `quartz.serializer.PROPERTY` | any other key under this prefix sets that property on the serializer — `quartz.serializer.RegisterTriggerConverters = true`, for instance |
+| `quartz.serializer.PROPERTY` | sets that property on the serializer — e.g. `quartz.serializer.RegisterTriggerConverters = true` |
 | `quartz.plugin.NAME.type` | `AddPlugin<T>()` or the plugin's own `Use*` method |
 | `quartz.jobStore.lockHandler.type` | `UseLockHandler<T>()` |
 | `quartz.scheduler.jobFactory.type` | `UseJobFactory<T>()` |
@@ -896,53 +891,35 @@ Two differences are worth knowing:
 | `quartz.scheduler.instanceIdGenerator.type` | `UseInstanceIdGenerator<T>()`; other `quartz.scheduler.instanceIdGenerator.*` keys configure it |
 | `quartz.timeProvider.type` | `UseTimeProvider(timeProvider)` |
 
-Nine key prefixes are rejected rather than ignored, because they no longer configure anything. Each is
-reported by name, with the replacement, instead of as an unknown property — a configuration still
-carrying one of these was configuring something real, and "unknown property" reads like a typo.
+**Nine key prefixes are rejected rather than ignored**, because they no longer configure anything. Each
+is reported by name with its replacement, not as an unknown property, since a configuration carrying one
+was configuring something real:
 
-`quartz.scheduler.threadName` and `quartz.scheduler.makeSchedulerThreadDaemon`: the scheduling loop is
-a `Task` rather than a `Thread`, so it has no name to set and never held a process open. Remove them;
-for the job store's misfire and cluster threads, which are real threads, use
-`quartz.jobStore.makeThreadsDaemons` / `JobStore:UseBackgroundThreads`.
+| Rejected key | Why | Instead |
+|---|---|---|
+| `quartz.scheduler.threadName`, `quartz.scheduler.makeSchedulerThreadDaemon` | the scheduling loop is a `Task`, not a `Thread`: it has no name and never held a process open | remove them; for the misfire and cluster threads, which are real threads, use `quartz.jobStore.makeThreadsDaemons` / `JobStore:UseBackgroundThreads` |
+| `quartz.jobListener.NAME.type`, `quartz.triggerListener.NAME.type` | a listener named by properties had no matchers, so it heard everything, and its type was found by reflection | `AddJobListener<T>(matchers)` and `AddTriggerListener<T>(matchers)`, which take the matchers and build the listener through the container |
+| `quartz.jobStore.lockHandler.tablePrefix`, `quartz.jobStore.lockHandler.schedName`, `quartz.jobStore.lockHandler.schedulerName` | the job store tells the lock handler its table prefix and scheduler name through `ILockHandler.Initialize` | set `quartz.jobStore.tablePrefix` and `quartz.scheduler.instanceName`; a 3.x configuration that sets these fails at startup |
+| `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | remoting, which .NET no longer supports | nothing |
 
-`quartz.jobListener.NAME.type` and `quartz.triggerListener.NAME.type`: a listener named by properties
-could carry no matchers, so it heard everything, and the type it named had to be found by reflection.
-`AddJobListener<T>(matchers)` and `AddTriggerListener<T>(matchers)` take the matchers *and* build the
-listener through the container. Registration is where a listener's matchers belong, so there is nothing
-the keys said that the registration cannot.
+**Removed in 4.x**, with no replacement: `quartz.scheduler.proxy*` and `quartz.scheduler.exporter*`
+(rejected with an exception, as above, not ignored) and `quartz.threadExecutor*` (no implementation left
+to choose).
 
-`quartz.jobStore.lockHandler.tablePrefix`, `quartz.jobStore.lockHandler.schedName` and
-`quartz.jobStore.lockHandler.schedulerName`: a lock handler is told its table prefix and its scheduler's
-name by the job store, through `ILockHandler.Initialize`. Set `quartz.jobStore.tablePrefix` and
-`quartz.scheduler.instanceName` and remove these — a 3.x configuration that sets them meets a startup
-exception rather than being ignored.
-
-`quartz.scheduler.proxy*` and `quartz.scheduler.exporter*` are the remaining two, described at the end
-of this section.
-
-Every key has both spellings. `quartz.jobStore.tablePrefix` and `JobStore:TablePrefix` are the same
-setting said two ways, and so are the ones that select an implementation rather than set a value —
-`JobStore:Type`, `JobStore:DriverDelegateType`, `JobStore:LockHandler:Type`, `ThreadPool:Type` and the
-rest. A configuration file never has to mix the two forms, and a component with no options type of its
-own is still configurable, because its settings are read as flat keys whichever way they were written.
-
-Durations may be written either way too: `00:00:30` or a bare `30000`, which is read as milliseconds
-for the sake of configuration files carried forward from 3.x.
-
-Where the same setting is said twice, code wins. A `UsePersistentStore` in code beats a leftover
-`quartz.jobStore.type` in a configuration file, and a value set through `ConfigureScheduler` beats the
-same value in `appsettings.json`. Built-in fallbacks — the driver delegate and the serializer — are
-registered after everything explicit, so they only apply when nothing else claimed the slot.
-
-Removed in 4.x, with no replacement: `quartz.scheduler.proxy*` and `quartz.scheduler.exporter*`
-(remoting, which .NET no longer supports) — these two are rejected with an exception naming the
-replacement, rather than accepted and ignored — plus `quartz.threadExecutor*`, which had no
-implementation left to choose between.
+- **Every key has both spellings**, including those that select an implementation: `JobStore:Type`,
+  `JobStore:DriverDelegateType`, `JobStore:LockHandler:Type`, `ThreadPool:Type` and the rest. A file never
+  has to mix the forms, and a component with no options type of its own is still configurable, since its
+  settings are read as flat keys either way.
+- **Durations** may be `00:00:30` or a bare `30000`, read as milliseconds for 3.x configuration files.
+- **Code wins** when a setting is given twice: a `UsePersistentStore` in code beats a leftover
+  `quartz.jobStore.type`, and `ConfigureScheduler` beats `appsettings.json`. The built-in fallbacks (the
+  driver delegate and the serializer) are registered last, so they apply only when nothing else claimed
+  the slot.
 
 ### Unknown job store keys
 
-A key under `quartz.jobStore` that nothing reads is refused by name when a persistent store resolves its
-settings — the startup validation `UsePersistentStore` declares, or the build that constructs the store:
+A persistent store refuses, by name, a key under `quartz.jobStore` that nothing reads, when it resolves
+its settings (in the startup validation `UsePersistentStore` declares, or when the store is built):
 
 ```text
 Unknown configuration property 'quartz.jobStore.dbRetryIntreval'. It is not a setting of the ADO.NET
@@ -950,18 +927,23 @@ job store, and no other reader consults it. Set 'quartz.checkConfiguration' to f
 Quartz does not read.
 ```
 
-3.x wrote every key under this prefix onto the store object by name and failed startup on one the store
-had no property for. 4.0 read the keys it knew into typed options and did nothing with the rest, so a
-typo — or a key a newer 3.x line had added and 4.x had not translated yet — started the scheduler with
-the default in force and said nothing about it.
+(3.x failed on such a key too. 4.0 ignored it, so a typo, or a key a newer 3.x line added that 4.x did
+not yet translate, left the default in force silently.)
 
-What counts as read: every flat key in the tables above, every property of `AdoJobStoreOptions` and of its
-`Clustering` sub-section spelled the way the options type spells it, every `quartz.jobStore.lockHandler.*`
-key — those are written onto the lock handler by name, which reports an unknown one itself — and
-`quartz.jobStore.driverDelegateInitString`, whose contents are checked as they are parsed. Case is not
-part of it: `quartz.jobstore.tableprefix` is the same key as `quartz.jobStore.tablePrefix`.
+Counted as read:
 
-Two things are deliberately outside it. A store with no options type of its own — one you wrote, or one
-from another package — still has its leftover keys under this prefix written onto it by name, so an
-unknown one fails there instead and says so in the same breath. And an in-memory store refuses nothing,
-because it reads one key under this prefix and the settings the others name are not its.
+- every flat key in the tables above;
+- every property of `AdoJobStoreOptions` and its `Clustering` sub-section, spelled as the options type
+  spells it;
+- every `quartz.jobStore.lockHandler.*` key, written onto the lock handler by name, which reports an
+  unknown one itself;
+- `quartz.jobStore.driverDelegateInitString`, whose contents are checked as they are parsed.
+
+Case does not matter: `quartz.jobstore.tableprefix` is `quartz.jobStore.tablePrefix`.
+
+Not covered:
+
+- A store with no options type of its own (yours, or another package's) still has leftover keys under
+  this prefix written onto it by name, so an unknown one fails there, with the same message.
+- An in-memory store refuses nothing: it reads one key under this prefix, and the others are not its
+  settings.

@@ -3,20 +3,12 @@
 title: 'Cron Expression Reference'
 ---
 
-## Introduction
-
-cron is a UNIX tool that has been around for a long time, so its scheduling capabilities are powerful and proven.
-The CronTrigger class is based on the scheduling capabilities of cron.
-
-CronTrigger uses "cron expressions", which are able to create firing schedules such as: "At 8:00am every Monday through Friday" or "At 1:30am every last Friday of the month".
-
-Cron expressions are powerful, but can be pretty confusing. This tutorial aims to take some of the mystery out of creating a cron expression,
-giving users a resource which they can visit before having to ask in a forum or mailing list.
+A `CronTrigger` fires on a schedule written as a cron expression, such as "at 8:00 every Monday through
+Friday" or "at 1:30 on the last Friday of the month".
 
 ## Format
 
-A cron expression is a string comprised of 6 or 7 fields separated by white space.
-Fields can contain any of the allowed values, along with various combinations of the allowed special characters for that field. The fields are as follows:
+A cron expression is 6 or 7 fields separated by white space:
 
 | **Field Name** | **Mandatory** | **Allowed Values** | **Allowed Special Characters** |
 |----------------|---------------|--------------------|--------------------------------|
@@ -28,72 +20,58 @@ Fields can contain any of the allowed values, along with various combinations of
 | Day of week    | YES           | 1-7 or SUN-SAT     | , - * ? / L # H                |
 | Year           | NO            | empty, 1970-2099   | , - * /                        |
 
-So cron expressions can be as simple as this: `* * * * ? *`
-
-or more complex, like this: `0/5 14,18,3-39,52 * ? JAN,MAR,SEP MON-FRI 2002-2010`
+Simple: `* * * * ? *`. Complex: `0/5 14,18,3-39,52 * ? JAN,MAR,SEP MON-FRI 2002-2010`.
 
 ::: tip
-You do not need an online generator to write one of these, and the library is the only thing that
-agrees with the library: build an expression with
-[`CronExpressionBuilder`](#building-cron-expressions-programmatically), and check one by
-[asking Quartz.NET when it fires](#checking-an-expression).
-
-There are many cron standards and implementations, and a generator you find online targets Java
-Quartz or plain Unix cron. It will not know [`H`](#h-hash-for-load-distribution) or
-[`MON/2`](#mon-2-is-a-step-through-the-week), so read what it gives you as a draft and confirm it
-here. A generator that emits the five-field Unix form can be read as written - see
+Build an expression with [`CronExpressionBuilder`](#building-cron-expressions-programmatically), and
+check one by [asking Quartz.NET when it fires](#checking-an-expression); only the library agrees with
+the library. An online generator targets Java Quartz or plain Unix cron and does not know
+[`H`](#h-hash-for-load-distribution) or [`MON/2`](#mon-2-is-a-step-through-the-week), so treat its
+output as a draft and confirm it here. Five-field Unix output can be read as written — see
 [The Unix five-field form](#the-unix-five-field-form).
 :::
 
 ## Special characters
 
-- `*` ("all values") - used to select all values within a field. For example, `*` in the minute field means "every minute".
-- `?` ("no specific value") - allowed in the day-of-month and day-of-week fields, where it is a synonym for `*`: both say that the field names no days.
-Use it when you need to specify something in one of the two fields but not the other. For example, if I want my trigger to fire on a particular day of the month (say, the 10th),
-but don't care what day of the week that happens to be, I would put `10` in the day-of-month field, and `?` in the day-of-week field. See the examples below for clarification.
-- `-` - used to specify ranges. For example, `10-12` in the hour field means "the hours 10, 11 and 12".
-- `,` - used to specify additional values. For example, `MON,WED,FRI` in the day-of-week field means "the days Monday, Wednesday, and Friday".
-- `/` - used to specify increments. For example, `0/15` in the seconds field means "the seconds 0, 15, 30, and 45".
-And `5/15` in the seconds field means "the seconds 5, 20, 35, and 50".
-You can also specify `/` after the `*` character - in this case `*` is equivalent to having `0` before the `/`.
-`1/3` in the day-of-month field means "fire every 3 days starting on the first day of the month".
-A day-of-week step may start from a name: `MON/2` is `2/2`, Monday, Wednesday and Friday — but see
-[`MON/2` is a step through the week](#mon-2-is-a-step-through-the-week) if the expression came from 3.x.
-- `L` ("last") - has different meaning in each of the two fields in which it is allowed.
-For example, the value `L` in the day-of-month field means "the last day of the month" - day 31 for January, day 28 for February on non-leap years.
-If used in the day-of-week field by itself, it simply means "7" or "SAT". But if used in the day-of-week field after another value, it means "the last xxx day of the month" -
-for example `6L` means "the last Friday of the month". You can also specify an offset from the last day of the month, such as `L-3` which
-would mean the third-to-last day of the calendar month.
-The `L` option can be used in a list, but there can only be one occurrence of the `L`.
-For example `1,15,L` would mean trigger on the 1st, 15th and Last Day of the month.
-
-- `W` ("weekday") - used to specify the weekday (Monday-Friday) nearest the given day.
-As an example, if you were to specify `15W` as the value for the day-of-month field, the meaning is: "the nearest weekday to the 15th of the month".
-So if the 15th is a Saturday, the trigger will fire on Friday the 14th. If the 15th is a Sunday, the trigger will fire on Monday the 16th. If the 15th is a Tuesday,
-then it will fire on Tuesday the 15th. However if you specify `1W` as the value for day-of-month, and the 1st is a Saturday, the trigger will fire on Monday the 3rd,
-as it will not 'jump' over the boundary of a month's days. The `W` character can only be specified when the day-of-month is a single day, not a range or list of days.
+- `*` — all values. `*` in the minute field is every minute.
+- `?` — no specific value. Day-of-month and day-of-week only, where it is a synonym for `*`: the field
+  names no days. Use it to set one day field and not the other: `10` in day-of-month and `?` in
+  day-of-week fires on the 10th, whatever the weekday.
+- `-` — a range. `10-12` in the hour field is 10, 11 and 12. A range whose end is below its start wraps:
+  `22-2` in the hour field is 22, 23, 0, 1 and 2, and `FRI-MON` is Friday to Monday.
+- `,` — a list. `MON,WED,FRI` in the day-of-week field is Monday, Wednesday and Friday.
+- `/` — an increment. `0/15` in the seconds field is 0, 15, 30 and 45; `5/15` is 5, 20, 35 and 50. `*/n`
+  is `0/n`. `1/3` in day-of-month is every 3 days starting on the 1st. A day-of-week step may start from
+  a name: `MON/2` is `2/2`, Monday, Wednesday and Friday — see
+  [`MON/2` is a step through the week](#mon-2-is-a-step-through-the-week) if the expression came from 3.x.
+- `L` — last. Its meaning depends on the field:
+  - Day-of-month: the last day of the month — 31 for January, 28 for February in a non-leap year.
+    `L-3` is three days before the last day: the 28th of a 31-day month. `L` can be used in a list:
+    `1,15,L` is the 1st, the 15th and the last day, and `L,L-1` is the last two days.
+  - Day-of-week, alone: `7`, Saturday. After a value: the last such day of the month — `6L` is the last
+    Friday.
+- `W` — the weekday (Monday to Friday) nearest the given day, in day-of-month only, and only after a
+  single day, not a range or list. `15W`: a Saturday 15th fires on Friday the 14th, a Sunday 15th on
+  Monday the 16th, a Tuesday 15th on the 15th. It never crosses into another month: `1W` on a Saturday
+  1st fires on Monday the 3rd.
+- `#` — the nth weekday of the month, in day-of-week. `6#3` is the third Friday, `2#1` the first Monday,
+  `4#5` the fifth Wednesday. A month without a fifth one does not fire.
+- `@` — a macro naming a whole schedule: `@daily` *is* the expression. See [Macros](#macros).
 
 ::: tip
- The `L` and `W` characters can also be combined in the day-of-month field to yield `LW`, which translates to *"last weekday of the month"*.  This field can also be used in a list, for example `1,15,LW` meaning 1st, 15th and Last Weekday of the month.  `LW` supports an offset value, which will be calculated by first identifying last weekday, then subtracting the offset. for example `LW-2`
+`L` and `W` combine in day-of-month as `LW`, the last weekday of the month. It can be in a list
+(`1,15,LW`) and take an offset: `LW-2` finds the last weekday, then subtracts 2.
 :::
 
-- `#` - used to specify "the nth" XXX day of the month. For example, the value of `6#3` in the day-of-week field means
-"the third Friday of the month" (day 6 = Friday and "#3" = the 3rd one in the month).
-Other examples: `2#1` = the first Monday of the month and `4#5` = the fifth Wednesday of the month.
-Note that if you specify `#5` and there is not 5 of the given day-of-week in the month, then no firing will occur that month.
-
-- `@` - names a whole schedule instead of one field. `@daily` *is* the expression; there is nothing else in it.
-See [Macros](#macros) below for the set.
-
 ::: tip
-The legal characters and the names of months and days of the week are not case sensitive. MON is the same as mon.
+Characters and the names of months and days are case-insensitive: `MON` is `mon`.
 :::
 
 ## Forms the parser refuses
 
-Six shapes parsed on 3.x and then meant something other than what they said — a special character was
-dropped on the floor, or a step degenerated. Each is a `FormatException` in 4.x, and the message names
-the expression that says what the author meant.
+These six shapes parsed on 3.x but meant something other than what they said: a special character was
+dropped, or a step degenerated. 4.x throws a `FormatException` whose message gives the expression the
+author meant.
 
 | Written | What it used to mean | Write instead |
 |:--------|:---------------------|:--------------|
@@ -104,36 +82,34 @@ the expression that says what the author meant.
 | `*/0`, `5/0`, `0-10/0` | no step at all | `*` for every value, or a step of 1 or more |
 | `0-10/120` | an unchecked step; `0/120` was already rejected | a step inside the field's range |
 
-If a database may hold one of these expressions, audit it before upgrading:
+If a database may hold one of these, audit it before upgrading:
 [Before you upgrade](migration-guide.md#before-you-upgrade) has the query.
 
 ## `MON/2` is a step through the week
 
-A textual day-of-week may be followed by a step since 4.1, and it means exactly what its numeric twin
-means: `MON/2` is `2/2`, which is Monday, Wednesday and Friday. `MON-FRI/2` is `2-6/2`, the same three
-days. The step runs to Saturday and does not wrap, as it does after a number.
+Since 4.1 a textual day-of-week may take a step, and it means what its numeric twin means: `MON/2` is
+`2/2`, Monday, Wednesday and Friday. `MON-FRI/2` is `2-6/2`, the same three days. The step runs to
+Saturday and does not wrap, as after a number.
 
 ::: danger An expression carried over from 3.x means something else
-On 3.x, `MON/2` meant **every second Monday** — a fortnight, not a step. On 4.0 it was rejected outright.
-On 4.1 it parses and fires on Monday, Wednesday and Friday: **26 fires a year become 156**, and nothing
-is logged, because the expression is valid.
+On 3.x, `MON/2` meant **every second Monday**, a fortnight. 4.0 rejected it. 4.1 parses it as Monday,
+Wednesday and Friday: **26 fires a year become 156**, and nothing is logged, because the expression is
+valid.
 
-Audit for it before upgrading — [Before you upgrade](migration-guide.md#before-you-upgrade) has the
-query — and rewrite what you find. Every second Monday is
+Audit for it before upgrading ([Before you upgrade](migration-guide.md#before-you-upgrade) has the
+query) and rewrite what you find. Every second Monday is
 `RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")`.
-[`RecurrenceTrigger`](tutorial/recurrencetrigger.md) anchors the interval on the trigger's start time, so
-the fortnight belongs to the trigger and keeps its phase — which 3.x's reading never did, counting whole
-weeks from wherever the search happened to start, so that a misfire, a restart, a failover or a dashboard
-query recomputed it from a different day and moved it.
+[`RecurrenceTrigger`](tutorial/recurrencetrigger.md) anchors the interval on the trigger's start time,
+so the fortnight keeps its phase. 3.x counted whole weeks from wherever the search started, so a misfire,
+a restart, a failover or a dashboard query could move it.
 :::
 
-The value after the `/` has to be a whole number from 1 to 7, the same one the numeric spelling takes.
-`MON/X` and `SUN/9` are rejected, and the message says both what a step has to be and where the fortnight
-lives now.
+The step must be a whole number from 1 to 7, as in the numeric spelling. `MON/X` and `SUN/9` are
+rejected; the message says what a step must be and where the fortnight lives now.
 
 ## Macros
 
-The `@` macros are the ones Unix cron has had since Vixie's, and they mean the same thing here:
+The `@` macros are Vixie cron's, with the same meanings:
 
 | **Macro**             | **Expands to** | **Meaning**                           |
 |:----------------------|:---------------|:--------------------------------------|
@@ -143,9 +119,9 @@ The `@` macros are the ones Unix cron has had since Vixie's, and they mean the s
 | `@daily`, `@midnight` | `0 0 0 * * ?`  | Midnight every day                    |
 | `@hourly`             | `0 0 * * * ?`  | The top of every hour                 |
 
-A macro needs no dialect and no opt-in, so it works wherever an expression string is read - in code, in an
-XML scheduling file's `<cron-expression>@daily</cron-expression>`, in the dashboard's expression box and over
-the HTTP API:
+A macro needs no dialect and no opt-in. It works wherever an expression string is read: in code, in an
+XML scheduling file's `<cron-expression>@daily</cron-expression>`, in the dashboard's expression box and
+over the HTTP API.
 
 <!-- snippet: sample_cron_expressions_macro -->
 ```csharp
@@ -156,18 +132,18 @@ ITrigger trigger = TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-The expansion is what gets stored: a trigger written with `@daily` reports its expression as `0 0 0 * * ?`.
+The expansion is what is stored: a trigger written with `@daily` reports `0 0 0 * * ?`.
 
-`@reboot` is rejected by name - a scheduler has no reboot to fire on, so schedule the work at startup
-instead - and any other `@name` is rejected with the list above. There is deliberately no `@every_minute`
-or `@every_second`: `0 * * * * ?` is already short, and where the point is to spread load,
-[`H`](#h-hash-for-load-distribution) does it deterministically.
+- `@reboot` is rejected by name: a scheduler has no reboot to fire on, so schedule the work at startup.
+- Any other `@name` is rejected with the list above.
+- There is no `@every_minute` or `@every_second`: `0 * * * * ?` is already short, and
+  [`H`](#h-hash-for-load-distribution) spreads load deterministically.
 
 ## The Unix five-field form
 
-A cron expression copied from a crontab, a Kubernetes `CronJob` or almost any online generator has **five**
-fields rather than six: it has no seconds field, and it numbers the days of the week 0-7 from Sunday rather
-than 1-7. Quartz reads that form when you ask it to, with `CronFormat.Unix`:
+An expression from a crontab, a Kubernetes `CronJob` or most online generators has **five** fields: no
+seconds, and days of the week numbered 0-7 from Sunday instead of 1-7. Quartz reads that form when asked,
+with `CronFormat.Unix`:
 
 <!-- snippet: sample_cron_expressions_unix_format -->
 ```csharp
@@ -179,9 +155,9 @@ string canonical = expression.CronExpressionString;
 ```
 <!-- endSnippet -->
 
-The format is a way of reading the string, and that is all it is. There are three doors -
-`CronExpression.Parse`, `CronExpression.TryParse` and `CronScheduleBuilder.Create` - and past them the
-expression is an ordinary `CronExpression`:
+The format only changes how the string is read. Three methods take it — `CronExpression.Parse`,
+`CronExpression.TryParse` and `CronScheduleBuilder.Create` — and the result is an ordinary
+`CronExpression`:
 
 <!-- snippet: sample_cron_expressions_unix_format_trigger -->
 ```csharp
@@ -200,9 +176,8 @@ ITrigger composed = TriggerBuilder.Create()
 
 A time zone composes the same way: `CronExpression.Parse(s, CronFormat.Unix).WithTimeZone(tz)`.
 
-This is the one dialect an online tool describes reliably: [crontab.guru](https://crontab.guru/)
-explains a five-field expression field by field. Read what it tells you about the string, then hand
-the string to `CronFormat.Unix` rather than translating it by hand.
+[crontab.guru](https://crontab.guru/) explains a five-field expression field by field. Use it to read
+the string, then pass the string to `CronFormat.Unix` rather than translating it by hand.
 
 | **Crontab**     | **Read as**          | **Meaning**                                           |
 |:----------------|:---------------------|:------------------------------------------------------|
@@ -214,55 +189,51 @@ the string to `CronFormat.Unix` rather than translating it by hand.
 | `0 0 * * 5-1`   | `0 0 0 ? * FRI-MON`  | Midnight Friday through Monday                        |
 | `0 0 13 * 5`    | `0 0 0 13 * FRI`     | The 13th **and** every Friday - both fields name days |
 
-Two things differ between the dialects and nothing else does. The **layout**: five fields, minutes first,
-with no seconds and no year. The **day-of-week numbering**: 0-7 with both 0 and 7 meaning Sunday, so `1-5` is
-Monday to Friday as it is in crontab, and `5` is Friday rather than the Thursday the same digit means in a
-Quartz expression. Everything above is one grammar - `L`, `W` and `#` all work inside the five-field
-layout, and `L` alone in day-of-week still means Saturday, because it is not a number and so has nothing to
-renumber.
+Only two things differ between the dialects:
+
+- **Layout**: five fields, minutes first, no seconds and no year.
+- **Day-of-week numbering**: 0-7, with both 0 and 7 meaning Sunday. `1-5` is Monday to Friday, as in
+  crontab, and `5` is Friday, not the Thursday it means in a Quartz expression.
+
+The grammar is otherwise the same: `L`, `W` and `#` work in the five-field layout, and `L` alone in
+day-of-week is still Saturday, since it is not a number.
 
 ::: tip `H` composes with the Unix form
-`CronScheduleBuilder.Create(expression, CronFormat.Unix)` reads an `H` in the five-field form: it rewrites
-to the Quartz form first and then defers the hash to the trigger's identity, so
-`Create("H 4 * * 1", CronFormat.Unix)` on a trigger identified as `nightly` comes out as `0 13 4 ? * MON`.
-[`ParseWithHash`](#h-hash-for-load-distribution) and `TryParseWithHash` take a format beside the hash key
-and run the same rewrite first, so `ParseWithHash("H 4 * * 1", CronFormat.Unix, "nightly")` is that same
-expression without a trigger to hang it on. Because the rewrite runs first, an `H` in a five-field
-day-of-week is hashed over Quartz's 1-7 rather than crontab's 0-7 and can never land on a day the
-renumbering would have moved.
+`CronScheduleBuilder.Create(expression, CronFormat.Unix)` reads `H` in the five-field form. It rewrites
+to the Quartz form first, then hashes on the trigger's identity: `Create("H 4 * * 1", CronFormat.Unix)`
+on a trigger identified as `nightly` becomes `0 13 4 ? * MON`.
+[`ParseWithHash`](#h-hash-for-load-distribution) and `TryParseWithHash` take a format beside the hash
+key and rewrite first too, so `ParseWithHash("H 4 * * 1", CronFormat.Unix, "nightly")` is the same
+expression without a trigger. Because the rewrite comes first, an `H` in a five-field day-of-week is
+hashed over Quartz's 1-7, not crontab's 0-7.
 
-`CronExpression.Parse` and `TryParse` take a format but no hash key, so there is nothing for `H` to hash
-against. `ResolveHash` still takes a hash key but no format: it answers with a string rather than an
-expression, so it stays a Quartz-form operation, and a five-field expression is rejected there with the
-six-field advice. Resolve through `ParseWithHash` instead.
+`CronExpression.Parse` and `TryParse` take a format but no hash key, so `H` has nothing to hash.
+`ResolveHash` takes a hash key but no format; it returns a string, so it stays Quartz-form only and
+rejects a five-field expression with the six-field advice. Use `ParseWithHash` instead.
 :::
 
 ::: warning
-The expression is **normalised** to the canonical Quartz form, and the original text is not recoverable.
+The expression is **normalised** to the Quartz form, and the original text is lost.
 `CronExpressionString`, the dashboard, the HTTP API and `QRTZ_CRON_TRIGGERS.CRON_EXPRESSION` all show
-`0 30 4 ? * MON` for a trigger written as `30 4 * * 1`. That is deliberate: a stored string that parses only
-under a flag the store does not persist would be a trap, so there is no format column and there will not be
-one. It is the same trade as the uppercasing that has always turned `mon-fri` into `MON-FRI`.
+`0 30 4 ? * MON` for a trigger written as `30 4 * * 1`. By design: a stored string that parses
+only under a flag the store does not persist would be a trap, so there is no format column and there
+will not be one. It is the same trade as the uppercasing that turns `mon-fri` into `MON-FRI`.
 
-The consequence is that the format is a parse-time argument only: the XML schema, the HTTP API and the
-dashboard do not take one, so a five-field expression is something you write in C#, not something you store.
-The macros above have no such limit.
+So the format is a parse-time argument only. The XML schema, the HTTP API and the dashboard do not take
+one: a five-field expression is written in C#, not stored. Macros have no such limit.
 :::
 
-There is no auto-detection, and the field count alone does not choose the dialect. Letting it would make a
-*dropped* field silent: `0 0 12 * * ?` without its month field is `0 0 12 * ?`, a well-formed crontab line
-meaning midnight on the 12th rather than noon every day. The same digit also names a different day in each
-dialect. So Quartz asks, and the error a five-field expression gets when nobody asked names the method that
-does read it.
+**The format is stated, never detected.** Detecting it from the field count would make a *dropped*
+field silent: `0 0 12 * * ?` without its month field is `0 0 12 * ?`, a valid crontab line meaning
+midnight on the 12th, not noon every day. The same digit also names a different day in each dialect. A
+five-field expression given without a format fails with an error naming the method that reads it.
 
 ### An expression copied from Spring
 
 ::: danger A Spring expression with a numeric day-of-week schedules the wrong day
-Spring's `@Scheduled(cron = …)` is **six** fields with seconds first, exactly the shape of a Quartz
-expression — so Quartz accepts it without complaint. But Spring numbers the days of the week the Unix
-way, 0-7 with both 0 and 7 meaning Sunday, where Quartz numbers them 1-7 starting at Sunday. Every
-numeric day therefore reads one day earlier than it was written, silently, and has on every version of
-Quartz ever shipped.
+Spring's `@Scheduled(cron = …)` has **six** fields, seconds first — the shape of a Quartz expression — so
+Quartz accepts it. But Spring numbers days the Unix way, 0-7 with 0 and 7 both Sunday, where Quartz uses
+1-7 from Sunday. Every numeric day reads one day earlier than written, silently, on every Quartz version.
 
 | `@Scheduled(cron = …)` | Spring fires | Quartz reads it as |
 |:---|:---|:---|
@@ -271,35 +242,29 @@ Quartz ever shipped.
 | `0 0 9 * * 6` | 09:00 on Saturdays | 09:00 on **Fridays** |
 | `0 0 9 * * MON-FRI` | 09:00 Monday to Friday | 09:00 Monday to Friday |
 
-**Write the day as a name.** `SUN`, `MON`, `TUE`, `WED`, `THU`, `FRI` and `SAT` mean the same day in
-Spring, in crontab and in Quartz, and Spring accepts them too — so a named expression is the one that
-survives being pasted in either direction. The last row above is the same schedule under both readings.
+**Write the day as a name.** `SUN` through `SAT` mean the same day in Spring, crontab and Quartz, so a
+named expression survives being pasted either way, as the last row shows.
 
-There is no `CronFormat.Spring`, and there is no detection of one either. The two six-field dialects are
-*the same shape*, so nothing about the string can tell them apart — which is the structural reason
-[the format is stated rather than sniffed](#the-unix-five-field-form). A `CronFormat.Spring` member can
-be added later without breaking anything, and it is filed for 4.1; auto-detection could never be added,
-because by then the existing reading of a six-field expression is the one people's schedules depend on.
+There is no `CronFormat.Spring` and no detection of one. The two six-field dialects have the same shape,
+so the string cannot tell them apart — which is why [the format is stated](#the-unix-five-field-form).
+A `CronFormat.Spring` member could be added later without breaking anything; auto-detection never
+could, because the existing six-field reading is the one schedules depend on.
 :::
 
 ### If your expressions came from another .NET cron library
 
-Cronos and NCrontab are crontab-derived, and an expression written for either parses here — six fields
-have the same shape. Almost all of them also fire at the same instants. Two things differ, and both are
-silent, because the expression is perfectly valid Quartz cron; it simply means something else.
+Cronos and NCrontab expressions parse here, and almost all fire at the same instants. Two differences
+are silent, because the expression is valid Quartz cron that means something else:
 
-**The day-of-week numbering.** Quartz numbers `1-7` with Sunday `1`; those libraries number `0-6` with
-Sunday `0`, and crontab itself `0-7` with both ends Sunday. So `0 0 2 * * 1` is 02:00 on **Sunday** here
-and 02:00 on **Monday** there — the same divergence [a Spring expression
-has](#an-expression-copied-from-spring), and the same answer: write the day as a name. `SUN` through
-`SAT` mean the same day in every one of these dialects.
+- **Day-of-week numbering.** Quartz numbers `1-7` with Sunday `1`; those libraries number `0-6` with
+  Sunday `0`, and crontab `0-7` with both ends Sunday. `0 0 2 * * 1` is 02:00 on **Sunday** here and on
+  **Monday** there — the same issue as [a Spring expression](#an-expression-copied-from-spring), with the
+  same fix: write the day as a name.
+- **Both day fields restricted.** Quartz fires on the **union** of day-of-month and day-of-week, as
+  crontab does; Cronos takes the intersection. `0 0 2 5 * MON` is "the 5th, and every Monday" here and
+  "the 5th, if it is a Monday" there. Put `?` in one of the two fields to say which one applies.
 
-**Both day fields restricted.** Quartz fires on the **union** of day-of-month and day-of-week, which is
-crontab's rule; Cronos takes their intersection. `0 0 2 5 * MON` is "the 5th, and every Monday" here and
-"the 5th, if it is a Monday" there. Putting `?` in one of the two fields says which one is in charge and
-settles it.
-
-Everything else carries across. Searching from `2026-08-21T00:00:00Z`, against Cronos 0.11.0:
+Searching from `2026-08-21T00:00:00Z`, against Cronos 0.11.0:
 
 | Expression | Quartz | Cronos | |
 |:---|:---|:---|:---|
@@ -311,26 +276,23 @@ Everything else carries across. Searching from `2026-08-21T00:00:00Z`, against C
 | `0 0 2 * * 1` | 2026-08-23 (**Sunday**) | 2026-08-24 (**Monday**) | **differ** |
 | `0 0 2 5 * MON` | 2026-08-24 (union) | 2026-10-05 (intersection) | **differ** |
 
-A **five**-field expression from one of those libraries is a different matter: `CronFormat.Unix` reads it
-and renumbers the days for you, so `CronExpression.Parse("0 2 * * 1", CronFormat.Unix)` is Monday, as its
-author meant. See [The Unix five-field form](#the-unix-five-field-form).
+A **five**-field expression from those libraries is read by `CronFormat.Unix`, which renumbers the days:
+`CronExpression.Parse("0 2 * * 1", CronFormat.Unix)` is Monday, as its author meant. See
+[The Unix five-field form](#the-unix-five-field-form).
 
 ::: tip Upgrading from 3.x with such an expression in the database
-3.x required `?` in exactly one day field, so an expression with two restricted day fields was
-*rejected* on the way in. It stores and fires on 4.0. The migration guide has an audit for finding the
-two shapes above among the expressions you already hold:
+3.x required `?` in exactly one day field, so it rejected an expression with both day fields restricted;
+4.0 stores and fires it. The migration guide has an audit for both shapes above:
 [If your expressions came from another cron library](migration-guide.md#if-your-expressions-came-from-another-cron-library).
 :::
 
 ## H (hash) for load distribution
 
-The `H` symbol (for "hash") can be used in place of a specific value to spread scheduled tasks
-evenly across time. When many triggers share an identical cron expression such as `0 0 0 * * ?` (midnight daily),
-they all fire simultaneously, causing resource spikes.
+`H` ("hash") spreads triggers that share an expression. Many triggers on `0 0 0 * * ?` (midnight daily)
+all fire at once and cause a resource spike; `H` in place of a value gives each trigger a different one.
 
-`H` resolves to a **deterministic** value derived from the trigger's identity (name and group). The value stays
-stable as long as the trigger identity doesn't change, but different triggers get different
-values, spreading load across the allowed range.
+`H` resolves to a **deterministic** value derived from the trigger's identity (name and group). It stays
+the same while the identity does, and differs between triggers.
 
 ### Syntax
 
@@ -341,9 +303,8 @@ values, spreading load across the allowed range.
 | `H/15`         | Hash-derived offset, then repeat every 15 (e.g., 7, 22, 37, 52) |
 | `H(0-29)/10`   | Hash-derived offset in 0-29, then repeat every 10 (e.g., 3, 13, 23) |
 
-`H` can appear in **comma-separated lists** alongside fixed values (e.g., `H,30,45`).
-
-`H` is **not** supported in the Year field, and cannot be combined with `L`, `W`, or `#`.
+- `H` can appear in a **comma-separated list** with fixed values, e.g. `H,30,45`.
+- `H` is **not** allowed in the Year field, and cannot be combined with `L`, `W` or `#`.
 
 ### Hash examples
 
@@ -356,9 +317,8 @@ values, spreading load across the allowed range.
 
 ### Usage with TriggerBuilder
 
-When using `H` through the builder API, the trigger identity is used as the hash seed.
-You **must** call `WithIdentity()` so the hash is derived from a stable, meaningful name
-rather than a random GUID:
+Through the builder, the trigger identity is the hash seed. You **must** call `WithIdentity()`, so the
+hash comes from a stable name rather than a random GUID:
 
 <!-- snippet: sample_cron_expressions_hash_from_trigger_name -->
 ```csharp
@@ -369,8 +329,8 @@ ITrigger trigger = TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-You can also provide an explicit hash key, which does not require a trigger identity. The key rides on
-the `CronExpression`, and `WithCronSchedule` takes one directly:
+Or give an explicit hash key, which needs no trigger identity. The key rides on the `CronExpression`,
+and `WithCronSchedule` takes one directly:
 
 <!-- snippet: sample_cron_expressions_hash_key_on_expression -->
 ```csharp
@@ -380,11 +340,10 @@ ITrigger trigger = TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-Or resolve the expression on its own with `CronExpression.ParseWithHash`, which is the parse the
-builder overload does for you. `CronExpression.TryParseWithHash` is the non-throwing form, for a key
-and an expression that both came from somewhere you do not control. Both take a
-[`CronFormat`](#the-unix-five-field-form) as their second argument when the expression is not written
-the Quartz way:
+`CronExpression.ParseWithHash` resolves the expression on its own; `CronExpression.TryParseWithHash` is
+the non-throwing form, for a key and expression from outside your control. Both take a
+[`CronFormat`](#the-unix-five-field-form) as their second argument for an expression not written the
+Quartz way:
 
 <!-- snippet: sample_cron_expressions_hash_key -->
 ```csharp
@@ -393,15 +352,13 @@ CronExpression expr = CronExpression.ParseWithHash("0 H H(0-7) * * ?", "nightly-
 <!-- endSnippet -->
 
 ::: tip
-`CronExpressionString` returns the **resolved** expression (e.g., `"0 23 3 * * ?"`) after H
-tokens are replaced with their computed values. This resolved form is what gets persisted to
-the database, ensuring stability across scheduler restarts.
+`CronExpressionString` returns the **resolved** expression (e.g., `"0 23 3 * * ?"`), with `H` replaced
+by its computed value. That resolved form is what is persisted, so it is stable across restarts.
 :::
 
 ## Building cron expressions programmatically
 
-When a schedule is assembled from user input - for example a scheduling UI that offers
-dropdowns instead of a free-form cron field - you can compose the expression with the fluent
+To build a schedule from user input, such as a scheduling UI with dropdowns, use the fluent
 `CronExpressionBuilder` instead of concatenating strings:
 
 <!-- snippet: sample_cron_expressions_builder -->
@@ -417,14 +374,12 @@ ITrigger trigger = TriggerBuilder.Create()
 ```
 <!-- endSnippet -->
 
-`WithCronSchedule` accepts the builder (or a built `CronExpression`) directly, so the chain closes
-without naming `CronScheduleBuilder`; call `Build()` yourself when you want the `CronExpression` as a
-value.
+`WithCronSchedule` accepts the builder (or a built `CronExpression`) directly, so the chain needs no
+`CronScheduleBuilder`. Call `Build()` yourself when you want the `CronExpression` as a value.
 
-Each field offers a single value, list, range and increment form (e.g. `WithHour`,
-`WithHours`, `WithHourRange`, `WithHourIncrements`). A schedule that fires once a day sets three of
-those fields to say one thing, so `AtTime` sets them together from a `TimeOnly` — add the days it
-applies to beside it:
+Each field has a single-value, list, range and increment form (e.g. `WithHour`, `WithHours`,
+`WithHourRange`, `WithHourIncrements`). `AtTime` sets the second, minute and hour together from a
+`TimeOnly`; add the days beside it:
 
 <!-- snippet: sample_cron_expressions_at_time -->
 ```csharp
@@ -440,9 +395,9 @@ CronExpressionBuilder.Create()
 ```
 <!-- endSnippet -->
 
-Cron resolves to a whole second, so any sub-second part of the `TimeOnly` is ignored.
+Cron resolves to a whole second, so the sub-second part of the `TimeOnly` is ignored.
 
-The special characters are available through dedicated methods:
+The special characters have dedicated methods:
 
 <!-- snippet: sample_cron_expressions_day_rules -->
 ```csharp
@@ -453,25 +408,23 @@ CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Friday);   // "*
 ```
 <!-- endSnippet -->
 
-A few rules to be aware of:
+Rules:
 
 - Unconfigured fields default to `*` (every value).
-- Each field can be configured only once; configuring it again throws `InvalidOperationException`.
-- One expression carries one day field: the builder renders the unused one as `?` and throws if
-  you configure both. That is the builder's own rule rather than cron's, because an expression
-  naming both day fields fires on the union of the two (`0 15 10 1,2,3 * MON,FRI`), which
-  `CronExpression.Parse` accepts - so write that one as text.
-- Values are validated eagerly against each field's allowed range, and `Build()` returns a
-  fully validated `CronExpression`; use `ToString()` if you only need the expression string.
-- Days of the week are emitted using their textual names (`MON`, `FRI`, ...), so the produced
-  expressions stay unambiguous across cron dialects that number weekdays differently.
+- Each field can be configured once; configuring it again throws `InvalidOperationException`.
+- The builder uses one day field: it renders the other as `?` and throws if you configure both. That is
+  the builder's rule, not cron's. An expression naming both day fields fires on their union
+  (`0 15 10 1,2,3 * MON,FRI`) and `CronExpression.Parse` accepts it, so write that one as text.
+- Values are validated against each field's range as they are set, and `Build()` returns a validated
+  `CronExpression`. Use `ToString()` if you only need the string.
+- Days of the week are emitted as names (`MON`, `FRI`, ...), so the expression means the same day in
+  cron dialects that number weekdays differently.
 
 ## Checking an expression
 
-An expression you were given - by a colleague, by an online generator, or by a configuration file
-written years ago - is worth putting through the parser before it reaches a scheduler.
-`CronExpression.TryParse` answers whether Quartz.NET can read it at all, and
-`GetNextValidTimeAfter` answers the more useful question of what it actually means:
+Put an expression you were given — by a colleague, an online generator or an old configuration file —
+through the parser before it reaches a scheduler. `CronExpression.TryParse` says whether Quartz.NET can
+read it; `GetNextValidTimeAfter` says what it means:
 
 <!-- snippet: sample_cron_expressions_preview -->
 ```csharp
@@ -497,97 +450,85 @@ for (int i = 0; i < 5; i++)
 ```
 <!-- endSnippet -->
 
-Printing the fire times is what catches a misread field, because a schedule that is off by a day or
-an hour looks perfectly plausible as a string and obvious as a list of dates. It is also the only
-check that covers this dialect in full: [`H`](#h-hash-for-load-distribution), a range that wraps
-(`22-2`, `FRI-MON`), [`MON/2`](#mon-2-is-a-step-through-the-week) and the way the two day fields
-combine are each a point where Quartz.NET parts company with Java Quartz, with Unix cron, or with
-both - and an external tool implements none of them.
+A schedule off by a day or an hour looks plausible as a string and obvious as a list of dates. This is
+also the only check that covers the whole dialect: [`H`](#h-hash-for-load-distribution), a wrapping range
+(`22-2`, `FRI-MON`), [`MON/2`](#mon-2-is-a-step-through-the-week) and how the two day fields combine
+each differ from Java Quartz, Unix cron or both, and no external tool implements them.
 
-A few things to know about the loop above:
-
-- `GetNextValidTimeAfter` returns `null` when the expression has no further fire time - an
-  expression naming a year that has passed, for instance - so the loop stops rather than repeating.
-- The times come back as `DateTimeOffset`, and `TimeZone` is the zone the expression is read in
-  (the local zone unless you passed one). Converting before printing is what makes
-  [daylight saving time](#daylight-saving-time) visible.
-- `CronExpression.Parse` is the same thing for code that would rather throw than branch, and both
-  take a [`CronFormat`](#the-unix-five-field-form).
+- `GetNextValidTimeAfter` returns `null` when there is no further fire time (for example, an expression
+  naming a past year), so the loop stops.
+- The times are `DateTimeOffset`. `TimeZone` is the zone the expression is read in (the local zone
+  unless you passed one); converting before printing makes [daylight saving time](#daylight-saving-time)
+  visible.
+- `CronExpression.Parse` throws instead of returning `false`. Both take a
+  [`CronFormat`](#the-unix-five-field-form).
 
 ## Examples
 
-Here are some full examples:
-
-| **Expression**             | **Meaning**                                                                                                                         |
-|:---------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
-| `0 0 12 * * ?`             | Fire at 12pm (noon) every day                                                                                                       |
-| `0 15 10 ? * *`            | Fire at 10:15am every day                                                                                                           |
-| `0 15 10 * * ?`            | Fire at 10:15am every day                                                                                                           |
-| `0 15 10 * * ? *`          | Fire at 10:15am every day                                                                                                           |
-| `0 15 10 * * ? 2005`       | Fire at 10:15am every day during the year 2005                                                                                      |
-| `0 * 14 * * ?`             | Fire every minute starting at 2pm and ending at 2:59pm, every day                                                                   |
-| `0 0/5 14 * * ?`           | Fire every 5 minutes starting at 2pm and ending at 2:55pm, every day                                                                |
-| `0 0/5 14,18 * * ?`        | Fire every 5 minutes starting at 2pm and ending at 2:55pm, AND fire every 5 minutes starting at 6pm and ending at 6:55pm, every day |
-| `0 0-5 14 * * ?`           | Fire every minute starting at 2pm and ending at 2:05pm, every day                                                                   |
-| `0 10,44 14 ? 3 WED`       | Fire at 2:10pm and at 2:44pm every Wednesday in the month of March.                                                                 |
-| `0 15 10 ? * MON-FRI`      | Fire at 10:15am every Monday, Tuesday, Wednesday, Thursday and Friday                                                               |
-| `0 15 10 15 * ?`           | Fire at 10:15am on the 15th day of every month                                                                                      |
-| `0 15 10 L * ?`            | Fire at 10:15am on the last day of every month                                                                                      |
-| `0 15 10 L-2 * ?`          | Fire at 10:15am on the 2nd-to-last last day of every month                                                                          |
-| `0 15 10 ? * 6L`           | Fire at 10:15am on the last Friday of every month                                                                                   |
-| `0 15 10 ? * 6L 2002-2005` | Fire at 10:15am on every last Friday of every month during the years 2002, 2003, 2004 and 2005                                      |
-| `0 15 10 ? * 6#3`          | Fire at 10:15am on the third Friday of every month                                                                                  |
-| `0 0 12 1/5 * ?`           | Fire at 12pm (noon) every 5 days every month, starting on the first day of the month.                                               |
-| `0 11 11 11 11 ?`          | Fire every November 11th at 11:11am.                                                                                                |
-| `0 15 10 1,2,3 * MON,FRI`  | Fire at 10:15am on the 1st, 2nd, 3rd of the month, and every Monday and Friday                                                      |
-| `H H H * * ?`              | Fire once per day at a hash-derived second, minute, and hour (spread across triggers)                                               |
-| `0 H H(0-7) * * ?`         | Fire once per day between midnight and 7:59 AM, at a hash-derived time                                                             |
-| `0 H/15 * * * ?`           | Fire every 15 minutes, starting from a hash-derived offset                                                                          |
+| **Expression**             | **Meaning**                                                                          |
+|:---------------------------|:-------------------------------------------------------------------------------------|
+| `0 0 12 * * ?`             | 12:00 (noon) every day                                                               |
+| `0 15 10 ? * *`            | 10:15 every day                                                                      |
+| `0 15 10 * * ?`            | 10:15 every day                                                                      |
+| `0 15 10 * * ? *`          | 10:15 every day                                                                      |
+| `0 15 10 * * ? 2005`       | 10:15 every day during 2005                                                          |
+| `0 * 14 * * ?`             | Every minute from 14:00 to 14:59, every day                                          |
+| `0 0/5 14 * * ?`           | Every 5 minutes from 14:00 to 14:55, every day                                       |
+| `0 0/5 14,18 * * ?`        | Every 5 minutes from 14:00 to 14:55 and from 18:00 to 18:55, every day               |
+| `0 0-5 14 * * ?`           | Every minute from 14:00 to 14:05, every day                                          |
+| `0 10,44 14 ? 3 WED`       | 14:10 and 14:44 every Wednesday in March                                             |
+| `0 15 10 ? * MON-FRI`      | 10:15 Monday to Friday                                                               |
+| `0 15 10 15 * ?`           | 10:15 on the 15th of every month                                                     |
+| `0 15 10 L * ?`            | 10:15 on the last day of every month                                                 |
+| `0 15 10 L-2 * ?`          | 10:15 two days before the last day of every month                                       |
+| `0 15 10 ? * 6L`           | 10:15 on the last Friday of every month                                              |
+| `0 15 10 ? * 6L 2002-2005` | 10:15 on the last Friday of every month in 2002, 2003, 2004 and 2005                 |
+| `0 15 10 ? * 6#3`          | 10:15 on the third Friday of every month                                             |
+| `0 0 12 1/5 * ?`           | 12:00 every 5 days, starting on the 1st of the month                                 |
+| `0 11 11 11 11 ?`          | 11:11 every 11 November                                                              |
+| `0 15 10 1,2,3 * MON,FRI`  | 10:15 on the 1st, 2nd and 3rd of the month, and every Monday and Friday              |
+| `H H H * * ?`              | Once a day at a hash-derived second, minute and hour (spread across triggers)        |
+| `0 H H(0-7) * * ?`         | Once a day between midnight and 7:59, at a hash-derived time                         |
+| `0 H/15 * * * ?`           | Every 15 minutes, starting from a hash-derived offset                                |
 
 ::: tip
-Pay attention to the effects of `?` and `*` in the day-of-week and day-of-month fields. A day field
-written exactly `*` or `?` names no days, so it restricts nothing and the other day field decides:
-`0 15 10 1 * *` fires on the 1st of the month, and `0 15 10 * * MON` fires every Monday. Only when
-**both** fields name days does the expression fire on the union of the two, as
-`0 15 10 1,2,3 * MON,FRI` above does; when neither names days, every day matches. This is the Unix
-`crontab(5)` rule - some other cron implementations intersect the two fields instead, so an expression
-copied from one of those fires more often here than it did there.
+Mind `?` and `*` in the two day fields. A day field written exactly `*` or `?` names no days, so it
+restricts nothing and the other field decides: `0 15 10 1 * *` fires on the 1st, and `0 15 10 * * MON`
+every Monday. When **both** fields name days, the expression fires on their union, as
+`0 15 10 1,2,3 * MON,FRI` above does; when neither does, every day matches. This is the Unix
+`crontab(5)` rule. Some other cron implementations intersect the two fields, so an expression copied
+from one of those fires more often here.
 :::
 
 ## Daylight saving time
 
-A cron expression names a wall-clock time, and a daylight saving transition is exactly the event that
-makes a wall clock ambiguous or missing. **Nothing is skipped and nothing is fired twice**, but it is
-worth knowing which instant is chosen, and the answer depends on whether the expression names a fixed
-time of day or an interval.
+A cron expression names a wall-clock time, and a daylight saving transition makes a wall-clock time
+missing or ambiguous. **Nothing is skipped and nothing fires twice.** Which instant fires depends on
+whether the expression names a fixed time or an interval.
 
-A **fixed-time** expression is one whose second, minute and hour fields are plain values or comma lists
-of plain values - `0 30 2 * * ?`, `0 0,30 2 * * ?`:
+A **fixed-time** expression has plain values, or comma lists of plain values, in its second, minute and
+hour fields — `0 30 2 * * ?`, `0 0,30 2 * * ?`:
 
-- A wall-clock time the clocks **skip** fires once, at the **end of the gap** - the instant the clocks
-  moved. A daily `0 30 2 * * ?` over a 02:00-03:00 spring-forward gap fires at 03:00. Every wall clock
-  the gap swallowed names that one instant, so an expression matching several of them still fires once.
-  This is the instant the expression itself matches: `IsSatisfiedBy` agrees with the fire time, which is
-  what makes it the right answer.
-- A wall-clock time that **occurs twice** on a fall-back day fires once, at the **first** of the two
-  occurrences.
+- A time the clocks **skip** fires once, at the **end of the gap**, the instant the clocks moved. A daily
+  `0 30 2 * * ?` over a 02:00-03:00 spring-forward gap fires at 03:00. Every wall-clock time in the gap
+  names that instant, so an expression matching several of them still fires once. `IsSatisfiedBy` agrees
+  with that fire time.
+- A time that **occurs twice** on a fall-back day fires once, at the **first** occurrence.
 
-An **interval** expression - one with a wildcard, a step or a range in the second, minute or hour field,
-such as `0 * * * * ?` or `0 0/30 * * * ?` - keeps firing through the repeated hour, so both passes of it
-run. Over a spring-forward gap the gap-end rule shows as an extra fire rather than a moved one:
-`0 30 * * * ?` fires at 03:00 for the occurrence the gap swallowed and again at 03:30 for the next
-hour's.
+An **interval** expression has a wildcard, a step or a range in the second, minute or hour field, such
+as `0 * * * * ?` or `0 0/30 * * * ?`. It keeps firing through the repeated hour, so both passes run. Over
+a spring-forward gap, the gap-end rule shows as an extra fire: `0 30 * * * ?` fires at 03:00 for the
+occurrence the gap swallowed and at 03:30 for the next hour's.
 
 A `CronCalendar` written over the skipped hour excludes the gap's end for the same reason.
 
 ::: warning Quartz 3.x behaves differently
-On 3.x a skipped time is shifted forward by the transition's delta instead - the daily `0 30 2 * * ?`
-above fires at 03:30, an instant its own expression does not match - and an interval expression fires the
-repeated hour only once, so an "every minute" schedule silently loses an hour of real time each autumn.
+On 3.x a skipped time is shifted forward by the transition's delta: the daily `0 30 2 * * ?` above fires
+at 03:30, an instant its expression does not match. An interval expression fires the repeated hour only
+once, so an "every minute" schedule loses an hour of real time each autumn.
 :::
 
-Whatever the schedule, **name the time zone**: an expression with none uses `TimeZoneInfo.Local`, which
-is the developer's machine in development and very often UTC in a container.
+**Name the time zone.** An expression with none uses `TimeZoneInfo.Local`: the developer's machine in
+development, and often UTC in a container.
 [Daylight saving, clock changes and cluster skew](../best-practices.md#daylight-saving-clock-changes-and-cluster-skew)
-covers the choice of trigger family, and the
-[FAQ](../faq.md#daylight-saving-time-and-triggers) has the longer treatment.
+covers the choice of trigger family, and the [FAQ](../faq.md#daylight-saving-time-and-triggers) has more.

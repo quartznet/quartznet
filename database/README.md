@@ -1,17 +1,8 @@
 # Quartz.NET database scripts
 
-These are the scripts a person runs against a database with a database client. Since 4.0 a scheduler
-can also create a missing schema for itself, if it is asked to — see
-[What the scheduler runs](#what-the-scheduler-runs) below — but **migrating** an existing schema is
-still a manual, deliberate step, and nothing in Quartz does it for you.
-
-A migration **both branches can run** is kept byte-identical on `3.x` and `main`, so its path
-resolves whichever branch you land on. The `4.0` folder is the exception and **lives on `main`
-only**: it is the 3.x → 4.0 upgrade path, what it has to do is decided by 4.x's schema, so one
-maintained copy is the point — the `3.x` branch links here instead of carrying a mirror that
-would go stale the moment 4.x moved. The **Branch** column below says which versions are on both.
-`tables/` is the *current* schema and so differs by design: on `3.x` it creates the 3.x schema,
-on `main` the 4.x one.
+Scripts to run against a database with a database client. Since 4.0 a scheduler can also create a missing
+schema itself when asked — see [What the scheduler runs](#what-the-scheduler-runs) — but **migrating** an
+existing schema is always a manual step; nothing in Quartz does it.
 
 ```
 database/
@@ -19,23 +10,28 @@ database/
   migrations/   schema changes, grouped by the Quartz.NET version that introduced them
 ```
 
+Branches:
+
+- A migration **both branches can run** is byte-identical on `3.x` and `main`, so its path resolves on
+  either. The **Branch** column below says which versions are on both.
+- The `4.0` folder **lives on `main` only**. It is the 3.x → 4.0 upgrade path and its content is decided
+  by 4.x's schema, so `3.x` links here instead of carrying a copy that would go stale.
+- `tables/` is the *current* schema and differs by design: the 3.x schema on `3.x`, the 4.x one on
+  `main`.
+
 ## Fresh install
 
-Run the one script matching your database from [`tables/`](tables). It creates the current
-schema in full, including every column the migrations below add — a new database needs nothing
-from `migrations/`.
+Run the one script for your database from [`tables/`](tables). It creates the current schema in full,
+including every column the migrations add; a new database needs nothing from `migrations/`.
 
-**Every one of these scripts drops an existing Quartz schema before it recreates it**, so running
-one against a live database destroys what is in it. Each says at the top how to decline that: set
-the `DropDb` variable declared above the drops to `0` — `@DropDb` on SQL Server and MySQL — or, on
-SQLite, which has no variables, delete the block between the `BEGIN DROP TABLES` and
-`END DROP TABLES` markers. What is left then only creates tables, so run it on a database that has
-none: the `CREATE TABLE` statements are not guarded and fail against a schema that already exists.
-
-**The SQL Server scripts begin `USE [enter_db_name_here];`** — put your database name there before you
-run one, or SQL Server answers `Msg 911, Database 'enter_db_name_here' does not exist`. It is the only
-dialect that names a database at all; the rest take whichever one you connected to. The
-memory-optimized variant has a second placeholder, `[enter_path_here]`, for the filegroup's directory.
+- **Every script drops an existing Quartz schema before recreating it**, so running one against a live
+  database destroys its data. To prevent that, set the `DropDb` variable declared above the drops to `0`
+  (`@DropDb` on SQL Server and MySQL). SQLite has no variables: delete the block between the
+  `BEGIN DROP TABLES` and `END DROP TABLES` markers. The rest only creates tables, and its
+  `CREATE TABLE` statements are not guarded, so run it on a database with no Quartz tables.
+- **The SQL Server scripts begin `USE [enter_db_name_here];`** — put your database name there, or SQL
+  Server answers `Msg 911, Database 'enter_db_name_here' does not exist`. No other dialect names a
+  database. The memory-optimized variant also has `[enter_path_here]`, for the filegroup's directory.
 
 | Database | Script |
 |---|---|
@@ -50,9 +46,9 @@ memory-optimized variant has a second placeholder, `[enter_path_here]`, for the 
 
 ## What the scheduler runs
 
-A store configured with `SchemaProvisioning.CreateIfMissing` — `store.ProvisionSchema()` in code —
-creates a missing schema itself at startup. It does **not** run the scripts above. It runs a second
-set, embedded in `Quartz.dll` and living in the source tree at
+A store configured with `SchemaProvisioning.CreateIfMissing` (`store.ProvisionSchema()` in code) creates a
+missing schema at startup. It does **not** run the scripts above but a second set, embedded in
+`Quartz.dll`, at
 [`src/Quartz/Impl/AdoJobStore/Schema/create_<dialect>.sql`](../src/Quartz/Impl/AdoJobStore/Schema):
 
 | Database | Script |
@@ -64,44 +60,34 @@ set, embedded in `Quartz.dll` and living in the source tree at
 | SQLite | [`create_sqlite.sql`](../src/Quartz/Impl/AdoJobStore/Schema/create_sqlite.sql) |
 | Firebird | [`create_firebird.sql`](../src/Quartz/Impl/AdoJobStore/Schema/create_firebird.sql) |
 
-Six, against `tables/`'s eight: the memory-optimized and pre-2016 SQL Server variants have no
-counterpart here. Both are deliberate departures from the standard schema, chosen by a person for a
-particular deployment, and neither is a decision a scheduler should make for itself. Neither has a
-driver delegate of its own either, so a store pointed at one of them and asked to provision creates the
-**standard** schema instead. Run those two by hand and leave the setting at `Validate`.
-
-**These are not the scripts to run by hand.** They are written for an ADO.NET provider rather than for
-a command-line client: the table prefix is a `{0}` placeholder rather than a literal `QRTZ_`, statements
-are separated by a line reading `--;;` rather than by `GO`, `/` or a `SET TERM` pair, and there is no
-`DECLARE` or variable of any kind because a provider is sent one statement at a time. Paste one into a
-query window and it will not run. Run [`tables/`](tables) instead — that is what those files are for.
-
-They are also **generated**, from the schema model in `build/Build.DatabaseSchema.cs`; `dotnet fallout
-GenerateSchema` emits them and CI's `VerifySchema` fails a build where they are out of step. Editing
-one by hand is pointless. What keeps the two sets honest about each other is `SchemaScriptTest`, which
-parses a `tables/` script and its `create_` counterpart with one parser and compares the tables, columns
-and indexes they name, and `SchemaProvisioningTest`, which provisions a real database of each dialect and
-compares its catalog with one built from `tables/`.
-
-The provisioning script only ever creates. Nothing in it drops or alters, so it is safe against a schema
-that already exists — and it is equally **not** an upgrade: it cannot add a column to a table that is
-already there. Moving an existing schema forward is the `migrations/` folders below, and only those.
+- **Six, not eight.** The memory-optimized and pre-2016 SQL Server variants are deliberate departures a
+  person chooses for a deployment, so they have no counterpart here. Neither has a driver delegate of its
+  own, so a store pointed at one and asked to provision creates the **standard** schema. Run those two by
+  hand and leave the setting at `Validate`.
+- **Do not run these by hand.** They are written for an ADO.NET provider: the table prefix is a `{0}`
+  placeholder, statements are separated by a `--;;` line (not `GO`, `/` or `SET TERM`), and there are no
+  `DECLARE`s or variables, since a provider is sent one statement at a time. Use [`tables/`](tables).
+- **They are generated** from the schema model in `build/Build.DatabaseSchema.cs` by `dotnet fallout
+  GenerateSchema`; CI's `VerifySchema` fails a build where they are out of step, so do not edit them.
+  `SchemaScriptTest` parses each `tables/` script and its `create_` counterpart with one parser and compares
+  their tables, columns and indexes; `SchemaProvisioningTest` provisions a real database of each dialect and
+  compares its catalog with one built from `tables/`.
+- **They only create.** Nothing drops or alters, so they are safe against an existing schema, and they are
+  **not** an upgrade: they cannot add a column to an existing table. Only `migrations/` moves an existing
+  schema forward.
 
 ## Upgrading an existing database
 
-Each folder under `migrations/` is named for the Quartz.NET version that introduced the change.
-Inside, run the file whose suffix matches your database — `_sqlServer`, `_postgres`,
-`_mysql_innodb`, `_oracle`, `_sqlite`, `_firebird`.
+Each folder under `migrations/` is named for the Quartz.NET version that introduced the change. Run the
+file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_innodb`, `_oracle`, `_sqlite`,
+`_firebird`.
 
-**Apply every folder between your current version and your target version, in ascending order,
-and do not skip one.** Migrations assume the ones before them have run. The optional ones may be
-deferred, but they are cumulative: skipping 3.17 and later running 3.19 still leaves you without
-the 3.17 column.
-
-Everything except the SQL Server 1.0→2.0 script checks before it acts, so re-running a migration
-is a no-op and a partially-applied migration is safe to re-run. SQLite is the exception for
-`ADD COLUMN`: it has no conditional DDL, so those statements fail on a second run — see the note
-in each SQLite file.
+- **Apply every folder between your current and target versions, in ascending order, without skipping.**
+  Migrations assume the earlier ones ran. Optional ones may be deferred but are cumulative: skipping 3.17
+  and later running 3.19 still leaves you without the 3.17 column.
+- Everything except the SQL Server 1.0→2.0 script checks before it acts, so re-running is a no-op and a
+  partly applied migration can be re-run. SQLite's `ADD COLUMN` is the exception: it has no conditional
+  DDL and fails on a second run — see the note in each SQLite file.
 
 | Version | What changed | Status | Databases | Branch |
 |---|---|---|---|---|
@@ -113,89 +99,87 @@ in each SQLite file.
 | [`3.18`](migrations/3.18) | `EXECUTION_GROUP` on `QRTZ_TRIGGERS` and `QRTZ_FIRED_TRIGGERS` (#3004) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.19`](migrations/3.19) | `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` on `QRTZ_TRIGGERS` (#3013, #3144) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.20`](migrations/3.20) | Index set realigned so every index leads with `SCHED_NAME`; prefix-redundant indexes dropped (#3203) | Optional, performance only | all | both |
-| [`4.0`](migrations/4.0) | **Two files.** `schema_30_to_40_upgrade_<db>.sql` folds in 3.17–3.19 and adds `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520) and the `QRTZ_PAUSED_JOB_GRPS` table (#3336). `schema_30_to_40_indexes_<db>.sql` supersedes 3.20 and lands the 4.x index shape, in which `IDX_QRTZ_T_NFT_ST` is dropped and recreated as `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` — Firebird excepted (#3510) — and `IDX_QRTZ_T_NFT_ST_MISFIRE` is dropped, since that reshape left it with no reader on any dialect (#3656) | Upgrade **mandatory for 4.x** and safe during a mixed window; indexes optional, and wait for the last 3.x node | all | `main` only |
-| [`4.2`](migrations/4.2) | `add_continuations_<db>.sql`: `CONTINUES_TRIGGER_NAME`, `CONTINUES_TRIGGER_GROUP` and `CONTINUATION_CONDITION` on `QRTZ_TRIGGERS`, which carry a conditional continuation — a trigger that waits, in the store, for another trigger's firing to end (#3805) | **Required on 4.2+**, safe during a mixed 4.1/4.2 window | all | `main` only |
-| [`4.2`](migrations/4.2) | `add_execution_history_<db>.sql`: the `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY` tables, which keep what a cluster ran and missed where every node can read it (#3771) | **Optional**: needed only by a store configured with `UseExecutionHistory()`, and safe under a mixed cluster — a node without it neither writes nor reads these tables | all | `main` only |
+| [`4.0`](migrations/4.0) | **Two files**: `schema_30_to_40_upgrade_<db>.sql` (columns and a table) and `schema_30_to_40_indexes_<db>.sql` (the 4.x index shape) — see [below](#upgrading-3x--4x-is-mandatory) | Upgrade **mandatory for 4.x** and safe during a mixed window; indexes optional, and wait for the last 3.x node | all | `main` only |
+| [`4.2`](migrations/4.2) | `add_continuations_<db>.sql`: `CONTINUES_TRIGGER_NAME`, `CONTINUES_TRIGGER_GROUP` and `CONTINUATION_CONDITION` on `QRTZ_TRIGGERS`, for a trigger that waits in the store for another trigger's firing to end (#3805) | **Required on 4.2+**, safe during a mixed 4.1/4.2 window | all | `main` only |
+| [`4.2`](migrations/4.2) | `add_execution_history_<db>.sql`: the `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY` tables, a cluster-wide record of what ran and what was missed (#3771) | **Optional**: needed only with `UseExecutionHistory()`; safe under a mixed cluster, since a node without it neither writes nor reads these tables | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
-Quartz.NET 3.x probes for `MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP`, `PREFERRED_NODE` and
-`PREFERRED_NODE_AUTO` at startup, logs a warning when they are missing, and turns the
-corresponding feature off. **4.x removed those probes** and assumes all four columns exist.
-
-4.x also adds columns and a table 3.x never had — `RETRY_POLICY` and `RETRY_ATTEMPT` on
-`QRTZ_TRIGGERS`, both nullable with no default, and the `QRTZ_PAUSED_JOB_GRPS` table — and
-validates its schema at startup, so even a 3.x database that took every optional migration going
-still needs this one.
-
-So a 3.x database will not work against 4.x until [`migrations/4.0`](migrations/4.0) has been
-applied. It is **two files**, because they are run at different moments:
+3.x probes for `MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP`, `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` at
+startup, warns when they are missing, and turns the feature off. **4.x has no probes** and requires all
+four. It also adds what 3.x never had — `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520),
+both nullable with no default, and the `QRTZ_PAUSED_JOB_GRPS` table (#3336) — and validates its schema at
+startup. So even a 3.x database with every optional migration needs [`migrations/4.0`](migrations/4.0),
+which is **two files** run at different times:
 
 | File | Status | When |
 |---|---|---|
-| `schema_30_to_40_upgrade_<db>.sql` | Mandatory | Now. It folds in 3.17, 3.18 and 3.19, every statement is guarded, and everything in it is safe to run while 3.x nodes are still up. |
-| `schema_30_to_40_indexes_<db>.sql` | Optional, performance only | Once the last 3.x node has shut down — or straight afterwards, on an upgrade with nothing running. It supersedes 3.20. |
+| `schema_30_to_40_upgrade_<db>.sql` | Mandatory | Now. It folds in 3.17, 3.18 and 3.19, every statement is guarded, and all of it is safe while 3.x nodes are still up. |
+| `schema_30_to_40_indexes_<db>.sql` | Optional, performance only | Once the last 3.x node has shut down, or straight after the first file when nothing is running. It supersedes 3.20. |
 
-The index file waits because among its drops is `IDX_QRTZ_T_NFT_ST_MISFIRE`, which 3.x drives its
-misfire sweep from and 4.x does not read at all. Run it top to bottom: the reshape of
-`IDX_QRTZ_T_NFT_ST` sits above that drop, so a schema that never took the reshape takes it first and
-none is ever left with neither index. It is guarded throughout, so re-running it changes nothing.
+- The index file lands the 4.x index shape. It drops and recreates `IDX_QRTZ_T_NFT_ST` as
+  `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)`, Firebird excepted
+  (#3510), and drops `IDX_QRTZ_T_NFT_ST_MISFIRE`, which that reshape left with no reader on any dialect
+  (#3656).
+- It waits because 3.x drives its misfire sweep from `IDX_QRTZ_T_NFT_ST_MISFIRE`; 4.x does not read it.
+- Run it top to bottom: the reshape of `IDX_QRTZ_T_NFT_ST` comes before that drop, so a schema is never
+  left with neither index. It is guarded throughout, so re-running changes nothing.
+- A 4.x node starts against a database that has the first file and not the second; it scans where it
+  would otherwise seek, which matters on a large schema.
 
-A 4.x node starts against a database that has taken the first file and not the second. It scans where
-it would otherwise seek, on a schema large enough for that to matter.
-
-**This is the only copy.** The `3.x` branch used to carry one and no longer does: what the
-3.x → 4.0 script has to do is decided by 4.x's schema, which moves here, so a second copy there
-could only be right by accident. Read the version of this folder that matches the 4.x you are
-upgrading to.
+**This is the only copy.** The `3.x` branch no longer carries one: the 3.x → 4.0 script follows 4.x's
+schema, which changes here. Read the version of this folder that matches the 4.x you are upgrading to.
 
 ### Upgrading 4.0/4.1 → 4.2 is mandatory too
 
-[`migrations/4.2`](migrations/4.2) is the first schema change since 4.0. It adds three nullable
-columns to `QRTZ_TRIGGERS`, and 4.2 names all three in the statement it stores every trigger with,
-so a 4.2 node refuses to start against a database that has not taken it.
+[`migrations/4.2`](migrations/4.2) is the first schema change since 4.0. It adds three nullable columns to
+`QRTZ_TRIGGERS`. 4.2 names all three when it stores a trigger, so a 4.2 node refuses to start against a
+database without them.
 
-**Roll it while 4.1 nodes are still running.** The columns are nullable with no default, so every
-existing row is valid the moment they appear; a 4.1 node's `INSERT` names its own columns, its
-acquisition and misfire sweeps select `WAITING`, and its cluster recovery touches `ACQUIRED` and
-`BLOCKED`, so nothing a 4.1 node does on its own picks an `AWAITING` row up.
+**Run it while 4.1 nodes are still running.** The columns are nullable with no default, so every existing
+row stays valid. A 4.1 node's `INSERT` names its own columns, its acquisition and misfire sweeps select
+`WAITING`, and its cluster recovery touches `ACQUIRED` and `BLOCKED`, so nothing a 4.1 node does on its own
+picks up an `AWAITING` row.
 
-A state string a 4.1 node does not recognise reads as waiting, though, so it *reports* an `AWAITING`
-row as `Normal` — and one operation takes that reading at its word. 4.1's single-trigger
-`PauseTrigger` writes `PAUSED` over a row it read as waiting, and a resume then makes it `WAITING`: the
-continuation fires without its parent. A 4.1 reschedule does the same by another route, rewriting the
-row as an ordinary trigger that has forgotten what it waited for. (`PauseJob` and the group and batch
-pauses name the states they move, so they leave an `AWAITING` row alone.)
+But a 4.1 node reads a state string it does not recognise as waiting, so it *reports* an `AWAITING` row as
+`Normal`, and two operations act on that:
 
-And what a 4.1 node cannot do at all is **settle** a continuation: a parent completing there leaves the
-triggers waiting on that firing exactly where they are. So the order is: run the migration, roll
-**every** node to 4.2, and only then start scheduling continuations. The two rules are one: while any
-4.1 node is still running, do not pause, resume or reschedule a continuation from it — and a cluster that
-schedules its first continuation only after the last node has rolled has none for a 4.1 node to touch.
+- 4.1's single-trigger `PauseTrigger` writes `PAUSED` over the row, and a resume then makes it `WAITING`:
+  the continuation fires without its parent.
+- A 4.1 reschedule rewrites the row as an ordinary trigger that has forgotten what it waited for.
+- (`PauseJob` and the group and batch pauses name the states they move, so they leave an `AWAITING` row
+  alone.)
 
-A fresh install from [`tables/`](tables) already has the columns and needs nothing from this folder.
+A 4.1 node also cannot **release or discard** a continuation: a parent completing there leaves its waiting triggers
+where they are. So:
+
+1. Run the migration.
+2. Roll **every** node to 4.2.
+3. Only then start scheduling continuations.
+
+While any 4.1 node runs, do not pause, resume or reschedule a continuation from it. A cluster that
+schedules its first continuation after the last node has rolled has none for a 4.1 node to touch.
+
+A fresh install from [`tables/`](tables) already has the columns.
 
 ### The execution history's tables are optional
 
-`add_execution_history_<db>.sql` in the same folder is the exception to everything above: it creates
-two tables — `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY` — that nothing but
-`UsePersistentStore(store => store.UseExecutionHistory())` reads or writes. Nothing else in the
-schema references them, no other statement names them, and a scheduler that keeps no history never
-probes for them. So it is needed by the deployments that want a cluster-wide execution history and by
-nobody else, and it can be run at any time or not at all.
+`add_execution_history_<db>.sql`, in the same folder, creates `QRTZ_EXECUTION_HISTORY` and
+`QRTZ_MISFIRE_HISTORY`. Only `UsePersistentStore(store => store.UseExecutionHistory())` reads or writes
+them; nothing else in the schema references them, and a scheduler that keeps no history never probes for
+them. Run it when you want a cluster-wide execution history, at any time, or never.
 
-A store that *is* configured that way refuses to start without them, naming this script. A fresh
-install from [`tables/`](tables) creates them either way, as does `ProvisionSchema()`, so only a
-database created by 4.0 or 4.1 needs the file.
-
-Safe under a mixed cluster in both directions: a 4.0 or 4.1 node cannot see these tables at all, and
-a 4.2 node that does not ask for a history neither writes nor reads them. The nodes that do ask share
-one history, which is the point — every row carries the instance id that produced it.
+- A store configured with `UseExecutionHistory()` refuses to start without them, naming this script.
+- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, create them anyway, so only a
+  database created by 4.0 or 4.1 needs the file.
+- Safe under a mixed cluster both ways: a 4.0 or 4.1 node cannot see these tables, and a 4.2 node that
+  keeps no history neither writes nor reads them. Nodes that do share one history; every row carries the
+  instance id that wrote it.
 
 ## Where these files moved
 
-The scripts used to sit flat in `database/`, with the dialects other than SQL Server commented
-out inside each file. Old links keep working against release tags, for example
+The scripts used to sit flat in `database/`, with the non-SQL Server dialects commented out inside each
+file. Old links still work against release tags, for example
 `https://github.com/quartznet/quartznet/blob/v3.19.1/database/schema_30_add_preferred_node.sql`.
 
 | Old path | New path |
@@ -212,25 +196,23 @@ out inside each file. Old links keep working against release tags, for example
 
 ## Adding a migration
 
-Everything under `migrations/` except the `2.0` and `3.0` folders is **generated** — do not edit
-those files by hand, they will be overwritten.
+Everything under `migrations/` except the `2.0` and `3.0` folders is **generated**; hand edits are
+overwritten.
 
 1. Add the change to every `tables/tables_*.sql`, so fresh installs get it.
-2. Add it to the schema model in `build/Build.DatabaseSchema.cs` as well, so a scheduler that
-   provisions its own schema gets it too, and run `dotnet fallout GenerateSchema`. CI runs
-   `VerifySchema`, and `SchemaScriptTest` compares the two sets object by object — a change made in
-   only one of them fails both.
-3. Describe the change once in `build/Build.DatabaseMigrations.Scripts.cs`, and fold it into the
-   `4.0` script there too if it is a 3.x change.
-4. Run `dotnet fallout GenerateMigrations` and commit the result. CI runs `VerifyMigrations`, so
-   a definition change without a regenerated script fails the build.
-5. If **both branches can run the change**, mirror the new `migrations/` folder and the definition
-   behind it to `3.x` in a companion pull request — a migration both branches can run must stay
-   byte-identical, or a documented path 404s on whichever branch lacks it (#3218). A change that
-   exists **only on 4.x** has no companion at all. Either way the `4.0` fold happens here: `3.x`
-   does not carry that folder. `tables/` and this README describe their own branch, so neither is
-   mirrored verbatim.
+2. Add it to the schema model in `build/Build.DatabaseSchema.cs`, so a scheduler that provisions its own
+   schema gets it too, and run `dotnet fallout GenerateSchema`. CI runs `VerifySchema`, and
+   `SchemaScriptTest` compares the two sets object by object; a change in only one fails both.
+3. Describe the change once in `build/Build.DatabaseMigrations.Scripts.cs`, and fold it into the `4.0`
+   script there too if it is a 3.x change.
+4. Run `dotnet fallout GenerateMigrations` and commit the result. CI runs `VerifyMigrations`, so a
+   definition change without a regenerated script fails the build.
+5. If **both branches can run the change**, mirror the new `migrations/` folder and its definition to `3.x`
+   in a companion pull request: a migration both branches can run must stay byte-identical, or a documented
+   path 404s on the branch that lacks it (#3218). A **4.x-only** change has no companion. Either way the
+   `4.0` fold happens here, since `3.x` does not carry that folder. `tables/` and this README describe
+   their own branch and are not mirrored verbatim.
 6. Add a section to the schema-changes page in the documentation (docs live on `main` only).
 
-The `2.0` and `3.0` migrations are hand-written: they are SQL Server-only historical scripts
-that predate this layout and have no per-dialect variants.
+The `2.0` and `3.0` migrations are hand-written SQL Server-only historical scripts that predate this
+layout and have no per-dialect variants.
