@@ -5,18 +5,13 @@ title: 'Coming from Hangfire'
 
 # Coming from Hangfire
 
-Most of Hangfire's API has a Quartz.NET equivalent that does the same thing, and a handful have one
-that looks the same and behaves differently. This page is both lists.
+This page maps **Hangfire 1.8.25** ([tag `v1.8.25`](https://github.com/HangfireIO/Hangfire/tree/v1.8.25))
+to Quartz.NET 4.1. To weigh the two against each other, see [Comparison](../comparison.md).
 
-It is written against **Hangfire 1.8.25** ([tag `v1.8.25`](https://github.com/HangfireIO/Hangfire/tree/v1.8.25))
-and Quartz.NET 4.1. It does not argue that you should move —
-[Comparison](../comparison.md) is where the two are weighed against each other, including the places
-Hangfire is the better answer. This page is for when the decision is already made.
-
-The one difference to understand before the table makes sense: **Hangfire's unit of work is a method
-call and Quartz's is a type.** `BackgroundJob.Enqueue(() => mailer.SendWelcome("ada@example.com"))`
-serializes an expression tree — the type, the method and the arguments — and reconstructs the call
-later. Quartz stores a job type and a data map, and the container builds the job for each firing:
+The main difference: **Hangfire's unit of work is a method call; Quartz's is a type.**
+`BackgroundJob.Enqueue(() => mailer.SendWelcome("ada@example.com"))` serializes an expression tree and
+replays the call later. Quartz stores a job type and a data map, and the container builds the job for each
+firing:
 
 <!-- snippet: sample_coming_from_hangfire_job -->
 ```csharp
@@ -36,30 +31,29 @@ public sealed class SendWelcomeEmailJob : IJob<string>
 ```
 <!-- endSnippet -->
 
-That is the shape every row below follows from. An argument that was a method parameter becomes either
-a constructor-injected service, a `JobDataMap` entry, or the typed input of `IJob<TInput>`.
+A method argument becomes a constructor-injected service, a `JobDataMap` entry, or the typed input of
+`IJob<TInput>`.
 
 ## The API, side by side
 
 ### Scheduling
 
-| Hangfire | Quartz.NET | Where it differs |
+| Hangfire | Quartz.NET | Difference |
 |---|---|---|
-| `BackgroundJob.Enqueue(() => …)` | `scheduler.ScheduleJob<TJob, TInput>(input, TimeSpan.Zero)` | a trigger that fires now, rather than an entry on a queue |
+| `BackgroundJob.Enqueue(() => …)` | `scheduler.ScheduleJob<TJob, TInput>(input, TimeSpan.Zero)` | a trigger that fires now, not a queue entry |
 | `BackgroundJob.Schedule(() => …, TimeSpan)` | the same call with the delay | |
 | `BackgroundJob.Schedule(() => …, DateTimeOffset)` | the `DateTimeOffset` overload of the same call | |
 | `BackgroundJob.Delete(jobId)` | `scheduler.UnscheduleJob(triggerKey)` | the `TriggerKey` on the returned `ScheduledOneOffJob` is the handle |
-| `BackgroundJob.Requeue(jobId)` | `scheduler.TriggerJob(jobKey)`, optionally with a `JobDataMap` | fires the job again now; there is no failed record to put back on a queue |
+| `BackgroundJob.Requeue(jobId)` | `scheduler.TriggerJob(jobKey)`, optionally with a `JobDataMap` | fires the job again now; there is no failed record to requeue |
 | `BackgroundJob.Reschedule(jobId, …)` | `scheduler.RescheduleJob(triggerKey, newTrigger)` | |
-| `BackgroundJob.ContinueJobWith(parentId, …)` | `.StartAfter(parentTriggerKey, condition)` on the follow-up's trigger | the parent is a *trigger's firing* rather than a job id, and the conditions are not the same set. See [Continuations](#continuations) |
-| `RecurringJob.AddOrUpdate(id, () => …, cron)` | `q.AddJob<T>(…)` + `q.AddTrigger<T>(t => t.WithCronSchedule(…))` | six cron fields, not five, and the default time zone differs |
+| `BackgroundJob.ContinueJobWith(parentId, …)` | `.StartAfter(parentTriggerKey, condition)` on the follow-up's trigger | see [Continuations](#continuations) |
+| `RecurringJob.AddOrUpdate(id, () => …, cron)` | `q.AddJob<T>(…)` + `q.AddTrigger<T>(t => t.WithCronSchedule(…))` | six cron fields, not five, and a different default time zone |
 | `RecurringJob.RemoveIfExists(id)` | `scheduler.DeleteJob(jobKey)`, or `UnscheduleJob` to keep the job | |
 | `RecurringJob.TriggerJob(id)` | `scheduler.TriggerJob(jobKey)` | |
-| `IBackgroundJobClient`, `IRecurringJobManager` | `IScheduler`, injected | one interface for both, and every member is awaitable |
+| `IBackgroundJobClient`, `IRecurringJobManager` | `IScheduler`, injected | one interface for both; every member is awaitable |
 
-Both `ScheduleJob` overloads answer with a `ScheduledOneOffJob` carrying the `TriggerKey` and the first
-fire time; [One-Off Job](one-off-job.md) is the page on naming and grouping those so a whole
-conversation can be cancelled at once.
+Both `ScheduleJob` overloads return a `ScheduledOneOffJob` with the `TriggerKey` and the first fire time;
+see [One-Off Job](one-off-job.md) for grouping them so a whole conversation can be cancelled at once.
 
 <!-- snippet: sample_coming_from_hangfire_enqueue -->
 ```csharp
@@ -80,8 +74,7 @@ await scheduler.UnscheduleJob(tomorrow.TriggerKey, cancellationToken);
 ```
 <!-- endSnippet -->
 
-A recurring job becomes a durable job plus a trigger. Two things change in the move, and both are in
-the sample:
+A recurring job becomes a durable job plus a trigger, with a new cron format and an explicit time zone:
 
 <!-- snippet: sample_coming_from_hangfire_recurring -->
 ```csharp
@@ -104,16 +97,16 @@ services.AddQuartz(q =>
 
 ### Attributes and filters
 
-| Hangfire | Quartz.NET | Where it differs |
+| Hangfire | Quartz.NET | Difference |
 |---|---|---|
-| `[AutomaticRetry(Attempts = n)]` | [`RetryPolicy`](retrying-failed-jobs.md) on the trigger | **opt-in, and per trigger rather than per job.** Hangfire applies `AutomaticRetryAttribute` to everything by default; Quartz retries nothing you did not ask it to |
-| `[DisableConcurrentExecution(seconds)]` | `[DisallowConcurrentExecution]` | no timeout, because there is no wait: the store leaves the second trigger `Blocked` until the first firing completes |
-| `[Queue("critical")]` | [an execution group](../tutorial/execution-groups.md) and a limit | **an execution group bounds concurrency; it does not route.** See [Queues](#queues-become-limits-not-routes) |
+| `[AutomaticRetry(Attempts = n)]` | [`RetryPolicy`](retrying-failed-jobs.md) on the trigger | **opt-in, and per trigger**; see [Retry](#retry-is-opt-in-and-it-is-on-the-trigger) |
+| `[DisableConcurrentExecution(seconds)]` | `[DisallowConcurrentExecution]` | no timeout, because nothing waits; see [below](#disableconcurrentexecution-waits-disallowconcurrentexecution-does-not) |
+| `[Queue("critical")]` | [an execution group](../tutorial/execution-groups.md) and a limit | **bounds concurrency; does not route.** See [Queues](#queues-become-limits-not-routes) |
 | `[JobDisplayName("…")]` | `.WithDescription("…")` on the job or trigger | |
-| `[LatencyTimeout(seconds)]` — delete a job that waited too long to start | the `DoNothing` [misfire instruction](../tutorial/more-about-triggers.md#misfire-instructions) | the trigger says what a late firing should do, and it skips that occurrence rather than deleting anything |
+| `[LatencyTimeout(seconds)]` — delete a job that waited too long to start | the `DoNothing` [misfire instruction](../tutorial/more-about-triggers.md#misfire-instructions) | skips that occurrence rather than deleting anything |
 | `GlobalJobFilters.Filters.Add(…)` | [job execution middleware](../tutorial/job-execution-middleware.md), or a [job listener](../tutorial/trigger-and-job-listeners.md) | middleware wraps the execution; a listener observes it |
 | `PerformContext` | `IJobExecutionContext` | |
-| a `CancellationToken` parameter | the `CancellationToken` parameter of `Execute` | the same token as `IJobExecutionContext.CancellationToken`; `Interrupt` and `InterruptFireInstance` are what cancel it |
+| a `CancellationToken` parameter | the `CancellationToken` parameter of `Execute` | same token as `IJobExecutionContext.CancellationToken`; cancelled by `Interrupt` and `InterruptFireInstance` |
 
 ### Hosting and configuration
 
@@ -124,9 +117,9 @@ services.AddQuartz(q =>
 | `BackgroundJobServerOptions.WorkerCount` | `q.UseDefaultThreadPool(maxConcurrency: n)` |
 | `BackgroundJobServerOptions.Queues` | — there are no queues; see [below](#queues-become-limits-not-routes) |
 | `BackgroundJobServerOptions.ServerTimeout` | `CheckinInterval` and `CheckinMisfireThreshold` on the clustering options — [Tuning the check-in](../tutorial/advanced-enterprise-features.md#tuning-the-check-in) |
-| `SchedulePollingInterval` | `IdleWaitTime` — but it is a *ceiling*, not a tick: see [Sub-minute schedules](#sub-minute-schedules-behave-differently) |
+| `SchedulePollingInterval` | `IdleWaitTime` — a *ceiling*, not a tick: see [Sub-minute schedules](#sub-minute-schedules-behave-differently) |
 | `JobStorage.Current.JobExpirationTimeout` | `ExecutionHistoryOptions.Retention` — a different thing; see [Retention](#job-expiration-is-not-history-retention) |
-| `app.UseHangfireDashboard(path, options)` | `app.MapQuartzDashboard()` — and it will not start without an authorization decision |
+| `app.UseHangfireDashboard(path, options)` | `app.MapQuartzDashboard()` — will not start without an authorization decision |
 | `IDashboardAuthorizationFilter` | `RequireAuthorization(policy)` at the map site |
 | `DashboardOptions.IsReadOnlyFunc` | `QuartzDashboardOptions.ReadOnly` |
 | SQL Server storage creating its own schema | [`ProvisionSchema()`, off by default](../quick-start.md#creating-and-initializing-the-database) |
@@ -135,78 +128,58 @@ services.AddQuartz(q =>
 
 ### A cron expression has six fields, and a different default time zone
 
-Hangfire's cron is [Cronos](https://github.com/HangfireIO/Cronos): five fields, or six with a leading
-seconds field. Quartz's is [six or seven](../cron-expressions.md), seconds first, and **one of the two
-day fields must be `?`** rather than `*` — the two day fields are read as a union, and `?` is how one
-of them stands aside. So Hangfire's `0 2 * * *` is Quartz's `0 0 2 * * ?`.
+| | Hangfire ([Cronos](https://github.com/HangfireIO/Cronos)) | Quartz ([reference](../cron-expressions.md)) |
+|---|---|---|
+| Fields | five, or six with a leading seconds field | six or seven, seconds first |
+| Day fields | `*` in both | **one of the two must be `?`** (the two are a union) |
+| Default time zone | UTC ([`RecurringJobOptions.TimeZone`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/RecurringJobOptions.cs)) | `TimeZoneInfo.Local` |
 
-The trap that does not announce itself is the time zone. `RecurringJobOptions.TimeZone`
-[defaults to UTC](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/RecurringJobOptions.cs);
-a Quartz cron trigger defaults to `TimeZoneInfo.Local`. A schedule moved across without
-`InTimeZone(TimeZoneInfo.Utc)` keeps firing — at a different hour, on a server whose zone is not UTC,
-and twice or not at all on the two days a year the offset changes. Say the zone explicitly on every
-trigger you move.
-
-If the expression has to stay in five-field form, Quartz reads that too:
-[`CronFormat.Unix`](../cron-expressions.md#the-unix-five-field-form) is stated rather than sniffed, so
-a five-field string in the default format is an error naming the rewritten expression rather than a
-silently different schedule.
+* Hangfire's `0 2 * * *` is Quartz's `0 0 2 * * ?`.
+* **Set `InTimeZone(TimeZoneInfo.Utc)` on every trigger you move.** Otherwise, on a server not in UTC, it
+  fires at a different hour, and twice or not at all on the two days a year the offset changes.
+* [`CronFormat.Unix`](../cron-expressions.md#the-unix-five-field-form) keeps the five-field form. The format
+  is stated, not detected: a five-field string in the default format is an error naming the rewrite.
 
 ### Sub-minute schedules behave differently
 
-Hangfire's recurring scheduler enqueues on a poll, and that poll is
-[`BackgroundJobServerOptions.SchedulePollingInterval`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/BackgroundJobServerOptions.cs) —
-fifteen seconds by default, and the documentation
-[describes recurring jobs as minute-based](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html).
-
-Quartz's scheduling thread works the other way round. It asks the store for the triggers due inside the
-next `IdleWaitTime` — thirty seconds by default — and then waits until the earliest of *those*, or until
-`IdleWaitTime` elapses if there were none, and it is woken early when something changes the schedule.
-So `IdleWaitTime` bounds how long the thread sits idle; it does not bound how soon a trigger can fire,
-and the seconds field means what it says.
-
-The consequence for a move is worth checking before it surprises you: an expression that was quietly
-rounded up to a minute over there starts firing at its stated cadence over here.
+Hangfire enqueues recurring jobs on a poll,
+[`BackgroundJobServerOptions.SchedulePollingInterval`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/BackgroundJobServerOptions.cs)
+(fifteen seconds by default), and
+[documents recurring jobs as minute-based](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html).
+Quartz acquires triggers due within the next `IdleWaitTime` (thirty seconds by default) and waits for the
+earliest; a schedule change wakes it early. `IdleWaitTime` limits idle time, not how soon a trigger fires,
+so the seconds field is honoured. An expression Hangfire rounded up to a minute fires at its stated cadence
+in Quartz. See [What the loop costs while it waits](external-leader.md#what-the-loop-costs-while-it-waits).
 
 ### Misfires are decided per trigger, not per job
 
-`MisfireHandlingMode` has three values and lives on the recurring job. Quartz's
-[misfire instructions](../tutorial/more-about-triggers.md#misfire-instructions) live on the trigger and
-differ by trigger kind, which is more to learn and more to get right. The mapping is close enough to
-start from:
+Hangfire's `MisfireHandlingMode` is per recurring job. Quartz's
+[misfire instructions](../tutorial/more-about-triggers.md#misfire-instructions) are per trigger and differ
+by trigger kind:
 
 | `MisfireHandlingMode` | The nearest `CronTriggerMisfireInstruction` |
 |---|---|
-| `Relaxed` — one job however many occurrences were missed | `FireAndProceed`, which fires one catch-up and then resumes the schedule |
-| `Strict` — one job per missed occurrence | `IgnoreMisfires`, which fires every missed occurrence as fast as the pool allows |
-| `Ignorable` — none | `DoNothing`, which skips to the next scheduled occurrence |
+| `Relaxed` — one job however many occurrences were missed | `FireAndProceed` — one catch-up, then the schedule resumes |
+| `Strict` — one job per missed occurrence | `IgnoreMisfires` — every missed occurrence, as fast as the pool allows |
+| `Ignorable` — none | `DoNothing` — skips to the next scheduled occurrence |
 
-`Relaxed` is Hangfire's default, and `SmartPolicy` — Quartz's default — means `FireAndProceed` for a
-cron trigger. So a schedule moved across without touching the instruction behaves as it did.
-
-The other half of a misfire is how late counts as late. Hangfire's window is its polling interval;
-Quartz's is `MisfireThreshold` on the job store, one minute for the ADO.NET store and five seconds for
-the in-memory one.
+* Both defaults match: Hangfire's is `Relaxed`, and Quartz's `SmartPolicy` means `FireAndProceed` for a
+  cron trigger.
+* "Late" is Hangfire's polling interval, and Quartz's `MisfireThreshold` on the job store: one minute for
+  the ADO.NET store, five seconds in memory.
 
 ### `DisableConcurrentExecution` waits; `[DisallowConcurrentExecution]` does not
 
-Hangfire's attribute takes a distributed lock with a timeout, and a worker that cannot get the lock
-within it
-[throws `DistributedLockTimeoutException`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/DisableConcurrentExecutionAttribute.cs) —
-which, with `AutomaticRetry` on by default, becomes a retry. Quartz's attribute has no timeout because
-nothing waits: while a firing of that job key is in flight, its other triggers sit in the `Blocked`
-state and are released when it completes. Nothing is occupying a worker while it waits, and nothing
-fails because the wait was too long.
-
-The scope is the same in the case that matters — with a persistent store the exclusion is cluster-wide,
-because it is the store that blocks.
+Hangfire's attribute takes a distributed lock with a timeout; a worker that times out
+[throws `DistributedLockTimeoutException`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/DisableConcurrentExecutionAttribute.cs),
+which `AutomaticRetry` then retries. Quartz's attribute has no timeout: while a firing of the job key runs,
+its other triggers are `Blocked` and released on completion, with no worker occupied. With a persistent
+store the exclusion is cluster-wide.
 
 ### Queues become limits, not routes
 
-This is the mapping most likely to disappoint, so it is worth being plain. Hangfire's `[Queue]` does two
-things: it bounds how much of that work runs, and it decides *which servers* run it, because a server
-subscribes to a list of queue names. Quartz's [execution groups](../tutorial/execution-groups.md) do the
-first and not the second:
+Hangfire's `[Queue]` bounds how much work runs *and* chooses which servers run it (a server subscribes to
+queue names). Quartz's [execution groups](../tutorial/execution-groups.md) only bound:
 
 <!-- snippet: sample_coming_from_hangfire_queues -->
 ```csharp
@@ -228,16 +201,15 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-What you gain is that the limit can be counted across the whole cluster rather than per process, which
-is what `ExecutionLimitScope.Cluster` above says — Hangfire's equivalent is `Hangfire.Throttling` on the
-Business tier. What you lose is routing. If a job must run on particular machines, the tools are
-[`PreferredNode`](../tutorial/node-affinity.md), which pins a trigger to a named instance, or a second
-scheduler with its own store; neither is a queue.
+* `ExecutionLimitScope.Cluster` counts the limit across the cluster (Hangfire's equivalent is
+  `Hangfire.Throttling`, on the Business tier).
+* There is no routing. To run on particular machines, pin a trigger to an instance with
+  [`PreferredNode`](../tutorial/node-affinity.md), or use a second scheduler with its own store.
 
 ### Retry is opt-in, and it is on the trigger
 
-`AutomaticRetryAttribute` is in `GlobalJobFilters` by default, so in Hangfire every job retries ten
-times unless told not to. Quartz retries nothing until a trigger carries a policy:
+Hangfire's `AutomaticRetryAttribute` is in `GlobalJobFilters` by default: every job retries ten times.
+Quartz retries only a trigger that carries a policy:
 
 <!-- snippet: sample_coming_from_hangfire_retry -->
 ```csharp
@@ -258,65 +230,46 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Two consequences of "on the trigger" rather than "on the job". Two triggers for the same job can retry
-differently, which is often what you want — the nightly run and the operator's manual one rarely
-deserve the same patience. And a policy is a property of the stored trigger, so it survives a restart
-and is visible to every node: a node that dies during a five-minute backoff does not take the retry
-with it, which is not true of an in-process wait.
-
-Quartz's waits are exactly what the policy says unless the policy asks for jitter, which `Exponential`
-takes as a fifth argument and which spreads each wait the way Hangfire's does. And when a policy runs
-out, Quartz says so: `ITriggerListener.TriggerRetriesExhausted`, a log event, a counter and a history
-row marked as final — with the dashboard's *Run again* button on it, which is Hangfire's requeue. See
-[When the policy gives up](retrying-failed-jobs.md#when-the-policy-gives-up).
-
-The rest of what a retry does and does not do — that it never displaces the trigger's own next
-occurrence, that running out of attempts is not an error, that it burns no repeat count — is
-[Retrying Failed Jobs](retrying-failed-jobs.md).
+* Two triggers of one job can retry differently.
+* The policy is stored with the trigger, so a retry survives a restart and any node runs it.
+* Waits are exact unless `Exponential` is given jitter (its fifth argument), which spreads them as
+  Hangfire's do.
+* A retry never displaces the trigger's next occurrence, running out is not an error, and a retry uses no
+  repeat count. When attempts run out, `ITriggerListener.TriggerRetriesExhausted`, a log event, a counter
+  and a final history row report it; the row has the dashboard's *Run again* button, the equivalent of a
+  requeue. See [When the policy gives up](retrying-failed-jobs.md#when-the-policy-gives-up).
 
 ### Continuations
 
-`ContinueJobWith` takes a `JobContinuationOptions` and settles on the parent's final state;
-`OnlyOnSucceededState` is the default. Quartz's answer is
-[a continuation](job-continuations.md): a trigger carrying `StartAfter(parentTriggerKey, condition)`,
-held by the **store** in `TriggerState.Awaiting` and settled by the parent's completion inside the
-parent's own transaction. `OnSuccess` is the default here too.
+`ContinueJobWith` (a `JobContinuationOptions`, default `OnlyOnSucceededState`) becomes
+[a continuation](job-continuations.md): a trigger with `StartAfter(parentTriggerKey, condition)`, held by
+the **store** in `TriggerState.Awaiting` and released inside the parent's transaction. `OnSuccess` is the
+default.
 
-Two differences are worth knowing before porting one:
-
-* **The parent is a trigger, not a job.** Hangfire continues a job id; a continuation waits for one
-  *firing*, and the `TriggerKey` the one-call overloads answer with is the handle. A job fired by
-  several triggers therefore says which of them it is waiting for.
-* **The conditions are not the same set.** `OnSuccess`, `OnFailure`, `OnCancellation` and `OnVeto` are
-  flags, so `OnFailure | OnCancellation` needs no member of its own; there is nothing corresponding to
-  `OnlyOnDeletedState`, because Quartz keeps no job record to delete.
-
-`JobChainingJobListener` is still there, and is still what a *recurring* conditional chain is: a
-continuation settles once, where a link fires on every completion. It takes the same conditions now.
-The links live in memory with the listener rather than in the store, so they are re-registered on every
-start and the follow-up runs on whichever node ran the parent.
+* **The parent is a trigger firing, not a job.** Use the `TriggerKey` the one-call overloads return; for a
+  job with several triggers, name the one to wait for.
+* **The conditions differ.** `OnSuccess`, `OnFailure`, `OnCancellation` and `OnVeto` are flags
+  (`OnFailure | OnCancellation` needs no member). Nothing matches `OnlyOnDeletedState`: Quartz keeps no job
+  record to delete.
+* For a *recurring* conditional chain, use `JobChainingJobListener` with the same conditions. Its links fire
+  on every completion but live in memory: re-registered on every start, and the follow-up runs on the node
+  that ran the parent.
 
 ### Job expiration is not history retention
 
-`JobStorage.Current.JobExpirationTimeout` is how long Hangfire keeps a *job record* — one day for
-succeeded and deleted jobs, while failed ones never expire and stay in the dashboard until somebody
-acts on them. Quartz keeps no job record: a trigger's firing leaves a fired-trigger row that is deleted
-when the firing settles, and what you see afterwards is the
-[execution history](../packages/dashboard.md#execution-history-and-misfires), which is a separate,
-in-memory-by-default store holding 2,000 entries per scheduler for 24 hours.
-
-So the two settings are not each other. If you relied on "failed jobs are still in the dashboard next
-week", nothing in Quartz does that today; the history store is a recent-activity view, and a durable
-record is your logging pipeline's job. The retention and size are
-`ExecutionHistoryOptions.Retention` and `MaxEntriesPerScheduler`.
+Hangfire's `JobStorage.Current.JobExpirationTimeout` keeps succeeded and deleted *job records* for one day;
+failed ones never expire and stay in the dashboard. Quartz keeps no job record: a firing's fired-trigger row
+is deleted when it completes. What remains is the
+[execution history](../packages/dashboard.md#execution-history-and-misfires), in memory by default, 2,000
+entries per scheduler for 24 hours (`ExecutionHistoryOptions.Retention`, `MaxEntriesPerScheduler`). It is a
+recent-activity view; keep durable records in your logging pipeline.
 
 ### The dashboard is fail-closed
 
 Hangfire's dashboard is
-[readable from localhost by default](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html)
-and needs an `IDashboardAuthorizationFilter` for anything else. Quartz's refuses to let the application
-start until the mapping says who may reach it — either `RequireAuthorization`, or `AllowAnonymous` if
-you mean it:
+[readable from localhost by default](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html).
+Quartz's stops the application from starting until the mapping says `RequireAuthorization`, or
+`AllowAnonymous` if you mean it:
 
 <!-- snippet: sample_coming_from_hangfire_dashboard -->
 ```csharp
@@ -325,30 +278,22 @@ app.MapQuartzDashboard().RequireAuthorization("QuartzOperators");
 ```
 <!-- endSnippet -->
 
-The full model, including read-only mode and the allow-list of job types that may be named through it,
-is [Production hardening](../packages/dashboard.md#production-hardening).
+See [Production hardening](../packages/dashboard.md#production-hardening) for read-only mode and the job
+type allow-list.
 
 ### What "once" means
 
-Hangfire's documentation asks for
-[re-entrant methods](https://docs.hangfire.io/en/latest/best-practices.html) because an interruption
-"can be caused by many different things (i.e. exceptions, server shut-down), and Hangfire will attempt
-to retry processing many times". Quartz's default is the other way round: a firing interrupted by a
-node dying is **lost**, not repeated, unless the job asks for
-[recovery](../tutorial/advanced-enterprise-features.md#asking-for-recovery).
-
-So a job that relied on Hangfire re-running it after a crash needs `RequestRecovery()` here, and a job
-written to be safely re-run stays safe either way. Write it to be safely re-run:
-[Best Practices](/documentation/best-practices#assume-the-job-will-run-more-than-once) has the shapes,
-and the reasons the field agrees on this.
+Hangfire retries a job interrupted by an exception or shut-down, so it
+[asks for re-entrant methods](https://docs.hangfire.io/en/latest/best-practices.html). In Quartz a firing
+lost with its node is **not** repeated unless the job asks for
+[recovery](../tutorial/advanced-enterprise-features.md#asking-for-recovery) with `RequestRecovery()`. Write
+jobs to be safely re-run either way; see
+[Best Practices](/documentation/best-practices#assume-the-job-will-run-more-than-once).
 
 ## Running both while you move
 
-Nothing stops the two from sharing a host — they are separate hosted services against separate schemas,
-and a `BackgroundJobServer` and a Quartz scheduler know nothing of each other. The one thing worth
-deciding early is which of them owns a given schedule, because a recurring job running in both is a
-duplicate nobody notices until it matters. Move a schedule by removing it from the one before adding it
-to the other, in that order.
+They are separate hosted services on separate schemas, so they can share a host. A recurring job registered
+in both runs twice, unreported: remove each schedule from Hangfire before adding it to Quartz.
 
 ## See also
 

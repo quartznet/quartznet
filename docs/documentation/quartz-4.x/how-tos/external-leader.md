@@ -5,52 +5,39 @@ title: 'Running under an External Leader Election'
 
 # Running under an External Leader Election
 
-Some applications already know which of their processes is in charge. A Kubernetes `Lease`, Wolverine's
-leader-pinned agents, a Consul or etcd session, a database advisory lock, a message bus that only starts
-one consumer — the election exists, it gates other singletons, and the operations team already watches it.
-Running Quartz's own clustering underneath it means two elections deciding overlapping questions.
-
-This page describes the alternative: **a persistent job store with clustering off, exactly one process
-scheduling at a time, started and stopped by somebody else's election**. It is a real topology with real
-edges, and the edges are the reason it needs writing down.
+When an application already elects a leader (a Kubernetes `Lease`, Wolverine's leader-pinned agents, a
+Consul or etcd session, a database advisory lock, a single bus consumer), run **a persistent job store with
+clustering off, one process scheduling at a time, started and stopped by that election**, instead of a
+second election inside Quartz.
 
 ::: warning This is not the default answer
-[Clustering](../tutorial/advanced-enterprise-features.md) is how Quartz runs on more than one node, and it
-is what to use unless you can name why you are not. It gives failover recovery of a dead node's firings,
-which nothing on this page does, and it lets every node do work rather than leaving all but one idle.
-Choose an external election when the election already exists and must gate several components together,
-or when it is the only thing your platform can offer.
+Use [clustering](../tutorial/advanced-enterprise-features.md) unless you have a reason not to: it recovers
+a dead node's firings, which nothing here does, and lets every node work. Choose an external election when
+it already exists and must gate several components, or when it is all your platform offers.
 :::
 
 ## Not clustering, and staying that way
 
-Clustering is spelled by calling `UseClustering()`. **Not clustering is spelled by not calling it** —
-not by calling it and turning it off:
+Leave clustering off by not calling `UseClustering()`, not by calling it and disabling it:
 
 ```csharp
 // Refused at startup
 q.UsePersistentStore(store => store.UseClustering(c => c.Enabled = false));
 ```
 
-`UseClustering` does two things: it sets `ClusteringOptions.Enabled`, and it sets
-`AdoJobStoreOptions.UseDbLocks`, because clustering has never worked without database locking. Turning
-`Enabled` back off inside the callback — or in a later `Configure<ClusteringOptions>` — leaves the store
-with database locking on, no cluster manager and no check-in row: a configuration nobody means to write.
-`ClusteringStaysEnabledValidator` refuses it, and because `ClusteringOptions` is registered with
-`ValidateOnStart`, it fails as the host starts rather than at the first firing.
+`UseClustering` sets `ClusteringOptions.Enabled` and also `AdoJobStoreOptions.UseDbLocks`. Turning `Enabled`
+off again (in the callback or a later `Configure<ClusteringOptions>`) would leave database locking with no
+cluster manager or check-in row, so `ClusteringStaysEnabledValidator` refuses it when the host starts
+(`ValidateOnStart`). The check is per scheduler, so a sibling scheduler can run un-clustered.
 
-It is scoped to the scheduler that asked, so a sibling scheduler in the same container legitimately runs
-un-clustered.
+A non-clustered persistent store:
 
-What a non-clustered persistent store does not do, and this page assumes you know:
+* writes no `QRTZ_SCHEDULER_STATE` row and runs no check-in, so `QueryClusterNodes()` returns nothing;
+* never runs the failover sweep, so no peer takes over a dead node's firings;
+* takes its `TRIGGER_ACCESS` lock **in process** (`InProcessLockHandler`), excluding only one scheduler's
+  threads.
 
-* it writes no `QRTZ_SCHEDULER_STATE` row and runs no check-in, so `QueryClusterNodes()` returns nothing;
-* it never runs the failover sweep, so no peer takes over a dead node's firings;
-* it takes its `TRIGGER_ACCESS` lock **in process**, through `InProcessLockHandler`, which excludes the
-  threads of one scheduler and nothing else.
-
-That last one is what makes the election load-bearing rather than an optimisation. See
-[Two leaders at once](#two-leaders-at-once).
+So the election is required for correctness; see [Two leaders at once](#two-leaders-at-once).
 
 ## Building it
 
@@ -77,11 +64,9 @@ builder.Services.AddHealthChecks().AddQuartz();
 ```
 <!-- endSnippet -->
 
-`AutoStart = false` has the hosted service build, initialize and bind the scheduler with the host and then
-leave it in `Created` for the application to start. It is not the same as omitting the hosted service:
-shutdown still runs, so the scheduler is stopped cleanly whether or not it was ever started. The
-[hosted service page](../packages/hosted-services-integration.md#a-scheduler-the-application-starts-itself)
-has the rest of that setting.
+`AutoStart = false` builds, initializes and binds the scheduler with the host and leaves it in `Created`.
+Shutdown still runs, whether or not it was started. See the
+[hosted service page](../packages/hosted-services-integration.md#a-scheduler-the-application-starts-itself).
 
 ## Starting and standing down
 
@@ -112,95 +97,65 @@ public sealed class SchedulerLeadership(IScheduler scheduler)
 ```
 <!-- endSnippet -->
 
-Wire those two to whatever your election calls them: `OnStartedLeading`/`OnStoppedLeading` on the
-Kubernetes client's `LeaderElector`, the start and stop of a Wolverine agent, `PostCreate`/`PreStop` on a
-MassTransit bus observer, the acquire and release callbacks of a distributed lock.
+Wire these to your election: `OnStartedLeading`/`OnStoppedLeading` on the Kubernetes C# client's
+[`LeaderElector`](https://github.com/kubernetes-client/csharp), a Wolverine agent's start and stop,
+`PostCreate`/`PreStop` on a MassTransit bus observer, or a distributed lock's acquire and release.
 
-Three things decide the shape:
+* **`Start` is idempotent and resumes from standby.** Only the first call runs start-up recovery and starts
+  plugins, so re-election is cheap.
+* **Use `Standby`, not `Shutdown`.** After shutdown, `Start` throws
+  *"The Scheduler cannot be restarted after Shutdown() has been called."*;
+  [`ISchedulerRuntime.Restart`](../multi-tenancy.md#restarting-a-scheduler) would build a whole new
+  scheduler.
+* **`Standby` after shutdown throws** `SchedulerException("The Scheduler has been Shutdown.")`. Losing the
+  lease while the host stops is normal, so check `Status` first.
 
-* **`Start` is idempotent and resumes from standby.** The first call starts the scheduler; every later
-  one resumes it. Only the first runs the store's start-up recovery and starts the plugins, so a
-  re-election is cheap.
-* **`Standby` is not `Shutdown`.** Shutdown is terminal for that scheduler — `Start` after it throws
-  *"The Scheduler cannot be restarted after Shutdown() has been called."*, and what
-  [`ISchedulerRuntime.Restart`](../multi-tenancy.md#restarting-a-scheduler) offers is a *new* scheduler
-  built from the same registration, which is far more than losing a lease should cost. Standby is
-  reversible, which is what a leadership that can come back needs.
-* **`Standby` after shutdown throws**, with `SchedulerException("The Scheduler has been Shutdown.")`.
-  Losing a lease while the host is already stopping is ordinary, so read `Status` before standing down
-  rather than catching the exception.
-
-`SchedulerStatus` replaces 3.x's `IsStarted` / `InStandbyMode` / `IsShutdown` triple: `Created`,
-`Running`, `Standby`, `ShuttingDown`, `Shutdown`. A scheduler that has never been started stands down to
-`Created`, not `Standby`, because "never started" is the more precise answer.
+`SchedulerStatus` (`Created`, `Running`, `Standby`, `ShuttingDown`, `Shutdown`) replaces 3.x's
+`IsStarted` / `InStandbyMode` / `IsShutdown`. A never-started scheduler stands down to `Created`.
 
 ### What standby does, and what it does not
 
-Standby pauses the scheduling loop and tells the job store the scheduler is paused. It does **not**:
+Standby pauses the scheduling loop and tells the store. It does **not**:
 
-* **stop a firing that is already in flight.** Running jobs are untouched, by design — a job that must end
-  on request watches `IJobExecutionContext.CancellationToken`.
-* **release triggers this node has already acquired.** The loop asks for triggers due within the next
-  `IdleWaitTime` and then waits out the first one's fire time; standing down in the middle of that wait
-  does not abandon it. So a node that has just stood down can still fire up to `MaxBatchSize` triggers,
-  as late as `IdleWaitTime` after it stopped leading. Only shutdown releases an acquired batch.
-* **stop the misfire handler.** It is started on the scheduler's first start and stopped only by shutdown,
-  and it reads no pause flag. A stood-down leader keeps scanning for misfires on
-  `MisfireHandlerFrequency` — defaulting to `MisfireThreshold`, one minute for the ADO store — and keeps
-  writing trigger state while it does.
+* **stop running jobs.** A job that must stop watches `IJobExecutionContext.CancellationToken`.
+* **release already acquired triggers.** A node that just stood down can still fire up to `MaxBatchSize`
+  triggers, up to `IdleWaitTime` later. Only shutdown releases an acquired batch.
+* **stop the misfire handler.** It starts on the first start, stops only on shutdown, and keeps scanning
+  every `MisfireHandlerFrequency` (default `MisfireThreshold`, one minute for the ADO store), writing
+  trigger state.
 
-The last of those is the one that surprises people: **standby means "not acquiring", not "not touching the
-database"**. A process that has never been elected at all is genuinely inert, because the misfire handler
-does not exist until the first `Start()`. A process that led once and stood down is not.
+**Standby means "not acquiring", not "not touching the database".** A never-elected process is inert (no
+misfire handler until the first `Start()`); one that led and stood down is not.
 
 ::: tip A process that only writes the schedule
-Standby is right here, because a follower is a leader-in-waiting and must be able to fire the moment it
-is elected. A process that will *never* be elected — an admin API, a migration tool, anything that
-schedules work for other processes to run — wants `q.UseThreadPool<ZeroSizeThreadPool>()` instead, which
-is why that type is public. It creates no worker threads, and the two members a running scheduler calls
-throw `NotSupportedException`, so such a scheduler is never started and says so if something starts it.
-Such a process need not reference the assemblies its job classes live in: the store reads, edits, pauses,
-reschedules, triggers and deletes on the stored type name alone.
-
-This is also what the dashboard builds a *window* out of:
-[`AttachStore`](../packages/dashboard.md#store-attached-targets) discovers the schedulers in a database
-and creates one of these per name, so a cluster can be watched and its schedule changed without anything
-being asked of the nodes running it.
+A process that will *never* be elected (an admin API, a migration tool) should use
+`q.UseThreadPool<ZeroSizeThreadPool>()`, which is public for this. It creates no threads, and the two
+members a running scheduler calls throw `NotSupportedException`, so starting it fails loudly. It need not
+reference your job assemblies: the store reads, edits, pauses, reschedules, triggers and deletes by stored
+type name. The dashboard's [`AttachStore`](../packages/dashboard.md#store-attached-targets) creates one of
+these per scheduler it discovers in a database.
 :::
 
-The health check follows the same distinction. It reports *degraded* — not *unhealthy* — both while a
-scheduler sits in `Created` with `AutoStart = false` and while it is in `Standby`, because in both cases it
-is doing exactly what it was configured to do. A non-leader replica therefore stays in rotation for
-traffic it can still serve; see [Health checks](../packages/hosted-services-integration.md#health-checks).
+The health check reports *degraded*, not *unhealthy*, in `Created` with `AutoStart = false` and in
+`Standby`, so a non-leader replica stays in rotation. See
+[Health checks](../packages/hosted-services-integration.md#health-checks).
 
 ## What the loop costs while it waits
 
-Three settings decide how quickly a due trigger is noticed and how much database traffic the waiting
-costs. Their defaults are tuned for a cluster of ordinary size, and an integration that also polls
-something else will want to move them:
-
 | Setting | Default | What it decides |
 |---|---|---|
-| `QuartzSchedulerOptions.IdleWaitTime` | 30 seconds | How long the loop waits before asking the store again when it found nothing. Must be at least one second. |
-| `QuartzSchedulerOptions.MaxBatchSize` | 1 | The upper bound on triggers acquired per round. Must not exceed `ThreadPoolOptions.MaxConcurrency`. |
-| `QuartzSchedulerOptions.BatchTriggerAcquisitionFireAheadTimeWindow` | `TimeSpan.Zero` | How far past the current time a trigger may fire in order to join the batch that is already forming. |
+| `QuartzSchedulerOptions.IdleWaitTime` | 30 seconds | how long the loop waits before asking the store again when it found nothing; at least one second |
+| `QuartzSchedulerOptions.MaxBatchSize` | 1 | the most triggers acquired per round; must not exceed `ThreadPoolOptions.MaxConcurrency` |
+| `QuartzSchedulerOptions.BatchTriggerAcquisitionFireAheadTimeWindow` | `TimeSpan.Zero` | how early a trigger may fire to join a batch already forming |
 
-**`IdleWaitTime` is not the firing latency for anything scheduled in this process.** Every scheduling call
-made through this scheduler signals the loop, which cuts the wait short immediately: schedule a trigger for
-five seconds' time and it fires in five seconds, whatever `IdleWaitTime` says. What the wait bounds is the
-pickup of a trigger written by **another process** — an API node inserting into the same tables, a
-migration, a hand-written row. There is no cross-process wakeup: nothing signals this loop from outside it.
-
-Two details worth knowing before choosing a number. The idle wait is randomized into
-`[0.8 × IdleWaitTime, IdleWaitTime)`, so several nodes coming up together do not synchronize their polls.
-And a round acquires triggers due within the next `IdleWaitTime`, so a longer wait is not simply a longer
-blind spot — it is a wider look-ahead as well, and a trigger that came due during the sleep is picked up
-late rather than lost.
-
-`MaxBatchSize` and the fire-ahead window are one setting in two halves. Raising the batch size alone leaves
-the effective batch at one trigger for any schedule whose fire times are spread out, because a batch stops
-at the first trigger not due within the window of the one that opened it. Raising the window alone gives a
-batch nothing to grow into. Move them together, or neither:
+* **`IdleWaitTime` is not latency for work scheduled in this process**: every scheduling call signals the
+  loop. It bounds pickup of triggers written by **another process** (an API node, a migration, a
+  hand-written row); nothing signals the loop from outside.
+* The wait is randomized within `[0.8 × IdleWaitTime, IdleWaitTime)`, so nodes do not poll in step.
+* A round acquires triggers due within the next `IdleWaitTime`, so a trigger due during the sleep is late,
+  not lost.
+* Change `MaxBatchSize` and the fire-ahead window together: a batch stops at the first trigger not due
+  within the opening trigger's window.
 
 <!-- snippet: sample_external_leader_tuning -->
 ```csharp
@@ -224,58 +179,41 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Each half has a cost. A batch size above one makes every acquisition round take the `TRIGGER_ACCESS` lock,
-including the rounds that acquire nothing — which is why the default is the one value that needs no lock at
-all. A wide fire-ahead window fires triggers early by up to that much, and widens the window in which a
-batch this node has acquired but not yet fired is unavailable to anyone else. In this topology that second
-cost is larger than it looks: nothing recovers an acquired batch from a process that died holding it until
-that scheduler starts again, because there is no peer running the failover sweep.
+Costs: a batch size above one takes the `TRIGGER_ACCESS` lock on every round, even empty ones (the default
+of one takes none). A wide window fires triggers early and holds an acquired batch longer, and here nothing
+recovers a batch held by a dead process until that scheduler starts again.
 
 ## When the leader moves
 
-A new leader starting a non-clustered ADO.NET store runs the start-up recovery pass under the trigger-access
-lock, and it is worth knowing exactly what that pass does, because it is all that happens:
+A new leader on a non-clustered ADO.NET store runs this recovery pass under the trigger-access lock:
 
-1. **Every trigger of this scheduler in `ACQUIRED` or `BLOCKED` goes back to `WAITING`**, and every
-   `PAUSED_BLOCKED` back to `PAUSED`. This is scoped by scheduler name, not by instance, so it frees what
-   the previous leader left behind whoever that was. This is what un-sticks the schedule.
-2. **Every misfire is resolved, with no batch limit.** The `MaxMisfiresToHandleAtATime` cap — 20 by
-   default — bounds the background handler, not this pass, so a store that was leaderless for hours does
-   not have to catch up twenty triggers at a time.
-3. **Jobs marked for recovery are re-scheduled**, from the fired-trigger rows carrying
-   `REQUESTS_RECOVERY`. Each becomes a `recover_<instanceId>_<n>` trigger in the
-   `SchedulerConstants.DefaultRecoveryGroup` group, starting at the firing's scheduled time with
-   `IgnoreMisfires`, carrying the original trigger's job data plus the four `QRTZ_FAILED_JOB_ORIG_*`
-   entries. The job sees `IJobExecutionContext.Recovering`.
-4. **Lingering `COMPLETE` triggers are deleted, and then every fired-trigger row of this scheduler is
-   deleted** — all of them, with no instance filter.
-
-Step 3 is the one with a condition on it, and step 4 is the one that makes the condition unforgiving.
+1. **`ACQUIRED` and `BLOCKED` triggers of this scheduler go back to `WAITING`**, and `PAUSED_BLOCKED` to
+   `PAUSED`. Scoped by scheduler name, so it frees what the previous leader left.
+2. **Every misfire is resolved, with no batch limit.** `MaxMisfiresToHandleAtATime` (20 by default) bounds
+   only the background handler.
+3. **Jobs marked for recovery are re-scheduled** from fired-trigger rows with `REQUESTS_RECOVERY`: each
+   becomes a `recover_<instanceId>_<n>` trigger in `SchedulerConstants.DefaultRecoveryGroup`, starting at
+   the firing's scheduled time with `IgnoreMisfires`, carrying the original job data plus the four
+   `QRTZ_FAILED_JOB_ORIG_*` entries. The job sees `IJobExecutionContext.Recovering`.
+4. **Lingering `COMPLETE` triggers are deleted, then every fired-trigger row of this scheduler**, with no
+   instance filter.
 
 ### The instance id decides whether recovery survives a leader move
 
-Step 3 selects fired-trigger rows whose `INSTANCE_NAME` is *this store's own instance id*. Step 4 then deletes
-every row regardless of instance. So a new leader that presents a **different** instance id from the one
-that died finds nothing to recover, and then deletes the evidence: jobs with `RequestsRecovery` are
-silently not re-run. Scheduling still resumes correctly, because steps 1 and 2 are scoped by scheduler
-name — only the recovery is lost.
+Step 3 selects rows whose `INSTANCE_NAME` is *this store's* instance id; step 4 deletes all rows. A new
+leader with a **different** id recovers nothing and deletes the rows: `RequestsRecovery` jobs are silently
+not re-run (scheduling still resumes).
 
-For a non-clustered store you cannot get this wrong by accident, and you can get it wrong on purpose:
+| Instance id setting | Non-clustered store uses | Recovery across a leader move |
+|---|---|---|
+| default | `"NON_CLUSTERED"`, the same in every process | works |
+| generated: `GenerateInstanceId`, flat `quartz.scheduler.instanceId = AUTO`, or any `UseInstanceIdGenerator(...)` | ignored; still `"NON_CLUSTERED"` | works |
+| a literal `InstanceId` per process (pod name, host name) | honoured | **lost** — do not do this here |
 
-* `InstanceId` defaults to `"NON_CLUSTERED"`, which is the same string in every process. Recovery works
-  across a leader move, because both leaders present it.
-* Asking for a generated id — `GenerateInstanceId`, or the flat `quartz.scheduler.instanceId = AUTO`, or
-  any `UseInstanceIdGenerator(...)` — is **ignored** for a non-clustered store, which returns
-  `"NON_CLUSTERED"` regardless. A generated id buys nothing for a store that shares its database with
-  nobody.
-* Setting a **literal** `InstanceId` — the pod name, a host name, anything per-process — is honoured, and
-  it is what breaks recovery across a leader move. In this topology, do not.
+Clusters need a distinct id per node ([Naming a node in a container](../operations.md#naming-a-node-in-a-container));
+here the id names *the leader*, of which there is one.
 
-That is the opposite of the advice for a cluster, where every node must have an id of its own; see
-[Naming a node in a container](../operations.md#naming-a-node-in-a-container). Here the id is not
-identifying a node, it is identifying *the leader*, and there is only ever meant to be one.
-
-The jobs that want any of this have to ask:
+Jobs must ask for recovery:
 
 <!-- snippet: sample_external_leader_request_recovery -->
 ```csharp
@@ -290,64 +228,41 @@ builder.Services.AddQuartz(q =>
 <!-- endSnippet -->
 
 ::: tip Recovery is a re-run, not a resume
-A recovered firing starts the job again from the beginning. Whether that is safe is the job's problem, not
-the scheduler's — which is the same requirement idempotency imposes below, arrived at from the other side.
+A recovered firing starts the job from the beginning, so it must be safe to re-run.
 :::
 
 ## Two leaders at once
 
-Leader election gives mutual exclusion when it is working, and every election has a window in which it is
-not: a lease that expired while its holder was paused by a long garbage collection or a frozen container, a
-clock that drifted, a partition that healed. This is the fencing problem, it is not specific to Quartz, and
-the systems that implement election say so themselves. Kubernetes' `client-go` leader election states in
-its own package documentation that "this implementation does not guarantee that only one client is acting
-as a leader (a.k.a. fencing)". Apache Curator's tech note walks the case in detail — a three-second session
-timeout against a ten-second GC pause — and concludes, in its capitals, that "**BOTH CLIENT A AND CLIENT B
-WILL BELIEVE THEY ARE THE LOCK HOLDER**".
+Every election has windows without mutual exclusion: a lease expiring while its holder is paused by
+garbage collection or a frozen container, clock drift, a healed partition. Election libraries document
+this (Kubernetes'
+[`client-go/tools/leaderelection`](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection), Apache
+Curator's [Tech Note 10](https://curator.apache.org/docs/tech-note-10)). A fencing token (etcd's revision,
+Consul's `LockIndex`) does not help: it only fences a resource that validates it
+([etcd](https://etcd.io/docs/v3.6/learning/why/)), and `QRTZ_*` has no epoch column. The in-process
+`TRIGGER_ACCESS` lock does not exclude a second scheduler.
 
-The published remedy is a fencing token: the resource itself rejects work carrying a stale one. Some
-backends can supply one — etcd's revision number, Consul's `LockIndex` sequencer — and it does not help
-here, because **a token only fences if the resource validates it**. etcd's own documentation makes the
-point for us: the resources to be protected "must provide the version number validation mechanism", and
-its lock "cannot be used for protecting external resources". The `QRTZ_*` schema has no epoch column and no
-statement that compares one, so there is nothing for a token to be checked against. And a non-clustered
-store takes its `TRIGGER_ACCESS` lock in process, so two schedulers against one set of tables exclude each
-other not at all.
+If a second process starts while the first still leads:
 
-What that costs, precisely, if a second process starts while the first still believes it leads:
+* its recovery resets the incumbent's `ACQUIRED` triggers to `WAITING`, so both can fire them;
+* sharing `"NON_CLUSTERED"`, its step 3 schedules recovery for the incumbent's *in-flight* jobs;
+* its step 4 deletes the incumbent's fired-trigger rows, hiding them from `QueryFireInstances`;
+* `[DisallowConcurrentExecution]` holds within a scheduler, not between two.
 
-* The newcomer's start-up recovery resets the incumbent's `ACQUIRED` triggers to `WAITING`, so both nodes
-  can acquire and fire them.
-* Both nodes carry the same `"NON_CLUSTERED"` instance id, so the newcomer's step 3 reads the incumbent's
-  *in-flight* firings as its own to recover, and schedules recovery triggers for jobs that are still
-  running.
-* Its step 4 deletes the incumbent's fired-trigger rows, so the incumbent's own completions have nothing
-  left to clean up, and its firings are no longer visible to `QueryFireInstances`.
-* `[DisallowConcurrentExecution]` is honoured within a scheduler and not between two of them.
+Definitions are not corrupted, but jobs double-fire and state is mis-reported. So:
 
-None of it corrupts a job or a trigger definition; all of it double-fires and mis-reports. So:
-
-* **Write the jobs to tolerate running twice.** This is the mitigation. It is not a fallback for a
-  badly-configured election, it is the requirement the topology carries.
-* **Give the departing leader time to finish.** Standby leaves in-flight jobs running and does not release
-  an acquired batch, so the drain window matters: `WaitForJobsToComplete`, `HostOptions.ShutdownTimeout`,
-  and a `terminationGracePeriodSeconds` longer than the longest job. See
-  [Shutdown has a budget](../packages/hosted-services-integration.md#shutdown-has-a-budget). Consul is the
-  one election here that builds the same idea into itself: its `LockDelay`, fifteen seconds by default,
-  refuses re-acquisition for that long "to allow the potentially still live leader to detect the
-  invalidation and stop processing" — and its documentation is candid that this is "not a bulletproof
-  method".
-* **Prefer an election that lives in the same database as the tables.** A lock taken with
-  `pg_advisory_lock` or `sp_getapplock` on the connection that also writes `QRTZ_*` is one thing failing
-  or holding, rather than two systems that can disagree. Note the asymmetry if you reach for advisory
-  locks specifically: PostgreSQL documents that they "relate only to the server on which they are
-  acquired", and a hot standby grants them too — so after a failover an old and a new primary can both
-  hold the same lock with nothing raising an error.
-* **If you find yourself adding safeguards, you are rebuilding clustering.** Turning on `UseDbLocks`
-  without a cluster manager serializes the two processes' store operations, which stops them mis-reading
-  each other's state — but it does not stop either of them scheduling, so both still fire. One connection,
-  one database, one lock the store itself takes, is what `UseClustering()` already is; at that point it is
-  the smaller change and the supported one.
+* **Write jobs to tolerate running twice.** This topology requires it.
+* **Let the departing leader finish.** Standby keeps jobs running and the acquired batch, so set
+  `WaitForJobsToComplete`, `HostOptions.ShutdownTimeout`, and a `terminationGracePeriodSeconds` longer than
+  the longest job; see [Shutdown has a budget](../packages/hosted-services-integration.md#shutdown-has-a-budget).
+  Consul's [`LockDelay`](https://developer.hashicorp.com/consul/docs/automate/session) (fifteen seconds by
+  default) delays re-acquisition for the same reason, without guaranteeing it.
+* **Prefer an election in the same database.** A `pg_advisory_lock` or `sp_getapplock` on the connection
+  that writes `QRTZ_*` fails with the tables. But PostgreSQL grants advisory locks per server, including on
+  a hot standby, so after a failover old and new primaries can both hold one
+  ([Hot Standby](https://www.postgresql.org/docs/current/hot-standby.html)).
+* **Adding safeguards means rebuilding clustering.** `UseDbLocks` without a cluster manager serializes store
+  operations but both processes still fire. `UseClustering()` is the smaller, supported change.
 
 ## See also
 
@@ -365,26 +280,5 @@ None of it corrupts a job or a trigger definition; all of it double-fires and mi
   leader-pinned agent pressing start on the scheduler
 * [Configuration Reference](../configuration/reference.md#persistent-job-store) — every setting named here,
   with its default
-
-## Sources
-
-Prior art surveyed in August 2026. Quartz.NET's own behaviour is stated from the source in this
-repository rather than from any of these.
-
-* Kubernetes, [`client-go/tools/leaderelection`](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection)
-  — the fencing caveat, in the package's own words; the C# client's
-  [`LeaderElector`](https://github.com/kubernetes-client/csharp) exposes the same
-  `OnStartedLeading`/`OnStoppedLeading` shape
-* Apache Curator, [Tech Note 10](https://curator.apache.org/docs/tech-note-10) — the GC-pause scenario in
-  which two clients both hold the lock
-* etcd, [Why etcd](https://etcd.io/docs/v3.6/learning/why/) — that a lease is not mutual exclusion, and
-  that a revision number only fences a resource which validates it
-* HashiCorp, [Consul sessions](https://developer.hashicorp.com/consul/docs/automate/session) — `LockDelay`
-  and the sequencer
-* PostgreSQL, [Hot Standby](https://www.postgresql.org/docs/current/hot-standby.html) — advisory locks
-  relate only to the server that granted them
-* madelson, [DistributedLock — Other topics](https://github.com/madelson/DistributedLock/blob/master/docs/Other%20topics.md)
-  — the renewal-timeout risk, and why a lock sharing the protected database's connection is the shape that
-  holds
-* Hangfire, [Running multiple server instances](https://docs.hangfire.io/en/latest/background-processing/running-multiple-server-instances.html)
-  — the competing-consumers alternative to electing anybody
+* [DistributedLock — Other topics](https://github.com/madelson/DistributedLock/blob/master/docs/Other%20topics.md)
+  — the renewal-timeout risk, and why a lock on the protected database's connection holds
