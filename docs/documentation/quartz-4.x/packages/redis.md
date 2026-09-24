@@ -2,15 +2,9 @@
 title: Redis Lock Handler
 ---
 
-[Quartz.Extensions.Redis](https://www.nuget.org/packages/Quartz.Extensions.Redis) provides a Redis-based distributed lock handler (`ILockHandler`) that replaces database row locks in clustered Quartz.NET setups.
-
-::: tip
-Useful when database row locks (the default for clustered setups) cause deadlocks or performance issues under heavy scheduling load.
-:::
-
-::: tip
-Quartz 4.0 or later required.
-:::
+[Quartz.Extensions.Redis](https://www.nuget.org/packages/Quartz.Extensions.Redis) is a Redis-based distributed
+lock handler (`ILockHandler`). It replaces database row locks in a clustered Quartz.NET setup; job and trigger
+data stay in the relational database. Requires Quartz 4.0 or later.
 
 ## Installation
 
@@ -20,13 +14,14 @@ dotnet add package Quartz.Extensions.Redis
 
 ## Why Redis Locks?
 
-The default `SelectForUpdateLockHandler` uses `SELECT ... FOR UPDATE` database row locks to coordinate trigger acquisition across cluster nodes. Under heavy scheduling load this can lead to:
+The default `SelectForUpdateLockHandler` coordinates trigger acquisition with `SELECT ... FOR UPDATE` row locks.
+Under heavy scheduling load this can cause:
 
-- **Table deadlocks** in certain database engines
-- **Connection timeouts** when obtaining locks is slow
-- **Performance degradation** from lock contention on the `QRTZ_LOCKS` table
+- **table deadlocks** in some database engines;
+- **connection timeouts** when obtaining locks is slow;
+- **lock contention** on the `QRTZ_LOCKS` table.
 
-The Redis lock handler replaces these database locks with Redis `SET NX PX` distributed locks while keeping all job and trigger data in your relational database.
+The Redis handler uses Redis `SET NX PX` locks instead.
 
 ## Configuring
 
@@ -57,8 +52,8 @@ The same `UseRedisLockHandler` call works without a host, inside `QuartzSchedule
 |---|---|---|
 | `RedisConfiguration` | `localhost:6379` | StackExchange.Redis connection string |
 | `KeyPrefix` | `quartz:lock:` | Prefix for Redis lock keys |
-| `LockTimeToLive` | 30 seconds | Lock TTL &mdash; the lock auto-expires after this duration |
-| `LockRetryInterval` | 100 milliseconds | Polling interval between `SET NX` retry attempts |
+| `LockTimeToLive` | 30 seconds | Lock TTL; the lock expires after this |
+| `LockRetryInterval` | 100 milliseconds | Wait between `SET NX` retries |
 
 <!-- snippet: sample_redis_lock_handler_options -->
 ```csharp
@@ -71,13 +66,12 @@ store.UseRedisLockHandler(redis =>
 ```
 <!-- endSnippet -->
 
-The scheduler name that namespaces the lock keys is not configured here: the job store tells the handler
-which scheduler it locks for, through `ILockHandler.Initialize(LockHandlerContext)`, before the handler is used.
+The scheduler name in the lock keys is not an option: the job store passes it through
+`ILockHandler.Initialize(LockHandlerContext)` before first use.
 
 ### Using properties
 
-The same handler chosen with flat keys, under `quartz.jobStore.lockHandler.*`. A bare number in one of the
-two time settings is read as milliseconds:
+The flat keys are under `quartz.jobStore.lockHandler.*`. A bare number in either time setting is milliseconds.
 
 <!-- snippet: sample_redis_properties -->
 ```csharp
@@ -98,16 +92,18 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
 
 ## How It Works
 
-The lock handler uses a two-tier locking strategy:
+1. **Local tier.** A `SemaphoreSlim` per lock name avoids Redis round-trips when this process already holds
+   the lock.
+2. **Redis tier.** `SET key value NX PX timeout` is the cross-node lock. The key includes the scheduler name,
+   for example `quartz:lock:MyScheduler:TRIGGER_ACCESS`.
 
-1. **Local tier** &mdash; A `SemaphoreSlim` per lock name prevents redundant Redis round-trips when the same process already holds the lock.
-
-2. **Redis tier** &mdash; `SET key value NX PX timeout` provides the cross-node distributed lock. The key includes the scheduler name for multi-scheduler isolation (e.g., `quartz:lock:MyScheduler:TRIGGER_ACCESS`).
-
-Lock release uses a Lua script for atomic check-and-delete, preventing a node from accidentally releasing a lock that has already expired and been re-acquired by another node.
+Release runs a Lua check-and-delete script, so a node cannot release a lock that expired and was taken by
+another node.
 
 ## Considerations
 
-- **Lock TTL**: The default 30-second TTL provides ample margin for typical scheduling operations (milliseconds to low seconds). If your database is very slow, increase the TTL. If a node crashes, the lock auto-expires after the TTL.
-- **Redis availability**: If Redis is unreachable, `AcquireLock` throws a `LockException` which the scheduler handles via its standard retry mechanism.
-- **Single-instance Redis**: This implementation uses simple `SET NX` locks, not the Redlock algorithm. For most Quartz.NET deployments a single Redis instance (or replica set with Sentinel) is sufficient since the locks are advisory and short-lived.
+- **Lock TTL.** 30 seconds covers typical scheduling operations (milliseconds to low seconds). Increase it for a
+  very slow database. If a node crashes, its lock expires after the TTL.
+- **Redis unavailable.** `AcquireLock` throws a `LockException`, which the scheduler retries like any other.
+- **Single-instance Redis.** The handler uses plain `SET NX` locks, not Redlock. A single Redis instance, or a
+  replica set with Sentinel, is enough for most deployments: the locks are advisory and short-lived.

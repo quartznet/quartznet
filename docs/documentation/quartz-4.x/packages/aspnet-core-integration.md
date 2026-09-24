@@ -3,16 +3,11 @@
 title: ASP.NET Core Integration
 ---
 
-[Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore)
-provides integration with [ASP.NET Core hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
-
-::: tip
-If you only need the generic host, [generic host integration](hosted-services-integration) might suffice.
-:::
+[Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) runs the scheduler as an
+[ASP.NET Core hosted service](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
+For the generic host alone, [generic host integration](hosted-services-integration) is enough.
 
 ## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
 dotnet add package Quartz.AspNetCore
@@ -20,17 +15,12 @@ dotnet add package Quartz.AspNetCore
 
 ## Using
 
-You can host the scheduler by invoking `AddQuartzHostedService` on the web application builder.
-This adds a hosted Quartz server into the ASP.NET Core process that is started and stopped based on the application's lifetime.
+`AddQuartzHostedService` on the web application builder starts and stops the scheduler with the application.
+Configuring the scheduler, jobs and triggers is covered in [Microsoft DI Integration](microsoft-di-integration).
 
 ::: tip
-`AddQuartzHostedService` lives in the core `Quartz` package, and so does the health check. Quartz 3's
-`AddQuartzServer`, which registered the hosted service and a health check together, is gone — call each by
-its own name.
-:::
-
-::: tip
-See [Quartz documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
+`AddQuartzHostedService` and the health check are in the core `Quartz` package. Quartz 3's `AddQuartzServer`,
+which registered both, is gone: call each by its own name.
 :::
 
 **Example Program.cs configuration**
@@ -57,14 +47,8 @@ WebApplication app = builder.Build();
 
 ## A practical example of the setup
 
-In the code below you can see a real application of the Quartz package within ASP.NET Core MVC.
-
-To better illustrate the use of the Quartz library, imagine you have a `Program.cs` file that is always created when you choose the MVC architecture, and then imagine a `Jobs` folder where you have all the tasks you want Quartz to perform in the background when you run your web application.
-
-After that, it's pretty straightforward.
-
-In the `Jobs` folder, you create a class that will perform the tasks you specify.
-The class should extend the `IJob` interface and implement the `Execute` method.
+A job is a class that implements `IJob` and its `Execute` method, for example in a `Jobs` folder of an MVC
+project.
 
 **Example SendEmailJob.cs configuration**
 
@@ -88,16 +72,14 @@ public sealed class SendEmailJob : IJob
 ```
 <!-- endSnippet -->
 
-A job whose work is asynchronous is written `async ValueTask` as usual. One that only forwards a call, like
-this one, can return it directly and skip the state machine; one with nothing to await at all returns
-`default`, which is a completed `ValueTask` that allocates nothing. What a job must not do is block: the
-scheduler is holding a worker slot for it.
+- Asynchronous work: write `async ValueTask` as usual.
+- A job that only forwards one call can return it directly, as above.
+- A job with nothing to await returns `default`, a completed `ValueTask` that allocates nothing.
+- Never block: the job holds a worker slot.
 
-After that, you just need to build Quartz trigger in `Program.cs`, which guarantees that the job will run according to the preset interval.
-
-One job with one trigger is what `ScheduleJob<TJob>` is for: it registers the job, builds the trigger, and
-names the job after the trigger, so there is no `JobKey` to declare and no `ForJob` to keep in step. A job
-that several triggers share is registered with `AddJob` and given each trigger with `AddTrigger` — see
+Then schedule it in `Program.cs`. `ScheduleJob<TJob>` registers one job with one trigger and names the job
+after the trigger, so there is no `JobKey` or `ForJob` to keep in step. For a job shared by several triggers,
+use `AddJob` and `AddTrigger`; see
 [Microsoft DI Integration](microsoft-di-integration.md#a-worked-configuration).
 
 **Example Program.cs configuration**
@@ -118,18 +100,15 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
-For more on cron triggers see the [CronTriggers lesson](../tutorial/crontriggers.md), and for the expression
-syntax itself the [Cron Expression Reference](../cron-expressions.md).
+See the [CronTriggers lesson](../tutorial/crontriggers.md) and the
+[Cron Expression Reference](../cron-expressions.md).
 
 ## Health checks
 
-The scheduler's health check is in the core `Quartz` package rather than this one. It reads
-`IScheduler.Status` and probes the job store, and needs nothing from ASP.NET Core to do either — so
-registering it, naming it, and choosing which probes it belongs to are all covered by
-[Hosted Services Integration](hosted-services-integration.md#health-checks).
-
-What this package's framework adds is the endpoint that serves the report, and the mapping from a
-status to a response code:
+The scheduler health check is in the core `Quartz` package: it reads `IScheduler.Status` and probes the job
+store, with no ASP.NET Core dependency. Registering, naming and tagging it is covered in
+[Hosted Services Integration](hosted-services-integration.md#health-checks). ASP.NET Core adds the endpoint and
+the status-code mapping:
 
 <!-- snippet: sample_aspnetcore_map_health_checks -->
 ```csharp
@@ -140,7 +119,6 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 ```
 <!-- endSnippet -->
 
-`Degraded` maps to **200** by default, exactly as `Healthy` does, so a scheduler in standby looks
-healthy to anything that reads only the status code. Map it to 503 in
-[`HealthCheckOptions.ResultStatusCodes`](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks)
-if a standby node should leave the rotation.
+`Degraded` maps to **200** by default, like `Healthy`, so a scheduler in standby looks healthy to anything that
+reads only the status code. To take a standby node out of rotation, map `Degraded` to 503 in
+[`HealthCheckOptions.ResultStatusCodes`](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks).

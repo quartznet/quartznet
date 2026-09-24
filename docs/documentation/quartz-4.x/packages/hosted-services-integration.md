@@ -3,13 +3,14 @@
 title: Hosted Services Integration
 ---
 
-[Quartz](https://www.nuget.org/packages/Quartz)
-provides integration with [hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
+[Quartz](https://www.nuget.org/packages/Quartz) runs schedulers as a
+[hosted service](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services), started and
+stopped with the application.
 
 ## Installation
 
-The hosted service is in the core package; the host it plugs into is Microsoft's, and comes with the
-`worker` and `web` project templates. A plain `console` project needs it named:
+The hosted service is in the core package. The `worker` and `web` templates already reference the host; a plain
+`console` project needs it added:
 
 ```shell
 dotnet add package Quartz
@@ -18,24 +19,18 @@ dotnet add package Microsoft.Extensions.Hosting
 
 ## Using
 
-You can add Quartz configuration by invoking an extension method `AddQuartzHostedService` on the host
-application builder, or on `IServiceCollection`. This will add a hosted Quartz server into process that
-will be started and stopped based on applications lifetime.
+Call `AddQuartzHostedService` on the host application builder or on `IServiceCollection`. Configuring the
+scheduler, jobs and triggers is covered in [Microsoft DI Integration](microsoft-di-integration); several
+schedulers in one application in [Multiple Schedulers](multiple-schedulers.md).
 
-::: tip
-See [Quartz documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
-
-Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
-:::
-
-The hosted service starts every scheduler in the container, and resolves them when the host starts —
-so `AddQuartz` and `AddQuartzHostedService` can be called in either order. The options apply to every
-scheduler; one that has to differ is configured by name with
-`AddQuartzHostedService("SchedulerName", options => …)`.
+- The hosted service starts every scheduler in the container.
+- It resolves them when the host starts, so `AddQuartz` and `AddQuartzHostedService` can be called in either
+  order.
+- Options apply to every scheduler. Override one by name with
+  `AddQuartzHostedService("SchedulerName", options => …)`.
 
 ::: warning
-Calling `AddQuartzHostedService()` without registering any scheduler throws at startup: the hosted
-service was asked for, so something was meant to run. Register a scheduler with `AddQuartz(...)`.
+`AddQuartzHostedService()` with no scheduler registered throws at startup. Register one with `AddQuartz(...)`.
 :::
 
 **Example program utilizing hosted services configuration**
@@ -67,14 +62,17 @@ await builder.Build().RunAsync();
 
 | Option | Default | Description |
 |---|---|---|
-| `WaitForJobsToComplete` | `false` | Shutdown does not return until the jobs still executing have finished. Without it the host stops while they are still running. Whether they are also asked to stop is the scheduler's `ShutdownJobInterruption` setting. |
-| `AwaitApplicationStarted` | `true` | Jobs do not start until application startup has completed, so nothing fires while the rest of the application is still coming up. |
-| `StartDelay` | none | Starts the scheduler this long after it otherwise would. With `AwaitApplicationStarted`, the delay is counted from the completion of startup. |
-| `AutoStart` | `true` | Whether the hosted service starts the scheduler at all. `false` has it built, initialized and bound, but left for the application to start — see [A scheduler the application starts itself](#a-scheduler-the-application-starts-itself). |
+| `WaitForJobsToComplete` | `false` | Shutdown waits for running jobs to finish |
+| `AwaitApplicationStarted` | `true` | Scheduler starts only after application startup completes |
+| `StartDelay` | none | Extra delay before start; counted from startup completion with `AwaitApplicationStarted` |
+| `AutoStart` | `true` | `false`: built, initialized and bound, but not started; see [below](#a-scheduler-the-application-starts-itself) |
 
-To take part in the lifecycle itself — a warm-up before the scheduler starts, a drain after it stops — derive
-from `QuartzHostedService` and register the subclass; its `StartingAsync`, `StartedAsync`, `StoppingAsync` and
-`StoppedAsync` are virtual, and `Schedulers` gives it the schedulers it is running:
+Without `WaitForJobsToComplete`, the host stops while jobs are still running. Whether running jobs are also
+asked to stop is the scheduler's `ShutdownJobInterruption` setting.
+
+To run code around the lifecycle (a warm-up before start, a drain after stop), derive from
+`QuartzHostedService` and register the subclass. `StartingAsync`, `StartedAsync`, `StoppingAsync` and
+`StoppedAsync` are virtual; `Schedulers` lists the schedulers it runs.
 
 <!-- snippet: sample_hosted_derived_service -->
 ```csharp
@@ -82,10 +80,9 @@ builder.AddQuartzHostedService<WarmUpBeforeSchedulingService>(options => options
 ```
 <!-- endSnippet -->
 
-`builder.AddQuartz(...)` is `builder.Services.AddQuartz(...)` with the application's configuration
-already found: it reads the `Quartz` section, so anything described in `appsettings.json` is applied
-before your callback. The `IServiceCollection` overloads are unchanged, and are what to use for a
-configuration section under a different name:
+`builder.AddQuartz(...)` is `builder.Services.AddQuartz(...)` that also reads the `Quartz` configuration
+section, so `appsettings.json` settings apply before your callback. For a section with another name, use the
+`IServiceCollection` overload:
 
 <!-- snippet: sample_hosted_configuration_section -->
 ```csharp
@@ -93,16 +90,14 @@ builder.Services.AddQuartz(builder.Configuration.GetSection("Scheduling"), q => 
 ```
 <!-- endSnippet -->
 
-A string names a scheduler, here as everywhere else in Quartz — `builder.AddQuartz("reporting", …)`
-registers a scheduler called `reporting`, reading its settings from `Quartz:Schedulers:reporting` when
-the section describes several. `builder.AddQuartzSchedulers()` registers one per child of that
-sub-section.
+A string argument is a scheduler name. `builder.AddQuartz("reporting", …)` registers scheduler `reporting` and
+reads `Quartz:Schedulers:reporting` when the section describes several. `builder.AddQuartzSchedulers()`
+registers one per child of that sub-section.
 
 ## A scheduler the application starts itself
 
-A library that owns its own leader election, a message bus that has to be connected before anything may
-fire, a module that comes up after the rest of the application — each wants the container to build and
-bind its scheduler, and wants to press start itself. `AutoStart = false` says so:
+Set `AutoStart = false` when the application must start the scheduler itself: after its own leader election,
+after a message bus connects, or when a module comes up late.
 
 <!-- snippet: sample_hosted_deferred_start -->
 ```csharp
@@ -113,27 +108,24 @@ builder.AddQuartzHostedService("reporting", options => options.AutoStart = false
 ```
 <!-- endSnippet -->
 
-The scheduler is still resolved, initialized and bound when the host starts, so `ISchedulerRegistry`, the
-dashboard and `GET /schedulers` all see it; it simply sits in `Created` until something calls
-`scheduler.Start()`. Not registering the hosted service at all would have produced the same non-start
-and lost the shutdown handling with it, which is the reason this is a setting rather than an omission.
-
-`AutoStart` wins over `AwaitApplicationStarted` and `StartDelay`. Both of those say *when* the hosted
-service starts a scheduler; it does not start this one at all, so neither applies.
-
-Shutdown is unchanged. The hosted service shuts down every scheduler it created, started or not, so
-opting out of the start is not opting out of the stop.
-
-It is a per-scheduler setting like the rest, so one scheduler can be deferred while its siblings start
-with the host — the example above defers `reporting` and leaves every other scheduler in the container
-alone. A library embedding Quartz in someone else's application is the case this exists for.
+- The scheduler is resolved, initialized and bound when the host starts. `ISchedulerRegistry`, the dashboard
+  and `GET /schedulers` see it.
+- It stays in `Created` until something calls `scheduler.Start()`.
+- `AutoStart` overrides `AwaitApplicationStarted` and `StartDelay`, which then do not apply.
+- Shutdown is unchanged: the hosted service shuts down every scheduler it created, started or not. Not
+  registering the hosted service at all would lose that shutdown handling.
+- It is per scheduler: the example defers `reporting` and leaves the others to start with the host.
 
 ## Health checks
 
-The scheduler's health check ships in the core `Quartz` package and registers on the standard
-`IHealthChecksBuilder`, so a worker with no web stack at all can carry it. It reports *healthy* while
-the scheduler is running and can reach its store, *degraded* while it is in standby or waiting for the
-application to start it, and *unhealthy* otherwise. Add it alongside an application's other checks:
+The scheduler health check is in the core `Quartz` package and registers on the standard
+`IHealthChecksBuilder`, so a worker with no web stack can use it.
+
+| Status | When |
+|---|---|
+| *Healthy* | Running and can reach its store |
+| *Degraded* | In standby, or in `Created` with `AutoStart = false` |
+| *Unhealthy* | Anything else |
 
 <!-- snippet: sample_hosted_health_check -->
 ```csharp
@@ -141,18 +133,14 @@ builder.Services.AddHealthChecks().AddQuartz();
 ```
 <!-- endSnippet -->
 
-`AddQuartz("reporting", q => q.AddQuartzHealthChecks())` is the same check said from the scheduler's
-own builder, which is how a named scheduler gets one without writing its name a second time.
+`AddQuartz("reporting", q => q.AddQuartzHealthChecks())` registers the same check from a named scheduler's
+builder, without repeating the name.
 
-A scheduler whose `AutoStart` is `false` is *degraded* while it sits in `Created`, not *unhealthy*: it is
-doing what it was configured to do, and failing the probe would take a correctly configured node out of
-rotation for the whole window before the application presses start. The check reads that scheduler's own
-`QuartzHostedServiceOptions`, so a `Created` scheduler that nothing opted out of is *unhealthy* as
-before — including one in an application with no hosted service registered at all, where nothing is
-going to start it.
+The check reads each scheduler's own `QuartzHostedServiceOptions`. A scheduler in `Created` that did not opt
+out of `AutoStart` is *unhealthy*, including in an application with no hosted service, where nothing will
+start it.
 
-The registration can be customized via the optional configuration callback, for example to attach tags
-so the check can be filtered into separate liveness and readiness probes:
+Customize the registration in the callback, for example with tags for separate liveness and readiness probes:
 
 <!-- snippet: sample_hosted_health_check_options -->
 ```csharp
@@ -169,20 +157,23 @@ builder.Services.AddHealthChecks().AddQuartz(options =>
 ```
 <!-- endSnippet -->
 
-The callback is one source of `QuartzHealthCheckOptions` among several: the settings go through the
-options pipeline, so `services.Configure<QuartzHealthCheckOptions>(...)` and a bound configuration
-section mean the same thing, whichever order they are written in.
+`QuartzHealthCheckOptions` go through the options pipeline: the callback,
+`services.Configure<QuartzHealthCheckOptions>(...)` and a bound configuration section are equivalent, in any
+order.
 
-`StandbyStatus` is the one setting that changes a *verdict* rather than the registration. Standby is
-deliberate and reversible, so *degraded* is the default — but degraded answers HTTP 200, and a worker
-project has no endpoint on which to map it to anything else, so a deployment whose standby nodes must
-leave the rotation says `StandbyStatus = HealthStatus.Unhealthy` here instead. It covers standby and
-nothing else: a scheduler still in `Created` because `AutoStart` is `false` keeps reporting degraded,
-because that is a window rather than a state a node sits in. `FailureStatus`, by contrast, is what the
-*registration* reports when the check says it failed.
+| Option | Meaning |
+|---|---|
+| `Name` | `quartz-scheduler`, or `quartz-scheduler-<name>` for a named scheduler |
+| `Tags` | Tags for filtering into probes |
+| `FailureStatus` | What the registration reports when the check fails |
+| `StandbyStatus` | What a scheduler in standby reports; default *degraded* |
+| `StaleFiringTolerance` | Overdue-trigger detection; default off (`null`); see [below](#saying-that-a-scheduler-has-stopped-firing) |
 
-A named scheduler has a check of its own, reporting on *its* scheduler. Name it on the health checks
-builder, or ask for one from inside `AddQuartz`:
+*Degraded* answers HTTP 200, and a worker project has no endpoint to remap it. Set
+`StandbyStatus = HealthStatus.Unhealthy` if standby nodes must leave the rotation. It covers standby only: a
+scheduler in `Created` because `AutoStart` is `false` still reports *degraded*.
+
+A named scheduler has its own check. Register it on the health checks builder or inside `AddQuartz`:
 
 <!-- snippet: sample_hosted_named_health_check -->
 ```csharp
@@ -193,7 +184,7 @@ builder.Services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
 ```
 <!-- endSnippet -->
 
-Its options are that scheduler's, so they are configured under its name:
+Configure its options under its name:
 
 <!-- snippet: sample_hosted_named_health_check_options -->
 ```csharp
@@ -201,18 +192,14 @@ builder.Services.Configure<QuartzHealthCheckOptions>("reporting", options => opt
 ```
 <!-- endSnippet -->
 
-Serving the report over HTTP is `MapHealthChecks`, which is ASP.NET Core's —
-[ASP.NET Core Integration](aspnet-core-integration.md#health-checks) has that half, including what
-becomes of *degraded* at an HTTP probe.
+Serving the report over HTTP (`MapHealthChecks`) and how *degraded* maps to a status code are in
+[ASP.NET Core Integration](aspnet-core-integration.md#health-checks).
 
 ### Saying that a scheduler has stopped firing
 
-Everything above is about whether the scheduler is *reachable*. None of it is about whether work is
-leaving its queue — and a scheduler whose thread has wedged, whose thread pool has nothing free, or
-whose store lock nobody released reports `Running`, answers a store query and goes on checking in to
-its cluster while firing nothing at all. That is the silent stall, and it is the failure an operator
-hears about from somebody downstream rather than from a probe. `StaleFiringTolerance` is how to ask
-about it:
+The checks above test reachability, not progress. A scheduler with a wedged thread, a full thread pool or an
+unreleased store lock still reports `Running`, answers store queries and checks in to its cluster, while firing
+nothing. Set `StaleFiringTolerance` to detect this:
 
 <!-- snippet: sample_hosted_health_check_stale_firing -->
 ```csharp
@@ -225,38 +212,30 @@ builder.Services.AddHealthChecks().AddQuartz(options =>
 ```
 <!-- endSnippet -->
 
-Set, the check asks the store for a trigger that is schedulable and whose fire time has passed by more
-than that many of the store's own *misfire thresholds* — `AdoJobStoreOptions.MisfireThreshold` or
-`InMemoryJobStoreOptions.MisfireThreshold`, whichever this scheduler runs, and one minute for a store
-of your own that exposes neither. Finding one is *degraded*; finding one twice as far behind is
-*unhealthy*, because a backlog that keeps growing has stopped being a delay. The report's data carries
-`overdueTrigger`, `overdueSince` and `overdueBy`, so the probe says which trigger is waiting and since
-when rather than only that something is.
-
-The misfire threshold is the unit because it is the store's own definition of "late enough to matter",
-and on the database store it is also the default interval of the misfire handler's sweep. A trigger can
-be a threshold late before it counts as misfired and another sweep late before the handler reaches it,
-which is why the multiplier has to be more than one and why `3` is the value to start from — the same
-number, for the same reason, as `ClusterCheckinTolerance`.
-
-It is off by default, deliberately: what counts as overdue is the application's to say, and a scheduler
-running a backlog down after a maintenance window is behind and working. A scheduler in standby is not
-asked at all — that verdict is reached before the store is touched — and a scheduler whose triggers
-were all paused has nothing schedulable to be late, so pausing everything is not a stall. A scheduler
-that left the setting alone is not asked either, so the probe costs exactly what it used to.
+- The check looks for a schedulable trigger whose fire time is overdue by more than `StaleFiringTolerance`
+  misfire thresholds: `AdoJobStoreOptions.MisfireThreshold` or `InMemoryJobStoreOptions.MisfireThreshold`, or
+  one minute for a custom store that exposes neither.
+- Overdue by that much: *degraded*. Overdue by twice that: *unhealthy*.
+- The report data carries `overdueTrigger`, `overdueSince` and `overdueBy`.
+- Start with `3`, as for `ClusterCheckinTolerance`. A trigger can be one threshold late before it counts as
+  misfired, and one more sweep late before the misfire handler (whose default interval on the database store is
+  the misfire threshold) reaches it, so the value must be more than one.
+- Off by default: a scheduler working down a backlog after a maintenance window is behind but healthy.
+- Not evaluated for a scheduler in standby; that verdict comes before the store is queried.
+- A scheduler with all triggers paused has nothing schedulable, so it never counts as stalled.
+- Left unset, the check costs what it did before.
 
 ## Shutdown has a budget
 
-The host gives `StopAsync` a token that fires after `HostOptions.ShutdownTimeout` — thirty seconds by
-default — and that token bounds the wait for running jobs. When it fires the schedulers stop *waiting*:
-they still shut their job stores, plugins and listeners down, and their listeners are still told they
-stopped, so nothing is left half torn down. A warning naming the scheduler is logged when it happens.
+The host's `StopAsync` token fires after `HostOptions.ShutdownTimeout` (default thirty seconds) and bounds the
+wait for running jobs.
 
-The jobs themselves are not cancelled by the deadline. Whether a shutting-down scheduler asks them to stop
-is `QuartzSchedulerOptions.ShutdownJobInterruption`, which defaults to never, and a job that has to end on
-request watches `IJobExecutionContext.CancellationToken`. So with `WaitForJobsToComplete = true` and jobs
-that outlive the budget, the host stops with those jobs still running and their job store updates
-unfinished — configure `HostOptions.ShutdownTimeout` upwards if that matters more than a prompt stop.
-
-Several registered schedulers are shut down at the same time rather than one after another, so the budget
-covers all of them together instead of being divided between them.
+- When it fires, schedulers stop *waiting*. They still shut down job stores, plugins and listeners, and
+  listeners are still notified. A warning naming the scheduler is logged.
+- The deadline does not cancel jobs. `QuartzSchedulerOptions.ShutdownJobInterruption` (default: never) decides
+  whether a shutting-down scheduler asks them to stop; a job that must end on request watches
+  `IJobExecutionContext.CancellationToken`.
+- With `WaitForJobsToComplete = true` and jobs that outlive the budget, the host stops with those jobs running
+  and their job store updates unfinished. Raise `HostOptions.ShutdownTimeout` if that matters more than a prompt
+  stop.
+- Several schedulers shut down in parallel and share one budget.

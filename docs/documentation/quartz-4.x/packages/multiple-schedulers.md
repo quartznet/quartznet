@@ -3,23 +3,23 @@
 title: Multiple Schedulers with Microsoft DI
 ---
 
-Quartz.NET has always supported running multiple schedulers in a single process — each `QuartzSchedulerBuilder` builds an independent scheduler, and an `ISchedulerRepository` tracks by name the schedulers built alongside it. However, configuring multiple schedulers through the Microsoft DI `AddQuartz()` API required workarounds because the registration model was designed around a single scheduler per container.
-
-The named `AddQuartz(string name, ...)` overload makes this first-class: each named scheduler gets its own isolated configuration, jobs, triggers, listeners, and calendars, all managed through the familiar DI fluent API.
+`AddQuartz(string name, ...)` registers a named scheduler. Each gets its own configuration, jobs, triggers,
+listeners and calendars, through the usual DI fluent API. `ISchedulerRepository` tracks built schedulers by name.
 
 ::: tip
-If you are not using Microsoft DI, you can create multiple schedulers from separate `QuartzSchedulerBuilder`s, each given its own `Create(q => q.ConfigureScheduler(options => options.InstanceName = ...))`, and call `BuildScheduler()` on each.
+Without Microsoft DI, build each scheduler from its own `QuartzSchedulerBuilder`, with
+`Create(q => q.ConfigureScheduler(options => options.InstanceName = ...))`, and call `BuildScheduler()` on each.
 :::
 
 ## When to Use Named Schedulers
 
-- **Different job stores** — one scheduler uses in-memory storage for transient jobs, another uses a persistent database store for durable jobs
-- **Workload isolation** — separate critical jobs from background maintenance tasks with independent thread pools
-- **Different configurations** — schedulers with different misfire thresholds, batch sizes, or clustering settings
+- **Different job stores**: in-memory for transient jobs, a persistent store for durable jobs.
+- **Workload isolation**: critical jobs and background maintenance on independent thread pools.
+- **Different configurations**: misfire thresholds, batch sizes or clustering settings.
 
 ## Basic Configuration
 
-Register each scheduler with a unique name using the `AddQuartz(string name, ...)` overload:
+Give each `AddQuartz(string name, ...)` call a unique name:
 
 <!-- snippet: sample_multiple_two_schedulers -->
 ```csharp
@@ -65,7 +65,7 @@ builder.Build().Run();
 
 ## Per-Scheduler Listeners and Calendars
 
-Listeners and calendars registered within a named `AddQuartz` call are scoped to that scheduler only:
+Listeners and calendars registered inside a named `AddQuartz` call apply to that scheduler only:
 
 <!-- snippet: sample_multiple_per_scheduler_listeners -->
 ```csharp
@@ -89,8 +89,7 @@ builder.Services.AddQuartz("Scheduler2", q =>
 
 ## Injecting a Named Scheduler
 
-A scheduler's name is the service key it is registered under, so a named scheduler is injected the way
-any other keyed service is:
+The scheduler's name is its service key, so inject it as a keyed service:
 
 <!-- snippet: sample_multiple_keyed_service -->
 ```csharp
@@ -111,7 +110,7 @@ public class MyService
 ```
 <!-- endSnippet -->
 
-Resolved directly, it is the same thing:
+Or resolve it directly:
 
 <!-- snippet: sample_multiple_resolving -->
 ```csharp
@@ -120,26 +119,28 @@ var standard = provider.GetRequiredService<IScheduler>();   // the default sched
 ```
 <!-- endSnippet -->
 
-Everything a named scheduler is built from is registered under that key, so `ISchedulerFactory` and the
-rest are reachable the same way — `GetRequiredKeyedService<ISchedulerFactory>("FastScheduler")` — while
-the unkeyed registrations belong to the default scheduler.
+Every part of a named scheduler is registered under its key, for example
+`GetRequiredKeyedService<ISchedulerFactory>("FastScheduler")`. Unkeyed registrations belong to the default
+scheduler.
 
 ::: warning
-What is injected is a handle that builds the scheduler on first use, because building one is
-asynchronous and a container constructs synchronously. Every asynchronous member awaits it being built,
-so they are always safe. The synchronous ones — `Status`, `SchedulerInstanceId`, `Context` and
-`ListenerManager` — can only answer once the scheduler exists, and
-throw `InvalidOperationException` if reading one would have to build it. Under
-`AddQuartzHostedService()` that cannot happen once the host has started: the hosted service builds every
-scheduler in the container while the host starts, before anything of yours runs. (It *starts* them
-afterwards, once `ApplicationStarted` fires, unless `AwaitApplicationStarted` is turned off — but built
-is all these members need.) `SchedulerName` never builds anything.
+The injected `IScheduler` is a handle that builds the scheduler on first use, because building is asynchronous
+and a container constructs synchronously.
+
+- Asynchronous members await the build and are always safe.
+- `Status`, `SchedulerInstanceId`, `Context` and `ListenerManager` throw `InvalidOperationException` if reading
+  them would have to build the scheduler.
+- `SchedulerName` never builds anything.
+
+Under `AddQuartzHostedService()` the synchronous members are safe once the host has started: the hosted
+service builds every scheduler while the host starts, before your code runs. It *starts* them later, once
+`ApplicationStarted` fires, unless `AwaitApplicationStarted` is off.
 :::
 
 ### Finding a scheduler at runtime
 
-Where the name is not known until runtime — a dashboard listing what is running, a request naming the
-scheduler it is for — the container's `ISchedulerRepository` holds every scheduler that has been built:
+When the name is known only at runtime, for example a dashboard or a request naming its scheduler, use the
+container's `ISchedulerRepository`. It holds every scheduler that has been built:
 
 <!-- snippet: sample_multiple_scheduler_repository -->
 ```csharp
@@ -168,24 +169,22 @@ public class MyService
 <!-- endSnippet -->
 
 ::: warning
-The repository holds schedulers that have been *built*, so during application startup it may not yet
-hold them all — injecting them by key does not have that problem, since the handle builds the scheduler
-it names.
 
-The repository is scoped to the container, not the process. A scheduler built by a
-`QuartzSchedulerBuilder` of its own is not in it — see
-[the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
+- The repository holds only *built* schedulers, so during startup it may not hold them all. Injecting by key
+  does not have this problem: the handle builds the scheduler it names.
+- The repository is per container, not per process. A scheduler built by its own `QuartzSchedulerBuilder` is
+  not in it; see [the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
+
 :::
 
-To ask what the container has *registered* rather than what it has built, resolve `ISchedulerRegistry`
-and call `QuerySchedulers()`. It returns one `SchedulerRegistration` per registration — plus one for
-anything bound into the repository without a registration behind it — and reports a `null` `Status` for a
-scheduler that has not been created, without creating it. That is the call for an inventory; `LookupAll`
-stays the call for the live schedulers themselves.
+For what the container has *registered*, built or not, resolve `ISchedulerRegistry` and call
+`QuerySchedulers()`. It returns one `SchedulerRegistration` per registration, plus one per scheduler bound into
+the repository without a registration. A scheduler not yet created has a `null` `Status` and is not created.
+Use it for an inventory; use `LookupAll` for the live schedulers.
 
 ## Mixing Default and Named Schedulers
 
-You can combine the traditional unnamed `AddQuartz()` with named schedulers:
+The unnamed `AddQuartz()` and named schedulers can be combined:
 
 <!-- snippet: sample_multiple_default_and_named -->
 ```csharp
@@ -211,16 +210,14 @@ builder.Services.AddQuartzHostedService();
 <!-- endSnippet -->
 
 ::: tip
-The order of the calls does not matter. The hosted service resolves the schedulers when the host
-starts, so it starts every scheduler registered in the container whether `AddQuartz` was called
-before it or after. A container with no scheduler at all is reported at startup rather than starting
-nothing silently.
+Call order does not matter. The hosted service resolves schedulers when the host starts, so it starts every
+registered scheduler whether `AddQuartz` was called before or after it. A container with no scheduler is
+reported at startup.
 :::
 
 ## Configuration via appsettings.json
 
-A named scheduler's configuration can come from a section. Pass the root `Quartz` section and the
-scheduler's own settings are resolved out of `Schedulers:{name}`:
+Pass the root `Quartz` section; a named scheduler's settings are read from `Schedulers:{name}`:
 
 <!-- snippet: sample_multiple_named_from_configuration -->
 ```csharp
@@ -230,8 +227,7 @@ builder.Services.AddQuartz("DurableScheduler", builder.Configuration.GetSection(
 ```
 <!-- endSnippet -->
 
-To register every scheduler the section describes rather than one of them, call
-`AddQuartzSchedulers`, which registers one named scheduler per child of `Schedulers`:
+`AddQuartzSchedulers` registers one named scheduler per child of `Schedulers`:
 
 <!-- snippet: sample_multiple_all_from_configuration -->
 ```csharp
@@ -258,8 +254,8 @@ builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"))
 }
 ```
 
-Individual flat keys that no typed option covers can still be set on the named options directly, through
-the `Properties` dictionary — a plugin's own settings, say, which have no options type at all:
+Flat keys with no typed option, such as a plugin's own settings, go in the named options' `Properties`
+dictionary:
 
 <!-- snippet: sample_multiple_named_options -->
 ```csharp
@@ -270,9 +266,8 @@ builder.Services.Configure<QuartzOptions>("DurableScheduler",
 
 ## Per-Scheduler Startup and Shutdown
 
-`AddQuartzHostedService(configure)` configures every scheduler, which is what it has always meant. A
-scheduler that has to differ says so by name, and its settings refine the shared ones whichever order
-the two calls are made in:
+`AddQuartzHostedService(configure)` configures every scheduler. A named call overrides it for one scheduler,
+in either call order:
 
 <!-- snippet: sample_multiple_hosted_services -->
 ```csharp
@@ -289,22 +284,21 @@ builder.Services.AddQuartzHostedService("DurableScheduler", options =>
 
 ## Configuring every scheduler at once
 
-`AddQuartzHostedService(configure)` is not the only call that means "all of them".
-`ConfigureAllQuartzSchedulers(configure)` applies a builder callback to every scheduler registered
-through `AddQuartz`, `AddQuartz(name, …)` or `AddQuartzSchedulers` — whether it was registered before
-the call or after it — and each scheduler gets its own instance of whatever the callback adds, so a
-plugin added this way to three schedulers is three plugin instances. Remote schedulers from
-`AddQuartzHttpClient` have no builder and are skipped. See
-[Multi-Tenancy](../multi-tenancy.md#giving-every-scheduler-the-same-thing).
+`ConfigureAllQuartzSchedulers(configure)` applies a builder callback to every scheduler registered through
+`AddQuartz`, `AddQuartz(name, …)` or `AddQuartzSchedulers`, before or after the call.
+
+- Each scheduler gets its own instance of what the callback adds: a plugin added to three schedulers is three
+  plugin instances.
+- Remote schedulers from `AddQuartzHttpClient` have no builder and are skipped.
+
+See [Multi-Tenancy](../multi-tenancy.md#giving-every-scheduler-the-same-thing).
 
 ## Limitations
 
-- **Scheduler names must be unique** — each call to `AddQuartz(name, ...)` must use a distinct name,
-  compared ignoring case.
+- **Scheduler names must be unique**, compared ignoring case.
 
-Job types are *not* a limitation any more. `AddJob<T>` still registers the type unkeyed, so the same job
-class can be used across schedulers and usually should be — but `AddJobType<TJob, TImplementation>()`,
-`AddJobType<TJob>(lifetime)` and `AddJobType<TJob>(factory)` register under one scheduler's key, and the
-job factory looks that key up before falling back to the container's registration. Two schedulers in one
-container can therefore build the same job type differently. See
+Job types are not a limitation. `AddJob<T>` registers the type unkeyed, so one job class can serve every
+scheduler. `AddJobType<TJob, TImplementation>()`, `AddJobType<TJob>(lifetime)` and `AddJobType<TJob>(factory)`
+register under one scheduler's key; the job factory checks that key before the container's unkeyed
+registration. Two schedulers can therefore build the same job type differently. See
 [Multi-Tenancy](../multi-tenancy.md#job-types).
