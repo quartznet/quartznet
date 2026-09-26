@@ -18,6 +18,25 @@ public static class CronTriggersSamples
         #endregion
     }
 
+    public static void AssembledInline()
+    {
+        #region sample_crontriggers_inline
+
+        ITrigger weekdays = TriggerBuilder.Create()
+            .WithIdentity("nightly", "group1")
+            .WithCronSchedule(cron => cron.AtTime(new TimeOnly(3, 0)).OnWeekdays())  // "0 0 3 ? * MON-FRI"
+            .ForJob("myJob", "group1")
+            .Build();
+
+        ITrigger everyTenMinutes = TriggerBuilder.Create()
+            .WithIdentity("poll", "group1")
+            .WithCronSchedule(cron => cron.Every(TimeSpan.FromMinutes(10)))          // "0 0/10 * ? * *"
+            .ForJob("myJob", "group1")
+            .Build();
+
+        #endregion
+    }
+
     public static void DailyAtTenFortyTwo(JobKey myJobKey)
     {
         #region sample_crontriggers_daily_question_mark_in_day_of_week

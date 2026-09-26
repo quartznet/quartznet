@@ -34,6 +34,8 @@ An application on 4.2 compiles on 4.3 unchanged, and the database schema did not
 | `QuartzBuilderExtensions.AddJob(name, Delegate handler, configure)` and its `(IServiceProvider, …)` twin | A durable job whose code is a lambda. Parameters are the firing, its token, its scope, or required services. See [Delegate Jobs](tutorial/delegate-jobs.md) |
 | `QuartzBuilderExtensions.ScheduleJob(name, Delegate handler, trigger)` and its `(IServiceProvider, …)` twin | The same, with its one trigger; the job takes the trigger's identity |
 | `TriggerAcquireResult.ConcurrentExecutionDisallowed` | `bool?`, a non-positional `init` property: the job row's `IS_NONCONCURRENT`. Every shipped dialect reads it; `null` falls back to the job type's `[DisallowConcurrentExecution]` |
+| `TriggerConfiguratorExtensions.WithCronSchedule(Action<CronExpressionBuilder> expression, configure)` | The expression assembled inline: `t.WithCronSchedule(cron => cron.AtTime(new TimeOnly(3, 0)).OnWeekdays())`. See [Cron Triggers](tutorial/crontriggers.md#building-crontriggers) |
+| `CronExpressionBuilder.Every(TimeSpan)` | An interval counted on the clock. Whole seconds or minutes dividing 60, or hours dividing 24; otherwise `ArgumentOutOfRangeException`. Throws with `AtTime`. See [Building cron expressions programmatically](cron-expressions.md#building-cron-expressions-programmatically) |
 
 **Behaviour change:** an ADO store took two triggers of one job into a batch when the job disallowed
 concurrent execution only through `DisallowConcurrentExecution()` on its builder. The fire path declined
@@ -9533,6 +9535,8 @@ sub-second part is ignored.
 - .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30))
 + .WithCronSchedule(CronExpressionBuilder.Create().AtTime(new TimeOnly(9, 30)))
 ```
+
+From 4.3 the builder can be configured inline: `.WithCronSchedule(cron => cron.AtTime(new TimeOnly(9, 30)))`.
 
 A literal expression is still the shortest:
 

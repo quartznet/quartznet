@@ -375,7 +375,9 @@ ITrigger trigger = TriggerBuilder.Create()
 <!-- endSnippet -->
 
 `WithCronSchedule` accepts the builder (or a built `CronExpression`) directly, so the chain needs no
-`CronScheduleBuilder`. Call `Build()` yourself when you want the `CronExpression` as a value.
+`CronScheduleBuilder`. From 4.3 it also takes a lambda that configures a fresh builder:
+`WithCronSchedule(cron => cron.AtTime(new TimeOnly(3, 0)).OnWeekdays())`. Call `Build()` yourself when
+you want the `CronExpression` as a value.
 
 Each field has a single-value, list, range and increment form (e.g. `WithHour`, `WithHours`,
 `WithHourRange`, `WithHourIncrements`). `AtTime` sets the second, minute and hour together from a
@@ -396,6 +398,30 @@ CronExpressionBuilder.Create()
 <!-- endSnippet -->
 
 Cron resolves to a whole second, so the sub-second part of the `TimeOnly` is ignored.
+
+`Every` (4.3) fires on an interval counted on the clock. It writes the interval's field and every smaller
+one; the larger fields still say when it runs:
+
+<!-- snippet: sample_cron_expressions_every -->
+```csharp
+CronExpressionBuilder.Create().Every(TimeSpan.FromMinutes(10));         // "0 0/10 * ? * *"
+CronExpressionBuilder.Create().Every(TimeSpan.FromHours(6));            // "0 0 0/6 ? * *"
+
+CronExpressionBuilder.Create()
+    .Every(TimeSpan.FromMinutes(15))
+    .WithHourRange(8, 17)
+    .OnWeekdays();                                                     // "0 0/15 8-17 ? * MON-FRI"
+```
+<!-- endSnippet -->
+
+| `Every` takes | Because |
+|---|---|
+| 1, 2, 3, 4, 5, 6, 10, 12, 15, 20 or 30 seconds or minutes | they divide the minute or hour evenly |
+| 1, 2, 3, 4, 6, 8 or 12 hours | they divide the day evenly |
+| anything else: `ArgumentOutOfRangeException` | cron has no even form for it; `WithSimpleSchedule(interval)` counts it from the trigger's start |
+
+`Every` and `AtTime` both say when in the day the expression fires, so combining them throws
+`InvalidOperationException`.
 
 The special characters have dedicated methods:
 

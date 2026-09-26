@@ -68,8 +68,11 @@ public sealed class CronExpressionBuilder
     private string? dayOfWeek;
     private string? year;
 
-    // the only intended source difference to the 3.x branch version of this file,
-    // where the year cap is the public CronExpression.MaxYear
+    // what Every was given, so that AtTime can name the contradiction rather than a field
+    private TimeSpan? interval;
+
+    // intended source differences to the 3.x branch version of this file: the year cap, which is
+    // the public CronExpression.MaxYear there, and Every, which 4.3 added
     private static int MaxYear => TriggerConstants.YearToGiveUpSchedulingAt;
 
     private CronExpressionBuilder()
@@ -272,6 +275,13 @@ public sealed class CronExpressionBuilder
     /// <returns>the updated CronExpressionBuilder</returns>
     public CronExpressionBuilder AtTime(TimeOnly time)
     {
+        if (interval is { } every)
+        {
+            throw new InvalidOperationException(
+                $"AtTime cannot be combined with Every({every}): an interval repeats through the day, and a time of day fires once in it. "
+                + "Restrict when the interval runs with the fields it leaves alone instead.");
+        }
+
         // Checked before anything is written, so a builder that already carries one of the three
         // fields is left as it was rather than half-updated by the throw.
         ThrowIfConfigured(second, "Second");
@@ -279,6 +289,70 @@ public sealed class CronExpressionBuilder
         ThrowIfConfigured(hour, "Hour");
 
         return WithSecond(time.Second).WithMinute(time.Minute).WithHour(time.Hour);
+    }
+
+    /// <summary>
+    /// Set the expression to fire every <paramref name="interval" />, counted on the clock: every ten
+    /// minutes is :00, :10, :20 and so on past each hour, whenever the trigger started.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The interval has to divide the next unit up evenly, so that every minute, hour or day starts
+    /// on the same offsets: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20 or 30 seconds or minutes, or 1, 2, 3, 4,
+    /// 6, 8 or 12 hours. Any other interval has no cron form that fires evenly; use
+    /// <c>WithSimpleSchedule(interval)</c>, which counts it from the trigger's start time instead.
+    /// </para>
+    /// <para>
+    /// It writes the interval's own field and every smaller one: <c>Every(TimeSpan.FromMinutes(10))</c>
+    /// is "0 0/10 * ? * *" and <c>Every(TimeSpan.FromHours(6))</c> is "0 0 0/6 ? * *". The fields it
+    /// leaves alone still say when the interval runs — add <see cref="WithHourRange" /> for working
+    /// hours or <see cref="OnWeekdays" /> for weekdays. It cannot be combined with
+    /// <see cref="AtTime" />, or with a value of your own for a field it writes.
+    /// </para>
+    /// </remarks>
+    /// <param name="interval">how often to fire.</param>
+    /// <returns>the updated CronExpressionBuilder</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="interval" /> is not a whole number of seconds or minutes that divides 60, or of
+    /// hours that divides 24.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">a field the interval writes is already configured.</exception>
+    public CronExpressionBuilder Every(TimeSpan interval)
+    {
+        (IntervalUnit unit, int step) = ReadInterval(interval);
+
+        // Checked before anything is written, as AtTime does, so a refused interval leaves the builder
+        // as it was.
+        ThrowIfConfiguredByEvery(second, "Second", interval, unit);
+        if (unit != IntervalUnit.Second)
+        {
+            ThrowIfConfiguredByEvery(minute, "Minute", interval, unit);
+        }
+
+        if (unit == IntervalUnit.Hour)
+        {
+            ThrowIfConfiguredByEvery(hour, "Hour", interval, unit);
+        }
+
+        string stepped = step == 1 ? "*" : $"0/{step}";
+        switch (unit)
+        {
+            case IntervalUnit.Second:
+                second = stepped;
+                break;
+            case IntervalUnit.Minute:
+                second = "0";
+                minute = stepped;
+                break;
+            default:
+                second = "0";
+                minute = "0";
+                hour = stepped;
+                break;
+        }
+
+        this.interval = interval;
+        return this;
     }
 
     /// <summary>
@@ -664,6 +738,57 @@ public sealed class CronExpressionBuilder
         {
             throw new InvalidOperationException($"{fieldName} has already been configured.");
         }
+    }
+
+    private static void ThrowIfConfiguredByEvery(string? field, string fieldName, TimeSpan interval, IntervalUnit unit)
+    {
+        if (field is not null)
+        {
+            string written = unit switch
+            {
+                IntervalUnit.Second => "the second field",
+                IntervalUnit.Minute => "the second and minute fields",
+                _ => "the second, minute and hour fields",
+            };
+
+            throw new InvalidOperationException(
+                $"{fieldName} has already been configured, and Every({interval}) writes {written} itself. "
+                + "An interval cannot be combined with AtTime or with a value of its own for those fields; "
+                + "restrict when it runs with the fields it leaves alone instead.");
+        }
+    }
+
+    /// <summary>
+    /// The field an interval steps and the step, for the intervals that divide the next unit up evenly.
+    /// </summary>
+    private static (IntervalUnit Unit, int Step) ReadInterval(TimeSpan interval)
+    {
+        if (interval > TimeSpan.Zero && interval < TimeSpan.FromDays(1) && interval.Ticks % TimeSpan.TicksPerSecond == 0)
+        {
+            int seconds = (int) (interval.Ticks / TimeSpan.TicksPerSecond);
+
+            if (seconds < 60 && 60 % seconds == 0)
+            {
+                return (IntervalUnit.Second, seconds);
+            }
+
+            if (seconds < 3600 && seconds % 60 == 0 && 60 % (seconds / 60) == 0)
+            {
+                return (IntervalUnit.Minute, seconds / 60);
+            }
+
+            if (seconds % 3600 == 0 && 24 % (seconds / 3600) == 0)
+            {
+                return (IntervalUnit.Hour, seconds / 3600);
+            }
+        }
+
+        throw new ArgumentOutOfRangeException(
+            nameof(interval),
+            interval,
+            "Every takes an interval that divides the next unit up evenly: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20 or 30 seconds or minutes, "
+            + "or 1, 2, 3, 4, 6, 8 or 12 hours. Any other interval has no cron form that fires evenly; "
+            + "WithSimpleSchedule(interval) repeats it from the trigger's start time instead.");
     }
 
     private static string GetDayName(DayOfWeek dayOfWeek, string paramName)

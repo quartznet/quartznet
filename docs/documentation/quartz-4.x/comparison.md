@@ -60,6 +60,12 @@ schedule on the class for a source generator to register. An expression built at
 checked at run time, with [`CronExpressionBuilder` and the "when does this fire"
 helper](cron-expressions.md#checking-an-expression).
 
+Coravel has [a method per cadence](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/Src/Coravel/Scheduling/Schedule/Interfaces/IScheduleInterval.cs):
+`EveryTenMinutes()`, `DailyAt(3, 0)`, `Weekday()`. Quartz has one member per idea, and from 4.3 writes
+the schedule inline: `t.WithCronSchedule(cron => cron.Every(TimeSpan.FromMinutes(10)))`,
+`cron.AtTime(new TimeOnly(3, 0))`, `cron.OnWeekdays()`. See
+[Building CronTriggers](tutorial/crontriggers.md#building-crontriggers).
+
 ## Trigger kinds and cron grammar
 
 | | Quartz.NET 4.2 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.35 | Coravel 6.0.2 |
