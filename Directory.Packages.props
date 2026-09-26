@@ -110,7 +110,10 @@
     <PackageVersion Include="Testcontainers.Oracle" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.Redis" Version="4.15.0" />
-    <PackageVersion Include="Verify.NUnit" Version="32.0.0" />
+    <!--
+      32.0.1 is the last Verify without a licence check; .github/dependabot.yml says why it stays there.
+    -->
+    <PackageVersion Include="Verify.NUnit" Version="32.0.1" />
     <PackageVersion Include="WolverineFx" Version="6.36.0" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.36.0" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.36.0" />

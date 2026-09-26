@@ -39,6 +39,14 @@ updates:
       # every run would propose "upgrading" back to the dead 11.0.18.
       - dependency-name: "Fallout.*"
         versions: ["11.*"]
+      # Verify 33 adopted the Open Source Maintenance Fee. The core Verify package bundles a SponsorCheck
+      # MSBuild task that fails the build with SC021 unless a Verify_* sponsorship or exemption property
+      # is set, and its nuspec licence became a file EULA (OsmfEula.txt) instead of the MIT expression.
+      # 32.0.1 is the last version with neither. The repository takes no dependency that needs a licence
+      # declaration; if 32.x ever stops being enough, replace the snapshot library with an in-repo helper
+      # rather than raise this.
+      - dependency-name: "Verify*"
+        versions: [">= 33.0.0"]
       # The dependency floors, which are the versions a consumer inherits from a shipped nuspec rather
       # than versions this repository runs on. Directory.Packages.props, "The floors a consumer
       # inherits", says the whole of why: 4.0.0 floored six framework extensions at whatever
