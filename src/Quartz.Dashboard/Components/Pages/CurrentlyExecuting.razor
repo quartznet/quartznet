@@ -36,6 +36,7 @@
                 <th>Execution Group</th>
                 <th>Fire Time</th>
                 <th>Run Time</th>
+                <th>Progress</th>
                 @if (ShowInterrupt)
                 {
                     <th>Actions</th>
@@ -69,6 +70,25 @@
                         <td>@(string.IsNullOrEmpty(fireInstance.ExecutionGroup) ? "—" : fireInstance.ExecutionGroup)</td>
                         <td>@FormatFireTime(fireInstance.FireTimeUtc)</td>
                         <td>@FormatRunTime(fireInstance.FireTimeUtc)</td>
+                        <td>
+                            @if (fireInstance.Progress is int percent)
+                            {
+                                <div class="qz-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" aria-label="Progress">
+                                    <div class="qz-progress-track">
+                                        <div class="qz-progress-fill" style="width: @(percent)%;"></div>
+                                    </div>
+                                    <span class="qz-progress-value">@(percent)%</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(fireInstance.ProgressMessage))
+                                {
+                                    <div class="qz-progress-message qz-muted">@fireInstance.ProgressMessage</div>
+                                }
+                            }
+                            else
+                            {
+                                <span class="qz-muted">&#8212;</span>
+                            }
+                        </td>
                         @if (ShowInterrupt)
                         {
                             <td>
@@ -108,7 +128,7 @@
     private bool _isWindow;
 
     private bool ShowInterrupt => !IsReadOnly && !_isWindow;
-    private int TableColumnCount => ShowInterrupt ? 7 : 6;
+    private int TableColumnCount => ShowInterrupt ? 8 : 7;
 
     protected override async Task OnInitializedAsync()
     {

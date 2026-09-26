@@ -540,7 +540,8 @@ public class StdAdoDelegateGroupMatcherTest
         await adoDelegate.SelectFireInstances(conn, new FireInstanceQuery());
 
         string expectedCommandText = "SELECT ENTRY_ID, TRIGGER_NAME, TRIGGER_GROUP, JOB_NAME, JOB_GROUP, "
-                                     + "INSTANCE_NAME, STATE, FIRED_TIME, SCHED_TIME, EXECUTION_GROUP "
+                                     + "INSTANCE_NAME, STATE, FIRED_TIME, SCHED_TIME, EXECUTION_GROUP, "
+                                     + "PROGRESS, PROGRESS_MESSAGE "
                                      + "FROM QRTZ_FIRED_TRIGGERS "
                                      + "WHERE SCHED_NAME = @schedulerName "
                                      + "AND STATE <> @entryState "

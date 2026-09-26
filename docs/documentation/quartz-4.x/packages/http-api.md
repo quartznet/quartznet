@@ -427,7 +427,9 @@ concurrent-execution-disallowed, persist-job-data, requests-recovery.
 ² Key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority,
 execution group, retry policy and attempt, and [what the trigger is waiting for](#continuations).
 ³ `fireInstanceId`, trigger key, job key (`null` while only reserved), `schedulerInstanceId`, `state`,
-`fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup`.
+`fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup`, and what the job
+[last reported](../how-tos/progress-and-execution-logs.md#report-progress): `progress` (0–100) and
+`progressMessage`, both `null` until it reports.
 
 - Results are ordered by group, then name, on every page. Fire instances add the fire instance id, since one
   trigger can have several firings at once.

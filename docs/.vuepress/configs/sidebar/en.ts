@@ -73,6 +73,7 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/quartz-4.x/how-tos/rescheduling-jobs",
       "/documentation/quartz-4.x/how-tos/retrying-failed-jobs",
       "/documentation/quartz-4.x/how-tos/job-continuations",
+      "/documentation/quartz-4.x/how-tos/progress-and-execution-logs",
       "/documentation/quartz-4.x/how-tos/multiple-triggers",
       "/documentation/quartz-4.x/how-tos/job-template",
       "/documentation/quartz-4.x/how-tos/aspire",

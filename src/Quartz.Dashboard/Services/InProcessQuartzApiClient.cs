@@ -346,7 +346,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 State: instance.State,
                 FireTimeUtc: instance.FireTimeUtc,
                 ScheduledFireTimeUtc: instance.ScheduledFireTimeUtc,
-                ExecutionGroup: instance.ExecutionGroup));
+                ExecutionGroup: instance.ExecutionGroup)
+            {
+                Progress = instance.Progress,
+                ProgressMessage = instance.ProgressMessage
+            });
         }
 
         return new PagedResult<FireInstanceDto>(items, page.HasMore, page.TotalCount ?? items.Count);

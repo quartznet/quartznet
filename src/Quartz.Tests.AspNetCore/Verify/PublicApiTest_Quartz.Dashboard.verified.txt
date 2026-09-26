@@ -269,6 +269,8 @@ namespace Quartz.Dashboard.Services
         public string FireInstanceId { get; init; }
         public System.DateTimeOffset FireTimeUtc { get; init; }
         public Quartz.Dashboard.Services.JobKeyDto? JobKey { get; init; }
+        public int? Progress { get; init; }
+        public string? ProgressMessage { get; init; }
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
         public string SchedulerInstanceId { get; init; }
         public Quartz.FireInstanceState State { get; init; }

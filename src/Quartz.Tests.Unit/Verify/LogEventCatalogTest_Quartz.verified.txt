@@ -72,6 +72,8 @@
     "Job of trigger {TriggerKey} failed; retry {Attempt} of {MaxAttempts} scheduled for {RetryTimeUtc}"
 1057  Information  CoreLog.TriggerRetriesExhausted
     "Job of trigger {TriggerKey} failed after {Attempt} of {MaxAttempts} retries; the occurrence is over and the trigger keeps its ordinary schedule"
+1058  Warning  CoreLog.FireProgressWriteFailed
+    "Could not record the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on"
 1070  Information  CoreLog.SchedulerSignalerInitialized
     "Initialized Scheduler Signaller of type: {Type}"
 1071  Error  CoreLog.ListenerNotificationOfMisfireFailed

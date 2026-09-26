@@ -65,4 +65,31 @@ public sealed record FireInstance(
     FireInstanceState State,
     DateTimeOffset FireTimeUtc,
     DateTimeOffset? ScheduledFireTimeUtc,
-    string? ExecutionGroup);
+    string? ExecutionGroup)
+{
+    /// <summary>
+    /// How far the running job said it had got, from <c>0</c> to <c>100</c>, or
+    /// <see langword="null" /> when it has not said.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the job last passed to <see cref="IJobExecutionContext.ReportProgress" />, as the store last
+    /// recorded it: the scheduler writes it at most once a second per firing, so it can trail the job by
+    /// up to that. Always <see langword="null" /> while the firing is only
+    /// <see cref="FireInstanceState.Acquired" />, on a store that keeps no progress, and on a firing a
+    /// 4.2 node is running.
+    /// </para>
+    /// <para>
+    /// A non-positional <c>init</c> property, as <see cref="ProgressMessage" /> is, so the record's
+    /// constructor is unchanged.
+    /// </para>
+    /// </remarks>
+    public int? Progress { get; init; }
+
+    /// <summary>
+    /// What the running job said beside its <see cref="Progress" />, at most
+    /// <see cref="Extensibility.FireInstanceProgress.MaxMessageLength" /> characters, or
+    /// <see langword="null" /> when it said nothing.
+    /// </summary>
+    public string? ProgressMessage { get; init; }
+}

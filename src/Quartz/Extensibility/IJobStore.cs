@@ -876,6 +876,31 @@ public interface IJobStore
     }
 
     /// <summary>
+    /// Records what a running firing last reported about how far it has got, so that
+    /// <see cref="QueryFireInstances" /> answers it on <see cref="FireInstance.Progress" /> and
+    /// <see cref="FireInstance.ProgressMessage" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The scheduler calls this at most once a second per firing, only when the value has changed,
+    /// off the job's own flow and never awaited by it: a failure is logged and the job carries on. The
+    /// firing is this node's own, so a store needs no scheduler-wide lock to write it. A fire instance
+    /// that has already completed is not an error — the write simply finds nothing to update.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a store written against an earlier 4.x keeps working. The default
+    /// records nothing, and that store's firings report no progress.
+    /// </para>
+    /// </remarks>
+    /// <param name="fireInstanceId">The firing, as <see cref="IJobExecutionContext.FireInstanceId" /> names it.</param>
+    /// <param name="progress">What the firing reported.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask UpdateFireInstanceProgress(string fireInstanceId, FireInstanceProgress progress, CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+
+    /// <summary>
     /// Get the amount of time to wait when accessing this job store repeatedly fails.
     /// </summary>
     /// <remarks>
