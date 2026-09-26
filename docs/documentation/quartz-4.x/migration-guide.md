@@ -14,6 +14,7 @@ If you are a new user starting with the latest version, you don't need to follow
 | You are upgrading | Read first |
 |---|---|
 | A running 3.x deployment | [Upgrading a running deployment](#upgrading-a-running-deployment). Two of its seven steps happen while you are still on 3.x |
+| An application that references `MassTransit.Quartz` | Stay on 3.x: it does not run on 4.x. See [Message buses](packages/quartz-3rd-party-plugins.md#message-buses) |
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
@@ -425,7 +426,9 @@ The other seven are `ITriggerConfigurator`, `JobFactoryOptions` and `SchedulingO
 (from `Quartz.Serialization.SystemTextJson`). Calls into the duplicated extension classes report
 `CS0121: The call is ambiguous`, naming both assemblies.
 
-**Fix: remove the three package references.** Both errors go with them.
+**Fix: remove the three package references.** Both errors go with them. A 3.x one that another package
+brings in, as `MassTransit.Quartz` does, has no reference to remove; see
+[Message buses](packages/quartz-3rd-party-plugins.md#message-buses).
 
 `Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package:
 
