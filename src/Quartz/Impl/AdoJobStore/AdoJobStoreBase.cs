@@ -883,7 +883,23 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     ];
 
     /// <summary>
-    /// The schema check, plus the tables a feature that is off by default needs.
+    /// For each column a later release added to one of those tables: the probe that asks whether it
+    /// is there, beside the migration that adds it. Written as <see cref="OptionalTableProbes" /> is.
+    /// </summary>
+    private static readonly (string Table, string Column, string Migration, string Feature, string Probe)[] OptionalColumnProbes =
+    [
+        .. AdoConstants.OptionalColumnNames.Select(c =>
+        (
+            c.Table,
+            c.Column,
+            c.Migration,
+            c.Feature,
+            $"SELECT {c.Column} FROM {StdAdoConstants.TablePrefixSubst}{c.Table} WHERE 1 = 0"
+        ))
+    ];
+
+    /// <summary>
+    /// The schema check, plus the tables and columns a feature that is off by default needs.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -917,24 +933,40 @@ internal abstract partial class AdoJobStoreBase : IJobStore
 
             try
             {
-                // On the unit of work's own connection, the way MissingMigratedColumns probes: the
-                // statement takes no parameters, so it needs nothing the delegate does to a command.
-                using DbCommand cmd = conn.Connection.CreateCommand();
-                conn.Attach(cmd);
-                cmd.CommandText = AdoJobStoreUtil.ReplaceTablePrefixCached(probe, TablePrefix);
+                await ProbeOptional(conn, probe, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // A table that is missing is missing its later columns too, so every script that builds
+                // it up is named here at once rather than one refusal per restart.
+                string scripts = string.Join(", then ", AdoConstants.OptionalColumnNames
+                    .Where(c => c.Table == table)
+                    .Select(c => c.Migration)
+                    .Prepend(migration)
+                    .Distinct()
+                    .Select(m => $"database/migrations/{MigrationScriptName(m)}"));
 
-                if (CommandTimeout.HasValue)
-                {
-                    cmd.CommandTimeout = (int) CommandTimeout.Value.TotalSeconds;
-                }
+                throw new JobPersistenceException(
+                    $"Unable to query table {targetTable}, which {feature} reads and writes and which the"
+                    + $" schema migrations {scripts} create."
+                    + " Run them, or leave the execution history where it was — the migrations are"
+                    + $" needed by nothing else. {ex.Message}", ex);
+            }
 
-                await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            objectCount++;
+        }
+
+        foreach ((string table, string column, string migration, string feature, string probe) in OptionalColumnProbes)
+        {
+            try
+            {
+                await ProbeOptional(conn, probe, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 throw new JobPersistenceException(
-                    $"Unable to query table {targetTable}, which {feature} reads and writes and which the"
-                    + $" schema migration database/migrations/{MigrationScriptName(migration)} creates."
+                    $"Unable to query column {column} of table {TablePrefix}{table}, which {feature} writes and"
+                    + $" which the schema migration database/migrations/{MigrationScriptName(migration)} adds."
                     + " Run that script, or leave the execution history where it was — the migration is"
                     + $" needed by nothing else. {ex.Message}", ex);
             }
@@ -943,6 +975,25 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         }
 
         return objectCount;
+    }
+
+    /// <summary>
+    /// Runs one optional-schema probe on the unit of work's own connection, the way
+    /// <see cref="MissingMigratedColumns" /> probes: the statement takes no parameters, so it needs
+    /// nothing the delegate does to a command.
+    /// </summary>
+    private async ValueTask ProbeOptional(ConnectionAndTransactionHolder conn, string probe, CancellationToken cancellationToken)
+    {
+        using DbCommand cmd = conn.Connection.CreateCommand();
+        conn.Attach(cmd);
+        cmd.CommandText = AdoJobStoreUtil.ReplaceTablePrefixCached(probe, TablePrefix);
+
+        if (CommandTimeout.HasValue)
+        {
+            cmd.CommandTimeout = (int) CommandTimeout.Value.TotalSeconds;
+        }
+
+        await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1039,14 +1090,15 @@ internal abstract partial class AdoJobStoreBase : IJobStore
                         + $" {string.Join(", then ", MigrationTemplates.Select(MigrationScriptName))} —"
                         + " because ProvisionSchema() creates missing tables and never adds a column to a table"
                         + " that exists. A schema created by 3.x needs all of them; one created by 4.0 or 4.1"
-                        + " needs only the last.";
+                        + " needs the last two, and one created by 4.2 only the last.";
 
         if (ExecutionHistory)
         {
-            // Named only when it is needed. It is the one migration nothing else asks for, so a reader
-            // who never turned the history on must not be sent to run it.
+            // Named only when they are needed. They are the migrations nothing else asks for, so a
+            // reader who never turned the history on must not be sent to run them.
             advice += " This store keeps its execution history in the database, so it needs"
-                      + $" {MigrationScriptName(AdoConstants.Migration42History)} as well, which no other"
+                      + $" {MigrationScriptName(AdoConstants.Migration42History)} and"
+                      + $" {MigrationScriptName(AdoConstants.Migration43ExecutionLog)} as well, which no other"
                       + " configuration requires.";
         }
 

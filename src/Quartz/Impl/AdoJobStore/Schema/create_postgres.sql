@@ -160,6 +160,8 @@ CREATE TABLE IF NOT EXISTS {0}fired_triggers (
   is_nonconcurrent bool not null,
   requests_recovery bool null,
   execution_group varchar(200) null,
+  progress integer null,
+  progress_message varchar(250) null,
   primary key (sched_name,entry_id)
 );
 --;;
@@ -194,6 +196,7 @@ CREATE TABLE IF NOT EXISTS {0}execution_history (
   error_message text null,
   retry_attempt integer not null default 0,
   retry_scheduled bool not null default false,
+  execution_log text null,
   primary key (sched_name,entry_id)
 );
 --;;

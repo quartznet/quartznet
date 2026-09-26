@@ -174,6 +174,8 @@ CREATE TABLE qrtz_fired_triggers
     is_nonconcurrent BOOL NOT NULL,
     requests_recovery BOOL NULL,
     execution_group VARCHAR(200) NULL,
+    progress INTEGER NULL,
+    progress_message VARCHAR(250) NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 
@@ -211,6 +213,7 @@ CREATE TABLE qrtz_execution_history
     error_message TEXT NULL,
     retry_attempt INTEGER NOT NULL DEFAULT 0,
     retry_scheduled BOOL NOT NULL DEFAULT FALSE,
+    execution_log TEXT NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 

@@ -102,6 +102,8 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.0`](migrations/4.0) | **Two files**: `schema_30_to_40_upgrade_<db>.sql` (columns and a table) and `schema_30_to_40_indexes_<db>.sql` (the 4.x index shape) — see [below](#upgrading-3x--4x-is-mandatory) | Upgrade **mandatory for 4.x** and safe during a mixed window; indexes optional, and wait for the last 3.x node | all | `main` only |
 | [`4.2`](migrations/4.2) | `add_continuations_<db>.sql`: `CONTINUES_TRIGGER_NAME`, `CONTINUES_TRIGGER_GROUP` and `CONTINUATION_CONDITION` on `QRTZ_TRIGGERS`, for a trigger that waits in the store for another trigger's firing to end (#3805) | **Required on 4.2+**, safe during a mixed 4.1/4.2 window | all | `main` only |
 | [`4.2`](migrations/4.2) | `add_execution_history_<db>.sql`: the `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY` tables, a cluster-wide record of what ran and what was missed (#3771) | **Optional**: needed only with `UseExecutionHistory()`; safe under a mixed cluster, since a node without it neither writes nor reads these tables | all | `main` only |
+| [`4.3`](migrations/4.3) | `add_fire_progress_<db>.sql`: `PROGRESS` and `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS`, what a running job last reported (#3874) | **Required on 4.3+**, safe during a mixed 4.2/4.3 window | all | `main` only |
+| [`4.3`](migrations/4.3) | `add_execution_log_<db>.sql`: `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`, the log lines an execution wrote (#3874) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -175,6 +177,19 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
 - Safe under a mixed cluster both ways: a 4.0 or 4.1 node cannot see these tables, and a 4.2 node that
   keeps no history neither writes nor reads them. Nodes that do share one history; every row carries the
   instance id that wrote it.
+
+### Upgrading 4.2 → 4.3
+
+[`migrations/4.3`](migrations/4.3) has two files.
+
+| File | Status | What |
+|---|---|---|
+| `add_fire_progress_<db>.sql` | **Required** | `PROGRESS` and `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS`. A 4.3 node reads them whenever it lists what is running, and refuses to start without them. |
+| `add_execution_log_<db>.sql` | Optional | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`. Needed only with `UseExecutionHistory()`; run it after `4.2/add_execution_history_<db>.sql`, because it alters that table and fails where the table is missing. |
+
+- **Run both while 4.2 nodes are still running.** Every column is nullable with no default. A 4.2 node
+  never names them: its firings show no progress and its history rows no log.
+- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have all three columns.
 
 ## Where these files moved
 
