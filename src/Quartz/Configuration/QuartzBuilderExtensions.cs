@@ -1021,4 +1021,57 @@ public static class QuartzBuilderExtensions
                 provider.GetService<TimeProvider>() ?? TimeProvider.System);
         });
     }
+
+    /// <summary>
+    /// Opens a logging scope around every firing that names its job, its trigger and its fire instance,
+    /// so each line the job logs says which firing wrote it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The scope carries <c>quartz.job.name</c>, <c>quartz.job.group</c>, <c>quartz.trigger.name</c>,
+    /// <c>quartz.trigger.group</c> and <c>quartz.fire.instance.id</c>: the <see cref="Diagnostics.ActivityTags" />
+    /// names the execution span carries, so a log line and the span of its firing are found by the same
+    /// values. A provider shows a scope only when it includes scopes, as <c>IncludeScopes</c> does on the
+    /// console formatter and on OpenTelemetry's logger.
+    /// </para>
+    /// <para>
+    /// Opt-in because it is not free: a scope is an <c>AsyncLocal</c> write, which copies the execution
+    /// context once per firing. The scope naming the scheduler is opened once per scheduling loop instead,
+    /// and costs a firing nothing.
+    /// </para>
+    /// <para>
+    /// A middleware, registered where the call is written: called first, the scope is outside every other
+    /// middleware, so what they log carries it too. The job and trigger listeners and the run shell's own
+    /// lines about the firing are outside the pipeline, and do not. Calling it twice for one scheduler
+    /// opens one scope, in the place of the first call.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    public static IQuartzBuilder AddJobLogScope(this IQuartzBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        foreach (ServiceDescriptor descriptor in builder.Services)
+        {
+            if (descriptor.ServiceType == typeof(JobLogScopeMarker)
+                && descriptor.ImplementationInstance is JobLogScopeMarker marker
+                && marker.SchedulerName == builder.SchedulerName)
+            {
+                return builder;
+            }
+        }
+
+        builder.Services.AddSingleton(new JobLogScopeMarker(builder.SchedulerName));
+        return builder.AddJobMiddleware(static provider => new JobLogScopeMiddleware(provider.GetSchedulerLoggerFactory()));
+    }
+
+    /// <summary>
+    /// Says a scheduler's log scope has been registered, so a second call registers no second one.
+    /// </summary>
+    /// <remarks>
+    /// A descriptor rather than a field, because what is made idempotent is a registration into one
+    /// <see cref="IServiceCollection" />, and it carries the scheduler's name because each scheduler in
+    /// that collection has a pipeline of its own.
+    /// </remarks>
+    private sealed record JobLogScopeMarker(string SchedulerName);
 }

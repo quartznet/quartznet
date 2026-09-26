@@ -18,7 +18,7 @@ public static class JobExecutionMiddlewareSamples
         builder.AddQuartz(q =>
         {
             // built by the container, so it can take dependencies of its own
-            q.AddJobMiddleware<LogScopeMiddleware>();
+            q.AddJobMiddleware<TenantLogScopeMiddleware>();
 
             // built by you, from this scheduler's services
             q.AddJobMiddleware(provider => new MeteredMiddleware(provider.GetRequiredService<IMeterFactory>()));
@@ -37,8 +37,21 @@ public static class JobExecutionMiddlewareSamples
         IScheduler scheduler = await QuartzSchedulerBuilder
             .Create(q => q
                 .UseInMemoryStore()
-                .AddJobMiddleware<LogScopeMiddleware>())
+                .AddJobMiddleware<TenantLogScopeMiddleware>())
             .BuildScheduler();
+
+        #endregion
+    }
+
+    public static void LogScope(IHostApplicationBuilder builder)
+    {
+        #region sample_job_middleware_log_scope
+
+        builder.AddQuartz(q =>
+        {
+            // first, so that what every other middleware logs names the firing too
+            q.AddJobLogScope();
+        });
 
         #endregion
     }
@@ -115,16 +128,16 @@ public sealed class AuditMiddleware(IServiceScopeFactory scopeFactory) : IJobExe
 
 #endregion
 
-#region sample_job_middleware_log_scope
+#region sample_job_middleware_writing
 
-public sealed class LogScopeMiddleware(ILogger<LogScopeMiddleware> logger) : IJobExecutionMiddleware
+public sealed class TenantLogScopeMiddleware(ILogger<TenantLogScopeMiddleware> logger) : IJobExecutionMiddleware
 {
     public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
     {
-        using IDisposable? scope = logger.BeginScope(new Dictionary<string, object>
+        // Which firing a line belongs to is AddJobLogScope's; this adds what only the application knows.
+        using IDisposable? scope = logger.BeginScope(new Dictionary<string, object?>
         {
-            ["JobKey"] = context.JobDetail.Key,
-            ["FireInstanceId"] = context.FireInstanceId,
+            ["tenant"] = context.MergedJobDataMap.GetString("tenant"),
         });
 
         await next(context, cancellationToken);

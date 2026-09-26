@@ -36,6 +36,7 @@ An application on 4.2 compiles on 4.3 unchanged, and the database schema did not
 | `TriggerAcquireResult.ConcurrentExecutionDisallowed` | `bool?`, a non-positional `init` property: the job row's `IS_NONCONCURRENT`. Every shipped dialect reads it; `null` falls back to the job type's `[DisallowConcurrentExecution]` |
 | `TriggerConfiguratorExtensions.WithCronSchedule(Action<CronExpressionBuilder> expression, configure)` | The expression assembled inline: `t.WithCronSchedule(cron => cron.AtTime(new TimeOnly(3, 0)).OnWeekdays())`. See [Cron Triggers](tutorial/crontriggers.md#building-crontriggers) |
 | `CronExpressionBuilder.Every(TimeSpan)` | An interval counted on the clock. Whole seconds or minutes dividing 60, or hours dividing 24; otherwise `ArgumentOutOfRangeException`. Throws with `AtTime`. See [Building cron expressions programmatically](cron-expressions.md#building-cron-expressions-programmatically) |
+| `QuartzBuilderExtensions.AddJobLogScope()` | Opt-in middleware opening a log scope per firing: job, trigger and fire instance, under the span attribute names. A second call for one scheduler adds nothing. See [A log scope per firing](tutorial/job-execution-middleware.md#a-log-scope-per-firing) |
 
 **Behaviour change:** an ADO store took two triggers of one job into a batch when the job disallowed
 concurrent execution only through `DisallowConcurrentExecution()` on its builder. The fire path declined
@@ -2885,6 +2886,8 @@ q.AddJobMiddleware(new TenantScopeMiddleware());
 * The chain is built once with the scheduler, so one instance serves every firing. Keep per-firing
   state in an `AsyncLocal<T>` or the job's scope, not in a field.
 * A scheduler with no middleware has no pipeline, so nothing changes if you add none.
+* From 4.3, `q.AddJobLogScope()` is the built-in per-firing log scope; a hand-written one naming the job
+  key and fire instance can go.
 * It runs inside the execution span and the duration measurement, and outside the run shell's
   exception handling. A `JobExecutionException` thrown by middleware is handled like one from the job,
   `RefireImmediately` included.
