@@ -80,6 +80,11 @@ public class OperationNameTest
         // operator already filters on is the one that was there first.
         "FiringComplete",
 
+        // A write, but one queued off the job's flow at up to one a second per running firing: it has
+        // no caller's span to be a child of, so tracing it would open a new root trace every second
+        // for every job that reports — the unbounded-trace shape #3797 took out.
+        "UpdateFireInstanceProgress",
+
         // Lifecycle. Each happens once, outside any request, so its span would be a root of its own
         // with nothing to be a child of — and Initialize runs before the store knows its identity,
         // which is the tag every other span here carries.

@@ -231,6 +231,19 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.FiringComplete(s.context, s.cancellationToken));
     }
 
+    /// <summary>
+    /// Hands a progress report on without a span of its own.
+    /// </summary>
+    /// <remarks>
+    /// Declared rather than inherited only to say so. The write is queued off the job's flow, so a span
+    /// here would have no firing to be a child of: every running job that reports would open a new root
+    /// trace a second, which is the unbounded-trace shape #3797 took out.
+    /// </remarks>
+    public override ValueTask UpdateFireInstanceProgress(string fireInstanceId, FireInstanceProgress progress, CancellationToken cancellationToken = default)
+    {
+        return InnerJobStore.UpdateFireInstanceProgress(fireInstanceId, progress, cancellationToken);
+    }
+
     public override ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.DeleteJob);

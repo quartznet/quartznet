@@ -221,6 +221,28 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
         RetryScheduled = retryScheduled;
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// The latest value is kept by a writer made the first time a firing reports, beside this context
+    /// rather than in a field of it: a field would make every firing's context eight bytes larger for
+    /// the sake of the jobs that report, and a firing that never reports costs nothing here. The writer
+    /// reaches the scheduler's job store through <see cref="Scheduler" />, so a context built by hand,
+    /// over a scheduler Quartz did not build, keeps the value and writes it nowhere.
+    /// </para>
+    /// <para>
+    /// Returns at once. The store is written at most once a second, only on a change, off this flow;
+    /// the last value reported is always the one written.
+    /// </para>
+    /// </remarks>
+    public void ReportProgress(int percent, string? message = null)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(percent);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(percent, 100);
+
+        FireProgressWriter.For(this).Report(percent, message);
+    }
+
     /// <summary>
     /// Get the convenience <see cref="JobDataMap" /> of this execution context.
     /// </summary>

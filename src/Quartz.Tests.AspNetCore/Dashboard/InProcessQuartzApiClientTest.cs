@@ -1180,6 +1180,54 @@ public class InProcessQuartzApiClientTest
         PersistJobDataAfterExecution: false,
         JobDataMap: new JobDataMap());
 
+    /// <summary>
+    /// What a running job reported reaches the page's row: the client carries the store's two values
+    /// over rather than leaving the bar empty.
+    /// </summary>
+    [Test]
+    public async Task ARunningFiringCarriesWhatItReported()
+    {
+        IScheduler scheduler = await CreateScheduler("FireProgressTest");
+        try
+        {
+            JobKey jobKey = new("reporting", "progress");
+            await scheduler.AddJob(JobBuilder.Create<ReportingJob>().WithIdentity(jobKey).StoreDurably().Build());
+            await scheduler.Start();
+            await scheduler.TriggerJob(jobKey);
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            FireInstanceDto? running = null;
+            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+            while (running is null && DateTimeOffset.UtcNow < deadline)
+            {
+                PagedResult<FireInstanceDto> page = await client.QueryFireInstances(scheduler.SchedulerName, new DashboardFireInstanceQuery());
+                running = page.Items.FirstOrDefault(x => x.Progress is not null);
+                await Task.Delay(20);
+            }
+
+            running.Should().NotBeNull("the first report of a firing is written at once, while the job is still running");
+            running!.Progress.Should().Be(64);
+            running.ProgressMessage.Should().Be("sixty-four");
+        }
+        finally
+        {
+            ReportingJob.Release.TrySetResult();
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    public sealed class ReportingJob : IJob
+    {
+        public static readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            context.ReportProgress(64, "sixty-four");
+            await Release.Task.WaitAsync(TimeSpan.FromSeconds(20), cancellationToken);
+        }
+    }
+
     private static async Task<IScheduler> CreateScheduler(string testName)
     {
         NameValueCollection properties = new()

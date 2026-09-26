@@ -153,6 +153,9 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1057, Level = LogLevel.Information, Message = "Job of trigger {TriggerKey} failed after {Attempt} of {MaxAttempts} retries; the occurrence is over and the trigger keeps its ordinary schedule")]
     public static partial void TriggerRetriesExhausted(this ILogger logger, TriggerKey triggerKey, int attempt, int maxAttempts, Exception exception);
 
+    [LoggerMessage(EventId = 1058, Level = LogLevel.Warning, Message = "Could not record the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on")]
+    public static partial void FireProgressWriteFailed(this ILogger logger, string fireInstanceId, JobKey jobKey, Exception exception);
+
     [LoggerMessage(EventId = 1070, Level = LogLevel.Information, Message = "Initialized Scheduler Signaller of type: {Type}")]
     public static partial void SchedulerSignalerInitialized(this ILogger logger, Type type);
 

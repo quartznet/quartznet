@@ -41,6 +41,11 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `CronTriggerAttribute.ConfigurationKey` | `string?`, `init`. When the key is set in `IConfiguration`, its value is the expression; the constructor's is the fallback. A value that does not parse throws as the scheduler is built. See [A schedule from configuration](tutorial/declaring-jobs-with-attributes.md#a-schedule-from-configuration) |
 | Generated `AddDeclaredJobsFrom<Assembly>()` | Now beside `AddDeclaredJobs()` in every assembly that declares jobs, so each assembly's registration has a name that binds |
 | `QZ1005` ConfigurationKeyWithoutConfiguration | Error: a `ConfigurationKey` in an assembly that does not reference `IConfiguration` |
+| `IJobExecutionContext.ReportProgress(percent, message)` | Says how far a running job has got. Default does nothing; `JobExecutionContextImpl` implements it. See [Progress and Execution Logs](how-tos/progress-and-execution-logs.md) |
+| `FireInstance.Progress`, `FireInstance.ProgressMessage` | `int?` and `string?`, `null` until the job reports. HTTP: `progress` and `progressMessage` on `GET …/jobs/fire-instances`. Also on `Quartz.Dashboard`'s `FireInstanceDto` |
+| `IJobStore.UpdateFireInstanceProgress(fireInstanceId, progress)` | Called at most once a second per firing, only on a change. Default records nothing. `DelegatingJobStore` forwards it |
+| `FireInstanceProgress` | `Quartz.Extensibility`. `required init Percent`, `Message`, and `MaxMessageLength` (`250`) |
+| Log event `1058` | Warning: a progress write failed; the job carries on |
 | `AdoConstants.ColumnProgress`, `ColumnProgressMessage` | `PROGRESS` and `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS`, from `4.3/add_fire_progress_<db>.sql` |
 | `AdoConstants.ColumnExecutionLog` | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`, from the optional `4.3/add_execution_log_<db>.sql` |
 
@@ -51,6 +56,13 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 concurrent execution only through `DisallowConcurrentExecution()` on its builder. The fire path declined
 the second, so the job never overlapped itself, but the batch lost a slot. Acquisition now reads the
 stored flag. A driver delegate of your own that overrides `SelectTriggersToAcquire` sets the property.
+
+**Interface members are default interface members**, so an implementation written for 4.2 compiles and
+behaves as it did. Properties added to records are non-positional `init` properties, so constructors are
+unchanged.
+
+**Mixed 4.2 and 4.3 versions:** a 4.2 node never writes the progress columns, so its firings list with
+`null` progress on a 4.3 dashboard.
 
 ### The 4.3 schema migration
 
