@@ -95,7 +95,7 @@ takes no cluster-wide lock. Above 1, **every** acquisition cycle takes the `TRIG
 including cycles that acquire nothing; on a lightly loaded cluster that is more lock traffic for no
 batching.
 
-Two settings decide a batch's size, and neither does anything alone:
+Two settings decide a batch's size:
 
 | Option | Flat key | Default |
 |---|---|---|
@@ -103,11 +103,12 @@ Two settings decide a batch's size, and neither does anything alone:
 | `Scheduler:BatchTriggerAcquisitionFireAheadTimeWindow` | `quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow` | `00:00:00` |
 
 * `MaxBatchSize` is the upper bound on how many triggers one acquisition takes.
-* The window decides how many it actually takes: after the first trigger, only triggers due within the
-  window of it join the batch. At zero, the default, a batch holds only triggers due at the same instant,
-  so raising `MaxBatchSize` alone changes nothing for spread-out fire times.
+* The window decides how many it actually takes: a batch ends at the first trigger's fire time, or now if
+  that is later, plus the window. At zero, the default, a batch takes the triggers already due, or those
+  due at the same instant as the first. Raising `MaxBatchSize` alone batches a backlog, not spread-out fire
+  times.
 
-Change both together, or neither:
+For fire times that are close but not equal, change both:
 
 <!-- snippet: sample_advanced_batch_acquisition -->
 ```csharp

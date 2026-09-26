@@ -56,13 +56,13 @@ still accepts them. See [Legacy property keys](#legacy-property-keys).
 | `GenerateInstanceId` | bool | `false` | Derives `InstanceId` at startup from the registered `IInstanceIdGenerator`. |
 | `IdleWaitTime` | TimeSpan | `00:00:30` | How long to wait before re-querying the job store when nothing is due. At least one second. |
 | `MaxBatchSize` | int | `1` | Upper bound on triggers acquired at once; may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
-| `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may join the current batch. At zero, nothing batches. |
+| `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may join the current batch. At zero, a batch takes the triggers already due. |
 | `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to running jobs. |
 | `PropagateTraceContext` | bool | `true` | Stores the ambient trace context on a trigger scheduled inside an `Activity`, so the firing's span links back. See below. |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`). |
 
-- `MaxBatchSize` is only an upper bound: `BatchTriggerAcquisitionFireAheadTimeWindow` decides how many
-  triggers are actually taken.
+- `MaxBatchSize` is only an upper bound. A batch ends at the first trigger's fire time, or now if that is
+  later, plus `BatchTriggerAcquisitionFireAheadTimeWindow`.
 - `PropagateTraceContext` writes two reserved job-data keys. They are visible wherever trigger data is:
   `MergedJobDataMap`, the dashboard, `GET /triggers`, `QRTZ_TRIGGERS.JOB_DATA`. Turn it off to keep
   them out of the store. See [OpenTelemetry integration](../packages/opentelemetry-integration.md).

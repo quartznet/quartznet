@@ -399,9 +399,9 @@ q.ConfigureScheduler(options =>
 ```
 
 Set `MaxBatchSize` and `BatchTriggerAcquisitionFireAheadTimeWindow` together: with the default window of
-`TimeSpan.Zero` only triggers due at the same instant batch, so set the window to how early a firing may
-run. `MaxBatchSize` must not exceed the thread pool's `MaxConcurrency`; `IdleWaitTime` has a floor of one
-second.
+`TimeSpan.Zero` only triggers already due, or due at the same instant, batch. Set the window to how early a
+firing may run. `MaxBatchSize` must not exceed the thread pool's `MaxConcurrency`; `IdleWaitTime` has a
+floor of one second.
 
 ## Letting Wolverine start the scheduler
 
