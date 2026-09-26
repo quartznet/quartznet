@@ -158,17 +158,37 @@ internal static class Descriptors
     /// <c>InternalsVisibleTo</c>.
     /// </summary>
     /// <remarks>
-    /// A warning rather than an error: everything still builds and every job is still registered, but
-    /// <c>AddDeclaredJobs()</c> written in this assembly now means another assembly's jobs, which is not
-    /// what it means anywhere else.
+    /// Information since 4.3, when it was a warning. Everything builds and every job is registered, and
+    /// every assembly's registration now also carries a method named after that assembly, so a spelling
+    /// that binds exists for each set of declared jobs however many are visible. What is left to say is
+    /// that <c>AddDeclaredJobs()</c> written here means another assembly's jobs, which is advice rather
+    /// than a fault — and a warning cannot be answered in a build that treats warnings as errors short of
+    /// suppressing it.
     /// </remarks>
     internal static readonly DiagnosticDescriptor DeclaredJobsRegistrationRenamed = new DiagnosticDescriptor(
         id: "QZ1004",
         title: "Declared-job registration is named after this assembly",
         messageFormat: "AddDeclaredJobs() in this assembly resolves to '{0}''s declared jobs, which are visible through InternalsVisibleTo; call {1}() for this assembly's own",
         category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
+        defaultSeverity: DiagnosticSeverity.Info,
         isEnabledByDefault: true,
-        description: "Every assembly that declares jobs gets an internal QuartzDeclaredJobs class. When another assembly that declares jobs grants this one InternalsVisibleTo, both classes are in scope here and AddDeclaredJobs() would be ambiguous, so this assembly's class and method are named after it instead and AddDeclaredJobs() keeps meaning the other assembly's.",
+        description: "Every assembly that declares jobs gets an internal QuartzDeclaredJobs class. When another assembly that declares jobs grants this one InternalsVisibleTo, both classes are in scope here and AddDeclaredJobs() would be ambiguous, so this assembly's class is named after it and carries only its AddDeclaredJobsFrom method, and AddDeclaredJobs() keeps meaning the other assembly's. Every assembly's registration carries an AddDeclaredJobsFrom method named after that assembly, so each set of declared jobs has a name that binds.",
         helpLinkUri: DeclaredJobsHelpLink + "#qz1004-declaredjobsregistrationrenamed");
+
+    /// <summary>
+    /// A <c>ConfigurationKey</c> in an assembly that cannot read configuration.
+    /// </summary>
+    /// <remarks>
+    /// An error, because the alternative is the failure the key exists to prevent: a schedule that is
+    /// configured, looks configured, and runs on something else without a word.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor ConfigurationKeyWithoutConfiguration = new DiagnosticDescriptor(
+        id: "QZ1005",
+        title: "Schedule read from configuration in an assembly that cannot read configuration",
+        messageFormat: "'{0}' declares a schedule read from the configuration key '{1}', but Microsoft.Extensions.Configuration.IConfiguration is not referenced here, so the key could never be read; reference Microsoft.Extensions.Configuration.Abstractions, or remove ConfigurationKey",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "ConfigurationKey on [CronTrigger] makes the generated registration read the expression from the container's IConfiguration, falling back to the attribute's own. The generated code names IConfiguration, so an assembly that does not reference it cannot compile that read, and ignoring the key would leave a configured schedule that is never used.",
+        helpLinkUri: DeclaredJobsHelpLink + "#qz1005-configurationkeywithoutconfiguration");
 }

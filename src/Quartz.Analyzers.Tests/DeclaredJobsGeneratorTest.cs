@@ -326,7 +326,8 @@ public class DeclaredJobsGeneratorTest
                     MisfireInstruction = CronTriggerMisfireInstruction.DoNothing,
                     Priority = 9,
                     Description = "six o'clock, Helsinki time",
-                    ExecutionGroup = "reports")]
+                    ExecutionGroup = "reports",
+                    ConfigurationKey = "Reports:Morning")]
                 [CronTrigger("0 0 18 * * ?", MisfireInstruction = (CronTriggerMisfireInstruction) 42)]
                 public sealed class ReportJob : IJob
                 {
@@ -354,7 +355,9 @@ public class DeclaredJobsGeneratorTest
         run.Generated.Should().Contain("if (builder.SchedulerName == \"reporting\")")
             .And.Contain(".InTimeZone(")
             .And.Contain("global::Quartz.CronTriggerMisfireInstruction.DoNothing")
-            .And.Contain("(global::Quartz.CronTriggerMisfireInstruction) 42",
+            .And.Contain("(global::Quartz.CronTriggerMisfireInstruction) 42")
+            .And.Contain("ConfiguredCronExpression(services, \"Reports:Morning\"")
+            .And.Contain("AddDeclaredJobsFromSnippet(",
                 "the snippet has to reach every shape of call the generator writes, or this proves less than it says");
         AssertParsedAt(run, LanguageVersion.CSharp9);
     }
@@ -397,7 +400,8 @@ public class DeclaredJobsGeneratorTest
         GeneratorRun library = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Library(grantInternalsTo: assemblyName), assemblyName: "Lib");
 
         library.Diagnostics.Should().BeEmpty("the library can see nobody else's registration, so nothing about its own changes");
-        library.Generated.Should().Contain("internal static class QuartzDeclaredJobs").And.NotContain("QuartzDeclaredJobs_");
+        library.Generated.Should().Contain("internal static class QuartzDeclaredJobs").And.NotContain("QuartzDeclaredJobs_")
+            .And.Contain("AddDeclaredJobsFromLib(", "every registration carries a method named after its assembly beside the ordinary one");
 
         string method = "AddDeclaredJobsFrom" + identifier;
 
@@ -425,7 +429,8 @@ public class DeclaredJobsGeneratorTest
 
         Diagnostic diagnostic = run.Diagnostics.Should().ContainSingle("the rename is one fact about the assembly, however many jobs it declares").Subject;
         diagnostic.Id.Should().Be("QZ1004");
-        diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning, "nothing is broken, but a call that used to mean this assembly's jobs now means another's");
+        diagnostic.Severity.Should().Be(DiagnosticSeverity.Info,
+            "nothing is broken and every registration has a name that binds, so what is left is advice about which assembly AddDeclaredJobs() means here");
         diagnostic.GetMessage().Should().Be(
             $"AddDeclaredJobs() in this assembly resolves to 'Lib''s declared jobs, which are visible through InternalsVisibleTo; call {method}() for this assembly's own");
         diagnostic.Location.SourceSpan.Start.Should().Be(run.Snippet.IndexOf("QuartzJob", StringComparison.Ordinal),
@@ -444,6 +449,85 @@ public class DeclaredJobsGeneratorTest
         run.Generated.Should().Contain("builder.AddJob<global::App.AppJob>")
             .And.Contain("builder.AddJob<global::App.OtherAppJob>")
             .And.NotContain("LibraryJob", "each registration carries its own assembly's jobs and nobody else's");
+        run.Generated.Should().NotContain("AddDeclaredJobs(this",
+            "a renamed registration has no ordinary method: AddDeclaredJobs() here already means the library's");
+    }
+
+    /// <summary>
+    /// Two libraries granting one application <c>InternalsVisibleTo</c>: <c>AddDeclaredJobs()</c> is
+    /// ambiguous there, and used to have no spelling that resolved it. Each library's registration now
+    /// carries a method named after its assembly, and that name binds.
+    /// </summary>
+    /// <remarks>
+    /// The harness compiles the snippet with every reference, so the two calls below building at all is
+    /// the heart of this test; the resolution checks say each reaches the library it names.
+    /// </remarks>
+    [Test]
+    public void EachLibrarysRegistrationBindsByItsOwnNameWhenTwoAreVisible()
+    {
+        MetadataReference[] libraries =
+        [
+            AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Library(grantInternalsTo: "App"), assemblyName: "Alpha").ToReference(),
+            AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Library(grantInternalsTo: "App"), assemblyName: "Zeta").ToReference(),
+        ];
+
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            Snippet("""
+                [QuartzJob(Name = "app-job")]
+                public sealed class AppJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder builder) => builder
+                        .AddDeclaredJobsFromAlpha()
+                        .AddDeclaredJobsFromZeta()
+                        .AddDeclaredJobsFromApp();
+                }
+                """),
+            assemblyName: "App",
+            references: libraries);
+
+        Diagnostic diagnostic = run.Diagnostics.Should().ContainSingle().Subject;
+        diagnostic.Id.Should().Be("QZ1004");
+        diagnostic.Severity.Should().Be(DiagnosticSeverity.Info, "it is advisory now that every set of declared jobs has a name that binds");
+
+        Resolve(run, "AddDeclaredJobsFromAlpha").ContainingAssembly.Name.Should().Be("Alpha");
+        Resolve(run, "AddDeclaredJobsFromZeta").ContainingAssembly.Name.Should().Be("Zeta");
+        Resolve(run, "AddDeclaredJobsFromApp").ContainingAssembly.Name.Should().Be("App");
+    }
+
+    /// <summary>
+    /// The method named after the assembly is the same registration as the ordinary one, in an assembly
+    /// that sees nobody else's too — so code written against it does not change when one appears.
+    /// </summary>
+    [Test]
+    public void TheOrdinaryRegistrationAlsoCarriesTheAssemblysOwnName()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(
+            Snippet("""
+                [QuartzJob(Name = "app-job")]
+                public sealed class AppJob : IJob
+                {
+                    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+                }
+
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder builder) => builder.AddDeclaredJobsFromApp();
+                }
+                """),
+            assemblyName: "App");
+
+        run.Diagnostics.Should().BeEmpty();
+        run.Generated.Should().Contain("return AddDeclaredJobs(builder);",
+            "the assembly's own name calls the ordinary method, so the two cannot come to register different things");
+
+        IMethodSymbol own = Resolve(run, "AddDeclaredJobsFromApp");
+        own.ContainingAssembly.Name.Should().Be("App");
+        own.ContainingType.ToDisplayString().Should().Be("Quartz.QuartzDeclaredJobs");
     }
 
     [Test]
@@ -493,12 +577,12 @@ public class DeclaredJobsGeneratorTest
     }
 
     /// <summary>
-    /// Two libraries granting the same assembly <c>InternalsVisibleTo</c>: the warning names one of
+    /// Two libraries granting the same assembly <c>InternalsVisibleTo</c>: the diagnostic names one of
     /// them, and the same one whichever order the references arrive in.
     /// </summary>
     [TestCase("Zeta", "Alpha")]
     [TestCase("Alpha", "Zeta")]
-    public void RenameWarningNamesTheSameAssemblyWhateverOrderTheReferencesArriveIn(string first, string second)
+    public void RenameDiagnosticNamesTheSameAssemblyWhateverOrderTheReferencesArriveIn(string first, string second)
     {
         MetadataReference[] libraries =
         [

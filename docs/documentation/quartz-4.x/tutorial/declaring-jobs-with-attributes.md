@@ -90,13 +90,22 @@ namespace Quartz
 
             return builder;
         }
+
+        public static global::Quartz.IQuartzBuilder AddDeclaredJobsFromMyApp(this global::Quartz.IQuartzBuilder builder)
+        {
+            return AddDeclaredJobs(builder);
+        }
     }
 }
 ```
 
 * Defaults are left out, so the file says only what the attributes asked for.
+* `AddDeclaredJobsFrom<assembly>()` (4.3) is the same registration under the assembly's own name, which
+  binds however many other assemblies' registrations are visible; see
+  [`QZ1004`](#qz1004-declaredjobsregistrationrenamed).
 * The file is plain C# 8 (a block namespace, not file-scoped), so a project pinned to an older
-  `LangVersion` compiles it.
+  `LangVersion` compiles it. The attributes' named properties are `init`-only, so **setting one needs
+  C# 9**: a C# 8 project can write `[QuartzJob]` and `[CronTrigger("…")]` with no named properties.
 
 ::: tip
 To read the file your own build produced, set
@@ -132,9 +141,55 @@ Write one per schedule; a job with three gets three triggers.
 | `Priority` | `5` | who wins when two triggers want the same moment and one worker is free |
 | `Description` | none | the description carried on the trigger |
 | `ExecutionGroup` | none | the [execution group](execution-groups.md) the firing counts against |
+| `ConfigurationKey` (4.3) | none | a configuration key whose value replaces the expression — see [A schedule from configuration](#a-schedule-from-configuration) |
 
 The first schedule is named after the job, as a single hand-written trigger would be. Later ones count
 up: `cleanup`, `cleanup-2`, `cleanup-3`. A `Name` of its own overrides one without renumbering the rest.
+
+## A schedule from configuration
+
+`ConfigurationKey` (4.3) reads the expression from the container's `IConfiguration` as the scheduler is
+built. The constructor's expression is the fallback:
+
+<!-- snippet: sample_declared_job_configuration_key -->
+```csharp
+// Jobs:Report:Cron in appsettings.json, or Jobs__Report__Cron in the environment, replaces the
+// expression. Without it, the report runs at 06:00.
+[QuartzJob(Name = "report")]
+[CronTrigger("0 0 6 * * ?", ConfigurationKey = "Jobs:Report:Cron")]
+public sealed class DailyReportJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+}
+```
+<!-- endSnippet -->
+
+```json
+{
+  "Jobs": {
+    "Report": {
+      "Cron": "0 30 5 * * ?"
+    }
+  }
+}
+```
+
+| Key | Schedule |
+|---|---|
+| set | the configured value |
+| not set, or no `IConfiguration` registered | the attribute's expression |
+| set to a value the parser refuses, empty included | none: building the scheduler throws `FormatException`, so the host does not start |
+
+* The attribute's expression is still required and still checked by `QZ0001`.
+* A configured value is checked only at run time, when the scheduler is built.
+* Only the expression comes from configuration; `Name`, `TimeZone` and the rest stay the attribute's.
+* The generated registration reads it through `(services, trigger) => …`, the same lookup a
+  hand-written one makes. Nothing is reflected, so it stays trimming- and AOT-safe.
+* An assembly that does not reference `Microsoft.Extensions.Configuration.Abstractions` cannot read the
+  key: [`QZ1005`](#qz1005-configurationkeywithoutconfiguration).
 
 ## One scheduler out of several
 
@@ -191,8 +246,8 @@ public sealed class CleanupJob : IJob { /* … */ }
 
 ## What the generator reports
 
-Three build errors, each for a job that would otherwise be declared and never fire, and one warning
-about a name. `DisableQuartzAnalyzers` removes the generator and these diagnostics with it; see
+Four build errors, each for a job or schedule that would otherwise be declared and never used, and one
+note about a name. `DisableQuartzAnalyzers` removes the generator and these diagnostics with it; see
 [Changing a severity, or turning it off](compile-time-checks.md#changing-a-severity-or-turning-it-off).
 
 ### QZ1001 DeclaredJobTypeNotSchedulable
@@ -220,23 +275,44 @@ naming different `Scheduler`s is two jobs, not a clash.
 
 ### QZ1004 DeclaredJobsRegistrationRenamed
 
-**Reports**, as a warning because everything still builds, an assembly whose registration was renamed.
-When an assembly that declares jobs grants `InternalsVisibleTo` to another that declares jobs, both
-generated `QuartzDeclaredJobs` classes are in scope in the second. `AddDeclaredJobs()` there would be
-ambiguous, and naming the class would be too. So the second assembly's registration is named after the
-assembly: in `MyApp.Worker` it is `QuartzDeclaredJobs_MyApp_Worker.AddDeclaredJobsFromMyApp_Worker()`.
-Characters an identifier cannot hold become `_`, and a name starting with a digit gets a leading `_`.
+**Reports**, as information (a warning before 4.3), an assembly whose registration was renamed. When an
+assembly that declares jobs grants `InternalsVisibleTo` to another that declares jobs, both generated
+`QuartzDeclaredJobs` classes are in scope in the second. `AddDeclaredJobs()` there would be ambiguous,
+and naming the class would be too. So the second assembly's registration is named after the assembly:
+in `MyApp.Worker` it is `QuartzDeclaredJobs_MyApp_Worker.AddDeclaredJobsFromMyApp_Worker()`. Characters
+an identifier cannot hold become `_`, and a name starting with a digit gets a leading `_`.
 
-`AddDeclaredJobs()` in that assembly still means the other assembly's jobs. The warning, on the
-assembly's first `[QuartzJob]`, says so:
+`AddDeclaredJobs()` in that assembly still means the other assembly's jobs. The note, on the assembly's
+first `[QuartzJob]`, says so:
 
 ```text
-warning QZ1004: AddDeclaredJobs() in this assembly resolves to 'MyApp.Jobs''s declared jobs, which are
+info QZ1004: AddDeclaredJobs() in this assembly resolves to 'MyApp.Jobs''s declared jobs, which are
 visible through InternalsVisibleTo; call AddDeclaredJobsFromMyApp_Worker() for this assembly's own
 ```
 
-**Fix** by calling both methods to register both assemblies' jobs. An assembly no `InternalsVisibleTo`
-names sees no other registration and keeps `QuartzDeclaredJobs.AddDeclaredJobs()`.
+From 4.3 every registration also has the method named after its assembly, so each set of declared jobs
+has a spelling that binds:
+
+| Visible in the application | Call |
+|---|---|
+| its own registration only | `AddDeclaredJobs()`, or `AddDeclaredJobsFrom<App>()` |
+| its own and one library's | `AddDeclaredJobsFrom<App>()` for its own; `AddDeclaredJobs()` or `AddDeclaredJobsFrom<Library>()` for the library's |
+| two libraries' | `AddDeclaredJobsFrom<Library>()` for each; `AddDeclaredJobs()` is ambiguous |
+
+**Fix**: nothing is broken. Where more than one registration is visible, call each by its assembly's
+name. The note is reported whatever the calls say; `dotnet_diagnostic.QZ1004.severity = none` hides it.
+An assembly no `InternalsVisibleTo` names sees no other registration and keeps
+`QuartzDeclaredJobs.AddDeclaredJobs()`.
+
+### QZ1005 ConfigurationKeyWithoutConfiguration
+
+**Reports** a `[CronTrigger]` with a `ConfigurationKey` in an assembly that does not reference
+`Microsoft.Extensions.Configuration.Abstractions`. The generated registration reads the key through
+`IConfiguration`, so without the type the key could never be read, and the schedule would silently be the
+attribute's.
+
+**Fix** by referencing the package (the `Quartz` package brings it, unless its assets are excluded), or by
+removing `ConfigurationKey`.
 
 ## What an attribute does not say
 
@@ -246,15 +322,14 @@ Write these as registrations beside `AddDeclaredJobs()`:
   To give a declared job more triggers, use `ForJob` with the key the attribute declared.
 * **A schedule that is not cron.** There is no `[SimpleTrigger]` or attribute for another trigger
   family: cron is the only schedule an attribute can carry without becoming a builder.
-* **A cron expression from configuration.** An attribute argument is a constant, which is what lets the
-  compiler check it. Put a schedule a deployment changes in
+* **Anything but the expression from configuration.** `ConfigurationKey` replaces the expression only.
+  Put a whole schedule a deployment changes in
   [a scheduling file or the `Quartz:Schedule` section](../configuration/json.md).
 * **Jobs from another assembly.** `AddDeclaredJobs()` is generated per assembly, registers that
   assembly's jobs, and is `internal`. Without `InternalsVisibleTo`, an application cannot see a
   library's generated method, so the library exposes a registration call of its own, or the application
-  writes one. With `InternalsVisibleTo`, the application can call the library's `AddDeclaredJobs()`; if
-  the application declares jobs too, its own registration is renamed as
-  [`QZ1004`](#qz1004-declaredjobsregistrationrenamed) describes.
+  writes one. With `InternalsVisibleTo`, the application calls the library's
+  `AddDeclaredJobsFrom<Library>()`; [`QZ1004`](#qz1004-declaredjobsregistrationrenamed) has the table.
 
 ## Related
 

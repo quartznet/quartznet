@@ -21,6 +21,7 @@
 
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 using Microsoft.CodeAnalysis.CSharp;
@@ -50,6 +51,13 @@ internal static class DeclaredJobsEmitter
     private const string TimeZonesTypeName = "global::Quartz.TimeZones";
 
     private const string MisfireInstructionTypeName = "global::Quartz.CronTriggerMisfireInstruction";
+
+    private const string ConfigurationTypeName = "global::Microsoft.Extensions.Configuration.IConfiguration";
+
+    /// <summary>
+    /// The generated helper a trigger with a <c>ConfigurationKey</c> reads its expression through.
+    /// </summary>
+    private const string ConfiguredCronExpressionName = "ConfiguredCronExpression";
 
     /// <summary>
     /// Where a statement in the method body starts: namespace, class and method each indent once.
@@ -94,7 +102,9 @@ internal static class DeclaredJobsEmitter
         source.AppendLine("        /// </summary>");
         source.AppendLine("        /// <param name=\"builder\">The scheduler being built.</param>");
         source.AppendLine("        /// <returns>The same builder, so that the call chains.</returns>");
-        source.AppendLine($"        public static global::Quartz.IQuartzBuilder {registration.MethodName}(this global::Quartz.IQuartzBuilder builder)");
+
+        string bodyMethod = registration.HasOrdinaryMethod ? RegistrationName.OrdinaryMethodName : registration.AssemblyMethodName;
+        source.AppendLine($"        public static global::Quartz.IQuartzBuilder {bodyMethod}(this global::Quartz.IQuartzBuilder builder)");
         source.AppendLine("        {");
 
         bool first = true;
@@ -113,10 +123,72 @@ internal static class DeclaredJobsEmitter
         source.AppendLine();
         source.Append(BodyIndent).AppendLine("return builder;");
         source.AppendLine("        }");
+
+        if (registration.HasOrdinaryMethod)
+        {
+            AppendAssemblyMethod(source, registration.AssemblyMethodName);
+        }
+
+        if (jobs.Any(x => x.Triggers.Any(y => y.ConfigurationKey is not null)))
+        {
+            AppendConfiguredCronExpression(source);
+        }
+
         source.AppendLine("    }");
         source.AppendLine("}");
 
         return source.ToString();
+    }
+
+    /// <summary>
+    /// The same registration under this assembly's own name, which no other assembly's can share.
+    /// </summary>
+    /// <remarks>
+    /// Two libraries granting one application <c>InternalsVisibleTo</c> make <c>AddDeclaredJobs()</c>
+    /// ambiguous there; each library's own name still binds. It calls the ordinary method by its simple
+    /// name, which the class's own member answers before any extension could.
+    /// </remarks>
+    private static void AppendAssemblyMethod(StringBuilder source, string methodName)
+    {
+        source.AppendLine();
+        source.AppendLine("        /// <summary>");
+        source.AppendLine("        /// The same as <c>AddDeclaredJobs</c>, under a name no other assembly's registration shares, so");
+        source.AppendLine("        /// that it binds wherever this assembly's is visible, however many others are visible beside it.");
+        source.AppendLine("        /// </summary>");
+        source.AppendLine("        /// <param name=\"builder\">The scheduler being built.</param>");
+        source.AppendLine("        /// <returns>The same builder, so that the call chains.</returns>");
+        source.AppendLine($"        public static global::Quartz.IQuartzBuilder {methodName}(this global::Quartz.IQuartzBuilder builder)");
+        source.AppendLine("        {");
+        source.Append(BodyIndent).AppendLine($"return {RegistrationName.OrdinaryMethodName}(builder);");
+        source.AppendLine("        }");
+    }
+
+    /// <summary>
+    /// The read a <c>ConfigurationKey</c> turns into, written once and called by every trigger that has one.
+    /// </summary>
+    /// <remarks>
+    /// <c>GetService(Type)</c> rather than the generic extension, so the file names only
+    /// <c>IConfiguration</c>, which is exactly what the generator checks the compilation for. Nothing here
+    /// reflects: it is the lookup a hand-written <c>(services, trigger) =&gt;</c> registration would make.
+    /// </remarks>
+    private static void AppendConfiguredCronExpression(StringBuilder source)
+    {
+        source.AppendLine();
+        source.AppendLine("        /// <summary>");
+        source.AppendLine("        /// The cron expression configured at <paramref name=\"key\" />, or <paramref name=\"declared\" />,");
+        source.AppendLine("        /// the attribute's own, where the key is not set or no configuration is registered.");
+        source.AppendLine("        /// </summary>");
+        source.AppendLine("        /// <param name=\"services\">The scheduler's view of the container.</param>");
+        source.AppendLine("        /// <param name=\"key\">The attribute's <c>ConfigurationKey</c>.</param>");
+        source.AppendLine("        /// <param name=\"declared\">The attribute's cron expression.</param>");
+        source.AppendLine("        /// <returns>The expression the trigger fires on.</returns>");
+        source.AppendLine($"        private static string {ConfiguredCronExpressionName}(global::System.IServiceProvider services, string key, string declared)");
+        source.AppendLine("        {");
+        source.Append(BodyIndent).AppendLine($"{ConfigurationTypeName}? configuration =");
+        source.Append(BodyIndent).AppendLine($"    services.GetService(typeof({ConfigurationTypeName})) as {ConfigurationTypeName};");
+        source.AppendLine();
+        source.Append(BodyIndent).AppendLine("return configuration?[key] ?? declared;");
+        source.AppendLine("        }");
     }
 
     private static void AppendJob(StringBuilder source, DeclaredJob job)
@@ -178,9 +250,13 @@ internal static class DeclaredJobsEmitter
             ? $".ForJob({Literal(job.Name)})"
             : $".ForJob({Literal(job.Name)}, {Literal(job.Group)})";
 
+        // A schedule read from configuration needs the container, which only the (services, trigger)
+        // overload is handed; one that is the attribute's alone keeps the shorter call.
+        string configurator = trigger.ConfigurationKey is null ? "trigger" : "(services, trigger)";
+
         List<string> lines =
         [
-            $"builder.AddTrigger<{job.TypeName}>(trigger => trigger",
+            $"builder.AddTrigger<{job.TypeName}>({configurator} => trigger",
             "    " + Identity(trigger.Name, trigger.Group),
             "    " + forJob,
         ];
@@ -202,13 +278,17 @@ internal static class DeclaredJobsEmitter
 
         List<string> schedule = ScheduleLines(trigger);
 
+        string expression = trigger.ConfigurationKey is null
+            ? Literal(trigger.CronExpression)
+            : $"{ConfiguredCronExpressionName}(services, {Literal(trigger.ConfigurationKey)}, {Literal(trigger.CronExpression)})";
+
         if (schedule.Count == 0)
         {
-            lines.Add($"    .WithCronSchedule({Literal(trigger.CronExpression)})");
+            lines.Add($"    .WithCronSchedule({expression})");
         }
         else
         {
-            lines.Add($"    .WithCronSchedule({Literal(trigger.CronExpression)}, cron => cron");
+            lines.Add($"    .WithCronSchedule({expression}, cron => cron");
 
             foreach (string line in schedule)
             {

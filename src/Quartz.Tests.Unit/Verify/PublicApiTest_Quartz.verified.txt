@@ -219,6 +219,7 @@ namespace Quartz
     public sealed class CronTriggerAttribute : System.Attribute
     {
         public CronTriggerAttribute(string cronExpression) { }
+        public string? ConfigurationKey { get; init; }
         public string CronExpression { get; }
         public string? Description { get; init; }
         public string? ExecutionGroup { get; init; }

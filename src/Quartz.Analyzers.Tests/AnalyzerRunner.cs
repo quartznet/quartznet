@@ -20,6 +20,8 @@
 #endregion
 
 using System.Collections.Immutable;
+using System.Reflection;
+using System.Runtime.Loader;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -130,16 +132,21 @@ internal static class AnalyzerRunner
     /// The C# the snippet is written in, and so the C# the generated file is parsed and compiled as —
     /// which is what an older project's build does with it.
     /// </param>
+    /// <param name="withoutReferences">
+    /// File names of this process's assemblies to leave off the compiler's reference list, for a snippet
+    /// that stands for a project that does not reference them.
+    /// </param>
     internal static GeneratorRun RunGenerator<TGenerator>(
         string source,
         string assemblyName = DefaultAssemblyName,
         IEnumerable<MetadataReference>? references = null,
         IReadOnlyCollection<string>? toleratedErrors = null,
-        LanguageVersion languageVersion = LanguageVersion.Latest)
+        LanguageVersion languageVersion = LanguageVersion.Latest,
+        IReadOnlyCollection<string>? withoutReferences = null)
         where TGenerator : IIncrementalGenerator, new()
     {
         CSharpParseOptions parseOptions = new CSharpParseOptions(languageVersion);
-        CSharpCompilation compilation = Compile(source, assemblyName, references, parseOptions);
+        CSharpCompilation compilation = Compile(source, assemblyName, references, parseOptions, withoutReferences);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
             generators: [new TGenerator().AsSourceGenerator()],
@@ -223,12 +230,17 @@ internal static class AnalyzerRunner
         string source,
         string assemblyName = DefaultAssemblyName,
         IEnumerable<MetadataReference>? additionalReferences = null,
-        CSharpParseOptions? parseOptions = null)
+        CSharpParseOptions? parseOptions = null,
+        IReadOnlyCollection<string>? withoutReferences = null)
     {
+        IEnumerable<MetadataReference> own = withoutReferences is null
+            ? references.Value
+            : references.Value.Where(x => !withoutReferences.Contains(Path.GetFileName(x.Display), StringComparer.OrdinalIgnoreCase));
+
         return CSharpCompilation.Create(
             assemblyName,
             [CSharpSyntaxTree.ParseText(source, parseOptions ?? ParseOptions, path: "Snippet.cs")],
-            [.. references.Value, .. additionalReferences ?? []],
+            [.. own, .. additionalReferences ?? []],
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
     }
 
@@ -301,11 +313,31 @@ internal sealed record GeneratorRun(string Snippet, IReadOnlyList<Diagnostic> Di
     /// </remarks>
     internal MetadataReference ToReference()
     {
+        return MetadataReference.CreateFromImage(Emit());
+    }
+
+    /// <summary>
+    /// The assembly this run built, generated file included, loaded into this process so that a test
+    /// can run what the generator wrote against a real scheduler.
+    /// </summary>
+    /// <remarks>
+    /// A context of its own, because every snippet is called <c>Snippet</c> unless it says otherwise, and
+    /// the default context loads one assembly of a name. Its references resolve to what this process has
+    /// already loaded, which is the <c>Quartz.dll</c> it was compiled against.
+    /// </remarks>
+    internal Assembly Load()
+    {
+        using MemoryStream image = new MemoryStream(Emit());
+        return new AssemblyLoadContext(Output.AssemblyName + "-" + Guid.NewGuid().ToString("N")).LoadFromStream(image);
+    }
+
+    private byte[] Emit()
+    {
         using MemoryStream image = new MemoryStream();
         EmitResult result = Output.Emit(image);
 
         result.Success.Should().BeTrue("an assembly another snippet references has to exist: {0}", string.Join(Environment.NewLine, result.Diagnostics));
 
-        return MetadataReference.CreateFromImage(image.ToArray());
+        return image.ToArray();
     }
 }

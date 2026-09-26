@@ -61,6 +61,11 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     private const string JobInterfaceTypeName = "Quartz.IJob";
 
     /// <summary>
+    /// What a <c>ConfigurationKey</c> is read from, and what the generated registration names to read it.
+    /// </summary>
+    private const string ConfigurationTypeName = "Microsoft.Extensions.Configuration.IConfiguration";
+
+    /// <summary>
     /// The group a key with no group of its own falls into, mirroring <c>Key&lt;T&gt;.DefaultGroup</c>.
     /// </summary>
     /// <remarks>
@@ -93,14 +98,25 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
         IncrementalValueProvider<RegistrationName> registration = context.CompilationProvider
             .Select(static (compilation, _) => NameRegistration(compilation));
 
+        // Whether a ConfigurationKey can be read at all: the generated code names IConfiguration, so an
+        // assembly that cannot see it gets a diagnostic rather than a file that does not compile.
+        IncrementalValueProvider<bool> configuration = context.CompilationProvider
+            .Select(static (compilation, _) => compilation.GetTypeByMetadataName(ConfigurationTypeName) is not null);
+
         context.RegisterSourceOutput(
-            jobs.Collect().Combine(orphans.Collect()).Combine(registration),
-            static (production, source) => Execute(production, source.Left.Left, source.Left.Right, source.Right));
+            jobs.Collect().Combine(orphans.Collect()).Combine(registration).Combine(configuration),
+            static (production, source) => Execute(
+                production,
+                source.Left.Left.Left,
+                source.Left.Left.Right,
+                source.Left.Right,
+                configurationAvailable: source.Right));
     }
 
     /// <summary>
-    /// What this assembly's registration is called: <c>QuartzDeclaredJobs.AddDeclaredJobs</c>, unless
-    /// another assembly's class of that name is already visible here.
+    /// What this assembly's registration is called: <c>QuartzDeclaredJobs.AddDeclaredJobs</c> and
+    /// <c>AddDeclaredJobsFrom</c> the assembly's name, unless another assembly's class of that name is
+    /// already visible here.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -109,6 +125,12 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     /// are in scope in the second, and <c>AddDeclaredJobs()</c> is ambiguous there with no spelling
     /// that resolves it: naming the class is ambiguous too. So the second assembly's class steps aside
     /// and is named after that assembly, and the ordinary name keeps meaning the one it could already see.
+    /// </para>
+    /// <para>
+    /// The method named after the assembly is emitted in every case, the ordinary one too, because two
+    /// libraries granting the same application <c>InternalsVisibleTo</c> make <c>AddDeclaredJobs()</c>
+    /// ambiguous there even when the application declares nothing: each library's own name is then the
+    /// spelling that binds.
     /// </para>
     /// <para>
     /// A renamed class is never what another assembly looks for here, so a chain of grants renames
@@ -136,17 +158,12 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             }
         }
 
-        if (visible is null)
-        {
-            return RegistrationName.Ordinary;
-        }
-
         string suffix = Identifier(compilation.Assembly.Name);
+        string assemblyMethodName = RegistrationName.OrdinaryMethodName + "From" + suffix;
 
-        return new RegistrationName(
-            RegistrationName.OrdinaryClassName + "_" + suffix,
-            RegistrationName.OrdinaryMethodName + "From" + suffix,
-            visible);
+        return visible is null
+            ? new RegistrationName(RegistrationName.OrdinaryClassName, assemblyMethodName, VisibleAssembly: null)
+            : new RegistrationName(RegistrationName.OrdinaryClassName + "_" + suffix, assemblyMethodName, visible);
     }
 
     /// <summary>
@@ -162,7 +179,9 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             identifier.Append(SyntaxFacts.IsIdentifierPartCharacter(character) ? character : '_');
         }
 
-        if (!SyntaxFacts.IsIdentifierStartCharacter(identifier[0]))
+        // An assembly with no name at all is one only a hand-made compilation has, and it still needs a
+        // method name that compiles.
+        if (identifier.Length == 0 || !SyntaxFacts.IsIdentifierStartCharacter(identifier[0]))
         {
             identifier.Insert(0, '_');
         }
@@ -265,6 +284,7 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
                 Number(attribute, nameof(DeclaredTrigger.Priority)),
                 Text(attribute, nameof(DeclaredTrigger.Description)),
                 Text(attribute, nameof(DeclaredTrigger.ExecutionGroup)),
+                Text(attribute, nameof(DeclaredTrigger.ConfigurationKey)),
                 LocationInfo.From(attribute.ApplicationSyntaxReference)));
         }
 
@@ -298,7 +318,8 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
         SourceProductionContext context,
         ImmutableArray<DeclaredJob> jobs,
         ImmutableArray<OrphanTrigger> orphans,
-        RegistrationName registration)
+        RegistrationName registration,
+        bool configurationAvailable)
     {
         foreach (OrphanTrigger orphan in orphans.OrderBy(x => x.DisplayName, StringComparer.Ordinal))
         {
@@ -317,7 +338,7 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
                 continue;
             }
 
-            declared.Add(job);
+            declared.Add(configurationAvailable ? job : WithoutConfigurationKeys(context, job));
         }
 
         ReportDuplicates(context, declared);
@@ -332,10 +353,41 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
         if (registration.VisibleAssembly is not null)
         {
             // Once, on the first job: the rename is a fact about the assembly, not about any one job.
-            Report(context, Descriptors.DeclaredJobsRegistrationRenamed, declared[0].Location, registration.VisibleAssembly, registration.MethodName);
+            Report(context, Descriptors.DeclaredJobsRegistrationRenamed, declared[0].Location, registration.VisibleAssembly, registration.AssemblyMethodName);
         }
 
         context.AddSource("QuartzDeclaredJobs.g.cs", DeclaredJobsEmitter.Emit(declared, registration));
+    }
+
+    /// <summary>
+    /// The job with every <c>ConfigurationKey</c> reported and dropped, for a compilation that cannot
+    /// read one.
+    /// </summary>
+    /// <remarks>
+    /// Dropped rather than emitted, so that the diagnostic is the one error the build shows instead of
+    /// the first of several about a type the generated file names and the compiler cannot find. The
+    /// diagnostic is an error, so the build that would otherwise ignore the key does not succeed.
+    /// </remarks>
+    private static DeclaredJob WithoutConfigurationKeys(SourceProductionContext context, DeclaredJob job)
+    {
+        if (!job.Triggers.Any(x => x.ConfigurationKey is not null))
+        {
+            return job;
+        }
+
+        ImmutableArray<DeclaredTrigger>.Builder triggers = ImmutableArray.CreateBuilder<DeclaredTrigger>();
+
+        foreach (DeclaredTrigger trigger in job.Triggers)
+        {
+            if (trigger.ConfigurationKey is not null)
+            {
+                Report(context, Descriptors.ConfigurationKeyWithoutConfiguration, trigger.Location, job.DisplayName, trigger.ConfigurationKey);
+            }
+
+            triggers.Add(trigger with { ConfigurationKey = null });
+        }
+
+        return job with { Triggers = new EquatableArray<DeclaredTrigger>(triggers.ToImmutable()) };
     }
 
     /// <summary>
