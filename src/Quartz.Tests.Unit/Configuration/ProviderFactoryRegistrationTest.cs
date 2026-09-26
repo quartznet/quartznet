@@ -115,6 +115,35 @@ public sealed class ProviderFactoryRegistrationTest
         DbParameter parameter = command.CreateParameter();
         provider.Metadata.ApplyParameterType(parameter, provider.Metadata.BinaryParameterType);
         parameter.Size.Should().Be(-1);
+
+        provider.Metadata.LargeTextParameterType.Should().BeNull(
+            "the four-argument overload says nothing about a large text parameter, so the log binds as a string");
+    }
+
+    /// <summary>
+    /// The third seam, for the captured log's <c>CLOB</c>: it reaches the large-text parameter and only
+    /// that one.
+    /// </summary>
+    [Test]
+    public void TheLargeTextSeamTheOracleOverloadTakesReachesTheLargeTextParameter()
+    {
+        using ServiceProvider container = Container(store => store.UseOracle(
+            FakeDbProviderFactory.Instance,
+            ConnectionString,
+            configureCommand: null,
+            configureBinaryParameter: parameter => parameter.Size = -1,
+            configureLargeTextParameter: parameter => parameter.Size = -2));
+
+        IDbProvider provider = container.GetRequiredService<IDbProvider>();
+        using DbCommand command = provider.CreateCommand();
+
+        DbParameter largeText = command.CreateParameter();
+        provider.Metadata.ApplyParameterType(largeText, provider.Metadata.LargeTextParameterType!);
+        largeText.Size.Should().Be(-2, "on Oracle this is where OracleDbType.Clob is said");
+
+        DbParameter binary = command.CreateParameter();
+        provider.Metadata.ApplyParameterType(binary, provider.Metadata.BinaryParameterType);
+        binary.Size.Should().Be(-1, "and the blob seam is still the blob's");
     }
 
     [Test]

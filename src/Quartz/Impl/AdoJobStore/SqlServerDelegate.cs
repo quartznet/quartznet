@@ -29,6 +29,12 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma</author>
 public class SqlServerDelegate : StdAdoDelegate
 {
+    /// <summary>
+    /// The size every string parameter is bound with, so one statement does not become a plan per
+    /// value length: the widest <c>nvarchar</c> short of <c>max</c>.
+    /// </summary>
+    private const int MaxSizedStringLength = 4000;
+
     /// <inheritdoc />
     /// <remarks>
     /// The standard schema. The memory-optimized and pre-2016 variants under
@@ -77,10 +83,12 @@ public class SqlServerDelegate : StdAdoDelegate
             size = -1;
         }
 
-        // avoid size inferred from value that cause multiple query plans
-        if (size is null && paramValue is string)
+        // avoid size inferred from value that cause multiple query plans - except for a string longer
+        // than that, which SqlClient would cut to the size rather than refuse: it is bound as
+        // nvarchar(max). Only the execution history's captured log is ever that long.
+        if (size is null && paramValue is string text)
         {
-            size = 4000;
+            size = text.Length > MaxSizedStringLength ? -1 : MaxSizedStringLength;
         }
 
         base.AddCommandParameter(cmd, paramName, paramValue, dataType, size);

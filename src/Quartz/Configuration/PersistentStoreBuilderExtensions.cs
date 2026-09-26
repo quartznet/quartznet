@@ -31,11 +31,13 @@ namespace Quartz;
 /// name and say so.
 /// </para>
 /// <para>
-/// Every provider therefore has the same three overloads, and <c>UseOracle</c> has a fourth. That is not
-/// an oversight: the name path reaches <c>BindByName</c> and <c>OracleDbType.Blob</c> by reflecting over
-/// the types the driver description names, and a factory names none, so the factory form of Oracle alone
-/// needs somewhere to say those two things in code. Oracle is the only driver Quartz ships a description
-/// for that needs either.
+/// Every provider therefore has the same three overloads, and <c>UseOracle</c> has two more. That is not
+/// an oversight: the name path reaches <c>BindByName</c>, <c>OracleDbType.Blob</c> and
+/// <c>OracleDbType.Clob</c> by reflecting over the types the driver description names, and a factory
+/// names none, so the factory form of Oracle alone needs somewhere to say those things in code. Oracle is
+/// the only driver Quartz ships a description for that needs any of them. The fifth arrived in 4.3 with
+/// the third seam, beside the fourth rather than in place of it, so that a call compiled against 4.2
+/// still binds.
 /// </para>
 /// </remarks>
 public static class PersistentStoreBuilderExtensions
@@ -70,7 +72,7 @@ public static class PersistentStoreBuilderExtensions
     /// Stores the schedule in Microsoft SQL Server, reached through
     /// <c>Microsoft.Data.SqlClient.SqlClientFactory.Instance</c>.
     /// </summary>
-    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter})" path="/remarks"/>
+    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter}, Action{DbParameter})" path="/remarks"/>
     public static IPersistentStoreBuilder UseSqlServer(this IPersistentStoreBuilder builder, DbProviderFactory factory, string connectionString)
         => builder.UseDatabase<SqlServerDelegate>(DataSourceOptions.Providers.SqlServer, factory, connectionString);
 
@@ -85,7 +87,7 @@ public static class PersistentStoreBuilderExtensions
         => builder.UseDatabase<PostgreSQLDelegate>(DataSourceOptions.Providers.Npgsql, configure);
 
     /// <summary>Stores the schedule in PostgreSQL, reached through <c>Npgsql.NpgsqlFactory.Instance</c>.</summary>
-    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter})" path="/remarks"/>
+    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter}, Action{DbParameter})" path="/remarks"/>
     public static IPersistentStoreBuilder UsePostgres(this IPersistentStoreBuilder builder, DbProviderFactory factory, string connectionString)
         => builder.UseDatabase<PostgreSQLDelegate>(DataSourceOptions.Providers.Npgsql, factory, connectionString);
 
@@ -103,7 +105,7 @@ public static class PersistentStoreBuilderExtensions
     /// Stores the schedule in MySQL, reached through
     /// <c>MySql.Data.MySqlClient.MySqlClientFactory.Instance</c>.
     /// </summary>
-    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter})" path="/remarks"/>
+    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter}, Action{DbParameter})" path="/remarks"/>
     public static IPersistentStoreBuilder UseMySql(this IPersistentStoreBuilder builder, DbProviderFactory factory, string connectionString)
         => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySql, factory, connectionString);
 
@@ -121,7 +123,7 @@ public static class PersistentStoreBuilderExtensions
     /// Stores the schedule in MySQL, reached through
     /// <c>MySqlConnector.MySqlConnectorFactory.Instance</c>.
     /// </summary>
-    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter})" path="/remarks"/>
+    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter}, Action{DbParameter})" path="/remarks"/>
     public static IPersistentStoreBuilder UseMySqlConnector(this IPersistentStoreBuilder builder, DbProviderFactory factory, string connectionString)
         => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySqlConnector, factory, connectionString);
 
@@ -139,7 +141,7 @@ public static class PersistentStoreBuilderExtensions
     /// Stores the schedule in Firebird, reached through
     /// <c>FirebirdSql.Data.FirebirdClient.FirebirdClientFactory.Instance</c>.
     /// </summary>
-    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter})" path="/remarks"/>
+    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter}, Action{DbParameter})" path="/remarks"/>
     public static IPersistentStoreBuilder UseFirebird(this IPersistentStoreBuilder builder, DbProviderFactory factory, string connectionString)
         => builder.UseDatabase<FirebirdDelegate>(DataSourceOptions.Providers.Firebird, factory, connectionString);
 
@@ -217,6 +219,54 @@ public static class PersistentStoreBuilderExtensions
             configureBinaryParameter);
     }
 
+    /// <summary>
+    /// Stores the schedule in Oracle, reached through its factory, told the two things above and the
+    /// third a database-backed execution history with captured logs needs.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The third is the captured log's parameter. The managed driver binds a string as
+    /// <c>Varchar2</c>, and more than 4,000 bytes of <c>Varchar2</c> into the <c>CLOB</c> column
+    /// <c>QRTZ_EXECUTION_HISTORY.EXECUTION_LOG</c> fails with <c>ORA-01461</c>, so a history row whose job
+    /// logged more than that would be dropped:
+    /// </para>
+    /// <code>
+    /// store.UseOracle(
+    ///     OracleClientFactory.Instance,
+    ///     connectionString,
+    ///     configureCommand: command =&gt; ((OracleCommand) command).BindByName = true,
+    ///     configureBinaryParameter: parameter =&gt; ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob,
+    ///     configureLargeTextParameter: parameter =&gt; ((OracleParameter) parameter).OracleDbType = OracleDbType.Clob);
+    /// </code>
+    /// <para>
+    /// Only a store configured with <c>UseExecutionHistory()</c> for a scheduler that calls
+    /// <c>UseExecutionLogCapture()</c> writes that column; for anything else the overload above is the
+    /// same store.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The store being configured.</param>
+    /// <param name="factory">The driver's factory, normally <c>OracleClientFactory.Instance</c>.</param>
+    /// <param name="connectionString">The connection string.</param>
+    /// <param name="configureCommand">Applied to every command, for <c>BindByName</c>.</param>
+    /// <param name="configureBinaryParameter">Applied to every blob parameter, for <c>OracleDbType</c>.</param>
+    /// <param name="configureLargeTextParameter">Applied to the captured log's parameter, for <c>OracleDbType</c>.</param>
+    public static IPersistentStoreBuilder UseOracle(
+        this IPersistentStoreBuilder builder,
+        DbProviderFactory factory,
+        string connectionString,
+        Action<DbCommand>? configureCommand,
+        Action<DbParameter>? configureBinaryParameter,
+        Action<DbParameter>? configureLargeTextParameter)
+    {
+        return builder.UseDatabase<OracleDelegate>(
+            DataSourceOptions.Providers.Oracle,
+            factory,
+            connectionString,
+            configureCommand,
+            configureBinaryParameter,
+            configureLargeTextParameter);
+    }
+
     /// <summary>Stores the schedule in SQLite, using the Microsoft.Data.Sqlite driver.</summary>
     /// <remarks>
     /// The modern driver, and what <c>UseSqlite</c> means: the short name goes to the default the way
@@ -236,7 +286,7 @@ public static class PersistentStoreBuilderExtensions
     /// Stores the schedule in SQLite, reached through
     /// <c>Microsoft.Data.Sqlite.SqliteFactory.Instance</c>.
     /// </summary>
-    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter})" path="/remarks"/>
+    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter}, Action{DbParameter})" path="/remarks"/>
     public static IPersistentStoreBuilder UseSqlite(this IPersistentStoreBuilder builder, DbProviderFactory factory, string connectionString)
         => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.Sqlite, factory, connectionString);
 
@@ -258,7 +308,7 @@ public static class PersistentStoreBuilderExtensions
     /// Stores the schedule in SQLite, reached through
     /// <c>System.Data.SQLite.SQLiteFactory.Instance</c>.
     /// </summary>
-    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter})" path="/remarks"/>
+    /// <inheritdoc cref="UseDatabase{TDelegate}(IPersistentStoreBuilder, string, DbProviderFactory, string, Action{DbCommand}, Action{DbParameter}, Action{DbParameter})" path="/remarks"/>
     public static IPersistentStoreBuilder UseSystemDataSqlite(this IPersistentStoreBuilder builder, DbProviderFactory factory, string connectionString)
         => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.SystemDataSqlite, factory, connectionString);
 
@@ -464,7 +514,8 @@ public static class PersistentStoreBuilderExtensions
         DbProviderFactory factory,
         string connectionString,
         Action<DbCommand>? configureCommand = null,
-        Action<DbParameter>? configureBinaryParameter = null) where TDelegate : class, IDriverDelegate
+        Action<DbParameter>? configureBinaryParameter = null,
+        Action<DbParameter>? configureLargeTextParameter = null) where TDelegate : class, IDriverDelegate
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(factory);
@@ -478,7 +529,7 @@ public static class PersistentStoreBuilderExtensions
             // with the driver's own types left unresolved because nothing here constructs one.
             DbMetadata metadata = serviceProvider.GetRequiredService<DbMetadataResolver>().ResolveWithoutTypes(provider);
 
-            if (configureCommand is not null || configureBinaryParameter is not null)
+            if (configureCommand is not null || configureBinaryParameter is not null || configureLargeTextParameter is not null)
             {
                 // Copied rather than assigned: a resolved description is shared by every scheduler that
                 // names the same provider, and one scheduler's seams are not another's.
@@ -486,6 +537,7 @@ public static class PersistentStoreBuilderExtensions
                 {
                     ConfigureCommand = configureCommand,
                     ConfigureBinaryParameter = configureBinaryParameter,
+                    ConfigureLargeTextParameter = configureLargeTextParameter,
                 };
             }
 

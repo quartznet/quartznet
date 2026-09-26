@@ -53,6 +53,8 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `IQuartzApiClient.GetExecution(schedulerName, entryId)` | The same for the dashboard. Default reads `QueryExecutions` in full and picks the row |
 | `AdoConstants.ColumnProgress`, `ColumnProgressMessage` | `PROGRESS` and `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS`, from `4.3/add_fire_progress_<db>.sql` |
 | `AdoConstants.ColumnExecutionLog` | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`, from the optional `4.3/add_execution_log_<db>.sql` |
+| `DbMetadata.DbLargeTextTypeName`, `DbMetadata.ConfigureLargeTextParameter` | How a driver binds a large text parameter, as `DbBinaryTypeName` and `ConfigureBinaryParameter` do a blob. The shipped Oracle description says `Clob`; every other driver needs nothing |
+| `UseOracle(factory, connectionString, configureCommand, configureBinaryParameter, configureLargeTextParameter)` | The factory overload with the third seam, for the captured log's `CLOB`. See [Naming a driver, or handing over its factory](configuration/reference.md#naming-a-driver-or-handing-over-its-factory) |
 
 **`QZ1004` is information, not a warning.** Every registration now has a name that binds, so the rename
 it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.

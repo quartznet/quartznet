@@ -286,8 +286,8 @@ the driver spells a parameter, but only the part of its description that names n
 | `Use<Db>(factory, connectionString)` | `PublishTrimmed` or `PublishAot`, or anywhere you do not want a type resolved from a string. |
 | `db.UseRegisteredDataSource = true` | A `DbDataSource` in the container already holds the connection details — pooling, type mappers, logging. Also free of type names. |
 
-Oracle needs more than a factory, because Quartz reaches two things on its types by reflection and a
-factory names neither. Say both in code:
+Oracle needs more than a factory, because Quartz reaches three things on its types by reflection and a
+factory names none of them. Say them in code:
 
 <!-- Not a compiled sample, for the same reason as the one above. -->
 
@@ -296,14 +296,18 @@ store.UseOracle(
     OracleClientFactory.Instance,
     connectionString,
     configureCommand: command => ((OracleCommand) command).BindByName = true,
-    configureBinaryParameter: parameter => ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob);
+    configureBinaryParameter: parameter => ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob,
+    configureLargeTextParameter: parameter => ((OracleParameter) parameter).OracleDbType = OracleDbType.Clob);
 ```
 
 - Without `configureCommand`, ODP.NET binds parameters by position and the store reads the wrong columns.
 - Without `configureBinaryParameter`, a job data map over two kilobytes will not fit, because that driver
   maps `DbType.Binary` to `OracleDbType.Raw`, not `Blob`.
+- Without `configureLargeTextParameter`, a [captured log](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines)
+  over 4,000 bytes fails its history row with `ORA-01461`, because a string is bound as `Varchar2`. It
+  matters only with `UseExecutionHistory()` and `UseExecutionLogCapture()`.
 
-Naming the driver instead of passing its factory sets both for you.
+Naming the driver instead of passing its factory sets all three for you.
 
 The factory overloads take the connection string directly, so `ConnectionStringName` does not apply; read
 the connection string from `IConfiguration` and pass it in.
@@ -387,6 +391,9 @@ store.UseGenericDatabase(MyFactory.Instance, connectionString, new DbMetadata
   the name path reaches by reflecting over `CommandType` and `ParameterType`, so a description that names
   no type is still complete. Either may be unset: a binary parameter with neither a seam nor a described
   parameter type is bound as `DbType.Binary`, which every driver that ships a factory maps itself.
+- `DbLargeTextTypeName` and `ConfigureLargeTextParameter` say the same for the execution history's captured
+  log, for a driver whose string parameter cannot reach a large text column (Oracle's `Clob`). Unset, the
+  log is bound as a string, which every other shipped driver takes.
 - A description is a container registration, not process-wide state, so two containers in one process
   need not agree on a provider name. Within one container a name means one thing; two schedulers needing
   two drivers use two names.
