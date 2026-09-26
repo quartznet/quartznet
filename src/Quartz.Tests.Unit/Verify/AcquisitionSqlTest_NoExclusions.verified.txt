@@ -1,6 +1,6 @@
 ﻿=== StdAdoDelegate ===
 SELECT
-                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
               FROM
                 {0}TRIGGERS t
               JOIN
@@ -14,7 +14,7 @@ SELECT
 
 === SqlServerDelegate ===
 SELECT TOP 5 
-                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
               FROM
                 {0}TRIGGERS t
               JOIN
@@ -28,7 +28,7 @@ SELECT TOP 5
 
 === PostgreSQLDelegate ===
 SELECT
-                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
               FROM
                 {0}TRIGGERS t
               JOIN
@@ -42,7 +42,7 @@ SELECT
 
 === MySQLDelegate ===
 SELECT
-                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
               FROM
                 {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
               JOIN
@@ -56,7 +56,7 @@ SELECT
 
 === SQLiteDelegate ===
 SELECT
-                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
               FROM
                 {0}TRIGGERS t
               JOIN
@@ -70,7 +70,7 @@ SELECT
 
 === OracleDelegate ===
 SELECT * FROM (SELECT
-                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
               FROM
                 {0}TRIGGERS t
               JOIN
@@ -84,7 +84,7 @@ SELECT * FROM (SELECT
 
 === FirebirdDelegate ===
 SELECT
-                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
               FROM
                 {0}TRIGGERS t
               JOIN

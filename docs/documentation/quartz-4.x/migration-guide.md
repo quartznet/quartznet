@@ -17,11 +17,25 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.1 | [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2). It has the first database migration since 4.0 |
-| From 4.0 | [Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1), then 4.1 to 4.2 |
+| From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3) |
+| From 4.1 | [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2). It has the first database migration since 4.0. Then 4.2 to 4.3 |
+| From 4.0 | [Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1), then 4.1 to 4.2 and 4.2 to 4.3 |
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
 
 The compiler finds most of the 3.x → 4.0 work.
+
+## Upgrading from 4.2 to 4.3
+
+An application on 4.2 compiles on 4.3 unchanged, and the database schema did not change.
+
+| Added | What it is |
+|---|---|
+| `TriggerAcquireResult.ConcurrentExecutionDisallowed` | `bool?`, a non-positional `init` property: the job row's `IS_NONCONCURRENT`. Every shipped dialect reads it; `null` falls back to the job type's `[DisallowConcurrentExecution]` |
+
+**Behaviour change:** an ADO store took two triggers of one job into a batch when the job disallowed
+concurrent execution only through `DisallowConcurrentExecution()` on its builder. The fire path declined
+the second, so the job never overlapped itself, but the batch lost a slot. Acquisition now reads the
+stored flag. A driver delegate of your own that overrides `SelectTriggersToAcquire` sets the property.
 
 ## Upgrading from 4.1 to 4.2
 

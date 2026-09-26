@@ -35,4 +35,24 @@ namespace Quartz.Impl.AdoJobStore;
 /// the job. Not to be confused with <see cref="TriggerHeader.TriggerType" />, which is a store
 /// discriminator rather than a type name.</param>
 /// <param name="ExecutionGroup">The trigger's execution group, if it has one.</param>
-public readonly record struct TriggerAcquireResult(TriggerKey TriggerKey, string JobTypeName, string? ExecutionGroup);
+public readonly record struct TriggerAcquireResult(TriggerKey TriggerKey, string JobTypeName, string? ExecutionGroup)
+{
+    /// <summary>
+    /// Whether the trigger's job disallows concurrent execution, as its stored row says, or
+    /// <see langword="null" /> when the delegate did not read it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Acquisition takes at most one trigger per such job into a batch. The stored flag is the answer to
+    /// ask, because it is what the fire path obeys: it records the job's
+    /// <see cref="IJobDetail.ConcurrentExecutionDisallowed" />, which a job configured with
+    /// <c>DisallowConcurrentExecution()</c> says without any attribute on its type.
+    /// </para>
+    /// <para>
+    /// Every dialect Quartz ships reads it. A delegate of your own that leaves it <see langword="null" />
+    /// is answered from the job type's <see cref="DisallowConcurrentExecutionAttribute" />, which is what
+    /// acquisition asked before this property existed.
+    /// </para>
+    /// </remarks>
+    public bool? ConcurrentExecutionDisallowed { get; init; }
+}

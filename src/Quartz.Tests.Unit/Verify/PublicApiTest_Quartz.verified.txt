@@ -3067,6 +3067,7 @@ namespace Quartz.Impl.AdoJobStore
     public readonly record struct TriggerAcquireResult : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerAcquireResult>
     {
         public TriggerAcquireResult(Quartz.TriggerKey TriggerKey, string JobTypeName, string? ExecutionGroup) { }
+        public bool? ConcurrentExecutionDisallowed { get; init; }
         public string? ExecutionGroup { get; init; }
         public string JobTypeName { get; init; }
         public Quartz.TriggerKey TriggerKey { get; init; }

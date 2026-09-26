@@ -252,10 +252,12 @@ internal abstract partial class AdoJobStoreBase
                             continue;
                         }
 
-                        // The same question JobDetailImpl answers, answered the same way: the attribute is
-                        // inherited from an interface as readily as from a base class, and this loop used to
-                        // consult the non-walking check and so let an interface-inherited one fire twice.
-                        if (JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed)
+                        // The stored flag, which is what the fire path obeys: a job configured with
+                        // DisallowConcurrentExecution() says so without any attribute on its type, and asking
+                        // the type alone let such a job into one batch twice. A delegate that did not read the
+                        // flag is answered from the type the way JobDetailImpl answers it: the attribute is
+                        // inherited from an interface as readily as from a base class.
+                        if (result.ConcurrentExecutionDisallowed ?? JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed)
                         {
                             if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
                             {
