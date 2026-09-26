@@ -21,6 +21,11 @@ public class JobRunShellBenchmark
     private readonly TriggerFiredBundle _loggingBundle;
     private readonly JobRunShell _loggingJobRunShell;
 
+    private readonly QuartzScheduler _logScopeQuartzScheduler;
+    private readonly StdScheduler _logScopeScheduler;
+    private readonly TriggerFiredBundle _logScopeBundle;
+    private readonly JobRunShell _logScopeJobRunShell;
+
     public JobRunShellBenchmark()
     {
         _basicQuartzScheduler = CreateQuartzScheduler("basic", "basic", 5);
@@ -46,6 +51,21 @@ public class JobRunShellBenchmark
 
         _loggingJobRunShell = new JobRunShell(_loggingScheduler, _loggingBundle, _loggerFactory.CreateLogger<JobRunShell>());
         _loggingJobRunShell.Initialize(_loggingQuartzScheduler).GetAwaiter().GetResult();
+
+        // The same firing again, under the same factory, with the middleware AddJobLogScope registers:
+        // what opting in to a per-firing scope costs, read against the variant above, which is off.
+        _logScopeQuartzScheduler = CreateQuartzScheduler(
+            "logscope",
+            "logscope",
+            5,
+            JobExecutionPipeline.Compose([new JobLogScopeMiddleware(_loggerFactory)]));
+        _logScopeScheduler = new StdScheduler(_logScopeQuartzScheduler);
+
+        _logScopeBundle = CreateTriggerFiredBundle();
+        _logScopeBundle.Trigger.ComputeFirstFireTimeUtc(null);
+
+        _logScopeJobRunShell = new JobRunShell(_logScopeScheduler, _logScopeBundle, _loggerFactory.CreateLogger<JobRunShell>());
+        _logScopeJobRunShell.Initialize(_logScopeQuartzScheduler).GetAwaiter().GetResult();
     }
 
     [GlobalCleanup]
@@ -53,6 +73,7 @@ public class JobRunShellBenchmark
     {
         _basicQuartzScheduler.Shutdown(true).GetAwaiter().GetResult();
         _loggingQuartzScheduler.Shutdown(true).GetAwaiter().GetResult();
+        _logScopeQuartzScheduler.Shutdown(true).GetAwaiter().GetResult();
         _loggerFactory.Dispose();
     }
 
@@ -66,6 +87,12 @@ public class JobRunShellBenchmark
     public ValueTask Success_NoTriggerListenersAndSingleJobListener_MayFireAgain_WithScopedLogger()
     {
         return _loggingJobRunShell.Run();
+    }
+
+    [Benchmark]
+    public ValueTask Success_NoTriggerListenersAndSingleJobListener_MayFireAgain_WithJobLogScope()
+    {
+        return _logScopeJobRunShell.Run();
     }
 
     /// <summary>
@@ -85,7 +112,7 @@ public class JobRunShellBenchmark
         }
     }
 
-    private static QuartzScheduler CreateQuartzScheduler(string name, string instanceId, int threadCount)
+    private static QuartzScheduler CreateQuartzScheduler(string name, string instanceId, int threadCount, JobExecutionDelegate? pipeline = null)
     {
         var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
         threadPool.Initialize();
@@ -98,7 +125,8 @@ public class JobRunShellBenchmark
             JobStore = new NoOpJobStore(),
             IdleWaitTime = TimeSpan.FromSeconds(30),
             MaxBatchSize = threadCount,
-            BatchTimeWindow = TimeSpan.Zero
+            BatchTimeWindow = TimeSpan.Zero,
+            JobExecutionPipeline = pipeline
         };
 
         return new QuartzScheduler(res);

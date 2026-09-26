@@ -237,4 +237,12 @@ Quartz logs through `Microsoft.Extensions.Logging`, using the application's conf
 Types no container builds (a listener or trigger you constructed, the static helpers, the jobs in `Quartz.Jobs`)
 use the factory set with `Quartz.Diagnostics.LogProvider.SetLogProvider(loggerFactory)`.
 
+| Log scope | Carries | Opened |
+|---|---|---|
+| the scheduler's | `quartz.scheduler.name`, `quartz.scheduler.id` | once per scheduling loop; always |
+| the firing's | `quartz.job.name`, `quartz.job.group`, `quartz.trigger.name`, `quartz.trigger.group`, `quartz.fire.instance.id` | once per firing, from 4.3, with `q.AddJobLogScope()` — see [A log scope per firing](../tutorial/job-execution-middleware.md#a-log-scope-per-firing) |
+
+The names are the span attributes above. Set `IncludeScopes = true` on the OpenTelemetry logger to export
+them.
+
 For job and trigger history as log entries rather than traces, use the [history plugins](quartz-plugins.md).

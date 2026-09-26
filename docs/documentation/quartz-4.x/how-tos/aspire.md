@@ -409,7 +409,8 @@ The loop opens one logging scope for its run with `quartz.scheduler.name` and `q
 ServiceDefaults sets `IncludeScopes = true`, so they become attributes on every line, including job lines
 (the scope flows through the execution context captured at dispatch), and the dashboard's advanced log
 filter can select on them. That matters when a process runs several schedulers, because the logger category
-is only a type name.
+is only a type name. From 4.3, `q.AddJobLogScope()` adds the job, trigger and fire instance to every line a
+firing logs; see [A log scope per firing](../tutorial/job-execution-middleware.md#a-log-scope-per-firing).
 
 ## What the dashboard shows
 

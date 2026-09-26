@@ -33,16 +33,18 @@ not run. Awaiting it twice runs the job twice in one firing; that is not a retry
 
 ## Writing one
 
-<!-- snippet: sample_job_middleware_log_scope -->
+A middleware that puts the firing's tenant on every line the job logs:
+
+<!-- snippet: sample_job_middleware_writing -->
 ```csharp
-public sealed class LogScopeMiddleware(ILogger<LogScopeMiddleware> logger) : IJobExecutionMiddleware
+public sealed class TenantLogScopeMiddleware(ILogger<TenantLogScopeMiddleware> logger) : IJobExecutionMiddleware
 {
     public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
     {
-        using IDisposable? scope = logger.BeginScope(new Dictionary<string, object>
+        // Which firing a line belongs to is AddJobLogScope's; this adds what only the application knows.
+        using IDisposable? scope = logger.BeginScope(new Dictionary<string, object?>
         {
-            ["JobKey"] = context.JobDetail.Key,
-            ["FireInstanceId"] = context.FireInstanceId,
+            ["tenant"] = context.MergedJobDataMap.GetString("tenant"),
         });
 
         await next(context, cancellationToken);
@@ -50,6 +52,8 @@ public sealed class LogScopeMiddleware(ILogger<LogScopeMiddleware> logger) : IJo
 }
 ```
 <!-- endSnippet -->
+
+For the firing's own identity, use the built-in [log scope](#a-log-scope-per-firing) instead of writing one.
 
 ## Registering
 
@@ -61,7 +65,7 @@ the container, built by you from the container, or an instance you already have.
 builder.AddQuartz(q =>
 {
     // built by the container, so it can take dependencies of its own
-    q.AddJobMiddleware<LogScopeMiddleware>();
+    q.AddJobMiddleware<TenantLogScopeMiddleware>();
 
     // built by you, from this scheduler's services
     q.AddJobMiddleware(provider => new MeteredMiddleware(provider.GetRequiredService<IMeterFactory>()));
@@ -79,7 +83,7 @@ The standalone builder takes the same calls, because it is an `IQuartzBuilder`:
 IScheduler scheduler = await QuartzSchedulerBuilder
     .Create(q => q
         .UseInMemoryStore()
-        .AddJobMiddleware<LogScopeMiddleware>())
+        .AddJobMiddleware<TenantLogScopeMiddleware>())
     .BuildScheduler();
 ```
 <!-- endSnippet -->
@@ -268,6 +272,37 @@ shell notifies listeners.
 Forward the token you were given. Passing a different one to `next` changes the job's `Execute`
 parameter but not `IJobExecutionContext.CancellationToken`, so a job that reads the context sees the
 wrong token. For that reason the built-in timeout interrupts the firing instead of passing a new token.
+
+## A log scope per firing
+
+`AddJobLogScope` (4.3) registers the log scope middleware Quartz ships. Every line logged inside the
+pipeline names its firing:
+
+<!-- snippet: sample_job_middleware_log_scope -->
+```csharp
+builder.AddQuartz(q =>
+{
+    // first, so that what every other middleware logs names the firing too
+    q.AddJobLogScope();
+});
+```
+<!-- endSnippet -->
+
+| Scope entry | Value |
+|---|---|
+| `quartz.job.name`, `quartz.job.group` | the job's key |
+| `quartz.trigger.name`, `quartz.trigger.group` | the trigger's key |
+| `quartz.fire.instance.id` | this firing's `FireInstanceId` |
+
+* The names are the execution span's attributes, so a log query and a trace query use the same values.
+* **Opt-in**, because a scope is an `AsyncLocal` write that copies the execution context on every firing.
+  The scheduler's scope (`quartz.scheduler.name`, `quartz.scheduler.id`) is opened once per scheduling
+  loop and needs no call.
+* Register it first, so every other middleware's lines carry it too. Listener notifications and the run
+  shell's own lines about the firing are outside the pipeline, and do not.
+* Calling it twice for one scheduler opens one scope.
+* A provider shows scopes only when it includes them: `IncludeScopes = true` on the console formatter or
+  on OpenTelemetry's logger.
 
 ## Timing a job out
 
