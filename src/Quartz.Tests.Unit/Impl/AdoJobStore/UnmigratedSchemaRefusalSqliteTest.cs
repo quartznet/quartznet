@@ -197,7 +197,8 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     /// <remarks>
     /// Without it every case here would pass against a store that refused everything, and the migration
     /// scripts are what the messages tell the reader to run — so this is also the claim that following
-    /// them works. Both of them: 4.2 added three columns, and the message names that script too.
+    /// them works. All of them: 4.2 added three columns and 4.3 two, and the message names those
+    /// scripts too.
     /// </remarks>
     [Test]
     public async Task TheMigrationsTheMessageNamesAreTheOnesThatMakeTheSchemaStart()
@@ -205,6 +206,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         Install320Schema();
         ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
 
         Func<Task> act = async () => await (await GetScheduler(
             nameof(TheMigrationsTheMessageNamesAreTheOnesThatMakeTheSchemaStart), provision: true)).Shutdown();
@@ -233,6 +235,27 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         failure.Message.Should().Contain("database/migrations/4.2/add_continuations_sqlite.sql",
             "the reader of this message has a 4.0 or 4.1 database and needs one script, which the "
             + "message names beside the one they have already run");
+    }
+
+    /// <summary>
+    /// A database created by 4.2 is missing only the two progress columns 4.3 added, and the refusal
+    /// names them and the one script that adds them.
+    /// </summary>
+    [Test]
+    public async Task A42SchemaIsRefusedForTheColumnsFourThreeAdded()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+
+        SchedulerException failure = await StartAndCatch(nameof(A42SchemaIsRefusedForTheColumnsFourThreeAdded));
+
+        MessagesOf(failure).Should().ContainMatch($"*{AdoConstants.ColumnProgress}*",
+            "every 4.3 node reads the progress columns whenever it lists what is running, so a database "
+            + "without them fails the dashboard rather than startup unless startup probes for them");
+
+        failure.Message.Should().Contain("database/migrations/4.3/add_fire_progress_sqlite.sql",
+            "a reader with a 4.2 database needs exactly one script, and the message has to name it");
     }
 
     private void Install320Schema()
@@ -315,6 +338,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         Install320Schema();
         ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
 
         TableExists("QRTZ_EXECUTION_HISTORY").Should().BeFalse(
             "the migrations run so far are the ones every 4.2 database needs, and the history's are not "
@@ -338,12 +362,51 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
             "the reader turned the history on against a database that has never had its tables, and the "
             + "script that creates them is the whole remedy");
 
+        MessagesOf(failure).Should().ContainMatch("*database/migrations/4.3/add_execution_log_sqlite.sql*",
+            "a table that is missing is missing the column 4.3 added to it as well, so both scripts are "
+            + "named at once rather than one per restart");
+
         MessagesOf(failure).Should().ContainMatch("*QRTZ_EXECUTION_HISTORY*",
             "and the table that is missing is what says which feature they asked for");
     }
 
     /// <summary>
-    /// The control for the case above: the script it names is what makes that schema start.
+    /// A history table created by 4.2 is missing the column 4.3 added to it, and only a store that
+    /// keeps its history there notices.
+    /// </summary>
+    [Test]
+    public async Task A42HistoryTableIsRefusedForTheExecutionLogOnlyWhenTheHistoryIsOn()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.2", "add_execution_history_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+
+        Func<Task> withoutHistory = async () => await (await GetScheduler(
+            nameof(A42HistoryTableIsRefusedForTheExecutionLogOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
+
+        await withoutHistory.Should().NotThrowAsync(
+            "a scheduler that keeps no history never reads the table the column is on, so 4.3's history "
+            + "migration is as optional as 4.2's");
+
+        await container!.DisposeAsync();
+        container = null;
+
+        SchedulerException failure = await StartAndCatch(
+            nameof(A42HistoryTableIsRefusedForTheExecutionLogOnlyWhenTheHistoryIsOn) + "-on",
+            configure: store => store.UseExecutionHistory());
+
+        MessagesOf(failure).Should().ContainMatch($"*{AdoConstants.ColumnExecutionLog}*",
+            "every history row a 4.3 store writes names the column, so its absence is refused at startup "
+            + "rather than dropping every row at the first firing");
+
+        MessagesOf(failure).Should().ContainMatch("*database/migrations/4.3/add_execution_log_sqlite.sql*",
+            "and the one script that adds it is the whole remedy");
+    }
+
+    /// <summary>
+    /// The control for the cases above: the scripts they name are what make that schema start.
     /// </summary>
     [Test]
     public async Task TheHistoryMigrationIsWhatMakesAHistoryStoreStart()
@@ -352,6 +415,8 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
         ApplyMigration("4.2", "add_execution_history_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_execution_log_sqlite.sql");
 
         Func<Task> act = async () => await (await GetScheduler(
             nameof(TheHistoryMigrationIsWhatMakesAHistoryStoreStart),

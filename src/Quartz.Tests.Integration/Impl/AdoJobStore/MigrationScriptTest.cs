@@ -115,7 +115,9 @@ public class MigrationScriptTest
         ("4.0", "schema_30_to_40_upgrade"),
         ("4.0", "schema_30_to_40_indexes"),
         ("4.2", "add_continuations"),
-        ("4.2", "add_execution_history")
+        ("4.2", "add_execution_history"),
+        ("4.3", "add_fire_progress"),
+        ("4.3", "add_execution_log")
     ];
 
     /// <summary>
@@ -128,7 +130,9 @@ public class MigrationScriptTest
         ("4.0", "schema_30_to_40_upgrade"),
         ("4.0", "schema_30_to_40_indexes"),
         ("4.2", "add_continuations"),
-        ("4.2", "add_execution_history")
+        ("4.2", "add_execution_history"),
+        ("4.3", "add_fire_progress"),
+        ("4.3", "add_execution_log")
     ];
 
     [Test]

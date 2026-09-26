@@ -186,6 +186,13 @@ public class UpgradeRehearsalTest
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.2", "add_execution_history", dialect, RehearsalPrefix), dialect);
 
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.3", "add_fire_progress", dialect, RehearsalPrefix), dialect);
+
+        // Optional for the same reason, and only after the history's own tables: it alters one of them.
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.3", "add_execution_log", dialect, RehearsalPrefix), dialect);
+
         await MigrationScriptTest.AssertSchemaMatchesAsync(connection, dialect, RehearsalPrefix);
 
         foreach (SeedManifest manifest in manifests)

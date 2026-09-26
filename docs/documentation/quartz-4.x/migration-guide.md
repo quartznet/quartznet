@@ -18,7 +18,7 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3) |
+| From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3). It has a database migration |
 | From 4.1 | [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2). It has the first database migration since 4.0. Then 4.2 to 4.3 |
 | From 4.0 | [Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1), then 4.1 to 4.2 and 4.2 to 4.3 |
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
@@ -27,7 +27,8 @@ The compiler finds most of the 3.x → 4.0 work.
 
 ## Upgrading from 4.2 to 4.3
 
-An application on 4.2 compiles on 4.3 unchanged, and the database schema did not change.
+An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**: run
+[the 4.3 schema migration](#the-4-3-schema-migration).
 
 | Added | What it is |
 |---|---|
@@ -40,6 +41,8 @@ An application on 4.2 compiles on 4.3 unchanged, and the database schema did not
 | `CronTriggerAttribute.ConfigurationKey` | `string?`, `init`. When the key is set in `IConfiguration`, its value is the expression; the constructor's is the fallback. A value that does not parse throws as the scheduler is built. See [A schedule from configuration](tutorial/declaring-jobs-with-attributes.md#a-schedule-from-configuration) |
 | Generated `AddDeclaredJobsFrom<Assembly>()` | Now beside `AddDeclaredJobs()` in every assembly that declares jobs, so each assembly's registration has a name that binds |
 | `QZ1005` ConfigurationKeyWithoutConfiguration | Error: a `ConfigurationKey` in an assembly that does not reference `IConfiguration` |
+| `AdoConstants.ColumnProgress`, `ColumnProgressMessage` | `PROGRESS` and `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS`, from `4.3/add_fire_progress_<db>.sql` |
+| `AdoConstants.ColumnExecutionLog` | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`, from the optional `4.3/add_execution_log_<db>.sql` |
 
 **`QZ1004` is information, not a warning.** Every registration now has a name that binds, so the rename
 it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
@@ -48,6 +51,18 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 concurrent execution only through `DisallowConcurrentExecution()` on its builder. The fire path declined
 the second, so the job never overlapped itself, but the batch lost a slot. Acquisition now reads the
 stored flag. A driver delegate of your own that overrides `SelectTriggersToAcquire` sets the property.
+
+### The 4.3 schema migration
+
+| Script | Status |
+|---|---|
+| `database/migrations/4.3/add_fire_progress_<db>.sql` | **Required.** A 4.3 node refuses to start without the two columns, and the error names the column and the script |
+| `database/migrations/4.3/add_execution_log_<db>.sql` | Optional. Needed only with `UseExecutionHistory()`, which refuses to start without it. Run it after `4.2/add_execution_history_<db>.sql` |
+
+Run both while 4.2 nodes are still running. The columns are nullable with no default, and a 4.2 node
+never names them. `ProvisionSchema()` does not add columns to an existing table; a fresh install from
+`database/tables/` already has them. See
+[Database Schema Changes](../database/schema-changes.md#version-4-3).
 
 ## Upgrading from 4.1 to 4.2
 
