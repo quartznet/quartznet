@@ -42,6 +42,22 @@ partial class Build : FalloutBuild, ICompile, IPack
     AbsolutePath SourceDirectory => RootDirectory / "src";
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
     AbsolutePath CoverageDirectory => ArtifactsDirectory / "coverage";
+    AbsolutePath TestResultsDirectory => ArtifactsDirectory / "test-results";
+
+    /// <summary>
+    /// How long the unit test host may go without finishing a test before it is declared hung, dumped
+    /// and killed. Per host, not per run: the blame collector resets this on every test that starts or
+    /// ends, so it only expires once nothing in the host has moved for the whole of it.
+    /// </summary>
+    /// <remarks>
+    /// The slowest unit test takes seconds and the whole suite about two minutes, so three minutes of
+    /// silence is a hang and nothing else. The <c>build</c> job's budget is sized to hold it: on
+    /// windows-latest the unit tests only begin five and a half minutes in, after restore and compile,
+    /// so a hang near the end of the suite is named at about eleven minutes — inside the fifteen the
+    /// job has, and past the ten it used to have, which is why two hung runs on 2026-09-26 were
+    /// cancelled with nothing to show (#3860).
+    /// </remarks>
+    static readonly TimeSpan UnitTestHangTimeout = TimeSpan.FromMinutes(3);
 
     // On GitHub Actions the ref itself is the authority: the host's RefName carries the tag name
     // for both lightweight and annotated tags, where GitRepository.Tags only ever sees lightweight
@@ -394,17 +410,27 @@ partial class Build : FalloutBuild, ICompile, IPack
                 Log.Information("Unit tests: {Project} ({Framework})", project.Name, framework);
             }
 
-            if (Coverage)
-            {
-                CoverageDirectory.CreateOrCleanDirectory();
-            }
+            // One results directory for everything the run leaves behind, cleaned first so that a hang
+            // dump from an earlier local run is never mistaken for this one's. The coverage run keeps
+            // its own directory because .github/workflows/sonar.yml globs it for the OpenCover files.
+            var resultsDirectory = Coverage ? CoverageDirectory : TestResultsDirectory;
+            resultsDirectory.CreateOrCleanDirectory();
 
             DotNetTest(s =>
             {
                 s = s.EnableNoRestore()
                     .EnableNoBuild()
                     .SetConfiguration(configuration)
-                    .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : []);
+                    .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : [])
+                    .SetResultsDirectory(resultsDirectory)
+                    // A test that hangs has to name itself: the blame collector kills a host that has
+                    // finished nothing for UnitTestHangTimeout, fails the run, and writes a
+                    // Sequence_*.xml listing the tests that were in flight beside a mini dump of the
+                    // host. Without it the run sits until the job's timeout cancels it, and a cancelled
+                    // job keeps no output at all. ConfigureSteps uploads the directory when a job fails.
+                    .EnableBlameHang()
+                    .SetBlameHangTimeout($"{(int) UnitTestHangTimeout.TotalMinutes}m")
+                    .SetBlameHangDumpType("mini");
 
                 if (Coverage)
                 {
@@ -412,8 +438,7 @@ partial class Build : FalloutBuild, ICompile, IPack
                     // analysis has a use for — the other workflows run the same target without it. coverlet
                     // writes one <guid>/coverage.opencover.xml per run below the results directory, which is
                     // the layout sonar.cs.opencover.reportsPaths globs for in .github/workflows/sonar.yml.
-                    s = s.SetDataCollector("XPlat Code Coverage;Format=opencover")
-                        .SetResultsDirectory(CoverageDirectory);
+                    s = s.SetDataCollector("XPlat Code Coverage;Format=opencover");
                 }
 
                 return s.CombineWith(testRuns, (_, run) => _

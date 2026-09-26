@@ -56,6 +56,14 @@ jobs:
         run: dotnet tool restore
       - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, PublishTrimmed, PublishAot'
         run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke PublishTrimmed PublishAot
+      - name: 'Publish: test results'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: ignore
+          name: test-results-${{ runner.os }}
+          path: artifacts/test-results
+          retention-days: 5
+        if: ${{ failure() }}
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
@@ -70,6 +78,14 @@ jobs:
         run: dotnet tool restore
       - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, PublishTrimmed, PublishAot'
         run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke PublishTrimmed PublishAot
+      - name: 'Publish: test results'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: ignore
+          name: test-results-${{ runner.os }}
+          path: artifacts/test-results
+          retention-days: 5
+        if: ${{ failure() }}
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
@@ -84,3 +100,11 @@ jobs:
         run: dotnet tool restore
       - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, PublishTrimmed, PublishAot'
         run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke PublishTrimmed PublishAot
+      - name: 'Publish: test results'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: ignore
+          name: test-results-${{ runner.os }}
+          path: artifacts/test-results
+          retention-days: 5
+        if: ${{ failure() }}
