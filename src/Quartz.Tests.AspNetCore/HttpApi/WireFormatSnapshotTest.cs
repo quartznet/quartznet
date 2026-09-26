@@ -420,7 +420,37 @@ public class WireFormatSnapshotTest : WebApiTest
                 FiredAtUtc: HistoryInstant,
                 Duration: TimeSpan.FromMilliseconds(1500),
                 Succeeded: false,
-                ExceptionMessage: "the job threw")));
+                ExceptionMessage: "the job threw")
+            {
+                // Named here so the body is the same on every run; the log is what the listing leaves out.
+                EntryId = "3f2a0e5b7d4f1a9e",
+                Log = "a line the listing does not carry"
+            }));
+
+        await VerifyBody(body);
+    }
+
+    [Test]
+    public async Task ExecutionBody()
+    {
+        // The single-entry route: the same row, with the log the listing leaves out.
+        string body = await GetWithHistory(
+            $"{SchedulerUrl}/history/executions/3f2a0e5b7d4f1a9e",
+            history => history.AddExecution(new ExecutionHistoryEntry(
+                SchedulerName: TestData.SchedulerName,
+                SchedulerInstanceId: "TEST_NON_CLUSTERED",
+                JobGroup: "DummyGroup",
+                JobName: "nightly",
+                TriggerGroup: "DummyTriggerGroup",
+                TriggerName: "at-midnight",
+                FiredAtUtc: HistoryInstant,
+                Duration: TimeSpan.FromMilliseconds(1500),
+                Succeeded: false,
+                ExceptionMessage: "the job threw")
+            {
+                EntryId = "3f2a0e5b7d4f1a9e",
+                Log = "2026-08-26T12:00:00.000Z info Reports.NightlyJob: starting\n2026-08-26T12:00:01.500Z fail Reports.NightlyJob: the job threw"
+            }));
 
         await VerifyBody(body);
     }

@@ -126,6 +126,34 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         return new PagedResult<ExecutionHistoryEntry>(items, result.HasMore, result.TotalCount);
     }
 
+    /// <remarks>
+    /// <c>GET …/history/executions/{entryId}</c>, the one history route that carries the captured log. A
+    /// row the target does not have answers <see langword="null" />; a target older than 4.3, which has no
+    /// such route, answers <see cref="NotSupportedException" />, as a target with no history routes at
+    /// all does.
+    /// </remarks>
+    public async ValueTask<ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entryId);
+
+        ExecutionHistoryEntryDto? result;
+        try
+        {
+            result = await httpClient.GetWithNullForNotFound<ExecutionHistoryEntryDto>(
+                $"{HistoryUrl}/executions/{Uri.EscapeDataString(entryId)}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new NotSupportedException(
+                $"The scheduler '{this.schedulerName}' is reached over HTTP and the target does not serve single executions: "
+                + "it answered 404 without problem details for the route, which a Quartz HTTP API older than 4.3 does. "
+                + "Upgrade the scheduler's host to read an execution's captured log.",
+                exception);
+        }
+
+        return result?.AsExecutionHistoryEntry(this.schedulerName);
+    }
+
     public async ValueTask<PagedResult<MisfireHistoryEntry>> QueryMisfires(MisfireHistoryQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);

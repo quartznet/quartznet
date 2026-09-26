@@ -123,7 +123,18 @@
                         <td><KeyBadge GroupName="@entry.JobGroup" ItemName="@entry.JobName" /></td>
                         <td><KeyBadge GroupName="@entry.TriggerGroup" ItemName="@entry.TriggerName" /></td>
                         <td class="qz-table-cell-mono qz-history-node">@NodeLabel(entry.SchedulerInstanceId)</td>
-                        <td>@FormatFiredAt(entry.FiredAtUtc)</td>
+                        <td>
+                            @* The fire time is the link to the row's own page, which carries its log. A
+                               row a store left unnamed has no page to open. *@
+                            @if (entry.EntryId is { Length: > 0 } entryId)
+                            {
+                                <a class="qz-details-link" data-testid="history-execution-link" href="@ExecutionPath(entryId)">@FormatFiredAt(entry.FiredAtUtc)</a>
+                            }
+                            else
+                            {
+                                @FormatFiredAt(entry.FiredAtUtc)
+                            }
+                        </td>
                         <td>@FormatDurationValue(entry.Duration)</td>
                         <td><StateIndicator State="@StatusLabel(entry)" /></td>
                         <td>@entry.ExceptionMessage</td>
@@ -771,6 +782,11 @@
         }
 
         return duration.ToString("g", CultureInfo.InvariantCulture);
+    }
+
+    private string ExecutionPath(string entryId)
+    {
+        return DashboardLink.To(Options.Value, "history/" + Uri.EscapeDataString(entryId));
     }
 
     private string FormatFiredAt(DateTimeOffset? firedAtUtc)

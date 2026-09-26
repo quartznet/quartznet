@@ -18,4 +18,6 @@ internal sealed class NotFoundException : Exception
     public static NotFoundException ForJob(JobKey key) => new($"Unknown job {key}");
 
     public static NotFoundException ForTrigger(TriggerKey key) => new($"Unknown trigger {key}");
+
+    public static NotFoundException ForExecution(string entryId) => new($"Unknown execution {entryId}");
 }
