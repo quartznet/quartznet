@@ -2137,6 +2137,42 @@ public abstract class JobStoreContractTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Non-concurrent jobs
+    //
+    // A job disallows concurrent execution through the attribute on its type or through its
+    // builder, and the store records the answer either way. Acquisition has to read that record:
+    // asking the type let a job flagged by its builder into one batch twice on the ADO.NET store.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AJobFlaggedNonConcurrentByItsBuilderIsAcquiredOncePerBatch()
+    {
+        IJobDetail job = JobBuilder.Create<ContractTestJob>()
+            .WithIdentity("flagged-by-builder", JobGroupA)
+            .DisallowConcurrentExecution()
+            .StoreDurably()
+            .Build();
+        await Store.AddJob(job);
+
+        foreach (string name in (string[]) ["first", "second"])
+        {
+            await Store.AddTrigger(CreateTrigger(name, TriggerGroupA, job.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5)));
+        }
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5,
+            // Wide enough that the batch does not close on the first trigger's fire time.
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        acquired.Should().ContainSingle(
+            "the job must not run twice at once, and ContractTestJob carries no attribute to say so - the stored "
+            + "flag is the only place that answer lives");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Job type exclusions
     //
     // The ADO.NET store keeps these out of the acquisition result set with a NOT IN clause and the

@@ -380,6 +380,10 @@ internal static class StdAdoConstants
     // PREFERRED_NODE is filtered entirely in PreferredNodeWhereClause and is not projected —
     // acquisition never reads it from the result (the trigger is reloaded via GetTrigger).
     //
+    // IS_NONCONCURRENT is projected from the job's row, which the join reads for JOB_CLASS_NAME anyway:
+    // it is the stored answer to whether the job may run twice at once, and the type named beside it
+    // cannot give that answer for a job flagged by its builder rather than by an attribute.
+    //
     // NEXT_FIRE_TIME > @noEarlierThan is the exact complement of the misfire predicate in
     // SqlCountMisfiredTriggersInStates, and has to stay that way: @noEarlierThan is the very
     // now - MisfireThreshold the sweep asks about, so a waiting trigger belongs either to acquisition
@@ -387,7 +391,7 @@ internal static class StdAdoConstants
     // would fire it late without ever applying the policy it asked for.
     private static string SelectNextTriggerToAcquire(string exclusionClause, SqlRowLimit rowLimit) =>
         rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect}
-                t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, t.{AdoConstants.ColumnExecutionGroup}
+                t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, jd.{AdoConstants.ColumnIsNonConcurrent}, t.{AdoConstants.ColumnExecutionGroup}
               FROM
                 {TablePrefixSubst}{AdoConstants.TableTriggers} t
               JOIN

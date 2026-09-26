@@ -221,6 +221,7 @@ public class StdAdoDelegateExecutionGroupsInFlightTest
             AdoConstants.ColumnTriggerGroup => 1,
             AdoConstants.ColumnJobClass => 2,
             AdoConstants.ColumnExecutionGroup => 3,
+            AdoConstants.ColumnIsNonConcurrent => 4,
             _ => throw new ArgumentOutOfRangeException(nameof(name), name, "unexpected column")
         });
 
@@ -232,6 +233,8 @@ public class StdAdoDelegateExecutionGroupsInFlightTest
             2 => typeof(NoOpJob).AssemblyQualifiedName,
             _ => rows[index].ExecutionGroup
         });
+
+        A.CallTo(() => reader.GetValue(4)).Returns(false);
 
         InstallReader(reader);
     }

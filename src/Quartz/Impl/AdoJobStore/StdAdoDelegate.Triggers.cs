@@ -1746,6 +1746,7 @@ public partial class StdAdoDelegate
         int triggerNameOrdinal = -1;
         int triggerGroupOrdinal = -1;
         int jobClassOrdinal = -1;
+        int nonConcurrentOrdinal = -1;
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             if (nextTriggers.Count >= maxCount)
@@ -1765,6 +1766,7 @@ public partial class StdAdoDelegate
                 triggerNameOrdinal = rs.GetOrdinal(AdoConstants.ColumnTriggerName);
                 triggerGroupOrdinal = rs.GetOrdinal(AdoConstants.ColumnTriggerGroup);
                 jobClassOrdinal = rs.GetOrdinal(AdoConstants.ColumnJobClass);
+                nonConcurrentOrdinal = rs.GetOrdinal(AdoConstants.ColumnIsNonConcurrent);
             }
 
             string? executionGroup = rs.IsDBNull(execGroupOrdinal)
@@ -1785,7 +1787,10 @@ public partial class StdAdoDelegate
             nextTriggers.Add(new TriggerAcquireResult(
                 triggerKey,
                 rs.GetString(jobClassOrdinal),
-                executionGroup));
+                executionGroup)
+            {
+                ConcurrentExecutionDisallowed = GetBooleanFromDbValue(rs.GetValue(nonConcurrentOrdinal)),
+            });
         }
 
         return nextTriggers;

@@ -1,5 +1,5 @@
 ﻿SELECT
-                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
               FROM
                 {0}TRIGGERS t
               JOIN
