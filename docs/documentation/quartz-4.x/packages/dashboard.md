@@ -233,9 +233,14 @@ deliberately does not fire on its own.
 
 ### Currently Executing
 
-`/quartz/executing` has one row per firing: job, trigger, node, execution group, fire time and run time. It is
-the fire-instance listing, so **with a persistent job store it covers the whole cluster**; `Node` is the machine
-that owns the firing.
+`/quartz/executing` has one row per firing: job, trigger, node, execution group, fire time, run time and
+progress. It is the fire-instance listing, so **with a persistent job store it covers the whole cluster**;
+`Node` is the machine that owns the firing.
+
+- **Progress** is a bar, the percentage and the job's message, from
+  [`ReportProgress`](../how-tos/progress-and-execution-logs.md#report-progress). A firing that has not
+  reported shows a dash. It is read from the store, so a store-attached window shows it too, and it can
+  trail the job by up to a second.
 
 - Interrupting interrupts *that one firing*, not every firing of the job. This matters for a job without
   `[DisallowConcurrentExecution]`, which can have several in flight.

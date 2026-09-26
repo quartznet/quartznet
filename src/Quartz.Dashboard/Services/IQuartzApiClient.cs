@@ -683,7 +683,23 @@ public sealed record FireInstanceDto(
     FireInstanceState State,
     DateTimeOffset FireTimeUtc,
     DateTimeOffset? ScheduledFireTimeUtc,
-    string? ExecutionGroup);
+    string? ExecutionGroup)
+{
+    /// <summary>
+    /// How far the running job said it had got, from <c>0</c> to <c>100</c>, or
+    /// <see langword="null" /> when it has not said — which is what Currently Executing draws as a bar.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Quartz.FireInstance.Progress" />, carried over. A non-positional <c>init</c> property,
+    /// as <see cref="ProgressMessage" /> is, so the record's constructor is unchanged.
+    /// </remarks>
+    public int? Progress { get; init; }
+
+    /// <summary>
+    /// What the running job said beside its <see cref="Progress" />, or <see langword="null" />.
+    /// </summary>
+    public string? ProgressMessage { get; init; }
+}
 
 /// <summary>
 /// One scheduler node, as the dashboard shows it.

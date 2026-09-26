@@ -251,7 +251,11 @@ public static class TestData
             State: FireInstanceState.Executing,
             FireTimeUtc: new DateTimeOffset(2024, 5, 6, 7, 8, 9, TimeSpan.Zero),
             ScheduledFireTimeUtc: new DateTimeOffset(2024, 5, 6, 7, 8, 0, TimeSpan.Zero),
-            ExecutionGroup: "reports");
+            ExecutionGroup: "reports")
+        {
+            Progress = 40,
+            ProgressMessage = "page 4 of 10"
+        };
 
         AcquiredFireInstance = new FireInstance(
             FireInstanceId: "fire-instance-2",

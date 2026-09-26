@@ -359,6 +359,36 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// One <c>UPDATE</c> of the firing's own <c>QRTZ_FIRED_TRIGGERS</c> row by its entry id, under no
+    /// lock — except on SQLite, where every operation is serialized — because the row belongs to this
+    /// node and nothing else writes these two columns. A firing that has completed has no row, so the
+    /// statement updates nothing, which is not an error.
+    /// </para>
+    /// <para>
+    /// A delegate that does not derive from <see cref="StdAdoDelegate" /> has no such statement, and its
+    /// firings report no progress.
+    /// </para>
+    /// </remarks>
+    public async ValueTask UpdateFireInstanceProgress(string fireInstanceId, FireInstanceProgress progress, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(fireInstanceId);
+        ArgumentNullException.ThrowIfNull(progress);
+
+        if (Delegate is not StdAdoDelegate standard)
+        {
+            return;
+        }
+
+        await ExecuteWithoutLock(
+            conn => Guarded(
+                () => standard.UpdateFireInstanceProgress(conn, fireInstanceId, progress, cancellationToken),
+                "update fire instance progress"),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
     {
         if (!Clustered && !ClusterObserver)

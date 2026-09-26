@@ -837,6 +837,39 @@ body{
     margin-top: 2px;
 }
 
+/* What a running job last reported: a bar, its percentage, and the job's own words under it. */
+.qz-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--qz-space-sm);
+    min-width: 140px;
+}
+
+.qz-progress-track {
+    flex: 1;
+    height: 6px;
+    border-radius: var(--qz-radius-full);
+    background-color: var(--qz-color-executing-bg);
+    overflow: hidden;
+}
+
+.qz-progress-fill {
+    height: 100%;
+    border-radius: var(--qz-radius-full);
+    background-color: var(--qz-color-executing);
+}
+
+.qz-progress-value {
+    font-size: var(--qz-font-size-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--qz-color-text-secondary);
+}
+
+.qz-progress-message {
+    font-size: var(--qz-font-size-xs);
+    margin-top: 2px;
+}
+
 .qz-state-label {
     display: inline-flex;
     align-items: center;

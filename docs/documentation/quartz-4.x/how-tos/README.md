@@ -13,6 +13,7 @@ Each page answers one question. New to Quartz.NET? Start with the [Tutorial](../
 * [Rescheduling Jobs](rescheduling-jobs.md) — change a live schedule, retry a firing, recover a failed trigger
 * [Retrying Failed Jobs](retrying-failed-jobs.md) — give a trigger a retry policy
 * [Job Continuations](job-continuations.md) — run a trigger when another trigger's firing ends with an outcome you name
+* [Progress and Execution Logs](progress-and-execution-logs.md) — show how far a running job has got
 * [Multiple Triggers](multiple-triggers.md) — drive one job from several triggers, and give each its own data
 * [Job Template](job-template.md) — the recommended skeleton for a job class
 * [Running Quartz under Aspire](aspire.md) — telemetry, health and the database, wired to an AppHost

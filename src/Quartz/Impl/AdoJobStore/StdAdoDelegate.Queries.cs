@@ -789,6 +789,42 @@ public partial class StdAdoDelegate
             acquired ? FireInstanceState.Acquired : FireInstanceState.Executing,
             GetDateTimeFromDbValue(rs.GetValue(7)) ?? DateTimeOffset.MinValue,
             GetDateTimeFromDbValue(rs.GetValue(8)),
-            rs.IsDBNull(9) ? null : rs.GetString(9));
+            rs.IsDBNull(9) ? null : rs.GetString(9))
+        {
+            // Converted rather than read as an int, because Oracle hands a NUMBER back as a decimal.
+            Progress = rs.IsDBNull(10) ? null : Convert.ToInt32(rs.GetValue(10), CultureInfo.InvariantCulture),
+            ProgressMessage = rs.IsDBNull(11) ? null : rs.GetString(11)
+        };
+    }
+
+    /// <summary>
+    /// Writes what a running firing last reported onto its row, by entry id and under no lock.
+    /// </summary>
+    /// <remarks>
+    /// Internal, as the history statements are: it is issued only by this store's own
+    /// <c>UpdateFireInstanceProgress</c>, the statement is portable across every dialect, and keeping it
+    /// off <see cref="IDriverDelegate" /> leaves a delegate written outside Quartz nothing to implement.
+    /// </remarks>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="fireInstanceId">The firing's entry id.</param>
+    /// <param name="progress">What it reported.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The rows written: one, or none when the firing has already completed.</returns>
+    internal async ValueTask<int> UpdateFireInstanceProgress(
+        ConnectionAndTransactionHolder conn,
+        string fireInstanceId,
+        FireInstanceProgress progress,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateFireInstanceProgress));
+
+        // In the order the statement names them: providers that adapt named parameters positionally
+        // depend on it.
+        AddCommandParameter(cmd, SqlParameters.Progress, progress.Percent);
+        AddCommandParameter(cmd, SqlParameters.ProgressMessage, FireInstanceProgress.Truncate(progress.Message));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.EntryId, fireInstanceId);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }

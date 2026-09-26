@@ -120,6 +120,34 @@ public interface IJobExecutionContext
     bool RetryScheduled => false;
 
     /// <summary>
+    /// Says how far the job has got, so that <see cref="IScheduler.QueryFireInstances" /> — and the
+    /// dashboard's Currently Executing page, on every node of a cluster — can show it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Call it as often as is convenient: it returns at once and never waits on the job store. The
+    /// scheduler keeps the latest value and writes it to the store at most once a second per firing,
+    /// only when it has changed, and off the job's own flow. The last value reported is always the one
+    /// written, however quickly the reports came. A write that fails is logged, and the job carries on.
+    /// </para>
+    /// <para>
+    /// A message longer than <see cref="Extensibility.FireInstanceProgress.MaxMessageLength" />
+    /// characters is cut to that length. The value lives as long as the firing does: it is gone once
+    /// the job completes, and a retry or a recovered firing starts with none.
+    /// </para>
+    /// <para>
+    /// A default interface member, so an <see cref="IJobExecutionContext" /> implemented outside this
+    /// repository compiles unchanged. The default does nothing.
+    /// </para>
+    /// </remarks>
+    /// <param name="percent">How far the job has got, from <c>0</c> to <c>100</c>.</param>
+    /// <param name="message">What to show beside it, or <see langword="null" /> for nothing.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="percent" /> is below <c>0</c> or above <c>100</c>.</exception>
+    void ReportProgress(int percent, string? message = null)
+    {
+    }
+
+    /// <summary>
     /// Get the convenience <see cref="JobDataMap" /> of this execution context.
     /// </summary>
     /// <remarks>

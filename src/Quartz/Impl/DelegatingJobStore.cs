@@ -422,6 +422,12 @@ public class DelegatingJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    public virtual ValueTask UpdateFireInstanceProgress(string fireInstanceId, FireInstanceProgress progress, CancellationToken cancellationToken = default)
+    {
+        return jobStore.UpdateFireInstanceProgress(fireInstanceId, progress, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount)
     {
         return jobStore.GetAcquireRetryDelay(failureCount);
