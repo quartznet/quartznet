@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Core;
@@ -345,6 +346,224 @@ public static class QuartzBuilderExtensions
         });
 
         return builder;
+    }
+
+    /// <summary>
+    /// Adds a job whose code is a delegate, and whose parameters are what that code needs.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Each parameter is bound when the job is added: <see cref="IJobExecutionContext" /> is the firing,
+    /// <see cref="CancellationToken" /> is the firing's token, <see cref="IServiceProvider" /> is the
+    /// firing's scope, and any other type is a required service resolved from that scope. The handler
+    /// returns <see cref="ValueTask" />, <see cref="Task" /> or nothing. Its parameters need their types
+    /// written out: a lambda without them has no delegate type to be passed as.
+    /// </para>
+    /// <para>
+    /// A parameter whose type belongs to one scheduler — <see cref="IScheduler" />,
+    /// <see cref="ISchedulerFactory" />, a scheduler's options — fails validation at startup, as it does in a
+    /// registered job's constructor. Read the scheduler running the job from
+    /// <see cref="IJobExecutionContext.Scheduler" /> instead.
+    /// </para>
+    /// <para>
+    /// The job is durable, so it stays stored with no trigger; it fires when a trigger of its own names
+    /// it, or through <see cref="IScheduler.TriggerJob(JobKey, JobDataMap, CancellationToken)" />. It is
+    /// stored as <c>Quartz.Impl.DelegateJob</c>, and its key is what a firing finds the handler by, so the
+    /// handler has to be registered on every node that runs the scheduler.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="name">
+    /// The job's name, which makes its key in the default group unless <paramref name="configure" />
+    /// gives it another identity.
+    /// </param>
+    /// <param name="handler">The job's code.</param>
+    /// <param name="configure">Configures the job, which most jobs do not need to.</param>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name" /> is empty, or <paramref name="handler" /> cannot be run as a job: it returns
+    /// something other than <see cref="ValueTask" />, <see cref="Task" /> or nothing, is <c>async void</c>,
+    /// takes a <c>ref</c>, <c>out</c>, <c>in</c>, pointer or ref struct parameter, or combines several delegates.
+    /// </exception>
+    public static IQuartzBuilder AddJob(
+        this IQuartzBuilder builder,
+        string name,
+        Delegate handler,
+        Action<IJobConfigurator<IJob>>? configure = null)
+    {
+        return builder.AddJob(name, handler, (_, jobConfigurator) => configure?.Invoke(jobConfigurator));
+    }
+
+    /// <inheritdoc cref="AddJob(IQuartzBuilder, string, Delegate, Action{IJobConfigurator{IJob}})" />
+    /// <param name="builder">The builder.</param>
+    /// <param name="name">
+    /// The job's name, which makes its key in the default group unless <paramref name="configure" />
+    /// gives it another identity.
+    /// </param>
+    /// <param name="handler">The job's code.</param>
+    /// <param name="configure">Configures the job, given this scheduler's view of the container.</param>
+    public static IQuartzBuilder AddJob(
+        this IQuartzBuilder builder,
+        string name,
+        Delegate handler,
+        Action<IServiceProvider, IJobConfigurator<IJob>> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        DelegateJobBinding binding = DelegateJobBinding.Bind(handler, nameof(handler));
+        DelegateJobRegistry registry = DeclareDelegateJob(builder, name, binding);
+        string? schedulerName = builder.SchedulerName;
+
+        SchedulerContent.Register(builder.Services, schedulerName, serviceProvider =>
+        {
+            JobBuilder<IJob> jobBuilder = JobBuilder.Create()
+                .OfType<DelegateJob>()
+                .WithIdentity(name)
+                .StoreDurably();
+
+            configure.Invoke(serviceProvider, jobBuilder);
+
+            IJobDetail jobDetail = jobBuilder.Build();
+            if (jobDetail.Description is null)
+            {
+                jobDetail = jobBuilder.WithDescription(DelegateJobDescription(jobDetail.Key)).Build();
+            }
+
+            registry.Bind(RunningSchedulerName(serviceProvider, schedulerName), jobDetail.Key, binding);
+            return new SchedulerContent().Add(jobDetail);
+        });
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Adds a job whose code is a delegate, together with the one trigger that fires it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The trigger is named <paramref name="name" /> unless <paramref name="trigger" /> gives it another
+    /// identity, and the job takes the trigger's identity, as it does with
+    /// <see cref="ScheduleJob{T}(IQuartzBuilder, Action{ITriggerConfigurator{T}}, Action{IJobConfigurator{T}})" />.
+    /// </para>
+    /// <para>
+    /// Parameters bind as they do for
+    /// <see cref="AddJob(IQuartzBuilder, string, Delegate, Action{IJobConfigurator{IJob}})" />: the firing,
+    /// its token, its scope, and required services from that scope. The job is stored as
+    /// <c>Quartz.Impl.DelegateJob</c>, and its key is what a firing finds the handler by, so the handler
+    /// has to be registered on every node that runs the scheduler.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="name">The trigger's name, and so the job's, unless the trigger is given another.</param>
+    /// <param name="handler">The job's code.</param>
+    /// <param name="trigger">Configures the trigger.</param>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name" /> is empty, or <paramref name="handler" /> cannot be run as a job: it returns
+    /// something other than <see cref="ValueTask" />, <see cref="Task" /> or nothing, is <c>async void</c>,
+    /// takes a <c>ref</c>, <c>out</c>, <c>in</c>, pointer or ref struct parameter, or combines several delegates.
+    /// </exception>
+    public static IQuartzBuilder ScheduleJob(
+        this IQuartzBuilder builder,
+        string name,
+        Delegate handler,
+        Action<ITriggerConfigurator<IJob>> trigger)
+    {
+        ArgumentNullException.ThrowIfNull(trigger);
+        return builder.ScheduleJob(name, handler, (_, triggerConfigurator) => trigger(triggerConfigurator));
+    }
+
+    /// <inheritdoc cref="ScheduleJob(IQuartzBuilder, string, Delegate, Action{ITriggerConfigurator{IJob}})" />
+    /// <param name="builder">The builder.</param>
+    /// <param name="name">The trigger's name, and so the job's, unless the trigger is given another.</param>
+    /// <param name="handler">The job's code.</param>
+    /// <param name="trigger">Configures the trigger, given this scheduler's view of the container.</param>
+    public static IQuartzBuilder ScheduleJob(
+        this IQuartzBuilder builder,
+        string name,
+        Delegate handler,
+        Action<IServiceProvider, ITriggerConfigurator<IJob>> trigger)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(trigger);
+
+        DelegateJobBinding binding = DelegateJobBinding.Bind(handler, nameof(handler));
+        DelegateJobRegistry registry = DeclareDelegateJob(builder, name, binding);
+        string? schedulerName = builder.SchedulerName;
+
+        SchedulerContent.Register(builder.Services, schedulerName, serviceProvider =>
+        {
+            TriggerBuilder<IJob> triggerBuilder = TriggerBuilder.Create(serviceProvider.GetService<TimeProvider>());
+            triggerBuilder.WithIdentity(name);
+            trigger.Invoke(serviceProvider, triggerBuilder);
+
+            ITrigger builtTrigger = triggerBuilder.Build();
+            JobKey jobKey = new(builtTrigger.Key.Name, builtTrigger.Key.Group);
+
+            // This call adds the job the trigger fires, so a trigger pointed at some other job would leave
+            // the handler with nothing to run it.
+            if (builtTrigger.JobKey is not null && !builtTrigger.JobKey.Equals(jobKey))
+            {
+                Throw.InvalidOperationException(
+                    $"The trigger of delegate job '{name}' was pointed at job '{builtTrigger.JobKey}', but ScheduleJob "
+                    + "adds the job its trigger fires. Leave ForJob out, or add the handler with AddJob and the "
+                    + "trigger with AddTrigger.");
+            }
+
+            builtTrigger = triggerBuilder.ForJob(jobKey).Build();
+
+            IJobDetail jobDetail = JobBuilder.Create()
+                .OfType<DelegateJob>()
+                .WithIdentity(jobKey)
+                .WithDescription(DelegateJobDescription(jobKey))
+                .Build();
+
+            registry.Bind(RunningSchedulerName(serviceProvider, schedulerName), jobKey, binding);
+            return new SchedulerContent().Add(jobDetail).Add(builtTrigger);
+        });
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers what every delegate job needs and records that this scheduler carries one.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DelegateJob" /> is registered like any job type, so the job factory builds it inside the
+    /// firing's scope and container validation reads its constructor; the declaration is what
+    /// <see cref="RegisteredJobConstructorValidator" /> checks the handler's parameters against.
+    /// </remarks>
+    private static DelegateJobRegistry DeclareDelegateJob(IQuartzBuilder builder, string name, DelegateJobBinding binding)
+    {
+        TryRegisterJobType(builder, typeof(DelegateJob));
+
+        DelegateJobRegistry registry = DelegateJobRegistry.For(builder.Services);
+        registry.Declare(builder.SchedulerName, name, binding);
+        return registry;
+    }
+
+    /// <summary>
+    /// What a delegate job says it is when nobody said otherwise, since its type names every delegate job
+    /// alike.
+    /// </summary>
+    private static string DelegateJobDescription(JobKey key)
+    {
+        return $"Delegate job '{key.Name}'";
+    }
+
+    /// <summary>
+    /// The name a scheduler runs as, which is the name a firing reads off its context.
+    /// </summary>
+    /// <remarks>
+    /// A named scheduler runs as its name. The default one runs as whatever its options say: the rule its
+    /// resources are named by, read from the same options.
+    /// </remarks>
+    private static string RunningSchedulerName(IServiceProvider serviceProvider, string? schedulerName)
+    {
+        return string.IsNullOrEmpty(schedulerName)
+            ? serviceProvider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>().Get(Options.DefaultName).InstanceName
+            : schedulerName;
     }
 
     private static IJobDetail ConfigureAndBuildJobDetail<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(

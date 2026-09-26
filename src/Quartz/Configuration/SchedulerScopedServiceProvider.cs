@@ -309,7 +309,8 @@ internal sealed class SchedulerScopedServiceProvider
     /// A <see cref="IJob" /> is the application's to build. Its constructor takes the application's
     /// services — a unit of work, a database context — and a container resolves a service's dependencies
     /// from itself rather than through whatever wrapper was asked, so a job built by the tenant's
-    /// container would be built from the half of the graph that does not have them.
+    /// container would be built from the half of the graph that does not have them. A
+    /// <see cref="DelegateJob" /> is the exception, and neither container builds it.
     /// </para>
     /// <para>
     /// Options belong to whoever configured them. The tenant's own settings are its container's, and so
@@ -328,7 +329,11 @@ internal sealed class SchedulerScopedServiceProvider
     {
         if (typeof(IJob).IsAssignableFrom(serviceType))
         {
-            return application.Application.GetService(serviceType);
+            // Except a delegate job, which is Quartz's rather than the application's: its handler is in the
+            // tenant's registry and its services are in both containers. A job either container built would
+            // be handed a provider over that container alone, so none is built here, and the job factory
+            // activates it over this provider instead, which answers from both.
+            return serviceType == typeof(DelegateJob) ? null : application.Application.GetService(serviceType);
         }
 
         if (serviceType.IsConstructedGenericType)

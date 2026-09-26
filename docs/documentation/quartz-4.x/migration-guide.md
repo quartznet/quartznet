@@ -30,6 +30,8 @@ An application on 4.2 compiles on 4.3 unchanged, and the database schema did not
 
 | Added | What it is |
 |---|---|
+| `QuartzBuilderExtensions.AddJob(name, Delegate handler, configure)` and its `(IServiceProvider, …)` twin | A durable job whose code is a lambda. Parameters are the firing, its token, its scope, or required services. See [Delegate Jobs](tutorial/delegate-jobs.md) |
+| `QuartzBuilderExtensions.ScheduleJob(name, Delegate handler, trigger)` and its `(IServiceProvider, …)` twin | The same, with its one trigger; the job takes the trigger's identity |
 | `TriggerAcquireResult.ConcurrentExecutionDisallowed` | `bool?`, a non-positional `init` property: the job row's `IS_NONCONCURRENT`. Every shipped dialect reads it; `null` falls back to the job type's `[DisallowConcurrentExecution]` |
 
 **Behaviour change:** an ADO store took two triggers of one job into a batch when the job disallowed
