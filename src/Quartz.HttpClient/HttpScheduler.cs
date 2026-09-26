@@ -361,6 +361,29 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         return DoScheduleJob(null, trigger, options.Replace, cancellationToken);
     }
 
+    /// <inheritdoc cref="IScheduler.ScheduleTrigger" path="/summary|/param|/returns|/exception" />
+    /// <remarks>
+    /// The host decides under its store's lock, as a local scheduler does. A host older than 4.3 ignores
+    /// the conflict mode: it is sent <c>replace</c> as well for <see cref="TriggerConflict.Replace" />, so
+    /// that one still replaces, while <see cref="TriggerConflict.Keep" /> and
+    /// <see cref="TriggerConflict.KeepEarlier" /> throw <see cref="ObjectAlreadyExistsException" /> on a
+    /// conflict there, and an outcome it does not report is read as <see cref="ScheduleOutcome.Created" />.
+    /// </remarks>
+    public async ValueTask<ScheduleTriggerResult> ScheduleTrigger(ITrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(trigger);
+        TriggerConflictResolution.RequireDefined(onConflict, nameof(onConflict));
+
+        ScheduleJobResponse result = await httpClient.PostWithResponse<ScheduleJobRequest, ScheduleJobResponse>(
+            $"{TriggerEndpointUrl()}/schedule",
+            new ScheduleJobRequest(trigger, Job: null, Replace: onConflict == TriggerConflict.Replace) { OnConflict = onConflict },
+            jsonSerializerOptions,
+            cancellationToken
+        ).ConfigureAwait(false);
+
+        return new ScheduleTriggerResult(result.FirstFireTimeUtc, result.Outcome ?? ScheduleOutcome.Created);
+    }
+
     private async ValueTask<DateTimeOffset> DoScheduleJob(IJobDetail? jobDetail, ITrigger trigger, bool replace, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(trigger);

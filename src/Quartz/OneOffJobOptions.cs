@@ -48,9 +48,13 @@ namespace Quartz;
 /// <seealso cref="SchedulerJobExtensions" />
 public readonly record struct OneOffJobOptions
 {
+    // What Replace was set to, apart from OnConflict: the two are one setting, and ResolveOnConflict
+    // is where a contradiction between them is refused.
+    private readonly bool replace;
+
     /// <summary>
     /// Schedule the firing under the given name, over-writing one already scheduled under it. The
-    /// name for <c>new OneOffJobOptions { Name = name, Replace = true }</c>, which is what
+    /// name for <c>new OneOffJobOptions { Name = name, OnConflict = TriggerConflict.Replace }</c>, which is what
     /// rescheduling a firing an application can name — a reminder, a saga step, a timeout — always
     /// says.
     /// </summary>
@@ -66,7 +70,9 @@ public readonly record struct OneOffJobOptions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        return new OneOffJobOptions { Name = name, Replace = true };
+        // OnConflict rather than Replace, so that `Replacing(name) with { OnConflict = Keep }` says one
+        // thing instead of two that contradict each other.
+        return new OneOffJobOptions { Name = name, OnConflict = TriggerConflict.Replace };
     }
 
     /// <summary>
@@ -152,10 +158,43 @@ public readonly record struct OneOffJobOptions
     /// <c>CheckExists</c> / <c>UnscheduleJob</c> / <c>ScheduleJob</c> for the caller to serialize.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// The older spelling of <c>OnConflict = TriggerConflict.Replace</c>, and it reads
+    /// <see langword="true" /> when either says so. Setting it beside an <see cref="OnConflict" /> that
+    /// says something else is refused by the one-liner with <see cref="ArgumentException" />.
+    /// </para>
+    /// <para>
     /// Only meaningful together with <see cref="Name" />: a generated name has nothing to replace,
     /// which is why the preset that sets this is <see cref="Replacing" /> and takes the name.
+    /// </para>
     /// </remarks>
-    public bool Replace { get; init; }
+    public bool Replace
+    {
+        get => replace || OnConflict == TriggerConflict.Replace;
+        init => replace = value;
+    }
+
+    /// <summary>
+    /// What becomes of a firing already scheduled under the same <see cref="Name" />. Defaults to
+    /// <see cref="TriggerConflict.Throw" />: the call throws <see cref="ObjectAlreadyExistsException" />.
+    /// </summary>
+    /// <remarks>
+    /// <list type="table">
+    ///   <item><term><see cref="TriggerConflict.Replace" /></term><description>The new firing replaces
+    ///   the old one: a debounce, since only the last call fires.</description></item>
+    ///   <item><term><see cref="TriggerConflict.Keep" /></term><description>A pending firing is left
+    ///   alone and its key returned: an idempotent enqueue.</description></item>
+    ///   <item><term><see cref="TriggerConflict.KeepEarlier" /></term><description>Whichever fires first
+    ///   stays.</description></item>
+    /// </list>
+    /// <para>
+    /// The store decides under its lock, so two calls with one name store one firing, and
+    /// <see cref="ScheduledOneOffJob.Outcome" /> tells each call which it got. A firing already running
+    /// has nothing pending, so a <c>Keep</c> call stores a new one after it. Like
+    /// <see cref="Replace" />, only meaningful with a <see cref="Name" />.
+    /// </para>
+    /// </remarks>
+    public TriggerConflict OnConflict { get; init; }
 
     /// <summary>
     /// Whether the durable job the firings hang off is marked
@@ -183,4 +222,29 @@ public readonly record struct OneOffJobOptions
     /// </para>
     /// </remarks>
     public bool RequestRecovery { get; init; }
+
+    /// <summary>
+    /// The one conflict mode the two members say, or the refusal of what they cannot both mean.
+    /// </summary>
+    /// <exception cref="ArgumentException"><see cref="Replace" /> is set beside a different
+    /// <see cref="OnConflict" />.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="OnConflict" /> is not a defined value.</exception>
+    internal TriggerConflict ResolveOnConflict()
+    {
+        TriggerConflictResolution.RequireDefined(OnConflict, nameof(OnConflict));
+
+        if (!replace)
+        {
+            return OnConflict;
+        }
+
+        if (OnConflict is not (TriggerConflict.Throw or TriggerConflict.Replace))
+        {
+            Throw.ArgumentException(
+                $"Replace = true says TriggerConflict.Replace, and OnConflict says {OnConflict}. Set OnConflict alone.",
+                nameof(OnConflict));
+        }
+
+        return TriggerConflict.Replace;
+    }
 }

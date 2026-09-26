@@ -646,6 +646,45 @@ public sealed class RAMJobStore : IJobStore
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async ValueTask<ScheduleTriggerResult> StoreTrigger(IOperableTrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(trigger);
+        TriggerConflictResolution.RequireDefined(onConflict, nameof(onConflict));
+
+        PendingSignals pending = default;
+        ScheduleOutcome outcome;
+
+        lock (lockObject)
+        {
+            // Read and decided under the lock the write takes, so two callers storing one key cannot
+            // both see it absent.
+            if (triggersByKey.TryGetValue(trigger.Key, out TriggerWrapper? existing))
+            {
+                if (onConflict == TriggerConflict.Throw)
+                {
+                    Throw.ObjectAlreadyExistsException(trigger);
+                }
+
+                if (TriggerConflictResolution.KeepsExisting(onConflict, existing.Trigger.NextFireTimeUtc, trigger.NextFireTimeUtc))
+                {
+                    return new ScheduleTriggerResult(existing.Trigger.NextFireTimeUtc!.Value, ScheduleOutcome.Kept);
+                }
+
+                outcome = ScheduleOutcome.Replaced;
+            }
+            else
+            {
+                outcome = ScheduleOutcome.Created;
+            }
+
+            AddTriggerNoLock(trigger, replace: true, checkContinuationParent: true, ref pending);
+        }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return new ScheduleTriggerResult(TriggerConflictResolution.FireTimeOf(trigger), outcome);
+    }
+
     // checkContinuationParent: whether a continuation's parent is looked for here. Every caller says
     // which: the batch add has looked already, across the batch as well as the store, and putting a
     // replaced trigger back after a refused replacement is a restore rather than a new wait.

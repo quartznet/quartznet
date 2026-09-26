@@ -153,7 +153,8 @@ One overload takes a `DateTimeOffset`, the other a `TimeSpan` from now. Both ret
 | Member | Meaning |
 |---|---|
 | `TriggerKey` | the stored firing; cancel it with this, or replace it by scheduling the same name again |
-| `FirstFireTimeUtc` | when the store says it will fire |
+| `FirstFireTimeUtc` | when the store says it will fire; for a kept firing, when that one fires |
+| `Outcome` | `Created`, `Replaced` or `Kept`; see [Scheduling the same name twice](#scheduling-the-same-name-twice) |
 
 Read anything else with `GetTrigger`.
 
@@ -168,8 +169,50 @@ What is stored:
 
 `OneOffJobOptions` holds the `TriggerBuilder` settings: `Name` and `Group` (by default a generated
 identifier, in a group named after the job type), `Description`, `Priority`, `ExecutionGroup`,
-`MisfireInstruction`, and `Replace`. **The group is the correlation axis**: give one saga, tenant or
+`MisfireInstruction`, and `OnConflict`. **The group is the correlation axis**: give one saga, tenant or
 conversation one group to list, pause or unschedule its firings together.
+
+## Scheduling the same name twice
+
+`OnConflict` decides what a call does when a firing is already scheduled under its `Name`:
+
+<!-- snippet: sample_one_off_job_on_conflict -->
+```csharp
+public async ValueTask SyncAccount(IScheduler scheduler, ILogger logger, string accountId, CancellationToken cancellationToken)
+{
+    // Idempotent enqueue: "make sure a sync is scheduled". A second call while one is pending
+    // stores nothing and answers with the pending one.
+    ScheduledOneOffJob sync = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+        new SendInvoice(accountId, 0m),
+        TimeSpan.FromMinutes(5),
+        new OneOffJobOptions { Name = $"sync-{accountId}", OnConflict = TriggerConflict.Keep },
+        cancellationToken);
+
+    if (sync.Outcome == ScheduleOutcome.Kept)
+    {
+        logger.LogInformation("A sync was already pending, at {At}", sync.FirstFireTimeUtc);
+    }
+}
+```
+<!-- endSnippet -->
+
+| `OnConflict` | A firing already pending under the name | Use it for |
+|---|---|---|
+| `Throw` (default) | the call throws `ObjectAlreadyExistsException` | a name that must be new |
+| `Replace` | the new firing replaces it; `Outcome` is `Replaced` | **debounce**: only the last call fires |
+| `Keep` | it stays, nothing is stored; `Outcome` is `Kept` | **idempotent enqueue**: "make sure this is scheduled" |
+| `KeepEarlier` | whichever fires first stays | debounce with a deadline that only moves closer |
+
+* **The store decides under its lock.** Two calls with one name at once store one firing; one is told
+  `Created`, the other `Kept`.
+* **Pending means a fire time ahead.** A paused firing is pending. A firing that has started running is
+  not, so `Keep` stores a new one after it.
+* `Replace = true` is the older spelling of `OnConflict = TriggerConflict.Replace`, and
+  `OneOffJobOptions.Replacing(name)` sets `OnConflict`. `Replace = true` beside another `OnConflict`
+  throws `ArgumentException`.
+* A kept call raises no `JobScheduled`, because nothing was scheduled.
+* "Unique for a period after the job ran" is not covered: a finished firing leaves nothing to conflict
+  with.
 
 ::: warning A group default that a cancellation contract has to know about
 `Group` defaults to the job type's name, not `TriggerKey.DefaultGroup`. Code cancelling with
@@ -346,3 +389,22 @@ await scheduler.ScheduleJob(job, trigger, new ScheduleJobOptions { Replace = tru
 * `options` has no default here, or `scheduler.ScheduleJob(trigger)` would be ambiguous.
 * A replaced trigger **keeps its previous fire time**, so `context.PreviousFireTimeUtc` survives the
   rewrite. Set `PreviousFireTimeUtc` on the new trigger to override it.
+
+For the other conflict modes on a trigger you built yourself, use `ScheduleTrigger`:
+
+<!-- snippet: sample_one_off_job_schedule_trigger_on_conflict -->
+```csharp
+public async ValueTask<ScheduleOutcome> ScheduleOnce(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken)
+{
+    // Any trigger, not only the one-liner's: the store decides under its lock.
+    ScheduleTriggerResult result = await scheduler.ScheduleTrigger(trigger, TriggerConflict.KeepEarlier, cancellationToken);
+
+    // Created, Replaced or Kept; result.NextFireTimeUtc is when the stored trigger fires.
+    return result.Outcome;
+}
+```
+<!-- endSnippet -->
+
+It takes the same four [`TriggerConflict`](#scheduling-the-same-name-twice) values and answers with the
+outcome and the stored trigger's next fire time. Over HTTP it is `onConflict` on
+[`…/triggers/schedule`](../packages/http-api.md).

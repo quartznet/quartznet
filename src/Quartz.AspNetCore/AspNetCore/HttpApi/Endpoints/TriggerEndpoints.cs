@@ -430,6 +430,13 @@ internal static class TriggerEndpoints
         EndpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
+            // Validation has refused onConflict beside a job, so this is a trigger scheduled on its own.
+            if (request.OnConflict is { } onConflict)
+            {
+                ScheduleTriggerResult result = await scheduler.ScheduleTrigger(request.Trigger, onConflict, cancellationToken).ConfigureAwait(false);
+                return new ScheduleJobResponse(result.NextFireTimeUtc) { Outcome = result.Outcome };
+            }
+
             ScheduleJobOptions options = new() { Replace = request.Replace };
 
             if (request.Job is null)

@@ -903,6 +903,55 @@ internal sealed class QuartzScheduler
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
+        (IOperableTrigger trig, DateTimeOffset firstFireTimeUtc) = await PrepareTriggerToStore(trigger, cancellationToken).ConfigureAwait(false);
+
+        // Replacing is the store's own operation, taken under the store's lock, so an upsert is one
+        // call rather than a CheckExists / UnscheduleJob / ScheduleJob a caller has to serialize itself.
+        await resources.JobStore.AddTrigger(trig, new AddTriggerOptions { Replace = options.Replace }, cancellationToken).ConfigureAwait(false);
+        NotifySchedulerThread(trigger.NextFireTimeUtc);
+        await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
+
+        return firstFireTimeUtc;
+    }
+
+    /// <summary>
+    /// Schedule the given trigger, letting the store decide under its lock what becomes of a trigger
+    /// already stored under its key.
+    /// </summary>
+    /// <remarks>
+    /// A kept trigger was not stored, so nothing is signalled: the scheduler thread's next fire time and
+    /// the listeners' view of the schedule are what they were.
+    /// </remarks>
+    public async ValueTask<ScheduleTriggerResult> ScheduleTrigger(
+        ITrigger trigger,
+        TriggerConflict onConflict,
+        CancellationToken cancellationToken = default)
+    {
+        TriggerConflictResolution.RequireDefined(onConflict, nameof(onConflict));
+        (IOperableTrigger trig, DateTimeOffset firstFireTimeUtc) = await PrepareTriggerToStore(trigger, cancellationToken).ConfigureAwait(false);
+
+        ScheduleTriggerResult result = await resources.JobStore.StoreTrigger(trig, onConflict, cancellationToken).ConfigureAwait(false);
+
+        if (result.Outcome == ScheduleOutcome.Kept)
+        {
+            return result;
+        }
+
+        NotifySchedulerThread(trigger.NextFireTimeUtc);
+        await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
+
+        // The time computed here, which a store that only echoes what it was handed cannot disagree with.
+        return result with { NextFireTimeUtc = firstFireTimeUtc };
+    }
+
+    /// <summary>
+    /// What storing a trigger on its own needs first: the scheduler running, the trigger valid, its
+    /// calendar found and its first fire time computed.
+    /// </summary>
+    private async ValueTask<(IOperableTrigger Trigger, DateTimeOffset FirstFireTimeUtc)> PrepareTriggerToStore(
+        ITrigger trigger,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(trigger);
         ValidateState();
 
@@ -930,13 +979,7 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException(message);
         }
 
-        // Replacing is the store's own operation, taken under the store's lock, so an upsert is one
-        // call rather than a CheckExists / UnscheduleJob / ScheduleJob a caller has to serialize itself.
-        await resources.JobStore.AddTrigger(trig, new AddTriggerOptions { Replace = options.Replace }, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(trigger.NextFireTimeUtc);
-        await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
-
-        return ft.Value;
+        return (trig, ft.Value);
     }
 
     /// <summary>

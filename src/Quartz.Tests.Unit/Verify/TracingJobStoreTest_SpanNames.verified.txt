@@ -28,6 +28,7 @@ Quartz.JobStore.ResumeTriggerGroups
 Quartz.JobStore.ResumeTriggers
 Quartz.JobStore.ScheduleJob
 Quartz.JobStore.ScheduleJobs
+Quartz.JobStore.StoreTrigger
 Quartz.JobStore.TriggeredJobComplete
 Quartz.JobStore.TriggersFired
 Quartz.JobStore.UpdateTriggerDetails

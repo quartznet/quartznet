@@ -59,6 +59,19 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `ExecutionGroupScope.GroupsWithPrefix(prefix)`, `IsPrefix`, `Prefix` | The read side of a prefix limit, in `ExecutionLimits.Groups` and `TryGetLimit`. HTTP: the key `"tenant:*"` |
 | `ExecutionGroupAttribute` | `[ExecutionGroup("tenant:{TenantId}")]` on a job class: the group its triggers get when they set none. Read by `TriggerBuilder<TJob>`; the `ScheduleJob<TJob, TInput>` one-liners apply it only without placeholders |
 | `{key}` in `WithExecutionGroup` | Resolved at `Build()` from the trigger's `JobDataMap`. The trigger stores the resolved name. A one-off names its tenant at the call site: `OneOffJobOptions.ExecutionGroup = $"tenant:{input.TenantId}"` |
+| `TriggerConflict` | `Throw = 0`, `Replace = 1`, `Keep = 2`, `KeepEarlier = 3`: what becomes of a trigger already stored under the key |
+| `OneOffJobOptions.OnConflict` | `TriggerConflict`, default `Throw`. See [Scheduling the same name twice](how-tos/one-off-job.md#scheduling-the-same-name-twice) |
+| `ScheduledOneOffJob.Outcome` | `ScheduleOutcome`: `Created = 0`, `Replaced = 1`, `Kept = 2`. A non-positional `init` property |
+| `IScheduler.ScheduleTrigger(trigger, onConflict)` | Answers `ScheduleTriggerResult(NextFireTimeUtc, Outcome)`. Default: `GetTrigger`, then `ScheduleJob`; correct, not atomic. HTTP: `onConflict` on `POST …/triggers/schedule`, answered with `outcome`, sent by `HttpScheduler` |
+| `IJobStore.StoreTrigger(trigger, onConflict)` | The store half, decided under the store's lock. Default: `GetTrigger`, then `AddTrigger`; correct, not atomic |
+| `OperationName.JobStore.StoreTrigger` | `Quartz.JobStore.StoreTrigger`, the span for it |
+
+`ScheduleTrigger` and `StoreTrigger` are default interface members, so a scheduler or store written for
+4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare both.
+
+**Mixed 4.2 and 4.3 versions:** a 4.2 host ignores `onConflict`. `HttpScheduler` also sends `replace` for
+`Replace`, so that still replaces; `Keep` and `KeepEarlier` throw `ObjectAlreadyExistsException` on a
+conflict there, and the outcome reads `Created`.
 
 **`QZ1004` is information, not a warning.** Every registration now has a name that binds, so the rename
 it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
@@ -79,6 +92,12 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 * **A one-liner for a job whose `[ExecutionGroup]` has placeholders needs `OneOffJobOptions.ExecutionGroup`.**
   Without it the call throws `FormatException`: a one-off trigger's job data is its input, stored whole.
   `OneOffJobOptions.ExecutionGroup` itself is stored as written, braces included, as in 4.2.
+* **`OneOffJobOptions.Replacing(name)` sets `OnConflict = Replace`**, not `Replace = true`. `Replace` still
+  reads `true`. `Replace = true` beside a different `OnConflict` throws `ArgumentException`.
+* **A one-liner with `OnConflict` other than `Throw` calls `IScheduler.ScheduleTrigger`**, not
+  `ScheduleJob(trigger, options)`. A test double configured for `ScheduleJob` sees no call for a
+  `Replacing(name)` one-liner; configure `ScheduleTrigger`. The default `Throw` makes the call it always
+  made.
 
 **Interface members are default interface members**, so an implementation written for 4.2 compiles and
 behaves as it did. Properties added to records are non-positional `init` properties, so constructors are

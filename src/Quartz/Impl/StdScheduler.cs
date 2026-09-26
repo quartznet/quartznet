@@ -219,6 +219,17 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
+    public ValueTask<ScheduleTriggerResult> ScheduleTrigger(
+        ITrigger trigger,
+        TriggerConflict onConflict,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.ScheduleTrigger(trigger, onConflict, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
     public ValueTask AddJob(
         IJobDetail jobDetail,
         AddJobOptions options = default,

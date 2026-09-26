@@ -796,6 +796,7 @@ namespace Quartz
         System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob(Quartz.IJobDetail jobDetail, Quartz.ITrigger trigger, Quartz.ScheduleJobOptions options = default, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ScheduleJob(Quartz.IJobDetail jobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger> triggersForJob, Quartz.ScheduleJobOptions options = default, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ScheduleJobs(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, Quartz.ScheduleJobOptions options = default, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.ScheduleTriggerResult> ScheduleTrigger(Quartz.ITrigger trigger, Quartz.TriggerConflict onConflict, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask SetExecutionLimits(Quartz.ExecutionLimits? limits, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = false, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Standby(System.Threading.CancellationToken cancellationToken = default);
@@ -1284,6 +1285,7 @@ namespace Quartz
         public string? Group { get; init; }
         public Quartz.SimpleTriggerMisfireInstruction? MisfireInstruction { get; init; }
         public string? Name { get; init; }
+        public Quartz.TriggerConflict OnConflict { get; init; }
         public int? Priority { get; init; }
         public bool Replace { get; init; }
         public bool RequestRecovery { get; init; }
@@ -1579,10 +1581,23 @@ namespace Quartz
         public bool Replace { get; init; }
         public static Quartz.ScheduleJobOptions Replacing { get; }
     }
+    public enum ScheduleOutcome
+    {
+        Created = 0,
+        Replaced = 1,
+        Kept = 2,
+    }
+    public readonly record struct ScheduleTriggerResult : System.IEquatable<Quartz.ScheduleTriggerResult>
+    {
+        public ScheduleTriggerResult(System.DateTimeOffset NextFireTimeUtc, Quartz.ScheduleOutcome Outcome) { }
+        public System.DateTimeOffset NextFireTimeUtc { get; init; }
+        public Quartz.ScheduleOutcome Outcome { get; init; }
+    }
     public readonly record struct ScheduledOneOffJob : System.IEquatable<Quartz.ScheduledOneOffJob>
     {
         public ScheduledOneOffJob(Quartz.TriggerKey TriggerKey, System.DateTimeOffset FirstFireTimeUtc) { }
         public System.DateTimeOffset FirstFireTimeUtc { get; init; }
+        public Quartz.ScheduleOutcome Outcome { get; init; }
         public Quartz.TriggerKey TriggerKey { get; init; }
     }
     public readonly record struct SchedulerAddOptions : System.IEquatable<Quartz.SchedulerAddOptions>
@@ -1965,6 +1980,13 @@ namespace Quartz
         public static TConfigurator WithSimpleSchedule<TConfigurator>(this TConfigurator configurator, System.TimeSpan interval, int? repeatCount = default)
             where TConfigurator : Quartz.ITriggerConfigurator { }
     }
+    public enum TriggerConflict
+    {
+        Throw = 0,
+        Replace = 1,
+        Keep = 2,
+        KeepEarlier = 3,
+    }
     public static class TriggerConstants
     {
         public const int DefaultPriority = 5;
@@ -2122,6 +2144,7 @@ namespace Quartz.Diagnostics
             public const string ResumeTriggers = "Quartz.JobStore.ResumeTriggers";
             public const string ScheduleJob = "Quartz.JobStore.ScheduleJob";
             public const string ScheduleJobs = "Quartz.JobStore.ScheduleJobs";
+            public const string StoreTrigger = "Quartz.JobStore.StoreTrigger";
             public const string TriggeredJobComplete = "Quartz.JobStore.TriggeredJobComplete";
             public const string TriggersFired = "Quartz.JobStore.TriggersFired";
             public const string UpdateTriggerDetails = "Quartz.JobStore.UpdateTriggerDetails";
@@ -2240,6 +2263,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask SchedulerResumed(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.ScheduleTriggerResult> StoreTrigger(Quartz.Extensibility.IOperableTrigger trigger, Quartz.TriggerConflict onConflict, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.TriggerFiredResult>> TriggersFired(System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.IOperableTrigger> triggers, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask UpdateFireInstanceProgress(string fireInstanceId, Quartz.Extensibility.FireInstanceProgress progress, System.Threading.CancellationToken cancellationToken = default); // default implementation
@@ -3442,6 +3466,7 @@ namespace Quartz.Impl
         public virtual System.Threading.Tasks.ValueTask SchedulerResumed(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<Quartz.ScheduleTriggerResult> StoreTrigger(Quartz.Extensibility.IOperableTrigger trigger, Quartz.TriggerConflict onConflict, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.TriggerFiredResult>> TriggersFired(System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.IOperableTrigger> triggers, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask UpdateFireInstanceProgress(string fireInstanceId, Quartz.Extensibility.FireInstanceProgress progress, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3509,6 +3534,7 @@ namespace Quartz.Impl
         public virtual System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob(Quartz.IJobDetail jobDetail, Quartz.ITrigger trigger, Quartz.ScheduleJobOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ScheduleJob(Quartz.IJobDetail jobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger> triggersForJob, Quartz.ScheduleJobOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ScheduleJobs(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, Quartz.ScheduleJobOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<Quartz.ScheduleTriggerResult> ScheduleTrigger(Quartz.ITrigger trigger, Quartz.TriggerConflict onConflict, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SetExecutionLimits(Quartz.ExecutionLimits? limits, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = false, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Standby(System.Threading.CancellationToken cancellationToken = default) { }
@@ -3647,6 +3673,7 @@ namespace Quartz.Impl
         public System.Threading.Tasks.ValueTask SchedulerResumed(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<Quartz.ScheduleTriggerResult> StoreTrigger(Quartz.Extensibility.IOperableTrigger trigger, Quartz.TriggerConflict onConflict, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.TriggerFiredResult>> TriggersFired(System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.IOperableTrigger> triggers, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask UpdateFireInstanceProgress(string fireInstanceId, Quartz.Extensibility.FireInstanceProgress progress, System.Threading.CancellationToken cancellationToken = default) { }

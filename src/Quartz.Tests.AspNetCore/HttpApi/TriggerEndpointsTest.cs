@@ -460,6 +460,43 @@ public class TriggerEndpointsTest : WebApiTest
             .MustHaveHappened(1, Times.Exactly);
     }
 
+    /// <summary>
+    /// The conflict mode crosses the wire, the host's store decides, and the outcome comes back.
+    /// </summary>
+    [TestCase(TriggerConflict.Keep, ScheduleOutcome.Kept)]
+    [TestCase(TriggerConflict.KeepEarlier, ScheduleOutcome.Replaced)]
+    [TestCase(TriggerConflict.Replace, ScheduleOutcome.Created)]
+    public async Task ScheduleTriggerShouldCarryTheConflictModeAndBringTheOutcomeBack(TriggerConflict onConflict, ScheduleOutcome outcome)
+    {
+        DateTimeOffset fireTime = new(2030, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        A.CallTo(() => FakeScheduler.ScheduleTrigger(A<ITrigger>._, A<TriggerConflict>._, A<CancellationToken>._))
+            .Returns(new ScheduleTriggerResult(fireTime, outcome));
+
+        ScheduleTriggerResult result = await HttpScheduler.ScheduleTrigger(TestData.CronTrigger, onConflict);
+
+        result.Should().Be(new ScheduleTriggerResult(fireTime, outcome),
+            "a caller told 'created' when the host kept an older trigger would believe its own was scheduled");
+        A.CallTo(() => FakeScheduler.ScheduleTrigger(A<ITrigger>._, onConflict, A<CancellationToken>._))
+            .WhenArgumentsMatch((ITrigger trigger, TriggerConflict _, CancellationToken _) =>
+            {
+                trigger.Should().BeEquivalentTo(TestData.CronTrigger);
+                return true;
+            })
+            .MustHaveHappened(1, Times.Exactly);
+        // The host answers a conflict mode with the member that decides under the store's lock.
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task ScheduleTriggerShouldRefuseAnUndefinedModeBeforeSendingIt()
+    {
+        Func<Task> act = async () => await HttpScheduler.ScheduleTrigger(TestData.CronTrigger, (TriggerConflict) 11);
+
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+        A.CallTo(() => FakeScheduler.ScheduleTrigger(A<ITrigger>._, A<TriggerConflict>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
     [Test]
     public async Task ScheduleJobShouldCarryTheReplaceFlagAcrossTheWire()
     {

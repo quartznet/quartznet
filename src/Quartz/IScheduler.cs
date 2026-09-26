@@ -447,6 +447,48 @@ public interface IScheduler : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Schedule the given trigger with the job it names, deciding what becomes of a trigger already
+    /// stored under its key, and say which it was.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="ScheduleJob(ITrigger, ScheduleJobOptions, CancellationToken)" /> offers throw or
+    /// replace. This adds <see cref="TriggerConflict.Keep" />, an idempotent enqueue, and
+    /// <see cref="TriggerConflict.KeepEarlier" />, a debounce whose deadline only moves closer. The store
+    /// decides under its own lock, so of two callers scheduling one key exactly one trigger is stored.
+    /// A kept trigger is not stored again and raises no <see cref="ISchedulerListener.JobScheduled" />.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a scheduler written against an earlier 4.x keeps working. The
+    /// default reads with <see cref="GetTrigger" /> and writes with <c>ScheduleJob</c>: correct, and not
+    /// atomic. Every scheduler Quartz ships implements it.
+    /// </para>
+    /// </remarks>
+    /// <param name="trigger">The trigger to store.</param>
+    /// <param name="onConflict">What to do when a trigger is stored under the same key.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>Whether the trigger was created, stored over another or not stored, and when the stored
+    /// trigger fires next.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="trigger" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="onConflict" /> is not one of the
+    /// defined values.</exception>
+    /// <exception cref="SchedulerException">
+    /// The scheduler has been shut down; or <paramref name="trigger" /> names a calendar that is not
+    /// registered, or will never fire; or it is not one of Quartz's own trigger implementations.
+    /// </exception>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A trigger is already stored under the same key and <paramref name="onConflict" /> is
+    /// <see cref="TriggerConflict.Throw" />.
+    /// </exception>
+    ValueTask<ScheduleTriggerResult> ScheduleTrigger(
+        ITrigger trigger,
+        TriggerConflict onConflict,
+        CancellationToken cancellationToken = default)
+    {
+        return TriggerConflictResolution.ScheduleWithoutLock(this, trigger, onConflict, cancellationToken);
+    }
+
+    /// <summary>
     /// Schedule all the given jobs with the related set of triggers.
     /// </summary>
     /// <remarks>

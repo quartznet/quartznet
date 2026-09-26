@@ -210,3 +210,42 @@ public sealed class InvoicingCancellation
 
     #endregion
 }
+
+public sealed class InvoicingOnConflict
+{
+    #region sample_one_off_job_on_conflict
+
+    public async ValueTask SyncAccount(IScheduler scheduler, ILogger logger, string accountId, CancellationToken cancellationToken)
+    {
+        // Idempotent enqueue: "make sure a sync is scheduled". A second call while one is pending
+        // stores nothing and answers with the pending one.
+        ScheduledOneOffJob sync = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+            new SendInvoice(accountId, 0m),
+            TimeSpan.FromMinutes(5),
+            new OneOffJobOptions { Name = $"sync-{accountId}", OnConflict = TriggerConflict.Keep },
+            cancellationToken);
+
+        if (sync.Outcome == ScheduleOutcome.Kept)
+        {
+            logger.LogInformation("A sync was already pending, at {At}", sync.FirstFireTimeUtc);
+        }
+    }
+
+    #endregion
+}
+
+public sealed class TriggerOnConflict
+{
+    #region sample_one_off_job_schedule_trigger_on_conflict
+
+    public async ValueTask<ScheduleOutcome> ScheduleOnce(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken)
+    {
+        // Any trigger, not only the one-liner's: the store decides under its lock.
+        ScheduleTriggerResult result = await scheduler.ScheduleTrigger(trigger, TriggerConflict.KeepEarlier, cancellationToken);
+
+        // Created, Replaced or Kept; result.NextFireTimeUtc is when the stored trigger fires.
+        return result.Outcome;
+    }
+
+    #endregion
+}
