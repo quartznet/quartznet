@@ -113,4 +113,24 @@ public sealed class CronTriggerAttribute(string cronExpression) : Attribute
     /// run at once. Defaults to none.
     /// </summary>
     public string? ExecutionGroup { get; init; }
+
+    /// <summary>
+    /// A configuration key whose value, when it is set, is the cron expression the trigger fires on
+    /// instead of <see cref="CronExpression" />. Defaults to none: the schedule is the attribute's.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Read from the container's <c>IConfiguration</c> as the scheduler is built, so
+    /// <c>"Jobs:Cleanup:Cron"</c> is the <c>Cron</c> value of the <c>Jobs:Cleanup</c> section, or the
+    /// environment variable <c>Jobs__Cleanup__Cron</c>. The constructor's expression stays required: it
+    /// is checked at build time like any other, and it is the schedule wherever the key is not set or
+    /// no <c>IConfiguration</c> is registered.
+    /// </para>
+    /// <para>
+    /// A configured value is not checked at build time. It is parsed as the scheduler is built, so one
+    /// that does not parse, an empty one included, stops the host from starting with the parser's
+    /// message rather than leaving a schedule that never fires.
+    /// </para>
+    /// </remarks>
+    public string? ConfigurationKey { get; init; }
 }

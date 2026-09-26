@@ -65,6 +65,10 @@ internal sealed record DeclaredJob(
 /// The enum member the value is, read off the enum rather than spelled here, or <see langword="null" />
 /// for a value cast from a number that names no member.
 /// </param>
+/// <param name="ConfigurationKey">
+/// The configuration key whose value replaces <paramref name="CronExpression" /> when it is set, or
+/// <see langword="null" /> for a schedule that is the attribute's alone.
+/// </param>
 internal sealed record DeclaredTrigger(
     string CronExpression,
     string Name,
@@ -75,6 +79,7 @@ internal sealed record DeclaredTrigger(
     int Priority,
     string? Description,
     string? ExecutionGroup,
+    string? ConfigurationKey,
     LocationInfo? Location);
 
 /// <summary>
@@ -83,20 +88,29 @@ internal sealed record DeclaredTrigger(
 internal sealed record OrphanTrigger(string DisplayName, LocationInfo? Location);
 
 /// <summary>
-/// What the generated class and its method are called in this assembly.
+/// What the generated class and its methods are called in this assembly.
 /// </summary>
+/// <param name="AssemblyMethodName">
+/// <c>AddDeclaredJobsFrom</c> and this assembly's name, which is emitted whatever else is: no other
+/// assembly's registration can share it, so it binds wherever this one is visible, however many others
+/// are visible beside it.
+/// </param>
 /// <param name="VisibleAssembly">
 /// The assembly whose own generated class this compilation can already see through
 /// <c>InternalsVisibleTo</c>, which is why this one is named after its assembly instead; or
 /// <see langword="null" /> in the ordinary case, where it can see none and keeps the ordinary name.
 /// </param>
-internal sealed record RegistrationName(string ClassName, string MethodName, string? VisibleAssembly)
+internal sealed record RegistrationName(string ClassName, string AssemblyMethodName, string? VisibleAssembly)
 {
     internal const string OrdinaryClassName = "QuartzDeclaredJobs";
 
     internal const string OrdinaryMethodName = "AddDeclaredJobs";
 
-    internal static RegistrationName Ordinary { get; } = new RegistrationName(OrdinaryClassName, OrdinaryMethodName, VisibleAssembly: null);
+    /// <summary>
+    /// Whether <c>AddDeclaredJobs</c> is emitted beside <see cref="AssemblyMethodName" />, which it is
+    /// unless another assembly's is visible here and already means something.
+    /// </summary>
+    internal bool HasOrdinaryMethod => VisibleAssembly is null;
 }
 
 /// <summary>

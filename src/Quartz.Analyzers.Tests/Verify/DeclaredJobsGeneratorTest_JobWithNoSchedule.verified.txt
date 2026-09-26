@@ -25,5 +25,16 @@ namespace Quartz
 
             return builder;
         }
+
+        /// <summary>
+        /// The same as <c>AddDeclaredJobs</c>, under a name no other assembly's registration shares, so
+        /// that it binds wherever this assembly's is visible, however many others are visible beside it.
+        /// </summary>
+        /// <param name="builder">The scheduler being built.</param>
+        /// <returns>The same builder, so that the call chains.</returns>
+        public static global::Quartz.IQuartzBuilder AddDeclaredJobsFromSnippet(this global::Quartz.IQuartzBuilder builder)
+        {
+            return AddDeclaredJobs(builder);
+        }
     }
 }

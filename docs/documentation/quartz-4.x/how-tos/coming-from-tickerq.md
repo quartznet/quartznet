@@ -49,6 +49,7 @@ services.AddQuartz(q =>
 |---|---|---|
 | `[TickerFunction("name")]` on a method | a class implementing `IJob`, registered with `q.AddJob<T>(…)` or with [`[QuartzJob]`](../tutorial/declaring-jobs-with-attributes.md) on the class; from 4.3, a lambda with [`q.AddJob("name", …)`](../tutorial/delegate-jobs.md) | the schedule names the class, or the lambda's key |
 | `[TickerFunction("name", "*/5 * * * *")]` | `q.AddTrigger<T>(t => t.WithCronSchedule(…))`, [`[CronTrigger("0 0/5 * * * ?")]`](../tutorial/declaring-jobs-with-attributes.md) on the class, or from 4.3 `q.ScheduleJob("name", lambda, t => t.WithCronSchedule(…))` | the schedule is its own trigger, so one job can have several |
+| [`[TickerFunction("name", "%Jobs:Cleanup%")]`](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ.Utilities/TickerFunctionProvider.cs), an expression from `IConfiguration` | from 4.3, `[CronTrigger("0 0 0/6 * * ?", ConfigurationKey = "Jobs:Cleanup")]` — see [A schedule from configuration](../tutorial/declaring-jobs-with-attributes.md#a-schedule-from-configuration) | the literal is the fallback and is checked at build time; a configured value that does not parse stops the host |
 | `new TimeTickerEntity { Function = "name", ExecutionTime = … }` | `scheduler.ScheduleJob<TJob, TInput>(input, at)` | |
 | `timeTicker.AddAsync<WelcomeJob>(executionTime)` | the same call | both typed; Quartz's also carries the payload type |
 | `new CronTickerEntity { Expression = … }` | a cron trigger through `TriggerBuilder` | |

@@ -49,3 +49,19 @@ public sealed class CleanupJob : IJob
 }
 
 #endregion
+
+#region sample_declared_job_configuration_key
+
+// Jobs:Report:Cron in appsettings.json, or Jobs__Report__Cron in the environment, replaces the
+// expression. Without it, the report runs at 06:00.
+[QuartzJob(Name = "report")]
+[CronTrigger("0 0 6 * * ?", ConfigurationKey = "Jobs:Report:Cron")]
+public sealed class DailyReportJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+}
+
+#endregion

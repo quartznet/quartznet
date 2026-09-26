@@ -60,6 +60,7 @@ public class DeclaredJobAttributesTest
         attribute.TimeZone.Should().BeNull();
         attribute.Description.Should().BeNull();
         attribute.ExecutionGroup.Should().BeNull();
+        attribute.ConfigurationKey.Should().BeNull("a schedule names no configuration unless it says so, and is then the attribute's alone");
     }
 
     [Test]
@@ -87,6 +88,7 @@ public class DeclaredJobAttributesTest
         noon.Priority.Should().Be(9);
         noon.Description.Should().Be("every weekday at noon, Helsinki time");
         noon.ExecutionGroup.Should().Be("maintenance");
+        noon.ConfigurationKey.Should().Be("Jobs:Cleanup:Noon");
     }
 
     /// <summary>
@@ -124,7 +126,8 @@ public class DeclaredJobAttributesTest
         MisfireInstruction = CronTriggerMisfireInstruction.DoNothing,
         Priority = 9,
         Description = "every weekday at noon, Helsinki time",
-        ExecutionGroup = "maintenance")]
+        ExecutionGroup = "maintenance",
+        ConfigurationKey = "Jobs:Cleanup:Noon")]
     private sealed class DeclaredCleanupJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;

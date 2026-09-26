@@ -22,20 +22,21 @@ namespace Quartz
             builder.AddJob<global::App.CleanupJob>(job => job
                 .WithIdentity("cleanup"));
 
-            builder.AddTrigger<global::App.CleanupJob>(trigger => trigger
+            builder.AddTrigger<global::App.CleanupJob>((services, trigger) => trigger
                 .WithIdentity("cleanup")
                 .ForJob("cleanup")
-                .WithCronSchedule("0 0 0/6 * * ?"));
+                .WithCronSchedule(ConfiguredCronExpression(services, "Jobs:Cleanup:Cron", "0 0 3 * * ?")));
+
+            builder.AddTrigger<global::App.CleanupJob>((services, trigger) => trigger
+                .WithIdentity("noon")
+                .ForJob("cleanup")
+                .WithCronSchedule(ConfiguredCronExpression(services, "Jobs:Cleanup:Noon", "0 0 12 ? * MON-FRI"), cron => cron
+                    .InTimeZone(global::Quartz.TimeZones.FindById("UTC"))));
 
             builder.AddTrigger<global::App.CleanupJob>(trigger => trigger
-                .WithIdentity("cleanup-2")
+                .WithIdentity("evening")
                 .ForJob("cleanup")
-                .WithCronSchedule("0 0 12 ? * MON-FRI"));
-
-            builder.AddTrigger<global::App.CleanupJob>(trigger => trigger
-                .WithIdentity("cleanup-3")
-                .ForJob("cleanup")
-                .WithCronSchedule("0 0 3 1 * ?"));
+                .WithCronSchedule("0 0 18 * * ?"));
 
             return builder;
         }
@@ -49,6 +50,22 @@ namespace Quartz
         public static global::Quartz.IQuartzBuilder AddDeclaredJobsFromSnippet(this global::Quartz.IQuartzBuilder builder)
         {
             return AddDeclaredJobs(builder);
+        }
+
+        /// <summary>
+        /// The cron expression configured at <paramref name="key" />, or <paramref name="declared" />,
+        /// the attribute's own, where the key is not set or no configuration is registered.
+        /// </summary>
+        /// <param name="services">The scheduler's view of the container.</param>
+        /// <param name="key">The attribute's <c>ConfigurationKey</c>.</param>
+        /// <param name="declared">The attribute's cron expression.</param>
+        /// <returns>The expression the trigger fires on.</returns>
+        private static string ConfiguredCronExpression(global::System.IServiceProvider services, string key, string declared)
+        {
+            global::Microsoft.Extensions.Configuration.IConfiguration? configuration =
+                services.GetService(typeof(global::Microsoft.Extensions.Configuration.IConfiguration)) as global::Microsoft.Extensions.Configuration.IConfiguration;
+
+            return configuration?[key] ?? declared;
         }
     }
 }

@@ -24,6 +24,7 @@ using System.Text.Json.Serialization;
 
 using Microsoft.Data.Sqlite;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -101,6 +102,13 @@ internal static class StoreCheck
             SystemTextJsonSerializerRegistry registry = new();
             registry.AddTypeInfoResolver(CanaryJsonContext.Default);
             services.AddSingleton(registry);
+
+            // What DeclaredCanaryJob's ConfigurationKey reads. Its attribute's own expression fires in
+            // 2099, so the job firing within the minute is the configured value having been read by the
+            // generated registration, in a publish with no reflection left to read it with.
+            services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+                .AddInMemoryCollection([new KeyValuePair<string, string?>(DeclaredCronKey, "0/1 * * * * ?")])
+                .Build());
 
             services.AddQuartz(q =>
             {
@@ -186,7 +194,7 @@ internal static class StoreCheck
             Task declared = await Task.WhenAny(declaredFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
             if (declared != declaredFired.Task)
             {
-                return "FAIL store: the job declared with [QuartzJob] never fired within a minute, so the generated registration did not reach the scheduler.";
+                return "FAIL store: the job declared with [QuartzJob] never fired within a minute, so the generated registration did not reach the scheduler or did not read its ConfigurationKey.";
             }
 
             Task delegated = await Task.WhenAny(delegateFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
@@ -233,7 +241,7 @@ internal static class StoreCheck
             await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
 
             Console.WriteLine($"PASS delegate: {delegateRun}");
-            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, a job declared with [QuartzJob] and a delegate job included.");
+            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, a job declared with [QuartzJob] on a configured schedule and a delegate job included.");
             return null;
         }
         catch (Exception e)
@@ -314,12 +322,17 @@ internal static class StoreCheck
     }
 
     /// <summary>
+    /// The configuration key <see cref="DeclaredCanaryJob" />'s schedule is read from.
+    /// </summary>
+    private const string DeclaredCronKey = "Canary:DeclaredCron";
+
+    /// <summary>
     /// A job that says when it runs where it is written. Nothing registers it by hand: the source
     /// generator reads the two attributes and writes the <c>AddJob</c> and <c>AddTrigger</c> calls
-    /// that <c>AddDeclaredJobs</c> above runs.
+    /// that <c>AddDeclaredJobs</c> above runs, the second reading its expression from configuration.
     /// </summary>
     [QuartzJob(Name = "declared", Group = "store", Description = "declared with an attribute rather than registered by hand")]
-    [CronTrigger("0/1 * * * * ?")]
+    [CronTrigger("0 0 0 1 1 ? 2099", ConfigurationKey = DeclaredCronKey)]
     public sealed class DeclaredCanaryJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)

@@ -37,6 +37,12 @@ An application on 4.2 compiles on 4.3 unchanged, and the database schema did not
 | `TriggerConfiguratorExtensions.WithCronSchedule(Action<CronExpressionBuilder> expression, configure)` | The expression assembled inline: `t.WithCronSchedule(cron => cron.AtTime(new TimeOnly(3, 0)).OnWeekdays())`. See [Cron Triggers](tutorial/crontriggers.md#building-crontriggers) |
 | `CronExpressionBuilder.Every(TimeSpan)` | An interval counted on the clock. Whole seconds or minutes dividing 60, or hours dividing 24; otherwise `ArgumentOutOfRangeException`. Throws with `AtTime`. See [Building cron expressions programmatically](cron-expressions.md#building-cron-expressions-programmatically) |
 | `QuartzBuilderExtensions.AddJobLogScope()` | Opt-in middleware opening a log scope per firing: job, trigger and fire instance, under the span attribute names. A second call for one scheduler adds nothing. See [A log scope per firing](tutorial/job-execution-middleware.md#a-log-scope-per-firing) |
+| `CronTriggerAttribute.ConfigurationKey` | `string?`, `init`. When the key is set in `IConfiguration`, its value is the expression; the constructor's is the fallback. A value that does not parse throws as the scheduler is built. See [A schedule from configuration](tutorial/declaring-jobs-with-attributes.md#a-schedule-from-configuration) |
+| Generated `AddDeclaredJobsFrom<Assembly>()` | Now beside `AddDeclaredJobs()` in every assembly that declares jobs, so each assembly's registration has a name that binds |
+| `QZ1005` ConfigurationKeyWithoutConfiguration | Error: a `ConfigurationKey` in an assembly that does not reference `IConfiguration` |
+
+**`QZ1004` is information, not a warning.** Every registration now has a name that binds, so the rename
+it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 
 **Behaviour change:** an ADO store took two triggers of one job into a batch when the job disallowed
 concurrent execution only through `DisallowConcurrentExecution()` on its builder. The fire path declined

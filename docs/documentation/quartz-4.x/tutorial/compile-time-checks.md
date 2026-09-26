@@ -174,5 +174,5 @@ work: the .NET 10 SDK still passes the assembly to the compiler.
 
 [Declaring Jobs with Attributes](declaring-jobs-with-attributes.md) covers the rest of the 4.2
 compile-time work: attributes that declare a job's schedule on the job class, and a source generator,
-in the same assembly, that registers them. Its diagnostics are `QZ1001`, `QZ1002`, `QZ1003` and
-`QZ1004`; the cron expression on an attribute is checked by `QZ0001` above.
+in the same assembly, that registers them. Its diagnostics are `QZ1001` to `QZ1005`; the cron
+expression on an attribute is checked by `QZ0001` above.
