@@ -35,6 +35,8 @@ namespace Quartz.Tests.Unit;
 [NonParallelizable]
 public class PriorityTest
 {
+    private static readonly TimeSpan waitForBothFirings = TimeSpan.FromSeconds(30);
+
     private static StringBuilder result;
     private static CountdownEvent countdownEvent;
 
@@ -76,7 +78,7 @@ public class PriorityTest
 
         await scheduler.Start();
 
-        countdownEvent.Wait();
+        countdownEvent.Wait(waitForBothFirings).Should().BeTrue("both triggers fire at once, and a job that never ran is a failure to report, not to wait out");
 
         Assert.That(result.ToString(), Is.EqualTo("T1T2"));
 
@@ -111,7 +113,7 @@ public class PriorityTest
 
         await scheduler.Start();
 
-        countdownEvent.Wait();
+        countdownEvent.Wait(waitForBothFirings).Should().BeTrue("both triggers fire at once, and a job that never ran is a failure to report, not to wait out");
 
         Assert.That(result.ToString(), Is.EqualTo("T2T1"));
 
