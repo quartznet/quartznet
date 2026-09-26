@@ -49,8 +49,10 @@ public readonly record struct TriggerAcquireResult(TriggerKey TriggerKey, string
     /// <c>DisallowConcurrentExecution()</c> says without any attribute on its type.
     /// </para>
     /// <para>
-    /// Every dialect Quartz ships reads it. A delegate of your own that leaves it <see langword="null" />
-    /// is answered from the job type's <see cref="DisallowConcurrentExecutionAttribute" />, which is what
+    /// Every dialect Quartz ships reads it. It is <see langword="null" /> from a delegate of your own
+    /// that does not set it, and from a <c>StdAdoDelegate</c> subclass whose overridden acquisition
+    /// statement does not project <c>IS_NONCONCURRENT</c>, as one written for 4.2 does not. Either is
+    /// answered from the job type's <see cref="DisallowConcurrentExecutionAttribute" />, which is what
     /// acquisition asked before this property existed.
     /// </para>
     /// </remarks>
