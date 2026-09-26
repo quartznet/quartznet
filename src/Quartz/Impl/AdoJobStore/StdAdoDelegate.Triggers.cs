@@ -1766,7 +1766,11 @@ public partial class StdAdoDelegate
                 triggerNameOrdinal = rs.GetOrdinal(AdoConstants.ColumnTriggerName);
                 triggerGroupOrdinal = rs.GetOrdinal(AdoConstants.ColumnTriggerGroup);
                 jobClassOrdinal = rs.GetOrdinal(AdoConstants.ColumnJobClass);
-                nonConcurrentOrdinal = rs.GetOrdinal(AdoConstants.ColumnIsNonConcurrent);
+
+                // Looked for rather than demanded. GetSelectNextTriggerToAcquireSql is an extension
+                // point, and a statement written for 4.2 does not project the column: its delegate must
+                // go on acquiring, with the flag left unread for the store to answer from the type.
+                nonConcurrentOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnIsNonConcurrent);
             }
 
             string? executionGroup = rs.IsDBNull(execGroupOrdinal)
@@ -1789,11 +1793,33 @@ public partial class StdAdoDelegate
                 rs.GetString(jobClassOrdinal),
                 executionGroup)
             {
-                ConcurrentExecutionDisallowed = GetBooleanFromDbValue(rs.GetValue(nonConcurrentOrdinal)),
+                ConcurrentExecutionDisallowed = nonConcurrentOrdinal < 0
+                    ? null
+                    : GetBooleanFromDbValue(rs.GetValue(nonConcurrentOrdinal)),
             });
         }
 
         return nextTriggers;
+    }
+
+    /// <summary>
+    /// The ordinal of a column the result set may not carry, or <c>-1</c> when it carries none.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DbDataReader.GetOrdinal" /> throws for a missing column, and providers disagree on
+    /// whether it matches case-insensitively, so the names are compared here, ignoring case.
+    /// </remarks>
+    private static int OptionalOrdinal(DbDataReader rs, string columnName)
+    {
+        for (int i = 0; i < rs.FieldCount; i++)
+        {
+            if (string.Equals(rs.GetName(i), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <inheritdoc />
