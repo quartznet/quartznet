@@ -497,6 +497,73 @@ public abstract class ExecutionHistoryStoreContractTest
 
     // ---------------------------------------------------------------------------------------------
     // Building the entries
+    /// <summary>
+    /// One row is read back by its key with the lines its job logged, which is what the execution-detail
+    /// page shows.
+    /// </summary>
+    [Test]
+    public async Task AnExecutionIsReadByItsKeyWithItsLog()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        string log = "2026-09-19T11:57:00.000Z info Reports.Nightly: starting\n"
+                     + "2026-09-19T11:57:01.000Z fail Reports.Nightly: the report source refused the connection";
+
+        await store.AddExecution(Execution(Start.AddMinutes(-3), "nightly-report") with { EntryId = "entry-1", Log = log });
+        await store.AddExecution(Execution(Start.AddMinutes(-2), "other") with { EntryId = "entry-2" });
+
+        ExecutionHistoryEntry? entry = await store.GetExecution(SchedulerName, "entry-1");
+
+        entry.Should().NotBeNull("the row was recorded under that key a moment ago");
+        entry!.JobName.Should().Be("nightly-report", "the key names one row, and it is that one");
+        entry.EntryId.Should().Be("entry-1");
+        entry.Log.Should().Be(log, "the single-entry read is the one that carries the captured log, whole");
+        entry.FiredAtUtc.Should().Be(Start.AddMinutes(-3));
+
+        (await store.GetExecution(SchedulerName, "entry-2"))!.Log.Should().BeNull(
+            "an execution that logged nothing has no log, rather than an empty one");
+    }
+
+    [Test]
+    public async Task AKeyNothingWasRecordedUnderIsNotFound()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+        await store.AddExecution(Execution(Start, "nightly-report") with { EntryId = "entry-1" });
+
+        (await store.GetExecution(SchedulerName, "no-such-entry")).Should().BeNull();
+        (await store.GetExecution("another-scheduler", "entry-1")).Should().BeNull(
+            "a row is keyed within its scheduler, and another scheduler's page must not open it");
+    }
+
+    /// <summary>
+    /// A row that arrives unnamed — written by something other than the recorder — is named by the store,
+    /// so every row a listing returns is one a reader can open.
+    /// </summary>
+    [Test]
+    public async Task ARowRecordedWithoutAKeyIsGivenOne()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+        await store.AddExecution(Execution(Start, "nightly-report"));
+
+        string? entryId = (await Executions(store)).Items.Should().ContainSingle().Subject.EntryId;
+
+        entryId.Should().NotBeNullOrEmpty();
+        (await store.GetExecution(SchedulerName, entryId!)).Should().NotBeNull(
+            "the key the listing hands out is the key the single read finds the row by");
+    }
+
+    [Test]
+    public async Task ARowPastTheRetentionWindowIsNotFound()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), 2000);
+        await store.AddExecution(Execution(Start.AddMinutes(-5), "nightly-report") with { EntryId = "entry-1" });
+
+        Clock.Advance(TimeSpan.FromHours(2));
+
+        (await store.GetExecution(SchedulerName, "entry-1")).Should().BeNull(
+            "a row the listing no longer shows is not a row a detail page may still open");
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>One failed attempt at an occurrence, which may or may not have another coming.</summary>
@@ -651,6 +718,30 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
     protected override ValueTask ApplyBounds(IExecutionHistoryStore store)
     {
         return ((AdoExecutionHistoryStore) store).Sweep();
+    }
+
+    /// <summary>
+    /// The listing reads every column but the log, so a page of history costs what it did before capture
+    /// existed; the single read is where the log comes from.
+    /// </summary>
+    [Test]
+    public async Task TheListingLeavesTheLogOut()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), 10);
+        await store.AddExecution(Execution(Start, "nightly") with { EntryId = "entry-1", Log = "a captured line" });
+
+        ExecutionHistoryEntry listed = (await Executions(store)).Items.Should().ContainSingle().Subject;
+
+        listed.EntryId.Should().Be("entry-1", "the listing carries the key, which is what links a row to its page");
+        listed.Log.Should().BeNull("EXECUTION_LOG is not in the listing's SELECT");
+
+        (await store.GetExecution(SchedulerName, "entry-1"))!.Log.Should().Be("a captured line");
+
+        await using SqliteConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+        await using SqliteCommand read = connection.CreateCommand();
+        read.CommandText = "SELECT EXECUTION_LOG FROM QRTZ_EXECUTION_HISTORY WHERE ENTRY_ID = 'entry-1'";
+        (await read.ExecuteScalarAsync()).Should().Be("a captured line", "the log is kept in the row's own column");
     }
 
     /// <summary>
@@ -1086,4 +1177,34 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
 
         return Convert.ToInt64(await command.ExecuteScalarAsync());
     }
+}
+
+/// <summary>
+/// What a store written against 4.2 answers for the single-entry read, through the default the interface
+/// carries.
+/// </summary>
+public sealed class ExecutionHistoryStoreDefaultsTest
+{
+    [Test]
+    public async Task TheDefaultSingleReadPicksTheRowOutOfTheWholeHistory()
+    {
+        IExecutionHistoryStore store = A.Fake<IExecutionHistoryStore>(options => options.CallsBaseMethods());
+
+        ExecutionHistoryEntry wanted = Row("wanted") with { EntryId = "entry-2", Log = "its lines" };
+        A.CallTo(() => store.QueryExecutions(A<ExecutionHistoryQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<ExecutionHistoryEntry>([Row("unnamed"), Row("other") with { EntryId = "entry-1" }, wanted], HasMore: false));
+
+        (await store.GetExecution("Scheduler", "entry-2")).Should().BeSameAs(wanted,
+            "a store that never learned the single read still answers it truthfully, with whatever its listing carries");
+        (await store.GetExecution("Scheduler", "missing")).Should().BeNull();
+
+        A.CallTo(() => store.QueryExecutions(
+                A<ExecutionHistoryQuery>.That.Matches(q => q.SchedulerName == "Scheduler" && q.Take == PagedQuery.All),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+    }
+
+    private static ExecutionHistoryEntry Row(string jobName) => new(
+        "Scheduler", "node-a", "group", jobName, "group", "trigger",
+        DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1), Succeeded: true, ExceptionMessage: null);
 }

@@ -40,6 +40,11 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `IJobStore.UpdateFireInstanceProgress(fireInstanceId, progress)` | Called at most once a second per firing, only on a change. Default records nothing. `DelegatingJobStore` forwards it |
 | `FireInstanceProgress` | `Quartz.Extensibility`. `required init Percent`, `Message`, and `MaxMessageLength` (`250`) |
 | Log event `1058` | Warning: a progress write failed; the job carries on |
+| `QuartzBuilderExtensions.UseExecutionLogCapture(configure)` | Keeps what the scheduler's jobs log while they run, on their history rows. Registers a logger provider (alias `QuartzExecutionLog`) and a middleware. See [Keep a job's log lines](how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines) |
+| `ExecutionLogCaptureOptions` | `MaxLines` (200), `MaxBytes` (16 KB). Below 1 or 256: `SchedulerConfigException` when the scheduler is built |
+| `ExecutionHistoryEntry.EntryId`, `ExecutionHistoryEntry.Log` | The row's key, and the captured lines. The recorder sets both; a listing may leave `Log` out. Also on `DashboardHistoryEntry` and on the HTTP DTO |
+| `IExecutionHistoryStore.GetExecution(schedulerName, entryId)` | One row with its log, or `null`. Default reads `QueryExecutions` in full and picks the row. HTTP: `GET …/history/executions/{entryId}` |
+| `IQuartzApiClient.GetExecution(schedulerName, entryId)` | The same for the dashboard. Default reads `QueryExecutions` in full and picks the row |
 | `AdoConstants.ColumnProgress`, `ColumnProgressMessage` | `PROGRESS` and `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS`, from `4.3/add_fire_progress_<db>.sql` |
 | `AdoConstants.ColumnExecutionLog` | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`, from the optional `4.3/add_execution_log_<db>.sql` |
 
@@ -52,8 +57,15 @@ stored flag. A driver delegate of your own that overrides `SelectTriggersToAcqui
 behaves as it did. Properties added to records are non-positional `init` properties, so constructors are
 unchanged.
 
-**Mixed 4.2 and 4.3 versions:** a 4.2 node never writes the progress columns, so its firings list with
-`null` progress on a 4.3 dashboard.
+**Mixed 4.2 and 4.3 versions:**
+
+* A 4.2 node never writes the progress columns, so its firings list with `null` progress on a 4.3
+  dashboard.
+* A 4.2 node's history rows carry no log, and a 4.2 HTTP host has no single-entry route: a 4.3 dashboard
+  fronting one says the target does not serve single executions.
+* **Behaviour change:** the persistent history's `QueryExecutions` now returns each row's `EntryId`, and
+  the recorder names every row, so an `IExecutionHistoryStore` of your own receives rows with
+  `EntryId` set.
 
 ### The 4.3 schema migration
 

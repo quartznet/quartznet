@@ -21,6 +21,7 @@ public class DashboardRouteTableTest
     [TestCase("cluster", typeof(Pages.Cluster))]
     [TestCase("history", typeof(Pages.History))]
     [TestCase("history?page=2&job=x", typeof(Pages.History))]
+    [TestCase("history/3f2a0e5b7d4f1a9e", typeof(Pages.ExecutionDetail))]
     [TestCase("live", typeof(Pages.LiveLogs))]
     [TestCase("actions", typeof(Pages.ActionLog))]
     public void ShouldMatchDashboardRelativeRoutes(string dashboardRelativePath, Type expectedPageType)

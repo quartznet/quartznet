@@ -112,6 +112,7 @@ services.AddQuartz(q =>
 | `GlobalJobFilters.Filters.Add(…)` | [job execution middleware](../tutorial/job-execution-middleware.md), or a [job listener](../tutorial/trigger-and-job-listeners.md) | middleware wraps the execution; a listener observes it |
 | `PerformContext` | `IJobExecutionContext` | |
 | `context.WriteProgressBar()` ([Hangfire.Console](https://github.com/pieceofsummer/Hangfire.Console)) | `context.ReportProgress(percent, message)` | shown on Currently Executing; see [Progress and Execution Logs](progress-and-execution-logs.md) |
+| `context.WriteLine(…)` (Hangfire.Console) | an injected `ILogger`, with `q.UseExecutionLogCapture()` | the lines go to your logging as well, and onto the execution's history row |
 | a `CancellationToken` parameter | the `CancellationToken` parameter of `Execute` | same token as `IJobExecutionContext.CancellationToken`; cancelled by `Interrupt` and `InterruptFireInstance` |
 
 ### Hosting and configuration

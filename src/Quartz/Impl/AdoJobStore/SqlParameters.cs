@@ -233,6 +233,8 @@ internal static class SqlParameters
     /// </remarks>
     public const string HistoryRetryScheduled = "historyRetryScheduled";
 
+    /// <summary>The lines a history row's job logged, when its scheduler captures them.</summary>
+    public const string ExecutionLog = "executionLog";
 
     /// <summary>The node a history page is narrowed to.</summary>
     public const string HistoryNode = "historyNode";

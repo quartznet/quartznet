@@ -39,9 +39,10 @@ namespace Quartz.Impl.AdoJobStore;
 /// <remarks>
 /// <para>
 /// Selected by <c>UsePersistentStore(store =&gt; store.UseExecutionHistory())</c>, which also puts the
-/// two tables <c>database/migrations/4.2/add_execution_history_&lt;dialect&gt;.sql</c> creates into the
-/// schema the store validates at startup. Without that call nothing here runs and the tables may be
-/// absent, which is what makes the migration optional.
+/// two tables <c>database/migrations/4.2/add_execution_history_&lt;dialect&gt;.sql</c> creates, and the
+/// column <c>4.3/add_execution_log_&lt;dialect&gt;.sql</c> adds, into the schema the store validates at
+/// startup. Without that call nothing here runs and the tables may be absent, which is what makes the
+/// migrations optional.
 /// </para>
 /// <para>
 /// Every statement runs on a connection of this store's own, outside any ambient transaction: a
@@ -185,8 +186,10 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
 
         try
         {
+            // The recorder's key when it named the row, which is what makes the row findable by the key
+            // a reader was given; a key of this store's own when nothing did.
             await Execute(
-                conn => Delegate.InsertExecutionHistory(conn, NewEntryId(), entry, cancellationToken),
+                conn => Delegate.InsertExecutionHistory(conn, entry.EntryId ?? NewEntryId(), entry, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (Exception failure) when (!cancellationToken.IsCancellationRequested)
@@ -227,6 +230,20 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
 
         return Execute(
             conn => Delegate.SelectExecutionHistory(conn, query, RetentionFloor(), cancellationToken),
+            cancellationToken);
+    }
+
+    /// <remarks>
+    /// One statement by the row's key, and the only one that reads <c>EXECUTION_LOG</c>: the listing
+    /// leaves it out. The age bound applies here as it does to the listing.
+    /// </remarks>
+    public ValueTask<ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(entryId);
+
+        return Execute(
+            conn => Delegate.SelectExecutionHistoryEntry(conn, schedulerName, entryId, RetentionFloor(), cancellationToken),
             cancellationToken);
     }
 

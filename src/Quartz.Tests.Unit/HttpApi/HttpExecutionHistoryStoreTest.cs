@@ -244,6 +244,67 @@ public class HttpExecutionHistoryStoreTest
     }
 
     [Test]
+    public async Task OneExecutionIsReadFromItsOwnRouteWithItsLog()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "schedulerInstanceId": "node-a",
+              "jobGroup": "DummyGroup",
+              "jobName": "nightly",
+              "triggerGroup": "DummyTriggerGroup",
+              "triggerName": "at-midnight",
+              "firedAtUtc": "2026-08-26T12:00:00+00:00",
+              "duration": "00:00:01.5000000",
+              "succeeded": true,
+              "exceptionMessage": null,
+              "entryId": "a/b",
+              "log": "first\nsecond"
+            }
+            """);
+
+        ExecutionHistoryEntry entry = await Store().GetExecution("Remote", "a/b");
+
+        handler.LastRequestUri.Should().Be("http://localhost:8080/schedulers/Remote/history/executions/a%2Fb",
+            "the key is one path segment however it is spelled");
+
+        entry.Should().NotBeNull();
+        entry.SchedulerName.Should().Be("Remote");
+        entry.EntryId.Should().Be("a/b");
+        entry.Log.Should().Be("first\nsecond", "the single-entry route is the one read that carries the log");
+    }
+
+    [Test]
+    public async Task AnExecutionTheTargetDoesNotHaveIsNull()
+    {
+        handler.Respond(HttpStatusCode.NotFound, """
+            {
+              "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+              "title": "Not Found",
+              "status": 404,
+              "detail": "Unknown execution gone"
+            }
+            """);
+
+        (await Store().GetExecution("Remote", "gone")).Should().BeNull(
+            "the target answered, and what it said is that there is no such row");
+    }
+
+    /// <summary>
+    /// A 4.2 target has the listing but not the single-entry route, and says so the way a target without
+    /// history routes does.
+    /// </summary>
+    [Test]
+    public async Task ATargetWithoutTheSingleEntryRouteSaysItServesNoSingleExecutions()
+    {
+        handler.Respond(HttpStatusCode.NotFound, body: "");
+
+        Func<Task> act = async () => await Store().GetExecution("Remote", "entry-1");
+
+        await act.Should().ThrowAsync<NotSupportedException>()
+            .WithMessage("*does not serve single executions*");
+    }
+
+    [Test]
     public async Task NothingIsRecordedThroughTheWire()
     {
         ExecutionHistoryEntry execution = new(

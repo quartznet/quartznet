@@ -11,7 +11,9 @@
       "succeeded": false,
       "exceptionMessage": "the job threw",
       "retryAttempt": 0,
-      "retryScheduled": false
+      "retryScheduled": false,
+      "entryId": "3f2a0e5b7d4f1a9e",
+      "log": null
     }
   ],
   "hasMore": false,

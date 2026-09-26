@@ -128,7 +128,43 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.HistoryRetryAttempt, entry.RetryAttempt);
         AddCommandParameter(cmd, SqlParameters.HistoryRetryScheduled, GetDbBooleanValue(entry.RetryScheduled));
 
+        // Written whole: the capture already bounded it, and the column is a large object on every
+        // dialect, so there is no width here to cut it to.
+        AddCommandParameter(cmd, SqlParameters.ExecutionLog, entry.Log);
+
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads one recorded execution by its key, its captured log included.</summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="schedulerName">The scheduler the execution belongs to.</param>
+    /// <param name="entryId">The row's key.</param>
+    /// <param name="notBefore">The age bound: a row older than this is not part of the history.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<ExecutionHistoryEntry?> SelectExecutionHistoryEntry(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        string entryId,
+        DateTimeOffset notBefore,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectExecutionHistoryEntry));
+
+        // In the order the statement names them, for the providers that bind positionally.
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.EntryId, entryId);
+        AddCommandParameter(cmd, SqlParameters.HistoryCutoff, GetDbDateTimeValue(notBefore));
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        return ReadExecutionHistoryEntry(rs, schedulerName) with
+        {
+            Log = rs.IsDBNull(12) ? null : rs.GetString(12)
+        };
     }
 
     /// <summary>Records one misfire.</summary>
@@ -499,7 +535,8 @@ public partial class StdAdoDelegate
             ExceptionMessage: rs.IsDBNull(8) ? null : rs.GetString(8))
         {
             RetryAttempt = Convert.ToInt32(rs.GetValue(9), CultureInfo.InvariantCulture),
-            RetryScheduled = GetBooleanFromDbValue(rs.GetValue(10))
+            RetryScheduled = GetBooleanFromDbValue(rs.GetValue(10)),
+            EntryId = rs.GetString(11)
         };
     }
 

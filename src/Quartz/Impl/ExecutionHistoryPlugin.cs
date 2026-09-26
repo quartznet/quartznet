@@ -20,6 +20,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
 namespace Quartz.Impl;
@@ -109,7 +110,15 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 // the context before this notification went out. Together they are what lets a reader
                 // tell one attempt of an occurrence from its last one.
                 RetryAttempt = context.RetryAttempt,
-                RetryScheduled = context.RetryScheduled
+                RetryScheduled = context.RetryScheduled,
+
+                // Named here, by the one recorder, so the row has the same key in whichever store it
+                // lands and a reader can ask for it alone.
+                EntryId = NewEntryId(),
+
+                // What the job logged, when this scheduler captures: taken now, once the job has
+                // returned, so a line logged after this notification is not the row's.
+                Log = ExecutionLogCapture.Find(context)?.ToText()
             };
 
             return store.AddExecution(entry, cancellationToken);
@@ -188,6 +197,11 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// off and on again while the process runs.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// The key of one history row: unique without coordination, and nothing a reader parses.
+    /// </summary>
+    internal static string NewEntryId() => Guid.NewGuid().ToString("N");
+
     private IExecutionHistoryStore? Store()
     {
         IOptions<ExecutionHistoryOptions>? options = serviceProvider.GetService<IOptions<ExecutionHistoryOptions>>();

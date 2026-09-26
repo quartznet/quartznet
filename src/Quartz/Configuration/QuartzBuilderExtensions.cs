@@ -2,10 +2,12 @@ using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Core;
+using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Util;
@@ -1020,5 +1022,53 @@ public static class QuartzBuilderExtensions
                 resolved ?? TimeSpan.Zero,
                 provider.GetService<TimeProvider>() ?? TimeProvider.System);
         });
+    }
+
+    /// <summary>
+    /// Keeps what each of this scheduler's jobs logs while it runs, and records it with the execution's
+    /// history row.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A line is kept when it is logged through the container's <c>ILoggerFactory</c> on the firing's own
+    /// flow — by the job, by a service it calls, by work it starts and awaits — from the moment the job
+    /// starts until the firing ends. Lines logged anywhere else are not kept, so two jobs running at once
+    /// keep only their own. What is kept is bounded by <see cref="ExecutionLogCaptureOptions" />, oldest
+    /// line dropped first, and lands on <see cref="ExecutionHistoryEntry.Log" />, which
+    /// <see cref="Extensibility.IExecutionHistoryStore.GetExecution" /> reads back.
+    /// </para>
+    /// <para>
+    /// Two registrations: a logger provider for the container, added once however many schedulers ask,
+    /// and a middleware for this scheduler, which is what makes its firings the captured ones. The
+    /// middleware takes its place in the chain where the call is written; register this first to keep
+    /// what other middleware logs too. The provider is filtered like any other, and its alias for
+    /// <c>Logging</c> configuration is <c>QuartzExecutionLog</c>.
+    /// </para>
+    /// <para>
+    /// A <c>Use*</c> call because what it installs is a capability of the scheduler rather than something
+    /// it holds, as <c>UseTimeZoneConverter</c> is. Without it nothing is captured and nothing is paid:
+    /// no provider is registered, so no log call anywhere reaches this code.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="configure">Sets the bounds; the defaults are 200 entries and 16 KB per execution.</param>
+    /// <exception cref="SchedulerConfigException">
+    /// Raised when the scheduler is built, around an <see cref="OptionsValidationException" />, for a
+    /// <see cref="ExecutionLogCaptureOptions.MaxLines" /> below <c>1</c> or a
+    /// <see cref="ExecutionLogCaptureOptions.MaxBytes" /> below <c>256</c>.
+    /// </exception>
+    public static IQuartzBuilder UseExecutionLogCapture(this IQuartzBuilder builder, Action<ExecutionLogCaptureOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ConfigureOptions(configure);
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<ExecutionLogCaptureOptions>, ExecutionLogCaptureOptionsValidator>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<ILoggerProvider, ExecutionLogCaptureProvider>());
+
+        return builder.AddJobMiddleware(provider => new ExecutionLogCaptureMiddleware(
+            provider.GetRequiredService<IOptions<ExecutionLogCaptureOptions>>().Value,
+            provider.GetService<TimeProvider>() ?? TimeProvider.System));
     }
 }

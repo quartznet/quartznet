@@ -73,4 +73,28 @@ public sealed record ExecutionHistoryEntry(
     /// and what the dashboard offers to run again.
     /// </remarks>
     public bool RetryScheduled { get; init; }
+
+    /// <summary>
+    /// What names this row among the scheduler's history, and what
+    /// <see cref="Extensibility.IExecutionHistoryStore.GetExecution" /> reads it back by; or
+    /// <see langword="null" /> on a row nothing has named.
+    /// </summary>
+    /// <remarks>
+    /// The recorder names every row it writes, and the shipped stores name one that arrives without, so
+    /// every row they return carries one. A store written against 4.2 may return rows without, and a
+    /// reader then has no way to ask for one of them alone.
+    /// </remarks>
+    public string? EntryId { get; init; }
+
+    /// <summary>
+    /// The lines the job logged while it ran, oldest first, or <see langword="null" /> when nothing was
+    /// captured.
+    /// </summary>
+    /// <remarks>
+    /// Kept only for a scheduler that calls <c>UseExecutionLogCapture()</c>, bounded by
+    /// <see cref="ExecutionLogCaptureOptions" />. A listing is entitled to leave it out — the persistent
+    /// store and the HTTP API do, so that a page of history does not carry every row's log — and
+    /// <see cref="Extensibility.IExecutionHistoryStore.GetExecution" /> always carries it.
+    /// </remarks>
+    public string? Log { get; init; }
 }

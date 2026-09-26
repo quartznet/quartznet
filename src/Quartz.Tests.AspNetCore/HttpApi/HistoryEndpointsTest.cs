@@ -208,8 +208,65 @@ public sealed class HistoryEndpointsTest
 
         ExecutionHistoryEntry roundTripped = page.Items.Single().AsExecutionHistoryEntry(TestData.SchedulerName);
 
-        roundTripped.Should().Be(Entry(firedAt, "nightly"),
+        roundTripped.EntryId.Should().NotBeNullOrEmpty(
+            "the store names a row that arrives unnamed, and the name is what the single-entry route reads it by");
+        roundTripped.Should().Be(Entry(firedAt, "nightly") with { EntryId = roundTripped.EntryId },
             "the DTO carries everything the entry does apart from the scheduler name, which the route said");
+    }
+
+    /// <summary>
+    /// One row by its key carries the captured log, and the listing it came from does not.
+    /// </summary>
+    [Test]
+    public async Task OneExecutionIsReadWithItsLogAndTheListingLeavesTheLogOut()
+    {
+        DateTimeOffset firedAt = DateTimeOffset.UtcNow;
+        await history.AddExecution(Entry(firedAt, "nightly") with { EntryId = "entry-1", Log = "line one\nline two" });
+
+        PagedResultDto<ExecutionHistoryEntryDto> page = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions");
+
+        ExecutionHistoryEntryDto listed = page.Items.Should().ContainSingle().Subject;
+        listed.EntryId.Should().Be("entry-1");
+        listed.Log.Should().BeNull(
+            "a page of history must not carry every row's log, however the store behind it keeps them");
+
+        ExecutionHistoryEntryDto single = await Read<ExecutionHistoryEntryDto>($"{SchedulerUrl}/history/executions/entry-1");
+
+        single.Log.Should().Be("line one\nline two", "the single-entry route is the one read that carries the log");
+        single.JobName.Should().Be("nightly");
+    }
+
+    /// <summary>
+    /// A row the store does not have is a <c>404</c>, which the HTTP-backed store reads as no row rather
+    /// than as a target that serves no history.
+    /// </summary>
+    [Test]
+    public async Task AnExecutionTheStoreDoesNotHaveIsNotFound()
+    {
+        HttpResponseMessage response = await client.GetAsync($"{SchedulerUrl}/history/executions/no-such-entry");
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, client);
+        (await remote.GetExecution(TestData.SchedulerName, "no-such-entry")).Should().BeNull(
+            "the target answered, and what it said is that there is no such execution");
+    }
+
+    /// <summary>
+    /// Through the HTTP-backed store, as a dashboard fronting the scheduler reads it.
+    /// </summary>
+    [Test]
+    public async Task TheHttpBackedStoreReadsOneExecutionWithItsLog()
+    {
+        await history.AddExecution(Entry(DateTimeOffset.UtcNow, "nightly") with { EntryId = "entry-2", Log = "captured" });
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, client);
+        ExecutionHistoryEntry? entry = await remote.GetExecution(TestData.SchedulerName, "entry-2");
+
+        entry.Should().NotBeNull();
+        entry!.Log.Should().Be("captured");
+        entry.EntryId.Should().Be("entry-2");
+        entry.SchedulerName.Should().Be(TestData.SchedulerName, "the route named the scheduler, and the row belongs to it");
     }
 
     private async Task<T> Read<T>(string url) where T : class

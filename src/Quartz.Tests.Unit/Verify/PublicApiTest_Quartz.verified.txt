@@ -377,10 +377,12 @@ namespace Quartz
     {
         public ExecutionHistoryEntry(string SchedulerName, string SchedulerInstanceId, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
         public System.TimeSpan Duration { get; init; }
+        public string? EntryId { get; init; }
         public string? ExceptionMessage { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string JobGroup { get; init; }
         public string JobName { get; init; }
+        public string? Log { get; init; }
         public int RetryAttempt { get; init; }
         public bool RetryScheduled { get; init; }
         public string SchedulerInstanceId { get; init; }
@@ -428,6 +430,12 @@ namespace Quartz
         public Quartz.ExecutionLimitsBuilder Unlimited(string group) { }
         public Quartz.ExecutionLimitsBuilder UseTriggerGroupWhenUnset() { }
         public static Quartz.ExecutionLimitsBuilder Create() { }
+    }
+    public sealed class ExecutionLogCaptureOptions
+    {
+        public ExecutionLogCaptureOptions() { }
+        public int MaxBytes { get; set; }
+        public int MaxLines { get; set; }
     }
     public enum ExecutionOutcome
     {
@@ -1406,6 +1414,7 @@ namespace Quartz
         public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<T>> trigger, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? job = null)
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder UseExecutionLimits(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ExecutionLimitsBuilder> configure) { }
+        public static Quartz.IQuartzBuilder UseExecutionLogCapture(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ExecutionLogCaptureOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
         public static Quartz.IQuartzBuilder UseTypeLoader(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TypeLoaderOptions> configure) { }
     }
@@ -2136,6 +2145,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask AddExecution(Quartz.ExecutionHistoryEntry entry, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask AddMisfire(Quartz.MisfireHistoryEntry entry, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> CountMisfires(string schedulerName, System.DateTimeOffset since, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.ExecutionHistoryEntry>> QueryExecutions(Quartz.ExecutionHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.MisfireHistoryEntry>> QueryMisfires(Quartz.MisfireHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
     }

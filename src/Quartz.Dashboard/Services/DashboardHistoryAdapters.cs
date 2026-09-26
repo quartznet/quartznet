@@ -52,7 +52,9 @@ internal static class DashboardHistoryMapping
             entry.ExceptionMessage)
         {
             RetryAttempt = entry.RetryAttempt,
-            RetryScheduled = entry.RetryScheduled
+            RetryScheduled = entry.RetryScheduled,
+            EntryId = entry.EntryId,
+            Log = entry.Log
         };
     }
 
@@ -71,7 +73,9 @@ internal static class DashboardHistoryMapping
             entry.ExceptionMessage)
         {
             RetryAttempt = entry.RetryAttempt,
-            RetryScheduled = entry.RetryScheduled
+            RetryScheduled = entry.RetryScheduled,
+            EntryId = entry.EntryId,
+            Log = entry.Log
         };
     }
 

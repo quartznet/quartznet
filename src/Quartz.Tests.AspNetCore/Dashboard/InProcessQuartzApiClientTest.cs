@@ -1181,6 +1181,50 @@ public class InProcessQuartzApiClientTest
         JobDataMap: new JobDataMap());
 
     /// <summary>
+    /// One execution is read back by its key with its log, through the same store the listing reads —
+    /// here the dashboard's own 4.0 seam, which answers through the single read's default.
+    /// </summary>
+    [Test]
+    public async Task OneExecutionIsReadWithItsLog()
+    {
+        IScheduler scheduler = await CreateScheduler(nameof(OneExecutionIsReadWithItsLog));
+        try
+        {
+            IDashboardHistoryStore store = TestData.Dashboard.HistoryStore();
+            InProcessQuartzApiClient client = CreateClient(scheduler, store);
+
+            await store.AddExecution(new DashboardHistoryEntry(
+                SchedulerName: scheduler.SchedulerName,
+                SchedulerInstanceId: scheduler.SchedulerInstanceId,
+                JobGroup: "reports",
+                JobName: "rollup",
+                TriggerGroup: "nightly",
+                TriggerName: "midnight",
+                FiredAtUtc: DateTimeOffset.UtcNow,
+                Duration: TimeSpan.FromSeconds(1),
+                Succeeded: true,
+                ExceptionMessage: null)
+            {
+                EntryId = "entry-1",
+                Log = "one captured line"
+            });
+
+            DashboardHistoryEntry? entry = await client.GetExecution(scheduler.SchedulerName, "entry-1");
+
+            entry.Should().NotBeNull();
+            entry!.JobName.Should().Be("rollup");
+            entry.EntryId.Should().Be("entry-1", "the key travels both ways through the two seams' adapters");
+            entry.Log.Should().Be("one captured line", "and so does the log");
+
+            (await client.GetExecution(scheduler.SchedulerName, "no-such-entry")).Should().BeNull();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
     /// What a running job reported reaches the page's row: the client carries the store's two values
     /// over rather than leaving the bar empty.
     /// </summary>
