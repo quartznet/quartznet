@@ -29,6 +29,7 @@ next: false
 * [Lesson 20: Testing](testing.md)
 * [Lesson 21: Compile-Time Checks](compile-time-checks.md)
 * [Lesson 22: Declaring Jobs with Attributes](declaring-jobs-with-attributes.md)
+* [Lesson 23: Delegate Jobs](delegate-jobs.md)
 
 Cron expression syntax: [Cron Expression Reference](../cron-expressions.md).
 

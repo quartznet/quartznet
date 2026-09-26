@@ -187,14 +187,25 @@ internal sealed class RegisteredJobConstructorValidator : IValidateOptions<Quart
 
     private readonly RegisteredJobTypes jobTypes;
     private readonly IEnumerable<SchedulerNamedOptions> pluginOptions;
+    private readonly DelegateJobRegistry? delegateJobs;
     private HashSet<Type>? declaredPluginOptions;
 
+    /// <param name="jobTypes">The job types the container was told to carry.</param>
+    /// <param name="pluginOptions">The options types plugins declared as their scheduler's.</param>
+    /// <param name="delegateJobs">
+    /// The delegate jobs the container was told to carry, whose handler parameters are held to the same
+    /// rule as a constructor's: <see cref="Quartz.Impl.DelegateJob" /> is built by the container like any
+    /// registered job, and the handler's services are resolved from the scope it was built in. Absent from
+    /// a container that was given none.
+    /// </param>
     public RegisteredJobConstructorValidator(
         RegisteredJobTypes jobTypes,
-        IEnumerable<SchedulerNamedOptions> pluginOptions)
+        IEnumerable<SchedulerNamedOptions> pluginOptions,
+        DelegateJobRegistry? delegateJobs = null)
     {
         this.jobTypes = jobTypes;
         this.pluginOptions = pluginOptions;
+        this.delegateJobs = delegateJobs;
     }
 
     public ValidateOptionsResult Validate(string? name, QuartzSchedulerOptions options)
@@ -228,6 +239,17 @@ internal sealed class RegisteredJobConstructorValidator : IValidateOptions<Quart
                     {
                         failures.Add(failure);
                     }
+                }
+            }
+        }
+
+        foreach ((string jobName, DelegateJobBinding binding) in delegateJobs?.Declared(schedulerName) ?? [])
+        {
+            foreach (ParameterInfo parameter in binding.ServiceParameters)
+            {
+                if (IsSchedulerPart(parameter.ParameterType))
+                {
+                    (failures ??= []).Add(DelegateJobFailure(schedulerName, jobName, parameter));
                 }
             }
         }
@@ -307,11 +329,29 @@ internal sealed class RegisteredJobConstructorValidator : IValidateOptions<Quart
             + "by key inside that factory.";
     }
 
+    private static string DelegateJobFailure(string schedulerName, string jobName, ParameterInfo parameter)
+    {
+        string scheduler = string.IsNullOrEmpty(schedulerName)
+            ? "the default scheduler"
+            : $"scheduler '{schedulerName}'";
+
+        return $"Delegate job '{jobName}' is registered on {scheduler}, and its handler takes "
+            + $"{TypeName(parameter.ParameterType)} {parameter.Name} — a part that belongs to one scheduler. "
+            + "A delegate job's services are resolved the way a registered job's constructor is, without a "
+            + "scheduler's service key, so what the handler would be handed is the default scheduler's whichever "
+            + "scheduler it runs on. Take IJobExecutionContext and read the scheduler running the job from "
+            + "context.Scheduler, or write the job as a class registered with AddJobType<T>(provider => ...).";
+    }
+
     /// <summary>
     /// A type as it is spelled in source, one level of generic arguments deep — which is as deep as
     /// <c>IOptions&lt;QuartzSchedulerOptions&gt;</c>, the only generic shape that reaches here, goes.
     /// </summary>
-    private static string TypeName(Type type)
+    /// <remarks>
+    /// Also how a delegate job's refused return type is spelled, where <c>Task&lt;int&gt;</c> is the shape
+    /// that arrives.
+    /// </remarks>
+    internal static string TypeName(Type type)
     {
         if (!type.IsConstructedGenericType)
         {

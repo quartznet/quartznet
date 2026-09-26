@@ -34,6 +34,11 @@ public sealed class SendWelcomeEmailJob : IJob<string>
 A method argument becomes a constructor-injected service, a `JobDataMap` entry, or the typed input of
 `IJob<TInput>`.
 
+From 4.3 a recurring job can also be a lambda, with its services as parameters:
+`q.ScheduleJob("send-digest", (IMailer mailer, CancellationToken ct) => …, t => t.WithCronSchedule(…))`.
+It is stored by its key, not as a serialized call, so every node registers it. See
+[Delegate Jobs](../tutorial/delegate-jobs.md).
+
 ## The API, side by side
 
 ### Scheduling
@@ -47,7 +52,7 @@ A method argument becomes a constructor-injected service, a `JobDataMap` entry, 
 | `BackgroundJob.Requeue(jobId)` | `scheduler.TriggerJob(jobKey)`, optionally with a `JobDataMap` | fires the job again now; there is no failed record to requeue |
 | `BackgroundJob.Reschedule(jobId, …)` | `scheduler.RescheduleJob(triggerKey, newTrigger)` | |
 | `BackgroundJob.ContinueJobWith(parentId, …)` | `.StartAfter(parentTriggerKey, condition)` on the follow-up's trigger | see [Continuations](#continuations) |
-| `RecurringJob.AddOrUpdate(id, () => …, cron)` | `q.AddJob<T>(…)` + `q.AddTrigger<T>(t => t.WithCronSchedule(…))` | six cron fields, not five, and a different default time zone |
+| `RecurringJob.AddOrUpdate(id, () => …, cron)` | `q.AddJob<T>(…)` + `q.AddTrigger<T>(t => t.WithCronSchedule(…))`, or from 4.3 [`q.ScheduleJob(id, lambda, t => t.WithCronSchedule(…))`](../tutorial/delegate-jobs.md) | six cron fields, not five, and a different default time zone |
 | `RecurringJob.RemoveIfExists(id)` | `scheduler.DeleteJob(jobKey)`, or `UnscheduleJob` to keep the job | |
 | `RecurringJob.TriggerJob(id)` | `scheduler.TriggerJob(jobKey)` | |
 | `IBackgroundJobClient`, `IRecurringJobManager` | `IScheduler`, injected | one interface for both; every member is awaitable |

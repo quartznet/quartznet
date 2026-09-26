@@ -25,6 +25,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Data.Sqlite;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Serialization.SystemTextJson;
 
@@ -73,6 +74,14 @@ internal static class StoreCheck
     private static readonly TaskCompletionSource declaredFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
+    /// What the delegate job was handed, which is the half of phase A of #3867 that only a native
+    /// publish can prove: its parameters are read off <see cref="Delegate.Method" /> and the handler is
+    /// invoked through <see cref="System.Reflection.MethodBase.Invoke(object?, object?[])" />, and the job
+    /// comes back out of <c>JOB_CLASS_NAME</c> as <c>Quartz.Impl.DelegateJob</c>.
+    /// </summary>
+    private static readonly TaskCompletionSource<string> delegateFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
     /// Runs the check, returning <see langword="null" /> when it passed and a message when it did not.
     /// </summary>
     public static async Task<string?> Run()
@@ -112,6 +121,16 @@ internal static class StoreCheck
                 // Every job this assembly declares with [QuartzJob], which is one: the call is
                 // generated from the attributes and is the only registration DeclaredCanaryJob gets.
                 q.AddDeclaredJobs();
+
+                // A job that is a lambda, its dependencies its parameters: a service, the firing and its
+                // token, each bound by reading the delegate's own parameters.
+                q.ScheduleJob("canary-delegate", static (ILogger<CanaryJob> log, IJobExecutionContext context, CancellationToken cancellationToken) =>
+                {
+                    log.LogInformation("Delegate job {JobKey} fired", context.JobDetail.Key);
+                    delegateFired.TrySetResult(
+                        $"{context.JobDetail.JobType.FullName} with a logger, the firing and {(cancellationToken.CanBeCanceled ? "its token" : "no token")}");
+                    return Task.CompletedTask;
+                }, trigger => trigger.WithIdentity("canary-delegate", "store").StartNow());
             });
 
             ServiceProvider container = services.BuildServiceProvider();
@@ -170,6 +189,18 @@ internal static class StoreCheck
                 return "FAIL store: the job declared with [QuartzJob] never fired within a minute, so the generated registration did not reach the scheduler.";
             }
 
+            Task delegated = await Task.WhenAny(delegateFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            if (delegated != delegateFired.Task)
+            {
+                return "FAIL store: the delegate job never fired within a minute, so its handler could not be bound or invoked.";
+            }
+
+            string delegateRun = await delegateFired.Task.ConfigureAwait(false);
+            if (!delegateRun.StartsWith("Quartz.Impl.DelegateJob, Quartz with a logger, the firing and its token", StringComparison.Ordinal))
+            {
+                return $"FAIL store: the delegate job ran as '{delegateRun}'.";
+            }
+
             CanaryInput received = await typedInput.Task.ConfigureAwait(false);
             CanaryInput expected = new("the typed input round-trips out of a trimmed publish", 7);
             if (received != expected)
@@ -201,7 +232,8 @@ internal static class StoreCheck
 
             await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
 
-            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input and a job declared with [QuartzJob] included.");
+            Console.WriteLine($"PASS delegate: {delegateRun}");
+            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, a job declared with [QuartzJob] and a delegate job included.");
             return null;
         }
         catch (Exception e)

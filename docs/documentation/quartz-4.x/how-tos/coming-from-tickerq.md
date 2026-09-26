@@ -33,6 +33,9 @@ services.AddQuartz(q =>
   does the same with its run-time parser. See [Compile-Time Checks](../tutorial/compile-time-checks.md).
 * **So do attributes.** [`[QuartzJob]` and `[CronTrigger]`](../tutorial/declaring-jobs-with-attributes.md)
   declare a job and schedule on the class; a source generator writes the registration.
+* **A job can be a lambda, from 4.3.** `q.ScheduleJob("cleanup", (IRepo repo, CancellationToken ct) => …,
+  t => t.WithCronSchedule(…))` takes its services as parameters, as a `[TickerFunction]` method does. See
+  [Delegate Jobs](../tutorial/delegate-jobs.md).
 * An expression built at run time is checked at run time. Build one with
   [`CronExpressionBuilder`](../cron-expressions.md#building-cron-expressions-programmatically), or check
   one by [asking the trigger when it fires](../cron-expressions.md#checking-an-expression).
@@ -41,8 +44,8 @@ services.AddQuartz(q =>
 
 | TickerQ | Quartz.NET | Difference |
 |---|---|---|
-| `[TickerFunction("name")]` on a method | a class implementing `IJob`, registered with `q.AddJob<T>(…)` or with [`[QuartzJob]`](../tutorial/declaring-jobs-with-attributes.md) on the class | the schedule names the class |
-| `[TickerFunction("name", "*/5 * * * *")]` | `q.AddTrigger<T>(t => t.WithCronSchedule(…))`, or [`[CronTrigger("0 0/5 * * * ?")]`](../tutorial/declaring-jobs-with-attributes.md) on the class | the schedule is its own trigger, so one job can have several |
+| `[TickerFunction("name")]` on a method | a class implementing `IJob`, registered with `q.AddJob<T>(…)` or with [`[QuartzJob]`](../tutorial/declaring-jobs-with-attributes.md) on the class; from 4.3, a lambda with [`q.AddJob("name", …)`](../tutorial/delegate-jobs.md) | the schedule names the class, or the lambda's key |
+| `[TickerFunction("name", "*/5 * * * *")]` | `q.AddTrigger<T>(t => t.WithCronSchedule(…))`, [`[CronTrigger("0 0/5 * * * ?")]`](../tutorial/declaring-jobs-with-attributes.md) on the class, or from 4.3 `q.ScheduleJob("name", lambda, t => t.WithCronSchedule(…))` | the schedule is its own trigger, so one job can have several |
 | `new TimeTickerEntity { Function = "name", ExecutionTime = … }` | `scheduler.ScheduleJob<TJob, TInput>(input, at)` | |
 | `timeTicker.AddAsync<WelcomeJob>(executionTime)` | the same call | both typed; Quartz's also carries the payload type |
 | `new CronTickerEntity { Expression = … }` | a cron trigger through `TriggerBuilder` | |

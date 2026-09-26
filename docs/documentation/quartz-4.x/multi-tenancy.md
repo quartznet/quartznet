@@ -628,7 +628,8 @@ does not know which scheduler is firing. A job on scheduler `acme` taking `ISche
 
 So **a registered job may not take a scheduler's parts by constructor, and startup says so.** `AddJob<T>`,
 `AddJob(type, …)`, `ScheduleJob<T>` and `AddJobType<T>` record the job type against their scheduler, and
-validating that scheduler's options checks the public constructors of the type the container would build:
+validating that scheduler's options checks the public constructors of the type the container would build.
+A [delegate job](tutorial/delegate-jobs.md)'s handler parameters are checked the same way:
 
 ```text
 Job type ArchiveJob is registered on scheduler 'acme', and its constructor takes ISchedulerFactory
