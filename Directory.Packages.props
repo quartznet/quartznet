@@ -12,7 +12,7 @@
       Note also that `aspire update` does not work in a repository using central package management
       (microsoft/aspire#15476); move these by hand, or let the `aspire` dependabot group do it.
     -->
-    <AspireVersion>13.5.3</AspireVersion>
+    <AspireVersion>13.5.4</AspireVersion>
     <!--
       The compiler Quartz.Analyzers is written against, and therefore the oldest host that can load it.
       4.12.0 is the .NET 9 SDK's Roslyn and Visual Studio 17.12's, which is as old as a host that can
