@@ -29,8 +29,8 @@ namespace Quartz;
 /// <para>
 /// A job store acquiring triggers asks <see cref="TryTake" /> for each candidate and skips the ones it
 /// refuses. The ledger holds the rule that decides which triggers a node may take — a group's own limit
-/// wins, an unlisted named group falls back to <see cref="ExecutionLimits.OtherGroups" />, and triggers
-/// with no execution group never do — so that a store outside this assembly enforces the same limits as
+/// wins, an unlisted named group falls back to the longest prefix it starts with and then to
+/// <see cref="ExecutionLimits.OtherGroups" />, and triggers with no execution group never do — so that a store outside this assembly enforces the same limits as
 /// the ones shipped with Quartz rather than reinventing them.
 /// </para>
 /// <para>
@@ -50,11 +50,16 @@ namespace Quartz;
 public sealed class ExecutionSlots
 {
     private readonly Dictionary<string, ExecutionGroupAllowance> available;
+    private readonly ExecutionGroupPrefixAllowance[] prefixes;
     private readonly bool usesTriggerGroupWhenUnset;
 
-    internal ExecutionSlots(Dictionary<string, ExecutionGroupAllowance> available, bool usesTriggerGroupWhenUnset)
+    internal ExecutionSlots(
+        Dictionary<string, ExecutionGroupAllowance> available,
+        ExecutionGroupPrefixAllowance[] prefixes,
+        bool usesTriggerGroupWhenUnset)
     {
         this.available = available;
+        this.prefixes = prefixes;
         this.usesTriggerGroupWhenUnset = usesTriggerGroupWhenUnset;
     }
 
@@ -78,11 +83,11 @@ public sealed class ExecutionSlots
         {
             allowance = groupAllowance;
         }
-        else if (key != ExecutionLimits.DefaultGroupKey && available.TryGetValue(ExecutionLimits.OtherGroups, out ExecutionGroupAllowance otherAllowance))
+        else if (ExecutionLimits.TryInherit(available, prefixes, key, out ExecutionGroupAllowance inherited))
         {
-            // OtherGroups ("*") is a catch-all for named groups only,
-            // not for the default (null/ungrouped) triggers
-            allowance = otherAllowance;
+            // The longest matching prefix, then OtherGroups ("*"): for named groups only, never for the
+            // default (null/ungrouped) triggers.
+            allowance = inherited;
         }
         else
         {
@@ -99,8 +104,8 @@ public sealed class ExecutionSlots
             return false; // forbidden or exhausted
         }
 
-        // Count down against the specific group key, even when the value came from the OtherGroups
-        // default, so that each unlisted group gets its own allowance rather than sharing one.
+        // Count down against the specific group key, even when the value came from a prefix or the
+        // OtherGroups default, so that each such group gets its own allowance rather than sharing one.
         available[key] = allowance with { MaxConcurrent = limit - 1 };
         return true;
     }
@@ -112,8 +117,8 @@ public sealed class ExecutionSlots
     /// none.</param>
     /// <param name="remaining">The slots left, or <see langword="null" /> when the group is unlimited.</param>
     /// <returns><see langword="true" /> when the group is being tracked. <see langword="false" /> does not
-    /// mean nothing is left — <see cref="ExecutionLimits.OtherGroups" /> may still apply to a named group
-    /// that has not been taken from yet.</returns>
+    /// mean nothing is left — a prefix or <see cref="ExecutionLimits.OtherGroups" /> may still apply to a
+    /// named group that has not been taken from yet.</returns>
     public bool TryGetRemaining(string? executionGroup, out int? remaining)
     {
         if (available.TryGetValue(ExecutionLimits.NormalizeGroupKey(executionGroup), out ExecutionGroupAllowance allowance))

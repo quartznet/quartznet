@@ -219,7 +219,9 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
             .WithCalendarName(CalendarName)
             .UsingJobData(JobDataMap)
             .WithDescription(Description)
-            .WithExecutionGroup(ExecutionGroup)
+            // The stored group is a resolved name, and a brace in it is a brace: escaped, so the rebuilt
+            // trigger stores the same name rather than reading it as a template.
+            .WithExecutionGroup(ExecutionGroup is { } group ? ExecutionGroupTemplate.Escape(group) : null)
             // The pin round-trips losslessly, auto-claim flag included: rebuilding an auto-pinned
             // trigger keeps it auto-pinned (so it is still released if that node dies) instead of
             // silently hardening into a pin the user named.

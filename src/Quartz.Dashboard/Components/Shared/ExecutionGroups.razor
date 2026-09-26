@@ -55,9 +55,9 @@
                         <td>@ScopeOf(row)</td>
                         <td>
                             @LimitOf(row)
-                            @if (row.LimitIsCatchAll)
+                            @if (row.InheritedFrom is { } inheritedFrom)
                             {
-                                <span class="qz-muted">&nbsp;(other groups)</span>
+                                <span class="qz-muted">&nbsp;(@LabelFor(inheritedFrom))</span>
                             }
                         </td>
                         <td>@InFlightOf(row)</td>
@@ -72,6 +72,15 @@
             <p class="qz-muted">
                 <em>other groups</em> is the ceiling every group with no limit of its own gets, one
                 allowance each rather than one shared between them, so it counts nothing itself.
+            </p>
+        }
+
+        @if (_hasPrefixRow)
+        {
+            <p class="qz-muted">
+                A <em>groups starting with</em> row is the ceiling each group with that prefix gets, one
+                allowance each, so it counts nothing itself. The longest matching prefix wins, and a
+                group's own limit wins over any prefix.
             </p>
         }
 
@@ -110,6 +119,7 @@
     private bool _loadingInProgress;
     private bool _countsArePartial;
     private bool _hasCatchAllRow;
+    private bool _hasPrefixRow;
     private bool _nodeScopedLimitsAreCountedClusterWide;
     private int _firingsCounted;
     private bool _hasLoaded;
@@ -225,6 +235,7 @@
             _limits = new ExecutionLimitsDto([]);
             _countsArePartial = false;
             _hasCatchAllRow = false;
+            _hasPrefixRow = false;
             _nodeScopedLimitsAreCountedClusterWide = false;
             _firingsCounted = 0;
 
@@ -287,21 +298,28 @@
         List<GroupRow> rows = [];
         foreach (string key in keys)
         {
-            DashboardExecutionLimit? limit = ResolveLimit(limits, key, out bool limitIsCatchAll);
             bool isCatchAll = key == ExecutionLimits.OtherGroups;
+
+            // A configured "tenant:*" is a rule, like the catch-all. A group in flight whose own name
+            // happens to end in '*' is still a group, and is only a rule when the limits say so.
+            string? prefix = null;
+            bool isPrefix = limits.Limits.ContainsKey(key) && ExecutionLimits.TryReadPrefixKey(key, out prefix);
+            DashboardExecutionLimit? limit = ResolveLimit(limits, key, out string? inheritedFrom);
 
             rows.Add(new GroupRow(
                 Key: key,
-                Label: LabelFor(key),
+                Label: isPrefix ? $"groups starting with '{prefix}'" : LabelFor(key),
                 IsCatchAll: isCatchAll,
+                IsPrefix: isPrefix,
                 IsDerived: derived.Contains(key),
                 Limit: limit,
-                LimitIsCatchAll: limitIsCatchAll,
+                InheritedFrom: inheritedFrom,
                 InFlight: inFlight.TryGetValue(key, out int count) ? count : 0));
         }
 
         // Named groups first, alphabetically; then the ungrouped bucket, which is a group only in the
-        // sense that the limits give it a bucket; then the catch-all, which is a rule about the rest.
+        // sense that the limits give it a bucket; then the prefixes and the catch-all, which are rules
+        // about the rest.
         rows.Sort(static (left, right) =>
         {
             int byKind = SortKind(left).CompareTo(SortKind(right));
@@ -310,6 +328,7 @@
 
         _rows.AddRange(rows);
         _hasCatchAllRow = limits.Limits.ContainsKey(ExecutionLimits.OtherGroups);
+        _hasPrefixRow = rows.Exists(static row => row.IsPrefix);
         _nodeScopedLimitsAreCountedClusterWide = Clustered
             && rows.Exists(static row => row.Limit is { Scope: ExecutionLimitScope.Node });
     }
@@ -318,6 +337,11 @@
     {
         if (row.IsCatchAll)
         {
+            return 3;
+        }
+
+        if (row.IsPrefix)
+        {
             return 2;
         }
 
@@ -325,22 +349,44 @@
     }
 
     /// <summary>
-    /// The limit that governs one group: its own when it has one, otherwise the catch-all — which is for
-    /// named groups only and never for the ungrouped bucket, the same rule the scheduler applies.
+    /// The limit that governs one group: its own when it has one, otherwise the longest prefix it starts
+    /// with, otherwise the catch-all — neither of which applies to the ungrouped bucket. The same rule the
+    /// scheduler applies.
     /// </summary>
-    private static DashboardExecutionLimit? ResolveLimit(ExecutionLimitsDto limits, string key, out bool fromCatchAll)
+    private static DashboardExecutionLimit? ResolveLimit(ExecutionLimitsDto limits, string key, out string? inheritedFrom)
     {
-        fromCatchAll = false;
+        inheritedFrom = null;
 
         if (limits.Limits.TryGetValue(key, out DashboardExecutionLimit own))
         {
             return own;
         }
 
-        if (key != ExecutionLimits.DefaultGroupAlias
-            && limits.Limits.TryGetValue(ExecutionLimits.OtherGroups, out DashboardExecutionLimit catchAll))
+        if (key == ExecutionLimits.DefaultGroupAlias)
         {
-            fromCatchAll = true;
+            return null;
+        }
+
+        string? longest = null;
+        foreach (string candidate in limits.Limits.Keys)
+        {
+            if (ExecutionLimits.TryReadPrefixKey(candidate, out string? prefix)
+                && key.StartsWith(prefix, StringComparison.Ordinal)
+                && (longest is null || candidate.Length > longest.Length))
+            {
+                longest = candidate;
+            }
+        }
+
+        if (longest is not null)
+        {
+            inheritedFrom = longest;
+            return limits.Limits[longest];
+        }
+
+        if (limits.Limits.TryGetValue(ExecutionLimits.OtherGroups, out DashboardExecutionLimit catchAll))
+        {
+            inheritedFrom = ExecutionLimits.OtherGroups;
             return catchAll;
         }
 
@@ -385,12 +431,12 @@
 
     private static string InFlightOf(GroupRow row)
     {
-        return row.IsCatchAll ? "—" : row.InFlight.ToString(CultureInfo.InvariantCulture);
+        return row.IsRule ? "—" : row.InFlight.ToString(CultureInfo.InvariantCulture);
     }
 
     private static string HeadroomOf(GroupRow row)
     {
-        if (row.IsCatchAll)
+        if (row.IsRule)
         {
             return "—";
         }
@@ -417,8 +463,16 @@
         string Key,
         string Label,
         bool IsCatchAll,
+        bool IsPrefix,
         bool IsDerived,
         DashboardExecutionLimit? Limit,
-        bool LimitIsCatchAll,
-        int InFlight);
+        string? InheritedFrom,
+        int InFlight)
+    {
+        /// <summary>
+        /// A row that is a rule about other groups — the catch-all or a prefix — rather than a group, so
+        /// it has nothing in flight of its own.
+        /// </summary>
+        public bool IsRule => IsCatchAll || IsPrefix;
+    }
 }

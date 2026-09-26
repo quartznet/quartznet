@@ -475,7 +475,8 @@ internal class XmlSchedulingDataProcessor
                 .EndAt(triggerEndTime)
                 .WithPriority(triggerPriority)
                 .WithCalendarName(triggerCalendarRef)
-                .WithExecutionGroup(triggerExecutionGroup)
+                // Literal: a file names the group it means, not a template.
+                .WithExecutionGroup(triggerExecutionGroup is null ? null : ExecutionGroupTemplate.Escape(triggerExecutionGroup))
                 .WithRetryPolicy(triggerRetryPolicy)
                 .WithPreferredNode(triggerPreferredNode)
                 .WithSchedule(scheduleBuilder);

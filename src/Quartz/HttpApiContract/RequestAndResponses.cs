@@ -216,6 +216,18 @@ internal record SetExecutionLimitsRequest(Dictionary<string, ExecutionLimitDto>?
             {
                 yield return $"Limit scope for group '{kvp.Key}' must be Node or Cluster, got {kvp.Value.Scope}";
             }
+
+            if (kvp.Key is not null && ExecutionLimits.TryReadPrefixKey(kvp.Key.Trim(), out string? prefix))
+            {
+                if (!ExecutionLimits.IsValidPrefix(prefix))
+                {
+                    yield return $"Limit key '{kvp.Key}' names no prefix; a prefix key is the prefix followed by one '*', such as 'tenant:*'";
+                }
+                else if (kvp.Value.MaxConcurrent is null)
+                {
+                    yield return $"Limit for prefix '{kvp.Key}' needs a count; a prefix cannot be unlimited";
+                }
+            }
         }
     }
 }

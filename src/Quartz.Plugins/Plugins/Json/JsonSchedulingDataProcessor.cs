@@ -342,7 +342,8 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
                 .EndAt(endTime)
                 .WithPriority(priority)
                 .WithCalendarName(NormalizeEmpty(triggerDef.CalendarName))
-                .WithExecutionGroup(NormalizeEmpty(triggerDef.ExecutionGroup))
+                // Literal: a file names the group it means, not a template.
+                .WithExecutionGroup(NormalizeEmpty(triggerDef.ExecutionGroup) is { } executionGroup ? ExecutionGroupTemplate.Escape(executionGroup) : null)
                 .WithRetryPolicy(ParseRetryPolicy(NormalizeEmpty(triggerDef.RetryPolicy), triggerName))
                 .WithPreferredNode(SchedulingFileValues.ReadPreferredNode(NormalizeEmpty(triggerDef.PreferredNode), $"Trigger '{triggerName}'"))
                 .WithSchedule(schedule)

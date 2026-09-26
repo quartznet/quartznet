@@ -351,6 +351,12 @@ namespace Quartz
         public override int GetHashCode() { }
         public bool IsMatch(TKey key) { }
     }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=true)]
+    public sealed class ExecutionGroupAttribute : System.Attribute
+    {
+        public ExecutionGroupAttribute(string template) { }
+        public string Template { get; }
+    }
     public readonly record struct ExecutionGroupInFlight : System.IEquatable<Quartz.ExecutionGroupInFlight>
     {
         public ExecutionGroupInFlight(string? ExecutionGroup, string TriggerGroup, int Count) { }
@@ -369,10 +375,13 @@ namespace Quartz
     {
         public bool IsDefault { get; }
         public bool IsOtherGroups { get; }
+        public bool IsPrefix { get; }
         public string? Name { get; }
+        public string? Prefix { get; }
         public static Quartz.ExecutionGroupScope Default { get; }
         public static Quartz.ExecutionGroupScope OtherGroups { get; }
         public override string ToString() { }
+        public static Quartz.ExecutionGroupScope GroupsWithPrefix(string prefix) { }
         public static Quartz.ExecutionGroupScope Named(string name) { }
     }
     public sealed record ExecutionHistoryEntry : System.IEquatable<Quartz.ExecutionHistoryEntry>
@@ -428,6 +437,7 @@ namespace Quartz
         public Quartz.ExecutionLimits Build() { }
         public Quartz.ExecutionLimitsBuilder ForDefaultGroup(int maxConcurrent, Quartz.ExecutionLimitScope scope = 0) { }
         public Quartz.ExecutionLimitsBuilder ForGroup(string group, int maxConcurrent, Quartz.ExecutionLimitScope scope = 0) { }
+        public Quartz.ExecutionLimitsBuilder ForGroupsWithPrefix(string prefix, int maxConcurrent, Quartz.ExecutionLimitScope scope = 0) { }
         public Quartz.ExecutionLimitsBuilder ForOtherGroups(int maxConcurrent, Quartz.ExecutionLimitScope scope = 0) { }
         public Quartz.ExecutionLimitsBuilder Unlimited(string group) { }
         public Quartz.ExecutionLimitsBuilder UseTriggerGroupWhenUnset() { }

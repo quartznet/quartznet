@@ -755,16 +755,7 @@ internal sealed class QuartzSchedulerThread
             return null;
         }
 
-        Dictionary<string, ExecutionGroupAllowance> available = limits.ToWorkingCopy();
-
-        foreach (KeyValuePair<string, int> running in runningExecutionGroupCounts)
-        {
-            ExecutionLimits.SubtractInFlight(available, running.Key, running.Value, ExecutionLimitScope.Node);
-        }
-
-        // The remaining-capacity map carries the derivation flag with it, because the store that reads it
-        // has to resolve a candidate's group the same way this ledger did.
-        return new ExecutionLimits(available, limits.UsesTriggerGroupWhenUnset);
+        return limits.LowerByNodeInFlight(runningExecutionGroupCounts);
     }
 
     private async Task SafeReleaseAcquiredTrigger(IOperableTrigger trigger, string context)

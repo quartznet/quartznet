@@ -520,23 +520,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create();
         foreach (KeyValuePair<string, ExecutionLimitDto> kvp in response.Limits ?? [])
         {
-            int? maxConcurrent = kvp.Value.MaxConcurrent;
-            ExecutionLimitScope scope = kvp.Value.Scope;
-
-            if (kvp.Key == ExecutionLimits.OtherGroups)
-            {
-                if (maxConcurrent.HasValue) builder.ForOtherGroups(maxConcurrent.Value, scope);
-            }
-            else if (ExecutionLimits.IsDefaultGroupAlias(kvp.Key))
-            {
-                if (maxConcurrent.HasValue) builder.ForDefaultGroup(maxConcurrent.Value, scope);
-                // null value = unlimited, nothing to set
-            }
-            else
-            {
-                if (maxConcurrent.HasValue) builder.ForGroup(kvp.Key, maxConcurrent.Value, scope);
-                else builder.Unlimited(kvp.Key);
-            }
+            // The same reading the host's configuration and endpoint use, prefix keys included.
+            builder.ForConfigurationKey(kvp.Key, kvp.Value.MaxConcurrent, kvp.Value.Scope);
         }
 
         if (response.UseTriggerGroupWhenUnset)

@@ -46,6 +46,11 @@ internal static class ExecutionLimitsParser
     /// <summary>
     /// Applies one key, and reports whether it configured anything.
     /// </summary>
+    /// <remarks>
+    /// The key is read by <see cref="ExecutionLimitsBuilder.ForConfigurationKey" />, the reading the HTTP
+    /// API shares: a group name, <c>_</c> or <c>null</c>, <c>*</c>, or a prefix such as <c>tenant:*</c>.
+    /// What it refuses is reported against the property that said it.
+    /// </remarks>
     private static bool Apply(ExecutionLimitsBuilder builder, string groupKey, string? rawValue, string key, ExecutionLimitScope scope)
     {
         if (groupKey.Length == 0)
@@ -55,40 +60,14 @@ internal static class ExecutionLimitsParser
 
         var limit = ParseLimit(rawValue, groupKey);
 
-        if (groupKey == ExecutionLimits.OtherGroups)
+        try
         {
-            if (!limit.HasValue)
-            {
-                return false;
-            }
-
-            builder.ForOtherGroups(limit.Value, scope);
-            return true;
+            return builder.ForConfigurationKey(groupKey, limit, scope);
         }
-
-        // Underscore and "null" are aliases for the default (null) execution group.
-        if (ExecutionLimits.IsDefaultGroupAlias(groupKey))
+        catch (ArgumentException e)
         {
-            if (!limit.HasValue)
-            {
-                return false;
-            }
-
-            builder.ForDefaultGroup(limit.Value, scope);
-            return true;
+            throw new SchedulerConfigException($"Invalid execution limit property '{key}': {e.Message}", e);
         }
-
-        if (limit.HasValue)
-        {
-            builder.ForGroup(groupKey, limit.Value, scope);
-        }
-        else
-        {
-            // Unlimited takes no scope: there is no number to count, in either of them.
-            builder.Unlimited(groupKey);
-        }
-
-        return true;
     }
 
     private static int? ParseLimit(string? rawValue, string groupKey)

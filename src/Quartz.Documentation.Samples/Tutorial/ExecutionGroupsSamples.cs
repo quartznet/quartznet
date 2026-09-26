@@ -119,6 +119,7 @@ public static class ExecutionGroupsSamples
         {
             string group = limit.Group.IsDefault ? "(no group)"
                 : limit.Group.IsOtherGroups ? "(other groups)"
+                : limit.Group.IsPrefix ? $"(each group starting with {limit.Group.Prefix})"
                 : limit.Group.Name!;
             Console.WriteLine($"{group}: {limit.MaxConcurrent?.ToString() ?? "unlimited"} per {limit.Scope}");
         }
@@ -170,4 +171,82 @@ public static class ExecutionGroupsSamples
 
         #endregion
     }
+
+    public static void PerTenantLimits(IQuartzBuilder q)
+    {
+        #region sample_execution_groups_per_tenant_prefix
+
+        q.UseExecutionLimits(limits => limits
+            .ForGroupsWithPrefix("tenant:", 2, ExecutionLimitScope.Cluster) // two for each tenant
+            .ForGroup("tenant:vip", 8, ExecutionLimitScope.Cluster));       // a group's own limit wins
+
+        #endregion
+    }
+
+    public static ITrigger TenantTrigger(IJobDetail job, string tenantId)
+    {
+        #region sample_execution_groups_per_tenant_template
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .ForJob(job)
+            .UsingJobData("TenantId", tenantId)
+            .WithExecutionGroup("tenant:{TenantId}")   // stored as "tenant:acme"
+            .StartNow()
+            .Build();
+
+        #endregion
+
+        return trigger;
+    }
+
+    public static ITrigger TenantReportTrigger(string tenantId)
+    {
+        #region sample_execution_groups_per_tenant_attribute_trigger
+
+        ITrigger trigger = TriggerBuilder.Create<TenantReportJob>()
+            .ForJob("tenant-report")
+            .UsingJobData("TenantId", tenantId)   // the attribute's {TenantId}
+            .StartNow()
+            .Build();                             // stored as "tenant:acme"
+
+        #endregion
+
+        return trigger;
+    }
+
+    public static async Task TenantOneLiner(IScheduler scheduler, TenantExport export, CancellationToken cancellationToken)
+    {
+        #region sample_execution_groups_per_tenant_one_liner
+
+        await scheduler.ScheduleJob<TenantExportJob, TenantExport>(
+            export,
+            TimeSpan.FromMinutes(5),
+            new OneOffJobOptions { ExecutionGroup = $"tenant:{export.TenantId}" },
+            cancellationToken);
+
+        #endregion
+    }
+}
+
+#region sample_execution_groups_per_tenant_attribute
+
+[ExecutionGroup("tenant:{TenantId}")]
+public sealed class TenantReportJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+
+#endregion
+
+/// <summary>
+/// The payload of <see cref="TenantExportJob" />.
+/// </summary>
+public sealed record TenantExport(string TenantId, string Month);
+
+/// <summary>
+/// A one-off job whose firings are grouped per tenant at the call site.
+/// </summary>
+public sealed class TenantExportJob : IJob<TenantExport>
+{
+    public ValueTask Execute(IJobExecutionContext context, TenantExport input, CancellationToken cancellationToken = default) => default;
 }
