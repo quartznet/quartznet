@@ -2377,6 +2377,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnEntryState = "STATE";
         public const string ColumnErrorMessage = "ERROR_MESSAGE";
         public const string ColumnExecutionGroup = "EXECUTION_GROUP";
+        public const string ColumnExecutionLog = "EXECUTION_LOG";
         public const string ColumnFiredTime = "FIRED_TIME";
         public const string ColumnInstanceName = "INSTANCE_NAME";
         public const string ColumnIsDurable = "IS_DURABLE";
@@ -2396,6 +2397,8 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnPreferredNodeAuto = "PREFERRED_NODE_AUTO";
         public const string ColumnPreviousFireTime = "PREV_FIRE_TIME";
         public const string ColumnPriority = "PRIORITY";
+        public const string ColumnProgress = "PROGRESS";
+        public const string ColumnProgressMessage = "PROGRESS_MESSAGE";
         public const string ColumnRepeatCount = "REPEAT_COUNT";
         public const string ColumnRepeatInterval = "REPEAT_INTERVAL";
         public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";

@@ -44,8 +44,11 @@ editing.
 | 2.6 | 3.x | [3.0](#version-3-0), then the optional 3.x ones |
 | 3.0–3.16 | latest 3.x | [3.17](#version-3-17), [3.18](#version-3-18), [3.19](#version-3-19), [3.20](#version-3-20) — all optional |
 | any 3.x | 4.0 / 4.1 | [4.0](#version-4-0) — **mandatory**, and it folds in everything from 3.17 onward |
-| any 3.x | 4.2+ | [4.0](#version-4-0), then [4.2](#version-4-2) — both **mandatory** |
-| 4.0 / 4.1 | 4.2+ | [4.2](#version-4-2) — **mandatory** |
+| any 3.x | 4.2 | [4.0](#version-4-0), then [4.2](#version-4-2) — both **mandatory** |
+| any 3.x | 4.3+ | [4.0](#version-4-0), [4.2](#version-4-2), then [4.3](#version-4-3) — all **mandatory** |
+| 4.0 / 4.1 | 4.2 | [4.2](#version-4-2) — **mandatory** |
+| 4.0 / 4.1 | 4.3+ | [4.2](#version-4-2), then [4.3](#version-4-3) — both **mandatory** |
+| 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory** |
 
 ## Upgrading to 4.x is mandatory
 
@@ -447,6 +450,50 @@ history, and every row carries the instance id that produced it.
 The store trims both tables itself, to `ExecutionHistoryOptions.Retention` (24 hours by default) and
 `MaxEntriesPerScheduler` (2,000); see
 [the persistent store's execution history](../quartz-4.x/tutorial/job-stores.md#execution-history-in-the-database).
+
+## Version 4.3
+
+Two scripts; only the first is mandatory
+([#3874](https://github.com/quartznet/quartznet/issues/3874)).
+
+| Script | Status | Adds |
+|---|---|---|
+| [`migrations/4.3/add_fire_progress_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | **Mandatory** for 4.3 and later | `PROGRESS`, `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS` |
+| [`migrations/4.3/add_execution_log_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | Optional: only with `UseExecutionHistory()` | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY` |
+
+### The progress columns
+
+| Column | What it holds |
+|---|---|
+| `PROGRESS` | The percentage, 0 to 100, a running job last passed to `ReportProgress` |
+| `PROGRESS_MESSAGE` | The message it passed with it, truncated to 250 characters |
+
+- Written at most once a second per firing, and only when the value changes, by `ENTRY_ID`. The row is
+  the writing node's own, so no lock is taken.
+- Oracle declares `PROGRESS_MESSAGE` as `VARCHAR2(1000)`: `VARCHAR2` counts bytes, and 250 characters of
+  UTF-8 can take 1,000.
+- Read by the fire-instance listing, which is what the dashboard's Currently Executing page shows
+  cluster-wide.
+- No index: the write is by primary key.
+- A 4.3 node refuses to start without them; the startup check names the column and the script.
+
+### The execution log column
+
+`EXECUTION_LOG` holds the log lines an execution wrote, captured by `UseExecutionLogCapture()`. A large
+object on every dialect: `nvarchar(max)`, `TEXT`, `LONGTEXT`, `CLOB`, `BLOB SUB_TYPE TEXT`.
+
+- The history listing never selects it; only the read of one entry does.
+- A store configured with `UseExecutionHistory()` refuses to start without it. No other store probes for
+  it.
+- Run it only on a database that has `QRTZ_EXECUTION_HISTORY`: it alters that table, and fails where the
+  table is missing. A database without the table runs `4.2/add_execution_history_<db>.sql` first.
+
+### Rolling 4.2 → 4.3
+
+Run both scripts while 4.2 nodes are still up. Every column is nullable with no default, and a 4.2 node
+never names them: its firings read as having reported no progress, and its history rows carry no log.
+
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create all three columns.
 
 ## See also
 

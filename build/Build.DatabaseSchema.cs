@@ -100,8 +100,13 @@ partial class Build
     /// says <c>int</c> where PostgreSQL says <c>BIGINT</c> for a repeat count, and
     /// <c>IS_NONCONCURRENT</c> on <c>QRTZ_FIRED_TRIGGERS</c> is nullable on four dialects and not on
     /// two. Deriving them would mean choosing which script to be wrong about.
+    /// <para>
+    /// <c>AddedBy</c> names the release whose migration added the column to a table that
+    /// was already there. A migration that creates a table renders it as it stood when that migration
+    /// shipped, so a released script never changes shape under a reader who has already run it.
+    /// </para>
     /// </remarks>
-    sealed record SchemaColumn(string Name, Dictionary<string, string> Definition);
+    sealed record SchemaColumn(string Name, Dictionary<string, string> Definition, string AddedBy = null);
 
     /// <summary>A foreign key, and the Oracle constraint name its fresh-install script gives it.</summary>
     /// <param name="Columns">The columns in this table.</param>
@@ -313,6 +318,17 @@ partial class Build
                     oracle: "VARCHAR2(1) DEFAULT '0' NOT NULL",
                     sqlite: "BIT NOT NULL DEFAULT 0",
                     firebird: "SMALLINT DEFAULT 0 NOT NULL"),
+                // The lines the job logged while it ran, bounded by ExecutionLogCaptureOptions. A large
+                // object on every dialect, because the bound is the application's to set; MySQL says
+                // LONGTEXT because its TEXT stops at 64 KB. Never read by the listing, only by the
+                // single-entry read, so a page of history does not carry every row's log.
+                Column("EXECUTION_LOG",
+                    sqlServer: "nvarchar(max) NULL",
+                    postgres: "TEXT NULL",
+                    mysql: "LONGTEXT NULL",
+                    oracle: "CLOB NULL",
+                    sqlite: "TEXT NULL",
+                    firebird: "BLOB SUB_TYPE TEXT DEFAULT NULL") with { AddedBy = "4.3" },
             ],
             OracleStem: "EXEC_HISTORY"),
 
@@ -628,6 +644,23 @@ partial class Build
                     oracle: "VARCHAR2(200) NULL",
                     sqlite: "NVARCHAR(200) NULL",
                     firebird: "VARCHAR(200)"),
+                // What the running job last reported through IJobExecutionContext.ReportProgress: a
+                // percentage and a message the store truncates at 250 characters. Oracle is declared
+                // four times as wide for the reason ERROR_MESSAGE is — its VARCHAR2 counts bytes.
+                Column("PROGRESS",
+                    sqlServer: "int NULL",
+                    postgres: "INTEGER NULL",
+                    mysql: "INTEGER NULL",
+                    oracle: "NUMBER(13) NULL",
+                    sqlite: "INTEGER NULL",
+                    firebird: "INTEGER DEFAULT NULL") with { AddedBy = "4.3" },
+                Column("PROGRESS_MESSAGE",
+                    sqlServer: "nvarchar(250) NULL",
+                    postgres: "VARCHAR(250) NULL",
+                    mysql: "VARCHAR(250) NULL",
+                    oracle: "VARCHAR2(1000) NULL",
+                    sqlite: "NVARCHAR(250) NULL",
+                    firebird: "VARCHAR(250) DEFAULT NULL") with { AddedBy = "4.3" },
             ],
             OracleStem: "FIRED_TRIGGER"),
 

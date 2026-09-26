@@ -287,6 +287,12 @@ public class SchemaProvisioningTest
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.2", "add_execution_history", dialect, UnmigratedPrefix), dialect);
 
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.3", "add_fire_progress", dialect, UnmigratedPrefix), dialect);
+
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.3", "add_execution_log", dialect, UnmigratedPrefix), dialect);
+
         await StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}_migrated");
 
         SchemaSnapshot afterMigration = await SchemaSnapshot.ReadAsync(connection, dialect, UnmigratedPrefix);
@@ -298,6 +304,8 @@ public class SchemaProvisioningTest
         afterMigration.Columns.Should().Contain(column => column.Contains("CONTINUES_TRIGGER_NAME", StringComparison.Ordinal),
             "and that includes the ones added after 4.0, which is what makes this the whole remedy "
             + "rather than the first step of it");
+        afterMigration.Columns.Should().Contain(column => column.Contains("PROGRESS_MESSAGE", StringComparison.Ordinal),
+            "4.3's progress columns among them, which every 4.3 node reads when it lists what is running");
     }
 
     /// <summary>
