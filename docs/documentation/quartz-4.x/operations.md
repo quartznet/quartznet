@@ -665,13 +665,14 @@ lock: `TRIGGER_ACCESS` on a persistent store, the store's own monitor in memory.
 
 ### Scheduling and cron
 
-Measured against 3.14, also in the benchmark README:
+The 3.14 figures are a published comparison's, from another machine. The 4.2 figures are from the
+benchmark README, on an AMD Ryzen 9 5950X:
 
-| Operation                                       | 3.14                | 4.0                 |
-|------------------------------------------------ |-------------------- |-------------------- |
-| Parse a `CronExpression`                        | 3.0–4.6 µs / 8.7–12.9 KB | 236–338 ns / 576–688 B |
-| `GetNextValidTimeAfter`                         | ~1.29 µs / ~3.2 KB  | 315–373 ns / **0 B** |
-| `ScheduleJob`, cron trigger, into `RAMJobStore` | 31 µs / 38.7 KB     | 10.5 µs / 5 KB      |
+| Operation                                       | 3.14                     | 4.2                    |
+|------------------------------------------------ |------------------------- |----------------------- |
+| Parse a `CronExpression`                        | 3.0–4.6 µs / 8.7–12.9 KB | 219–291 ns / 504–656 B |
+| `GetNextValidTimeAfter`                         | 1.1–1.3 µs / 2.7–3.2 KB  | 31–46 ns / **0 B**     |
+| `ScheduleJob`, cron trigger, into `RAMJobStore` | 31 µs / 38.7 KB          | 7.3 µs / 4.5 KB        |
 
 Also measured: [the acquisition index](db/index.md#indexes-and-the-acquisition-index-in-particular), over a
 hundred thousand triggers on four engines, and
