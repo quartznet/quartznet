@@ -159,16 +159,41 @@ public static class TriggerConfiguratorExtensions
     }
 
     /// <summary>
+    /// Set the trigger to fire on a cron expression assembled inline, on a fresh
+    /// <see cref="CronExpressionBuilder" />.
+    /// </summary>
+    /// <remarks>
+    /// The inline shape every other schedule kind already has, so a schedule is written where the
+    /// trigger is: <c>WithCronSchedule(cron =&gt; cron.AtTime(new TimeOnly(3, 0)).OnWeekdays())</c>, or
+    /// <c>WithCronSchedule(cron =&gt; cron.Every(TimeSpan.FromMinutes(10)))</c>. The expression is
+    /// built, and so validated, when this is called.
+    /// </remarks>
+    /// <param name="configurator">the trigger being configured.</param>
+    /// <param name="expression">assembles the expression on a builder with every field unconfigured.</param>
+    /// <param name="configure">configures the rest of the schedule, such as its time zone.</param>
+    public static TConfigurator WithCronSchedule<TConfigurator>(
+        this TConfigurator configurator,
+        Action<CronExpressionBuilder> expression,
+        Action<CronScheduleBuilder>? configure = null) where TConfigurator : ITriggerConfigurator
+    {
+        ArgumentNullException.ThrowIfNull(expression);
+
+        CronExpressionBuilder builder = CronExpressionBuilder.Create();
+        expression(builder);
+        return configurator.WithCronSchedule(builder.Build(), configure);
+    }
+
+    /// <summary>
     /// Set the trigger to fire on the given cron schedule.
     /// </summary>
     /// <remarks>
-    /// The narrowest of the four, and the one that looks most like <c>WithSchedule</c> with a smaller
+    /// The narrowest of the five, and the one that looks most like <c>WithSchedule</c> with a smaller
     /// parameter — which it is. It stays because every <c>With…Schedule</c> family has this member, so
     /// removing it from cron alone would leave one family short of the shape the other four teach, and
-    /// because it is the 3.x spelling a migrating application already has. The other three each say
+    /// because it is the 3.x spelling a migrating application already has. The other four each say
     /// something <c>WithSchedule</c> cannot: parse a string, take an expression already parsed (which is
-    /// where a hash key rides), or close a <see cref="CronExpressionBuilder" /> chain — and all three
-    /// also apply the <c>configure</c> callback.
+    /// where a hash key rides), close a <see cref="CronExpressionBuilder" /> chain, or assemble one
+    /// inline — and all four also apply the <c>configure</c> callback.
     /// </remarks>
     /// <param name="configurator">the trigger being configured.</param>
     /// <param name="schedule">the schedule to use.</param>

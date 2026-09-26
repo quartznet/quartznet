@@ -36,6 +36,9 @@ services.AddQuartz(q =>
 * **A job can be a lambda, from 4.3.** `q.ScheduleJob("cleanup", (IRepo repo, CancellationToken ct) => …,
   t => t.WithCronSchedule(…))` takes its services as parameters, as a `[TickerFunction]` method does. See
   [Delegate Jobs](../tutorial/delegate-jobs.md).
+* **A schedule can skip the dialect, from 4.3.** `t.WithCronSchedule(cron => cron.Every(TimeSpan.FromMinutes(5)))`
+  is `*/5 * * * *` without the six-field rewrite, and `cron.AtTime(new TimeOnly(3, 0)).OnWeekdays()` is
+  `0 3 * * 1-5`. See [Cron Triggers](../tutorial/crontriggers.md#building-crontriggers).
 * An expression built at run time is checked at run time. Build one with
   [`CronExpressionBuilder`](../cron-expressions.md#building-cron-expressions-programmatically), or check
   one by [asking the trigger when it fires](../cron-expressions.md#checking-an-expression).

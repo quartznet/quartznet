@@ -113,6 +113,21 @@ public static class CronExpressionsSamples
         #endregion
     }
 
+    public static void AnInterval()
+    {
+        #region sample_cron_expressions_every
+
+        CronExpressionBuilder.Create().Every(TimeSpan.FromMinutes(10));         // "0 0/10 * ? * *"
+        CronExpressionBuilder.Create().Every(TimeSpan.FromHours(6));            // "0 0 0/6 ? * *"
+
+        CronExpressionBuilder.Create()
+            .Every(TimeSpan.FromMinutes(15))
+            .WithHourRange(8, 17)
+            .OnWeekdays();                                                     // "0 0/15 8-17 ? * MON-FRI"
+
+        #endregion
+    }
+
     public static void TheAwkwardDayRules()
     {
         #region sample_cron_expressions_day_rules

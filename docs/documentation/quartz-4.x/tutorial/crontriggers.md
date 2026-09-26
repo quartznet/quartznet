@@ -42,6 +42,30 @@ same schedule on its own, to hold in a variable or share between triggers. To co
 string in code, see
 [Building cron expressions programmatically](../cron-expressions.md#building-cron-expressions-programmatically).
 
+**Assembled inline, with no expression string (4.3):**
+
+<!-- snippet: sample_crontriggers_inline -->
+```csharp
+ITrigger weekdays = TriggerBuilder.Create()
+    .WithIdentity("nightly", "group1")
+    .WithCronSchedule(cron => cron.AtTime(new TimeOnly(3, 0)).OnWeekdays())  // "0 0 3 ? * MON-FRI"
+    .ForJob("myJob", "group1")
+    .Build();
+
+ITrigger everyTenMinutes = TriggerBuilder.Create()
+    .WithIdentity("poll", "group1")
+    .WithCronSchedule(cron => cron.Every(TimeSpan.FromMinutes(10)))          // "0 0/10 * ? * *"
+    .ForJob("myJob", "group1")
+    .Build();
+```
+<!-- endSnippet -->
+
+* The lambda configures a fresh `CronExpressionBuilder`; see
+  [Building cron expressions programmatically](../cron-expressions.md#building-cron-expressions-programmatically).
+* `Every` counts on the clock: every ten minutes is :00, :10, :20. It takes an interval that divides the
+  minute, hour or day evenly. For any other interval, or one counted from the trigger's start, use
+  `WithSimpleSchedule(interval)`.
+
 **Every other minute, between 8am and 5pm, every day:**
 
 <!-- snippet: sample_crontriggers_every_other_minute -->

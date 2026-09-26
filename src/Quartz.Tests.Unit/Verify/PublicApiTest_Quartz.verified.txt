@@ -155,6 +155,7 @@ namespace Quartz
     {
         public Quartz.CronExpressionBuilder AtTime(System.TimeOnly time) { }
         public Quartz.CronExpression Build() { }
+        public Quartz.CronExpressionBuilder Every(System.TimeSpan interval) { }
         public Quartz.CronExpressionBuilder OnLastDayOfMonth() { }
         public Quartz.CronExpressionBuilder OnLastDayOfWeek() { }
         public Quartz.CronExpressionBuilder OnLastDayOfWeekOfMonth(System.DayOfWeek dayOfWeek) { }
@@ -1919,6 +1920,8 @@ namespace Quartz
         public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, Quartz.CronExpression cronExpression, System.Action<Quartz.CronScheduleBuilder>? configure = null)
             where TConfigurator : Quartz.ITriggerConfigurator { }
         public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, Quartz.CronExpressionBuilder cronExpression, System.Action<Quartz.CronScheduleBuilder>? configure = null)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, System.Action<Quartz.CronExpressionBuilder> expression, System.Action<Quartz.CronScheduleBuilder>? configure = null)
             where TConfigurator : Quartz.ITriggerConfigurator { }
         public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, string cronExpression, System.Action<Quartz.CronScheduleBuilder>? configure = null)
             where TConfigurator : Quartz.ITriggerConfigurator { }

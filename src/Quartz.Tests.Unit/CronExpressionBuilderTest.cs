@@ -268,6 +268,154 @@ public class CronExpressionBuilderTest
     }
 
     /// <summary>
+    /// <c>Every</c> writes the interval's own field and every smaller one, and an interval of one unit
+    /// is that unit's <c>*</c> rather than a step of one.
+    /// </summary>
+    [TestCase(1, "* * * ? * *")]
+    [TestCase(15, "0/15 * * ? * *")]
+    [TestCase(30, "0/30 * * ? * *")]
+    [TestCase(60, "0 * * ? * *")]
+    [TestCase(10 * 60, "0 0/10 * ? * *")]
+    [TestCase(30 * 60, "0 0/30 * ? * *")]
+    [TestCase(60 * 60, "0 0 * ? * *")]
+    [TestCase(6 * 60 * 60, "0 0 0/6 ? * *")]
+    [TestCase(12 * 60 * 60, "0 0 0/12 ? * *")]
+    public void TestEveryStepsTheIntervalsOwnField(int seconds, string expected)
+    {
+        CronExpressionBuilder builder = CronExpressionBuilder.Create().Every(TimeSpan.FromSeconds(seconds));
+
+        builder.ToString().Should().Be(expected);
+        builder.Build().CronExpressionString.Should().Be(expected, "what Every writes has to parse back as itself");
+    }
+
+    /// <summary>
+    /// Every interval that divides the next unit up evenly is accepted, which is the whole list the
+    /// documentation names; nothing else is.
+    /// </summary>
+    [Test]
+    public void TestEveryAcceptsExactlyTheIntervalsThatDivideTheNextUnit()
+    {
+        int[] divisorsOfSixty = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30];
+        int[] divisorsOfTwentyFour = [1, 2, 3, 4, 6, 8, 12];
+
+        List<TimeSpan> accepted = [];
+        for (int seconds = 1; seconds < 24 * 60 * 60; seconds++)
+        {
+            TimeSpan interval = TimeSpan.FromSeconds(seconds);
+            try
+            {
+                CronExpressionBuilder.Create().Every(interval).Build();
+                accepted.Add(interval);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+            }
+        }
+
+        accepted.Should().Equal(
+            [
+                .. divisorsOfSixty.Select(x => TimeSpan.FromSeconds(x)),
+                .. divisorsOfSixty.Select(x => TimeSpan.FromMinutes(x)),
+                .. divisorsOfTwentyFour.Select(x => TimeSpan.FromHours(x)),
+            ],
+            "an interval that does not divide its unit would fire unevenly across the boundary, and cron cannot say that");
+    }
+
+    [TestCase("00:07:00")]
+    [TestCase("00:01:30")]
+    [TestCase("01:30:00")]
+    [TestCase("05:00:00")]
+    [TestCase("1.00:00:00")]
+    [TestCase("1.01:00:00")]
+    [TestCase("00:00:00")]
+    [TestCase("-00:10:00")]
+    [TestCase("00:00:00.5000000")]
+    [TestCase("00:00:01.5000000")]
+    public void TestEveryRefusesAnIntervalWithNoEvenCronForm(string interval)
+    {
+        Action act = () => CronExpressionBuilder.Create().Every(TimeSpan.Parse(interval, System.Globalization.CultureInfo.InvariantCulture));
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("interval")
+            .WithMessage("*divides the next unit up evenly*WithSimpleSchedule(interval)*",
+                "the refusal names the rule and the schedule that does take any interval");
+    }
+
+    /// <summary>
+    /// The fields <c>Every</c> leaves alone still say when it runs, which is what makes it more than
+    /// a fixed interval: every ten minutes, in working hours, on weekdays.
+    /// </summary>
+    [Test]
+    public void TestEveryComposesWithTheFieldsItLeavesAlone()
+    {
+        CronExpressionBuilder.Create()
+            .Every(TimeSpan.FromMinutes(10))
+            .WithHourRange(8, 17)
+            .OnWeekdays()
+            .ToString().Should().Be("0 0/10 8-17 ? * MON-FRI");
+
+        CronExpressionBuilder.Create()
+            .OnWeekdays()
+            .Every(TimeSpan.FromMinutes(10))
+            .ToString().Should().Be("0 0/10 * ? * MON-FRI", "the order of the calls does not matter to fields that do not overlap");
+
+        CronExpressionBuilder.Create()
+            .Every(TimeSpan.FromHours(6))
+            .WithDayOfMonth(1)
+            .ToString().Should().Be("0 0 0/6 1 * ?");
+
+        CronExpressionBuilder.Create()
+            .WithMinute(5)
+            .Every(TimeSpan.FromSeconds(15))
+            .ToString().Should().Be("0/15 5 * ? * *", "a seconds interval writes the second field alone");
+    }
+
+    /// <summary>
+    /// Cron counts on the clock, not from the trigger's start: that is the difference from
+    /// <c>WithSimpleSchedule(interval)</c>, and the reason this member exists.
+    /// </summary>
+    [Test]
+    public void TestEveryIsAnchoredToTheClock()
+    {
+        CronExpression expression = CronExpressionBuilder.Create().Every(TimeSpan.FromMinutes(10)).Build().WithTimeZone(TimeZoneInfo.Utc);
+
+        expression.GetNextValidTimeAfter(new DateTimeOffset(2026, 9, 26, 10, 3, 17, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 9, 26, 10, 10, 0, TimeSpan.Zero),
+                "the next ten-minute mark after 10:03:17 is 10:10:00, whenever the trigger started");
+    }
+
+    /// <summary>
+    /// An interval and a time of day both say when in the day the expression fires, so the pair is
+    /// refused whichever comes first — and the refusal names the contradiction rather than a field.
+    /// </summary>
+    [Test]
+    public void TestEveryAndAtTimeContradictEachOther()
+    {
+        Invoking(x => x.Every(TimeSpan.FromMinutes(10)).AtTime(new TimeOnly(3, 0)))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("AtTime cannot be combined with Every(00:10:00)*");
+
+        Invoking(x => x.AtTime(new TimeOnly(3, 0)).Every(TimeSpan.FromMinutes(10)))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Second has already been configured, and Every(00:10:00) writes the second and minute fields itself*AtTime*");
+
+        Invoking(x => x.Every(TimeSpan.FromMinutes(10)).WithMinute(5))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Minute has already been configured.");
+
+        Invoking(x => x.WithHour(3).Every(TimeSpan.FromHours(2)))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Hour has already been configured, and Every(02:00:00) writes the second, minute and hour fields itself*");
+
+        CronExpressionBuilder builder = CronExpressionBuilder.Create().WithMinute(5);
+        Action act = () => builder.Every(TimeSpan.FromMinutes(10));
+
+        act.Should().Throw<InvalidOperationException>();
+        builder.ToString().Should().Be("* 5 * ? * *",
+            "the minute was refused before the second was written, so nothing was left half-applied");
+    }
+
+    /// <summary>
     /// The builder writes one day field per expression, and says that is its own rule.
     /// </summary>
     /// <remarks>
