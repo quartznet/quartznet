@@ -196,6 +196,7 @@ public class QuartzSchedulerTest
         CompletionRecordingJobListener completions = new();
         scheduler.ListenerManager.AddJobListener(completions);
 
+        List<ExecutionGate> gates = [];
         try
         {
             scheduler.GetCurrentlyExecutingJobs().Should().BeEmpty("nothing has fired yet");
@@ -205,7 +206,7 @@ public class QuartzSchedulerTest
             scheduler.GetCurrentlyExecutingJobs().Should().BeEmpty(
                 "starting a scheduler with nothing scheduled cannot have begun a firing");
 
-            List<ExecutionGate> gates = await ScheduleGatedJobs(scheduler, jobCount: 4);
+            gates = await ScheduleGatedJobs(scheduler, jobCount: 4);
 
             await ShouldObserve(
                 Task.WhenAll(gates.Select(gate => gate.Started.Reaches(1))),
@@ -232,6 +233,14 @@ public class QuartzSchedulerTest
         }
         finally
         {
+            // Opened again here, whether or not the test got as far as opening them itself: the shutdown
+            // below waits for every firing, and a firing parked behind a gate a failed assertion never
+            // opened would hold it, and the whole test run, for ever.
+            foreach (ExecutionGate gate in gates)
+            {
+                gate.Open();
+            }
+
             await scheduler.Shutdown(waitForJobsToComplete: true);
         }
     }

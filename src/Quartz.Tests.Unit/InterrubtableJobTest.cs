@@ -109,7 +109,7 @@ public class InterruptableJobTest
 
         await scheduler.ScheduleJob(job, trigger);
 
-        started.WaitOne(); // make sure the job starts running...
+        started.WaitOne(TimeSpan.FromSeconds(30)).Should().BeTrue("the job has to be running before there is a firing to interrupt");
 
         var executingJobs = await scheduler.QueryFireInstances(new FireInstanceQuery());
 
@@ -117,7 +117,7 @@ public class InterruptableJobTest
 
         bool interruptResult = await scheduler.InterruptFireInstance(executingJobs.Items[0].FireInstanceId);
 
-        ended.WaitOne(); // wait for the job to terminate
+        ended.WaitOne(TimeSpan.FromSeconds(30)).Should().BeTrue("the job ends within five seconds whether or not it was interrupted, so a longer silence is a job that never ran to its end");
 
         Assert.Multiple(() =>
         {

@@ -318,7 +318,7 @@ public class SchedulerTest
         await scheduler.ScheduleJob(job, trigger);
 
         // Wait for job to start executing
-        executing.WaitOne();
+        executing.WaitOne(TimeSpan.FromSeconds(30)).Should().BeTrue("the job has to be running before a shutdown can be asked to wait for it");
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -370,7 +370,7 @@ public class SchedulerTest
         scheduler.ScheduleJob(job, trigger).GetAwaiter().GetResult();
 
         // Wait for job to start executing
-        executing.WaitOne();
+        executing.WaitOne(TimeSpan.FromSeconds(30)).Should().BeTrue("the job has to be running before a shutdown can be asked not to wait for it");
 
         var stopwatch = Stopwatch.StartNew();
 

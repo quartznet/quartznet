@@ -16,6 +16,7 @@ namespace Quartz.Tests.Unit;
 public class JobExecutionAttributesInterfaceInheritanceTest
 {
     private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan waitForBothExecutions = TimeSpan.FromSeconds(30);
     private static readonly List<DateTime> jobExecDates = [];
     private static readonly AutoResetEvent barrier = new(false);
 
@@ -110,7 +111,7 @@ public class JobExecutionAttributesInterfaceInheritanceTest
         await scheduler.ScheduleJob(trigger2);
 
         await scheduler.Start();
-        barrier.WaitOne();
+        barrier.WaitOne(waitForBothExecutions).Should().BeTrue("both triggers fire together and the job runs twice in turn; a second run that never came is a failure to report, not to wait out");
         await scheduler.Shutdown(true);
 
         Assert.Multiple(() =>
@@ -146,7 +147,7 @@ public class JobExecutionAttributesInterfaceInheritanceTest
         await scheduler.ScheduleJob(trigger2);
 
         await scheduler.Start();
-        barrier.WaitOne();
+        barrier.WaitOne(waitForBothExecutions).Should().BeTrue("both triggers are acquired in one batch and the job runs twice in turn; a second run that never came is a failure to report, not to wait out");
         await scheduler.Shutdown(true);
 
         Assert.Multiple(() =>

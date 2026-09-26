@@ -1006,7 +1006,9 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
             }
 
             opening.Set();
-            letItFail.Wait();
+            // Bounded so that a test which failed before letting go leaves the timer's pass to fail on its
+            // own rather than a thread parked behind a gate for the rest of the run.
+            letItFail.Wait(TimeSpan.FromSeconds(30));
             throw new InvalidOperationException("the connection provider has been shut down");
         });
 
