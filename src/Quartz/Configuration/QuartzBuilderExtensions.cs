@@ -393,7 +393,9 @@ public static class QuartzBuilderExtensions
         return builder.AddJob(name, handler, (_, jobConfigurator) => configure?.Invoke(jobConfigurator));
     }
 
-    /// <inheritdoc cref="AddJob(IQuartzBuilder, string, Delegate, Action{IJobConfigurator{IJob}})" />
+    /// <inheritdoc cref="AddJob(IQuartzBuilder, string, Delegate, Action{IJobConfigurator{IJob}})" path="/summary" />
+    /// <inheritdoc cref="AddJob(IQuartzBuilder, string, Delegate, Action{IJobConfigurator{IJob}})" path="/remarks" />
+    /// <inheritdoc cref="AddJob(IQuartzBuilder, string, Delegate, Action{IJobConfigurator{IJob}})" path="/exception" />
     /// <param name="builder">The builder.</param>
     /// <param name="name">
     /// The job's name, which makes its key in the default group unless <paramref name="configure" />
@@ -473,7 +475,9 @@ public static class QuartzBuilderExtensions
         return builder.ScheduleJob(name, handler, (_, triggerConfigurator) => trigger(triggerConfigurator));
     }
 
-    /// <inheritdoc cref="ScheduleJob(IQuartzBuilder, string, Delegate, Action{ITriggerConfigurator{IJob}})" />
+    /// <inheritdoc cref="ScheduleJob(IQuartzBuilder, string, Delegate, Action{ITriggerConfigurator{IJob}})" path="/summary" />
+    /// <inheritdoc cref="ScheduleJob(IQuartzBuilder, string, Delegate, Action{ITriggerConfigurator{IJob}})" path="/remarks" />
+    /// <inheritdoc cref="ScheduleJob(IQuartzBuilder, string, Delegate, Action{ITriggerConfigurator{IJob}})" path="/exception" />
     /// <param name="builder">The builder.</param>
     /// <param name="name">The trigger's name, and so the job's, unless the trigger is given another.</param>
     /// <param name="handler">The job's code.</param>
