@@ -84,4 +84,44 @@ public interface IExecutionHistoryStore
     /// <param name="since">The instant to count from.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<int> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns one recorded execution, its <see cref="ExecutionHistoryEntry.Log" /> included, or
+    /// <see langword="null" /> when the scheduler has no row by that <see cref="ExecutionHistoryEntry.EntryId" />
+    /// — never recorded, or trimmed since.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The read a detail page makes, and the one read that carries the captured log: the listing need
+    /// not, and the persistent store's does not.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a store written against an earlier 4.x keeps compiling. The
+    /// default reads the scheduler's whole history through <see cref="QueryExecutions" /> and picks the
+    /// row out — correct for any store, and a full read; a store that can find one row by its key
+    /// overrides it.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler the execution belongs to.</param>
+    /// <param name="entryId">The row's <see cref="ExecutionHistoryEntry.EntryId" />.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask<ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(entryId);
+
+        PagedResult<ExecutionHistoryEntry> all = await QueryExecutions(
+            new ExecutionHistoryQuery { SchedulerName = schedulerName, Take = PagedQuery.All },
+            cancellationToken).ConfigureAwait(false);
+
+        foreach (ExecutionHistoryEntry entry in all.Items)
+        {
+            if (string.Equals(entry.EntryId, entryId, StringComparison.Ordinal))
+            {
+                return entry;
+            }
+        }
+
+        return null;
+    }
 }

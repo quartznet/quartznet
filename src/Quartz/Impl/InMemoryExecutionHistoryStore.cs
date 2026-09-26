@@ -58,8 +58,33 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        Record(executionsByScheduler, entry.SchedulerName, entry, FiredAt);
+        // Named when it arrives without, so every row this store returns is one GetExecution can find.
+        ExecutionHistoryEntry named = entry.EntryId is null
+            ? entry with { EntryId = ExecutionHistoryPlugin.NewEntryId() }
+            : entry;
+
+        Record(executionsByScheduler, named.SchedulerName, named, FiredAt);
         return default;
+    }
+
+    /// <remarks>
+    /// The row as it was recorded, its log included: this store keeps the whole entry, so its listing
+    /// carries the log too.
+    /// </remarks>
+    public ValueTask<ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(entryId);
+
+        foreach (ExecutionHistoryEntry entry in Snapshot(executionsByScheduler, schedulerName, FiredAt))
+        {
+            if (string.Equals(entry.EntryId, entryId, StringComparison.Ordinal))
+            {
+                return new ValueTask<ExecutionHistoryEntry?>(entry);
+            }
+        }
+
+        return new ValueTask<ExecutionHistoryEntry?>((ExecutionHistoryEntry?) null);
     }
 
     public ValueTask AddMisfire(MisfireHistoryEntry entry, CancellationToken cancellationToken = default)

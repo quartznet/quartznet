@@ -1,0 +1,171 @@
+@page "/quartz/history/{EntryId}"
+@using System.Globalization
+@using Microsoft.Extensions.Options
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+
+<div class="qz-page">
+    <h1>Execution</h1>
+
+    <div class="qz-row">
+        <a class="qz-details-link" href="@DashboardLink.To(Options.Value, "history")">Back to execution history</a>
+    </div>
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (_historyUnavailable)
+    {
+        <p class="qz-muted" data-testid="execution-unavailable">
+            This scheduler runs in another process and its Quartz HTTP API does not serve single executions.
+            Upgrade that host to read an execution's captured log here.
+        </p>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (_entry is null)
+    {
+        <p class="qz-muted" data-testid="execution-not-found">
+            Execution not found. It may have been trimmed from the history since the listing was read.
+        </p>
+    }
+    else
+    {
+        <table class="qz-table">
+            <tbody>
+                <tr><th>Job</th><td><KeyBadge GroupName="@_entry.JobGroup" ItemName="@_entry.JobName" /></td></tr>
+                <tr><th>Trigger</th><td><KeyBadge GroupName="@_entry.TriggerGroup" ItemName="@_entry.TriggerName" /></td></tr>
+                <tr><th>Node</th><td class="qz-table-cell-mono">@_entry.SchedulerInstanceId</td></tr>
+                <tr><th>Fired</th><td>@Scheduler.FormatInSelectedTimeZone(_entry.FiredAtUtc, "u")</td></tr>
+                <tr><th>Duration</th><td>@FormatDuration(_entry.Duration)</td></tr>
+                <tr><th>Status</th><td><StateIndicator State="@StatusLabel(_entry)" /></td></tr>
+                <tr><th>Attempt</th><td>@AttemptLabel(_entry)</td></tr>
+                <tr><th>Error</th><td>@(string.IsNullOrEmpty(_entry.ExceptionMessage) ? "—" : _entry.ExceptionMessage)</td></tr>
+            </tbody>
+        </table>
+
+        <h2>Captured log</h2>
+        @if (string.IsNullOrEmpty(_entry.Log))
+        {
+            <p class="qz-muted" data-testid="execution-no-log">
+                No log lines were captured for this execution. A scheduler keeps them when it calls
+                <code>UseExecutionLogCapture()</code>.
+            </p>
+        }
+        else
+        {
+            <pre class="qz-execution-log" data-testid="execution-log">@_entry.Log</pre>
+        }
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private string? _error;
+    private bool _historyUnavailable;
+    private DashboardHistoryEntry? _entry;
+
+    [Parameter]
+    public string EntryId { get; set; } = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+        _historyUnavailable = false;
+        _entry = null;
+
+        try
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName) || string.IsNullOrWhiteSpace(EntryId))
+            {
+                return;
+            }
+
+            _entry = await Api.GetExecution(schedulerName, EntryId);
+        }
+        catch (NotSupportedException)
+        {
+            // A fact about the target, as on the history page: it serves no single executions, and a
+            // retry button would invite a reader to ask again for something that will not arrive.
+            _historyUnavailable = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// The status the history listing shows for the same row, in the same three words.
+    /// </summary>
+    private static string StatusLabel(DashboardHistoryEntry entry)
+    {
+        if (entry.Succeeded)
+        {
+            return "Complete";
+        }
+
+        return entry.RetryScheduled ? "Failed (retrying)" : "Failed";
+    }
+
+    private static string AttemptLabel(DashboardHistoryEntry entry)
+    {
+        return entry.RetryAttempt == 0
+            ? "the regular fire"
+            : "retry " + entry.RetryAttempt.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration <= TimeSpan.Zero)
+        {
+            return "n/a";
+        }
+
+        if (duration < TimeSpan.FromSeconds(1))
+        {
+            return duration.TotalMilliseconds.ToString("0.###", CultureInfo.InvariantCulture) + " ms";
+        }
+
+        if (duration < TimeSpan.FromMinutes(1))
+        {
+            return duration.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture) + " s";
+        }
+
+        return duration.ToString("g", CultureInfo.InvariantCulture);
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+    }
+}

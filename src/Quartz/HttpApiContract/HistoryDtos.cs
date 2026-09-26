@@ -53,7 +53,26 @@ internal sealed record ExecutionHistoryEntryDto(
     /// <inheritdoc cref="RetryAttempt" />
     public bool RetryScheduled { get; init; }
 
-    public static ExecutionHistoryEntryDto Create(ExecutionHistoryEntry entry)
+    /// <summary>
+    /// The row's key, which <c>GET …/history/executions/{entryId}</c> reads it back by.
+    /// </summary>
+    /// <remarks>
+    /// Non-positional, as the two above are: a 4.2 host sends none, and its rows cannot be asked for one
+    /// at a time.
+    /// </remarks>
+    public string? EntryId { get; init; }
+
+    /// <summary>
+    /// The lines the job logged, on the single-entry route only: the listing leaves every row's log out,
+    /// so a page of history costs what it did before capture existed.
+    /// </summary>
+    public string? Log { get; init; }
+
+    /// <param name="entry">The row.</param>
+    /// <param name="includeLog">
+    /// Whether the captured log goes on the wire — the single-entry route's answer, and no listing's.
+    /// </param>
+    public static ExecutionHistoryEntryDto Create(ExecutionHistoryEntry entry, bool includeLog = false)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -70,7 +89,9 @@ internal sealed record ExecutionHistoryEntryDto(
         )
         {
             RetryAttempt = entry.RetryAttempt,
-            RetryScheduled = entry.RetryScheduled
+            RetryScheduled = entry.RetryScheduled,
+            EntryId = entry.EntryId,
+            Log = includeLog ? entry.Log : null
         };
     }
 
@@ -93,7 +114,9 @@ internal sealed record ExecutionHistoryEntryDto(
         )
         {
             RetryAttempt = RetryAttempt,
-            RetryScheduled = RetryScheduled
+            RetryScheduled = RetryScheduled,
+            EntryId = EntryId,
+            Log = Log
         };
     }
 }

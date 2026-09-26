@@ -870,6 +870,22 @@ body{
     margin-top: 2px;
 }
 
+/* An execution's captured log: the job's own lines, as written, wrapped rather than scrolled sideways. */
+.qz-execution-log {
+    font-family: var(--qz-font-mono);
+    font-size: var(--qz-font-size-xs);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 60vh;
+    overflow: auto;
+    padding: var(--qz-space-md);
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-surface-alt);
+    color: var(--qz-color-text);
+}
+
 .qz-state-label {
     display: inline-flex;
     align-items: center;
