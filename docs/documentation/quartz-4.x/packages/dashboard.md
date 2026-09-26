@@ -7,7 +7,7 @@ inside your ASP.NET Core application and renders the schedulers registered in th
 
 ## Features
 
-Thirteen pages, listed under [The pages](#the-pages).
+Fourteen pages, listed under [The pages](#the-pages).
 
 - **Reads the schedulers in its own container**, through the container's `IQuartzApiClient`: usually the
   schedulers this process runs, with nothing to configure. A scheduler in *another* process is registered with
@@ -162,7 +162,7 @@ default body reports the datum as unavailable, like `CannotReport`; override it 
 
 ## The pages
 
-All thirteen are under `{DashboardPath}` (`/quartz` by default) and render the scheduler selected in the header's
+All fourteen are under `{DashboardPath}` (`/quartz` by default) and render the scheduler selected in the header's
 picker, so switching schedulers keeps you on the same page.
 
 | Page | Route |
@@ -174,7 +174,7 @@ picker, so switching schedulers keeps you on the same page.
 | Currently Executing | `/quartz/executing` |
 | Schedulers | `/quartz/schedulers` |
 | Cluster | `/quartz/cluster` |
-| Execution History | `/quartz/history` |
+| Execution History, and one execution | `/quartz/history`, `/quartz/history/{EntryId}` |
 | Live Logs | `/quartz/live` |
 | Action Log | `/quartz/actions` |
 
@@ -233,9 +233,14 @@ deliberately does not fire on its own.
 
 ### Currently Executing
 
-`/quartz/executing` has one row per firing: job, trigger, node, execution group, fire time and run time. It is
-the fire-instance listing, so **with a persistent job store it covers the whole cluster**; `Node` is the machine
-that owns the firing.
+`/quartz/executing` has one row per firing: job, trigger, node, execution group, fire time, run time and
+progress. It is the fire-instance listing, so **with a persistent job store it covers the whole cluster**;
+`Node` is the machine that owns the firing.
+
+- **Progress** is a bar, the percentage and the job's message, from
+  [`ReportProgress`](../how-tos/progress-and-execution-logs.md#report-progress). A firing that has not
+  reported shows a dash. It is read from the store, so a store-attached window shows it too, and it can
+  trail the job by up to a second.
 
 - Interrupting interrupts *that one firing*, not every firing of the job. This matters for a job without
   `[DisallowConcurrentExecution]`, which can have several in flight.
@@ -280,6 +285,11 @@ the last refresh time in the header so a stalled page is visible.
 `/quartz/history`: one row per execution with the node that ran it, a node filter, four stat cards whose titles
 name their scope, and a misfires section. Details under
 [Execution history and misfires](#execution-history-and-misfires).
+
+Each row's fire time links to `/quartz/history/{EntryId}`, the execution's own page: job, trigger, node, fire
+time, duration, status, attempt, what it threw, and the lines it logged when the scheduler
+[captures them](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines). It only reads, so read-only
+mode leaves it unchanged.
 
 ### Live Logs
 

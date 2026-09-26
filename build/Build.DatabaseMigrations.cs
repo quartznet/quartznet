@@ -58,7 +58,7 @@ partial class Build
     };
 
     /// <summary>Version folders this target owns. Anything else under migrations/ is hand-written.</summary>
-    static readonly string[] GeneratedVersions = ["2.2", "2.6", "3.17", "3.18", "3.19", "3.20", "4.0", "4.2"];
+    static readonly string[] GeneratedVersions = ["2.2", "2.6", "3.17", "3.18", "3.19", "3.20", "4.0", "4.2", "4.3"];
 
     AbsolutePath MigrationsDirectory => RootDirectory / "database" / "migrations";
 

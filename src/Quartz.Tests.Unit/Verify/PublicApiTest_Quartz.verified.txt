@@ -377,10 +377,12 @@ namespace Quartz
     {
         public ExecutionHistoryEntry(string SchedulerName, string SchedulerInstanceId, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
         public System.TimeSpan Duration { get; init; }
+        public string? EntryId { get; init; }
         public string? ExceptionMessage { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string JobGroup { get; init; }
         public string JobName { get; init; }
+        public string? Log { get; init; }
         public int RetryAttempt { get; init; }
         public bool RetryScheduled { get; init; }
         public string SchedulerInstanceId { get; init; }
@@ -429,6 +431,12 @@ namespace Quartz
         public Quartz.ExecutionLimitsBuilder UseTriggerGroupWhenUnset() { }
         public static Quartz.ExecutionLimitsBuilder Create() { }
     }
+    public sealed class ExecutionLogCaptureOptions
+    {
+        public ExecutionLogCaptureOptions() { }
+        public int MaxBytes { get; set; }
+        public int MaxLines { get; set; }
+    }
     public enum ExecutionOutcome
     {
         Succeeded = 0,
@@ -449,6 +457,8 @@ namespace Quartz
         public string FireInstanceId { get; init; }
         public System.DateTimeOffset FireTimeUtc { get; init; }
         public Quartz.JobKey? JobKey { get; init; }
+        public int? Progress { get; init; }
+        public string? ProgressMessage { get; init; }
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
         public string SchedulerInstanceId { get; init; }
         public Quartz.FireInstanceState State { get; init; }
@@ -568,6 +578,7 @@ namespace Quartz
         System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         Quartz.IScheduler Scheduler { get; }
         Quartz.ITrigger Trigger { get; }
+        void ReportProgress(int percent, string? message = null); // default implementation
     }
     public interface IJobExecutionContextAccessor
     {
@@ -1403,6 +1414,7 @@ namespace Quartz
         public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<T>> trigger, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? job = null)
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder UseExecutionLimits(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ExecutionLimitsBuilder> configure) { }
+        public static Quartz.IQuartzBuilder UseExecutionLogCapture(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ExecutionLogCaptureOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
         public static Quartz.IQuartzBuilder UseTypeLoader(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TypeLoaderOptions> configure) { }
     }
@@ -2121,11 +2133,19 @@ namespace Quartz.Diagnostics
 }
 namespace Quartz.Extensibility
 {
+    public sealed class FireInstanceProgress
+    {
+        public const int MaxMessageLength = 250;
+        public FireInstanceProgress() { }
+        public string? Message { get; init; }
+        public required int Percent { get; init; }
+    }
     public interface IExecutionHistoryStore
     {
         System.Threading.Tasks.ValueTask AddExecution(Quartz.ExecutionHistoryEntry entry, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask AddMisfire(Quartz.MisfireHistoryEntry entry, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> CountMisfires(string schedulerName, System.DateTimeOffset since, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.ExecutionHistoryEntry>> QueryExecutions(Quartz.ExecutionHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.MisfireHistoryEntry>> QueryMisfires(Quartz.MisfireHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
     }
@@ -2206,6 +2226,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.TriggerFiredResult>> TriggersFired(System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.IOperableTrigger> triggers, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask UpdateFireInstanceProgress(string fireInstanceId, Quartz.Extensibility.FireInstanceProgress progress, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(Quartz.TriggerKey triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default);
     }
     public interface IMutableTrigger : Quartz.ITrigger
@@ -2377,6 +2398,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnEntryState = "STATE";
         public const string ColumnErrorMessage = "ERROR_MESSAGE";
         public const string ColumnExecutionGroup = "EXECUTION_GROUP";
+        public const string ColumnExecutionLog = "EXECUTION_LOG";
         public const string ColumnFiredTime = "FIRED_TIME";
         public const string ColumnInstanceName = "INSTANCE_NAME";
         public const string ColumnIsDurable = "IS_DURABLE";
@@ -2396,6 +2418,8 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnPreferredNodeAuto = "PREFERRED_NODE_AUTO";
         public const string ColumnPreviousFireTime = "PREV_FIRE_TIME";
         public const string ColumnPriority = "PRIORITY";
+        public const string ColumnProgress = "PROGRESS";
+        public const string ColumnProgressMessage = "PROGRESS_MESSAGE";
         public const string ColumnRepeatCount = "REPEAT_COUNT";
         public const string ColumnRepeatInterval = "REPEAT_INTERVAL";
         public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";
@@ -3402,6 +3426,7 @@ namespace Quartz.Impl
         public virtual System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.TriggerFiredResult>> TriggersFired(System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.IOperableTrigger> triggers, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask UpdateFireInstanceProgress(string fireInstanceId, Quartz.Extensibility.FireInstanceProgress progress, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(Quartz.TriggerKey triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public class DelegatingScheduler : Quartz.IScheduler, System.IAsyncDisposable
@@ -3511,6 +3536,7 @@ namespace Quartz.Impl
         public Quartz.IScheduler Scheduler { get; }
         public Quartz.ITrigger Trigger { get; }
         public void Dispose() { }
+        public void ReportProgress(int percent, string? message = null) { }
         public override string ToString() { }
     }
     public class MicrosoftDependencyInjectionJobFactory : Quartz.Impl.PropertySettingJobFactory
@@ -3605,6 +3631,7 @@ namespace Quartz.Impl
         public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.TriggerFiredResult>> TriggersFired(System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.IOperableTrigger> triggers, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask UpdateFireInstanceProgress(string fireInstanceId, Quartz.Extensibility.FireInstanceProgress progress, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(Quartz.TriggerKey triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class SchedulerRepository : Quartz.Extensibility.ISchedulerRepository

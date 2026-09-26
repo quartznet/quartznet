@@ -174,6 +174,18 @@ internal sealed record FireInstanceDto(
     DateTimeOffset? ScheduledFireTimeUtc,
     string? ExecutionGroup)
 {
+    /// <summary>
+    /// What the running job last reported: a percentage and a message.
+    /// </summary>
+    /// <remarks>
+    /// Non-positional, so the constructor is unchanged: a 4.2 host sends neither, and they read back
+    /// as <see langword="null" /> — which is what a firing that has reported nothing is anyway.
+    /// </remarks>
+    public int? Progress { get; init; }
+
+    /// <inheritdoc cref="Progress" />
+    public string? ProgressMessage { get; init; }
+
     public static FireInstanceDto Create(FireInstance instance)
     {
         ArgumentNullException.ThrowIfNull(instance);
@@ -189,7 +201,11 @@ internal sealed record FireInstanceDto(
             FireTimeUtc: instance.FireTimeUtc,
             ScheduledFireTimeUtc: instance.ScheduledFireTimeUtc,
             ExecutionGroup: instance.ExecutionGroup
-        );
+        )
+        {
+            Progress = instance.Progress,
+            ProgressMessage = instance.ProgressMessage
+        };
     }
 
     public FireInstance AsFireInstance()
@@ -203,7 +219,11 @@ internal sealed record FireInstanceDto(
             FireTimeUtc,
             ScheduledFireTimeUtc,
             ExecutionGroup
-        );
+        )
+        {
+            Progress = Progress,
+            ProgressMessage = ProgressMessage
+        };
     }
 }
 

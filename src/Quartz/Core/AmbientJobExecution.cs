@@ -69,6 +69,17 @@ internal static class AmbientJobExecution
     internal static Guid? CurrentCallerId => current.Value?.CallerId;
 
     /// <summary>
+    /// The holder the current flow's firing is published on, or <see langword="null" /> when the flow
+    /// belongs to no operation of Quartz's.
+    /// </summary>
+    /// <remarks>
+    /// For something that outlives the call it was made from and has to learn, later and on another
+    /// flow, whether that firing is still running: the holder's <see cref="Holder.Context" /> is emptied
+    /// the moment the firing ends, for every flow that captured it.
+    /// </remarks>
+    internal static Holder? CurrentHolder => current.Value;
+
+    /// <summary>
     /// Begins an operation on this flow under an identity of its own, and hands back the holder its
     /// execution context is published on once there is one.
     /// </summary>

@@ -346,7 +346,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 State: instance.State,
                 FireTimeUtc: instance.FireTimeUtc,
                 ScheduledFireTimeUtc: instance.ScheduledFireTimeUtc,
-                ExecutionGroup: instance.ExecutionGroup));
+                ExecutionGroup: instance.ExecutionGroup)
+            {
+                Progress = instance.Progress,
+                ProgressMessage = instance.ProgressMessage
+            });
         }
 
         return new PagedResult<FireInstanceDto>(items, page.HasMore, page.TotalCount ?? items.Count);
@@ -616,6 +620,22 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             .ConfigureAwait(false);
 
         return DashboardHistoryMapping.Map(page, static entry => entry.AsDashboardHistoryEntry());
+    }
+
+    /// <remarks>
+    /// Read from the same store the listing reads — the scheduler's database, its window's, or the
+    /// container's — through <see cref="IExecutionHistoryStore.GetExecution" />, which is the read that
+    /// carries the captured log.
+    /// </remarks>
+    public async ValueTask<DashboardHistoryEntry?> GetExecution(string schedulerName, string entryId, CancellationToken cancellationToken = default)
+    {
+        await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
+
+        ExecutionHistoryEntry? entry = await HistoryFor(schedulerName)
+            .GetExecution(schedulerName, entryId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return entry?.AsDashboardHistoryEntry();
     }
 
     /// <inheritdoc cref="QueryExecutions" />

@@ -73,6 +73,22 @@ public sealed record DashboardHistoryEntry(
     /// </para>
     /// </remarks>
     public bool RetryScheduled { get; init; }
+
+    /// <summary>
+    /// What names this row, which the execution-detail page reads it back by; <see langword="null" /> on
+    /// a row nothing named, which the history page then shows without a link.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ExecutionHistoryEntry.EntryId" />, carried over — a non-positional <c>init</c> property,
+    /// as <see cref="Log" /> is.
+    /// </remarks>
+    public string? EntryId { get; init; }
+
+    /// <summary>
+    /// The lines the job logged, or <see langword="null" /> when nothing was captured. Read by
+    /// <see cref="IQuartzApiClient.GetExecution" />; a listing may leave it out.
+    /// </summary>
+    public string? Log { get; init; }
 }
 
 /// <summary>

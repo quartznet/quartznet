@@ -447,9 +447,129 @@ partial class Build
 
             // --- 4.2: the execution history tables, which only UseExecutionHistory() needs ---
             files.Add(($"4.2/add_execution_history_{d}.sql", Build42ExecutionHistoryScript(d)));
+
+            // --- 4.3: a running firing's progress, which every 4.3 node reads and writes ---
+            files.Add(($"4.3/add_fire_progress_{d}.sql", Build43FireProgressScript(d)));
+
+            // --- 4.3: the captured log of an execution, on the table only UseExecutionHistory() reads ---
+            files.Add(($"4.3/add_execution_log_{d}.sql", Build43ExecutionLogScript(d)));
         }
 
         return files;
+    }
+
+    /// <summary>
+    /// A column's declaration as a migration's <c>ADD</c> spells it, read off the schema model so the
+    /// migrated column is the one a fresh install and provisioning create.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server brackets the name, as its fresh-install script does; PostgreSQL's emitter lowercases
+    /// the whole declaration itself.
+    /// </remarks>
+    static string ModelColumn(string dialect, string table, string column)
+    {
+        SchemaColumn definition = SchemaTables
+            .Single(t => "QRTZ_" + t.Name == table)
+            .Columns
+            .Single(c => c.Name == column);
+
+        string type = definition.Definition[dialect];
+        return dialect == "sqlServer" ? $"[{column}] {type}" : $"{column} {type}";
+    }
+
+    /// <summary>
+    /// The two columns a running firing's progress is kept in, on the table every node already writes
+    /// its firings to.
+    /// </summary>
+    static string Build43FireProgressScript(string dialect)
+    {
+        List<string> extra =
+        [
+            "PROGRESS is the percentage, 0 to 100, a running job last passed to",
+            "IJobExecutionContext.ReportProgress; PROGRESS_MESSAGE is the message it passed with it,",
+            "truncated to 250 characters. The scheduler writes them at most once a second per firing",
+            "and only when they change, by ENTRY_ID -- the row belongs to the node writing it, so no",
+            "lock is taken. The row is deleted when the firing completes, as it always was.",
+            "",
+            "No index is added. The write is by primary key, and the read is the fire-instance listing,",
+            "which already reads this table.",
+            "",
+            "BOTH COLUMNS MUST BE ADDED TOGETHER.",
+        ];
+
+        if (dialect == "oracle")
+        {
+            extra.AddRange([
+                "",
+                "Oracle only: PROGRESS_MESSAGE is VARCHAR2(1000) rather than 250 wide, because VARCHAR2",
+                "counts bytes and 250 characters of UTF-8 can take up to 1,000 of them.",
+            ]);
+        }
+
+        string header = Header(dialect, "add the fire progress columns", "4.3.0", "#3874",
+            [
+                "4.3  REQUIRED. A 4.3 node writes these two columns when a running job reports its",
+                "     progress and reads them whenever it lists what is executing, so it refuses to",
+                "     start against a database without them.",
+                "",
+                "     Safe to run while 4.2 nodes are still up: the columns are nullable with no",
+                "     default, so every existing row is already valid, and a 4.2 node never names them.",
+                "     A firing a 4.2 node runs reads as one that has reported no progress.",
+                "",
+                $"4.1  Run ../4.2/add_continuations_{dialect}.sql first on a database created by",
+                "     4.0 or 4.1.",
+                "",
+                "3.x  Not applicable. Upgrading from 3.x means running",
+                $"     ../4.0/schema_30_to_40_upgrade_{dialect}.sql and every later migration first;",
+                "     this file is what 4.3 adds on top of them.",
+            ],
+            extra,
+            sqliteNotIdempotent: true);
+
+        return header
+            + "\n\n" + AddColumn(dialect, TableFired, "PROGRESS", ModelColumn(dialect, TableFired, "PROGRESS"))
+            + "\n\n" + AddColumn(dialect, TableFired, "PROGRESS_MESSAGE", ModelColumn(dialect, TableFired, "PROGRESS_MESSAGE"));
+    }
+
+    /// <summary>
+    /// The column an execution's captured log lines are kept in, on the optional history table.
+    /// </summary>
+    /// <remarks>
+    /// A file of its own rather than a section of <see cref="Build43FireProgressScript" />, because the
+    /// table it alters is optional and an <c>ALTER TABLE</c> of a table that is not there fails on every
+    /// dialect — guarded or not.
+    /// </remarks>
+    static string Build43ExecutionLogScript(string dialect)
+    {
+        string header = Header(dialect, "add the execution log column", "4.3.0", "#3874",
+            [
+                "4.3  OPTIONAL, and only for a database that has QRTZ_EXECUTION_HISTORY -- one that",
+                $"     ran ../4.2/add_execution_history_{dialect}.sql or was created by 4.2 or later.",
+                "     A store configured with UsePersistentStore(s => s.UseExecutionHistory()) writes",
+                "     this column with every history row, so it refuses to start without it. No other",
+                "     scheduler reads that table.",
+                "",
+                "     Do NOT run it against a database without QRTZ_EXECUTION_HISTORY: the statement",
+                "     alters that table, and fails when the table is not there.",
+                "",
+                "     Safe under a mixed cluster: a 4.2 node's history rows name their own columns and",
+                "     leave this one NULL, which reads as nothing captured.",
+                "",
+                "3.x  Not applicable.",
+            ],
+            [
+                "EXECUTION_LOG holds the log lines a job wrote while it ran, captured by",
+                "UseExecutionLogCapture() and bounded by ExecutionLogCaptureOptions -- 200 lines and",
+                "16 KB by default. It is NULL for an execution that logged nothing and for every",
+                "execution of a scheduler that does not capture.",
+                "",
+                "The history listing never selects it; only the read of one entry does, so a page of",
+                "history costs what it did before.",
+            ],
+            sqliteNotIdempotent: true);
+
+        return header
+            + "\n\n" + AddColumn(dialect, TableExecutionHistory, "EXECUTION_LOG", ModelColumn(dialect, TableExecutionHistory, "EXECUTION_LOG"));
     }
 
     /// <summary>
@@ -537,12 +657,19 @@ partial class Build
     }
 
     /// <summary>
-    /// One history table's column and constraint lines, read off the schema model with the table-prefix
-    /// placeholders resolved to the default prefix these scripts are written for.
+    /// One history table's column and constraint lines as 4.2 shipped them, read off the schema model
+    /// with the table-prefix placeholders resolved to the default prefix these scripts are written for.
     /// </summary>
+    /// <remarks>
+    /// A column a later release added is left out: the 4.2 script is released, a reader may already
+    /// have run it, and the later column arrives through that release's own migration. Rendering the
+    /// current table here would make running the two in order fail on SQLite, which cannot guard an
+    /// <c>ADD COLUMN</c>.
+    /// </remarks>
     static string[] HistoryTableBody(string dialect, string table)
     {
-        SchemaTable definition = ExecutionHistoryTables.Single(t => "QRTZ_" + t.Name == table);
+        SchemaTable current = ExecutionHistoryTables.Single(t => "QRTZ_" + t.Name == table);
+        SchemaTable definition = current with { Columns = current.Columns.Where(c => c.AddedBy is null).ToArray() };
 
         return TableBody(dialect, definition)
             .Select(line => line.Replace("{0}", "QRTZ_").Replace("{1}", "QRTZ_"))

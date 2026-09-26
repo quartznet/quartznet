@@ -92,6 +92,7 @@ matching on its text is not.
 | 1055 | Debug | `Quartz` | `"Rescheduling trigger to reexecute"` |
 | 1056 | Information | `Quartz` | `"Job of trigger {TriggerKey} failed; retry {Attempt} of {MaxAttempts} scheduled for {RetryTimeUtc}"` |
 | 1057 | Information | `Quartz` | `"Job of trigger {TriggerKey} failed after {Attempt} of {MaxAttempts} retries; the occurrence is over and the trigger keeps its ordinary schedule"` |
+| 1058 | Warning | `Quartz` | `"Could not record the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on"` |
 | 1070 | Information | `Quartz` | `"Initialized Scheduler Signaller of type: {Type}"` |
 | 1071 | Error | `Quartz` | `"Error notifying listeners of trigger misfire."` |
 | 1080 | Error | `Quartz` | `"{Message} (scheduler: {SchedulerName})"` |

@@ -154,11 +154,21 @@ public sealed class RAMJobStore : IJobStore
     /// the ADO store's FIRED_TRIGGERS table, and the source of the <see cref="FireInstance" />s
     /// <see cref="QueryFireInstances" /> reports.
     /// </summary>
+    /// <remarks>
+    /// <see cref="Progress" /> and <see cref="ProgressMessage" /> are what the execution last reported,
+    /// the counterpart of that row's two progress columns: written by
+    /// <see cref="UpdateFireInstanceProgress" />, and gone with the entry when the execution completes.
+    /// </remarks>
     private readonly record struct FireInstanceEntry(
         JobKey JobKey,
         DateTimeOffset FireTimeUtc,
         DateTimeOffset? ScheduledFireTimeUtc,
-        string? ExecutionGroup);
+        string? ExecutionGroup)
+    {
+        public int? Progress { get; init; }
+
+        public string? ProgressMessage { get; init; }
+    }
 
     /// <summary>
     /// The instance id of the scheduler this store belongs to, from <see cref="Initialize" />. Reported
@@ -1954,7 +1964,11 @@ public sealed class RAMJobStore : IJobStore
                     FireInstanceState.Executing,
                     entry.FireTimeUtc,
                     entry.ScheduledFireTimeUtc,
-                    entry.ExecutionGroup));
+                    entry.ExecutionGroup)
+                {
+                    Progress = entry.Progress,
+                    ProgressMessage = entry.ProgressMessage
+                });
             }
         }
     }
@@ -3232,6 +3246,36 @@ public sealed class RAMJobStore : IJobStore
 
             return new ValueTask<List<TriggerFiredResult>>(results);
         }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Written onto the execution's own entry, which is what <see cref="QueryFireInstances" /> projects
+    /// and what the completion takes away. The entries are keyed by trigger, so the one this names is
+    /// found by walking what is executing — at most as many as the thread pool runs at once.
+    /// </remarks>
+    public ValueTask UpdateFireInstanceProgress(string fireInstanceId, FireInstanceProgress progress, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(fireInstanceId);
+        ArgumentNullException.ThrowIfNull(progress);
+
+        lock (lockObject)
+        {
+            foreach (Dictionary<string, FireInstanceEntry> executions in executingFireInstances.Values)
+            {
+                if (executions.TryGetValue(fireInstanceId, out FireInstanceEntry entry))
+                {
+                    executions[fireInstanceId] = entry with
+                    {
+                        Progress = progress.Percent,
+                        ProgressMessage = FireInstanceProgress.Truncate(progress.Message)
+                    };
+                    break;
+                }
+            }
+        }
+
+        return default;
     }
 
     /// <summary>

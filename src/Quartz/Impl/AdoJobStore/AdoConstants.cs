@@ -104,6 +104,32 @@ public static class AdoConstants
     internal const string Migration42History = "4.2/add_execution_history_{0}.sql";
 
     /// <summary>
+    /// The migration that adds a running firing's progress to <see cref="TableFiredTriggers" />, which
+    /// a database created by 4.2 or earlier needs.
+    /// </summary>
+    internal const string Migration43 = "4.3/add_fire_progress_{0}.sql";
+
+    /// <summary>
+    /// The migration that adds the captured log to <see cref="TableExecutionHistory" />. Optional, as
+    /// the table is: a store configured with <c>UseExecutionHistory()</c> needs it, and nothing else.
+    /// </summary>
+    internal const string Migration43ExecutionLog = "4.3/add_execution_log_{0}.sql";
+
+    /// <summary>
+    /// The columns only a feature that is off by default reads or writes, on a table only that feature
+    /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
+    /// </summary>
+    /// <remarks>
+    /// Not in <see cref="MigratedColumnNames" />, which every scheduler probes: a database that never
+    /// ran the history's own migration has no such table, and one that did but keeps no history in it
+    /// has no reason to take this one either.
+    /// </remarks>
+    internal static readonly (string Table, string Column, string Migration, string Feature)[] OptionalColumnNames =
+    [
+        (TableExecutionHistory, ColumnExecutionLog, Migration43ExecutionLog, "UsePersistentStore(store => store.UseExecutionHistory())")
+    ];
+
+    /// <summary>
     /// Every column 4.x requires on a table an earlier release already had, beside the migration
     /// under <c>database/migrations/</c> that adds it.
     /// </summary>
@@ -126,8 +152,9 @@ public static class AdoConstants
     /// </para>
     /// <para>
     /// Each entry names the migration that adds it, so the failure can point at the script the
-    /// database in front of the reader actually needs — the 3.x-to-4.0 upgrade, or 4.2's
-    /// continuation columns, which a database created by 4.0 or 4.1 is missing.
+    /// database in front of the reader actually needs — the 3.x-to-4.0 upgrade, 4.2's continuation
+    /// columns, which a database created by 4.0 or 4.1 is missing, or 4.3's progress columns, which one
+    /// created by 4.2 is.
     /// </para>
     /// </remarks>
     internal static readonly (string Table, string Column, string Migration)[] MigratedColumnNames =
@@ -141,7 +168,9 @@ public static class AdoConstants
         (TableTriggers, ColumnRetryAttempt, Migration40),
         (TableTriggers, ColumnContinuesTriggerName, Migration42),
         (TableTriggers, ColumnContinuesTriggerGroup, Migration42),
-        (TableTriggers, ColumnContinuationCondition, Migration42)
+        (TableTriggers, ColumnContinuationCondition, Migration42),
+        (TableFiredTriggers, ColumnProgress, Migration43),
+        (TableFiredTriggers, ColumnProgressMessage, Migration43)
     ];
 
     // Table names
@@ -428,6 +457,21 @@ public static class AdoConstants
     /// </summary>
     public const string ColumnEntryState = "STATE";
 
+    // The progress columns, added by the 4.3 schema migration. Both are nullable with no default, so
+    // a 4.2 node keeps running against a migrated database and its firings read as having reported
+    // nothing (#3874).
+    /// <summary>
+    /// The <c>PROGRESS</c> column of <see cref="TableFiredTriggers" />: the percentage a running job
+    /// last reported through <c>IJobExecutionContext.ReportProgress</c>.
+    /// </summary>
+    public const string ColumnProgress = "PROGRESS";
+
+    /// <summary>
+    /// The <c>PROGRESS_MESSAGE</c> column of <see cref="TableFiredTriggers" />: the message a running
+    /// job last reported beside its percentage.
+    /// </summary>
+    public const string ColumnProgressMessage = "PROGRESS_MESSAGE";
+
     // TableCalendars columns names
     /// <summary>
     /// The <c>CALENDAR_NAME</c> column of <see cref="TableCalendars" />.
@@ -488,6 +532,16 @@ public static class AdoConstants
     /// reconstructing the occurrence from its rows.
     /// </remarks>
     public const string ColumnRetryScheduled = "RETRY_SCHEDULED";
+
+    /// <summary>
+    /// The <c>EXECUTION_LOG</c> column of <see cref="TableExecutionHistory" />: the log lines the job
+    /// wrote while it ran, when the scheduler captures them.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.3 migration, and never read by the history listing: only
+    /// <c>IExecutionHistoryStore.GetExecution</c> selects it.
+    /// </remarks>
+    public const string ColumnExecutionLog = "EXECUTION_LOG";
 
     /// <summary>
     /// The <c>MISFIRE_TIME</c> column of <see cref="TableMisfireHistory" />: when the misfire was

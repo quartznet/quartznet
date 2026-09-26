@@ -63,6 +63,9 @@ internal static class SchedulerEndpoints
         yield return builder.MapGet(patternPrefix + "/{schedulerName}/history/executions", QueryExecutionHistory)
             .WithQuartzDefaults(nameof(QueryExecutionHistory), "Query the scheduler's execution history");
 
+        yield return builder.MapGet(patternPrefix + "/{schedulerName}/history/executions/{entryId}", GetExecution)
+            .WithQuartzDefaults(nameof(GetExecution), "Get one execution, with its captured log");
+
         yield return builder.MapGet(patternPrefix + "/{schedulerName}/history/misfires", QueryMisfireHistory)
             .WithQuartzDefaults(nameof(QueryMisfireHistory), "Query the scheduler's misfires");
 
@@ -433,6 +436,34 @@ internal static class SchedulerEndpoints
             }
 
             return new PagedResultDto<ExecutionHistoryEntryDto>(items, page.HasMore, page.TotalCount);
+        });
+    }
+
+    /// <summary>
+    /// One execution this scheduler ran, named by the <c>entryId</c> its listing row carries, with the
+    /// lines its job logged when the scheduler captures them.
+    /// </summary>
+    /// <remarks>
+    /// The one history read that carries <c>log</c>: the listing leaves it out of every row. A row that
+    /// was never recorded, or has since been trimmed, answers <c>404</c>.
+    /// </remarks>
+    [ProducesResponseType(typeof(ExecutionHistoryEntryDto), StatusCodes.Status200OK)]
+    private static Task<IResult> GetExecution(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        string entryId,
+        CancellationToken cancellationToken = default)
+    {
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            ExecutionHistoryEntry entry = await HistoryFor(httpContext, historyStore, scheduler.SchedulerName)
+                .GetExecution(scheduler.SchedulerName, entryId, cancellationToken).ConfigureAwait(false)
+                ?? throw NotFoundException.ForExecution(entryId);
+
+            return ExecutionHistoryEntryDto.Create(entry, includeLog: true);
         });
     }
 

@@ -325,6 +325,44 @@ public interface IQuartzApiClient
     ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns one execution, its captured <see cref="DashboardHistoryEntry.Log" /> included, or
+    /// <see langword="null" /> when the scheduler has no row by that <see cref="DashboardHistoryEntry.EntryId" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the execution-detail page reads. A source that cannot reach the history at all raises
+    /// <see cref="NotSupportedException" />, as <see cref="QueryExecutions" /> does for it.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.3. The default reads the scheduler's whole history through
+    /// <see cref="QueryExecutions" /> and picks the row out, so an implementation of an application's own
+    /// answers truthfully without declaring it — with whatever log its listing carries.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler the execution belongs to.</param>
+    /// <param name="entryId">The row's <see cref="DashboardHistoryEntry.EntryId" />.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask<DashboardHistoryEntry?> GetExecution(string schedulerName, string entryId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(entryId);
+
+        PagedResult<DashboardHistoryEntry> all = await QueryExecutions(
+            new DashboardHistoryQuery { SchedulerName = schedulerName, Take = PagedQuery.All },
+            cancellationToken).ConfigureAwait(false);
+
+        foreach (DashboardHistoryEntry entry in all.Items)
+        {
+            if (string.Equals(entry.EntryId, entryId, StringComparison.Ordinal))
+            {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Returns one page of the triggers that missed a firing, newest first.
     /// </summary>
     /// <remarks>
@@ -683,7 +721,23 @@ public sealed record FireInstanceDto(
     FireInstanceState State,
     DateTimeOffset FireTimeUtc,
     DateTimeOffset? ScheduledFireTimeUtc,
-    string? ExecutionGroup);
+    string? ExecutionGroup)
+{
+    /// <summary>
+    /// How far the running job said it had got, from <c>0</c> to <c>100</c>, or
+    /// <see langword="null" /> when it has not said — which is what Currently Executing draws as a bar.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Quartz.FireInstance.Progress" />, carried over. A non-positional <c>init</c> property,
+    /// as <see cref="ProgressMessage" /> is, so the record's constructor is unchanged.
+    /// </remarks>
+    public int? Progress { get; init; }
+
+    /// <summary>
+    /// What the running job said beside its <see cref="Progress" />, or <see langword="null" />.
+    /// </summary>
+    public string? ProgressMessage { get; init; }
+}
 
 /// <summary>
 /// One scheduler node, as the dashboard shows it.

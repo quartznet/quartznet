@@ -102,7 +102,7 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 
 ## Every endpoint
 
-Sixty-five routes in four groups.
+Sixty-six routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
@@ -111,7 +111,7 @@ Sixty-five routes in four groups.
   `{ applied }` is the one-flag form; `{ groups }` / `{ jobs }` / `{ triggers }` are the group-matcher and
   key-set forms; *paged* is the [paged envelope](#listing-endpoints-are-paged).
 
-### Schedulers — 17
+### Schedulers — 18
 
 | Method | Path | Answers |
 |---|---|---|
@@ -127,6 +127,7 @@ Sixty-five routes in four groups.
 | `GET` | `{ApiPath}/schedulers/{name}/nodes` | The cluster's nodes ([below](#cluster-nodes)) |
 | `GET` | `{ApiPath}/schedulers/{name}/events` | Live events as `text/event-stream` ([below](#the-event-stream)) |
 | `GET` | `{ApiPath}/schedulers/{name}/history/executions` | A page of what the scheduler ran ([below](#execution-history)) |
+| `GET` | `{ApiPath}/schedulers/{name}/history/executions/{entryId}` | One execution with its captured `log`; `404` when there is no such row |
 | `GET` | `{ApiPath}/schedulers/{name}/history/misfires` | A page of missed firings |
 | `GET` | `{ApiPath}/schedulers/{name}/history/misfires/count` | `{ count }` since `?since=` |
 | `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited |
@@ -427,7 +428,9 @@ concurrent-execution-disallowed, persist-job-data, requests-recovery.
 ² Key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority,
 execution group, retry policy and attempt, and [what the trigger is waiting for](#continuations).
 ³ `fireInstanceId`, trigger key, job key (`null` while only reserved), `schedulerInstanceId`, `state`,
-`fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup`.
+`fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup`, and what the job
+[last reported](../how-tos/progress-and-execution-logs.md#report-progress): `progress` (0–100) and
+`progressMessage`, both `null` until it reports.
 
 - Results are ordered by group, then name, on every page. Fire instances add the fire instance id, since one
   trigger can have several firings at once.
@@ -577,11 +580,12 @@ From .NET, `AddQuartzHttpClient` registers a reader for this route that reconnec
 ## Execution history
 
 A job store holds what is *scheduled*. What *happened* (what ran, for how long, whether it threw, what was
-missed) is in the container's `IExecutionHistoryStore`, served by three routes:
+missed) is in the container's `IExecutionHistoryStore`, served by four routes:
 
 | Path | Query | Answers |
 |---|---|---|
 | `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains` | A page of executions, newest first |
+| `GET {ApiPath}/schedulers/{name}/history/executions/{entryId}` | none | One execution, `log` included |
 | `GET {ApiPath}/schedulers/{name}/history/misfires` | the same, minus `jobContains` | A page of misfires, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since`: a `DateTimeOffset`, required | `{ "count": 3 }` |
 
@@ -597,7 +601,11 @@ missed) is in the container's `IExecutionHistoryStore`, served by three routes:
       "firedAtUtc": "2026-08-26T00:00:00+00:00",
       "duration": "00:00:01.5000000",
       "succeeded": false,
-      "exceptionMessage": "the job threw"
+      "exceptionMessage": "the job threw",
+      "retryAttempt": 0,
+      "retryScheduled": false,
+      "entryId": "8c3f2a0e5b7d4f1a9e6c2d4b8a0f3e71",
+      "log": null
     }
   ],
   "hasMore": false,
@@ -607,6 +615,8 @@ missed) is in the container's `IExecutionHistoryStore`, served by three routes:
 
 - Rows carry the **node's** id, not the scheduler name (the route has it). `schedulerInstanceId` narrows to one
   node.
+- `entryId` names the row for `…/history/executions/{entryId}`. `log` is `null` on every listing row; that
+  route carries it, when the scheduler [captures its jobs' logs](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines).
 - `jobContains` and `triggerContains` match a key's group, name, or `group.name`, case-insensitively.
 - Paging uses the usual envelope, bounded by [`MaxPageSize`](#listing-endpoints-are-paged).
 
