@@ -41,7 +41,7 @@ jobs:
   windows-latest:
     name: windows-latest
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
@@ -55,6 +55,14 @@ jobs:
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
           Database: basic
+      - name: 'Publish: test results'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: ignore
+          name: test-results-${{ runner.os }}
+          path: artifacts/test-results
+          retention-days: 5
+        if: ${{ failure() }}
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v7
         if: ${{ runner.os == 'Windows' }}
@@ -64,7 +72,7 @@ jobs:
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
@@ -78,6 +86,14 @@ jobs:
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
           Database: basic
+      - name: 'Publish: test results'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: ignore
+          name: test-results-${{ runner.os }}
+          path: artifacts/test-results
+          retention-days: 5
+        if: ${{ failure() }}
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v7
         if: ${{ runner.os == 'Windows' }}
@@ -87,7 +103,7 @@ jobs:
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
@@ -101,6 +117,14 @@ jobs:
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
           Database: basic
+      - name: 'Publish: test results'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: ignore
+          name: test-results-${{ runner.os }}
+          path: artifacts/test-results
+          retention-days: 5
+        if: ${{ failure() }}
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v7
         if: ${{ runner.os == 'Windows' }}

@@ -43,6 +43,14 @@ jobs:
         run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest Pack Publish DraftRelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Publish: test results'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: ignore
+          name: test-results-${{ runner.os }}
+          path: artifacts/test-results
+          retention-days: 5
+        if: ${{ failure() }}
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v7
         with:

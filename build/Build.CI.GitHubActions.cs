@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Fallout.Common.CI.GitHubActions;
+using Fallout.Common.CI.GitHubActions.Configuration;
 using Fallout.Components;
 
 using Quartz.Build;
@@ -29,8 +30,8 @@ using Quartz.Build;
     //
     // BenchmarkSmoke, WolverineSmoke and ExamplesSmoke are on this workflow alone. Every change reaches
     // main through a pull request, so this is where a broken benchmark or a broken example is caught
-    // while somebody is still looking; the push and release legs have ten-minute budgets and nothing to
-    // do with any of them. ExamplesSmoke runs the two applications PublishTrimmed only ever published,
+    // while somebody is still looking; the push and release legs are budgeted for building, testing and
+    // packing and have nothing to do with any of them. ExamplesSmoke runs the two applications PublishTrimmed only ever published,
     // on all three images, because a host that refuses to start does so per platform.
     InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(WolverineSmoke), nameof(ExamplesSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
     CacheKeyFiles = [],
@@ -48,7 +49,7 @@ using Quartz.Build;
 [DatabaseIntegrationGitHubActions("pr-integration-sqlite", "sqlite")]
 [DatabaseIntegrationGitHubActions("pr-integration-redis", "redis")]
 // The push leg runs 'basic' — the container-free negation of every db-* category. Left unset the build
-// defaults to "all", which starts six database containers inside a ten-minute job; per-database coverage
+// defaults to "all", which starts six database containers inside a fifteen-minute job; per-database coverage
 // is what the pr-integration-* workflows above are for.
 [DatabaseGitHubActions(
     "build",
@@ -64,7 +65,11 @@ using Quartz.Build;
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(IPack.Pack), nameof(Publish)],
     ImportSecrets = ["FEEDZ_API_KEY"],
     CacheKeyFiles = [],
-    TimeoutMinutes = 10,
+    // Fifteen rather than ten so that a hung unit test host is named rather than cancelled: on
+    // windows-latest the unit tests begin about five and a half minutes in, the suite takes two, and
+    // the blame collector needs UnitTestHangTimeout of silence before it dumps and kills the host.
+    // Ten minutes held a green run and nothing else — see UnitTestHangTimeout in Build.cs.
+    TimeoutMinutes = 15,
     ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
 // Releases live in their own workflow file because a nuget.org trusted publishing policy is scoped by
@@ -98,7 +103,44 @@ using Quartz.Build;
     // Contents is write here, so it is not repeated as a read: a permission key can only appear once.
     WritePermissions = [GitHubActionsPermissions.IdToken, GitHubActionsPermissions.Contents]
 )]
-public partial class Build;
+public partial class Build : IConfigureGitHubActions
+{
+    /// <summary>
+    /// Every job that runs <see cref="UnitTest"/> keeps what the run left in <c>artifacts/test-results</c>
+    /// when it fails: the blame collector's <c>Sequence_*.xml</c> naming the tests that were in flight
+    /// when it declared the host hung, and the mini dump of that host. Nothing is uploaded from a green
+    /// job, and a few days is long enough to read a dump.
+    /// </summary>
+    public void ConfigureSteps(GitHubActionsStepPipeline pipeline)
+    {
+        bool runsUnitTests = pipeline.BuiltInSteps
+            .OfType<GitHubActionsRunStep>()
+            .Any(step => step.InvokedTargets.Contains(nameof(UnitTest)));
+
+        if (!runsUnitTests)
+        {
+            return;
+        }
+
+        pipeline.Insert(GitHubActionsStepPosition.PostRun, new GitHubActionsCustomStep
+        {
+            Name = "Publish: test results",
+            // The same release the generator pins for its own 'Publish: packages' step; Fallout keeps
+            // that default internal, so it is spelled here and a drift shows up in the generated yml.
+            Uses = "actions/upload-artifact@v7",
+            If = "${{ failure() }}",
+            With =
+            {
+                // One job per runner image rather than a matrix, so the runner's OS is what tells the
+                // three artifacts of one run apart.
+                ["name"] = "test-results-${{ runner.os }}",
+                ["path"] = "artifacts/test-results",
+                ["if-no-files-found"] = "ignore",
+                ["retention-days"] = "5"
+            }
+        });
+    }
+}
 
 namespace Quartz.Build
 {
