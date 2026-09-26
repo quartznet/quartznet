@@ -69,6 +69,41 @@ bind to the host's `Quartz` assembly, so the mismatch fails when the dashboard i
 [`Quartz.Dashboard`](dashboard.md), from this repository, is built against 4.0.
 :::
 
+## Message buses
+
+### [MassTransit.Quartz](https://www.nuget.org/packages/MassTransit.Quartz)
+
+MassTransit's message scheduler, on Quartz.NET.
+
+::: warning It needs Quartz.NET 3.x
+As of 2026-09-26:
+
+| Version | Depends on `Quartz` and `Quartz.Extensions.Hosting` | On Quartz.NET 4.x |
+|---|---|---|
+| 9.2.2 | `>= 3.22.0`, no upper bound | fails |
+| 8.5.10, the latest 8.x | `>= 3.18.1`, no upper bound | fails |
+
+The open-source `develop` branch builds against 3.18.1
+([`Directory.Packages.props`](https://github.com/MassTransit/MassTransit/blob/develop/Directory.Packages.props)).
+Neither range has an upper bound, so a project that references `Quartz` 4.x gets 4.x under a package
+compiled against the 3.x API. Both versions fail the same way:
+
+- **`Quartz` 4.x alone:** `AddQuartz` and `AddQuartzHostedService` fail with `CS0121`. MassTransit.Quartz
+  brings the 3.x `Quartz.Extensions.Hosting` and `Quartz.Extensions.DependencyInjection` with it, so there
+  is no package reference to remove.
+- **With the empty 4.x `Quartz.Extensions.Hosting` too:** the build succeeds and the host fails to start
+  with `FileNotFoundException: Could not load file or assembly 'Quartz.Extensions.Hosting, Version=3.22.0.0'`
+  (`3.18.1.0` on 8.x).
+
+Keep the application on Quartz.NET 3.x. Pin it below 4.0, so that a 4.x package anywhere in the graph
+fails the restore with `NU1605` instead of the run:
+
+```xml
+<PackageReference Include="Quartz" Version="[3.22.0, 4.0)" />
+```
+
+:::
+
 ## Schedules
 
 ### [NaturalCron.Quartz](https://github.com/hugoj0s3/NaturalCron)

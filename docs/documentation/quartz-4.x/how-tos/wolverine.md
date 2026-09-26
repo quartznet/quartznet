@@ -46,7 +46,7 @@ A transport delay applies to one message; a recurrence is a rule that outlives i
 | NServiceBus | scheduler [deprecated](https://docs.particular.net/nservicebus/upgrades/7to8/) in favour of sagas and schedulers such as Hangfire, Quartz and FluentScheduler |
 | Rebus | none |
 | [Brighter](https://brightercommand.gitbook.io/paramore-brighter-documentation/scheduler/brighterschedulersupport) | "at this time" and "after this delay"; cron left to the backend, Quartz being one |
-| MassTransit | a cron parser in its [Job Service](https://masstransit.io/documentation/patterns/job-consumers) since 2024; still ships `MassTransit.Quartz` |
+| MassTransit | a cron parser in its [Job Service](https://masstransit.io/documentation/patterns/job-consumers) since 2024; still ships `MassTransit.Quartz`, which [needs Quartz.NET 3.x](../packages/quartz-3rd-party-plugins.md#message-buses) |
 | Wolverine | `opts.Schedules` since 6.34: a cron deciding *when* an occurrence is published |
 
 [Comparison](../comparison.md) has the full side-by-side, including Hangfire, TickerQ and Coravel.
