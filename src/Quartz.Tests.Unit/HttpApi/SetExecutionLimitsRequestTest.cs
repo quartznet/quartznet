@@ -87,4 +87,38 @@ public class SetExecutionLimitsRequestTest
 
         request.Validate().Should().HaveCount(2, "the count and the scope are separate mistakes and a caller should hear about both at once");
     }
+
+    [Test]
+    public void ValidateShouldAcceptAPrefixKeyWithACount()
+    {
+        SetExecutionLimitsRequest request = new(new Dictionary<string, ExecutionLimitDto>
+        {
+            ["tenant:*"] = new(2, ExecutionLimitScope.Cluster),
+        });
+
+        request.Validate().Should().BeEmpty();
+    }
+
+    [Test]
+    public void ValidateShouldRejectAnUnlimitedPrefix()
+    {
+        SetExecutionLimitsRequest request = new(new Dictionary<string, ExecutionLimitDto>
+        {
+            ["tenant:*"] = new(null),
+        });
+
+        request.Validate().Should().ContainSingle().Which.Should().Contain("cannot be unlimited",
+            "the endpoint would otherwise build the limits and fail halfway, with a 500 rather than a 400");
+    }
+
+    [Test]
+    public void ValidateShouldRejectAPrefixKeyThatNamesNoPrefix()
+    {
+        SetExecutionLimitsRequest request = new(new Dictionary<string, ExecutionLimitDto>
+        {
+            ["tenant:**"] = new(1),
+        });
+
+        request.Validate().Should().ContainSingle().Which.Should().Contain("names no prefix");
+    }
 }

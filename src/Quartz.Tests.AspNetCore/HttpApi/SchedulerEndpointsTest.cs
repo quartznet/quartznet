@@ -98,6 +98,39 @@ public class SchedulerEndpointsTest : WebApiTest
     }
 
     /// <summary>
+    /// A prefix crosses the wire as its configuration key, <c>tenant:*</c>, and comes back a prefix.
+    /// </summary>
+    [Test]
+    public async Task ExecutionLimitsRoundTripKeepsAPrefixAPrefix()
+    {
+        ExecutionLimits? captured = null;
+        A.CallTo(() => FakeScheduler.SetExecutionLimits(A<ExecutionLimits>._, A<CancellationToken>._))
+            .Invokes((ExecutionLimits limits, CancellationToken _) => captured = limits);
+        A.CallTo(() => FakeScheduler.GetExecutionLimits(A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<ExecutionLimits?>(captured));
+
+        await HttpScheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
+            .ForGroup("tenant:vip", 8, ExecutionLimitScope.Cluster)
+            .ForGroupsWithPrefix("tenant:", 2, ExecutionLimitScope.Cluster)
+            .Build());
+
+        ExecutionGroupLimit[] expected =
+        [
+            new(ExecutionGroupScope.Named("tenant:vip"), 8, ExecutionLimitScope.Cluster),
+            new(ExecutionGroupScope.GroupsWithPrefix("tenant:"), 2, ExecutionLimitScope.Cluster),
+        ];
+
+        captured.Should().NotBeNull();
+        captured.Groups.Should().BeEquivalentTo(expected, "the server reads 'tenant:*' the way the property bridge does");
+
+        ExecutionLimits? readBack = await HttpScheduler.GetExecutionLimits();
+
+        readBack.Should().NotBeNull();
+        readBack.Groups.Should().BeEquivalentTo(expected,
+            "a prefix that came back as a group named 'tenant:*' would limit nothing, since no trigger is in that group");
+    }
+
+    /// <summary>
     /// The trigger-group derivation survives the round trip on its own, with no group limit beside it.
     /// </summary>
     /// <remarks>

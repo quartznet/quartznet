@@ -117,6 +117,10 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     private JobKey? jobKey;
     private readonly JobDataMap jobDataMap = new JobDataMap();
     private string? executionGroup;
+
+    // Whether WithExecutionGroup was called, null included: an explicit "no group" opts the trigger out
+    // of the job type's [ExecutionGroup], which only fills a group nobody set.
+    private bool executionGroupSet;
     private PreferredNode preferredNode;
     private RetryPolicy? retryPolicy;
     private Continuation continuation;
@@ -148,11 +152,17 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     /// The builder can be built more than once and answers with the same identity each time: a key it
     /// generated is kept rather than generated afresh, so two builds of one builder are the same trigger
     /// twice rather than two triggers. Any <c>H</c> token in a cron schedule is resolved here, from that
-    /// identity, which is why it has to be settled first.
+    /// identity, which is why it has to be settled first. So is any <c>{key}</c> placeholder in the
+    /// execution group, from this builder's job data, and the trigger stores the resolved name.
     /// </remarks>
     /// <returns>a Trigger that meets the specifications of the builder.</returns>
+    /// <exception cref="FormatException">The schedule uses <c>H</c> and the trigger has no identity, or
+    /// the execution group names a key the job data does not hold.</exception>
     public ITrigger Build()
     {
+        // First, so that a template naming a key nobody set fails before anything else is decided.
+        string? resolvedExecutionGroup = ResolveExecutionGroup();
+
         if (scheduleBuilder is null)
         {
             scheduleBuilder = SimpleScheduleBuilder.Create();
@@ -216,7 +226,7 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
             trig.JobDataMap = jobDataMap;
         }
 
-        trig.ExecutionGroup = executionGroup;
+        trig.ExecutionGroup = resolvedExecutionGroup;
 
         // Assign unconditionally: a builder-built trigger fully defines the pin, so a definition
         // without WithPreferredNode clears a previously stored value when it replaces an existing
@@ -230,6 +240,25 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
         trig.RetryPolicy = retryPolicy;
 
         return trig;
+    }
+
+    /// <summary>
+    /// The execution group the built trigger stores: the one set here, else the job type's
+    /// <see cref="ExecutionGroupAttribute" />, with its placeholders read from this builder's job data.
+    /// </summary>
+    private string? ResolveExecutionGroup()
+    {
+        // A builder for IJob has no job type to read an attribute off; the comparison is a JIT constant.
+        string? group = executionGroupSet || typeof(TJob) == typeof(IJob)
+            ? executionGroup
+            : DeclaredExecutionGroup<TJob>.Template;
+
+        if (group is null || !ExecutionGroupTemplate.IsTemplate(group))
+        {
+            return group;
+        }
+
+        return ExecutionGroupTemplate.Resolve(group, jobDataMap.TryGetValue, "the trigger's job data");
     }
 
 
@@ -304,10 +333,26 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     /// limits to be configured - per node or across the cluster - so that
     /// resource-intensive jobs do not saturate all available threads.
     /// </summary>
-    /// <param name="executionGroup">the execution group name, or <see langword="null"/> to clear</param>
+    /// <remarks>
+    /// <para>
+    /// The name may carry <c>{key}</c> placeholders, <c>tenant:{TenantId}</c> for one, resolved from this
+    /// builder's job data when <see cref="Build" /> runs, as <c>H</c> is; the trigger stores the resolved
+    /// name. <c>{{</c> and <c>}}</c> are literal braces. The job's own data is not read: the builder does
+    /// not have it, so a value the group depends on goes on the trigger.
+    /// </para>
+    /// <para>
+    /// Calling this at all, <see langword="null"/> included, overrides the job type's
+    /// <see cref="ExecutionGroupAttribute" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="executionGroup">the execution group name or template, or <see langword="null"/> to clear</param>
     /// <returns>the updated TriggerBuilder</returns>
+    /// <exception cref="ArgumentException"><paramref name="executionGroup" /> is a reserved name, or a
+    /// template the grammar cannot read.</exception>
     public TriggerBuilder<TJob> WithExecutionGroup(string? executionGroup)
     {
+        executionGroupSet = true;
+
         if (string.IsNullOrWhiteSpace(executionGroup))
         {
             this.executionGroup = null;
@@ -315,7 +360,12 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
         else
         {
             executionGroup = executionGroup!.Trim();
-            if (ExecutionLimits.IsReservedGroupName(executionGroup))
+            if (ExecutionGroupTemplate.IsTemplate(executionGroup))
+            {
+                // Checked here, where the mistake was made; the values are only there at Build().
+                ExecutionGroupTemplate.Validate(executionGroup, nameof(executionGroup));
+            }
+            else if (ExecutionLimits.IsReservedGroupName(executionGroup))
             {
                 throw new ArgumentException(
                     $"Execution group name '{executionGroup}' is reserved for limits configuration.",

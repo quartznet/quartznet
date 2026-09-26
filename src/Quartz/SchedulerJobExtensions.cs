@@ -305,7 +305,7 @@ public static class SchedulerJobExtensions
             .ForJob(jobKey)
             .StartAt(at)
             .WithDescription(options.Description)
-            .WithExecutionGroup(options.ExecutionGroup)
+            .WithExecutionGroup(ResolveExecutionGroup<TJob>(options.ExecutionGroup))
             .UsingInput(input);
 
         if (options.Priority is { } priority)
@@ -325,5 +325,45 @@ public static class SchedulerJobExtensions
         }
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// The execution group the one-liner's trigger stores: the options' name as written, else the job
+    /// type's <see cref="ExecutionGroupAttribute" /> when it needs no values.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The options' group is a name, not a template, so it is escaped before the builder reads it: a
+    /// brace in it stays a brace, as it did before templates existed. A per-tenant one-off says the
+    /// tenant at the call site, <c>ExecutionGroup = $"tenant:{input.TenantId}"</c>.
+    /// </para>
+    /// <para>
+    /// The one-liner's job data is the input as a whole, so an attribute with placeholders has nothing
+    /// to read them from. Rather than store the firing in no group, outside the limit the attribute
+    /// exists to apply, the call is refused with the spelling that works.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="FormatException">The options name no group and the job type's attribute has
+    /// placeholders.</exception>
+    private static string? ResolveExecutionGroup<TJob>(string? executionGroup) where TJob : IJob
+    {
+        if (!string.IsNullOrWhiteSpace(executionGroup))
+        {
+            return ExecutionGroupTemplate.Escape(executionGroup.Trim());
+        }
+
+        string? declared = DeclaredExecutionGroup<TJob>.Template;
+
+        if (declared is not null && ExecutionGroupTemplate.HasPlaceholders(declared))
+        {
+            throw new FormatException(
+                $"{typeof(TJob).Name} declares [ExecutionGroup(\"{declared}\")], and a one-off trigger has no job data "
+                + "to fill its placeholders from: the input is stored whole. Name the group at the call site instead, "
+                + "as in OneOffJobOptions.ExecutionGroup = $\"tenant:{input.TenantId}\".");
+        }
+
+        // A declared name with no placeholders is handed on for the builder to read, which unescapes
+        // any {{ or }} in it the way it would have applied the attribute itself.
+        return declared;
     }
 }

@@ -178,6 +178,11 @@ without `Group = TriggerKey.DefaultGroup`. An integration moving to the one-line
 trigger-key contract must set the group its callers expect.
 :::
 
+For a per-tenant [execution limit](../tutorial/execution-groups.md#per-tenant-limits), name the tenant's
+group at the call site: `new OneOffJobOptions { ExecutionGroup = $"tenant:{invoice.CustomerId}" }`.
+`ExecutionGroup` is stored as written. A job type's `[ExecutionGroup]` applies when `ExecutionGroup` is not set, if it has no placeholders; with
+placeholders the call throws `FormatException`, because a one-off trigger's job data is its input.
+
 `RequestRecovery` describes the durable job, not the trigger: the job is marked `RequestsRecovery`, so a
 firing cut short by a hard shutdown re-runs when the scheduler returns:
 

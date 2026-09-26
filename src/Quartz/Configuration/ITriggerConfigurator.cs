@@ -105,7 +105,11 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// limits to be configured - per node or across the cluster - so that
     /// resource-intensive jobs do not saturate all available threads.
     /// </summary>
-    /// <param name="executionGroup">the execution group name, or <see langword="null"/> to clear</param>
+    /// <remarks>
+    /// The name may carry <c>{key}</c> placeholders resolved from the trigger's job data when it is
+    /// built, as <see cref="TriggerBuilder{TJob}.WithExecutionGroup" /> describes.
+    /// </remarks>
+    /// <param name="executionGroup">the execution group name or template, or <see langword="null"/> to clear</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.ExecutionGroup" />
     ITriggerConfigurator<TJob> WithExecutionGroup(string? executionGroup);

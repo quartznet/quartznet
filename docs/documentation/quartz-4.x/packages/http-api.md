@@ -130,7 +130,7 @@ Sixty-six routes in four groups.
 | `GET` | `{ApiPath}/schedulers/{name}/history/executions/{entryId}` | One execution with its captured `log`; `404` when there is no such row |
 | `GET` | `{ApiPath}/schedulers/{name}/history/misfires` | A page of missed firings |
 | `GET` | `{ApiPath}/schedulers/{name}/history/misfires/count` | `{ count }` since `?since=` |
-| `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited |
+| `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited. Keys are configuration's: a group, `_`, `*`, or a [prefix](../tutorial/execution-groups.md#per-tenant-limits) such as `tenant:*` |
 | `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; replaces the whole set |
 | `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; same as posting an empty set |
 

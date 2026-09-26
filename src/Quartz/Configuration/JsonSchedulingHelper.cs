@@ -261,7 +261,8 @@ internal static class JsonSchedulingHelper
                 .EndAt(endTime)
                 .WithPriority(priority)
                 .WithCalendarName(calendarName)
-                .WithExecutionGroup(executionGroup)
+                // Literal: a file names the group it means, and its job data is added after Build.
+                .WithExecutionGroup(executionGroup is null ? null : ExecutionGroupTemplate.Escape(executionGroup))
                 .WithRetryPolicy(retryPolicy)
                 .WithPreferredNode(preferredNode)
                 .WithSchedule(schedule)

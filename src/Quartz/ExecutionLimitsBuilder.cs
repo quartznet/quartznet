@@ -42,6 +42,7 @@ namespace Quartz;
 /// ExecutionLimits limits = ExecutionLimitsBuilder.Create()
 ///     .ForGroup("high-cpu", 2)                                     // two on this node
 ///     .ForGroup("tenant-acme", 8, ExecutionLimitScope.Cluster)     // eight across the cluster
+///     .ForGroupsWithPrefix("tenant:", 2, ExecutionLimitScope.Cluster) // two for each other tenant
 ///     .ForOtherGroups(5)
 ///     .Build();
 /// </code>
@@ -49,6 +50,7 @@ namespace Quartz;
 public sealed class ExecutionLimitsBuilder
 {
     private readonly Dictionary<string, ExecutionGroupAllowance> limits = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ExecutionGroupAllowance> prefixes = new(StringComparer.Ordinal);
     private bool useTriggerGroupWhenUnset;
 
     internal ExecutionLimitsBuilder()
@@ -73,12 +75,48 @@ public sealed class ExecutionLimitsBuilder
     /// Node-scoped unless said otherwise, which is what execution limits have always meant.</param>
     /// <returns>This builder for fluent chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="group"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="group"/> is a reserved name.</exception>
+    /// <exception cref="ArgumentException"><paramref name="group"/> is a reserved name, or ends with
+    /// <c>*</c>, which is how a configuration key names a prefix: use <see cref="ForGroupsWithPrefix"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxConcurrent"/> is negative, or
     /// <paramref name="scope"/> is not one of the defined values.</exception>
     public ExecutionLimitsBuilder ForGroup(string group, int maxConcurrent, ExecutionLimitScope scope = ExecutionLimitScope.Node)
     {
         limits[RequireGroupName(group)] = new ExecutionGroupAllowance(RequireNonNegative(maxConcurrent), RequireDefinedScope(scope));
+        return this;
+    }
+
+    /// <summary>
+    /// Set the concurrency limit for every execution group that starts with a prefix. Each such group gets
+    /// the limit on its own: <c>ForGroupsWithPrefix("tenant:", 2)</c> lets <c>tenant:acme</c> and
+    /// <c>tenant:initech</c> run two each, not two between them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is <see cref="ForOtherGroups"/> narrowed to a family of groups, and it is decided in the same
+    /// place: a group's own <see cref="ForGroup"/> or <see cref="Unlimited"/> wins, then the longest prefix
+    /// the group starts with, then the catch-all. A prefix equal to a named group's whole name therefore
+    /// governs the other groups that start with it and not that one. Triggers with no execution group are
+    /// never matched.
+    /// </para>
+    /// <para>
+    /// Each group is counted on its own, and a group with nothing in flight holds no count, so a family of
+    /// many tenants costs what those running at the moment cost.
+    /// </para>
+    /// </remarks>
+    /// <param name="prefix">The start of the group names, compared ordinally. Configuration spells it
+    /// <c>quartz.executionLimit.tenant:*</c>; the <c>*</c> is not part of the prefix.</param>
+    /// <param name="maxConcurrent">Maximum concurrent threads for each group (must be &gt;= 0), or
+    /// <c>0</c> to forbid execution.</param>
+    /// <param name="scope">Whether each group's limit counts what this node runs or what the whole
+    /// cluster runs.</param>
+    /// <returns>This builder for fluent chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="prefix"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="prefix"/> is blank, or ends with <c>*</c>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxConcurrent"/> is negative, or
+    /// <paramref name="scope"/> is not one of the defined values.</exception>
+    public ExecutionLimitsBuilder ForGroupsWithPrefix(string prefix, int maxConcurrent, ExecutionLimitScope scope = ExecutionLimitScope.Node)
+    {
+        prefixes[ExecutionLimits.RequirePrefix(prefix, nameof(prefix))] = new ExecutionGroupAllowance(RequireNonNegative(maxConcurrent), RequireDefinedScope(scope));
         return this;
     }
 
@@ -164,7 +202,85 @@ public sealed class ExecutionLimitsBuilder
     /// </summary>
     public ExecutionLimits Build()
     {
-        return new ExecutionLimits(new Dictionary<string, ExecutionGroupAllowance>(limits, StringComparer.Ordinal), useTriggerGroupWhenUnset);
+        ExecutionGroupPrefixAllowance[] ordered = new ExecutionGroupPrefixAllowance[prefixes.Count];
+        int i = 0;
+        foreach (KeyValuePair<string, ExecutionGroupAllowance> pair in prefixes)
+        {
+            ordered[i++] = new ExecutionGroupPrefixAllowance(pair.Key, pair.Value);
+        }
+
+        // Longest first, so the first prefix a group starts with is the one that governs it. Ties cannot
+        // match the same group, so their order only has to be stable.
+        Array.Sort(ordered, static (left, right) =>
+        {
+            int byLength = right.Prefix.Length.CompareTo(left.Prefix.Length);
+            return byLength != 0 ? byLength : string.CompareOrdinal(left.Prefix, right.Prefix);
+        });
+
+        return new ExecutionLimits(
+            new Dictionary<string, ExecutionGroupAllowance>(limits, StringComparer.Ordinal),
+            ordered,
+            useTriggerGroupWhenUnset);
+    }
+
+    /// <summary>
+    /// Applies one limit spelled the way configuration and the HTTP API key it — a group name, <c>_</c> or
+    /// <c>null</c> for the default bucket, <c>*</c> for the catch-all, <c>tenant:*</c> for a prefix — and
+    /// reports whether it configured anything.
+    /// </summary>
+    /// <remarks>
+    /// The one reading of a configuration key, shared by the property bridge, the HTTP endpoint and the
+    /// HTTP client, so that a limit read back from any of them means what it meant when it was written.
+    /// An unlimited catch-all or default bucket configures nothing, because both are unlimited already.
+    /// </remarks>
+    /// <exception cref="ArgumentException">A prefix is given no count: a prefix limit cannot be unlimited.</exception>
+    internal bool ForConfigurationKey(string key, int? maxConcurrent, ExecutionLimitScope scope)
+    {
+        string trimmed = key.Trim();
+
+        if (trimmed == ExecutionLimits.OtherGroups || ExecutionLimits.IsDefaultGroupAlias(trimmed))
+        {
+            if (maxConcurrent is not int limit)
+            {
+                return false;
+            }
+
+            if (trimmed == ExecutionLimits.OtherGroups)
+            {
+                ForOtherGroups(limit, scope);
+            }
+            else
+            {
+                ForDefaultGroup(limit, scope);
+            }
+
+            return true;
+        }
+
+        if (ExecutionLimits.TryReadPrefixKey(trimmed, out string? prefix))
+        {
+            if (maxConcurrent is not int prefixLimit)
+            {
+                throw new ArgumentException(
+                    $"'{trimmed}' limits every group starting with '{prefix}', and takes a count: a prefix cannot be unlimited. Leave it out instead.",
+                    nameof(key));
+            }
+
+            ForGroupsWithPrefix(prefix, prefixLimit, scope);
+            return true;
+        }
+
+        if (maxConcurrent is int groupLimit)
+        {
+            ForGroup(trimmed, groupLimit, scope);
+        }
+        else
+        {
+            // Unlimited takes no scope: there is no number to count, in either of them.
+            Unlimited(trimmed);
+        }
+
+        return true;
     }
 
     private static string RequireGroupName(string group)
@@ -176,6 +292,15 @@ public sealed class ExecutionLimitsBuilder
         {
             throw new ArgumentException(
                 $"Group name '{trimmed}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",
+                nameof(group));
+        }
+
+        // Configuration spells a prefix as the prefix followed by '*', so a named group spelled that way
+        // could not be written back — over the HTTP API or into properties — as the group it is.
+        if (ExecutionLimits.TryReadPrefixKey(trimmed, out string? prefix))
+        {
+            throw new ArgumentException(
+                $"'{trimmed}' is how configuration names every group starting with '{prefix}'. Use ForGroupsWithPrefix(\"{prefix}\", …) for that; a single group's name cannot end with '*'.",
                 nameof(group));
         }
 

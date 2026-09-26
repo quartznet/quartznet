@@ -72,7 +72,8 @@ Reserved names, which cannot be execution groups:
 | `_` | the property-config alias for the default (ungrouped) triggers |
 | `null` (case-insensitive) | same alias as `_` |
 
-Empty or whitespace-only strings become `null` (no group).
+Empty or whitespace-only strings become `null` (no group). A name may carry `{key}` placeholders; see
+[Per-tenant limits](#per-tenant-limits).
 
 ## Configuring execution limits
 
@@ -85,6 +86,7 @@ quartz.executionLimit._ = 10
 quartz.executionLimit.* = 5
 
 quartz.clusterExecutionLimit.tenant-acme = 8
+quartz.clusterExecutionLimit.tenant:* = 2
 ```
 
 | Key | Meaning |
@@ -94,6 +96,7 @@ quartz.clusterExecutionLimit.tenant-acme = 8
 | `quartz.executionLimit._` (underscore) | At most 10 concurrent triggers with no execution group, on this node |
 | `quartz.executionLimit.*` (asterisk) | Default limit of 5 for any group not explicitly listed |
 | `quartz.clusterExecutionLimit.tenant-acme` | At most 8 concurrent "tenant-acme" triggers **across the whole cluster** |
+| `quartz.clusterExecutionLimit.tenant:*` | At most 2 for **each** group starting with `tenant:`, across the cluster. See [Per-tenant limits](#per-tenant-limits) |
 
 `quartz.clusterExecutionLimit.*` takes the same group keys, including `_` and `*`, and the same values as
 `quartz.executionLimit.*`; only the scope differs. It is a separate prefix because every key under
@@ -122,8 +125,8 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-`ForGroup`, `ForDefaultGroup` and `ForOtherGroups` take an optional trailing `ExecutionLimitScope`,
-defaulting to `Node`.
+`ForGroup`, `ForGroupsWithPrefix`, `ForDefaultGroup` and `ForOtherGroups` take an optional trailing
+`ExecutionLimitScope`, defaulting to `Node`.
 
 For limits that come from a service, such as per-tenant quotas the application configures, use the
 overload that receives the container. The callback runs when the scheduler is built, after options are
@@ -189,9 +192,9 @@ A trigger with no execution group is then limited as though its group were its `
   prefix is a group name.
 
 Read limits back with `TryGetLimit(group, out int? maxConcurrent)`, or enumerate `Groups`. Each entry's
-`Group` is an `ExecutionGroupScope`, one of three cases: `Default` (triggers with no execution group),
-`OtherGroups` (the catch-all) and `Named(name)`, so no sentinel strings are involved. Its `Scope` says
-which scope the number is counted in:
+`Group` is an `ExecutionGroupScope`, one of four cases: `Default` (triggers with no execution group),
+`OtherGroups` (the catch-all), `Named(name)` and `GroupsWithPrefix(prefix)`, so no sentinel strings are
+involved. Its `Scope` says which scope the number is counted in:
 
 <!-- snippet: sample_execution_groups_read_limits -->
 ```csharp
@@ -200,6 +203,7 @@ foreach (ExecutionGroupLimit limit in limits?.Groups ?? [])
 {
     string group = limit.Group.IsDefault ? "(no group)"
         : limit.Group.IsOtherGroups ? "(other groups)"
+        : limit.Group.IsPrefix ? $"(each group starting with {limit.Group.Prefix})"
         : limit.Group.Name!;
     Console.WriteLine($"{group}: {limit.MaxConcurrent?.ToString() ?? "unlimited"} per {limit.Scope}");
 }
@@ -224,10 +228,141 @@ in preferred-node pinning, means something else:
 | Where it appears | What `*` means there | Typed reading |
 |---|---|---|
 | `quartz.executionLimit.*` or `quartz.clusterExecutionLimit.*` key / execution-limits HTTP body | The catch-all limit applied to any *named* group without a limit of its own (never to ungrouped triggers) | `ExecutionGroupScope.OtherGroups` |
+| After a prefix in the same key, `quartz.executionLimit.tenant:*` / `"tenant:*"` | The limit each group starting with `tenant:` gets | `ExecutionGroupScope.GroupsWithPrefix("tenant:")` |
 | A trigger row's preferred-node column | An automatic pin no node has claimed yet — the trigger runs anywhere until one node fires it first and keeps it | `PreferredNode.Auto` |
 
 In both places `*` is reserved: a trigger cannot have `*` as its execution group, and a node cannot have
 `*` as its scheduler instance id.
+
+## Per-tenant limits
+
+To give every tenant its own allowance without listing the tenants, put each tenant's work in a group
+named after it and limit the family by prefix:
+
+<!-- snippet: sample_execution_groups_per_tenant_prefix -->
+```csharp
+q.UseExecutionLimits(limits => limits
+    .ForGroupsWithPrefix("tenant:", 2, ExecutionLimitScope.Cluster) // two for each tenant
+    .ForGroup("tenant:vip", 8, ExecutionLimitScope.Cluster));       // a group's own limit wins
+```
+<!-- endSnippet -->
+
+Which limit governs a group, `tenant:acme` for example:
+
+| Order | Limit | Example |
+|---|---|---|
+| 1 | the group's own | `ForGroup("tenant:acme", 8)` or `Unlimited("tenant:acme")` |
+| 2 | the longest prefix the group starts with | `ForGroupsWithPrefix("tenant:", 2)` |
+| 3 | the catch-all | `ForOtherGroups(5)` |
+
+* **Each group gets the limit on its own.** `tenant:acme` and `tenant:initech` run two each, not two
+  between them.
+* **A named group beats a prefix of the same text.** With `ForGroup("tenant:", 1)` and
+  `ForGroupsWithPrefix("tenant:", 2)`, the group `tenant:` runs one; `tenant:acme` runs two.
+* Triggers with no execution group never match a prefix.
+* Node and cluster scope count as for any limit.
+* A prefix takes a count: it cannot be unlimited, and it does not end with `*`.
+* `ForGroup` and `Unlimited` refuse a name ending in `*`, because that is how configuration spells a
+  prefix.
+
+| Where | Spelling |
+|---|---|
+| Properties | `quartz.executionLimit.tenant:* = 2`, `quartz.clusterExecutionLimit.tenant:* = 2` |
+| HTTP API body, `HttpScheduler` | the key `"tenant:*"` |
+| Reading limits back | `ExecutionGroupScope.GroupsWithPrefix("tenant:")`: `IsPrefix`, `Prefix` |
+| Dashboard | a "groups starting with 'tenant:'" row; each tenant's row says `(tenant:*)` beside the limit it inherited |
+
+### Naming the group after the tenant
+
+`WithExecutionGroup` accepts `{key}` placeholders. `Build()` resolves them from the trigger's own
+`JobDataMap`, the moment it resolves `H` in a cron expression, and the trigger stores the resolved name:
+
+<!-- snippet: sample_execution_groups_per_tenant_template -->
+```csharp
+ITrigger trigger = TriggerBuilder.Create()
+    .ForJob(job)
+    .UsingJobData("TenantId", tenantId)
+    .WithExecutionGroup("tenant:{TenantId}")   // stored as "tenant:acme"
+    .StartNow()
+    .Build();
+```
+<!-- endSnippet -->
+
+| Rule | Behaviour |
+|---|---|
+| Values come from | the trigger's `JobDataMap`; not the job's, which the builder does not have |
+| Missing or `null` key | `Build()` throws `FormatException` naming the key |
+| `{{`, `}}` | a literal `{`, `}` |
+| Unclosed `{`, lone `}`, empty `{}` | `WithExecutionGroup` throws `ArgumentException` |
+| Resolves to blank or a reserved name | `Build()` throws `FormatException` |
+| Formatting | invariant culture |
+| `GetTriggerBuilder()` | rebuilds the stored name as written |
+| Scheduling files, `TriggerDetailsUpdate`, the HTTP API | take the name as written; no placeholders |
+
+To declare the group once for a job type, use `[ExecutionGroup]`. Its placeholders read the trigger's
+`JobDataMap` too:
+
+<!-- snippet: sample_execution_groups_per_tenant_attribute -->
+```csharp
+[ExecutionGroup("tenant:{TenantId}")]
+public sealed class TenantReportJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_execution_groups_per_tenant_attribute_trigger -->
+```csharp
+ITrigger trigger = TriggerBuilder.Create<TenantReportJob>()
+    .ForJob("tenant-report")
+    .UsingJobData("TenantId", tenantId)   // the attribute's {TenantId}
+    .StartNow()
+    .Build();                             // stored as "tenant:acme"
+```
+<!-- endSnippet -->
+
+| Trigger built by | `[ExecutionGroup]` |
+|---|---|
+| `TriggerBuilder.Create<TJob>()`, `q.AddTrigger<TJob>`, `q.ScheduleJob<TJob>`, `[CronTrigger]` | applied; placeholders read the trigger's `JobDataMap` |
+| `ScheduleJob<TJob, TInput>(input, …)` | applied when it has no placeholders; with placeholders, the call throws `FormatException` unless `OneOffJobOptions.ExecutionGroup` is set |
+| `TriggerBuilder.Create()`, for `IJob` | not read |
+
+* `WithExecutionGroup` or `OneOffJobOptions.ExecutionGroup` wins over the attribute.
+  `WithExecutionGroup(null)` opts one trigger out.
+* The attribute is inherited from a base class, and not read from interfaces.
+* A trigger built before the attribute was added keeps the group it stored.
+
+For a one-off, name the tenant at the call site. `OneOffJobOptions.ExecutionGroup` is a name, stored as
+written; a one-off trigger's job data is the input, stored whole, so there is nothing for a placeholder
+to read:
+
+<!-- snippet: sample_execution_groups_per_tenant_one_liner -->
+```csharp
+await scheduler.ScheduleJob<TenantExportJob, TenantExport>(
+    export,
+    TimeSpan.FromMinutes(5),
+    new OneOffJobOptions { ExecutionGroup = $"tenant:{export.TenantId}" },
+    cancellationToken);
+```
+<!-- endSnippet -->
+
+### Many tenants
+
+Each tenant is counted on its own. The scheduler thread drops a group's count when it reaches zero, so
+memory follows the tenants running now, not every tenant ever seen. A cluster-scoped prefix is counted by
+the same `QRTZ_FIRED_TRIGGERS` aggregate as any cluster-scoped limit.
+
+::: tip The optional index applies here too
+If you run cluster-scoped tenant limits *and* routinely hold four figures of work in flight, the covering
+index from [Cluster-scoped limits](#cluster-scoped-limits) speeds up the aggregate. It is not in the
+standard schema, for the write cost it adds to every firing:
+
+```sql
+CREATE INDEX IDX_QRTZ_FT_EG_TG ON QRTZ_FIRED_TRIGGERS (SCHED_NAME, EXECUTION_GROUP, TRIGGER_GROUP);
+```
+
+:::
 
 ## How it works
 
@@ -457,4 +592,6 @@ limits.ForGroup("tenant-c", 5, ExecutionLimitScope.Cluster);
 <!-- endSnippet -->
 
 Node-scoped (`limits.ForGroup("tenant-a", 5)`) would give each tenant five threads *per node*: fifteen on
-a three-node cluster. See [Multi-tenancy](../multi-tenancy.md) for the rest of per-tenant setup.
+a three-node cluster. For tenants you cannot list, use a prefix: see
+[Per-tenant limits](#per-tenant-limits). See [Multi-tenancy](../multi-tenancy.md) for the rest of
+per-tenant setup.

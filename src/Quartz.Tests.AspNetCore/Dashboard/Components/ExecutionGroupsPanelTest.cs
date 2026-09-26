@@ -165,6 +165,39 @@ public class ExecutionGroupsPanelTest
     }
 
     /// <summary>
+    /// A prefix is a rule like the catch-all, and a tenant under it is a group with the prefix's limit —
+    /// the longest prefix, and never over a limit of the tenant's own.
+    /// </summary>
+    [Test]
+    public void ATenantUnderAPrefixShowsThePrefixsLimitAndThePrefixIsARule()
+    {
+        GivenLimits(Limits(
+            ("tenant:*", 2, ExecutionLimitScope.Cluster),
+            ("tenant:free:*", 1, ExecutionLimitScope.Cluster),
+            ("tenant:vip", 8, ExecutionLimitScope.Cluster),
+            (ExecutionLimits.OtherGroups, 5, ExecutionLimitScope.Node)));
+        GivenFirings(
+            Firing("tenant:acme", FireInstanceState.Executing),
+            Firing("tenant:free:bob", FireInstanceState.Executing),
+            Firing("tenant:vip", FireInstanceState.Executing),
+            Firing("reports", FireInstanceState.Executing));
+
+        IRenderedComponent<ExecutionGroups> panel = Render();
+
+        RowCells(panel, 0).Should().Equal(["reports", "Node", "5 (other groups)", "1", "4"]);
+        RowCells(panel, 1).Should().Equal(["tenant:acme", "Cluster", "2 (tenant:*)", "1", "1"],
+            "a tenant with no limit of its own gets its prefix's, and the panel says where the number came from");
+        RowCells(panel, 2).Should().Equal(["tenant:free:bob", "Cluster", "1 (tenant:free:*)", "1", "0"],
+            "the longest prefix governs, as it does when the scheduler takes a slot");
+        RowCells(panel, 3).Should().Equal(["tenant:vip", "Cluster", "8", "1", "7"], "a group's own limit wins over any prefix");
+        RowCells(panel, 4).Should().Equal(["groups starting with 'tenant:'", "Cluster", "2", "—", "—"],
+            "each tenant gets the prefix's allowance on its own, so the prefix has nothing in flight against it");
+        RowCells(panel, 5).Should().Equal(["groups starting with 'tenant:free:'", "Cluster", "1", "—", "—"]);
+        RowCells(panel, 6).Should().Equal(["other groups (catch-all)", "Node", "5", "—", "—"]);
+        panel.Markup.Should().Contain("The longest matching prefix wins", "the footnote explains the rows that count nothing");
+    }
+
+    /// <summary>
     /// With <c>UseTriggerGroupWhenUnset</c> on, a trigger that carries no execution group is limited as
     /// though it belonged to a group named after its trigger group.
     /// </summary>

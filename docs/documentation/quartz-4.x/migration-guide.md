@@ -55,14 +55,30 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `AdoConstants.ColumnExecutionLog` | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`, from the optional `4.3/add_execution_log_<db>.sql` |
 | `DbMetadata.DbLargeTextTypeName`, `DbMetadata.ConfigureLargeTextParameter` | How a driver binds a large text parameter, as `DbBinaryTypeName` and `ConfigureBinaryParameter` do a blob. The shipped Oracle description says `Clob`; every other driver needs nothing |
 | `UseOracle(factory, connectionString, configureCommand, configureBinaryParameter, configureLargeTextParameter)` | The factory overload with the third seam, for the captured log's `CLOB`. See [Naming a driver, or handing over its factory](configuration/reference.md#naming-a-driver-or-handing-over-its-factory) |
+| `ExecutionLimitsBuilder.ForGroupsWithPrefix(prefix, maxConcurrent, scope)` | Each execution group starting with `prefix` gets `maxConcurrent` on its own. A group's own limit wins, then the longest prefix, then `ForOtherGroups`. Flat keys: `quartz.executionLimit.<prefix>*`, `quartz.clusterExecutionLimit.<prefix>*`. See [Per-tenant limits](tutorial/execution-groups.md#per-tenant-limits) |
+| `ExecutionGroupScope.GroupsWithPrefix(prefix)`, `IsPrefix`, `Prefix` | The read side of a prefix limit, in `ExecutionLimits.Groups` and `TryGetLimit`. HTTP: the key `"tenant:*"` |
+| `ExecutionGroupAttribute` | `[ExecutionGroup("tenant:{TenantId}")]` on a job class: the group its triggers get when they set none. Read by `TriggerBuilder<TJob>`; the `ScheduleJob<TJob, TInput>` one-liners apply it only without placeholders |
+| `{key}` in `WithExecutionGroup` | Resolved at `Build()` from the trigger's `JobDataMap`. The trigger stores the resolved name. A one-off names its tenant at the call site: `OneOffJobOptions.ExecutionGroup = $"tenant:{input.TenantId}"` |
 
 **`QZ1004` is information, not a warning.** Every registration now has a name that binds, so the rename
 it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 
-**Behaviour change:** an ADO store took two triggers of one job into a batch when the job disallowed
-concurrent execution only through `DisallowConcurrentExecution()` on its builder. The fire path declined
-the second, so the job never overlapped itself, but the batch lost a slot. Acquisition now reads the
-stored flag. A driver delegate of your own that overrides `SelectTriggersToAcquire` sets the property.
+**Behaviour changes:**
+
+* **Acquisition reads a job's stored `IS_NONCONCURRENT`.** An ADO store took two triggers of one job
+  into a batch when the job disallowed concurrent execution only through `DisallowConcurrentExecution()`
+  on its builder. The fire path declined the second, so the job never overlapped itself, but the batch
+  lost a slot. A driver delegate of your own that overrides `SelectTriggersToAcquire` sets the property.
+* **A brace in `WithExecutionGroup` is now a placeholder.** `WithExecutionGroup("a{b}")` used to store
+  `a{b}`; it now reads `b` from the job data and throws `FormatException` at `Build()` if it is missing.
+  Write `a{{b}}` for the literal name. Scheduling files, `TriggerDetailsUpdate`, the HTTP API and
+  `GetTriggerBuilder()` still take a name as written.
+* **A limit key ending in `*` is a prefix.** `quartz.executionLimit.tenant:* = 2` used to limit a group
+  literally named `tenant:*`; it now limits each group starting with `tenant:`. `ForGroup` and
+  `Unlimited` refuse such a name. A prefix key with no count (`unlimited`) is refused.
+* **A one-liner for a job whose `[ExecutionGroup]` has placeholders needs `OneOffJobOptions.ExecutionGroup`.**
+  Without it the call throws `FormatException`: a one-off trigger's job data is its input, stored whole.
+  `OneOffJobOptions.ExecutionGroup` itself is stored as written, braces included, as in 4.2.
 
 **Interface members are default interface members**, so an implementation written for 4.2 compiles and
 behaves as it did. Properties added to records are non-positional `init` properties, so constructors are

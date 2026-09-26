@@ -62,10 +62,19 @@ public class FiringSpanClockTest
         };
         ActivitySource.AddActivityListener(listener);
 
+        // Only this firing's span: the listener hears every Quartz span in the process, and a fixture
+        // running beside this one stores triggers through a traced store.
+        string fireInstanceId = Guid.NewGuid().ToString("N");
         Activity recorded = null;
-        listener.ActivityStopped = a => recorded = a;
+        listener.ActivityStopped = a =>
+        {
+            if (a.GetTagItem(ActivityTags.FireInstanceId) as string == fireInstanceId)
+            {
+                recorded = a;
+            }
+        };
 
-        JobExecutionContextImpl context = Context();
+        JobExecutionContextImpl context = Context(fireInstanceId);
         StartedActivity activity = QuartzActivitySource.StartJobExecute(context, clock);
         activity.Stop(clock, jobExEx: null);
 
@@ -77,10 +86,10 @@ public class FiringSpanClockTest
         clock.Reads.Should().Be(2, "one reading to open the span and one to close it, and no more");
     }
 
-    private static JobExecutionContextImpl Context()
+    private static JobExecutionContextImpl Context(string fireInstanceId = "fire-1")
     {
         TriggerFiredBundle bundle = TestUtil.NewMinimalTriggerFiredBundle();
-        ((IOperableTrigger) bundle.Trigger).FireInstanceId = "fire-1";
+        ((IOperableTrigger) bundle.Trigger).FireInstanceId = fireInstanceId;
         return new JobExecutionContextImpl(A.Fake<IScheduler>(), bundle, A.Fake<IJob>());
     }
 

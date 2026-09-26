@@ -618,23 +618,9 @@ internal static class SchedulerEndpoints
                 ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create();
                 foreach (KeyValuePair<string, ExecutionLimitDto> kvp in request.Limits ?? [])
                 {
-                    string key = kvp.Key.Trim();
-                    int? maxConcurrent = kvp.Value.MaxConcurrent;
-                    ExecutionLimitScope scope = kvp.Value.Scope;
-
-                    if (key == ExecutionLimits.OtherGroups)
-                    {
-                        if (maxConcurrent.HasValue) builder.ForOtherGroups(maxConcurrent.Value, scope);
-                    }
-                    else if (ExecutionLimits.IsDefaultGroupAlias(key))
-                    {
-                        if (maxConcurrent.HasValue) builder.ForDefaultGroup(maxConcurrent.Value, scope);
-                    }
-                    else
-                    {
-                        if (maxConcurrent.HasValue) builder.ForGroup(key, maxConcurrent.Value, scope);
-                        else builder.Unlimited(key);
-                    }
+                    // The same reading the property bridge uses, prefix keys such as "tenant:*" included;
+                    // the request's validation has already refused what this would throw on.
+                    builder.ForConfigurationKey(kvp.Key, kvp.Value.MaxConcurrent, kvp.Value.Scope);
                 }
 
                 if (request.UseTriggerGroupWhenUnset)

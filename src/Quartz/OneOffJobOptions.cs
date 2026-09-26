@@ -128,8 +128,14 @@ public readonly record struct OneOffJobOptions
     internal Continuation Continuation { get; init; }
 
     /// <summary>
-    /// The execution group the firing counts against, when execution limits are in use.
+    /// The execution group the firing counts against, when execution limits are in use. Defaults to the
+    /// job type's <see cref="ExecutionGroupAttribute" />, when that names a group without placeholders.
     /// </summary>
+    /// <remarks>
+    /// A name, stored as written: braces are not placeholders here. A per-tenant firing says the tenant
+    /// at the call site, <c>ExecutionGroup = $"tenant:{input.TenantId}"</c>, which is also what a job
+    /// type whose attribute has placeholders requires.
+    /// </remarks>
     /// <seealso cref="ITrigger.ExecutionGroup" />
     public string? ExecutionGroup { get; init; }
 
