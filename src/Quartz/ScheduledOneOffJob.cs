@@ -27,15 +27,14 @@ namespace Quartz;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Two members, because the one-liner wraps
-/// <see cref="IScheduler.ScheduleJob(ITrigger, ScheduleJobOptions, System.Threading.CancellationToken)" />
-/// and should not answer less than what it wrapped: the key is the handle, and the fire time is what a
-/// caller logging "scheduled for X" would otherwise have to guess from the time it asked for — which is
-/// not the same answer once a calendar or a misfire policy has had its say.
+/// The key is the handle, and the fire time is what a caller logging "scheduled for X" would otherwise
+/// have to guess from the time it asked for — which is not the same answer once a calendar or a misfire
+/// policy has had its say. <see cref="Outcome" /> says whether a firing already scheduled under the name
+/// was replaced or kept.
 /// </para>
 /// <para>
-/// It is not a query object, and stays two members. Everything else about the firing is a property of the
-/// trigger the key names, and <see cref="IScheduler.GetTrigger" /> is how to ask for it.
+/// It is not a query object. Everything else about the firing is a property of the trigger the key names,
+/// and <see cref="IScheduler.GetTrigger" /> is how to ask for it.
 /// </para>
 /// </remarks>
 /// <param name="TriggerKey">
@@ -45,8 +44,19 @@ namespace Quartz;
 /// <param name="FirstFireTimeUtc">
 /// The first time at which the trigger will fire, as the store computed it. The same value the
 /// <see cref="IScheduler.ScheduleJob(ITrigger, ScheduleJobOptions, System.Threading.CancellationToken)" />
-/// overload the one-liner wraps returns.
+/// overload the one-liner wraps returns. When <see cref="Outcome" /> is <see cref="ScheduleOutcome.Kept" />,
+/// the next time the kept firing will fire.
 /// </param>
 /// <seealso cref="SchedulerJobExtensions" />
 /// <seealso cref="OneOffJobOptions" />
-public readonly record struct ScheduledOneOffJob(TriggerKey TriggerKey, DateTimeOffset FirstFireTimeUtc);
+public readonly record struct ScheduledOneOffJob(TriggerKey TriggerKey, DateTimeOffset FirstFireTimeUtc)
+{
+    /// <summary>
+    /// Whether the call stored a new firing, stored it over one scheduled under the same name, or kept
+    /// that one and stored nothing — which <see cref="OneOffJobOptions.OnConflict" /> decides.
+    /// </summary>
+    /// <remarks>
+    /// A non-positional member, so the constructor and the deconstruction are what they were.
+    /// </remarks>
+    public ScheduleOutcome Outcome { get; init; }
+}

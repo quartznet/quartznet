@@ -222,16 +222,18 @@ public static class SchedulerJobExtensions
         OneOffJobOptions options,
         CancellationToken cancellationToken) where TJob : IJob<TInput>
     {
+        // Before anything is stored, so options that contradict themselves leave nothing behind.
+        TriggerConflict onConflict = options.ResolveOnConflict();
+
         JobKey jobKey = SchedulerConstants.ScheduledJobKey<TJob>();
         await EnsureJob<TJob>(scheduler, options.RequestRecovery, cancellationToken).ConfigureAwait(false);
 
         ITrigger trigger = BuildTrigger<TJob, TInput>(scheduler, jobKey, input, at, options);
-        ScheduleJobOptions storeOptions = new() { Replace = options.Replace };
 
-        DateTimeOffset firstFireTimeUtc;
+        ScheduleTriggerResult result;
         try
         {
-            firstFireTimeUtc = await scheduler.ScheduleJob(trigger, storeOptions, cancellationToken).ConfigureAwait(false);
+            result = await Store(scheduler, trigger, onConflict, cancellationToken).ConfigureAwait(false);
         }
         catch (JobPersistenceException)
         {
@@ -247,10 +249,24 @@ public static class SchedulerJobExtensions
             }
 
             await EnsureJob<TJob>(scheduler, options.RequestRecovery, cancellationToken).ConfigureAwait(false);
-            firstFireTimeUtc = await scheduler.ScheduleJob(trigger, storeOptions, cancellationToken).ConfigureAwait(false);
+            result = await Store(scheduler, trigger, onConflict, cancellationToken).ConfigureAwait(false);
         }
 
-        return new ScheduledOneOffJob(trigger.Key, firstFireTimeUtc);
+        return new ScheduledOneOffJob(trigger.Key, result.NextFireTimeUtc) { Outcome = result.Outcome };
+
+        // The default is the call the one-liner has always made, so a scheduler of one's own, a fake in a
+        // test or a host older than 4.3 behind HttpScheduler sees what it always saw; a success there can
+        // only have created the trigger. Every other mode is the store's decision to make.
+        static async ValueTask<ScheduleTriggerResult> Store(IScheduler scheduler, ITrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken)
+        {
+            if (onConflict == TriggerConflict.Throw)
+            {
+                DateTimeOffset created = await scheduler.ScheduleJob(trigger, default(ScheduleJobOptions), cancellationToken).ConfigureAwait(false);
+                return new ScheduleTriggerResult(created, ScheduleOutcome.Created);
+            }
+
+            return await scheduler.ScheduleTrigger(trigger, onConflict, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static ValueTask EnsureJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(

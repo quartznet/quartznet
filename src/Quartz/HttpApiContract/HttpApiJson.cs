@@ -80,6 +80,8 @@ internal static class HttpApiJson
         options.Converters.Add(new JsonStringEnumConverter<ClusterNodeState>());
         options.Converters.Add(new JsonStringEnumConverter<SchedulerOrigin>());
         options.Converters.Add(new JsonStringEnumConverter<SchedulerEventKind>());
+        options.Converters.Add(new JsonStringEnumConverter<TriggerConflict>());
+        options.Converters.Add(new JsonStringEnumConverter<ScheduleOutcome>());
 
         options.UseQuartzContract(HttpApiJsonContext.Default, registry);
 

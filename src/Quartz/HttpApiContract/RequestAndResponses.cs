@@ -103,6 +103,15 @@ internal record DeleteJobsRequest(KeyDto[] Jobs) : IValidatable
 // When updating this, make same changes also into Quartz.AspNetCore.HttpApi.OpenApi.ScheduleJobRequest
 internal record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job, bool Replace = false) : IValidatable
 {
+    /// <summary>
+    /// What becomes of a trigger already stored under the key, when the trigger is scheduled on its own.
+    /// </summary>
+    /// <remarks>
+    /// Optional, so a body without it means what it always did. A host older than 4.3 ignores it, which
+    /// is why <c>HttpScheduler</c> also sends <see cref="Replace" /> for <see cref="TriggerConflict.Replace" />.
+    /// </remarks>
+    public TriggerConflict? OnConflict { get; init; }
+
     public IEnumerable<string> Validate()
     {
         if (Trigger is null)
@@ -117,10 +126,33 @@ internal record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job, bool Rep
                 yield return errorMessage;
             }
         }
+
+        if (OnConflict is { } onConflict)
+        {
+            if (onConflict is not (TriggerConflict.Throw or TriggerConflict.Replace or TriggerConflict.Keep or TriggerConflict.KeepEarlier))
+            {
+                yield return $"onConflict must be Throw, Replace, Keep or KeepEarlier, got {onConflict}";
+            }
+            else if (Job is not null)
+            {
+                yield return "onConflict applies to a trigger scheduled on its own; schedule the job first, or use replace";
+            }
+            else if (Replace && onConflict != TriggerConflict.Replace)
+            {
+                yield return $"replace and onConflict {onConflict} contradict each other";
+            }
+        }
     }
 }
 
-internal record ScheduleJobResponse(DateTimeOffset FirstFireTimeUtc);
+internal record ScheduleJobResponse(DateTimeOffset FirstFireTimeUtc)
+{
+    /// <summary>
+    /// What the host did with the trigger, when the request named <see cref="ScheduleJobRequest.OnConflict" />;
+    /// <see langword="null" /> otherwise, and from a host older than 4.3.
+    /// </summary>
+    public ScheduleOutcome? Outcome { get; init; }
+}
 
 // When updating these, make same changes also into Quartz.AspNetCore.HttpApi.OpenApi.ScheduleJobsRequest/ScheduleJobsRequestItem
 internal record ScheduleJobsRequest(ScheduleJobsRequestItem[] JobsAndTriggers, bool Replace) : IValidatable

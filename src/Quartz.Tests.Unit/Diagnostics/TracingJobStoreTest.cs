@@ -149,6 +149,35 @@ public sealed class TracingJobStoreTest
     }
 
     /// <summary>
+    /// Storing a trigger with a conflict mode is its own span, and the decorator hands the mode and the
+    /// store's answer through unchanged — a decorator answering it by its default would read and write
+    /// through the inner store without its lock.
+    /// </summary>
+    [Test]
+    public async Task StoringATriggerWithAConflictModeIsTracedAndHandedOn()
+    {
+        IJobStore inner = StubStore();
+        A.CallTo(() => inner.StoreTrigger(A<IOperableTrigger>.Ignored, A<TriggerConflict>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<ScheduleTriggerResult>(new ScheduleTriggerResult(DateTimeOffset.UnixEpoch, ScheduleOutcome.Kept)));
+
+        IJobStore store = await Decorated(inner);
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .ForJob("job", "jobs").WithIdentity("trigger", "triggers").StartNow().Build();
+
+        ScheduleTriggerResult result = await store.StoreTrigger(trigger, TriggerConflict.KeepEarlier);
+
+        result.Outcome.Should().Be(ScheduleOutcome.Kept);
+        A.CallTo(() => inner.StoreTrigger(trigger, TriggerConflict.KeepEarlier, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.AddTrigger(A<IOperableTrigger>.Ignored, A<AddTriggerOptions>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        Activity span = SpanFor(OperationName.JobStore.StoreTrigger);
+        span.GetTagItem(ActivityTags.TriggerName).Should().Be("trigger");
+        span.GetTagItem(ActivityTags.TriggerGroup).Should().Be("triggers");
+    }
+
+    /// <summary>
     /// And the ADO store still emits exactly the names it did, since a dashboard was written against
     /// them. The snapshot is the whole set the decorator can produce.
     /// </summary>
@@ -445,6 +474,7 @@ public sealed class TracingJobStoreTest
         await store.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>());
         await store.AddJob(job, AddJobOptions.Replacing);
         await store.AddTrigger(trigger, AddTriggerOptions.Replacing);
+        await store.StoreTrigger(trigger, TriggerConflict.Keep);
         await store.AddCalendar("calendar", new Quartz.Impl.Calendar.BaseCalendar());
         await store.DeleteJob(jobKey);
         await store.DeleteJobs([jobKey]);

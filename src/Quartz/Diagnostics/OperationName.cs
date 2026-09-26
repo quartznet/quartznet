@@ -103,6 +103,11 @@ public static class OperationName
         public const string AddTrigger = "Quartz.JobStore.AddTrigger";
 
         /// <summary>
+        /// The span covering <c>IJobStore.StoreTrigger</c>.
+        /// </summary>
+        public const string StoreTrigger = "Quartz.JobStore.StoreTrigger";
+
+        /// <summary>
         /// The span covering <c>IJobStore.AddCalendar</c>.
         /// </summary>
         public const string AddCalendar = "Quartz.JobStore.AddCalendar";

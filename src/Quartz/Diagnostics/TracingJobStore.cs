@@ -142,6 +142,19 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.AddTrigger(s.trigger, s.options, s.cancellationToken));
     }
 
+    public override ValueTask<ScheduleTriggerResult> StoreTrigger(IOperableTrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.StoreTrigger);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.StoreTrigger(trigger, onConflict, cancellationToken);
+        }
+
+        operation.Trigger(trigger.Key);
+        return Complete(operation, (InnerJobStore, trigger, onConflict, cancellationToken),
+            static s => s.InnerJobStore.StoreTrigger(s.trigger, s.onConflict, s.cancellationToken));
+    }
+
     public override ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.AddCalendar);

@@ -225,6 +225,13 @@ internal interface ScheduleJobRequest
     Trigger Trigger { get; }
     HttpApiContract.JobDetailDto? Job { get; }
     bool Replace { get; }
+
+    /// <summary>
+    /// What becomes of a trigger already stored under the key: <c>Throw</c>, <c>Replace</c>, <c>Keep</c>
+    /// or <c>KeepEarlier</c>. Only for a trigger scheduled without a job. The response's <c>outcome</c>
+    /// says whether it was created, replaced or kept.
+    /// </summary>
+    TriggerConflict? OnConflict { get; }
 }
 
 internal interface ScheduleJobsRequest

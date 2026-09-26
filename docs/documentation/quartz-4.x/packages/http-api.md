@@ -181,7 +181,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/keys/resume` | `{ triggers }` |
 | `GET` | `…/triggers/groups` | paged trigger groups; the four `name*` filters, `paused` |
 | `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused }` |
-| `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }`; one job and its trigger |
+| `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }`; one job and its trigger. A trigger alone may carry `onConflict` (`Throw`, `Replace`, `Keep`, `KeepEarlier`); the answer then adds `outcome` (`Created`, `Replaced`, `Kept`). See [One-off job](../how-tos/one-off-job.md#scheduling-over-a-firing-that-is-already-there) |
 | `POST` | `…/triggers/schedule-multiple` | empty; several jobs and their triggers |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/unschedule` | `{ applied }` |
 | `POST` | `…/triggers/unschedule` | `{ triggers }` |

@@ -263,6 +263,12 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.ScheduleJob(trigger, options, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<ScheduleTriggerResult> ScheduleTrigger(ITrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.ScheduleTrigger(trigger, onConflict, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);

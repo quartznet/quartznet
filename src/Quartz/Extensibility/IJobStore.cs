@@ -228,6 +228,38 @@ public interface IJobStore
     ValueTask AddTrigger(IOperableTrigger trigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Store the given trigger, deciding what becomes of one already stored under its key, and say
+    /// which it was.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The decision and the write are one operation under the store's lock, so of two callers storing
+    /// the same key with <see cref="TriggerConflict.Keep" /> exactly one creates the trigger and the other
+    /// is told it was kept. <see cref="TriggerConflict.Keep" /> and
+    /// <see cref="TriggerConflict.KeepEarlier" /> keep only a trigger with a fire time still ahead of it.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a store written against an earlier 4.x keeps working. The default
+    /// reads the existing trigger with <see cref="GetTrigger" /> and writes with <see cref="AddTrigger" />:
+    /// correct, and not atomic. A new name rather than an overload of <see cref="AddTrigger" />, because
+    /// <c>PublicApiGenerator</c> marks default implementations per method name.
+    /// </para>
+    /// </remarks>
+    /// <param name="trigger">The trigger to store, its first fire time already computed.</param>
+    /// <param name="onConflict">What to do when a trigger is stored under the same key.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>Whether the trigger was created, stored over another or not stored, and when the stored
+    /// trigger fires next.</returns>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A trigger is already stored under the same key and <paramref name="onConflict" /> is
+    /// <see cref="TriggerConflict.Throw" />.
+    /// </exception>
+    ValueTask<ScheduleTriggerResult> StoreTrigger(IOperableTrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken = default)
+    {
+        return TriggerConflictResolution.StoreWithoutLock(this, trigger, onConflict, cancellationToken);
+    }
+
+    /// <summary>
     /// Remove (delete) the <see cref="ITrigger" /> with the given key.
     /// </summary>
     /// <remarks>

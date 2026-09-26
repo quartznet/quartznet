@@ -120,6 +120,62 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
+    /// Store the given trigger, deciding under <c>TRIGGER_ACCESS</c> what becomes of one already stored
+    /// under its key.
+    /// </summary>
+    /// <remarks>
+    /// Every mode but <see cref="TriggerConflict.Throw" /> takes the lock whatever <c>LockOnInsert</c>
+    /// says: the read that decides and the write that follows must be one step, or two nodes keeping the
+    /// same key would both find it absent and one of them would fail on the primary key instead of being
+    /// told the other's trigger was kept.
+    /// </remarks>
+    /// <param name="trigger">The trigger to store.</param>
+    /// <param name="onConflict">What to do when a trigger is stored under the same key.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public ValueTask<ScheduleTriggerResult> StoreTrigger(IOperableTrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(trigger);
+        TriggerConflictResolution.RequireDefined(onConflict, nameof(onConflict));
+
+        return ExecuteInLock(
+            LockOnInsert || onConflict != TriggerConflict.Throw ? SchedulerLock.TriggerAccess : null,
+            async conn =>
+            {
+                StoredTriggerHeader? existing = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+
+                if (existing is not null)
+                {
+                    if (onConflict == TriggerConflict.Throw)
+                    {
+                        Throw.ObjectAlreadyExistsException(trigger);
+                    }
+
+                    if (TriggerConflictResolution.KeepsExisting(onConflict, existing.NextFireTimeUtc, trigger.NextFireTimeUtc))
+                    {
+                        return new ScheduleTriggerResult(existing.NextFireTimeUtc!.Value, ScheduleOutcome.Kept);
+                    }
+                }
+
+                await AddTrigger(
+                    conn,
+                    trigger,
+                    job: null,
+                    replace: existing is not null,
+                    StoredTriggerState.Waiting,
+                    forceState: false,
+                    recovering: false,
+                    continuationParentChecked: false,
+                    cancellationToken,
+                    knownToExist: existing is not null).ConfigureAwait(false);
+
+                return new ScheduleTriggerResult(
+                    TriggerConflictResolution.FireTimeOf(trigger),
+                    existing is null ? ScheduleOutcome.Created : ScheduleOutcome.Replaced);
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Insert or update a trigger.
     /// </summary>
     protected ValueTask AddTrigger(
@@ -149,6 +205,10 @@ internal abstract partial class AdoJobStoreBase
     /// the same call is not refused.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <param name="knownToExist">
+    /// Whether the caller has just read the key in this transaction, so the row need not be looked for
+    /// again; <see langword="null" /> when it has not.
+    /// </param>
     private async ValueTask AddTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger newTrigger,
@@ -158,9 +218,10 @@ internal abstract partial class AdoJobStoreBase
         bool forceState,
         bool recovering,
         bool continuationParentChecked,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool? knownToExist = null)
     {
-        bool existingTrigger = await TriggerExists(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
+        bool existingTrigger = knownToExist ?? await TriggerExists(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
 
         if (existingTrigger && !replace)
         {

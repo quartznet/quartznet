@@ -152,6 +152,12 @@ public class DelegatingJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    public virtual ValueTask<ScheduleTriggerResult> StoreTrigger(IOperableTrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken = default)
+    {
+        return jobStore.StoreTrigger(trigger, onConflict, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public virtual ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return jobStore.DeleteTrigger(triggerKey, cancellationToken);

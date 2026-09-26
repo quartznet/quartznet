@@ -33,7 +33,10 @@ public sealed class OptionsShorthandTest
     [Test]
     public void OneOffReplacing_CarriesTheNameThatMakesReplacingMeanSomething()
     {
-        OneOffJobOptions.Replacing("order-42").Should().Be(new OneOffJobOptions { Name = "order-42", Replace = true });
+        // OnConflict is the spelling the preset writes since 4.3, so that it composes with another mode;
+        // Replace still reads true off it.
+        OneOffJobOptions.Replacing("order-42").Should().Be(new OneOffJobOptions { Name = "order-42", OnConflict = TriggerConflict.Replace });
+        OneOffJobOptions.Replacing("order-42").Replace.Should().BeTrue();
 
         Action unnamed = () => OneOffJobOptions.Replacing("  ");
         unnamed.Should().Throw<ArgumentException>(

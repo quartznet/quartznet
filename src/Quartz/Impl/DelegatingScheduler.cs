@@ -129,6 +129,12 @@ public class DelegatingScheduler : IScheduler
     }
 
     /// <inheritdoc />
+    public virtual ValueTask<ScheduleTriggerResult> ScheduleTrigger(ITrigger trigger, TriggerConflict onConflict, CancellationToken cancellationToken = default)
+    {
+        return scheduler.ScheduleTrigger(trigger, onConflict, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         return scheduler.ScheduleJobs(triggersAndJobs, options, cancellationToken);
