@@ -11,6 +11,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!--
+      Named, although Serilog.Extensions.Hosting brings it, because this project does not pin
+      transitively: left to that package it resolves 4.3.0, whose assembly fails this fully trimmed
+      publish with IL2104. The central version is trim-clean.
+    -->
+    <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Sinks.Console" />
   </ItemGroup>

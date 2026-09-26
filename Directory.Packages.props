@@ -56,6 +56,7 @@
     -->
     <PackageVersion Include="FSharp.Core" Version="10.1.401" />
     <PackageVersion Include="MELT" Version="1.1.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <!--
       The stable 10.x line. It spent a while on 11.0.0-preview.* - it was moved there while .NET 10 was
@@ -68,9 +69,9 @@
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.9.0" />
-    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.9.0" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.10.0" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageVersion Include="MySqlConnector" Version="2.6.2" />
     <PackageVersion Include="NCrontab" Version="3.4.0" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="6.2.0" />
@@ -133,25 +134,25 @@
     fixed version rather than to the newest. Everything else in this file is used only by tests, examples
     or the build, ships nowhere, and stays current.
 
-    Five projects that ship nothing step over a floor with VersionOverride on their own PackageReference,
-    because Aspire, bunit, NSwag and the released Quartz.Serialization.Json
-    3.20.0 each ask for a newer patch than Quartz should demand of anybody. That is the only way to say it:
-    moving the floor instead would hand the demand to every consumer. Nothing that ships may do it, which
-    PackageDependencyTest holds.
+    A project that ships nothing does not pin transitively: Directory.Build.targets turns
+    CentralPackageTransitivePinningEnabled off wherever IsPackable is false. When a test package, Aspire,
+    bunit or NSwag asks for a newer patch of one of these ids, that project resolves the newer patch and
+    the floor stays put (#3855) - Microsoft.Extensions.Diagnostics.Testing 10.10.0 asks for 10.0.12 of
+    Microsoft.Extensions.Logging, and Microsoft.AspNetCore.Mvc.Testing 10.0.12 for 10.0.12 of
+    Microsoft.Extensions.Hosting. No project steps over a floor with VersionOverride: Dependabot reads
+    the override as the current version and writes its bump into the floor row. PackageDependencyTest
+    holds both. The price is that a row does not reach such a project transitively: one that needs a
+    newer transitive package names it, as Quartz.Examples.Worker names Serilog.
 
-    Three of the ids here are not floors themselves. Microsoft.Extensions.Hosting,
-    Microsoft.Extensions.Logging and Microsoft.Extensions.Logging.Console ship in nothing and are
-    referenced only by tests and examples, but dotnet/runtime versions the family in lockstep: 10.0.11
-    of any of them demands 10.0.11 of a floored id, and CentralPackageTransitivePinningEnabled has
-    already pinned that at the floor, so restore fails. They sit with the floors so the family stays one
-    line rather than two that disagree.
+    Two of the ids here are not floors. Microsoft.Extensions.Hosting and
+    Microsoft.Extensions.Logging.Console ship in nothing and are referenced only by tests and examples.
+    They sit with the floors because dotnet/runtime versions the family in lockstep, so the family stays
+    one line rather than two that disagree.
 
-    Microsoft.Extensions.Logging is the newest of the three and used to be a floor: Quartz referenced it
-    for one call, services.AddLogging(), and every shipped package inherited it. Quartz references
-    Microsoft.Extensions.Logging.Abstractions instead as of 4.1 (#3730), so no nuspec names the
-    implementation package any more — but Microsoft.Extensions.Hosting and
-    Microsoft.Extensions.Logging.Console both pull it in transitively, and it is pinned here for the
-    same lockstep reason they are.
+    Microsoft.Extensions.Logging is a floor that no shipped project names. Quartz references
+    Microsoft.Extensions.Logging.Abstractions instead as of 4.1 (#3730), but Quartz.Aspire reaches the
+    implementation package through OpenTelemetry and Quartz.HttpClient through Microsoft.Extensions.Http,
+    and pinning writes it into both nuspecs.
 
     That pinning is also why several of these ids reach nuspecs that name none of them: Quartz.Jobs
     references nothing but Quartz, and carries all six of Quartz's framework extensions as dependencies of
@@ -163,16 +164,7 @@
     gets past both still has to argue with a unit test that names this comment.
   -->
   <ItemGroup Label="Dependency floors">
-    <!--
-      Test-only, and here for the same reason Microsoft.Extensions.Hosting is: it is a member of the
-      lockstep family, and 10.0.12 of it demands 10.0.12 of Configuration.Binder and
-      Configuration.EnvironmentVariables - so a Dependabot bump of this one package raised two floors
-      (#3748), and Dependabot applies a group member's requirement over an ignore entry. At the floor
-      it demands nothing the floors do not already give.
-    -->
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />

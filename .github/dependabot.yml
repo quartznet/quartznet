@@ -57,35 +57,39 @@ updates:
       # Raise one of these by hand, for a security advisory, to the version that fixed it.
       # PackageDependencyTest fails a Microsoft.* floor that is not x.0.0 either way.
       #
-      # The Microsoft.* floors are ignored by version rather than by update type. Dependabot reads
-      # their current version from what restores transitively (10.0.11) rather than from the
-      # floor, and the update-type rule let a grouped "patch" through for every one of them
-      # (#3838). "10.x" holds them whatever the classification; 11.0.0 is still proposed, and
-      # accepting it means changing these to "11.x".
-      - dependency-name: "Microsoft.AspNetCore.Mvc.Testing"
-        versions: ["10.x"]
+      # An ignore entry stops a direct proposal only. When an allowed update needs a newer patch of a
+      # floored id, Dependabot raises that id as a required dependency whatever the entry says:
+      # Microsoft.Extensions.Diagnostics.Testing 10.10.0 needs Microsoft.Extensions.Logging 10.0.12, and
+      # Microsoft.AspNetCore.Mvc.Testing 10.0.12 needs Microsoft.Extensions.Hosting 10.0.12 (#3838,
+      # #3847, #3852). Directory.Build.targets closes that door instead: a project that ships nothing
+      # does not pin transitively, so the test project meets its test package's requirement itself and
+      # no row moves (#3855).
+      #
+      # The Microsoft.* floors are ignored by range. A version entry is read as a Dependabot requirement,
+      # not as a NuGet wildcard, and "10.x" matched no version above 10.0.0, so the 10.0.12 patch of
+      # Microsoft.Extensions.Logging.Abstractions came through as a direct proposal (#3851). The range
+      # holds every 10.x above the floor. 11.0.0 is still proposed; accepting it means moving the range
+      # up a major.
       - dependency-name: "Microsoft.Extensions.Configuration.Binder"
-        versions: ["10.x"]
-      - dependency-name: "Microsoft.Extensions.Configuration.EnvironmentVariables"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.DependencyInjection"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Diagnostics.HealthChecks"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Hosting"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Hosting.Abstractions"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Http"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Logging"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Logging.Abstractions"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Logging.Console"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Options.ConfigurationExtensions"
-        versions: ["10.x"]
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Newtonsoft.Json"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "OpenTelemetry.Extensions.Hosting"
@@ -107,6 +111,7 @@ updates:
           - "NUnit*"
           - "Microsoft.NET.Test.Sdk"
           - "Microsoft.AspNetCore.Mvc.Testing"
+          - "Microsoft.Extensions.Diagnostics.Testing"
           - "Microsoft.Extensions.TimeProvider.Testing"
           - "FakeItEasy"
           - "AwesomeAssertions*"

@@ -27,20 +27,6 @@
     <PackageReference Include="Quartz.Serialization.Json" VersionOverride="3.20.0" />
     <PackageReference Include="Quartz.Serialization.SystemTextJson" VersionOverride="3.20.0" />
 
-    <!--
-      Quartz.Serialization.Json 3.20.0 asks for Newtonsoft.Json 13.0.3, above the 13.0.1 floor this
-      repository's Quartz.Serialization.Newtonsoft now ships. Raised here only, for the same reason the
-      two pins above are: this project is a scratch process and inherits nothing to anyone.
-    -->
-    <PackageReference Include="Newtonsoft.Json" VersionOverride="13.0.4" />
-
-    <!--
-      The drivers below drag in Microsoft.Extensions.Caching.Memory, pinned centrally at 10.0.10, which
-      asks for a Microsoft.Extensions.Logging.Abstractions above the 10.0.0 floor Quartz ships. Raised
-      here for the same reason as the pins above: a scratch process inherits nothing to anyone.
-    -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.11" />
-
     <!-- The six providers 3.20's DbProvider loads by assembly name, one per dialect it can seed. -->
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
     <PackageReference Include="Microsoft.Data.SqlClient" />

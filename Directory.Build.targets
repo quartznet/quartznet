@@ -36,4 +36,16 @@
     <NoWarn>$(NoWarn);CA1848</NoWarn>
   </PropertyGroup>
 
+  <!--
+    Transitive pinning is for the projects that ship. It turns every PackageVersion into a pin on each
+    project that resolves the id at all, which is how a shipped nuspec gets its floors. On a test or an
+    example it made the floor that project's version too, so a test-only package asking for a newer
+    patch of a framework extension could only be satisfied by raising a floor every consumer inherits,
+    and Dependabot raised it (#3855). Off here, a project that ships nothing resolves what its own
+    packages ask for, and the floors do not move. PackageDependencyTest holds both halves.
+  -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'true'">
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
 </Project>

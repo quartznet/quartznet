@@ -92,11 +92,11 @@ public class PackageDependencyTest
     /// A shipped project takes its versions from the central file and nowhere else.
     /// </summary>
     /// <remarks>
-    /// <c>VersionOverride</c> is how a project that ships nothing steps over a floor — the Aspire
-    /// example does it for nine ids, because Aspire asks for the newest patch of each and an AppHost
-    /// inherits nothing to anybody. On a shipped project the same attribute would write that version
-    /// into a nuspec, where it becomes a demand made of every consumer, and it would do it out of sight
-    /// of both this file's floor list and Dependabot's ignore entries.
+    /// On a shipped project a <c>VersionOverride</c> would write its version into a nuspec, where it
+    /// becomes a demand made of every consumer, and it would do it out of sight of both this file's
+    /// floor list and Dependabot's ignore entries. The overrides that remain are on projects that ship
+    /// nothing and pin ids that are not floors: the released Quartz 3.20.0 in the seeder, and the
+    /// analyzers' compiler.
     /// </remarks>
     [TestCaseSource(nameof(PackableProjects))]
     public void ShippedProjectOverridesNoVersion(FileInfo project)
@@ -110,6 +110,85 @@ public class PackageDependencyTest
             $"{project.Name} ships, so every version it resolves becomes a floor in its nuspec — and a "
             + "VersionOverride is a floor written where neither Directory.Packages.props nor "
             + ".github/dependabot.yml can see it");
+    }
+
+    /// <summary>
+    /// A project that ships nothing does not pin transitively, so a test package can ask for a newer
+    /// patch of a floored id without the floor moving.
+    /// </summary>
+    /// <remarks>
+    /// With transitive pinning on, the floor row was also every test project's version of that id.
+    /// <c>Microsoft.Extensions.Diagnostics.Testing</c> 10.10.0 asks for 10.0.12 of
+    /// <c>Microsoft.Extensions.Logging</c>, so allowing it forced the row up, and Dependabot raised it as
+    /// a required dependency, which no ignore entry blocks (#3855).
+    /// </remarks>
+    [Test]
+    public void ProjectThatShipsNothingDoesNotPinTransitively()
+    {
+        FileInfo targets = new(Path.Combine(RepositoryRoot.Find().FullName, "Directory.Build.targets"));
+
+        IEnumerable<string> unpinned = XDocument.Load(targets.FullName)
+            .Descendants("PropertyGroup")
+            .Where(x => string.Equals(
+                ((string) x.Attribute("Condition"))?.Replace(" ", "", StringComparison.Ordinal),
+                "'$(IsPackable)'!='true'",
+                StringComparison.Ordinal))
+            .Elements("CentralPackageTransitivePinningEnabled")
+            .Select(x => x.Value.Trim());
+
+        unpinned.Should().Equal(["false"],
+            "Directory.Build.targets turns transitive pinning off for every project that ships nothing. With "
+            + "it on, a test package asking for a newer patch of a framework extension can only be satisfied "
+            + "by raising the floor every consumer inherits (#3855)");
+    }
+
+    /// <summary>
+    /// A project that ships nothing never steps over a floor with <c>VersionOverride</c>.
+    /// </summary>
+    /// <remarks>
+    /// It has no need to: it does not pin transitively, so it resolves whatever its packages ask for.
+    /// An override also misleads Dependabot. Dependabot reads the override as the id's current version
+    /// and writes its bump into the floor row, which is how #3847 proposed three floors at 10.0.12.
+    /// </remarks>
+    [TestCaseSource(nameof(UnshippedProjects))]
+    public void UnshippedProjectOverridesNoFloor(FileInfo project)
+    {
+        IReadOnlyDictionary<string, string> floors = Floors();
+
+        IEnumerable<string> overridden = XDocument.Load(project.FullName)
+            .Descendants("PackageReference")
+            .Where(x => x.Attribute("VersionOverride") is not null)
+            .Select(x => (string) x.Attribute("Include"))
+            .Where(floors.ContainsKey);
+
+        overridden.Should().BeEmpty(
+            $"{project.Name} ships nothing and does not pin transitively, so it already resolves the patch its "
+            + "packages ask for. A VersionOverride on a floor is what Dependabot reads as the current version and "
+            + "writes back into the floor row in Directory.Packages.props. Delete the reference, or drop the "
+            + "override if the project's own code needs the package");
+    }
+
+    /// <summary>
+    /// The projects under <c>src</c> that have turned packing off, F# included.
+    /// </summary>
+    public static IEnumerable<TestCaseData> UnshippedProjects()
+    {
+        List<FileInfo> projects = RepositoryRoot.Find()
+            .GetDirectories("src")
+            .Single()
+            .GetDirectories()
+            .SelectMany(x => x.GetFiles("*.*proj", SearchOption.TopDirectoryOnly))
+            .Where(x => x.Extension is ".csproj" or ".fsproj")
+            .Where(x => XDocument.Load(x.FullName)
+                .Descendants("IsPackable")
+                .Any(p => string.Equals(p.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(x => x.Name, StringComparer.Ordinal)
+            .ToList();
+
+        projects.Should().NotBeEmpty(
+            "the tests, examples and benchmarks all turn packing off, and a walk that finds none of them would pass anything");
+
+        return projects.Select(x => new TestCaseData(x).SetArgDisplayNames(x.Directory!.Name));
     }
 
     /// <summary>
