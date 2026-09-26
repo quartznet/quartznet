@@ -153,6 +153,63 @@ public sealed record DbMetadata
     internal Enum? DbBinaryType => Derived.DbBinaryType;
 
     /// <summary>
+    /// The member of <see cref="ParameterDbType" /> a parameter carrying a large text column is bound
+    /// with, for a driver whose plain string binding cannot reach one — <c>"Clob"</c> on the managed
+    /// Oracle driver.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null" /> for every driver whose string parameter already fits the column, which is
+    /// all the others Quartz ships a description for. Where it is set, it needs the same
+    /// <see cref="ParameterType" /> and <see cref="ParameterDbTypePropertyName" /> that
+    /// <see cref="DbBinaryTypeName" /> does, and is resolved the same way, once, when the description is
+    /// registered.
+    /// </para>
+    /// <para>
+    /// The one column is <c>QRTZ_EXECUTION_HISTORY.EXECUTION_LOG</c>. The managed Oracle driver binds a
+    /// string as <c>Varchar2</c>, and a <c>Varchar2</c> of more than 4,000 bytes bound into a
+    /// <c>CLOB</c> in a SQL statement fails with <c>ORA-01461</c>.
+    /// </para>
+    /// </remarks>
+    public string? DbLargeTextTypeName { get; init; }
+
+    /// <summary>
+    /// Applied to a parameter carrying a large text column, in place of writing
+    /// <see cref="DbLargeTextTypeName" /> to the property <see cref="ParameterDbTypePropertyName" />
+    /// names.
+    /// </summary>
+    /// <remarks>
+    /// The same reasoning as <see cref="ConfigureBinaryParameter" />, for a description that names no
+    /// types: <c>parameter =&gt; ((OracleParameter) parameter).OracleDbType = OracleDbType.Clob</c> is
+    /// what an application that reaches Oracle through its factory says. Set, it wins over the
+    /// reflective setter; with neither, a large text parameter is bound as the string it is.
+    /// </remarks>
+    public Action<DbParameter>? ConfigureLargeTextParameter { get; init; }
+
+    /// <summary>
+    /// The value a large text column's parameter is bound with, or <see langword="null" /> when the
+    /// driver needs nothing said and the string is bound as it is.
+    /// </summary>
+    /// <remarks>
+    /// The described <see cref="DbLargeTextTypeName" /> when there is one; a marker of Quartz's own when
+    /// only <see cref="ConfigureLargeTextParameter" /> is set, which is what
+    /// <see cref="ApplyParameterType" /> recognises and hands to the seam.
+    /// </remarks>
+    internal Enum? LargeTextParameterType => Derived.DbLargeTextType
+                                             ?? (ConfigureLargeTextParameter is null ? null : largeTextMarker);
+
+    /// <summary>
+    /// What <see cref="LargeTextParameterType" /> answers for a description that has only the seam: a
+    /// value of an enum no driver has, so it can never be mistaken for a parameter type a driver named.
+    /// </summary>
+    private static readonly Enum largeTextMarker = LargeTextParameter.Marker;
+
+    private enum LargeTextParameter
+    {
+        Marker
+    }
+
+    /// <summary>
     /// The name of the property on <see cref="ParameterType" /> that carries a parameter's database
     /// type, which <see cref="DbBinaryTypeName" /> is set through.
     /// </summary>
@@ -264,15 +321,13 @@ public sealed record DbMetadata
     {
         if (ConfigureBinaryParameter is { } configure && Equals(dataType, BinaryParameterType))
         {
-            if (parameter is not DbParameter dbParameter)
-            {
-                Throw.InvalidOperationException(
-                    $"ConfigureBinaryParameter was given a {parameter.GetType().FullName}, which is not a DbParameter. "
-                    + "The seam exists to reach a driver's own parameter type, so it is only called for parameters the driver made.");
-                return;
-            }
+            ApplySeam(parameter, configure, nameof(ConfigureBinaryParameter));
+            return;
+        }
 
-            configure(dbParameter);
+        if (ConfigureLargeTextParameter is { } configureLargeText && Equals(dataType, LargeTextParameterType))
+        {
+            ApplySeam(parameter, configureLargeText, nameof(ConfigureLargeTextParameter));
             return;
         }
 
@@ -292,6 +347,19 @@ public sealed record DbMetadata
             $"The description of '{ProductName ?? "the driver"}' names no {nameof(ParameterType)}, so there is nowhere to "
             + $"write the parameter type '{dataType.GetType().FullName}.{dataType}'. Describe the driver's parameter type, "
             + $"or set {nameof(ConfigureBinaryParameter)}.");
+    }
+
+    private static void ApplySeam(IDbDataParameter parameter, Action<DbParameter> configure, string seam)
+    {
+        if (parameter is not DbParameter dbParameter)
+        {
+            Throw.InvalidOperationException(
+                $"{seam} was given a {parameter.GetType().FullName}, which is not a DbParameter. "
+                + "The seam exists to reach a driver's own parameter type, so it is only called for parameters the driver made.");
+            return;
+        }
+
+        configure(dbParameter);
     }
 
     /// <summary>
@@ -375,7 +443,12 @@ public sealed record DbMetadata
                 }
             }
 
-            if (metadata.DbBinaryTypeName is null)
+            // Either type name is written through the same property, so either one needs it resolved.
+            string? namedBy = metadata.DbBinaryTypeName is not null ? nameof(DbBinaryTypeName)
+                : metadata.DbLargeTextTypeName is not null ? nameof(DbLargeTextTypeName)
+                : null;
+
+            if (namedBy is null)
             {
                 return;
             }
@@ -390,10 +463,18 @@ public sealed record DbMetadata
             // provider and what to set.
             if (metadata.ParameterDbTypePropertyName is null)
             {
-                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{metadata.ProductName}': DbBinaryTypeName is set, so ParameterDbTypePropertyName has to name the property on {metadata.ParameterType} that carries it");
+                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{metadata.ProductName}': {namedBy} is set, so ParameterDbTypePropertyName has to name the property on {metadata.ParameterType} that carries it");
             }
 
-            DbBinaryType = (Enum) Enum.Parse(metadata.ParameterDbType, metadata.DbBinaryTypeName);
+            if (metadata.DbBinaryTypeName is not null)
+            {
+                DbBinaryType = (Enum) Enum.Parse(metadata.ParameterDbType, metadata.DbBinaryTypeName);
+            }
+
+            if (metadata.DbLargeTextTypeName is not null)
+            {
+                DbLargeTextType = (Enum) Enum.Parse(metadata.ParameterDbType, metadata.DbLargeTextTypeName);
+            }
 
             PropertyInfo? property = metadata.ParameterType.GetProperty(metadata.ParameterDbTypePropertyName);
             if (property?.SetMethod is null)
@@ -437,6 +518,8 @@ public sealed record DbMetadata
         }
 
         public Enum? DbBinaryType { get; }
+
+        public Enum? DbLargeTextType { get; }
 
         public PropertyInfo? ParameterDbTypeProperty { get; }
 

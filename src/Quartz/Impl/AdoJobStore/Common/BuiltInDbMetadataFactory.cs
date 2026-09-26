@@ -317,6 +317,11 @@ internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
             // also what makes this driver behave the same whether it was named or handed over as a
             // factory, since the factory path says the same thing with ConfigureBinaryParameter.
             DbBinaryTypeName = "Blob",
+
+            // And a string is bound as Varchar2, which a SQL statement refuses to put more than 4,000
+            // bytes of into a CLOB (ORA-01461). The execution history's captured log is 16 KB by
+            // default, so without this nearly every history row that carried one would be dropped.
+            DbLargeTextTypeName = "Clob",
         },
 
         _ => facts

@@ -129,8 +129,10 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.HistoryRetryScheduled, GetDbBooleanValue(entry.RetryScheduled));
 
         // Written whole: the capture already bounded it, and the column is a large object on every
-        // dialect, so there is no width here to cut it to.
-        AddCommandParameter(cmd, SqlParameters.ExecutionLog, entry.Log);
+        // dialect, so there is no width here to cut it to. Bound as the driver's large-text type where
+        // its description names one, which is the managed Oracle driver's Clob: a string it would bind
+        // as Varchar2, and more than 4,000 bytes of that into a CLOB fails the whole row.
+        AddCommandParameter(cmd, SqlParameters.ExecutionLog, entry.Log, DbProvider.Metadata.LargeTextParameterType);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }

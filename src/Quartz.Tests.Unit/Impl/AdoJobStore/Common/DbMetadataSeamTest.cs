@@ -177,6 +177,154 @@ public sealed class DbMetadataSeamTest
     }
 
     /// <summary>
+    /// A driver that names no large-text type binds the captured log as the string it is: every driver
+    /// but the managed Oracle one takes a string into its large text column.
+    /// </summary>
+    [Test]
+    public void WithNoLargeTextTypeTheLogIsBoundAsItIs()
+    {
+        NamedDriver.LargeTextParameterType.Should().BeNull(
+            "nothing is said about a parameter whose driver needs nothing said, so no parameter type is written");
+        TypeFreeDriver.LargeTextParameterType.Should().BeNull();
+    }
+
+    [Test]
+    public void ANamedLargeTextTypeIsWrittenThroughTheDescribedProperty()
+    {
+        DbMetadata metadata = NamedDriver with { DbLargeTextTypeName = nameof(DbType.String) };
+
+        FakeParameter parameter = new();
+        metadata.ApplyParameterType(parameter, metadata.LargeTextParameterType!);
+
+        metadata.LargeTextParameterType.Should().Be(DbType.String);
+        parameter.DbType.Should().Be(DbType.String,
+            "the name is resolved against ParameterDbType and written where a binary type is, which is how "
+            + "OracleDbType.Clob reaches an OracleParameter without Quartz naming the driver");
+    }
+
+    /// <summary>
+    /// The large-text type is a member of the driver's own enum, so it belongs with the types, as the
+    /// binary type does: the half of a description a factory or a data source reads names none.
+    /// </summary>
+    /// <remarks>
+    /// The full Oracle description, which names <c>Clob</c>, needs <c>Oracle.ManagedDataAccess</c> loaded;
+    /// the Oracle integration leg is what binds a log through it.
+    /// </remarks>
+    [Test]
+    public void NoTypeFreeDescriptionNamesALargeTextType()
+    {
+        BuiltInDbMetadataFactory factory = new();
+
+        foreach (string provider in factory.GetProviderNames())
+        {
+            DbMetadata facts = factory.GetTypeFreeDbMetadata(provider);
+
+            facts.DbLargeTextTypeName.Should().BeNull(
+                $"{provider}'s type-free description has no ParameterDbType to resolve an enum member against");
+            facts.LargeTextParameterType.Should().BeNull($"and so binds a string as it is");
+        }
+    }
+
+    [Test]
+    public void ConfigureLargeTextParameter_IsAppliedToALargeTextParameterOnly()
+    {
+        int configured = 0;
+        DbMetadata metadata = TypeFreeDriver with
+        {
+            ConfigureLargeTextParameter = parameter =>
+            {
+                configured++;
+                parameter.Size = -1;
+            },
+        };
+
+        FakeParameter parameter = new();
+        metadata.ApplyParameterType(parameter, metadata.LargeTextParameterType!);
+
+        configured.Should().Be(1, "a description reached through a factory says what a Clob is with the seam");
+        parameter.Size.Should().Be(-1);
+
+        FakeParameter binary = new();
+        metadata.ApplyParameterType(binary, metadata.BinaryParameterType);
+
+        configured.Should().Be(1, "the large-text seam is for the large-text parameter and no other");
+        binary.DbType.Should().Be(DbType.Binary);
+    }
+
+    [Test]
+    public void ConfigureLargeTextParameter_WinsOverTheNamedType()
+    {
+        bool configured = false;
+        DbMetadata metadata = NamedDriver with
+        {
+            DbLargeTextTypeName = nameof(DbType.String),
+            ConfigureLargeTextParameter = _ => configured = true,
+        };
+
+        FakeParameter parameter = new() { DbType = DbType.Int32 };
+        metadata.ApplyParameterType(parameter, metadata.LargeTextParameterType!);
+
+        configured.Should().BeTrue("set, the seam wins, exactly as ConfigureBinaryParameter does");
+        parameter.DbType.Should().Be(DbType.Int32, "and the reflective setter does not run after it");
+    }
+
+    [Test]
+    public void ALargeTextSeamHandedAParameterThatIsNotADbParameterSaysSo()
+    {
+        DbMetadata metadata = TypeFreeDriver with { ConfigureLargeTextParameter = _ => { } };
+
+        Action bind = () => metadata.ApplyParameterType(new PlainParameter(), metadata.LargeTextParameterType!);
+
+        bind.Should().Throw<InvalidOperationException>().WithMessage("*ConfigureLargeTextParameter*");
+    }
+
+    [Test]
+    public void ALargeTextTypeWithNoPropertyToWriteItToIsReported()
+    {
+        DbMetadata forgotten = TypeFreeDriver with
+        {
+            ParameterType = typeof(FakeParameter),
+            ParameterDbType = typeof(DbType),
+            DbLargeTextTypeName = nameof(DbType.String),
+        };
+
+        Action resolve = () => _ = forgotten.LargeTextParameterType;
+
+        resolve.Should().Throw<ArgumentException>()
+            .WithMessage("*DbLargeTextTypeName*", "the setting that made the property required is the one named")
+            .WithMessage("*ParameterDbTypePropertyName*");
+    }
+
+    /// <summary>
+    /// An <see cref="IDbDataParameter" /> that is not a <see cref="DbParameter" />, which no driver hands
+    /// out but a caller of the binder could.
+    /// </summary>
+    private sealed class PlainParameter : IDbDataParameter
+    {
+        public DbType DbType { get; set; }
+
+        public ParameterDirection Direction { get; set; }
+
+        public bool IsNullable => true;
+
+        [System.Diagnostics.CodeAnalysis.AllowNull]
+        public string ParameterName { get; set; } = "";
+
+        [System.Diagnostics.CodeAnalysis.AllowNull]
+        public string SourceColumn { get; set; } = "";
+
+        public DataRowVersion SourceVersion { get; set; }
+
+        public object? Value { get; set; }
+
+        public byte Precision { get; set; }
+
+        public byte Scale { get; set; }
+
+        public int Size { get; set; }
+    }
+
+    /// <summary>
     /// Stands in for a driver's own parameter type enum — <c>SqlDbType</c>, <c>NpgsqlDbType</c> — which
     /// only means anything on the property that driver's parameter declares for it.
     /// </summary>
