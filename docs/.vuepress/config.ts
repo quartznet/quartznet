@@ -6,7 +6,6 @@ import { defineUserConfig } from '@vuepress/cli'
 import type { Page } from 'vuepress/core'
 import { docsearchPlugin } from '@vuepress/plugin-docsearch'
 import { registerComponentsPlugin } from '@vuepress/plugin-register-components'
-import { googleAnalyticsPlugin } from '@vuepress/plugin-google-analytics'
 import { redirectPlugin } from '@vuepress/plugin-redirect'
 import {head, navbarEn, sidebarEn} from "./configs";
 import * as path from "path";
@@ -53,9 +52,6 @@ export default defineUserConfig({
     head: head,
 
     plugins: [
-        googleAnalyticsPlugin({
-            'id': 'UA-1433901-1'
-        }),
         docsearchPlugin({
             appId: 'QEIS1H2X5Q',
             apiKey: '8b6fcbbb7ef15a278af143526ce8c529',
