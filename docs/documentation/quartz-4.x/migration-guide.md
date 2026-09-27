@@ -65,6 +65,18 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `IScheduler.ScheduleTrigger(trigger, onConflict)` | Answers `ScheduleTriggerResult(NextFireTimeUtc, Outcome)`. Default: `GetTrigger`, then `ScheduleJob`; correct, not atomic. HTTP: `onConflict` on `POST …/triggers/schedule`, answered with `outcome`, sent by `HttpScheduler` |
 | `IJobStore.StoreTrigger(trigger, onConflict)` | The store half, decided under the store's lock. Default: `GetTrigger`, then `AddTrigger`; correct, not atomic |
 | `OperationName.JobStore.StoreTrigger` | `Quartz.JobStore.StoreTrigger`, the span for it |
+| `OverlapPolicy` | `Default`, `Skip`, `BufferOne`, `CancelPrevious`, `AllowAll`: what a trigger does when a firing comes due while its last one runs. See [Overlap Policy](how-tos/overlap-policy.md) |
+| `ITrigger.OverlapPolicy`, `TriggerBase.OverlapPolicy` | Default `OverlapPolicy.Default`. Settable on `TriggerBase`, not on `IMutableTrigger` |
+| `TriggerBuilder.WithOverlapPolicy`, `ITriggerConfigurator.WithOverlapPolicy`, `TriggerDetailsUpdate.WithOverlapPolicy` | Set it. The configurator's default throws `NotSupportedException` |
+| `TriggerHeader.OverlapPolicy` | `init`. HTTP: `overlapPolicy` on the listing header and the trigger body, and on `update-details` |
+| `ITriggerListener.TriggerSkipped`, `ISchedulerSignaler.NotifyTriggerListenersSkipped` | A firing `Skip` dropped. Defaults do nothing |
+| `MisfireReason`, `MisfireHistoryEntry.Reason` | `Missed` or `Overlap`. HTTP: `reason` on a misfire-history row |
+| `DashboardMisfireEntry.Reason`, `DashboardHistoryPlugin.TriggerSkipped` | `Quartz.Dashboard`. The History page's misfire list shows the reason |
+| `TriggerFiredResult.Declined`, `TriggerFiredResult.IsDeclined` | A firing the store settled itself: the scheduler neither runs nor releases it |
+| `TriggerFiredBundle.SupersededFireInstanceIds` | `init`. The running firings a `CancelPrevious` fire replaces; the scheduler interrupts them |
+| `IDriverDelegate.IsTriggerCurrentlyExecuting` | Default reads `SelectFiredTriggerRecords`; `StdAdoDelegate` counts |
+| `AdoConstants.ColumnOverlapPolicy`, `ColumnMisfireReason` | `OVERLAP_POLICY` on `QRTZ_TRIGGERS` and `REASON` on `QRTZ_MISFIRE_HISTORY` |
+| Log events `1037`, `1038`, `1072`, `2007`, `3043`, `3044` | A firing replaced, an interrupt that failed, a skip notification that failed, a skip (in memory, persistent), a firing held behind another node's |
 
 `ScheduleTrigger` and `StoreTrigger` are default interface members, so a scheduler or store written for
 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare both.
@@ -112,15 +124,21 @@ unchanged.
 * **Behaviour change:** the persistent history's `QueryExecutions` now returns each row's `EntryId`, and
   the recorder names every row, so an `IExecutionHistoryStore` of your own receives rows with
   `EntryId` set.
+* A 4.2 node ignores `OVERLAP_POLICY` and fires every trigger as `Default` does. **Roll every node before
+  giving a trigger an overlap policy.**
+* **Behaviour change:** `CountMisfires` counts `MisfireReason.Missed` rows only. An
+  `IExecutionHistoryStore` of your own keeps a `Skip`'s rows beside the misfires and should do the same.
 
 ### The 4.3 schema migration
 
 | Script | Status |
 |---|---|
 | `database/migrations/4.3/add_fire_progress_<db>.sql` | **Required.** A 4.3 node refuses to start without the two columns, and the error names the column and the script |
+| `database/migrations/4.3/add_overlap_policy_<db>.sql` | **Required.** A 4.3 node refuses to start without the column |
 | `database/migrations/4.3/add_execution_log_<db>.sql` | Optional. Needed only with `UseExecutionHistory()`, which refuses to start without it. Run it after `4.2/add_execution_history_<db>.sql` |
+| `database/migrations/4.3/add_misfire_reason_<db>.sql` | Optional, as the execution log is |
 
-Run both while 4.2 nodes are still running. The columns are nullable with no default, and a 4.2 node
+Run them while 4.2 nodes are still running. The columns are nullable with no default, and a 4.2 node
 never names them. `ProvisionSchema()` does not add columns to an existing table; a fresh install from
 `database/tables/` already has them. See
 [Database Schema Changes](../database/schema-changes.md#version-4-3).

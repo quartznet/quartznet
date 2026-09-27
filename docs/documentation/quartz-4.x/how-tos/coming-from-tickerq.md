@@ -183,7 +183,8 @@ services.AddQuartz(q =>
 <!-- endSnippet -->
 
 `[DisallowConcurrentExecution]` is narrower: one firing per job key at a time, cluster-wide with a persistent
-store.
+store. From 4.3 an [overlap policy](overlap-policy.md) decides it per trigger: skip, buffer one, or cancel
+the running firing.
 
 ### The dashboard will not start until you say who may reach it
 

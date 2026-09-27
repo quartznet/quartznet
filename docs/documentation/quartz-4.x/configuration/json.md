@@ -259,6 +259,7 @@ will not gain a `<recurrence>` element; declare a recurrence rule in JSON or in 
 | `PreferredNode` | The cluster node the trigger [prefers](../tutorial/node-affinity.md): a scheduler instance id, or `"*"` for whichever node fires it first. Omitted: unpinned |
 | `ContinuesAfter` | The trigger this one waits for, as a `Name`/`Group` pair — a [continuation](../how-tos/job-continuations.md). Omitted: fires on its own schedule |
 | `ContinuationCondition` | Which outcomes release the wait: `OnSuccess`, `OnFailure`, `OnCancellation`, `OnVeto` or `OnAnyOutcome`, joined with `\|`. Omitted: `OnSuccess` |
+| `OverlapPolicy` | What happens when a firing comes due while the last one runs: `Skip`, `BufferOne`, `CancelPrevious`, `AllowAll` or `Default` — an [overlap policy](../how-tos/overlap-policy.md). Omitted: `Default` |
 | `StartTime` | ISO 8601 start time (e.g., `"2024-01-01T00:00:00Z"`) |
 | `StartTimeSecondsInFuture` | Start time as seconds from now (mutually exclusive with StartTime) |
 | `EndTime` | ISO 8601 end time |
