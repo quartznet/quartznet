@@ -211,6 +211,14 @@ public class SelectForUpdateLockHandler : DbLockHandler
                     initCause = sqle;
                 }
 
+                // Nothing to retry inside a transaction the database has ended, as it does to a deadlock
+                // victim: SQL Server would run the retried statement outside any transaction. The store
+                // retries the whole operation on a fresh one; see UpdateRowLockHandler for the long form.
+                if (conn.IsTransactionZombied)
+                {
+                    Throw.LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
+                }
+
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
                     logger.LockNotObtainedWithRetryNote(lockName, requestorId, count < maxRetryLocal ? " - will try again." : "");
