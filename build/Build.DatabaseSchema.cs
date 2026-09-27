@@ -717,8 +717,10 @@ partial class Build
     /// <remarks>
     /// Why it was paused, as the caller put it and cut to 250 characters; who asked, cut to 200; and
     /// when, in ticks like every other instant here. Oracle is declared four times as wide for the
-    /// reason <c>PROGRESS_MESSAGE</c> is: its <c>VARCHAR2</c> counts bytes. All three are NULL on a
-    /// row a 4.2 node paused, which reads as a pause that said nothing.
+    /// reason <c>PROGRESS_MESSAGE</c> is: its <c>VARCHAR2</c> counts bytes. So is Firebird, whose
+    /// <c>VARCHAR</c> counts bytes in a database created without a default character set, where 250
+    /// characters of UTF-8 can take 1,000. All three are NULL on a row a 4.2 node paused, which reads
+    /// as a pause that said nothing.
     /// </remarks>
     static SchemaColumn[] PauseColumns() =>
     [
@@ -728,14 +730,14 @@ partial class Build
             mysql: "VARCHAR(250) NULL",
             oracle: "VARCHAR2(1000) NULL",
             sqlite: "NVARCHAR(250) NULL",
-            firebird: "VARCHAR(250) DEFAULT NULL") with { AddedBy = "4.3" },
+            firebird: "VARCHAR(1000) DEFAULT NULL") with { AddedBy = "4.3" },
         Column("PAUSED_BY",
             sqlServer: "nvarchar(200) NULL",
             postgres: "VARCHAR(200) NULL",
             mysql: "VARCHAR(200) NULL",
             oracle: "VARCHAR2(800) NULL",
             sqlite: "NVARCHAR(200) NULL",
-            firebird: "VARCHAR(200) DEFAULT NULL") with { AddedBy = "4.3" },
+            firebird: "VARCHAR(800) DEFAULT NULL") with { AddedBy = "4.3" },
         Timestamp("PAUSED_AT", required: false) with { AddedBy = "4.3" },
     ];
 
