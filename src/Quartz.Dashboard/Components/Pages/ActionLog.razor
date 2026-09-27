@@ -18,6 +18,7 @@
                 <tr>
                     <th>Time</th>
                     <th>Scheduler</th>
+                    <th>User</th>
                     <th>Action</th>
                     <th>Target</th>
                     <th>Status</th>
@@ -40,6 +41,7 @@
                                 <span class="qz-tag">@origin.ToString()</span>
                             }
                         </td>
+                        <td class="qz-action-log-user">@(entry.User ?? "—")</td>
                         <td>@entry.Action</td>
                         <td>
                             @entry.Target

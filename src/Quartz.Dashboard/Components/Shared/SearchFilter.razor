@@ -1,23 +1,45 @@
 @implements IDisposable
 
 <input type="text"
+       id="@Id"
        class="qz-input qz-search-filter"
        placeholder="@Placeholder"
+       aria-label="@Placeholder"
        value="@_value"
        @oninput="OnInputAsync" />
 
 @code {
     private string _value = string.Empty;
+    private string? _lastValueParameter;
     private CancellationTokenSource _debounceCts = new();
 
     [Parameter]
+    public string? Id { get; set; }
+
+    [Parameter]
     public string Placeholder { get; set; } = "Filter by group or name";
+
+    /// <summary>
+    /// The text to show, for a filter a page opened with — one read from its address. The box keeps
+    /// what the reader types; only a change of this value replaces it.
+    /// </summary>
+    [Parameter]
+    public string? Value { get; set; }
 
     [Parameter]
     public TimeSpan Debounce { get; set; } = TimeSpan.FromMilliseconds(300);
 
     [Parameter]
     public EventCallback<string> OnFilterChanged { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.Equals(Value, _lastValueParameter, StringComparison.Ordinal))
+        {
+            _lastValueParameter = Value;
+            _value = Value ?? string.Empty;
+        }
+    }
 
     private async Task OnInputAsync(ChangeEventArgs args)
     {

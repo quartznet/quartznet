@@ -1,0 +1,258 @@
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Services
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
+
+@* The trigger's details, edited in place through TriggerDetailsUpdate: its fire times and state are kept,
+   which is what tells this apart from the cron editor's reschedule. *@
+<section class="qz-section qz-trigger-editor" data-testid="trigger-editor">
+    <h2>Edit details</h2>
+
+    @if (_errors.Count > 0 || !string.IsNullOrWhiteSpace(_refusal))
+    {
+        <div class="qz-form-errors" role="alert" data-testid="trigger-editor-errors">
+            <ul>
+                @foreach (string error in _errors)
+                {
+                    <li>@error</li>
+                }
+                @if (!string.IsNullOrWhiteSpace(_refusal))
+                {
+                    <li>@_refusal</li>
+                }
+            </ul>
+        </div>
+    }
+    else if (_nothingChanged)
+    {
+        <p class="qz-muted" data-testid="trigger-editor-unchanged">Nothing was changed, so nothing was saved.</p>
+    }
+
+    <div class="qz-live-filter-grid">
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-description">Description</label>
+            <input id="trigger-edit-description" class="qz-input" @bind="_form.Description" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-priority">Priority</label>
+            <input id="trigger-edit-priority" class="qz-input" inputmode="numeric" @bind="_form.Priority" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-calendar">Calendar</label>
+            <input id="trigger-edit-calendar"
+                   class="qz-input"
+                   list="trigger-edit-calendars"
+                   placeholder="(none)"
+                   @bind="_form.CalendarName" />
+            <datalist id="trigger-edit-calendars">
+                @foreach (string calendarName in _calendarNames)
+                {
+                    <option value="@calendarName"></option>
+                }
+            </datalist>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-misfire">Misfire instruction</label>
+            @if (_form.MisfireOptions.Count > 0)
+            {
+                <select id="trigger-edit-misfire" class="qz-select" @bind="_form.MisfireInstruction">
+                    @foreach (MisfireOption option in _form.MisfireOptions)
+                    {
+                        <option value="@option.Code">@option.Name</option>
+                    }
+                </select>
+            }
+            else
+            {
+                @* A trigger in none of the five families has no names for its codes, and the typed
+                   overloads would all be refused for it. *@
+                <input id="trigger-edit-misfire" class="qz-input" inputmode="numeric" @bind="_form.MisfireInstruction" />
+            }
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-execution-group">Execution group</label>
+            <input id="trigger-edit-execution-group" class="qz-input" placeholder="(none)" @bind="_form.ExecutionGroup" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-retry-policy">Retry policy</label>
+            <input id="trigger-edit-retry-policy"
+                   class="qz-input qz-input-mono"
+                   placeholder="fixed;3;00:05:00"
+                   title="fixed;attempts;delay · exp;attempts;initial delay;factor · list;delay;delay… — blank for no retries"
+                   @bind="_form.RetryPolicy" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-node-mode">Preferred node</label>
+            <select id="trigger-edit-node-mode" class="qz-select" @bind="_form.PreferredNodeMode">
+                <option value="@TriggerDetailsForm.NodeNone">Any node</option>
+                <option value="@TriggerDetailsForm.NodeAuto">The first node to fire it</option>
+                <option value="@TriggerDetailsForm.NodeNamed">A named node</option>
+            </select>
+            @if (_form.PreferredNodeMode == TriggerDetailsForm.NodeNamed)
+            {
+                <input id="trigger-edit-node" class="qz-input qz-input-mono" placeholder="scheduler instance id" @bind="_form.PreferredNodeName" />
+            }
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-overlap">Overlap policy</label>
+            <select id="trigger-edit-overlap"
+                    class="qz-select"
+                    disabled="@(_form.OverlapPolicyUnavailable is not null)"
+                    title="@_form.OverlapPolicyUnavailable"
+                    @bind="_form.OverlapPolicy">
+                @foreach (OverlapPolicy policy in Enum.GetValues<OverlapPolicy>())
+                {
+                    <option value="@policy.ToString()">@policy</option>
+                }
+            </select>
+            @if (_form.OverlapPolicyUnavailable is { } overlapReason)
+            {
+                <span class="qz-muted" data-testid="trigger-editor-overlap-unavailable">@overlapReason</span>
+            }
+        </div>
+    </div>
+
+    <h3>JobDataMap</h3>
+    <JobDataMapEditor DataMap="@_form.JobDataMap" ReadOnly="false" />
+
+    <div class="qz-actions qz-group-actions">
+        <button type="button" class="qz-button qz-button-primary qz-trigger-editor-save" disabled="@_saving" @onclick="SaveAsync">Save details</button>
+        <button type="button" class="qz-button qz-trigger-editor-cancel" @onclick="CancelAsync">Cancel</button>
+    </div>
+</section>
+
+@code {
+    private TriggerDetailsForm _form = null!;
+    private ITrigger? _formFor;
+    private List<string> _errors = [];
+    private List<string> _calendarNames = [];
+    private string? _refusal;
+    private bool _nothingChanged;
+    private bool _saving;
+
+    /// <summary>
+    /// The trigger as the page last read it. A different instance starts the form again from what it
+    /// holds.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public ITrigger Trigger { get; set; } = null!;
+
+    /// <summary>
+    /// Raised once a save has been applied, so the page can read the trigger again and close the editor.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnSaved { get; set; }
+
+    /// <summary>
+    /// Raised with the reason when the data source says it cannot edit a trigger in place at all, which
+    /// the page shows beside a disabled button rather than as an error on every save.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnUnavailable { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private TriggerKeyDto TriggerKey => new(Trigger.Key.Group, Trigger.Key.Name);
+
+    protected override async Task OnInitializedAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            // Suggestions only: the field takes any name, so a listing that cannot be read leaves an
+            // editor with nothing to suggest rather than no editor.
+            _calendarNames = await Api.GetCalendarNames(schedulerName);
+        }
+        catch (Exception)
+        {
+            _calendarNames = [];
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_formFor, Trigger))
+        {
+            _formFor = Trigger;
+            _form = TriggerDetailsForm.From(Trigger);
+            _errors = [];
+            _refusal = null;
+            _nothingChanged = false;
+        }
+    }
+
+    /// <summary>
+    /// Saves what was changed, and records it — who, through the action log's logger and its user
+    /// column, and what, in its message.
+    /// </summary>
+    /// <remarks>
+    /// A refusal stays beside the fields with the editor open, so the reader can correct the one field
+    /// the scheduler named rather than start again from a page-wide error.
+    /// </remarks>
+    private async Task SaveAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (Options.Value.ReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        TriggerDetailsEdit edit = _form.Build();
+        _errors = edit.Errors;
+        _refusal = null;
+        _nothingChanged = edit.Errors.Count == 0 && edit.Changes.Count == 0;
+        if (edit.Update is null)
+        {
+            return;
+        }
+
+        string target = DisplayValueHelper.FormatKey(TriggerKey.Group, TriggerKey.Name);
+        string summary = string.Join("; ", edit.Changes);
+        _saving = true;
+
+        try
+        {
+            bool applied = await Api.UpdateTriggerDetails(schedulerName, TriggerKey, edit.Update);
+            if (!applied)
+            {
+                _refusal = "Trigger " + target + " was not updated - it no longer exists.";
+                ActionLog.Record(schedulerName, "UpdateTriggerDetails", target, succeeded: false, "the trigger no longer exists; asked for " + summary);
+                return;
+            }
+
+            ActionLog.Record(schedulerName, "UpdateTriggerDetails", target, succeeded: true, summary);
+            Toasts.Success("Updated trigger " + target + ": " + summary + ".");
+            await OnSaved.InvokeAsync();
+        }
+        catch (NotSupportedException ex)
+        {
+            ActionLog.Record(schedulerName, "UpdateTriggerDetails", target, succeeded: false, ex.Message);
+            await OnUnavailable.InvokeAsync(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _refusal = ex.Message;
+            ActionLog.Record(schedulerName, "UpdateTriggerDetails", target, succeeded: false, ex.Message + "; asked for " + summary);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private Task CancelAsync()
+    {
+        return OnCancel.InvokeAsync();
+    }
+}

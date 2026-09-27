@@ -84,6 +84,7 @@ internal sealed class DashboardActionLog
         // scheduler" comes from. Null for a name the listing does not carry, which the entry records as
         // such rather than guessing.
         SchedulerHeaderDto? header = schedulerState.Find(schedulerName);
+        string user = UserName();
 
         store.Record(new DashboardActionLogEntry(
             Timestamp: DateTimeOffset.UtcNow,
@@ -95,10 +96,10 @@ internal sealed class DashboardActionLog
         {
             Origin = header?.Origin,
             SchedulerInstanceId = header?.SchedulerInstanceId,
-            NodeLocal = nodeLocal
+            NodeLocal = nodeLocal,
+            User = user
         });
 
-        string user = UserName();
         string origin = header?.Origin.ToString() ?? Unknown;
         string node = header?.SchedulerInstanceId ?? Unknown;
 

@@ -72,6 +72,28 @@ public class CurrentlyExecutingProgressTest
         });
     }
 
+    /// <summary>
+    /// A running firing has no history row yet — the recorder names one when the job returns — so the
+    /// row links to its trigger's finished runs, each of which opens its own execution page.
+    /// </summary>
+    [Test]
+    public void ARunningFiringLinksToItsTriggersFinishedRuns()
+    {
+        using DashboardComponentContext context = new(options => options.ReadOnly = true);
+        context.WithScheduler();
+        GivenFiring(context, progress: 10, message: null);
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+
+        page.WaitForAssertion(() =>
+        {
+            IElement link = page.Find("[data-testid=executing-history-link]");
+            link.GetAttribute("href").Should().Be("quartz/history?trigger=nightly.trigger-1",
+                "the history page narrowed to this trigger is where its execution pages are");
+            page.TextOfAll("thead th").Should().Contain("History", "reading history is not a mutation, so read-only keeps it");
+        });
+    }
+
     private static void GivenFiring(DashboardComponentContext context, int? progress, string? message)
     {
         A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))

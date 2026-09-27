@@ -193,6 +193,21 @@ internal sealed class SchedulerState
         return TimeZoneInfo.ConvertTime(value, timeZone);
     }
 
+    /// <summary>
+    /// The instant a wall-clock time names in the selected time zone — what a <c>datetime-local</c> input
+    /// means, since it carries no offset of its own.
+    /// </summary>
+    /// <remarks>
+    /// A time the zone skips or repeats at a daylight-saving change reads with the zone's standard offset,
+    /// which is <see cref="TimeZoneInfo.GetUtcOffset(DateTime)" />'s answer for both.
+    /// </remarks>
+    public DateTimeOffset FromSelectedTimeZone(DateTime wallClock)
+    {
+        TimeZoneInfo timeZone = ResolveSelectedTimeZone();
+        DateTime unspecified = DateTime.SpecifyKind(wallClock, DateTimeKind.Unspecified);
+        return new DateTimeOffset(unspecified, timeZone.GetUtcOffset(unspecified));
+    }
+
     public string FormatInSelectedTimeZone(DateTimeOffset value, string format = "u")
     {
         DateTimeOffset converted = ConvertToSelectedTimeZone(value);

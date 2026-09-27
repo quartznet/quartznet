@@ -1345,6 +1345,236 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// The editor's save reaches the scheduler as the patch it is: what the update names changes, and the
+    /// fire times the trigger was running with do not.
+    /// </summary>
+    [Test]
+    public async Task UpdateTriggerDetailsEditsTheTriggerInPlace()
+    {
+        IScheduler scheduler = await CreateScheduler("UpdateTriggerDetailsTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            TriggerKey triggerKey = new("cron", "group1");
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(),
+                TriggerBuilder.Create().WithIdentity(triggerKey).ForJob(jobKey).WithDescription("before").WithCronSchedule("0 0 1 * * ?").Build());
+            await scheduler.AddCalendar("holidays", new HolidayCalendar(), new AddCalendarOptions());
+            DateTimeOffset? nextFire = (await scheduler.GetTrigger(triggerKey))!.NextFireTimeUtc;
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            TriggerDetailsUpdate update = new TriggerDetailsUpdate()
+                .WithDescription("after")
+                .WithPriority(9)
+                .WithCalendarName("holidays")
+                .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)
+                .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(5)))
+                .WithOverlapPolicy(OverlapPolicy.Skip)
+                .WithJobDataMap(new JobDataMap { ["region"] = "eu" });
+
+            (await client.UpdateTriggerDetails(scheduler.SchedulerName, new TriggerKeyDto("group1", "cron"), update)).Should().BeTrue();
+
+            ICronTrigger stored = (await scheduler.GetTrigger(triggerKey)).Should().BeAssignableTo<ICronTrigger>().Subject;
+            stored.Description.Should().Be("after");
+            stored.Priority.Should().Be(9);
+            stored.CalendarName.Should().Be("holidays");
+            stored.MisfireInstruction.Should().Be(CronTriggerMisfireInstruction.DoNothing);
+            stored.RetryPolicy.Should().Be(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(5)));
+            stored.OverlapPolicy.Should().Be(OverlapPolicy.Skip);
+            stored.JobDataMap.GetString("region").Should().Be("eu");
+            stored.NextFireTimeUtc.Should().Be(nextFire, "an edit in place is not a reschedule, and the fire time is kept");
+
+            (await client.UpdateTriggerDetails(scheduler.SchedulerName, new TriggerKeyDto("group1", "gone"), new TriggerDetailsUpdate().WithPriority(1)))
+                .Should().BeFalse("a trigger that is not there is the scheduler's own false, not an exception");
+
+            Func<Task> unknownCalendar = async () => await client.UpdateTriggerDetails(
+                scheduler.SchedulerName, new TriggerKeyDto("group1", "cron"), new TriggerDetailsUpdate().WithCalendarName("no-such-calendar"));
+            await unknownCalendar.Should().ThrowAsync<SchedulerException>(
+                "the scheduler's refusal reaches the page as itself, which shows its message beside the field");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// Every filter the trigger listing offers is the store's own predicate, so paging and the total stay
+    /// exact however narrow the listing is.
+    /// </summary>
+    [Test]
+    public async Task TheListingsAreNarrowedByEveryFilterTheStoreHas()
+    {
+        IScheduler scheduler = await CreateScheduler("ListingFiltersTest");
+        try
+        {
+            await scheduler.AddCalendar("holidays", new HolidayCalendar(), new AddCalendarOptions());
+            JobKey imports = new("imports", "etl");
+            JobKey exports = new("exports", "etl");
+            DateTimeOffset soon = DateTimeOffset.UtcNow.AddMinutes(10);
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<NoOpJob>().WithIdentity(imports).StoreDurably().Build(),
+                TriggerBuilder.Create().WithIdentity("imports-soon", "etl").ForJob(imports).StartAt(soon).WithCalendarName("holidays").Build());
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<NoOpJob>().WithIdentity(exports).StoreDurably().Build(),
+                TriggerBuilder.Create().WithIdentity("exports-later", "etl").ForJob(exports).StartAt(soon.AddDays(3)).Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            string name = scheduler.SchedulerName;
+
+            async Task<List<string>> Names(DashboardTriggerQuery query) =>
+                (await client.QueryTriggers(name, query)).Items.Select(x => x.Name).ToList();
+
+            (await Names(new DashboardTriggerQuery { NameContains = "soon" })).Should().Equal(["imports-soon"]);
+            (await Names(new DashboardTriggerQuery { Job = new JobKeyDto("etl", "exports") })).Should().Equal(["exports-later"]);
+            (await Names(new DashboardTriggerQuery { CalendarName = "holidays" })).Should().Equal(["imports-soon"]);
+            (await Names(new DashboardTriggerQuery { NextFireTimeBefore = soon.AddHours(1) })).Should().Equal(["imports-soon"],
+                "only the trigger due within the hour is before the bound");
+            (await Names(new DashboardTriggerQuery { CalendarName = "   " })).Should().HaveCount(2, "a blank calendar is no filter");
+
+            PagedResult<TriggerHeaderDto> counted = await client.QueryTriggers(name, new DashboardTriggerQuery { NameContains = "later", Take = 1 });
+            counted.TotalCount.Should().Be(1, "the total counts the filtered set, not the store");
+
+            (await client.QueryJobs(name, new DashboardJobQuery { NameContains = "port" })).Items.Select(x => x.Name)
+                .Should().BeEquivalentTo(["imports", "exports"]);
+            (await client.QueryJobs(name, new DashboardJobQuery { NameContains = "exp" })).Items.Should().ContainSingle()
+                .Which.Name.Should().Be("exports");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// A selection is one call, answered with the keys it applied to, so the page can say which rows it
+    /// did not reach.
+    /// </summary>
+    [Test]
+    public async Task AKeySetMutationAnswersWithTheKeysItAppliedTo()
+    {
+        IScheduler scheduler = await CreateScheduler("KeySetTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build());
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("a", "group1").ForJob(jobKey).WithCronSchedule("0 0 1 * * ?").Build());
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("b", "group1").ForJob(jobKey).WithCronSchedule("0 0 2 * * ?").Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            string name = scheduler.SchedulerName;
+            List<TriggerKeyDto> selection = [new("group1", "a"), new("group1", "b"), new("group1", "gone")];
+
+            (await client.PauseTriggers(name, selection)).Should().BeEquivalentTo(
+                [new TriggerKeyDto("group1", "a"), new TriggerKeyDto("group1", "b")],
+                "a key that names nothing is absent from the answer, which is how the page reports it");
+            (await scheduler.GetTriggerState(new TriggerKey("a", "group1"))).Should().Be(TriggerState.Paused);
+
+            (await client.ResumeTriggers(name, selection)).Should().HaveCount(2);
+            (await scheduler.GetTriggerState(new TriggerKey("b", "group1"))).Should().Be(TriggerState.Normal);
+
+            (await client.UnscheduleJobs(name, selection)).Should().HaveCount(2);
+            (await scheduler.GetTriggersOfJob(jobKey)).Should().BeEmpty();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task ReadOnlyRefusesTheEditorAndTheBulkActions()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("acme");
+        InProcessQuartzApiClient client = CreateClient(
+            scheduler, TestData.Dashboard.HistoryStore(), new QuartzDashboardOptions { ReadOnly = true }, new TestSchedulerAuthorizationService());
+        List<TriggerKeyDto> keys = [new("g", "t")];
+
+        Func<Task> update = async () => await client.UpdateTriggerDetails("acme", new TriggerKeyDto("g", "t"), new TriggerDetailsUpdate().WithPriority(1));
+        await update.Should().ThrowAsync<InvalidOperationException>().WithMessage("*read-only*",
+            "the client is where ReadOnly is enforced, whatever put the call in front of it");
+        Func<Task> pause = async () => await client.PauseTriggers("acme", keys);
+        await pause.Should().ThrowAsync<InvalidOperationException>();
+        Func<Task> resume = async () => await client.ResumeTriggers("acme", keys);
+        await resume.Should().ThrowAsync<InvalidOperationException>();
+        Func<Task> unschedule = async () => await client.UnscheduleJobs("acme", keys);
+        await unschedule.Should().ThrowAsync<InvalidOperationException>();
+
+        A.CallTo(scheduler).Where(call => BulkOrEditMembers.Contains(call.Method.Name))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A target that ignored the next-fire filter answers with triggers it excludes, and the client says
+    /// the filter is unavailable rather than handing the page a filtered listing that is not filtered.
+    /// </summary>
+    [Test]
+    public async Task ANextFireFilterTheTargetIgnoredIsRefusedRatherThanShown()
+    {
+        DateTimeOffset before = new(2026, 9, 27, 12, 0, 0, TimeSpan.Zero);
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("acme");
+        A.CallTo(() => scheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>(
+                [Header("due", before.AddMinutes(-5)), Header("later", before.AddDays(1)), Header("never", null)],
+                HasMore: false,
+                TotalCount: 3));
+        InProcessQuartzApiClient client = CreateClient(scheduler);
+
+        Func<Task> filtered = async () => await client.QueryTriggers("acme", new DashboardTriggerQuery { NextFireTimeBefore = before });
+        await filtered.Should().ThrowAsync<NotSupportedException>().WithMessage("*older than 4.2*",
+            "a Quartz HTTP API that predates the filter drops it and answers with every trigger");
+
+        (await client.QueryTriggers("acme", new DashboardTriggerQuery())).Items.Should().HaveCount(3,
+            "without the filter there is nothing to check, and every row is the answer");
+
+        static TriggerHeader Header(string name, DateTimeOffset? nextFire) => new(
+            new TriggerKey(name, "g"), new JobKey("j", "g"), null, "CRON", TriggerState.Normal,
+            DateTimeOffset.UnixEpoch, null, nextFire, null, null, 5, null, null, 0);
+    }
+
+    /// <summary>
+    /// An <see cref="IQuartzApiClient" /> written against 4.2 acts on a selection a key at a time, and
+    /// says it cannot edit a trigger in place rather than pretending to.
+    /// </summary>
+    [Test]
+    public async Task ADataSourceOfAnEarlier4xActsOnASelectionAKeyAtATimeAndCannotEditInPlace()
+    {
+        IQuartzApiClient client = A.Fake<IQuartzApiClient>();
+        A.CallTo(client).Where(call => BulkOrEditMembers.Contains(call.Method.Name))
+            .CallsBaseMethod();
+        A.CallTo(() => client.PauseTrigger("acme", A<TriggerKeyDto>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, TriggerKeyDto key, CancellationToken _) => key.Name != "gone");
+        A.CallTo(() => client.ResumeTrigger("acme", A<TriggerKeyDto>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => client.UnscheduleJob("acme", A<TriggerKeyDto>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, TriggerKeyDto key, CancellationToken _) => key.Name == "a");
+        List<TriggerKeyDto> keys = [new("g", "a"), new("g", "gone")];
+
+        (await client.PauseTriggers("acme", keys)).Should().Equal([new TriggerKeyDto("g", "a")],
+            "the default is the single-key member once per key, with the same answer");
+        (await client.ResumeTriggers("acme", keys)).Should().HaveCount(2);
+        (await client.UnscheduleJobs("acme", keys)).Should().Equal([new TriggerKeyDto("g", "a")]);
+        A.CallTo(() => client.PauseTrigger("acme", A<TriggerKeyDto>._, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+
+        Func<Task> update = async () => await client.UpdateTriggerDetails("acme", new TriggerKeyDto("g", "a"), new TriggerDetailsUpdate().WithPriority(1));
+        await update.Should().ThrowAsync<NotSupportedException>().WithMessage("*cannot edit a trigger in place*",
+            "nothing else on the interface edits without replacing, so the default reports the operation unavailable");
+
+        Func<Task> nullKeys = async () => await client.PauseTriggers("acme", null!);
+        await nullKeys.Should().ThrowAsync<ArgumentNullException>();
+        Func<Task> nullResumeKeys = async () => await client.ResumeTriggers("acme", null!);
+        await nullResumeKeys.Should().ThrowAsync<ArgumentNullException>();
+        Func<Task> nullUnscheduleKeys = async () => await client.UnscheduleJobs("acme", null!);
+        await nullUnscheduleKeys.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    /// <summary>
+    /// The members 4.3 added for the editor and the bulk actions, by name.
+    /// </summary>
+    private static readonly HashSet<string> BulkOrEditMembers = ["UpdateTriggerDetails", "PauseTriggers", "ResumeTriggers", "UnscheduleJobs"];
+
     public sealed class ReportingJob : IJob
     {
         public static readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);

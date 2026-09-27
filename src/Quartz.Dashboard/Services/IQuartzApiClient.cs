@@ -451,6 +451,110 @@ public interface IQuartzApiClient
     {
         return new ValueTask<PauseInfo?>((PauseInfo?) null);
     }
+
+    /// <summary>
+    /// Edits the trigger in place, as <see cref="IScheduler.UpdateTriggerDetails" /> does: only what
+    /// <paramref name="update" /> names changes, and the fire times and the state are kept. Returns
+    /// <see langword="true" /> when the trigger existed and was updated, <see langword="false" /> when
+    /// there was nothing to update.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Trigger Detail page's editor saves through. A refusal by the scheduler — a calendar it
+    /// does not hold, a misfire instruction of another family, an overlap policy for a trigger type that
+    /// cannot carry one — arrives as the exception the scheduler raised, and the page shows its message
+    /// beside the fields.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.3. The default reports the operation as unavailable with
+    /// <see cref="NotSupportedException" />: nothing else on this interface edits a trigger without
+    /// replacing it, so it cannot be built out of the other members, and the page disables its editor
+    /// with the reason rather than pretending.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the trigger.</param>
+    /// <param name="triggerKey">The trigger to edit.</param>
+    /// <param name="update">What to change. See <see cref="TriggerDetailsUpdate" />.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<bool> UpdateTriggerDetails(string schedulerName, TriggerKeyDto triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<bool>(new NotSupportedException(
+            "This dashboard's data source cannot edit a trigger in place: its IQuartzApiClient does not implement UpdateTriggerDetails."));
+    }
+
+    /// <summary>
+    /// Pauses every trigger in <paramref name="triggerKeys" />, as <see cref="IScheduler.PauseTriggers" />
+    /// does, and answers with the keys it paused. A key that names no trigger, or one already paused,
+    /// is absent from the answer.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.3. The default calls <see cref="PauseTrigger" /> once per
+    /// key, which is the same answer in as many calls as there are keys.
+    /// </remarks>
+    async ValueTask<List<TriggerKeyDto>> PauseTriggers(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        List<TriggerKeyDto> paused = [];
+        foreach (TriggerKeyDto triggerKey in triggerKeys)
+        {
+            if (await PauseTrigger(schedulerName, triggerKey, cancellationToken).ConfigureAwait(false))
+            {
+                paused.Add(triggerKey);
+            }
+        }
+
+        return paused;
+    }
+
+    /// <summary>
+    /// Resumes every trigger in <paramref name="triggerKeys" />, as <see cref="IScheduler.ResumeTriggers" />
+    /// does, and answers with the keys it resumed. A key that names no trigger, or one that was not
+    /// paused, is absent from the answer.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.3. The default calls <see cref="ResumeTrigger" /> once per
+    /// key.
+    /// </remarks>
+    async ValueTask<List<TriggerKeyDto>> ResumeTriggers(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        List<TriggerKeyDto> resumed = [];
+        foreach (TriggerKeyDto triggerKey in triggerKeys)
+        {
+            if (await ResumeTrigger(schedulerName, triggerKey, cancellationToken).ConfigureAwait(false))
+            {
+                resumed.Add(triggerKey);
+            }
+        }
+
+        return resumed;
+    }
+
+    /// <summary>
+    /// Removes every trigger in <paramref name="triggerKeys" />, as <see cref="IScheduler.UnscheduleJobs(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    /// does, and answers with the keys it removed. A key that names no trigger is absent from the answer.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.3. The default calls <see cref="UnscheduleJob" /> once per
+    /// key.
+    /// </remarks>
+    async ValueTask<List<TriggerKeyDto>> UnscheduleJobs(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        List<TriggerKeyDto> unscheduled = [];
+        foreach (TriggerKeyDto triggerKey in triggerKeys)
+        {
+            if (await UnscheduleJob(schedulerName, triggerKey, cancellationToken).ConfigureAwait(false))
+            {
+                unscheduled.Add(triggerKey);
+            }
+        }
+
+        return unscheduled;
+    }
 }
 
 /// <summary>
@@ -472,8 +576,8 @@ public sealed record DashboardGroupQuery : PagedQuery
 }
 
 /// <summary>
-/// One page of the job listing, optionally narrowed to the groups whose name contains
-/// <see cref="GroupContains" />.
+/// One page of the job listing, optionally narrowed by group name and by job name. The filters combine
+/// with AND.
 /// </summary>
 public sealed record DashboardJobQuery : PagedQuery
 {
@@ -481,10 +585,16 @@ public sealed record DashboardJobQuery : PagedQuery
     /// Lists only the jobs whose group name contains this, or every job when null.
     /// </summary>
     public string? GroupContains { get; init; }
+
+    /// <summary>
+    /// Lists only the jobs whose name contains this, or every job when null. Added in 4.3.
+    /// </summary>
+    public string? NameContains { get; init; }
 }
 
 /// <summary>
-/// One page of the trigger listing, optionally narrowed by group name and by state.
+/// One page of the trigger listing, optionally narrowed by group, name, job, calendar, state and next
+/// fire time — <see cref="TriggerQuery" />'s filters, which combine with AND.
 /// </summary>
 public sealed record DashboardTriggerQuery : PagedQuery
 {
@@ -497,6 +607,28 @@ public sealed record DashboardTriggerQuery : PagedQuery
     /// Lists only the triggers in this state, or every state when null.
     /// </summary>
     public TriggerState? State { get; init; }
+
+    /// <summary>
+    /// Lists only the triggers whose name contains this, or every trigger when null. Added in 4.3.
+    /// </summary>
+    public string? NameContains { get; init; }
+
+    /// <summary>
+    /// Lists only the triggers of this one job, or every job's when null. Added in 4.3.
+    /// </summary>
+    public JobKeyDto? Job { get; init; }
+
+    /// <summary>
+    /// Lists only the triggers that name this calendar, or every trigger when null. Added in 4.3.
+    /// </summary>
+    public string? CalendarName { get; init; }
+
+    /// <summary>
+    /// Lists only the triggers due to fire strictly before this instant, or every trigger when null. A
+    /// trigger with no next fire time never matches, as with <see cref="TriggerQuery.NextFireTimeBefore" />.
+    /// Added in 4.3.
+    /// </summary>
+    public DateTimeOffset? NextFireTimeBefore { get; init; }
 }
 
 /// <summary>

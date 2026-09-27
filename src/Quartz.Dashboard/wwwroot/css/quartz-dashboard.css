@@ -2145,6 +2145,69 @@ body{
 }
 
 /* ==========================================================================
+   25b. EDITING AND ACTING ON A SELECTION
+   ========================================================================== */
+
+.qz-form-errors {
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-danger);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-danger-bg);
+    color: var(--qz-color-danger);
+    font-size: var(--qz-font-size-sm);
+    margin: 0 0 var(--qz-space-md);
+}
+
+.qz-form-errors ul {
+    margin: 0;
+    padding-left: var(--qz-space-md);
+}
+
+.qz-trigger-editor {
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+    padding: var(--qz-space-md);
+}
+
+.qz-col-select {
+    width: 2.25rem;
+    text-align: center;
+}
+
+.qz-bulk-actions {
+    align-items: center;
+    padding: var(--qz-space-xs) var(--qz-space-sm);
+    border: 1px solid var(--qz-color-primary);
+    border-radius: var(--qz-radius-md);
+}
+
+.qz-bulk-count {
+    font-weight: var(--qz-font-weight-medium);
+}
+
+.qz-bulk-result {
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-warning);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-warning-bg);
+    font-size: var(--qz-font-size-sm);
+    margin-bottom: var(--qz-space-md);
+}
+
+.qz-bulk-result p {
+    margin: 0 0 var(--qz-space-xs);
+}
+
+.qz-bulk-result ul {
+    margin: 0 0 var(--qz-space-sm);
+    padding-left: var(--qz-space-md);
+}
+
+.qz-job-filters .qz-search-filter {
+    max-width: 20rem;
+}
+
+/* ==========================================================================
    26. RESPONSIVE (1024px+ breakpoint)
    ========================================================================== */
 
