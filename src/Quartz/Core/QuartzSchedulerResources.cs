@@ -287,6 +287,35 @@ internal sealed class QuartzSchedulerResources
         }
     }
 
+    /// <summary>
+    /// What a <see cref="QuartzSchedulerOptions.MaxBatchSize" /> of zero resolves to for this store and
+    /// pool.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The pool on a persistent store that is not clustered: there a round is round trips and a commit,
+    /// and one round for every trigger already due is cheaper per firing than one round each (#3824).
+    /// One on a clustered store, whose batched round takes the cluster-wide <c>TRIGGER_ACCESS</c> row
+    /// lock even when it acquires nothing, until the clustered drain gate in
+    /// <c>ClusteredOneOffDrainPostgresTest</c> says otherwise. One in memory, where a round is a monitor
+    /// rather than a round trip: #3862 measured a batch there faster for triggers that repeat and slower
+    /// for a burst of one-offs, so the default that cannot make an in-memory scheduler slower stays.
+    /// </para>
+    /// <para>
+    /// Never more than the pool, which is the bound the options validator holds an explicit value to,
+    /// and never less than one, for a pool that reports no threads at all.
+    /// </para>
+    /// </remarks>
+    internal static int AutomaticMaxBatchSize(IJobStore jobStore, IThreadPool threadPool)
+    {
+        if (jobStore.SupportsPersistence && !jobStore.Clustered)
+        {
+            return Math.Max(1, threadPool.PoolSize);
+        }
+
+        return DefaultMaxBatchSize;
+    }
+
     public ShutdownJobInterruption ShutdownJobInterruption { get; set; }
 
     /// <summary>

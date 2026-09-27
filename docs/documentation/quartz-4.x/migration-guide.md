@@ -90,6 +90,8 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 
 **Behaviour changes:**
 
+* **A persistent store that is not clustered batches what is already due.** `MaxBatchSize` defaults to
+  automatic. See [`MaxBatchSize` is automatic](#maxbatchsize-is-automatic).
 * **Acquisition reads a job's stored `IS_NONCONCURRENT`.** An ADO store took two triggers of one job
   into a batch when the job disallowed concurrent execution only through `DisallowConcurrentExecution()`
   on its builder. The fire path declined the second, so the job never overlapped itself, but the batch
@@ -128,6 +130,36 @@ unchanged.
   giving a trigger an overlap policy.**
 * **Behaviour change:** `CountMisfires` counts `MisfireReason.Missed` rows only. An
   `IExecutionHistoryStore` of your own keeps a `Skip`'s rows beside the misfires and should do the same.
+
+### `MaxBatchSize` is automatic
+
+`QuartzSchedulerOptions.MaxBatchSize` defaults to `0`, automatic, instead of `1`. It resolves when the
+scheduler is built:
+
+| Store | 4.2 | 4.3 |
+|---|---:|---:|
+| Persistent, not clustered | 1 | `ThreadPool:MaxConcurrency` |
+| Clustered | 1 | 1 |
+| In memory | 1 | 1 |
+
+One round now takes every trigger already due, up to the pool, with one acquisition and one
+`TriggersFired`. The fire-ahead window is still zero, so nothing fires early. On PostgreSQL a backlog of
+one-offs costs 16.6 statements and 2.8 commits a firing instead of 23.0 and 6.0.
+
+To keep 4.2's behaviour, set it:
+
+```diff
+  services.AddQuartz(q =>
+  {
++     q.ConfigureScheduler(options => options.MaxBatchSize = 1);
+      q.UsePersistentStore(store => store.UsePostgres(connectionString));
+  });
+```
+
+* The flat key `quartz.scheduler.batchTriggerAcquisitionMaxCount` still sets it. `0` there now means
+  automatic; 4.2 rejected it.
+* A negative value is still rejected at startup.
+* An explicit value wins on every store, and may not exceed `MaxConcurrency`.
 
 ### The 4.3 schema migration
 
@@ -5252,7 +5284,8 @@ scheduler.ListenerManager.AddJobListener(myJobStoreListener);
 * An `IdleWaitTime` less than or equal to zero now throws, instead of silently becoming a 30-second
   default.
 * A negative `IdleWaitTime` or `BatchTimeWindow` is rejected.
-* A `MaxBatchSize` less than or equal to zero is rejected.
+* A negative `MaxBatchSize` is rejected. Zero was rejected until 4.3, where it means automatic: see
+  [`MaxBatchSize` is automatic](#maxbatchsize-is-automatic).
 * `MaxBatchSize` may not exceed `ThreadPoolOptions.MaxConcurrency`. Triggers acquired beyond the threads
   available are held by this node, unfireable by any other, until the pool drains. See
   [Batching trigger acquisition](tutorial/advanced-enterprise-features.md#batching-trigger-acquisition).

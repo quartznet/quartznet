@@ -611,10 +611,11 @@ With several nodes:
 - **Every node runs its own cluster manager**: one `SELECT` of the state table and one `UPDATE` per node
   per `CheckinInterval`. At 7.5 seconds, ten nodes issue 160 statements a minute before any job runs. A
   shorter interval buys faster failure detection with more of this traffic.
-- **Batching trades round trips for balance.** `MaxBatchSize` above 1 makes every acquisition cycle take the
-  `TRIGGER_ACCESS` lock, even cycles that acquire nothing. At the shipped window of zero a batch takes the
-  triggers already due; `BatchTriggerAcquisitionFireAheadTimeWindow` adds those due within it. Load can
-  become uneven: a node that acquires ten triggers holds them until it can run them. See
+- **Batching trades round trips for balance.** A clustered store's automatic `MaxBatchSize` is 1. Above
+  1, every acquisition cycle takes the `TRIGGER_ACCESS` lock, even cycles that acquire nothing. At the
+  shipped window of zero a batch takes the triggers already due;
+  `BatchTriggerAcquisitionFireAheadTimeWindow` adds those due within it. Load can become uneven: a node
+  that acquires ten triggers holds them until it can run them. See
   [Batching trigger acquisition](tutorial/advanced-enterprise-features.md#batching-trigger-acquisition).
 
 More nodes add capacity for concurrent firings and a node to fail over to. They do not make one trigger
@@ -636,7 +637,8 @@ One firing: acquire, fire, run a job that does nothing, complete. `MaxBatchSize`
 these runs, since the scheduler refuses a batch larger than the pool.
 `BatchTriggerAcquisitionFireAheadTimeWindow` is one second instead of the shipped zero. A batch ends at the
 first trigger's fire time, or now if that is later, plus the window, so at zero it still takes every trigger
-already due. At the shipped `MaxBatchSize` of 1, a batch is one trigger.
+already due. These figures predate 4.3's automatic `MaxBatchSize`; at 4.2's shipped value of 1, a batch is
+one trigger.
 
 | Store         | MaxConcurrency | 3.20               | 4.0                | Per firing  |
 |-------------- |--------------- |------------------- |------------------- |------------ |

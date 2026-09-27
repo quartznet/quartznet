@@ -145,7 +145,7 @@ The health check reports *degraded*, not *unhealthy*, in `Created` with `AutoSta
 | Setting | Default | What it decides |
 |---|---|---|
 | `QuartzSchedulerOptions.IdleWaitTime` | 30 seconds | how long the loop waits before asking the store again when it found nothing; at least one second |
-| `QuartzSchedulerOptions.MaxBatchSize` | 1 | the most triggers acquired per round; must not exceed `ThreadPoolOptions.MaxConcurrency` |
+| `QuartzSchedulerOptions.MaxBatchSize` | `0`: the pool, on this store | the most triggers acquired per round; must not exceed `ThreadPoolOptions.MaxConcurrency` |
 | `QuartzSchedulerOptions.BatchTriggerAcquisitionFireAheadTimeWindow` | `TimeSpan.Zero` | how early a trigger may fire to join a batch already forming |
 
 * **`IdleWaitTime` is not latency for work scheduled in this process**: every scheduling call signals the
@@ -154,8 +154,8 @@ The health check reports *degraded*, not *unhealthy*, in `Created` with `AutoSta
 * The wait is randomized within `[0.8 × IdleWaitTime, IdleWaitTime)`, so nodes do not poll in step.
 * A round acquires triggers due within the next `IdleWaitTime`, so a trigger due during the sleep is late,
   not lost.
-* Change `MaxBatchSize` and the fire-ahead window together: a batch stops at the first trigger not due
-  within the opening trigger's window.
+* A batch takes every trigger already due, up to `MaxBatchSize`. The fire-ahead window adds triggers due
+  within it of the first, and fires them early by up to that much.
 
 <!-- snippet: sample_external_leader_tuning -->
 ```csharp
@@ -166,9 +166,10 @@ builder.Services.AddQuartz(q =>
         // How long a trigger written by another process may sit before this one looks again.
         options.IdleWaitTime = TimeSpan.FromSeconds(5);
 
-        // Both halves or neither: a batch stops at the first trigger that is not due within
-        // the window of the one that opened it.
-        options.MaxBatchSize = 10;
+        // A store that is not clustered already batches every trigger already due, up to the
+        // pool; this caps it lower. The window adds triggers due up to two seconds after the
+        // first, and fires them up to two seconds early.
+        options.MaxBatchSize = 5;
         options.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.FromSeconds(2);
     });
 
@@ -179,9 +180,10 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Costs: a batch size above one takes the `TRIGGER_ACCESS` lock on every round, even empty ones (the default
-of one takes none). A wide window fires triggers early and holds an acquired batch longer, and here nothing
-recovers a batch held by a dead process until that scheduler starts again.
+Costs: a batch size above one, the default here, takes the `TRIGGER_ACCESS` lock on every round, even
+empty ones; on this store that lock is in process. A wide window fires triggers early and holds an
+acquired batch longer, and here nothing recovers a batch held by a dead process until that scheduler
+starts again.
 
 ## When the leader moves
 

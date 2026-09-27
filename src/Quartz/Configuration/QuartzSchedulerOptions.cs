@@ -46,39 +46,51 @@ public sealed class QuartzSchedulerOptions
     public TimeSpan IdleWaitTime { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// The maximum number of triggers the scheduler acquires in a single batch.
+    /// The maximum number of triggers the scheduler acquires in a single batch, or <c>0</c> to let the
+    /// scheduler choose.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Defaults to 1, which is also the point at which a database-backed store needs no cluster-wide
-    /// lock to acquire: raising it makes every acquisition cycle take the <c>TRIGGER_ACCESS</c> row
-    /// lock, including cycles that acquire nothing. It pays off where triggers genuinely arrive in
-    /// bunches, and costs lock traffic where they do not.
+    /// Defaults to <c>0</c>, automatic, which is resolved when the scheduler is built:
+    /// </para>
+    /// <list type="table">
+    /// <listheader><term>Store</term><description>Batch</description></listheader>
+    /// <item><term>Persistent, not clustered</term><description>the thread pool's size</description></item>
+    /// <item><term>Clustered</term><description>1</description></item>
+    /// <item><term>In memory</term><description>1</description></item>
+    /// </list>
+    /// <para>
+    /// On a database a round is round trips and a commit, so taking every trigger already due in one
+    /// round is cheaper per firing (#3824 measured 128.7 firings a second against 87.6). A clustered
+    /// store stays at one because a batch above one takes the cluster-wide <c>TRIGGER_ACCESS</c> row
+    /// lock on every round, including rounds that acquire nothing. The in-memory store stays at one
+    /// because its round is a monitor rather than a round trip, and a batch there measured faster for
+    /// repeating triggers but slower for a burst of one-offs (#3862). An explicit value always wins;
+    /// <c>1</c> is 4.2's behaviour.
     /// </para>
     /// <para>
-    /// This is only the upper bound. What decides the size of a batch is
-    /// <see cref="BatchTriggerAcquisitionFireAheadTimeWindow"/>: after the first trigger, only triggers
-    /// due within that window of it join the batch, and the window defaults to
-    /// <see cref="TimeSpan.Zero"/>. Raising this alone leaves the effective batch at one trigger for any
-    /// schedule whose fire times are spread out — the two are one setting in two halves, so move them
-    /// together.
+    /// This is only the upper bound. The store ends a batch at the later of now and the first trigger's
+    /// fire time, plus <see cref="BatchTriggerAcquisitionFireAheadTimeWindow"/>. At the default window of
+    /// <see cref="TimeSpan.Zero"/> a batch takes every trigger already due and nothing that is not, so
+    /// nothing fires early; widening the window also batches triggers due shortly after the first, and
+    /// fires them early by up to that much.
     /// </para>
     /// <para>
     /// Must not exceed <see cref="ThreadPoolOptions.MaxConcurrency"/>: triggers acquired beyond the
     /// number of threads there are to run them on are held by this node, unfireable by any other, until
-    /// the pool drains.
+    /// the pool drains. The automatic value never does.
     /// </para>
     /// </remarks>
-    public int MaxBatchSize { get; set; } = 1;
+    public int MaxBatchSize { get; set; }
 
     /// <summary>
     /// How far past the current time a trigger may fire in order to be included in the current
     /// acquisition batch.
     /// </summary>
     /// <remarks>
-    /// The other half of <see cref="MaxBatchSize"/>; neither batches anything on its own. At the default
-    /// of <see cref="TimeSpan.Zero"/> a batch holds the triggers due at the same instant and nothing
-    /// else. Widening it fires triggers early by up to this much, which is what the batching costs.
+    /// The other half of <see cref="MaxBatchSize"/>. At the default of <see cref="TimeSpan.Zero"/> a batch
+    /// holds the triggers already due, or due at the same instant as the first, and nothing else.
+    /// Widening it fires triggers early by up to this much, which is what the wider batch costs.
     /// </remarks>
     public TimeSpan BatchTriggerAcquisitionFireAheadTimeWindow { get; set; } = TimeSpan.Zero;
 

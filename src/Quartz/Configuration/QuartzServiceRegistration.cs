@@ -238,13 +238,19 @@ internal static class QuartzServiceRegistration
             var instanceName = key as string ?? options.InstanceName;
             var meters = provider.GetRequiredService<Meters>();
             var timeProvider = provider.GetSchedulerTimeProvider(key);
+            var threadPool = provider.GetScheduler<IThreadPool>(key);
+            var jobStore = provider.GetScheduler<IJobStore>(key);
 
             var resources = new QuartzSchedulerResources
             {
                 Name = instanceName,
                 InstanceId = options.InstanceId,
                 IdleWaitTime = options.IdleWaitTime,
-                MaxBatchSize = options.MaxBatchSize,
+                // Zero is automatic, and what it means depends on the store and the pool, which is why
+                // it is resolved here rather than in the options: this is the first place both exist.
+                MaxBatchSize = options.MaxBatchSize > 0
+                    ? options.MaxBatchSize
+                    : QuartzSchedulerResources.AutomaticMaxBatchSize(jobStore, threadPool),
                 BatchTimeWindow = options.BatchTriggerAcquisitionFireAheadTimeWindow,
                 ShutdownJobInterruption = options.ShutdownJobInterruption,
                 PropagateTraceContext = options.PropagateTraceContext,
@@ -252,8 +258,8 @@ internal static class QuartzServiceRegistration
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),
                 Meters = meters,
                 JobInputSerializer = provider.GetScheduler<IJobInputSerializer>(key),
-                ThreadPool = provider.GetScheduler<IThreadPool>(key),
-                JobStore = Instrument(provider.GetScheduler<IJobStore>(key), meters, timeProvider),
+                ThreadPool = threadPool,
+                JobStore = Instrument(jobStore, meters, timeProvider),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
                 JobExecutionPipeline = ComposeJobExecutionPipeline(provider, key),

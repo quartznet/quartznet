@@ -72,9 +72,10 @@ public static class ExternalLeaderSamples
                 // How long a trigger written by another process may sit before this one looks again.
                 options.IdleWaitTime = TimeSpan.FromSeconds(5);
 
-                // Both halves or neither: a batch stops at the first trigger that is not due within
-                // the window of the one that opened it.
-                options.MaxBatchSize = 10;
+                // A store that is not clustered already batches every trigger already due, up to the
+                // pool; this caps it lower. The window adds triggers due up to two seconds after the
+                // first, and fires them up to two seconds early.
+                options.MaxBatchSize = 5;
                 options.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.FromSeconds(2);
             });
 

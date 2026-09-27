@@ -27,13 +27,15 @@ namespace Quartz.Examples.Wolverine;
  *   - IdleWaitTime, only if a *clustered* deployment needs another node's triggers picked up faster
  *     than 30 s. The cost is a database round trip per node per interval. The minimum is one second.
  *
- *   - MaxBatchSize defaults to 1: one acquisition, one trigger. A bus-facing scheduler that fires
- *     many small jobs at once wants this raised, bounded by ThreadPoolOptions.MaxConcurrency.
+ *   - MaxBatchSize defaults to automatic: the thread pool's size on a persistent store that is not
+ *     clustered, one on a clustered store and in memory. A batch ends at the later of now and the first
+ *     trigger's fire time, plus the fire-ahead window, so at the default window it takes every trigger
+ *     already due and nothing that is not. A clustered, bus-facing scheduler that fires many small jobs
+ *     at once may want it raised, bounded by ThreadPoolOptions.MaxConcurrency.
  *
- *   - BatchTriggerAcquisitionFireAheadTimeWindow defaults to TimeSpan.Zero, and it is the half that
- *     makes the other half work: with a zero window only triggers due at the same instant batch
- *     together, so raising MaxBatchSize alone leaves the effective batch at one for any schedule
- *     spread over time. Set it to the spread you are willing to fire early by.
+ *   - BatchTriggerAcquisitionFireAheadTimeWindow defaults to TimeSpan.Zero. Widening it also batches
+ *     triggers due shortly after the first, and fires them early by up to the window. Set it to the
+ *     spread you are willing to fire early by.
  *
  * The values below are the ones a Wolverine-facing scheduler plausibly wants, not the ones this
  * example needs. The example would behave identically on the defaults.
@@ -52,11 +54,12 @@ public static class Part4TunedLatency
             // itself, so it is a clustering setting, not a latency setting.
             options.IdleWaitTime = TimeSpan.FromSeconds(10);
 
-            // Default 1. Must not exceed ThreadPoolOptions.MaxConcurrency, which defaults to 10.
+            // Default automatic: the pool on a persistent store that is not clustered, 1 otherwise.
+            // Must not exceed ThreadPoolOptions.MaxConcurrency, which defaults to 10.
             options.MaxBatchSize = 10;
 
-            // Default TimeSpan.Zero. Without this, MaxBatchSize above changes nothing for triggers
-            // that are due milliseconds apart rather than at the same instant.
+            // Default TimeSpan.Zero, which batches only triggers already due. This also batches
+            // triggers due up to half a second after the first, and fires them that much early.
             options.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.FromMilliseconds(500);
         });
     }

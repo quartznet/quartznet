@@ -55,12 +55,15 @@ still accepts them. See [Legacy property keys](#legacy-property-keys).
 | `InstanceId` | string | `NON_CLUSTERED` | Must be unique among the nodes of a cluster. |
 | `GenerateInstanceId` | bool | `false` | Derives `InstanceId` at startup from the registered `IInstanceIdGenerator`. |
 | `IdleWaitTime` | TimeSpan | `00:00:30` | How long to wait before re-querying the job store when nothing is due. At least one second. |
-| `MaxBatchSize` | int | `1` | Upper bound on triggers acquired at once; may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
+| `MaxBatchSize` | int | `0` (automatic) | Upper bound on triggers acquired at once; may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
 | `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may join the current batch. At zero, a batch takes the triggers already due. |
 | `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to running jobs. |
 | `PropagateTraceContext` | bool | `true` | Stores the ambient trace context on a trigger scheduled inside an `Activity`, so the firing's span links back. See below. |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`). |
 
+- `MaxBatchSize` at `0` resolves when the scheduler is built: `ThreadPool:MaxConcurrency` on a persistent
+  store that is not clustered, `1` on a clustered store and in memory. An explicit value wins; `1` is 4.2's
+  behaviour.
 - `MaxBatchSize` is only an upper bound. A batch ends at the first trigger's fire time, or now if that is
   later, plus `BatchTriggerAcquisitionFireAheadTimeWindow`.
 - `PropagateTraceContext` writes two reserved job-data keys. They are visible wherever trigger data is:
