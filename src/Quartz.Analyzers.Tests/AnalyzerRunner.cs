@@ -136,16 +136,20 @@ internal static class AnalyzerRunner
     /// File names of this process's assemblies to leave off the compiler's reference list, for a snippet
     /// that stands for a project that does not reference them.
     /// </param>
+    /// <param name="features">
+    /// The compiler's <c>/features</c>, which is where a project's <c>InterceptorsNamespaces</c> arrives.
+    /// </param>
     internal static GeneratorRun RunGenerator<TGenerator>(
         string source,
         string assemblyName = DefaultAssemblyName,
         IEnumerable<MetadataReference>? references = null,
         IReadOnlyCollection<string>? toleratedErrors = null,
         LanguageVersion languageVersion = LanguageVersion.Latest,
-        IReadOnlyCollection<string>? withoutReferences = null)
+        IReadOnlyCollection<string>? withoutReferences = null,
+        IReadOnlyDictionary<string, string>? features = null)
         where TGenerator : IIncrementalGenerator, new()
     {
-        CSharpParseOptions parseOptions = new CSharpParseOptions(languageVersion);
+        CSharpParseOptions parseOptions = new CSharpParseOptions(languageVersion).WithFeatures(features ?? new Dictionary<string, string>());
         CSharpCompilation compilation = Compile(source, assemblyName, references, parseOptions, withoutReferences);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
@@ -189,15 +193,18 @@ internal static class AnalyzerRunner
     /// what it produced the first time. That is the whole reason the generator's model is built out
     /// of values rather than symbols.
     /// </remarks>
-    internal static IReadOnlyList<IncrementalStepRunReason> RerunReasons<TGenerator>(string source)
+    internal static IReadOnlyList<IncrementalStepRunReason> RerunReasons<TGenerator>(
+        string source,
+        IReadOnlyDictionary<string, string>? features = null)
         where TGenerator : IIncrementalGenerator, new()
     {
-        CSharpCompilation compilation = Compile(source);
+        CSharpParseOptions parseOptions = ParseOptions.WithFeatures(features ?? new Dictionary<string, string>());
+        CSharpCompilation compilation = Compile(source, parseOptions: parseOptions);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
             generators: [new TGenerator().AsSourceGenerator()],
             additionalTexts: [],
-            parseOptions: ParseOptions,
+            parseOptions: parseOptions,
             optionsProvider: null,
             driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
 
@@ -205,7 +212,7 @@ internal static class AnalyzerRunner
 
         CSharpCompilation reparsed = compilation.ReplaceSyntaxTree(
             compilation.SyntaxTrees[0],
-            CSharpSyntaxTree.ParseText(source, ParseOptions, path: "Snippet.cs"));
+            CSharpSyntaxTree.ParseText(source, parseOptions, path: "Snippet.cs"));
 
         driver = driver.RunGenerators(reparsed);
 
@@ -329,6 +336,19 @@ internal sealed record GeneratorRun(string Snippet, IReadOnlyList<Diagnostic> Di
     {
         using MemoryStream image = new MemoryStream(Emit());
         return new AssemblyLoadContext(Output.AssemblyName + "-" + Guid.NewGuid().ToString("N")).LoadFromStream(image);
+    }
+
+    /// <summary>
+    /// Emits the assembly, failing the test when that fails.
+    /// </summary>
+    /// <remarks>
+    /// Binding the compilation is not enough for an interceptor. The compiler checks one as it lowers the
+    /// calls it replaces — whether its signature matches the method's, whether its location names a call
+    /// at all — so those errors only surface when the assembly is written.
+    /// </remarks>
+    internal void AssertEmits()
+    {
+        Emit();
     }
 
     private byte[] Emit()
