@@ -538,7 +538,8 @@ The same three columns on `QRTZ_TRIGGERS` and on both paused-group tables.
 - A 4.3 node clears a trigger's on its own resume. A group's row is deleted on resume.
 - Read only while the trigger is `PAUSED` or `PAUSED_BLOCKED`, or while the group's row exists.
 - Oracle declares `PAUSE_REASON` as `VARCHAR2(1000)` and `PAUSED_BY` as `VARCHAR2(800)`, for the reason
-  `PROGRESS_MESSAGE` is wider.
+  `PROGRESS_MESSAGE` is wider. Firebird declares them `VARCHAR(1000)` and `VARCHAR(800)`: in a database
+  created without a default character set, its `VARCHAR` counts bytes too.
 - No index. A 4.3 node refuses to start without them; the startup check names the column and the script.
 - What a pause records, and how to read it: [Pausing with a Reason](../quartz-4.x/how-tos/pausing-with-a-reason.md).
 
