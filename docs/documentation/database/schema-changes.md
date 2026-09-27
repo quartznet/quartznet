@@ -454,6 +454,26 @@ The store trims both tables itself, to `ExecutionHistoryOptions.Retention` (24 h
 `MaxEntriesPerScheduler` (2,000); see
 [the persistent store's execution history](../quartz-4.x/tutorial/job-stores.md#execution-history-in-the-database).
 
+### SQL Server memory-optimized and pre-2016 schemas
+
+**Required** for a schema created from `tables_sqlServerMOT.sql` or `tables_sqlServer_Below2016.sql`
+under 4.2.0, when the store keeps execution history. Fixed in 4.2.1 and 4.3.
+
+- Under 4.2.0, those two scripts created `QRTZ_EXECUTION_HISTORY` without `RETRY_ATTEMPT` and
+  `RETRY_SCHEDULED`.
+- With `UseExecutionHistory()` on, every history write fails with `Invalid column name 'RETRY_ATTEMPT'`.
+- A schema from `tables_sqlServer.sql`, `add_execution_history_sqlServer.sql` or `ProvisionSchema()`
+  already has both columns.
+
+Add the two columns. Each statement is guarded, so re-running it is safe:
+
+```sql
+IF COL_LENGTH('dbo.QRTZ_EXECUTION_HISTORY', 'RETRY_ATTEMPT') IS NULL
+    ALTER TABLE [dbo].[QRTZ_EXECUTION_HISTORY] ADD [RETRY_ATTEMPT] int NOT NULL DEFAULT 0;
+IF COL_LENGTH('dbo.QRTZ_EXECUTION_HISTORY', 'RETRY_SCHEDULED') IS NULL
+    ALTER TABLE [dbo].[QRTZ_EXECUTION_HISTORY] ADD [RETRY_SCHEDULED] bit NOT NULL DEFAULT 0;
+```
+
 ## Version 4.3
 
 Five scripts; the first three are mandatory
