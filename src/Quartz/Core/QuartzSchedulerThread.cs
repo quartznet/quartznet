@@ -26,6 +26,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Extensibility;
+using Quartz.Util;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -64,6 +65,12 @@ internal sealed class QuartzSchedulerThread
     private static readonly Func<object?, ValueTask> runJobRunShell =
         static state => ((JobRunShell) state!).Run(CancellationToken.None);
 
+    /// <summary>
+    /// What every wait's timer does when it comes due: release the semaphore the loop is waiting on,
+    /// handed over as the timer's state. Static, so arming a wait closes over nothing.
+    /// </summary>
+    private static readonly TimerCallback releaseSignal = static state => ((SemaphoreSlim) state!).Release();
+
     private readonly CancellationTokenSource cancellationTokenSource = new();
 
     /// <summary>
@@ -82,7 +89,11 @@ internal sealed class QuartzSchedulerThread
     /// </summary>
     private bool shutDown;
 
-    private const int PausedWaitCheckIntervalMs = 1000;
+    /// <summary>
+    /// How long a paused loop sleeps before it looks at the pause flag again, on the scheduler's clock.
+    /// Resuming releases the loop at once; this only bounds a pause nobody resumes.
+    /// </summary>
+    private static readonly TimeSpan pausedWaitCheckInterval = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Gets the randomized idle wait time.
@@ -303,6 +314,11 @@ internal sealed class QuartzSchedulerThread
         // lifetime of the loop, which is the lifetime of the scheduler's own thread.
         using IDisposable? schedulerScope = logger.BeginScope(qsRsrcs.LogScope);
 
+        // What ends each wait when nothing signals it: a timer on the scheduler's clock per semaphore,
+        // for the lifetime of the loop, armed by WaitForSignal. Created unarmed.
+        using ITimer schedulingWake = qsRsrcs.TimeProvider.CreateTimer(releaseSignal, schedulingChangeSignal, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        using ITimer pauseWake = qsRsrcs.TimeProvider.CreateTimer(releaseSignal, pauseSignal, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+
         while (!halted)
         {
             cancellationTokenSource.Token.ThrowIfCancellationRequested();
@@ -314,7 +330,7 @@ internal sealed class QuartzSchedulerThread
                     try
                     {
                         // wait until togglePause(false) is called...
-                        await pauseSignal.WaitAsync(PausedWaitCheckIntervalMs, cancellationTokenSource.Token).ConfigureAwait(false);
+                        await WaitForSignal(pauseSignal, pauseWake, qsRsrcs.TimeProvider.GetUtcNow(), pausedWaitCheckInterval, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
@@ -354,13 +370,29 @@ internal sealed class QuartzSchedulerThread
                 {
                     break;
                 }
+
+                // The reading this round's acquisition is based on. The idle wait at the bottom of the
+                // loop counts from it too, rather than from a fresh one: the store was asked about the
+                // time as of this reading, so a clock that has moved since must end that wait at once
+                // rather than start it again from the new time.
+                DateTimeOffset now;
                 if (availThreadCount > 0)
                 {
                     List<IOperableTrigger> triggers;
 
-                    DateTimeOffset now = qsRsrcs.TimeProvider.GetUtcNow();
+                    now = qsRsrcs.TimeProvider.GetUtcNow();
 
                     ClearSignaledSchedulingChange();
+
+                    // A pause that landed since the check at the top signalled a change, and the line
+                    // above has just drained it. Without the signal nothing would end the idle wait this
+                    // round is heading for, so the loop would only notice the pause when that wait ran
+                    // out - never, on a clock nobody advances.
+                    if (paused)
+                    {
+                        continue;
+                    }
+
                     try
                     {
                         ExecutionLimits? availableLimits = ComputeAvailableExecutionGroupLimits();
@@ -465,8 +497,8 @@ internal sealed class QuartzSchedulerThread
                                     {
                                         // Cap the wait time to recover from system clock backward jumps.
                                         // The outer while loop recomputes timeUntilTrigger from the current clock after each wait.
-                                        var waitTime = timeUntilTrigger < qsRsrcs.IdleWaitTime ? timeUntilTrigger : qsRsrcs.IdleWaitTime;
-                                        await schedulingChangeSignal.WaitAsync(waitTime, cancellationTokenSource.Token).ConfigureAwait(false);
+                                        TimeSpan waitTime = timeUntilTrigger < qsRsrcs.IdleWaitTime ? timeUntilTrigger : qsRsrcs.IdleWaitTime;
+                                        await WaitForSignal(schedulingChangeSignal, schedulingWake, now, waitTime, cancellationTokenSource.Token).ConfigureAwait(false);
                                     }
                                     catch (OperationCanceledException)
                                     {
@@ -684,7 +716,7 @@ internal sealed class QuartzSchedulerThread
                         // missed the scheduled changed signal by not waiting for the notify() yet
                         // Check that before waiting for too long in case this very job needs to be
                         // scheduled very soon
-                        await schedulingChangeSignal.WaitAsync(timeUntilContinue, cancellationTokenSource.Token).ConfigureAwait(false);
+                        await WaitForSignal(schedulingChangeSignal, schedulingWake, now, timeUntilContinue, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
@@ -696,6 +728,78 @@ internal sealed class QuartzSchedulerThread
                 logger.TriggerFiringLoopFailed(re);
             }
         } // while (!halted)
+    }
+
+    /// <summary>
+    /// Waits until <paramref name="signal" /> is released, or until <paramref name="wait" /> has passed
+    /// on the scheduler's clock since <paramref name="from" />, whichever comes first. This is each of
+    /// the loop's three waits.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The timeout is <paramref name="wake" />, a timer on the scheduler's
+    /// <see cref="TimeProvider" /></b> that releases <paramref name="signal" />, rather than the timeout
+    /// <see cref="SemaphoreSlim.WaitAsync(TimeSpan, CancellationToken)" /> arms, which only knows elapsed
+    /// time. That is what lets a test advance a fake clock and see the loop act on it (#3869). On
+    /// <see cref="TimeProvider.System" /> the timer is a <see cref="System.Threading.Timer" />, which is
+    /// what the semaphore's own timeout is built on, so a deployment waits as it always did.
+    /// </para>
+    /// <para>
+    /// <b>The timer is the loop's, re-armed for every wait</b> rather than created for it: the pre-fire
+    /// wait is on the path of every firing that is not already late, and a timer made and thrown away
+    /// there would be a timer per firing. Re-arming replaces whatever the last wait left armed.
+    /// </para>
+    /// <para>
+    /// <b>The wait is counted from <paramref name="from" /></b>, the clock reading the decision to wait
+    /// was based on, so a clock that moves after that reading is noticed rather than waited out: before
+    /// the timer is armed the time left comes out as nothing, while it is being armed the second reading
+    /// catches it, and once it is armed the move fires it. It is never longer than
+    /// <paramref name="wait" />, so a wall clock stepped back since the reading cannot stretch it.
+    /// </para>
+    /// <para>
+    /// <b>A wait a real release ended leaves its timer armed</b>, and a timer that comes due after that
+    /// leaves a permit behind. That is a spurious wake, which the loop already survives: each
+    /// acquisition round drains the scheduling signal before it asks the store, a pre-fire wait that
+    /// returns early is simply waited again, and pausing drains the pause signal.
+    /// </para>
+    /// <para>
+    /// Only the waits for the schedule are on the scheduler's clock. Cancellation still ends a wait at
+    /// once, so a shutdown does not depend on anybody advancing a fake clock.
+    /// </para>
+    /// </remarks>
+    private Task WaitForSignal(SemaphoreSlim signal, ITimer wake, DateTimeOffset from, TimeSpan wait, CancellationToken cancellationToken)
+    {
+        TimeProvider clock = qsRsrcs.TimeProvider;
+        DateTimeOffset deadlineUtc = from + wait;
+
+        TimeSpan remaining = deadlineUtc - clock.GetUtcNow();
+        if (remaining > wait)
+        {
+            remaining = wait;
+        }
+
+        // The longest a timer can be armed for. An idle wait time beyond it ends there, and the loop
+        // looks again, which is all a longer wait would have come to.
+        if (remaining > TimerLimits.MaxDelay)
+        {
+            remaining = TimerLimits.MaxDelay;
+        }
+
+        if (remaining <= TimeSpan.Zero)
+        {
+            return Task.CompletedTask;
+        }
+
+        wake.Change(remaining, Timeout.InfiniteTimeSpan);
+
+        // A clock moved between the reading above and the timer being armed has armed it from the new
+        // time, so it would come due a whole wait after the deadline.
+        if (clock.GetUtcNow() >= deadlineUtc)
+        {
+            return Task.CompletedTask;
+        }
+
+        return signal.WaitAsync(cancellationToken);
     }
 
     private static readonly TimeSpan minDelay = TimeSpan.FromMilliseconds(20);

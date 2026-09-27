@@ -737,9 +737,9 @@ public sealed class BusIntegrationScenarioTest
     /// </summary>
     /// <remarks>
     /// One second past, so a fire time compared with "now" is unambiguously due. Advancing a fake clock
-    /// does not by itself wake the scheduling loop, which waits on a semaphore that only knows real
-    /// elapsed time; <see cref="IScheduler.ResumeAll" /> resumes nothing here - nothing is paused - and
-    /// is called for the scheduling signal it sends, which is what makes the new "now" visible at once.
+    /// wakes the scheduling loop, whose waits are timers on that clock (#3869);
+    /// <see cref="IScheduler.ResumeAll" /> resumes nothing here - nothing is paused - and sends the
+    /// scheduling signal this test was written with, which wakes it as well.
     /// </remarks>
     private async Task AdvanceTo(DateTimeOffset instant)
     {
