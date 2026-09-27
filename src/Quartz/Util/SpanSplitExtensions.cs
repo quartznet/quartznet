@@ -36,8 +36,6 @@ namespace Quartz.Util;
 internal static class SpanSplitExtensions
 {
     // based on https://www.meziantou.net/split-a-string-into-lines-without-allocation.htm
-    internal static StringSplitEnumerator SpanSplit(this string str, char ch1, char ch2 = char.MinValue) => SpanSplit(str.AsSpan(), ch1, ch2);
-
     internal static StringSplitEnumerator SpanSplit(this ReadOnlySpan<char> span, char ch1, char ch2 = char.MinValue) => new(span, ch1, ch2);
 
     // Must be a ref struct as it contains a ReadOnlySpan<char>

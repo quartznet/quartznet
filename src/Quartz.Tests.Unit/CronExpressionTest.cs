@@ -565,6 +565,30 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     }
 
     /// <summary>
+    /// The rejections that name the value or the option at fault. A message nothing asserts on can stop
+    /// naming either without a test noticing, and the name is what tells an author which field to fix.
+    /// </summary>
+    [TestCase("0 0 12 ? * 2#1,3#2", "multiple \"nth\" days", "the evaluator reads one '#' per day-of-week field")]
+    [TestCase("0 0 12 LW-31 * ?", "Offset from last weekday must be <= 30", "no month is long enough for the offset to land in it")]
+    [TestCase("0 0 12 1 XYZ ?", "Invalid Month value: 'XYZ'", "the month that is not one is named")]
+    [TestCase("0 0 12 1 JAN-XYZ ?", "Invalid Month value: 'XYZ'", "a range's end is read as strictly as its start")]
+    [TestCase("0 0 12 ? * XYZ", "Invalid Day-of-Week value: 'XYZ'", "the day that is not one is named")]
+    [TestCase("0 0 12 ? * MON-XYZ", "Invalid Day-of-Week value: 'XYZ'", "a range's end is read as strictly as its start")]
+    [TestCase("0 0 12 ? * MON#6", "A numeric value between 1 and 5 must follow the '#' option", "no month has a sixth Monday")]
+    [TestCase("0 0/5X * * * ?", "Unexpected character 'X' after '/'", "anything left over after a step is refused rather than dropped")]
+    [TestCase("0 0 12 1#2 * ?", "'#' option is not valid here", "'#' names the nth weekday, which only the day-of-week field can say")]
+    [TestCase("0 0 1W * * ?", "'W' option is not valid here", "'W' names the nearest weekday, which only the day-of-month field can say")]
+    [TestCase("0 0 12 ? * 8L", "Day-of-Week values must be between 1 and 7", "'8L' is the last of a day that does not exist")]
+    [TestCase("0 0 5L * * ?", "'L' option is not valid here", "an hour has no last one")]
+    [TestCase("0 0 12 * * ? 2030-2025", "Start year must be less than stop year", "hours and days wrap past their end, and years do not")]
+    public void ARejectionNamesWhatIsWrong(string expression, string expectedInMessage, string reason)
+    {
+        Action act = () => new CronExpression(expression);
+
+        act.Should().Throw<FormatException>(reason).WithMessage($"*{expectedInMessage}*", reason);
+    }
+
+    /// <summary>
     /// A textual day-of-week takes a step, so what is left to reject is a step that is not one. The
     /// message still names the fortnight <c>MON/2</c> meant on 3.x, because somebody writing a step this
     /// field cannot take is usually reaching for it.

@@ -407,6 +407,11 @@ public class CronExpressionBuilderTest
             .Should().Throw<InvalidOperationException>()
             .WithMessage("Hour has already been configured, and Every(02:00:00) writes the second, minute and hour fields itself*");
 
+        Invoking(x => x.WithSecond(30).Every(TimeSpan.FromSeconds(15)))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Second has already been configured, and Every(00:00:15) writes the second field itself*",
+                "a seconds interval writes one field, and the refusal names only that one");
+
         CronExpressionBuilder builder = CronExpressionBuilder.Create().WithMinute(5);
         Action act = () => builder.Every(TimeSpan.FromMinutes(10));
 
