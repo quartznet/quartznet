@@ -76,17 +76,21 @@
     CronExpressionBuilder.cs is deliberately not here: nothing in the analyzer reads a builder chain,
     and the eight params-span members it adds are the only reason this project would need
     ParamCollectionAttribute at all.
+
+    Everything these files call is linked with them, except TriggerConstants: that type is public in
+    Quartz, so Cron/TriggerConstants.cs carries the members read here instead.
   -->
   <ItemGroup>
     <Compile Include="../Quartz/CronExpression.cs" Link="Cron/CronExpression.cs" />
     <Compile Include="../Quartz/CronExpressionConstants.cs" Link="Cron/CronExpressionConstants.cs" />
     <Compile Include="../Quartz/CronFormat.cs" Link="Cron/CronFormat.cs" />
     <Compile Include="../Quartz/CronMacros.cs" Link="Cron/CronMacros.cs" />
+    <Compile Include="../Quartz/CronThrow.cs" Link="Cron/CronThrow.cs" />
     <Compile Include="../Quartz/TimeZones.cs" Link="Cron/TimeZones.cs" />
     <Compile Include="../Quartz/UnixCronRewriter.cs" Link="Cron/UnixCronRewriter.cs" />
     <Compile Include="../Quartz/Util/BitUtil.cs" Link="Cron/Util/BitUtil.cs" />
     <Compile Include="../Quartz/Util/SerializationInfoExtensions.cs" Link="Cron/Util/SerializationInfoExtensions.cs" />
-    <Compile Include="../Quartz/Util/StringExtensions.cs" Link="Cron/Util/StringExtensions.cs" />
+    <Compile Include="../Quartz/Util/SpanSplitExtensions.cs" Link="Cron/Util/SpanSplitExtensions.cs" />
   </ItemGroup>
 
 </Project>

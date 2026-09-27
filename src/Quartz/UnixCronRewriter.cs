@@ -68,7 +68,7 @@ internal static class UnixCronRewriter
         string[] fields = expression.Split(fieldSeparators, StringSplitOptions.RemoveEmptyEntries);
         if (fields.Length != 5)
         {
-            Throw.FormatException(
+            CronThrow.FormatException(
                 $"Cron expression '{expression}' has {fields.Length} fields, but the Unix/crontab form read by "
                 + "CronFormat.Unix has exactly 5: minutes, hours, day-of-month, month and day-of-week. "
                 + (fields.Length is 6 or 7
@@ -176,7 +176,7 @@ internal static class UnixCronRewriter
 
         if (!int.TryParse(value.AsSpan(0, digits), NumberStyles.None, CultureInfo.InvariantCulture, out int raw) || raw > 7)
         {
-            Throw.FormatException(
+            CronThrow.FormatException(
                 $"'{value}' is not a day of the week: the Unix/crontab form numbers them 0-7, with both 0 and 7 meaning Sunday.");
         }
 
