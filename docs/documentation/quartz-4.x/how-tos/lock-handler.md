@@ -36,8 +36,22 @@ public interface ILockHandler
 
 | Member | Guards | Stored as |
 |---|---|---|
-| `TriggerAccess` | every change to jobs, triggers and calendars, and trigger acquisition | `TRIGGER_ACCESS` |
+| `TriggerAccess` | every change to jobs, triggers and calendars, trigger acquisition and firing, and the completions listed below | `TRIGGER_ACCESS` |
 | `StateAccess` | cluster check-in and failed-node recovery, in their own transaction (no deadlock with trigger work) | `STATE_ACCESS` |
+
+A firing whose job allows concurrent execution and whose trigger asks for nothing at the end
+(`NoInstruction` or `DeleteTrigger`) completes with **no lock**: it writes only its own rows. A handler
+sees a `TriggerAccess` acquisition for a completion only when it has to read what the lock keeps still:
+
+| Completion | Why it takes the lock |
+|---|---|
+| A `[DisallowConcurrentExecution]` job | unblocks the job's other triggers |
+| `RetryTrigger`, `SetTrigger*`, `SetAllJobTriggers*` | consults paused groups or writes other rows |
+| A `BufferOne` or `CancelPrevious` firing | lets go of a held trigger |
+| A `Skip` firing on its last occurrence | may delete a trigger a skip finalized |
+| A trigger of a non-durable job that the completion deletes | counts the job's triggers |
+| A firing with continuations awaiting it | settles them; the lock is taken after a first lock-free read finds them |
+| SQLite | every operation |
 
 ::: warning
 The enum-to-string mapping is internal. A handler that needs the stored names (for key compatibility with

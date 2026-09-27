@@ -1435,3 +1435,134 @@ The simple and cron rows stayed 100 % inside ±250 ms on every tree. The simple 
 fire-ahead row's 5,916 came back on the next sitting of the same tree, and the cron row reads 98.3 % on
 the base too. TickerQ's control row read 63.3, 70.7 and 48.3 % inside ±50 ms across the first three
 sittings, which is the size of this box's noise on the day.
+
+## What #3863 changed (2026-09-27, AMD Ryzen 9 5950X)
+
+A firing whose job allows concurrent execution, ending with `NoInstruction` or `DeleteTrigger`, completes
+in a transaction with no lock. Its writes are its own rows: the fired row by entry id, the trigger row by
+key when the trigger is spent, a retry count, its job's data. `TRIGGER_ACCESS` used to queue every worker's
+completion behind every other's and behind the loop's fire.
+
+The lock stays for a `[DisallowConcurrentExecution]` job, a retry or a `SetTrigger*` instruction, a
+`BufferOne` or `CancelPrevious` firing, a `Skip` firing on its last occurrence, a trigger of a non-durable
+job that the completion deletes, and SQLite. A firing with continuations awaiting it takes the lock after
+its first lock-free statement finds them, before it has written anything.
+
+**Taken on `21b2337710`, before, on the change on top of it, after, and on `v4.2.0` for the anchor**, each
+from its own worktree, alternating sittings, on a `postgres:15.1` container at its shipped durability
+(`fsync = on`, `synchronous_commit = on`), pool 10.
+
+### One-off firings on PostgreSQL
+
+`OneOffThroughputPostgresBenchmark`, out of process, five iterations of a 500-firing drain each:
+
+| Arm | Sittings | Mean | Median iteration | Fastest iteration | Firings/s | Allocated |
+|---|---:|---:|---:|---:|---:|---:|
+| 4.2 (`v4.2.0`): `MaxBatchSize` 1, locked completion | 1 | 11.004 ms | 10.981 ms | 10.925 ms | 91 | 85.97 KB |
+| Before: automatic batch, locked completion | 3 | 7.785-7.856 ms | 7.797-7.860 ms | 7.723 ms | 127-128 | 72.8-72.9 KB |
+| After: automatic batch, lock-free completion | 3 | 4.214-4.299 ms | 4.212-4.321 ms | 4.114 ms | 233-237 | 72.4-72.5 KB |
+
+**237 firings a second at the shipped defaults against 4.2's 91 on the same database is 2.6 times, which
+is the 4.3 target (#3860, G9: 2.5 times 4.2's 87.6/s).** Against the batched baseline it is 1.8 times.
+`v4.2.0`'s `BatchOnly` and `Tuned` arms measure 7.90 and 7.84 ms — the baseline's figures, from another
+build — which is the cross-check that the three builds differ by what they should and nothing else.
+
+`--one-off-census`, one drain an arm, two sittings a side. A lock is not a statement, so the counts do not
+move; the wall clock does:
+
+| Arm | Statements/firing | Commits/firing | Firings/s |
+|---|---:|---:|---:|
+| `Defaults`, before | 16.57 | 2.80-2.83 | 121.5, 125.1 |
+| `Defaults`, after | 16.54-16.55 | 1.98-2.63 | 231.2, 248.0 |
+| `BatchOnly`, before | 16.56 | 2.79-2.80 | 125.2, 126.6 |
+| `BatchOnly`, after | 16.56-16.57 | 1.99-2.70 | 227.2, 259.1 |
+| `Defaults + no reset`, before | 15.16 | 1.41 | 126.8, 131.1 |
+| `Defaults + no reset`, after | 15.16-15.17 | 0.95-1.00 | 252.8, 256.9 |
+
+The commit column is `xact_commit` read three seconds after the drain, and PostgreSQL publishes a backend's
+commits when it goes idle, at most once a second (#3861, #3895): the shorter the drain, the more is still
+unpublished when the counter is read, which is why the after rows read under the structural 2.8 and 1.4.
+The gate below reads the counter the corrected way and gets 2.8.
+
+### Where the remainder is
+
+The database's own time is a rounding error: every statement of a `Defaults` drain sums to 0.36 ms a
+firing before and 0.60 ms after, and `COMMIT` to 0.3 µs, so the 7.9 and 4.2 ms are round trips and
+waits. A round takes about five triggers (4.9 in the gate below) in two transactions: 14 round trips to
+acquire them and 18 to fire them, at the shipped defaults. Each firing's completion is 8 more. Before,
+the lock made all of it one queue — a round of the loop and its five completions — and a round of ~4.9
+firings cost 38.5 ms of wall: the loop's ~21 ms and about 3.5 ms for each completion behind it. After,
+the same round costs ~21 ms: the loop's two transactions alone, with the completions running beside it,
+ten abreast, off the critical path.
+
+**So the loop's acquire-and-fire chain is what remains, and it is round trips rather than commits.**
+#3864 (fire on acquire) removes the second transaction and its two reads per trigger from that chain,
+which is the one lever left on this workload; a cheaper commit would buy nothing measurable here.
+
+A word on method. BenchmarkDotNet regenerates a project for its child process and looks the benchmark
+project up **from the current directory**. Launched from another checkout, the child is built from that
+checkout's `Quartz.dll`, and the first before figures for this section measured the change against itself,
+flat at 4.2 ms. Run each side's executable from inside its own worktree; the in-process `--one-off-census`,
+which regenerates nothing, is what showed the flat result up, and `--keepFiles` is what proved it.
+
+### Repeating triggers
+
+`FireThroughputPostgresBenchmark`, a repeating trigger written forward on completion, one sitting a side:
+
+| `MaxConcurrency` | Before | After |
+|---:|---:|---:|
+| 10 | 6.939 ms, 60.91 KB | **3.736 ms**, 60.09 KB |
+| 50 | 6.551 ms, 57.07 KB | **4.231 ms**, 56.50 KB |
+
+1.9 times at the shipped pool. At fifty, fifty completions in flight contend on the database's own rows
+and the gain is 1.5 times; the lock used to hide that.
+
+### Punctuality
+
+`--recurring-postgres`, S4 on the ADO store, one sitting a side:
+
+| Load | `MaxBatchSize` | Fired / expected | within ±50 ms | within ±250 ms | Max deviation |
+|---:|---|---:|---:|---:|---:|
+| 20, before | 1 | 1,200 / 1,200 | 22.8 % | 100 % | 202 ms |
+| 20, after | 1 | 1,200 / 1,200 | 21.1 % | 100 % | 210 ms |
+| 20, before | automatic | 1,200 / 1,200 | 46.9 % | 100 % | 176 ms |
+| 20, after | automatic | 1,200 / 1,200 | **52.5 %** | 100 % | **83 ms** |
+| 100, before | automatic | 6,000 / 6,000 | 10.0 % | 40.0 % | 714 ms |
+| 100, after | automatic | 6,000 / 6,000 | 11.1 % | **65.0 %** | **373 ms** |
+
+Nothing regresses; at twenty a second the worst firing is late by half of what it was, because the fire
+no longer waits behind completions for the lock.
+
+### The clustered gate, again
+
+`ClusteredOneOffDrainPostgresTest` on the same durable server, two sittings, with completions off the lock:
+
+| Nodes | `MaxBatchSize` | Drain | Firings/s | Share per node | `TRIGGER_ACCESS` waits | Lock wait p50 | p99 | Max | Triggers/round | Commits/firing |
+|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| 2 | 1 | 13.1-13.3 s | 149.9-152.6 | 50 % each | 2,000 | 0.5-0.6 ms | 2.7-2.8 ms | 22-23 ms | 1.00 | 5.97-6.00 |
+| 2 | 10 | 7.3-7.4 s | 272.2-276.0 | 43-57 % | 679-698 | 8.7-9.6 ms | 17.9-18.6 ms | 18-33 ms | 4.90-4.91 | 2.81 |
+| 4 | 1 | 10.9-11.4 s | 176.2-182.9 | 23-28 % | 2,000 | 6.8-7.2 ms | 11.2-12.5 ms | 39-40 ms | 1.00 | 6.02 |
+| 4 | 10 | 7.1-7.4 s | 270.3-281.1 | 21-30 % | 679-707 | 27.9-29.4 ms | 52.4-55.8 ms | 59-88 ms | 4.91-4.94 | 2.81-2.82 |
+
+The baseline, run once on the same server the same day for the contrast:
+
+| Nodes | `MaxBatchSize` | Drain | Firings/s | `TRIGGER_ACCESS` waits | p50 | p99 | Max | Triggers/round |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 1 | 18.9 s | 105.8 | 4,000 | 6.6 ms | 9.1 ms | 52 ms | 1.00 |
+| 2 | 10 | 16.1 s | 124.1 | 2,597 | 51.2 ms | 90.4 ms | 102 ms | 4.99 |
+| 4 | 1 | 19.1 s | 104.7 | 4,000 | 26.9 ms | 32.2 ms | 36 ms | 1.00 |
+| 4 | 10 | 17.5 s | 114.2 | 2,592 | 121.8 ms | 201.8 ms | 247 ms | 4.95 |
+
+| Criterion | After, sitting 1 | After, sitting 2 | Before, same server | #3900, before |
+|---|---:|---:|---:|---:|
+| 2 nodes: batched / one ≥ 1.2× | 1.78× | 1.84× | 1.17× | 1.28-1.29× |
+| 4 nodes: batched / one ≥ 1.0× | 1.53× | 1.54× | 1.09× | 1.18-1.24× |
+| `TRIGGER_ACCESS` p99 < 250 ms, batched | 52.4 ms | 55.8 ms | 201.8 ms | 195.6-216.9 ms |
+| No node under 20 %, batched | 22 % | 21 % | 25 % | 25 % |
+
+**The gate passes with the margin #3900 asked for**: the four-node p99 is 195 ms under the limit where it
+was 33-54 ms under it, and on this server the baseline does not pass at all — two nodes batched are 1.17
+times one trigger a round. The waits column is the change made visible: at one trigger a round a node now
+takes the lock for the fire alone, so two thousand firings are exactly two thousand waits where the
+baseline's four thousand count the completions too. The clustered default is unchanged in this pull
+request, as #3900 rules; flipping it is that issue's own change.

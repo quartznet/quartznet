@@ -661,9 +661,11 @@ one trigger.
   code they replaced, or free.
 
 **A bigger pool does not start firings faster.** Five times the threads bought about 17 % on
-`RAMJobStore` and nothing measurable on PostgreSQL, because a node's store operations serialise on one
-lock: `TRIGGER_ACCESS` on a persistent store, the store's own monitor in memory. `MaxConcurrency` buys more
-*jobs* running at once — see [Sizing a cluster](#sizing-a-cluster).
+`RAMJobStore` and nothing measurable on PostgreSQL, because a node's store operations serialised on one
+lock: `TRIGGER_ACCESS` on a persistent store, the store's own monitor in memory. Since 4.3 a firing whose
+job allows concurrent execution completes without that lock, so completions commit in parallel; acquisition
+and the fire still take it. `MaxConcurrency` buys more *jobs* running at once — see
+[Sizing a cluster](#sizing-a-cluster).
 
 ### Scheduling and cron
 

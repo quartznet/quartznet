@@ -90,6 +90,7 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `IQuartzApiClient.PauseTriggerWith`, `PauseJobWith`, `PauseAllWith`, `GetTriggerPause`, `GetJobGroupPause`; `TriggerHeaderDto.Pause` | `Quartz.Dashboard`. Defaults call the reasonless member or answer `null` |
 | `HttpScheduler`: the eight pause members | Send the reason and read it back |
 | HTTP: optional `{ reason, requestedBy }` body on the pause routes; `pause` on the state, group-paused and listing answers | See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
+| Log events `3045`, `3046` | A completion that found continuations and took the lock (debug); a lock-free completion that failed and ran again under the lock (warning) |
 
 `ScheduleTrigger`, `StoreTrigger` and the pause members are default interface members, so a scheduler or
 store written for 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare them all.
@@ -105,6 +106,12 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 
 * **A persistent store that is not clustered batches what is already due.** `MaxBatchSize` defaults to
   automatic. See [`MaxBatchSize` is automatic](#maxbatchsize-is-automatic).
+* **A firing that may run beside itself completes without `TRIGGER_ACCESS`.** A persistent store takes no
+  lock to complete a firing whose job allows concurrent execution and whose trigger asks for nothing
+  (`NoInstruction` or `DeleteTrigger`); it writes only its own rows. An `ILockHandler` of your own sees
+  fewer `TriggerAccess` acquisitions, and `quartz.jobstore.lock.wait.duration` no longer includes those
+  completions. The completions that still take the lock are listed in
+  [Writing a lock handler](how-tos/lock-handler.md#there-are-exactly-two-locks).
 * **Acquisition reads a job's stored `IS_NONCONCURRENT`.** An ADO store took two triggers of one job
   into a batch when the job disallowed concurrent execution only through `DisallowConcurrentExecution()`
   on its builder. The fire path declined the second, so the job never overlapped itself, but the batch
