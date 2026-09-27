@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The delegate-job tests, compiled the way an application's code is: with Quartz's analyzer and the
+    buildTransitive targets a package reference brings, so that every AddJob(name, handler) and
+    ScheduleJob(name, handler) whose handler is a lambda or a method group is intercepted and bound
+    when it is compiled.
+
+    Quartz.Tests.Unit compiles the same DelegateJobTest.cs without the generator, and so runs every
+    one of those calls through reflection. The two projects running one file is the parity check: the
+    generated binding and the reflective one answer the same expectations. DelegateJobsAreSourceGeneratedTest
+    counts the interceptions, so that a call the generator stops intercepting is a failure here rather
+    than a test that passes on the other path.
+
+    A project of its own rather than the analyzer in Quartz.Tests.Unit, whose sources are full of cron
+    literals and job classes written to be refused, and which is where the reflective path is tested.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="AwesomeAssertions" />
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Quartz.Tests.Unit\Configuration\DelegateJobTest.cs" Link="DelegateJobTest.cs" />
+    <Compile Include="..\Quartz.Tests.Unit\SqliteTestDatabase.cs" Link="SqliteTestDatabase.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="AwesomeAssertions.Analyzers" />
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="FakeItEasy" />
+    <PackageReference Include="Microsoft.Data.SQLite" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <!-- What analyzers/dotnet/cs inside Quartz.nupkg gives a consumer; a ProjectReference carries none. -->
+    <ProjectReference Include="..\Quartz.Analyzers\Quartz.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
+  <!-- And what buildTransitive/net10.0 inside it gives one, which is where InterceptorsNamespaces is set. -->
+  <Import Project="..\Quartz\buildTransitive\net10.0\Quartz.targets" />
+
+</Project>
