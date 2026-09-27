@@ -292,7 +292,9 @@ builder.Services.AddQuartz(q => q.AddJobListener(chain));
 
 Continuation columns arrived in 4.2. A 4.1 node in the cluster:
 
-* cannot settle one: a parent completing there leaves its continuations waiting;
+* cannot settle one: a parent completing there leaves its continuations waiting. Since 4.3 the misfire
+  pass settles those whose parent trigger is gone — a spent one-off — as a deleted parent is settled:
+  `OnAnyOutcome` released, the rest parked in `ERROR`;
 * reads `AWAITING` as waiting, so its single-trigger `PauseTrigger` writes `PAUSED` over a continuation,
   which a resume then starts without its parent;
 * rewrites a continuation as an ordinary trigger on reschedule.

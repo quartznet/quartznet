@@ -572,22 +572,113 @@ internal abstract partial class AdoJobStoreBase
 
         foreach (AwaitingContinuation continuation in awaiting)
         {
-            if (continuation.Condition == ContinuationCondition.OnAnyOutcome)
-            {
-                await ReleaseContinuation(conn, continuation.Key, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                Logger.TriggerSetToError(continuation.Key);
-                await Delegate.UpdateTriggerState(conn, continuation.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
-
-                // Once the deletion has committed, as FiringComplete's own error notifications are:
-                // listener code has no business running inside this transaction, or hearing of a
-                // parked trigger the rollback of a failed deletion would put back.
-                TriggerKey parked = continuation.Key;
-                conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersTriggerInError(parked, token));
-            }
+            await SettleContinuationOfMissingParent(conn, continuation.Key, continuation.Condition, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Settles one trigger whose parent has no firing left to report: released when it waited on any
+    /// outcome, parked in <see cref="StoredTriggerState.Error" /> otherwise.
+    /// </summary>
+    /// <returns><see langword="true" /> when the trigger was released, <see langword="false" /> when parked.</returns>
+    private async ValueTask<bool> SettleContinuationOfMissingParent(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey key,
+        ContinuationCondition condition,
+        CancellationToken cancellationToken)
+    {
+        if (condition == ContinuationCondition.OnAnyOutcome)
+        {
+            await ReleaseContinuation(conn, key, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+
+        Logger.TriggerSetToError(key);
+        await Delegate.UpdateTriggerState(conn, key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+
+        // Once the transaction has committed, as FiringComplete's own error notifications are: listener
+        // code has no business running inside this transaction, or hearing of a parked trigger the
+        // rollback of a failed deletion would put back.
+        conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersTriggerInError(key, token));
+        return false;
+    }
+
+    /// <summary>
+    /// Settles every <c>AWAITING</c> trigger whose parent no longer exists and is not running anywhere,
+    /// as a deletion of that parent would have: released when it waited on any outcome, parked in
+    /// <see cref="StoredTriggerState.Error" /> otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two things leave such a row. A continuation added to a running one-off parent by another
+    /// thread, committing between the parent's lock-free completion's first statement and its commit
+    /// (#3863): the completion did not see it and the parent's row went with the completion. And a
+    /// parent that completed on a 4.1 node, which knows nothing of continuations. Under the lock a
+    /// completion would have settled the first; nothing settled the second. This runs with the misfire
+    /// pass, under <see cref="SchedulerLock.TriggerAccess" />, and asks the one question the settlement
+    /// under the lock would have asked of a parent that is gone.
+    /// </para>
+    /// <para>
+    /// The in-memory store needs no sweep: its completion holds the store's monitor from the scan to
+    /// the end, so nothing is added to a parent between the two.
+    /// </para>
+    /// <para>
+    /// Only a <see cref="StdAdoDelegate" /> carries the statement. A delegate written outside Quartz that
+    /// does not derive from it has no sweep, and its completions settle under the lock as 4.2's did.
+    /// </para>
+    /// </remarks>
+    /// <returns>How many triggers were settled.</returns>
+    internal ValueTask<int> SweepStrandedContinuations(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        return Guarded(
+            async () =>
+            {
+                if (Delegate is not StdAdoDelegate stdDelegate)
+                {
+                    return 0;
+                }
+
+                List<StrandedContinuation> stranded = await stdDelegate.SelectStrandedContinuations(conn, cancellationToken).ConfigureAwait(false);
+                if (stranded.Count == 0)
+                {
+                    return 0;
+                }
+
+                int released = 0;
+                foreach (StrandedContinuation continuation in stranded)
+                {
+                    if (await SettleContinuationOfMissingParent(conn, continuation.Key, continuation.Condition, cancellationToken).ConfigureAwait(false))
+                    {
+                        released++;
+                    }
+                }
+
+                Logger.StrandedContinuationsSettled(stranded.Count, released, stranded.Count - released);
+                return stranded.Count;
+            },
+            "settle continuations whose parent no longer exists");
+    }
+
+    /// <summary>
+    /// Whether <see cref="SweepStrandedContinuations" /> would find anything: the same statement,
+    /// asked without the lock so that a pass with nothing to settle takes none.
+    /// </summary>
+    private async ValueTask<bool> HasStrandedContinuations(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken)
+    {
+        if (Delegate is not StdAdoDelegate stdDelegate)
+        {
+            return false;
+        }
+
+        List<StrandedContinuation> stranded = await Guarded(
+            () => stdDelegate.SelectStrandedContinuations(conn, cancellationToken),
+            "look for continuations whose parent no longer exists").ConfigureAwait(false);
+
+        return stranded.Count > 0;
     }
 
     /// <summary>

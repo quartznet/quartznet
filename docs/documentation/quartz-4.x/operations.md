@@ -606,8 +606,10 @@ With several nodes:
   node is a database decision as well.
 - **Every node runs its own misfire handler.** Each scans every `MisfireHandlerFrequency` (default
   `MisfireThreshold`, one minute). With `DoubleCheckLockMisfireHandler` on (the default) the scan starts
-  with a `COUNT` that takes no lock, and takes the cluster-wide lock only when it finds something. Baseline
-  cost: one count query per minute per node; contended: one lock per minute per node with work.
+  with a `COUNT` that takes no lock, and takes the cluster-wide lock only when it finds something. The same
+  pass looks for continuations whose parent trigger no longer exists and settles them under the lock, as a
+  deleted parent is settled. Baseline cost: one count query and one indexed probe per minute per node;
+  contended: one lock per minute per node with work.
 - **Every node runs its own cluster manager**: one `SELECT` of the state table and one `UPDATE` per node
   per `CheckinInterval`. At 7.5 seconds, ten nodes issue 160 statements a minute before any job runs. A
   shorter interval buys faster failure detection with more of this traffic.
