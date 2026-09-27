@@ -200,6 +200,9 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3047, Level = LogLevel.Information, Message = "Settled {Count} continuation(s) awaiting a trigger that no longer exists: {Released} released, {Parked} parked in ERROR")]
     public static partial void StrandedContinuationsSettled(this ILogger logger, int count, int released, int parked);
 
+    [LoggerMessage(EventId = 3048, Level = LogLevel.Information, Message = "Using configured lock handler {LockHandlerType} for data access locking (synchronization).")]
+    public static partial void UsingConfiguredLockHandler(this ILogger logger, string lockHandlerType);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 

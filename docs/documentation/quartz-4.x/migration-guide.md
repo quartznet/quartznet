@@ -91,6 +91,7 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `HttpScheduler`: the eight pause members | Send the reason and read it back |
 | HTTP: optional `{ reason, requestedBy }` body on the pause routes; `pause` on the state, group-paused and listing answers | See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
 | Log events `3045`, `3046`, `3047` | A completion that found continuations and took the lock (debug); a lock-free completion that failed and ran again under the lock (warning); the misfire pass settled continuations whose parent no longer exists (information) |
+| Log event `3048` | The lock handler the store was handed, through `UseLockHandler` or `quartz.jobStore.lockHandler.type`, at startup (information); `3006` and `3007` name only a handler the store built itself |
 
 `ScheduleTrigger`, `StoreTrigger` and the pause members are default interface members, so a scheduler or
 store written for 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare them all.
