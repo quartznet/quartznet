@@ -241,7 +241,18 @@ internal sealed class QuartzScheduler
     /// Get a List containing all of the <i>internal</i> <see cref="ISchedulerListener" />s
     /// registered with the <see cref="IScheduler" />.
     /// </summary>
-    public List<ISchedulerListener> InternalSchedulerListeners => [.. Volatile.Read(ref internalSchedulerListenerSnapshot)];
+    public List<ISchedulerListener> InternalSchedulerListeners
+    {
+        get
+        {
+            // A copy of the list itself, under its lock: nothing on a notification path reads this, so it
+            // has no reason to go through the snapshot the notifications use.
+            lock (internalSchedulerListenersLock)
+            {
+                return [.. internalSchedulerListeners];
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets the job factory.
