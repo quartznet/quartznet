@@ -131,6 +131,8 @@ Jobs are resolved from the container.
 - The job factory opens a scope per fire, resolves the job from it, and disposes the scope when the job
   returns, so a job can take scoped dependencies such as a database context.
 - A job type with no registration is built with `ActivatorUtilities`, so jobs from XML or JSON files work.
+- A job type with no registration and one public constructor, taking no parameters, needs nothing from the
+  container: it is built without a scope, unless `ConfigureJobScope` is set, and disposed when it returns.
 - A job should have only one public constructor.
 
 The registration is a `TryAdd`, so your own registration wins:
