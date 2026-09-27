@@ -156,7 +156,10 @@ But a 4.1 node reads a state string it does not recognise as waiting, so it *rep
   alone.)
 
 A 4.1 node also cannot **release or discard** a continuation: a parent completing there leaves its waiting triggers
-where they are. So:
+where they are. Since 4.3 a node's misfire pass settles a continuation whose parent trigger no longer exists — a
+spent one-off that completed on a 4.1 node — as a deleted parent is settled: `OnAnyOutcome` is released, any other
+condition is parked in `ERROR`. A repeating parent's continuations still wait for its next completion on a 4.2+
+node. So:
 
 1. Run the migration.
 2. Roll **every** node to 4.2.

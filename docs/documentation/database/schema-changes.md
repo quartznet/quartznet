@@ -392,8 +392,11 @@ unknown state string as waiting:
 - its reschedule rewrites one as an ordinary trigger.
 
 A 4.1 node cannot **resolve** a continuation at all: a parent completing there leaves the triggers
-waiting on that firing where they are. So while any 4.1 node runs, do not pause, resume or reschedule
-a continuation from it, and:
+waiting on that firing where they are. Since 4.3, a node's misfire pass settles a continuation whose
+parent trigger no longer exists — a spent one-off that completed on a 4.1 node — as a deleted parent is
+settled: `OnAnyOutcome` is released, any other condition is parked in `ERROR`. A repeating parent's
+continuations still wait for its next completion on a 4.2+ node. So while any 4.1 node runs, do not
+pause, resume or reschedule a continuation from it, and:
 
 1. Run `add_continuations_<db>.sql`.
 2. Roll every node to 4.2.

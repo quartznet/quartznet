@@ -354,10 +354,16 @@ internal abstract partial class AdoJobStoreBase
 
         bool transOwner = false;
         ConnectionAndTransactionHolder? conn = null;
+
+        // What the pass owes the listeners, taken once it has committed and raised once the lock is
+        // released, as ExecuteInLocalTransactionLock does: a continuation the sweep below parks is
+        // announced after the fact, never from inside the transaction.
+        List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? committedNotifications = null;
         try
         {
             RecoverMisfiredJobsResult result = RecoverMisfiredJobsResult.NoOp;
             int staleCount = 0;
+            bool locked = false;
 
             if (LockAllOperations)
             {
@@ -365,6 +371,7 @@ internal abstract partial class AdoJobStoreBase
                 // "database is locked" errors from concurrent serializable transactions.
                 // Skip the double-check optimization since in-memory lock is cheap.
                 transOwner = await AcquireLock(requestorId, null, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                locked = true;
                 conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                 staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
@@ -388,6 +395,7 @@ internal abstract partial class AdoJobStoreBase
                 if (misfireCount > 0)
                 {
                     transOwner = await AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                    locked = true;
 
                     result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                     staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
@@ -397,14 +405,30 @@ internal abstract partial class AdoJobStoreBase
                     // Even when no misfired triggers exist, check for triggers stuck
                     // in ACQUIRED state (e.g., from a failed ReleaseAcquiredTrigger call)
                     transOwner = await AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                    locked = true;
                     staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
                 }
             }
 
-            // Include stale recovery count so the caller signals the scheduler thread
-            if (staleCount > 0)
+            // The continuations whose parent is gone, which a lock-free completion may have missed
+            // (#3863). One statement without the lock when the pass has not taken it, and the lock
+            // only when that statement found something — the double-check the misfire count makes.
+            int strandedCount = 0;
+            if (locked || await HasStrandedContinuations(conn, cancellationToken).ConfigureAwait(false))
             {
-                int totalCount = result.ProcessedMisfiredTriggerCount + staleCount;
+                if (!locked)
+                {
+                    transOwner = await AcquireLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                }
+
+                strandedCount = await SweepStrandedContinuations(conn, cancellationToken).ConfigureAwait(false);
+            }
+
+            // Include what the stale recovery and the sweep released, so the caller signals the
+            // scheduler thread.
+            if (staleCount + strandedCount > 0)
+            {
+                int totalCount = result.ProcessedMisfiredTriggerCount + staleCount + strandedCount;
                 DateTimeOffset earliestNewTime = result.EarliestNewTimeUtc < timeProvider.GetUtcNow()
                     ? result.EarliestNewTimeUtc
                     : timeProvider.GetUtcNow();
@@ -412,6 +436,7 @@ internal abstract partial class AdoJobStoreBase
             }
 
             await CommitConnection(conn, false, cancellationToken).ConfigureAwait(false);
+            committedNotifications = conn.TakeNotificationsAfterCommit();
             return result;
         }
         catch (JobPersistenceException jpe)
@@ -435,6 +460,8 @@ internal abstract partial class AdoJobStoreBase
             {
                 await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
             }
+
+            await RaiseNotificationsAfterCommit(committedNotifications, cancellationToken).ConfigureAwait(false);
         }
     }
 }

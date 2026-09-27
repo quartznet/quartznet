@@ -90,7 +90,7 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `IQuartzApiClient.PauseTriggerWith`, `PauseJobWith`, `PauseAllWith`, `GetTriggerPause`, `GetJobGroupPause`; `TriggerHeaderDto.Pause` | `Quartz.Dashboard`. Defaults call the reasonless member or answer `null` |
 | `HttpScheduler`: the eight pause members | Send the reason and read it back |
 | HTTP: optional `{ reason, requestedBy }` body on the pause routes; `pause` on the state, group-paused and listing answers | See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
-| Log events `3045`, `3046` | A completion that found continuations and took the lock (debug); a lock-free completion that failed and ran again under the lock (warning) |
+| Log events `3045`, `3046`, `3047` | A completion that found continuations and took the lock (debug); a lock-free completion that failed and ran again under the lock (warning); the misfire pass settled continuations whose parent no longer exists (information) |
 
 `ScheduleTrigger`, `StoreTrigger` and the pause members are default interface members, so a scheduler or
 store written for 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare them all.
@@ -112,6 +112,12 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
   fewer `TriggerAccess` acquisitions, and `quartz.jobstore.lock.wait.duration` no longer includes those
   completions. The completions that still take the lock are listed in
   [Writing a lock handler](how-tos/lock-handler.md#there-are-exactly-two-locks).
+* **The misfire pass settles a continuation whose parent is gone.** An `AWAITING` trigger whose parent
+  trigger has no row and no running firing — one added to a one-off parent in the last moments of its
+  lock-free completion, or one a 4.1 node's completion left behind — is settled on the next misfire pass
+  as a deleted parent settles it: `OnAnyOutcome` released, any other condition parked in `ERROR`, with
+  log event `3047`. The pass asks one indexed question a cycle and takes no lock unless it finds
+  something. The in-memory store needs no sweep: its completion holds the store's monitor throughout.
 * **Acquisition reads a job's stored `IS_NONCONCURRENT`.** An ADO store took two triggers of one job
   into a batch when the job disallowed concurrent execution only through `DisallowConcurrentExecution()`
   on its builder. The fire path declined the second, so the job never overlapped itself, but the batch
@@ -338,7 +344,9 @@ start** without them, and the error names the column and the script.
 
 The order matters because a 4.1 node mishandles continuations:
 
-* It cannot **settle** one: a parent completing on a 4.1 node leaves its continuations waiting.
+* It cannot **settle** one: a parent completing on a 4.1 node leaves its continuations waiting. Since 4.3
+  the misfire pass settles those whose parent trigger is gone, a spent one-off, as a deleted parent is
+  settled; see [the misfire pass settles a continuation whose parent is gone](#upgrading-from-4-2-to-4-3).
 * It reads an unknown state as waiting, so it reports an `AWAITING` row as `Normal`. Its
   single-trigger `PauseTrigger` then writes `PAUSED` over the row, and a resume makes it `WAITING`: the
   continuation fires without its parent. A 4.1 reschedule rewrites it as an ordinary trigger.

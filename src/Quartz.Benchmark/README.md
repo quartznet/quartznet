@@ -1499,6 +1499,21 @@ ten abreast, off the critical path.
 #3864 (fire on acquire) removes the second transaction and its two reads per trigger from that chain,
 which is the one lever left on this workload; a cheaper commit would buy nothing measurable here.
 
+### The one race, and the sweep that closes it
+
+A continuation added to a running one-off parent by another thread, committing between the parent's
+lock-free scan and its commit, was left `AWAITING` a parent that no longer existed; under the lock the
+adder was either settled or refused. The misfire pass now looks for `AWAITING` rows whose parent has no
+trigger row and no fired row — one `NOT EXISTS` probe over the few `AWAITING` rows, without the lock —
+and settles what it finds under the lock as a deleted parent is settled: `OnAnyOutcome` released, the
+rest parked in `ERROR`. The same sweep settles what a parent completing on a 4.1 node left behind.
+`StrandedContinuationPostgresTest` makes the race happen on PostgreSQL through a seam in the delegate and
+shows the pass closing it; the in-memory store needs no sweep, because its completion holds the monitor.
+
+The sweep is on the misfire cadence, not on the fire path. A `--one-off-census` sitting with it in place
+reads `Defaults` at 16.54 statements a firing (16.54-16.55 without it), 231.2 firings a second, and 4.40
+idle statements a second (unchanged); its probe appears in none of the drain windows.
+
 A word on method. BenchmarkDotNet regenerates a project for its child process and looks the benchmark
 project up **from the current directory**. Launched from another checkout, the child is built from that
 checkout's `Quartz.dll`, and the first before figures for this section measured the change against itself,

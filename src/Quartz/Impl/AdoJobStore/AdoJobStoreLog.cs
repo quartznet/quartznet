@@ -197,6 +197,9 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3046, Level = LogLevel.Warning, Message = "Completion of trigger {TriggerKey} failed without TRIGGER_ACCESS; running it again under the lock")]
     public static partial void CompletionWithoutLockFailed(this ILogger logger, TriggerKey triggerKey, Exception exception);
 
+    [LoggerMessage(EventId = 3047, Level = LogLevel.Information, Message = "Settled {Count} continuation(s) awaiting a trigger that no longer exists: {Released} released, {Parked} parked in ERROR")]
+    public static partial void StrandedContinuationsSettled(this ILogger logger, int count, int released, int parked);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 
