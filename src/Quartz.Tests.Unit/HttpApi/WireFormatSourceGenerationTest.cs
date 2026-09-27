@@ -37,8 +37,24 @@ public class WireFormatSourceGenerationTest
             .Where(type => !type.IsNested && !type.IsInterface && !type.IsAbstract && !type.IsGenericTypeDefinition)
             .Where(type => type.GetCustomAttribute<CompilerGeneratedAttribute>() is null)
             .Where(type => type != typeof(HttpApiJsonContext))
+            .Where(type => !CarrierTypes.Contains(type))
             .OrderBy(type => type.Name, StringComparer.Ordinal);
     }
+
+    /// <summary>
+    /// The types in the namespace that carry a body rather than being one: a route, a call of it and its
+    /// answer, a listing's query string read, and the refusal of a malformed request. None of them is
+    /// ever serialized, so a type added here has to be one of those — and a body left out of
+    /// <c>HttpApiJsonContext</c> still fails below.
+    /// </summary>
+    private static readonly HashSet<Type> CarrierTypes =
+    [
+        typeof(WireRoute),
+        typeof(WireRequest),
+        typeof(WireResponse),
+        typeof(ListingParameters),
+        typeof(InvalidRequestException)
+    ];
 
     /// <summary>
     /// The page envelope is generic, so it is on the wire once per thing it carries and each closed

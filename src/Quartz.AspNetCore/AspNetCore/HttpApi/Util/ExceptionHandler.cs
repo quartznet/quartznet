@@ -55,6 +55,18 @@ internal sealed class ExceptionHandler
             return Problem(exception, GetMessageWithInnerExceptionMessage(exception), badHttpRequestException.StatusCode);
         }
 
+        if (exception is InvalidRequestException)
+        {
+            // The operation catalogue's refusal of a malformed request, answered as this API's own is and
+            // under the same name, so a client cannot tell which layer refused it.
+            logger.BadHttpRequest(exception);
+            return Problem(
+                exception,
+                GetMessageWithInnerExceptionMessage(exception),
+                StatusCodes.Status400BadRequest,
+                exceptionType: HttpApiConstants.RequestRefusedExceptionType);
+        }
+
         if (exception is JsonSerializationException)
         {
             logger.RequestDeserializationFailed(exception);
@@ -118,13 +130,13 @@ internal sealed class ExceptionHandler
         return exception.InnerException is not null ? $"{exception.Message} {exception.InnerException.Message}" : exception.Message;
     }
 
-    private IResult Problem(Exception exception, string detail, int statusCode, bool nameTheExceptionType = true)
+    private IResult Problem(Exception exception, string detail, int statusCode, bool nameTheExceptionType = true, string? exceptionType = null)
     {
         Dictionary<string, object?> extensions = new();
 
         if (nameTheExceptionType)
         {
-            extensions.Add(HttpApiConstants.ProblemDetailsExceptionType, exception.GetType().Name);
+            extensions.Add(HttpApiConstants.ProblemDetailsExceptionType, exceptionType ?? exception.GetType().Name);
         }
 
         if (includeStackTrace)

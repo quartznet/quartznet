@@ -42,6 +42,18 @@ internal static class HttpApiConstants
     public const string ProblemDetailsStackTrace = "Quartz-ExceptionStackTrace";
 
     /// <summary>
+    /// The <see cref="ProblemDetailsExceptionType" /> of a request the API refused as malformed, whichever
+    /// layer refused it.
+    /// </summary>
+    /// <remarks>
+    /// ASP.NET Core's name for the exception its endpoints raise, which is what the wire has always said.
+    /// The operation catalogue cannot raise that type and raises <see cref="InvalidRequestException" />
+    /// instead; a carrier answers the two alike, so a client matching on the name cannot tell which of
+    /// them refused the request.
+    /// </remarks>
+    public const string RequestRefusedExceptionType = "BadHttpRequestException";
+
+    /// <summary>
     /// The <c>state</c> a fire-instance listing asks for when it wants every state.
     /// </summary>
     /// <remarks>

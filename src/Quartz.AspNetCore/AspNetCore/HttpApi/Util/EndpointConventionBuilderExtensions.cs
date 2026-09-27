@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.HttpApiContract;
+
 namespace Quartz.AspNetCore.HttpApi.Util;
 
 /// <summary>
@@ -27,13 +29,27 @@ internal sealed class QuartzMutationMetadata
 
 internal static class EndpointConventionBuilderExtensions
 {
-    public static RouteHandlerBuilder WithQuartzDefaults(this RouteHandlerBuilder builder, string name, string displayName)
+    /// <summary>
+    /// Where <paramref name="route" /> is mapped: its template under <see cref="QuartzHttpApiOptions.ApiPath" />.
+    /// </summary>
+    /// <remarks>
+    /// Each endpoint still calls <c>MapGet</c>, <c>MapPost</c> or <c>MapDelete</c> itself, with its own
+    /// handler, because the request delegate generator intercepts a call site whose handler it can see and
+    /// no other. The pattern and the name come from the route, so the path the server maps is the one
+    /// <c>HttpScheduler</c> fills in.
+    /// </remarks>
+    public static string PatternFor(this QuartzHttpApiOptions options, WireRoute route)
+    {
+        return $"{options.TrimmedApiPath}/{route.Template}";
+    }
+
+    public static RouteHandlerBuilder WithQuartzDefaults(this RouteHandlerBuilder builder, WireRoute route, string displayName)
     {
         builder
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .WithName(name)
+            .WithName(route.Name)
             .WithDisplayName(displayName)
             .Add(endpoint =>
             {
