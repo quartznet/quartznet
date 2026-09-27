@@ -176,7 +176,7 @@ The three separations compose, and useful designs use more than one.
 | Execution groups and per-node limits | Yes | Yes |
 | Trigger group as the execution group | No: tag every trigger explicitly | Yes, `UseTriggerGroupWhenUnset()` |
 | Cluster-wide concurrency quota | No | Yes, `ExecutionLimitScope.Cluster`; approximate unless `AcquireTriggersWithinLock` |
-| Rate limiting (N per window) | No | No |
+| Rate limiting (N per window) | No | Per node, as a [job middleware](quartz-4.x/tutorial/execution-groups.md#rate-limiting) you register |
 | Node affinity (persisted, cluster-aware) | Yes, `WithPreferredNode` | Yes, `WithPreferredNode` |
 | Per-scheduler job type registration | No: one unkeyed registration, first wins | Yes, `AddJobType<TJob, TImplementation>()` |
 | Per-scheduler plugin instance from `quartz.plugin.*` | Yes for an activated type, no for a registered one | Yes; the probe is keyed by scheduler |
@@ -226,8 +226,10 @@ the cluster's reservation ledger. Know its limits:
   round acquires a single trigger.
 - It fails closed: a node that cannot reach the store fires nothing rather than firing unmetered.
 
-**There is no rate limiting.** Execution limits cap *concurrency*, not throughput. "This tenant may
-run 100 jobs an hour" cannot be expressed; build it into the job, or into what the job calls.
+**There is no built-in rate limiting.** Execution limits cap *concurrency*, not throughput. On 3.x,
+build "this tenant may run 100 jobs an hour" into the job, or into what the job calls. On 4.x, a job
+middleware can hold each start until a `System.Threading.RateLimiting` permit is free, counted per
+node: see [Rate limiting](quartz-4.x/tutorial/execution-groups.md#rate-limiting).
 
 **A starved group misfires; it does not queue.** A group at its limit has its triggers skipped at
 acquisition. They keep their original next fire time, so if the starvation outlasts the misfire

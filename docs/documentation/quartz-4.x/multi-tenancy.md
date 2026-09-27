@@ -977,8 +977,9 @@ covers the same list for both 3.x and 4.x.
   serializes acquisition for every group, limited or not. Otherwise it can briefly overshoot by up to
   `nodes − 1`. No setting gives both — see
   [What a cluster-scoped quota does and does not promise](#per-tenant-concurrency-quotas).
-- **No rate limiting.** Execution limits cap *concurrency*, not throughput. "100 jobs an hour" cannot be
-  expressed; build it into the job or what it calls. Often "at most four at once" is the real
+- **No built-in rate limiting.** Execution limits cap *concurrency*, not throughput. "100 jobs an hour"
+  is a job middleware you register, counted per node: see
+  [Rate limiting](tutorial/execution-groups.md#rate-limiting). Often "at most four at once" is the real
   requirement, and Quartz can enforce that.
 - **No per-operation policy.** A tenant can be held to its own scheduler on both surfaces, but what it may
   *do* there is one process-wide setting, the dashboard's `ReadOnly` flag. "acme may look, globex may
