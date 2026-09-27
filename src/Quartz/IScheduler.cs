@@ -1084,25 +1084,26 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The store records the details, stamped with the scheduler's clock, on the trigger if this call
-    /// moves it into the paused state; <see cref="GetTriggerPause" /> reads them back until the trigger
-    /// is resumed. A trigger that was already paused keeps the pause it had. Texts longer than
-    /// <see cref="PauseDetails.MaxReasonLength" /> and <see cref="PauseDetails.MaxRequestedByLength" />
-    /// are cut.
+    /// Every <c>*With</c> pause member, here and on <see cref="IJobStore" />, is its reasonless twin
+    /// with a record. The store stamps the details with the scheduler's clock, cuts texts longer than
+    /// <see cref="PauseDetails.MaxReasonLength" /> and <see cref="PauseDetails.MaxRequestedByLength" />,
+    /// and keeps them on each trigger and group the call moves into the paused state until it is
+    /// resumed; <see cref="GetTriggerPause" />, <see cref="GetTriggerGroupPause" /> and
+    /// <see cref="GetJobGroupPause" /> read them back. A trigger or group that was already paused keeps
+    /// the pause it had.
     /// </para>
     /// <para>
-    /// <see langword="null" />, or details that say nothing, is exactly <see cref="PauseTrigger" />, and
-    /// records nothing. So is it for every <c>*With</c> member.
+    /// <see langword="null" />, or details that say nothing, is exactly the reasonless twin — the same
+    /// writes, through the same extension points — and records nothing.
     /// </para>
     /// <para>
-    /// A default interface member: the default drops the details and calls <see cref="PauseTrigger" />,
-    /// which is what a scheduler written against an earlier 4.x does. A new name rather than an overload,
-    /// because the API baseline marks default implementations per name.
+    /// A default interface member, whose default drops the details and calls the reasonless twin, which
+    /// is what a scheduler or store written against an earlier 4.x does. A new name rather than an
+    /// overload, because the API baseline marks default implementations per name.
     /// </para>
     /// </remarks>
     /// <param name="triggerKey">The trigger to pause.</param>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseTrigger" /> returns.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> is <see langword="null" />.</exception>
@@ -1118,13 +1119,9 @@ public interface IScheduler : IAsyncDisposable
     /// <summary>
     /// <see cref="PauseJob" />, recording why and who asked on each trigger of the job this call pauses.
     /// </summary>
-    /// <remarks>
-    /// A default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default
-    /// calls <see cref="PauseJob" />.
-    /// </remarks>
+    /// <inheritdoc cref="PauseTriggerWith" path="/remarks" />
     /// <param name="jobKey">The job whose triggers to pause.</param>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseJob" /> returns.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> is <see langword="null" />.</exception>
@@ -1141,14 +1138,9 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="PauseTriggerGroups" />, recording why and who asked on each group this call pauses and
     /// on each trigger it moves.
     /// </summary>
-    /// <remarks>
-    /// <see cref="GetTriggerGroupPause" /> reads the group's record back until the group is resumed. A
-    /// group that was already paused keeps the pause it had. A default interface member for the reason
-    /// <see cref="PauseTriggerWith" /> is one; the default calls <see cref="PauseTriggerGroups" />.
-    /// </remarks>
+    /// <inheritdoc cref="PauseTriggerWith" path="/remarks" />
     /// <param name="matcher">The groups to pause.</param>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseTriggerGroups" /> returns.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
@@ -1165,14 +1157,9 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="PauseJobGroups" />, recording why and who asked on each group this call pauses and on
     /// each trigger it moves.
     /// </summary>
-    /// <remarks>
-    /// <see cref="GetJobGroupPause" /> reads the group's record back until the group is resumed. A
-    /// default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default calls
-    /// <see cref="PauseJobGroups" />.
-    /// </remarks>
+    /// <inheritdoc cref="PauseTriggerWith" path="/remarks" />
     /// <param name="matcher">The groups to pause.</param>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseJobGroups" /> returns.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
@@ -1188,12 +1175,8 @@ public interface IScheduler : IAsyncDisposable
     /// <summary>
     /// <see cref="PauseAll" />, recording why and who asked on each group and trigger this call pauses.
     /// </summary>
-    /// <remarks>
-    /// A default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default
-    /// calls <see cref="PauseAll" />.
-    /// </remarks>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
+    /// <inheritdoc cref="PauseTriggerWith" path="/remarks" />
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
@@ -1213,8 +1196,9 @@ public interface IScheduler : IAsyncDisposable
     /// <para>
     /// <see langword="null" /> when the trigger does not exist, is not paused, or was paused by
     /// something that records nothing: a reasonless pause, a scheduler or store written against an
-    /// earlier 4.x, or a 4.2 node sharing the database. A default interface member, whose default answers
-    /// <see langword="null" />.
+    /// earlier 4.x, or a 4.2 node sharing the database. A record is answered only while the trigger is
+    /// paused, so what such a node's resume left behind is never reported for a trigger that is running.
+    /// A default interface member, whose default answers <see langword="null" />.
     /// </para>
     /// </remarks>
     /// <param name="triggerKey">The trigger to ask about.</param>
@@ -1245,10 +1229,7 @@ public interface IScheduler : IAsyncDisposable
     /// <summary>
     /// Why the job group is paused, who asked, and when.
     /// </summary>
-    /// <remarks>
-    /// <see langword="null" /> when the group is not paused, or was paused without a reason. A default
-    /// interface member, whose default answers <see langword="null" />.
-    /// </remarks>
+    /// <inheritdoc cref="GetTriggerGroupPause" path="/remarks" />
     /// <param name="groupName">The job group to ask about.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="ArgumentNullException"><paramref name="groupName" /> is <see langword="null" />.</exception>

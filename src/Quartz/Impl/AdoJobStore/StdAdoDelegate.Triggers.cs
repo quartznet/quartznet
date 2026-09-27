@@ -693,12 +693,31 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<int> UpdateTriggerStatesFromOtherStates(
+    public virtual ValueTask<int> UpdateTriggerStatesFromOtherStates(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
         StoredTriggerState newState,
         IReadOnlyCollection<StoredTriggerState> oldStates,
         CancellationToken cancellationToken = default)
+    {
+        return UpdateTriggerKeyStates(
+            conn, triggerKeys, newState, oldStates, StdAdoConstants.SqlUpdateTriggerStatesFromOtherStatesPrefix, pause: null, cancellationToken);
+    }
+
+    /// <summary>
+    /// The key-set state update behind <see cref="UpdateTriggerStatesFromOtherStates(ConnectionAndTransactionHolder, IReadOnlyCollection{TriggerKey}, StoredTriggerState, IReadOnlyCollection{StoredTriggerState}, CancellationToken)" />
+    /// and <see cref="PauseTriggerStates" />: the set in chunks of at most
+    /// <see cref="AdoUtil.MaxTriggerKeysPerPredicate" /> keys, with the pause's columns bound only when
+    /// <paramref name="sqlPrefix" /> names them.
+    /// </summary>
+    private async ValueTask<int> UpdateTriggerKeyStates(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
+        string sqlPrefix,
+        PauseInfo? pause,
+        CancellationToken cancellationToken)
     {
         if (triggerKeys.Count == 0)
         {
@@ -717,9 +736,15 @@ public partial class StdAdoDelegate
             int paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
 
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
-                StdAdoConstants.SqlUpdateTriggerStatesFromOtherStatesPrefix + statePredicate + " AND " + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
-            // Parameters are added in SQL token order for providers with positional binding.
+                sqlPrefix + statePredicate + " AND " + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
+            // Parameters are added in SQL token order for providers with positional binding: the
+            // pause's columns follow the new state in the SET clause.
             AddCommandParameter(cmd, SqlParameters.NewState, StoredTriggerStates.ToStoredValue(newState));
+            if (pause is not null)
+            {
+                AddPauseParameters(cmd, pause);
+            }
+
             AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             AddOldStateParameters(cmd, states);
             AddTriggerKeyParameters(cmd, keys, offset, length, paddedCount);
@@ -1637,7 +1662,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<int> PauseTriggerStates(
+    public virtual ValueTask<int> PauseTriggerStates(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
         StoredTriggerState newState,
@@ -1647,34 +1672,8 @@ public partial class StdAdoDelegate
     {
         ArgumentNullException.ThrowIfNull(pause);
 
-        if (triggerKeys.Count == 0)
-        {
-            return 0;
-        }
-
-        List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
-        List<TriggerKey> keys = Deduplicate(triggerKeys);
-        string statePredicate = AdoUtil.BuildTriggerStatePredicate(states.Count);
-        int updated = 0;
-
-        for (int offset = 0; offset < keys.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
-        {
-            int length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, keys.Count - offset);
-            int paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
-
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
-                StdAdoConstants.SqlPauseTriggerStatesPrefix + statePredicate + " AND " + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
-            // Parameters are added in SQL token order for providers with positional binding.
-            AddCommandParameter(cmd, SqlParameters.NewState, StoredTriggerStates.ToStoredValue(newState));
-            AddPauseParameters(cmd, pause);
-            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-            AddOldStateParameters(cmd, states);
-            AddTriggerKeyParameters(cmd, keys, offset, length, paddedCount);
-
-            updated += await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        return updated;
+        return UpdateTriggerKeyStates(
+            conn, triggerKeys, newState, oldStates, StdAdoConstants.SqlPauseTriggerStatesPrefix, pause, cancellationToken);
     }
 
     /// <inheritdoc />

@@ -625,6 +625,33 @@ public interface IJobStore
     ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// <see cref="PauseTrigger" />, recording why and who asked on the trigger if this call pauses it.
+    /// </summary>
+    /// <inheritdoc cref="IScheduler.PauseTriggerWith" path="/remarks" />
+    /// <param name="triggerKey">The trigger to pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseTrigger" /> returns.</returns>
+    ValueTask<bool> PauseTriggerWith(
+        TriggerKey triggerKey,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        return PauseTrigger(triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// The pause recorded for the trigger, while it is paused.
+    /// </summary>
+    /// <inheritdoc cref="IScheduler.GetTriggerPause" path="/remarks" />
+    /// <param name="triggerKey">The trigger to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
     /// Pause the <see cref="ITrigger" />s with the given keys.
     /// </summary>
     /// <remarks>
@@ -658,6 +685,34 @@ public interface IJobStore
     ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// <see cref="PauseTriggerGroups" />, recording why and who asked on each group this call pauses and
+    /// on each trigger it moves.
+    /// </summary>
+    /// <inheritdoc cref="IScheduler.PauseTriggerWith" path="/remarks" />
+    /// <param name="matcher">The groups to pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseTriggerGroups" /> returns.</returns>
+    ValueTask<List<string>> PauseTriggerGroupsWith(
+        GroupMatcher<TriggerKey> matcher,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        return PauseTriggerGroups(matcher, cancellationToken);
+    }
+
+    /// <summary>
+    /// The pause recorded for the trigger group, while it is paused.
+    /// </summary>
+    /// <inheritdoc cref="IScheduler.GetTriggerGroupPause" path="/remarks" />
+    /// <param name="groupName">The trigger group to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
     /// Pause the <see cref="IJob" /> with the given key - by
     /// pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
@@ -666,6 +721,22 @@ public interface IJobStore
     /// triggers — <see langword="false" /> if there is no job with the given key.
     /// </returns>
     ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// <see cref="PauseJob" />, recording why and who asked on each trigger of the job this call pauses.
+    /// </summary>
+    /// <inheritdoc cref="IScheduler.PauseTriggerWith" path="/remarks" />
+    /// <param name="jobKey">The job whose triggers to pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseJob" /> returns.</returns>
+    ValueTask<bool> PauseJobWith(
+        JobKey jobKey,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        return PauseJob(jobKey, cancellationToken);
+    }
 
     /// <summary>
     /// Pause the <see cref="IJob" />s with the given keys - by pausing all of their current
@@ -701,6 +772,34 @@ public interface IJobStore
     /// </remarks>
     /// <returns>The names of the job groups that are recorded as paused by this call.</returns>
     ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// <see cref="PauseJobGroups" />, recording why and who asked on each group this call pauses and on
+    /// each trigger it moves.
+    /// </summary>
+    /// <inheritdoc cref="IScheduler.PauseTriggerWith" path="/remarks" />
+    /// <param name="matcher">The groups to pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseJobGroups" /> returns.</returns>
+    ValueTask<List<string>> PauseJobGroupsWith(
+        GroupMatcher<JobKey> matcher,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        return PauseJobGroups(matcher, cancellationToken);
+    }
+
+    /// <summary>
+    /// The pause recorded for the job group, while it is paused.
+    /// </summary>
+    /// <inheritdoc cref="IScheduler.GetTriggerGroupPause" path="/remarks" />
+    /// <param name="groupName">The job group to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
 
     /// <summary>
     /// Resume (un-pause) the <see cref="ITrigger" /> with the
@@ -818,6 +917,17 @@ public interface IJobStore
     ValueTask PauseAll(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// <see cref="PauseAll" />, recording why and who asked on each group and trigger this call pauses.
+    /// </summary>
+    /// <inheritdoc cref="IScheduler.PauseTriggerWith" path="/remarks" />
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        return PauseAll(cancellationToken);
+    }
+
+    /// <summary>
     /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroups" />
     /// on every group.
     /// <para>
@@ -828,167 +938,6 @@ public interface IJobStore
     /// </summary>
     /// <seealso cref="PauseAll" />
     ValueTask ResumeAll(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// <see cref="PauseTrigger" />, recording why and who asked on the trigger if this call pauses it.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The store stamps the record with its own clock, cuts both texts to the limits
-    /// <see cref="PauseDetails" /> names, and answers it from <see cref="GetTriggerPause" /> until the
-    /// trigger is resumed. A trigger that was already paused keeps the pause it had.
-    /// </para>
-    /// <para>
-    /// Details that say nothing record nothing, and must pause exactly as <see cref="PauseTrigger" />
-    /// does — the same writes, through the same extension points — so a pause that has nothing to say
-    /// behaves as it did before a pause could say anything.
-    /// </para>
-    /// <para>
-    /// A default interface member, so a store written against an earlier 4.x keeps working: the default
-    /// drops the details and calls <see cref="PauseTrigger" />. A new name rather than an overload,
-    /// because the API baseline marks default implementations per name.
-    /// </para>
-    /// </remarks>
-    /// <param name="triggerKey">The trigger to pause.</param>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>What <see cref="PauseTrigger" /> returns.</returns>
-    ValueTask<bool> PauseTriggerWith(
-        TriggerKey triggerKey,
-        PauseDetails? details,
-        CancellationToken cancellationToken = default)
-    {
-        return PauseTrigger(triggerKey, cancellationToken);
-    }
-
-    /// <summary>
-    /// <see cref="PauseJob" />, recording why and who asked on each trigger of the job this call pauses.
-    /// </summary>
-    /// <remarks>
-    /// A default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default
-    /// calls <see cref="PauseJob" />.
-    /// </remarks>
-    /// <param name="jobKey">The job whose triggers to pause.</param>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>What <see cref="PauseJob" /> returns.</returns>
-    ValueTask<bool> PauseJobWith(
-        JobKey jobKey,
-        PauseDetails? details,
-        CancellationToken cancellationToken = default)
-    {
-        return PauseJob(jobKey, cancellationToken);
-    }
-
-    /// <summary>
-    /// <see cref="PauseTriggerGroups" />, recording why and who asked on each group this call pauses and
-    /// on each trigger it moves.
-    /// </summary>
-    /// <remarks>
-    /// A group that was already paused keeps the pause it had. A default interface member for the reason
-    /// <see cref="PauseTriggerWith" /> is one; the default calls <see cref="PauseTriggerGroups" />.
-    /// </remarks>
-    /// <param name="matcher">The groups to pause.</param>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>What <see cref="PauseTriggerGroups" /> returns.</returns>
-    ValueTask<List<string>> PauseTriggerGroupsWith(
-        GroupMatcher<TriggerKey> matcher,
-        PauseDetails? details,
-        CancellationToken cancellationToken = default)
-    {
-        return PauseTriggerGroups(matcher, cancellationToken);
-    }
-
-    /// <summary>
-    /// <see cref="PauseJobGroups" />, recording why and who asked on each group this call pauses and on
-    /// each trigger it moves.
-    /// </summary>
-    /// <remarks>
-    /// A group that was already paused keeps the pause it had. A default interface member for the reason
-    /// <see cref="PauseTriggerWith" /> is one; the default calls <see cref="PauseJobGroups" />.
-    /// </remarks>
-    /// <param name="matcher">The groups to pause.</param>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>What <see cref="PauseJobGroups" /> returns.</returns>
-    ValueTask<List<string>> PauseJobGroupsWith(
-        GroupMatcher<JobKey> matcher,
-        PauseDetails? details,
-        CancellationToken cancellationToken = default)
-    {
-        return PauseJobGroups(matcher, cancellationToken);
-    }
-
-    /// <summary>
-    /// <see cref="PauseAll" />, recording why and who asked on each group and trigger this call pauses.
-    /// </summary>
-    /// <remarks>
-    /// A default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default
-    /// calls <see cref="PauseAll" />.
-    /// </remarks>
-    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
-    /// reasonless pause.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
-    {
-        return PauseAll(cancellationToken);
-    }
-
-    /// <summary>
-    /// The pause recorded for the trigger, while it is paused.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The record on the trigger itself; for a trigger paused without one — stored into a group that was
-    /// already paused — its trigger group's record, and then its job group's. <see langword="null" />
-    /// when the trigger does not exist, is not paused, or was paused without a reason.
-    /// </para>
-    /// <para>
-    /// A store that shares its data with nodes that record nothing — a 4.2 node over the same database —
-    /// reports a record only while the trigger is paused, so a record such a node's resume left behind is
-    /// never answered for a trigger that is running. A default interface member, whose default answers
-    /// <see langword="null" />.
-    /// </para>
-    /// </remarks>
-    /// <param name="triggerKey">The trigger to ask about.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-    {
-        return new ValueTask<PauseInfo?>((PauseInfo?) null);
-    }
-
-    /// <summary>
-    /// The pause recorded for the trigger group, while it is paused.
-    /// </summary>
-    /// <remarks>
-    /// <see langword="null" /> when the group is not paused, or was paused without a reason. A default
-    /// interface member, whose default answers <see langword="null" />.
-    /// </remarks>
-    /// <param name="groupName">The trigger group to ask about.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
-    {
-        return new ValueTask<PauseInfo?>((PauseInfo?) null);
-    }
-
-    /// <summary>
-    /// The pause recorded for the job group, while it is paused.
-    /// </summary>
-    /// <remarks>
-    /// <see langword="null" /> when the group is not paused, or was paused without a reason. A default
-    /// interface member, whose default answers <see langword="null" />.
-    /// </remarks>
-    /// <param name="groupName">The job group to ask about.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
-    {
-        return new ValueTask<PauseInfo?>((PauseInfo?) null);
-    }
 
     /// <summary>
     /// Acquires the next triggers to be fired, respecting execution group limits.
