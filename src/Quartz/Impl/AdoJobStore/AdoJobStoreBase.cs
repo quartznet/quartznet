@@ -937,10 +937,11 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             }
             catch (Exception ex)
             {
-                // A table that is missing is missing its later columns too, so every script that builds
-                // it up is named here at once rather than one refusal per restart.
+                // A table that is missing is missing its later columns too, and so is every other table
+                // the same migration creates, so every script that builds them up is named here at once
+                // rather than one refusal per restart.
                 string scripts = string.Join(", then ", AdoConstants.OptionalColumnNames
-                    .Where(c => c.Table == table)
+                    .Where(c => AdoConstants.OptionalTableNames.Any(t => t.Table == c.Table && t.Migration == migration))
                     .Select(c => c.Migration)
                     .Prepend(migration)
                     .Distinct()
@@ -1090,15 +1091,16 @@ internal abstract partial class AdoJobStoreBase : IJobStore
                         + $" {string.Join(", then ", MigrationTemplates.Select(MigrationScriptName))} —"
                         + " because ProvisionSchema() creates missing tables and never adds a column to a table"
                         + " that exists. A schema created by 3.x needs all of them; one created by 4.0 or 4.1"
-                        + " needs the last two, and one created by 4.2 only the last.";
+                        + " needs the last three, and one created by 4.2 the last two.";
 
         if (ExecutionHistory)
         {
             // Named only when they are needed. They are the migrations nothing else asks for, so a
             // reader who never turned the history on must not be sent to run them.
             advice += " This store keeps its execution history in the database, so it needs"
-                      + $" {MigrationScriptName(AdoConstants.Migration42History)} and"
-                      + $" {MigrationScriptName(AdoConstants.Migration43ExecutionLog)} as well, which no other"
+                      + $" {MigrationScriptName(AdoConstants.Migration42History)},"
+                      + $" {MigrationScriptName(AdoConstants.Migration43ExecutionLog)} and"
+                      + $" {MigrationScriptName(AdoConstants.Migration43MisfireReason)} as well, which no other"
                       + " configuration requires.";
         }
 

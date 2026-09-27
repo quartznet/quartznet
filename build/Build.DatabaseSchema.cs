@@ -347,6 +347,16 @@ partial class Build
                 // The firing that was missed, which the scheduler reports before it applies the
                 // trigger's misfire instruction. Null when the trigger had no next firing left.
                 Timestamp("SCHED_TIME", required: false),
+                // Why the firing did not happen, as the integer of MisfireReason: NULL or 0 is a
+                // misfire, 1 a firing the trigger's overlap policy skipped. Rows a 4.2 node writes
+                // leave it NULL, which is what they are.
+                Column("REASON",
+                    sqlServer: "int NULL",
+                    postgres: "INTEGER NULL",
+                    mysql: "INTEGER NULL",
+                    oracle: "NUMBER(13) NULL",
+                    sqlite: "INTEGER NULL",
+                    firebird: "INTEGER DEFAULT NULL") with { AddedBy = "4.3" },
             ],
             OracleStem: "MISFIRE_HISTORY"),
     ];
@@ -485,6 +495,15 @@ partial class Build
                     oracle: "NUMBER(13) NULL",
                     sqlite: "INTEGER NULL",
                     firebird: "INTEGER DEFAULT NULL"),
+                // The integer of the trigger's OverlapPolicy; NULL is Default, which is what every row
+                // a 4.2 node writes reads as.
+                Column("OVERLAP_POLICY",
+                    sqlServer: "int NULL",
+                    postgres: "INTEGER NULL",
+                    mysql: "INTEGER NULL",
+                    oracle: "NUMBER(13) NULL",
+                    sqlite: "INTEGER NULL",
+                    firebird: "INTEGER DEFAULT NULL") with { AddedBy = "4.3" },
                 Blob("JOB_DATA", required: false),
             ],
             new SchemaForeignKey(JobKey, "JOB_DETAILS", JobKey, Cascade: false, OracleName: "TRIGGER_TO_JOBS_FK")),

@@ -197,7 +197,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     /// <remarks>
     /// Without it every case here would pass against a store that refused everything, and the migration
     /// scripts are what the messages tell the reader to run — so this is also the claim that following
-    /// them works. All of them: 4.2 added three columns and 4.3 two, and the message names those
+    /// them works. All of them: 4.2 added three columns and 4.3 three, and the message names those
     /// scripts too.
     /// </remarks>
     [Test]
@@ -207,6 +207,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
 
         Func<Task> act = async () => await (await GetScheduler(
             nameof(TheMigrationsTheMessageNamesAreTheOnesThatMakeTheSchemaStart), provision: true)).Shutdown();
@@ -238,8 +239,8 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     }
 
     /// <summary>
-    /// A database created by 4.2 is missing only the two progress columns 4.3 added, and the refusal
-    /// names them and the one script that adds them.
+    /// A database created by 4.2 is missing only the columns 4.3 added, and the refusal names them and
+    /// the scripts that add them.
     /// </summary>
     [Test]
     public async Task A42SchemaIsRefusedForTheColumnsFourThreeAdded()
@@ -255,7 +256,33 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
             + "without them fails the dashboard rather than startup unless startup probes for them");
 
         failure.Message.Should().Contain("database/migrations/4.3/add_fire_progress_sqlite.sql",
-            "a reader with a 4.2 database needs exactly one script, and the message has to name it");
+            "a reader with a 4.2 database needs the 4.3 scripts, and the message has to name them");
+
+        failure.Message.Should().Contain("database/migrations/4.3/add_overlap_policy_sqlite.sql",
+            "the overlap policy column is the other half of what 4.3 requires, and its script is one of "
+            + "the two the reader has to run");
+    }
+
+    /// <summary>
+    /// A database that took one of 4.3's two required scripts and not the other is refused for the
+    /// column the missing one adds.
+    /// </summary>
+    [Test]
+    public async Task A43SchemaWithoutTheOverlapPolicyIsRefusedForIt()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+
+        SchedulerException failure = await StartAndCatch(nameof(A43SchemaWithoutTheOverlapPolicyIsRefusedForIt));
+
+        MessagesOf(failure).Should().ContainMatch($"*{AdoConstants.ColumnOverlapPolicy} of table QRTZ_TRIGGERS*",
+            "every trigger a 4.3 node stores names the overlap policy column, so its absence is refused at "
+            + "startup rather than at the first write");
+
+        failure.Message.Should().Contain("database/migrations/4.3/add_overlap_policy_sqlite.sql",
+            "and the script that adds it is the remedy");
     }
 
     private void Install320Schema()
@@ -339,6 +366,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
 
         TableExists("QRTZ_EXECUTION_HISTORY").Should().BeFalse(
             "the migrations run so far are the ones every 4.2 database needs, and the history's are not "
@@ -363,8 +391,11 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
             + "script that creates them is the whole remedy");
 
         MessagesOf(failure).Should().ContainMatch("*database/migrations/4.3/add_execution_log_sqlite.sql*",
-            "a table that is missing is missing the column 4.3 added to it as well, so both scripts are "
+            "a table that is missing is missing the column 4.3 added to it as well, so every script is "
             + "named at once rather than one per restart");
+
+        MessagesOf(failure).Should().ContainMatch("*database/migrations/4.3/add_misfire_reason_sqlite.sql*",
+            "and the misfire table the same migration creates is missing the column 4.3 added to it");
 
         MessagesOf(failure).Should().ContainMatch("*QRTZ_EXECUTION_HISTORY*",
             "and the table that is missing is what says which feature they asked for");
@@ -382,6 +413,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
         ApplyMigration("4.2", "add_execution_history_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
 
         Func<Task> withoutHistory = async () => await (await GetScheduler(
             nameof(A42HistoryTableIsRefusedForTheExecutionLogOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
@@ -406,6 +438,42 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     }
 
     /// <summary>
+    /// A misfire table created by 4.2 is missing the reason column 4.3 added to it, and only a store
+    /// that keeps its history there notices.
+    /// </summary>
+    [Test]
+    public async Task A42MisfireTableIsRefusedForTheReasonOnlyWhenTheHistoryIsOn()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.2", "add_execution_history_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        ApplyMigration("4.3", "add_execution_log_sqlite.sql");
+
+        Func<Task> withoutHistory = async () => await (await GetScheduler(
+            nameof(A42MisfireTableIsRefusedForTheReasonOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
+
+        await withoutHistory.Should().NotThrowAsync(
+            "a scheduler that keeps no history never writes a misfire row, so the reason column is as "
+            + "optional as the table it is on");
+
+        await container!.DisposeAsync();
+        container = null;
+
+        SchedulerException failure = await StartAndCatch(
+            nameof(A42MisfireTableIsRefusedForTheReasonOnlyWhenTheHistoryIsOn) + "-on",
+            configure: store => store.UseExecutionHistory());
+
+        MessagesOf(failure).Should().ContainMatch($"*{AdoConstants.ColumnMisfireReason}*",
+            "every misfire row a 4.3 store writes names the column");
+
+        MessagesOf(failure).Should().ContainMatch("*database/migrations/4.3/add_misfire_reason_sqlite.sql*",
+            "and the one script that adds it is the whole remedy");
+    }
+
+    /// <summary>
     /// The control for the cases above: the scripts they name are what make that schema start.
     /// </summary>
     [Test]
@@ -416,7 +484,9 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
         ApplyMigration("4.2", "add_execution_history_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
         ApplyMigration("4.3", "add_execution_log_sqlite.sql");
+        ApplyMigration("4.3", "add_misfire_reason_sqlite.sql");
 
         Func<Task> act = async () => await (await GetScheduler(
             nameof(TheHistoryMigrationIsWhatMakesAHistoryStoreStart),

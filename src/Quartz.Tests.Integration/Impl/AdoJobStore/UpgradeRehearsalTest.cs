@@ -193,6 +193,13 @@ public class UpgradeRehearsalTest
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.3", "add_execution_log", dialect, RehearsalPrefix), dialect);
 
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.3", "add_overlap_policy", dialect, RehearsalPrefix), dialect);
+
+        // Optional as the execution log is, and after the history's own tables for the same reason.
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.3", "add_misfire_reason", dialect, RehearsalPrefix), dialect);
+
         await MigrationScriptTest.AssertSchemaMatchesAsync(connection, dialect, RehearsalPrefix);
 
         foreach (SeedManifest manifest in manifests)

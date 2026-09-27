@@ -356,8 +356,8 @@ The flat key is `quartz.jobStore.executionHistory`.
 * A database created by 4.0 or 4.1 needs
   [`database/migrations/4.2/add_execution_history_<db>.sql`](../../database/schema-changes.md#version-4-2).
 * A database whose tables came from 4.2 needs
-  [`database/migrations/4.3/add_execution_log_<db>.sql`](../../database/schema-changes.md#version-4-3),
-  which adds `EXECUTION_LOG`.
+  [`database/migrations/4.3/add_execution_log_<db>.sql` and `add_misfire_reason_<db>.sql`](../../database/schema-changes.md#version-4-3),
+  which add `EXECUTION_LOG` and `REASON`.
 * A store configured this way refuses to start without them and names the scripts to run.
 * Nothing else needs this migration; skip it if you do not call `UseExecutionHistory()`.
 

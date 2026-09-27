@@ -117,7 +117,9 @@ public class MigrationScriptTest
         ("4.2", "add_continuations"),
         ("4.2", "add_execution_history"),
         ("4.3", "add_fire_progress"),
-        ("4.3", "add_execution_log")
+        ("4.3", "add_execution_log"),
+        ("4.3", "add_overlap_policy"),
+        ("4.3", "add_misfire_reason")
     ];
 
     /// <summary>
@@ -132,7 +134,9 @@ public class MigrationScriptTest
         ("4.2", "add_continuations"),
         ("4.2", "add_execution_history"),
         ("4.3", "add_fire_progress"),
-        ("4.3", "add_execution_log")
+        ("4.3", "add_execution_log"),
+        ("4.3", "add_overlap_policy"),
+        ("4.3", "add_misfire_reason")
     ];
 
     [Test]
