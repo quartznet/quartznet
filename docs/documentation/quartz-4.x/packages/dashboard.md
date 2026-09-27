@@ -20,6 +20,8 @@ Fourteen pages, listed under [The pages](#the-pages).
   header's picker switches between them and every page follows.
 - **Cluster-aware.** With a persistent job store, the executing view, fire counts and node listing cover the
   whole cluster, and the pages say which scope they show.
+- **A control panel**, from 4.3: [edit a trigger in place](#editing-a-trigger),
+  [filter the listings](#filtering-the-listings) and [act on a selection](#acting-on-a-selection).
 - **Execution history**, installed automatically and bounded by age and count. It is in-memory and per-process
   unless you [give it a store](#execution-history-and-misfires); for a scheduler in another process it is read
   from that process.
@@ -211,15 +213,80 @@ detail page.
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
 | **Jobs**: job details and keys | the `JobDataMap` and the triggers pointing at the job | trigger-now with overrides, pause, resume, delete |
-| **Triggers**: state, next and previous fire times, execution group | the trigger's `JobDataMap`, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, and a cron reschedule editor |
+| **Triggers**: state, next and previous fire times, execution group | the trigger's `JobDataMap`, priority, calendar, misfire instruction, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names | one calendar | create, replace or delete a cron calendar |
 
-- `?state=` opens the trigger listing filtered, as the overview's histogram links do.
+- `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
+  query parameter too; see [Filtering the listings](#filtering-the-listings).
 - From 4.3, *Pause*, *Pause group* and *Pause all* ask for an optional reason, recorded with the signed-in
   user's name. A paused trigger shows **Paused: reason (by who, when)** on its page and its listing rows, and a
   paused job group shows its record on the Jobs page. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
 - *Reset error state* clears an `ERROR` trigger once its cause is fixed.
 - The cron reschedule editor previews the next five fires.
+
+### Editing a trigger
+
+From 4.3, *Edit details* on a trigger's page edits it in place through `IScheduler.UpdateTriggerDetails`. Fire
+times and state are kept; the cron editor is the one that reschedules.
+
+| Field | Takes |
+|---|---|
+| Description, execution group | text; blank clears it |
+| Priority | a whole number |
+| Calendar | a calendar name, suggested from the scheduler's; blank clears it |
+| Misfire instruction | the trigger family's instructions by name; a bare code for a trigger in none of the five |
+| Retry policy | the stored form, `fixed;3;00:05:00`, `exp;5;00:00:10;2` or `list;00:00:05;00:01:00`; blank for none |
+| Preferred node | any node, the first node to fire it, or a named node |
+| Overlap policy | one of the five; disabled, with the reason, for a trigger that does not derive from `TriggerBase` |
+| `JobDataMap` | add, edit and remove entries; an entry nobody edited keeps its value and type |
+
+- **Only what changed is sent.** A field left alone is not written back.
+- **A refusal is shown beside the fields**, and the editor stays open: a calendar the scheduler does not hold,
+  an unreadable priority or retry policy.
+- **Every save is in the [Action Log](#action-log)** as `UpdateTriggerDetails`, with the user and what changed
+  (`priority 5 → 7; calendar holidays → (none)`). Map values are not logged.
+- An `IQuartzApiClient` of your own that does not implement `UpdateTriggerDetails` answers its default,
+  `NotSupportedException`. The button is then disabled with that reason.
+
+### Filtering the listings
+
+From 4.3, the Triggers page filters by everything `TriggerQuery` can: group and name (contains), job (group and
+name, exactly), calendar, state, and *next fire before*. *Apply filters* reads them; paging is unchanged.
+
+- **Each filter is a query parameter**, so a filtered listing is a link:
+  `/quartz/triggers?jobGroup=reports&jobName=export&state=Paused`.
+
+  | Parameter | Filter |
+  |---|---|
+  | `group`, `name` | contains |
+  | `jobGroup`, `jobName` | one job; both or neither |
+  | `calendar` | the calendar's name |
+  | `state` | a `TriggerState` name |
+  | `before` | an ISO 8601 instant with its offset; the field shows it in the header's time zone |
+
+- The Jobs page filters by group and by name (contains), as `?group=` and `?name=`.
+- **A target whose HTTP API is older than 4.2 ignores `before`.** The dashboard spots rows the filter excludes,
+  drops the filter and disables its field with the reason.
+- Filters on `JobDataMap` values are not offered: the map is a serialized blob, not a column a store can query.
+
+### Acting on a selection
+
+From 4.3, each trigger row has a checkbox and each group's header one that selects its rows on the page. A
+selection offers *Pause selected*, *Resume selected* and *Unschedule selected*.
+
+| Action | Made through | Over HTTP |
+|---|---|---|
+| Pause recording nothing: no reason typed, nobody signed in | `IScheduler.PauseTriggers(keys)`: one call | `POST …/triggers/keys/pause` |
+| Pause recording a reason or the signed-in user | `PauseTriggerWith` per key; the key-set form records nothing | the single-trigger pause route, per key |
+| Resume | `ResumeTriggers(keys)` | `POST …/triggers/keys/resume` |
+| Unschedule, after a confirmation | `UnscheduleJobs(keys)` | `POST …/triggers/unschedule` |
+
+- The pause prompt asks once for the whole selection.
+- **Rows the action did not reach stay listed** with the reason until dismissed: gone, already paused, not
+  paused, or what the scheduler said.
+- Each key gets its own [Action Log](#action-log) entry, under the single-row action's name, marked as one of the
+  selection.
+- Applying a filter or acting clears the selection. Read-only mode shows no checkboxes.
 
 ### Continuations
 
@@ -249,6 +316,8 @@ progress. It is the fire-instance listing, so **with a persistent job store it c
   `[DisallowConcurrentExecution]`, which can have several in flight.
 - Each interrupt is recorded in the [Action Log](#action-log) with the fire instance and node, whether or not the
   firing was still running.
+- *Past runs* opens the trigger's [execution history](#execution-history). A firing gets its own execution page
+  once it finishes: the history row is written then.
 - A row that never goes away: a firing whose node died stays until another node's check-in sweep takes it over.
   See [Fired triggers: backlog or leak](../operations.md#fired-triggers-backlog-or-leak).
 
@@ -314,8 +383,9 @@ the container; the page subscribes for the scheduler on screen.
 
 ### Action Log
 
-`/quartz/actions` lists what was done *from this dashboard*, newest first: time, scheduler, action, target, where
-it landed, success, and any message. It answers "who paused this" when "who" is the dashboard.
+`/quartz/actions` lists what was done *from this dashboard*, newest first: time, scheduler, user (from 4.3),
+action, target, where it landed, success, and any message. It answers "who paused this" when "who" is the
+dashboard.
 
 - The store is in-memory and process-wide, holding the last 250 actions across schedulers. The page shows the
   most recent 100 of those that target the selected scheduler.
@@ -403,7 +473,7 @@ name, which is in every route.
 | Page | Over HTTP |
 |---|---|
 | Overview, Jobs, Triggers, Calendars, Currently Executing, Cluster | Read through the API's routes |
-| Every action (pause, resume, trigger now, reschedule, delete) | Performed by the target's scheduler, in its process |
+| Every action (pause, resume, trigger now, reschedule, edit, bulk, delete) | Performed by the target's scheduler, in its process |
 | Execution History | The **target's own** history |
 | Live Logs | The **target's own** events; a target too old for the route says so |
 | Schedulers, and the header's picker | Listed as `Remote` |
@@ -432,7 +502,9 @@ Before pointing one at production:
 
 A target whose HTTP API is older than 4.1 has no history routes. The History page says "this scheduler runs in
 another process and its Quartz HTTP API does not serve execution history", and the Overview's misfire tile shows
-a dash, not zero.
+a dash, not zero. Such a target has no `update-details` route either: *Save details* shows its refusal beside
+the fields. One older than 4.2 ignores the *next fire before* filter, which is then
+[disabled with the reason](#filtering-the-listings).
 
 ## Store-attached targets
 
@@ -526,7 +598,7 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 | Available | Not available |
 |---|---|
 | Jobs, triggers, calendars, groups, paused groups: read, added, edited and deleted | `Start`, `Standby`, `Shutdown` |
-| Pause, resume, reschedule, unschedule, trigger now | Interrupting a running job or a firing |
+| Pause, resume, reschedule, edit in place, unschedule, trigger now, bulk actions | Interrupting a running job or a firing |
 | Currently Executing, from `QRTZ_FIRED_TRIGGERS` | Live Logs and the live event stream |
 | Cluster, from the nodes' check-ins | The node's own figures: instance id, running since, jobs executed |
 | Execution History and the misfire tile, when the cluster keeps history in the database | |
@@ -778,8 +850,9 @@ Unset, the behaviour is as in earlier releases: whoever passes `AuthorizationPol
 ### Read-only mode
 
 `ReadOnly = true` hides every mutating control: pause, resume, trigger-now, trigger-with-overrides, reschedule,
-reset-from-error-state, unschedule, interrupt, delete, calendar create and replace, and the scheduler's start,
-stand-by, pause-all, resume-all and shutdown. Every listing, detail page and live view remains.
+edit details, reset-from-error-state, unschedule, interrupt, delete, the listings' selection checkboxes, calendar
+create and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown. Every listing, filter,
+detail page and live view remains.
 
 - It is one setting per process, not per scheduler or per operation. For different powers, run two dashboards: a
   read-only one for observers and a write-enabled one behind an operators-only policy.
@@ -981,7 +1054,7 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   [One scheduler at a time](#one-scheduler-at-a-time).
 - **The misfire tile and Cluster page show what the store can answer**: a dash for no misfire feed, one node for a
   store with no check-in state. Neither is a count of zero.
-- **Typed editors are narrow**: cron calendars, cron trigger reschedules and job-data overrides. Building an
-  arbitrary trigger from the UI is not offered.
+- **Typed editors are narrow**: cron calendars, cron trigger reschedules, job-data overrides and, from 4.3, a
+  trigger's details. Building an arbitrary trigger from the UI is not offered.
 - **It is a scheduler console, not a workflow tool.** Job dependencies, DAGs and business-process visualisation
   are outside what Quartz models.
