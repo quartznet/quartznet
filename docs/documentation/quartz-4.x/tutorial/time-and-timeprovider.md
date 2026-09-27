@@ -262,8 +262,8 @@ Advancing the fake clock moves the scheduler's waits as well as its computations
 * The misfire handler's scan and the cluster check-in sleep on it too.
 * So do fire-time computation, misfire detection, `StartDelayed`, and the retry and backoff delays in the
   ADO store.
-* A shutdown does not wait for the clock: it cancels every wait, and gives up on a stuck store call in
-  real time.
+* A shutdown does not wait for the clock: it cancels every wait, and gives up on a stuck store call or a
+  still-running job in real time.
 
 [Testing](testing.md#controlling-time) shows a test that advances the clock, and covers the four levels of
 Quartz test, starting with computing fire times with no scheduler.
