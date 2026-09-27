@@ -6,9 +6,23 @@
     ExcludeAssets="analyzers" on the PackageReference looks like the switch and is not one: NuGet leaves
     the assembly out of the assets file, and the .NET 10 SDK hands it to the compiler all the same, for
     this package and for every other. This is the property System.Text.Json offers its generator for the
-    same reason. It removes the whole assembly, so AddDeclaredJobs() goes with the diagnostics; to quiet
-    one rule, set its severity in .editorconfig instead.
+    same reason. It removes the whole assembly, so AddDeclaredJobs() goes with the diagnostics, and a
+    delegate job is bound by reflection when it is added; to quiet one rule, set its severity in
+    .editorconfig instead.
   -->
+
+  <!--
+    The namespace the generator declares its delegate-job interceptors in. The compiler refuses an
+    interceptor in a namespace the project has not listed, and the generator emits none there, so a
+    project that drops this entry keeps building and binds its delegate jobs by reflection.
+
+    InterceptorsNamespaces rather than InterceptorsPreviewNamespaces: the Csc task joins the two into one
+    compiler feature, and this is the name Roslyn documents since interceptors became stable.
+  -->
+  <PropertyGroup Condition="'$(DisableQuartzAnalyzers)' != 'true'">
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Quartz.Generated</InterceptorsNamespaces>
+  </PropertyGroup>
+
   <Target Name="_QuartzRemoveAnalyzers"
           Condition="'$(DisableQuartzAnalyzers)' == 'true'"
           AfterTargets="ResolveLockFileAnalyzers"
