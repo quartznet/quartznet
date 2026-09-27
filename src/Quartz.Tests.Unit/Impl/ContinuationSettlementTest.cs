@@ -120,7 +120,14 @@ public sealed class ContinuationSettlementTest
     [TearDown]
     public async Task ShutDownStore()
     {
-        await store.Shutdown();
+        // Bounded, because this is where the unit run hung (#3860): the recovery test below starts the
+        // store's misfire loop, and a shutdown that never returned parked the whole run behind this
+        // teardown. A shutdown that does not come back now fails this test with a message instead.
+        Func<Task> shutdown = async () => await store.Shutdown();
+
+        await shutdown.Should().CompleteWithinAsync(TimeSpan.FromSeconds(30),
+            "shutting down a store nothing else is using is a matter of milliseconds - a second at most, when the "
+            + "misfire loop's task was never dispatched and the shutdown gives up on it");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +190,9 @@ public sealed class ContinuationSettlementTest
 
         IOperableTrigger continuation = await ScheduleContinuation("continuation", parent.Key, ContinuationCondition.OnAnyOutcome, busy.Key);
 
-        // The process "dies" here: running's fired row stays, and the next start recovers.
+        // The process "dies" here: running's fired row stays, and the next start recovers. This is the
+        // one test in the fixture that starts the store — recovery is a start-up step — so it is also
+        // the one after which ShutDownStore has a misfire loop to stop.
         await store.SchedulerStarted();
 
         (await store.GetTriggerState(continuation.Key)).Should().Be(TriggerState.Normal,
