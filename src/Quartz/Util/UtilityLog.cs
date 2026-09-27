@@ -71,12 +71,6 @@ internal static partial class UtilityLog
     [LoggerMessage(EventId = 5108, Level = LogLevel.Warning, Message = "Unable to resolve file path '{FileName}' due to security exception, probably running under medium trust")]
     public static partial void FilePathResolutionDenied(this ILogger logger, string fileName);
 
-    [LoggerMessage(EventId = 5109, Level = LogLevel.Warning, Message = "Unable to read environment variable '{Key}' due to security exception, probably running under medium trust")]
-    public static partial void EnvironmentVariableReadDenied(this ILogger logger, string key);
-
-    [LoggerMessage(EventId = 5110, Level = LogLevel.Warning, Message = "Unable to read environment variables due to security exception, probably running under medium trust")]
-    public static partial void EnvironmentVariablesReadDenied(this ILogger logger);
-
     /// <summary>
     /// A type resolved through an alias the application declared, rather than through one of Quartz's
     /// own 4.0 renames.

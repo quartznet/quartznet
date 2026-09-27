@@ -78,9 +78,8 @@ public static class TimeZones
 
     /// <summary>
     /// Whether the runtime is Mono, where <see cref="GetUtcOffset(DateTimeOffset, TimeZoneInfo)" />
-    /// asks the zone with the instant's UTC <see cref="DateTime" /> instead. Read here rather than
-    /// from <c>Quartz.Util.QuartzEnvironment</c>, whose other members log, so that this file
-    /// references nothing outside the BCL.
+    /// asks the zone with the instant's UTC <see cref="DateTime" /> instead. Read here so that this
+    /// file references nothing outside the BCL.
     /// </summary>
     private static readonly bool isRunningOnMono = Type.GetType("Mono.Runtime") is not null;
 

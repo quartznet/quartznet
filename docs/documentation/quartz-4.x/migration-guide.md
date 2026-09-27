@@ -4113,7 +4113,7 @@ setting.** Only these types read it:
 |---|---|
 | `JobChainingJobListener` | constructed by the caller |
 | `CronTriggerImpl` | a trigger, which may be deserialized from a job store |
-| `MisfireInstructionNames`, `FileUtil`, `QuartzEnvironment` | static helpers, reached from parsing and deserialization with no scheduler in scope |
+| `MisfireInstructionNames`, `FileUtil` | static helpers, reached from parsing and deserialization with no scheduler in scope |
 | The jobs in `Quartz.Jobs`, and anything else a caller constructs directly | constructed by the caller |
 
 With a standalone `QuartzSchedulerBuilder`, setting it configures everything: the builder's container has
