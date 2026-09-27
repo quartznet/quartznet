@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
 
 using Quartz.AspNetCore.HttpApi.Util;
@@ -280,37 +281,56 @@ internal static class JobEndpoints
         });
     }
 
+    /// <summary>
+    /// Pauses a job's triggers, recording why and who asked.
+    /// </summary>
+    /// <remarks>
+    /// The body is optional, and so is each of its members: no body is the reasonless pause, and a
+    /// missing <c>requestedBy</c> is the authenticated user.
+    /// </remarks>
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseJob(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
         string jobGroup,
         string jobName,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         CancellationToken cancellationToken = default)
     {
+        PauseDetails details = EndpointHelper.PauseDetailsFor(request, httpContext);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var applied = await scheduler.PauseJob(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
+            var applied = await scheduler.PauseJobWith(new JobKey(jobName, jobGroup), details, cancellationToken).ConfigureAwait(false);
             return new OperationAppliedResponse(applied);
         });
     }
 
+    /// <summary>
+    /// Pauses the matching job groups, recording why and who asked.
+    /// </summary>
+    /// <remarks>
+    /// The body is optional, as on the single-job pause.
+    /// </remarks>
     [ProducesResponseType(typeof(AffectedGroupsResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
+        PauseDetails details = EndpointHelper.PauseDetailsFor(request, httpContext);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            var pausedGroups = await scheduler.PauseJobGroups(matcher, cancellationToken).ConfigureAwait(false);
+            var pausedGroups = await scheduler.PauseJobGroupsWith(matcher, details, cancellationToken).ConfigureAwait(false);
             return new AffectedGroupsResponse([.. pausedGroups]);
         });
     }
@@ -566,7 +586,8 @@ internal static class JobEndpoints
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             bool paused = await scheduler.IsJobGroupPaused(jobGroup, cancellationToken).ConfigureAwait(false);
-            return new GroupPausedResponse(paused);
+            PauseInfo? pause = paused ? await scheduler.GetJobGroupPause(jobGroup, cancellationToken).ConfigureAwait(false) : null;
+            return new GroupPausedResponse(paused, PauseDto.Create(pause));
         });
     }
 }

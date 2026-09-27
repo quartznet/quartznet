@@ -466,6 +466,162 @@ public abstract class JobStoreContractTest
             "resuming everything leaves nothing paused, marker included");
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Pausing with a reason
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    private static readonly PauseDetails Maintenance = new() { Reason = "database maintenance", RequestedBy = "alice" };
+
+    [Test]
+    public async Task APauseWithAReasonIsReadBackUntilTheTriggerIsResumed()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("reasoned", JobGroupA, TriggerGroupA);
+
+        DateTimeOffset before = TruncatedToTheSecond(DateTimeOffset.UtcNow);
+        (await Store.PauseTriggerWith(trigger.Key, Maintenance)).Should().BeTrue();
+        DateTimeOffset after = DateTimeOffset.UtcNow.AddSeconds(1);
+
+        PauseInfo pause = await Store.GetTriggerPause(trigger.Key);
+        pause.Should().NotBeNull("a pause made with a reason is recorded");
+        pause.Reason.Should().Be("database maintenance");
+        pause.RequestedBy.Should().Be("alice");
+        pause.PausedAtUtc.Should().BeOnOrAfter(before).And.BeOnOrBefore(after,
+            "the store stamps the pause with its clock when it is made");
+
+        TriggerHeader header = (await Store.QueryTriggers(new TriggerQuery { Group = GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA) }))
+            .Items.Single(x => x.Key.Equals(trigger.Key));
+        header.Pause.Should().Be(pause, "the listing carries the trigger's own record");
+
+        (await Store.ResumeTrigger(trigger.Key)).Should().BeTrue();
+        (await Store.GetTriggerPause(trigger.Key)).Should().BeNull("a resumed trigger has no pause to explain");
+    }
+
+    [Test]
+    public async Task AReasonlessPauseRecordsWhenAndAnAlreadyPausedTriggerKeepsItsPause()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("reasonless", JobGroupA, TriggerGroupA);
+
+        (await Store.PauseTrigger(trigger.Key)).Should().BeTrue();
+        PauseInfo first = await Store.GetTriggerPause(trigger.Key);
+        first.Should().NotBeNull("every pause records when it was made");
+        first.Reason.Should().BeNull();
+        first.RequestedBy.Should().BeNull();
+
+        (await Store.PauseTriggerWith(trigger.Key, Maintenance)).Should().BeFalse("the trigger was already paused");
+        (await Store.GetTriggerPause(trigger.Key)).Should().Be(first,
+            "a pause that moved nothing records nothing over the one the trigger has");
+    }
+
+    [Test]
+    public async Task TextsLongerThanTheirColumnsAreCutWhateverTheirEncoding()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("long", JobGroupA, TriggerGroupA);
+
+        // Two bytes of UTF-8 a character, so a column that counts bytes rather than characters would
+        // refuse what one that counts characters takes.
+        string reason = new('ü', PauseDetails.MaxReasonLength + 10);
+        string requester = new('é', PauseDetails.MaxRequestedByLength + 10);
+
+        (await Store.PauseTriggerWith(trigger.Key, new PauseDetails { Reason = reason, RequestedBy = requester })).Should().BeTrue();
+
+        PauseInfo pause = await Store.GetTriggerPause(trigger.Key);
+        pause.Reason.Should().Be(new string('ü', PauseDetails.MaxReasonLength),
+            "a reason is cut to what every dialect's column holds, and read back as it was written");
+        pause.RequestedBy.Should().Be(new string('é', PauseDetails.MaxRequestedByLength));
+    }
+
+    [Test]
+    public async Task PausingAJobWithAReasonRecordsItOnEachOfItsTriggers()
+    {
+        IJobDetail job = CreateJob("reasoned-job", JobGroupA);
+        IOperableTrigger first = CreateTrigger("reasoned-first", TriggerGroupA, job.Key);
+        IOperableTrigger second = CreateTrigger("reasoned-second", TriggerGroupB, job.Key);
+        await Store.ScheduleJob(job, first);
+        await Store.AddTrigger(second);
+
+        (await Store.PauseJobWith(job.Key, Maintenance)).Should().BeTrue();
+
+        (await Store.GetTriggerPause(first.Key)).Reason.Should().Be("database maintenance");
+        (await Store.GetTriggerPause(second.Key)).Reason.Should().Be("database maintenance");
+
+        await Store.ResumeJob(job.Key);
+        (await Store.GetTriggerPause(first.Key)).Should().BeNull();
+        (await Store.GetTriggerPause(second.Key)).Should().BeNull();
+    }
+
+    [Test]
+    public async Task PausingATriggerGroupWithAReasonRecordsItOnTheGroupAndItsTriggers()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("grouped", JobGroupA, TriggerGroupA);
+
+        (await Store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA), Maintenance))
+            .Should().Equal([TriggerGroupA]);
+
+        (await Store.GetTriggerGroupPause(TriggerGroupA)).Reason.Should().Be("database maintenance");
+        (await Store.GetTriggerPause(trigger.Key)).RequestedBy.Should().Be("alice");
+        (await Store.GetTriggerGroupPause(TriggerGroupB)).Should().BeNull("a group nothing paused has no pause");
+
+        await Store.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+
+        (await Store.GetTriggerGroupPause(TriggerGroupA)).Should().BeNull();
+        (await Store.GetTriggerPause(trigger.Key)).Should().BeNull();
+    }
+
+    [Test]
+    public async Task ATriggerStoredIntoAGroupPausedWithAReasonAnswersTheGroupsReason()
+    {
+        await Store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA), Maintenance);
+
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("later", JobGroupA, TriggerGroupA);
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerPause(trigger.Key)).Reason.Should().Be("database maintenance",
+            "the trigger has no pause of its own, and the group's is why it is paused");
+    }
+
+    [Test]
+    public async Task PausingAJobGroupWithAReasonRecordsItOnTheGroupAndItsJobsTriggers()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("job-grouped", JobGroupA, TriggerGroupA);
+
+        (await Store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals(JobGroupA), Maintenance)).Should().Equal([JobGroupA]);
+
+        (await Store.GetJobGroupPause(JobGroupA)).Reason.Should().Be("database maintenance");
+        (await Store.GetTriggerPause(trigger.Key)).Reason.Should().Be("database maintenance");
+
+        await Store.ResumeJobGroups(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+
+        (await Store.GetJobGroupPause(JobGroupA)).Should().BeNull();
+        (await Store.GetTriggerPause(trigger.Key)).Should().BeNull();
+    }
+
+    [Test]
+    public async Task PauseAllWithAReasonRecordsItOnEveryGroupAndTrigger()
+    {
+        IOperableTrigger first = await ScheduleJobWithTrigger("all-first", JobGroupA, TriggerGroupA);
+        IOperableTrigger second = await ScheduleJobWithTrigger("all-second", JobGroupB, TriggerGroupB);
+
+        await Store.PauseAllWith(Maintenance);
+
+        (await Store.GetTriggerGroupPause(TriggerGroupA)).Reason.Should().Be("database maintenance");
+        (await Store.GetTriggerGroupPause(TriggerGroupB)).Reason.Should().Be("database maintenance");
+        (await Store.GetTriggerPause(first.Key)).Reason.Should().Be("database maintenance");
+        (await Store.GetTriggerPause(second.Key)).Reason.Should().Be("database maintenance");
+
+        await Store.ResumeAll();
+
+        (await Store.GetTriggerGroupPause(TriggerGroupA)).Should().BeNull();
+        (await Store.GetTriggerPause(first.Key)).Should().BeNull();
+        (await Store.GetTriggerPause(second.Key)).Should().BeNull();
+    }
+
+    /// <summary>
+    /// The instant a pause is stamped with is stored in ticks, so it is compared from the start of the
+    /// second it fell in.
+    /// </summary>
+    private static DateTimeOffset TruncatedToTheSecond(DateTimeOffset value) =>
+        new(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second, value.Offset);
+
     [Test]
     public async Task ATriggerAddedToAPausedGroupIsBornPaused()
     {
@@ -1709,6 +1865,8 @@ public abstract class JobStoreContractTest
         yield return new MissingEntityCase(nameof(IJobStore.PauseJob), store => store.PauseJob(MissingJobKey));
         yield return new MissingEntityCase(nameof(IJobStore.ResumeTrigger), store => store.ResumeTrigger(MissingTriggerKey));
         yield return new MissingEntityCase(nameof(IJobStore.ResumeJob), store => store.ResumeJob(MissingJobKey));
+        yield return new MissingEntityCase(nameof(IJobStore.PauseTriggerWith), store => store.PauseTriggerWith(MissingTriggerKey, Maintenance));
+        yield return new MissingEntityCase(nameof(IJobStore.PauseJobWith), store => store.PauseJobWith(MissingJobKey, Maintenance));
     }
 
     /// <summary>

@@ -111,6 +111,22 @@ internal sealed class DashboardComponentContext : BunitContext
         A.CallTo(() => Api.CountMisfires(A<string>._, A<DateTimeOffset>._, A<CancellationToken>._))
             .Returns(0);
 
+        // The pauses that carry a reason answer through the reasonless members, as the default interface
+        // members do for a data source written against 4.2, so a case about what a pause did still sees
+        // the call it always saw. A case about the reason asserts on the *With member itself.
+        A.CallTo(() => Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+        A.CallTo(() => Api.PauseJobWith(A<string>._, A<JobKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+        A.CallTo(() => Api.PauseAllWith(A<string>._, A<PauseDetails>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+
+        // And no pause recorded anything, rather than the dummy record a fake would invent.
+        A.CallTo(() => Api.GetTriggerPause(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
+        A.CallTo(() => Api.GetJobGroupPause(A<string>._, A<string>._, A<CancellationToken>._))
+            .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
+
         SchedulerState = Services.GetRequiredService<SchedulerState>();
         SchedulerState.SelectedTimeZoneId = TimeZoneInfo.Utc.Id;
         Toasts = Services.GetRequiredService<ToastService>();

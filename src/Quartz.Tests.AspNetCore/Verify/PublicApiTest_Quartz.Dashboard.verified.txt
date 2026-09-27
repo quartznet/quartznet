@@ -300,16 +300,21 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.DashboardHistoryEntry?> GetExecution(string schedulerName, string entryId, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.ExecutionLimitsDto> GetExecutionLimits(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.JobDetailDto> GetJobDetail(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.PauseInfo?> GetJobGroupPause(string schedulerName, string groupName, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.SchedulerDetailDto> GetScheduler(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.SchedulerHeaderDto>> GetSchedulers(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.ITrigger> GetTrigger(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.PauseInfo?> GetTriggerPause(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.TriggerState> GetTriggerState(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerHeaderDto>> GetTriggersOfJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> Interrupt(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseAll(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask PauseAllWith(string schedulerName, Quartz.PauseDetails details, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> PauseJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> PauseJobWith(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, Quartz.PauseDetails details, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> PauseTrigger(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> PauseTriggerWith(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, Quartz.PauseDetails details, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.ClusterNodeDto>> QueryClusterNodes(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.DashboardHistoryEntry>> QueryExecutions(Quartz.Dashboard.Services.DashboardHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.FireInstanceDto>> QueryFireInstances(string schedulerName, Quartz.Dashboard.Services.DashboardFireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default);
@@ -407,6 +412,7 @@ namespace Quartz.Dashboard.Services
         public string? ExecutionGroup { get; init; }
         public string Group { get; init; }
         public string Name { get; init; }
+        public Quartz.PauseInfo? Pause { get; init; }
         public string? ScheduleSummary { get; init; }
         public Quartz.TriggerState? State { get; init; }
         public string? TriggerType { get; init; }

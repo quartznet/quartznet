@@ -92,4 +92,15 @@ public sealed record TriggerHeader(
     /// </remarks>
     /// <seealso cref="ITrigger.OverlapPolicy" />
     public OverlapPolicy OverlapPolicy { get; init; }
+
+    /// <summary>
+    /// Why the trigger is paused, who asked, and when — the record on the trigger itself — or
+    /// <see langword="null" /> when it is not paused or its pause recorded nothing.
+    /// </summary>
+    /// <remarks>
+    /// A trigger stored into a group that was already paused has no record of its own, and its listing
+    /// entry says so; <see cref="IScheduler.GetTriggerPause" /> answers the group's record for it. An
+    /// <c>init</c> property for the reason <see cref="ContinuesAfter" /> is one.
+    /// </remarks>
+    public PauseInfo? Pause { get; init; }
 }

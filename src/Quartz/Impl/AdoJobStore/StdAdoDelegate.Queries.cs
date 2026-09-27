@@ -449,8 +449,35 @@ public partial class StdAdoDelegate
             ContinuationCondition = continuation.IsNone ? null : continuation.When,
             // After the executing flag rather than beside the continuation, so every ordinal above
             // stays where the listing has always read it.
-            OverlapPolicy = OverlapPolicyColumn.Decode(OverlapPolicyColumn.Read(rs, 20)).Policy
+            OverlapPolicy = OverlapPolicyColumn.Decode(OverlapPolicyColumn.Read(rs, 20)).Policy,
+            // The row's own record, and only while the row is paused: a 4.2 node's resume leaves the
+            // columns behind, and a running trigger must not report why it was once paused.
+            Pause = IsPausedState(rs.GetString(6)) ? ReadPause(rs, 21) : null
         };
+    }
+
+    /// <summary>Whether a stored trigger state is one of the two a pause leaves a trigger in.</summary>
+    private static bool IsPausedState(string storedState)
+    {
+        return StoredTriggerStates.FromStoredValue(storedState) is StoredTriggerState.Paused or StoredTriggerState.PausedBlocked;
+    }
+
+    /// <summary>
+    /// The three pause columns at <paramref name="ordinal" /> onwards, or <see langword="null" /> when
+    /// they recorded no pause — which is what a row a 4.2 node paused reads as.
+    /// </summary>
+    private PauseInfo? ReadPause(DbDataReader rs, int ordinal)
+    {
+        DateTimeOffset? pausedAt = GetDateTimeFromDbValue(rs.GetValue(ordinal + 2));
+        if (pausedAt is null)
+        {
+            return null;
+        }
+
+        return new PauseInfo(
+            rs.IsDBNull(ordinal) ? null : rs.GetString(ordinal),
+            rs.IsDBNull(ordinal + 1) ? null : rs.GetString(ordinal + 1),
+            pausedAt.Value);
     }
 
     /// <inheritdoc />

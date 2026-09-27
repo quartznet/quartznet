@@ -60,7 +60,7 @@
                     <button type="button" class="qz-button qz-button-primary" @onclick="StartSchedulerAsync">Start</button>
                     <button type="button" class="qz-button" @onclick="StandbySchedulerAsync">Standby</button>
                 }
-                <button type="button" class="qz-button" @onclick="PauseAllAsync">Pause all</button>
+                <button type="button" class="qz-button" @onclick="PromptPauseAll">Pause all</button>
                 <button type="button" class="qz-button" @onclick="ResumeAllAsync">Resume all</button>
                 @if (!_isWindow)
                 {
@@ -155,6 +155,12 @@
                OnConfirm="ConfirmShutdownAsync"
                OnCancel="CancelShutdownAsync" />
 
+<PauseDialog IsOpen="@_showPauseAllPrompt"
+             Title="Pause all triggers"
+             Message="Pause every trigger group? Nothing fires until they are resumed."
+             OnConfirm="PauseAllAsync"
+             OnCancel="CancelPauseAllAsync" />
+
 @code {
     private bool _isLoading = true;
     private bool _isRefreshingExecuting;
@@ -215,6 +221,7 @@
 
     private readonly List<DashboardActionLogEntry> _recentActions = [];
     private bool _showShutdownConfirm;
+    private bool _showPauseAllPrompt;
     private PeriodicTimer? _executingRefreshTimer;
     private CancellationTokenSource? _executingRefreshCancellation;
     private bool IsReadOnly => Options.Value.ReadOnly;
@@ -482,10 +489,23 @@
             nodeLocal: true);
     }
 
-    private Task PauseAllAsync()
+    private void PromptPauseAll()
     {
+        _showPauseAllPrompt = true;
+    }
+
+    private Task CancelPauseAllAsync()
+    {
+        _showPauseAllPrompt = false;
+        return Task.CompletedTask;
+    }
+
+    private Task PauseAllAsync(string? reason)
+    {
+        _showPauseAllPrompt = false;
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
         return ExecuteSchedulerActionAsync(
-            schedulerName => Api.PauseAll(schedulerName),
+            schedulerName => Api.PauseAllWith(schedulerName, details),
             "Paused all triggers.",
             actionName: "PauseAll");
     }

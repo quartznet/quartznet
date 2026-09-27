@@ -1,5 +1,7 @@
 using System.Collections.Specialized;
 
+using FakeItEasy;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -61,6 +63,66 @@ public class InProcessQuartzApiClientTest
         {
             await scheduler.Shutdown(waitForJobsToComplete: false);
         }
+    }
+
+    [Test]
+    public async Task APauseWithAReasonReachesTheSchedulerAndItsRecordComesBackOnEveryRead()
+    {
+        IScheduler scheduler = await CreateScheduler("PauseReasonTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build();
+            TriggerKey triggerKey = new("cron", "group1");
+            await scheduler.ScheduleJob(job, TriggerBuilder.Create().WithIdentity(triggerKey).ForJob(jobKey).WithCronSchedule("0 0 1 * * ?").Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            string name = scheduler.SchedulerName;
+            PauseDetails details = new() { Reason = "vendor outage", RequestedBy = "alice" };
+
+            (await client.PauseTriggerWith(name, new TriggerKeyDto("group1", "cron"), details)).Should().BeTrue();
+
+            (await client.GetTriggerPause(name, new TriggerKeyDto("group1", "cron")))!.Reason.Should().Be("vendor outage");
+            (await client.QueryTriggers(name, new DashboardTriggerQuery())).Items.Single().Pause!.RequestedBy.Should().Be("alice",
+                "the listing carries each trigger's own record, so the page shows it without a read per row");
+            (await client.GetTriggersOfJob(name, new JobKeyDto("group1", "job1"))).Single().Pause!.Reason.Should().Be("vendor outage",
+                "a job's page lists its triggers with their records too");
+
+            await scheduler.ResumeAll();
+            (await client.PauseJobWith(name, new JobKeyDto("group1", "job1"), details)).Should().BeTrue();
+            (await scheduler.GetTriggerPause(triggerKey))!.Reason.Should().Be("vendor outage");
+
+            await scheduler.ResumeAll();
+            await client.PauseAllWith(name, details);
+            (await scheduler.GetTriggerGroupPause("group1"))!.RequestedBy.Should().Be("alice");
+
+            await scheduler.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("group1"), details);
+            (await client.GetJobGroupPause(name, "group1"))!.Reason.Should().Be("vendor outage");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task ADataSourceOfAnEarlier4xPausesWithoutTheDetailsAndReportsNoRecord()
+    {
+        IQuartzApiClient client = A.Fake<IQuartzApiClient>();
+        A.CallTo(client).Where(call => call.Method.Name.EndsWith("With", StringComparison.Ordinal) || call.Method.Name.EndsWith("Pause", StringComparison.Ordinal))
+            .CallsBaseMethod();
+        A.CallTo(() => client.PauseTrigger("acme", A<TriggerKeyDto>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => client.PauseJob("acme", A<JobKeyDto>._, A<CancellationToken>._)).Returns(true);
+        PauseDetails details = new() { Reason = "ignored" };
+
+        (await client.PauseTriggerWith("acme", new TriggerKeyDto("g", "t"), details)).Should().BeTrue(
+            "the default is the reasonless pause an implementation of its own already has");
+        (await client.PauseJobWith("acme", new JobKeyDto("g", "j"), details)).Should().BeTrue();
+        await client.PauseAllWith("acme", details);
+
+        A.CallTo(() => client.PauseAll("acme", A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        (await client.GetTriggerPause("acme", new TriggerKeyDto("g", "t"))).Should().BeNull("the datum is reported as unavailable");
+        (await client.GetJobGroupPause("acme", "g")).Should().BeNull();
     }
 
     [Test]

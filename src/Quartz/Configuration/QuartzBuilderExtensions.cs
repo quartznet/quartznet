@@ -1078,6 +1078,49 @@ public static class QuartzBuilderExtensions
     private sealed record JobLogScopeMarker(string SchedulerName);
 
     /// <summary>
+    /// Pauses a trigger whose retry policy has given up, recording why, so it stops failing on schedule
+    /// until an operator resumes it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Registers a trigger listener that answers <see cref="ITriggerListener.TriggerRetriesExhausted" />
+    /// with <see cref="IScheduler.PauseTriggerWith" />: the reason is the message of what the job threw,
+    /// cut to <see cref="PauseDetails.MaxReasonLength" />, and the requester
+    /// <c>quartz:retries-exhausted</c>. <see cref="IScheduler.GetTriggerPause" /> and the dashboard show
+    /// both. Only a trigger with a <see cref="ITrigger.RetryPolicy" /> can exhaust its retries, so only
+    /// those are ever paused.
+    /// </para>
+    /// <para>
+    /// A trigger with no next occurrence is finished by the same completion, and there is nothing left of
+    /// it to pause. Calling this twice for one scheduler registers one listener.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    public static IQuartzBuilder PauseTriggerWhenRetriesExhausted(this IQuartzBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        foreach (ServiceDescriptor descriptor in builder.Services)
+        {
+            if (descriptor.ServiceType == typeof(RetriesExhaustedPauseMarker)
+                && descriptor.ImplementationInstance is RetriesExhaustedPauseMarker marker
+                && marker.SchedulerName == builder.SchedulerName)
+            {
+                return builder;
+            }
+        }
+
+        builder.Services.AddSingleton(new RetriesExhaustedPauseMarker(builder.SchedulerName));
+        return builder.AddTriggerListener(new RetriesExhaustedPauseListener());
+    }
+
+    /// <summary>
+    /// Says a scheduler's retries-exhausted pause has been registered, so a second call registers no
+    /// second listener; for the reason <see cref="JobLogScopeMarker" /> is a descriptor.
+    /// </summary>
+    private sealed record RetriesExhaustedPauseMarker(string SchedulerName);
+
+    /// <summary>
     /// Keeps what each of this scheduler's jobs logs while it runs, and records it with the execution's
     /// history row.
     /// </summary>

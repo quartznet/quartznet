@@ -729,6 +729,102 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The details go as the pause route's optional body. A host older than 4.3 ignores it and pauses
+    /// without them, which is what <see cref="IScheduler.PauseTriggerWith" /> promises of a scheduler that
+    /// records nothing.
+    /// </remarks>
+    public async ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        var result = await httpClient.PostWithResponse<PauseRequest, OperationAppliedResponse>(
+            $"{TriggerEndpointUrl(triggerKey)}/pause", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        var result = await httpClient.PostWithResponse<PauseRequest, OperationAppliedResponse>(
+            $"{JobEndpointUrl(jobKey)}/pause", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+        ArgumentNullException.ThrowIfNull(details);
+
+        var urlParams = matcher.ToUrlParameters();
+        var result = await httpClient.PostWithResponse<PauseRequest, AffectedGroupsResponse>(
+            $"{TriggerEndpointUrl()}/pause?{urlParams}", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Groups];
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+        ArgumentNullException.ThrowIfNull(details);
+
+        var urlParams = matcher.ToUrlParameters();
+        var result = await httpClient.PostWithResponse<PauseRequest, AffectedGroupsResponse>(
+            $"{JobEndpointUrl()}/pause?{urlParams}", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Groups];
+    }
+
+    /// <inheritdoc />
+    public ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        return httpClient.Post($"{SchedulerEndpointUrl()}/pause-all", PauseBody(details), jsonSerializerOptions, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Read off the trigger's state route, which answers the pause beside the state. A host older than
+    /// 4.3 answers the state alone, which reads as no record.
+    /// </remarks>
+    public async ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        var result = await httpClient.Get<TriggerStateDto>($"{TriggerEndpointUrl(triggerKey)}/state", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Pause?.AsPauseInfo();
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Read off the group's paused route, which answers the pause beside whether it is paused.
+    /// </remarks>
+    public async ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
+
+        var result = await httpClient.Get<GroupPausedResponse>(
+            $"{TriggerEndpointUrl()}/groups/{Uri.EscapeDataString(groupName)}/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Pause?.AsPauseInfo();
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Read off the group's paused route, which answers the pause beside whether it is paused.
+    /// </remarks>
+    public async ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
+
+        var result = await httpClient.Get<GroupPausedResponse>(
+            $"{JobEndpointUrl()}/groups/{Uri.EscapeDataString(groupName)}/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Pause?.AsPauseInfo();
+    }
+
+    private static PauseRequest PauseBody(PauseDetails details) => new(details.Reason, details.RequestedBy);
+
+    /// <inheritdoc />
     public async ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);

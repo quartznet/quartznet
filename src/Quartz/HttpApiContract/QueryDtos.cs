@@ -98,7 +98,8 @@ internal sealed record TriggerHeaderDto(
     string? ContinuesAfterTriggerName = null,
     string? ContinuesAfterTriggerGroup = null,
     ContinuationCondition? ContinuationCondition = null,
-    OverlapPolicy OverlapPolicy = OverlapPolicy.Default)
+    OverlapPolicy OverlapPolicy = OverlapPolicy.Default,
+    PauseDto? Pause = null)
 {
     public static TriggerHeaderDto Create(TriggerHeader header)
     {
@@ -124,7 +125,8 @@ internal sealed record TriggerHeaderDto(
             ContinuesAfterTriggerName: header.ContinuesAfter?.Name,
             ContinuesAfterTriggerGroup: header.ContinuesAfter?.Group,
             ContinuationCondition: header.ContinuationCondition,
-            OverlapPolicy: header.OverlapPolicy
+            OverlapPolicy: header.OverlapPolicy,
+            Pause: PauseDto.Create(header.Pause)
         );
     }
 
@@ -153,7 +155,8 @@ internal sealed record TriggerHeaderDto(
                 ? new TriggerKey(ContinuesAfterTriggerName, ContinuesAfterTriggerGroup)
                 : null,
             ContinuationCondition = ContinuationCondition,
-            OverlapPolicy = OverlapPolicy
+            OverlapPolicy = OverlapPolicy,
+            Pause = Pause?.AsPauseInfo()
         };
     }
 }

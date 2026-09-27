@@ -47,7 +47,7 @@
                 @if (!IsReadOnly)
                 {
                     <div class="qz-actions qz-group-actions">
-                        <button type="button" class="qz-button" @onclick="() => PauseGroup(group.Key)">Pause group</button>
+                        <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
                         <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
                     </div>
                 }
@@ -85,6 +85,7 @@
                                 </td>
                                 <td class="qz-col-state">
                                     <StateIndicator State="@(trigger.State?.ToString())" />
+                                    <PauseNote Pause="@trigger.Pause" />
                                 </td>
                                 <td>
                                     @if (!string.IsNullOrEmpty(trigger.ExecutionGroup))
@@ -103,7 +104,7 @@
                                 {
                                     <td class="qz-col-actions">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
-                                            <button type="button" class="qz-button" @onclick="() => PauseTrigger(triggerGroup, triggerName)">Pause</button>
+                                            <button type="button" class="qz-button" @onclick="() => PromptPauseTrigger(triggerGroup, triggerName)">Pause</button>
                                             <button type="button" class="qz-button" @onclick="() => ResumeTrigger(triggerGroup, triggerName)">Resume</button>
                                             <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
                                         </div>
@@ -129,6 +130,12 @@
                OnConfirm="ConfirmUnscheduleAsync"
                OnCancel="CancelUnscheduleAsync" />
 
+<PauseDialog IsOpen="@(_pauseAction is not null)"
+             Title="@_pauseTitle"
+             Message="@_pauseMessage"
+             OnConfirm="ConfirmPauseAsync"
+             OnCancel="CancelPauseAsync" />
+
 @code {
     private readonly List<TriggerHeaderDto> _triggers = [];
     private bool _isLoading = true;
@@ -138,6 +145,9 @@
     private int _totalTriggers;
     private readonly int _pageSize = 25;
     private bool _showUnscheduleConfirm;
+    private Func<string?, Task>? _pauseAction;
+    private string _pauseTitle = string.Empty;
+    private string _pauseMessage = string.Empty;
     private string? _pendingGroup;
     private string? _pendingName;
     private string _pendingTriggerKey = string.Empty;
@@ -277,10 +287,38 @@
         Navigation.NavigateTo(GetTriggerPath(group, name));
     }
 
-    private Task PauseTrigger(string group, string name)
+    private void PromptPauseTrigger(string group, string name)
     {
+        _pauseTitle = "Pause trigger";
+        _pauseMessage = "Pause " + DisplayValueHelper.FormatKey(group, name) + "?";
+        _pauseAction = reason => PauseTrigger(group, name, reason);
+    }
+
+    private void PromptPauseGroup(string group)
+    {
+        _pauseTitle = "Pause trigger group";
+        _pauseMessage = "Pause every trigger in " + group + "?";
+        _pauseAction = reason => PauseGroup(group, reason);
+    }
+
+    private Task ConfirmPauseAsync(string? reason)
+    {
+        Func<string?, Task>? pause = _pauseAction;
+        _pauseAction = null;
+        return pause is null ? Task.CompletedTask : pause(reason);
+    }
+
+    private Task CancelPauseAsync()
+    {
+        _pauseAction = null;
+        return Task.CompletedTask;
+    }
+
+    private Task PauseTrigger(string group, string name, string? reason)
+    {
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
         return ExecuteMutatingActionAsync(
-            () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, new TriggerKeyDto(group, name)),
+            () => Api.PauseTriggerWith(Scheduler.ActiveSchedulerName!, new TriggerKeyDto(group, name), details),
             "Paused trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(group, name) + " was not paused - it no longer exists or cannot be paused.",
             actionName: "PauseTrigger",
@@ -297,11 +335,12 @@
             target: DisplayValueHelper.FormatKey(group, name));
     }
 
-    private Task PauseGroup(string group)
+    private Task PauseGroup(string group, string? reason)
     {
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
         return ExecuteGroupMutatingActionAsync(
             group,
-            (schedulerName, triggerKey) => Api.PauseTrigger(schedulerName, triggerKey),
+            (schedulerName, triggerKey) => Api.PauseTriggerWith(schedulerName, triggerKey, details),
             "Paused");
     }
 

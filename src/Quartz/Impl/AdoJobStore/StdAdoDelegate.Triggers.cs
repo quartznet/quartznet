@@ -1636,6 +1636,165 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
     }
 
+    /// <inheritdoc />
+    public virtual async ValueTask<int> PauseTriggerStates(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
+        PauseInfo pause,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pause);
+
+        if (triggerKeys.Count == 0)
+        {
+            return 0;
+        }
+
+        List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
+        List<TriggerKey> keys = Deduplicate(triggerKeys);
+        string statePredicate = AdoUtil.BuildTriggerStatePredicate(states.Count);
+        int updated = 0;
+
+        for (int offset = 0; offset < keys.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, keys.Count - offset);
+            int paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
+
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
+                StdAdoConstants.SqlPauseTriggerStatesPrefix + statePredicate + " AND " + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
+            // Parameters are added in SQL token order for providers with positional binding.
+            AddCommandParameter(cmd, SqlParameters.NewState, StoredTriggerStates.ToStoredValue(newState));
+            AddPauseParameters(cmd, pause);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+            AddOldStateParameters(cmd, states);
+            AddTriggerKeyParameters(cmd, keys, offset, length, paddedCount);
+
+            updated += await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return updated;
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> PauseTriggerGroupStates(
+        ConnectionAndTransactionHolder conn,
+        GroupMatcher<TriggerKey> matcher,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
+        PauseInfo pause,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pause);
+
+        List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
+        (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlPauseTriggerGroupStatesEqualsPrefix, StdAdoConstants.SqlPauseTriggerGroupStatesLikePrefix);
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql + AdoUtil.BuildTriggerStatePredicate(states.Count)));
+        // In SQL token order, for providers with positional binding.
+        AddCommandParameter(cmd, SqlParameters.NewState, StoredTriggerStates.ToStoredValue(newState));
+        AddPauseParameters(cmd, pause);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.GroupName, parameter);
+        AddOldStateParameters(cmd, states);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask ClearTriggerPauses(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        if (triggerKeys.Count == 0)
+        {
+            return;
+        }
+
+        List<TriggerKey> keys = Deduplicate(triggerKeys);
+
+        for (int offset = 0; offset < keys.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, keys.Count - offset);
+            int paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
+
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
+                StdAdoConstants.SqlClearTriggerPausesPrefix + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+            AddTriggerKeyParameters(cmd, keys, offset, length, paddedCount);
+
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> InsertTriggerGroupPause(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        PauseInfo? pause,
+        CancellationToken cancellationToken = default)
+    {
+        if (pause is null)
+        {
+            return await InsertPausedTriggerGroup(conn, groupName, cancellationToken).ConfigureAwait(false);
+        }
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertPausedTriggerGroupWithPause));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, groupName);
+        AddPauseParameters(cmd, pause);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<PauseInfo?> SelectTriggerPause(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggerPause));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false) || !IsPausedState(rs.GetString(0)))
+        {
+            return null;
+        }
+
+        // The trigger's own record, then its trigger group's, then its job group's: the two group
+        // records are what a trigger stored into a group that was already paused has instead of one.
+        return ReadPause(rs, 1) ?? ReadPause(rs, 4) ?? ReadPause(rs, 7);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<PauseInfo?> SelectTriggerGroupPause(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggerGroupPause));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, groupName);
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await rs.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadPause(rs, 0) : null;
+    }
+
+    /// <summary>
+    /// Binds what a pause records, in the order <c>PauseSetClause</c> and the group inserts name it.
+    /// </summary>
+    private void AddPauseParameters(DbCommand cmd, PauseInfo pause)
+    {
+        AddCommandParameter(cmd, SqlParameters.PauseReason, pause.Reason);
+        AddCommandParameter(cmd, SqlParameters.PausedBy, pause.RequestedBy);
+        AddCommandParameter(cmd, SqlParameters.PausedAt, GetDbDateTimeValue(pause.PausedAtUtc));
+    }
+
     /// <summary>
     /// Builds the acquisition statement for one shape. A dialect that overrides this and stops
     /// splicing in <see cref="TriggerAcquisitionSqlShape.ExcludedJobTypeBucket" /> terms must also

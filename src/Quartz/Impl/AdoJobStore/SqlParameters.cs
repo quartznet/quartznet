@@ -133,6 +133,12 @@ internal static class SqlParameters
     public const string TriggerContinuationCondition = "triggerContinuationCondition";
     public const string TriggerOverlapPolicy = "triggerOverlapPolicy";
 
+    // What a pause recorded, on a trigger's row and on a paused group's.
+
+    public const string PauseReason = "pauseReason";
+    public const string PausedBy = "pausedBy";
+    public const string PausedAt = "pausedAt";
+
     // Releasing a continuation sets NEXT_FIRE_TIME to the later of now and the trigger's own start
     // time, so one statement names "now" twice: once compared with START_TIME and once as the value.
     // A provider that binds positionally adapts each placeholder in turn, so the two occurrences are

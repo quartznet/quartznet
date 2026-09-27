@@ -48,7 +48,34 @@ internal record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDura
 
 internal record ExistsResponse(bool Exists);
 
-internal record GroupPausedResponse(bool Paused);
+/// <summary>
+/// Whether a group is paused, and what its pause recorded.
+/// </summary>
+/// <remarks>
+/// <see cref="Pause" /> is optional so a 4.2 host's answer, which has none, still reads as a paused
+/// group with no record.
+/// </remarks>
+internal record GroupPausedResponse(bool Paused, PauseDto? Pause = null);
+
+/// <summary>
+/// The optional body of a pause: why, and who asked.
+/// </summary>
+/// <remarks>
+/// Every member is optional and so is the body, so a pause posted with nothing — which is every pause
+/// before 4.3 — means what it always did. <see cref="RequestedBy" /> left out is the authenticated
+/// user's name, where there is one.
+/// </remarks>
+internal sealed record PauseRequest(string? Reason = null, string? RequestedBy = null)
+{
+    public PauseDetails AsPauseDetails(string? authenticatedUser)
+    {
+        return new PauseDetails
+        {
+            Reason = Reason,
+            RequestedBy = string.IsNullOrWhiteSpace(RequestedBy) ? authenticatedUser : RequestedBy
+        };
+    }
+}
 
 /// <summary>
 /// The answer of a mutation aimed at one entity whose effect may be a no-op: <c>Applied</c> is

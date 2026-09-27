@@ -1,0 +1,35 @@
+@using Quartz
+@using Quartz.Dashboard.Services
+@inject SchedulerState Scheduler
+
+@* What a pause recorded, beside the state it explains: "Paused: reason (by who, when)". Renders nothing
+   for a pause that recorded nothing, so a 4.2 node's pause shows only its state. *@
+@if (Pause is not null)
+{
+    <span class="qz-pause-note" title="@Tooltip">@Text</span>
+}
+
+@code {
+    [Parameter]
+    public PauseInfo? Pause { get; set; }
+
+    private string Text
+    {
+        get
+        {
+            string reason = Pause!.Reason is { Length: > 0 } given ? "Paused: " + given : "Paused";
+            return reason + " (" + Attribution + ")";
+        }
+    }
+
+    private string Attribution
+    {
+        get
+        {
+            string when = Scheduler.FormatInSelectedTimeZone(Pause!.PausedAtUtc);
+            return Pause.RequestedBy is { Length: > 0 } requester ? "by " + requester + ", " + when : when;
+        }
+    }
+
+    private string Tooltip => Pause!.Reason ?? "No reason was given.";
+}

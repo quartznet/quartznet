@@ -170,6 +170,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         await scheduler.PauseAll(cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask PauseAllWith(string schedulerName, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        await scheduler.PauseAllWith(details, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask ResumeAll(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
@@ -282,6 +289,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<ITrigger> triggers = await scheduler.GetTriggersOfJob(jobKey, cancellationToken).ConfigureAwait(false);
 
         Dictionary<TriggerKey, TriggerState> states = new(triggers.Count);
+        Dictionary<TriggerKey, PauseInfo> pauses = [];
         TriggerQuery stateQuery = new() { Job = jobKey };
         while (true)
         {
@@ -289,6 +297,10 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             foreach (TriggerHeader header in headers.Items)
             {
                 states[header.Key] = header.State;
+                if (header.Pause is { } pause)
+                {
+                    pauses[header.Key] = pause;
+                }
             }
 
             if (!headers.HasMore)
@@ -312,7 +324,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 ExecutionGroup: trigger.ExecutionGroup)
             {
                 ContinuesAfter = AsTriggerKeyDto(continuation.Parent),
-                ContinuationCondition = continuation.IsNone ? null : continuation.When
+                ContinuationCondition = continuation.IsNone ? null : continuation.When,
+                Pause = pauses.GetValueOrDefault(trigger.Key)
             });
         }
 
@@ -380,6 +393,19 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         EnsureWritable();
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseJob(AsJobKey(key), cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<bool> PauseJobWith(string schedulerName, JobKeyDto key, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.PauseJobWith(AsJobKey(key), details, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<PauseInfo?> GetJobGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.GetJobGroupPause(groupName, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> ResumeJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -470,7 +496,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 // What the trigger is waiting for is in the header, so a listing narrowed to Awaiting
                 // can say why each row is there without loading a trigger per row.
                 ContinuesAfter = AsTriggerKeyDto(trigger.ContinuesAfter),
-                ContinuationCondition = trigger.ContinuationCondition
+                ContinuationCondition = trigger.ContinuationCondition,
+                Pause = trigger.Pause
             });
         }
 
@@ -501,6 +528,19 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         EnsureWritable();
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseTrigger(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<bool> PauseTriggerWith(string schedulerName, TriggerKeyDto key, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.PauseTriggerWith(AsTriggerKey(key), details, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<PauseInfo?> GetTriggerPause(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
+    {
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.GetTriggerPause(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> ResumeTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)

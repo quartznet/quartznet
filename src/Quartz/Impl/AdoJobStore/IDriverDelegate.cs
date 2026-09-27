@@ -925,6 +925,181 @@ public interface IDriverDelegate
     }
 
     //---------------------------------------------------------------------------
+    // what a pause records
+    //---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Moves the given triggers that are in one of <paramref name="oldStates" /> to
+    /// <paramref name="newState" />, recording <paramref name="pause" /> on each row it moves.
+    /// </summary>
+    /// <remarks>
+    /// The pause form of
+    /// <see cref="UpdateTriggerStatesFromOtherStates(ConnectionAndTransactionHolder, IReadOnlyCollection{TriggerKey}, StoredTriggerState, IReadOnlyCollection{StoredTriggerState}, CancellationToken)" />,
+    /// in one statement so a row is never paused without its record. A default interface member, so a
+    /// delegate written against an earlier 4.x keeps compiling; the default moves the rows and records
+    /// nothing.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="triggerKeys">The triggers to pause.</param>
+    /// <param name="newState">The paused state to move them to.</param>
+    /// <param name="oldStates">The states a trigger must be in to be moved. Must not be empty.</param>
+    /// <param name="pause">What to record on each row moved.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows moved.</returns>
+    ValueTask<int> PauseTriggerStates(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
+        PauseInfo pause,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateTriggerStatesFromOtherStates(conn, triggerKeys, newState, oldStates, cancellationToken);
+    }
+
+    /// <summary>
+    /// Moves every trigger of the matching groups that is in one of <paramref name="oldStates" /> to
+    /// <paramref name="newState" />, recording <paramref name="pause" /> on each row it moves.
+    /// </summary>
+    /// <remarks>
+    /// The pause form of <see cref="UpdateTriggerGroupStateFromOtherStates" />. A default interface
+    /// member; the default moves the rows and records nothing.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="matcher">The groups whose triggers to pause.</param>
+    /// <param name="newState">The paused state to move them to.</param>
+    /// <param name="oldStates">The states a trigger must be in to be moved. Must not be empty.</param>
+    /// <param name="pause">What to record on each row moved.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows moved.</returns>
+    ValueTask<int> PauseTriggerGroupStates(
+        ConnectionAndTransactionHolder conn,
+        GroupMatcher<TriggerKey> matcher,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
+        PauseInfo pause,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateTriggerGroupStateFromOtherStates(conn, matcher, newState, oldStates, cancellationToken);
+    }
+
+    /// <summary>
+    /// Forgets the pause recorded on the given triggers, which a resume does.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member; the default forgets nothing, having recorded nothing.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="triggerKeys">The triggers resumed. An empty collection does nothing.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask ClearTriggerPauses(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+
+    /// <summary>
+    /// Records that a trigger group is paused, and why.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="InsertPausedTriggerGroup" /> with the record; <see langword="null" /> records nothing,
+    /// as that member does. A default interface member; the default calls
+    /// <see cref="InsertPausedTriggerGroup" />.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="groupName">Name of the group.</param>
+    /// <param name="pause">What to record, or <see langword="null" /> for nothing.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows inserted.</returns>
+    ValueTask<int> InsertTriggerGroupPause(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        PauseInfo? pause,
+        CancellationToken cancellationToken = default)
+    {
+        return InsertPausedTriggerGroup(conn, groupName, cancellationToken);
+    }
+
+    /// <summary>
+    /// Records that each of the given job groups is paused, and why.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="InsertPausedJobGroups" /> with the record. A default interface member; the default
+    /// calls <see cref="InsertPausedJobGroups" />.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="groupNames">The groups to pause. May be empty.</param>
+    /// <param name="pause">What to record on each.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask InsertJobGroupPauses(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<string> groupNames,
+        PauseInfo pause,
+        CancellationToken cancellationToken = default)
+    {
+        return InsertPausedJobGroups(conn, groupNames, cancellationToken);
+    }
+
+    /// <summary>
+    /// The pause recorded for a trigger that is paused: its own record, or its trigger group's, or its
+    /// job group's.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null" /> for a trigger that is missing or not <c>PAUSED</c> or
+    /// <c>PAUSED_BLOCKED</c> — so a record a node that does not record pauses left behind when it
+    /// resumed the trigger is never read — and for one whose pause recorded nothing. A default interface
+    /// member, whose default answers <see langword="null" />.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="triggerKey">The trigger to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PauseInfo?> SelectTriggerPause(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
+    /// The pause recorded on a paused trigger group's row, or <see langword="null" /> when there is no
+    /// row or it recorded nothing.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, whose default answers <see langword="null" />.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="groupName">The trigger group to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PauseInfo?> SelectTriggerGroupPause(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
+    /// The pause recorded on a paused job group's row, or <see langword="null" /> when there is no row or
+    /// it recorded nothing.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, whose default answers <see langword="null" />.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="groupName">The job group to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PauseInfo?> SelectJobGroupPause(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    //---------------------------------------------------------------------------
     // calendars
     //---------------------------------------------------------------------------
 

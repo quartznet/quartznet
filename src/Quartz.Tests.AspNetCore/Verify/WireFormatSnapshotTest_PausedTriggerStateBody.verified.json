@@ -1,0 +1,8 @@
+﻿{
+  "state": "Paused",
+  "pause": {
+    "reason": "nightly load delayed",
+    "requestedBy": "ops@example.com",
+    "pausedAtUtc": "2031-06-17T10:00:00+00:00"
+  }
+}

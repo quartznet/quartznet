@@ -389,6 +389,68 @@ public interface IQuartzApiClient
     /// report limits at all, and the overview says which of the two it is looking at.
     /// </remarks>
     ValueTask<ExecutionLimitsDto> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// <see cref="PauseTrigger" />, recording why and who asked, as <see cref="IScheduler.PauseTriggerWith" /> does.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.3. The default drops the details and calls
+    /// <see cref="PauseTrigger" />, so an implementation of an application's own still pauses.
+    /// </remarks>
+    ValueTask<bool> PauseTriggerWith(string schedulerName, TriggerKeyDto triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return PauseTrigger(schedulerName, triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="PauseJob" />, recording why and who asked, as <see cref="IScheduler.PauseJobWith" /> does.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.3. The default drops the details and calls
+    /// <see cref="PauseJob" />.
+    /// </remarks>
+    ValueTask<bool> PauseJobWith(string schedulerName, JobKeyDto jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return PauseJob(schedulerName, jobKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="PauseAll" />, recording why and who asked, as <see cref="IScheduler.PauseAllWith" /> does.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.3. The default drops the details and calls
+    /// <see cref="PauseAll" />.
+    /// </remarks>
+    ValueTask PauseAllWith(string schedulerName, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return PauseAll(schedulerName, cancellationToken);
+    }
+
+    /// <summary>
+    /// Why the trigger is paused, who asked and when, or <see langword="null" /> when it is not paused or
+    /// its pause recorded nothing — what <see cref="IScheduler.GetTriggerPause" /> answers.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.3, whose default reports the datum as unavailable:
+    /// <see langword="null" />.
+    /// </remarks>
+    ValueTask<PauseInfo?> GetTriggerPause(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
+    /// Why the job group is paused, who asked and when, or <see langword="null" /> when it is not paused
+    /// or its pause recorded nothing — what <see cref="IScheduler.GetJobGroupPause" /> answers.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.3, whose default reports the datum as unavailable:
+    /// <see langword="null" />.
+    /// </remarks>
+    ValueTask<PauseInfo?> GetJobGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
 }
 
 /// <summary>
@@ -680,6 +742,12 @@ public sealed record TriggerHeaderDto(
     /// waits for nothing.
     /// </summary>
     public ContinuationCondition? ContinuationCondition { get; init; }
+
+    /// <summary>
+    /// Why the trigger is paused, who asked and when, or <see langword="null" /> when it is not paused or
+    /// its pause recorded nothing. An <c>init</c> property for the reason <see cref="ContinuesAfter" /> is one.
+    /// </summary>
+    public PauseInfo? Pause { get; init; }
 }
 
 /// <remarks>

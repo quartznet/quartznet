@@ -70,7 +70,17 @@ internal abstract partial class AdoJobStoreBase
 
             if (shouldBePaused)
             {
-                await Delegate.InsertPausedTriggerGroup(conn, triggerGroup, cancellationToken).ConfigureAwait(false);
+                // The row takes the pause-all's record with it, so the group says why it is paused. A
+                // pause-all that recorded nothing — a 4.2 node's — writes the row as it always did.
+                PauseInfo? allPaused = await Delegate.SelectTriggerGroupPause(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false);
+                if (allPaused is null)
+                {
+                    await Delegate.InsertPausedTriggerGroup(conn, triggerGroup, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Delegate.InsertTriggerGroupPause(conn, triggerGroup, allPaused, cancellationToken).ConfigureAwait(false);
+                }
             }
             else
             {
@@ -196,9 +206,18 @@ internal abstract partial class AdoJobStoreBase
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken).ConfigureAwait(false);
+        return PauseTriggerWith(triggerKey, PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        PauseInfo pause = details.Stamp(timeProvider.GetUtcNow());
+        return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseTrigger(conn, triggerKey, pause, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -209,9 +228,10 @@ internal abstract partial class AdoJobStoreBase
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
+        PauseInfo pause = PauseDetails.None.Stamp(timeProvider.GetUtcNow());
         return ExecuteInLock(
             SchedulerLock.TriggerAccess,
-            conn => PauseTriggers(conn, triggerKeys, cancellationToken),
+            conn => PauseTriggers(conn, triggerKeys, pause, cancellationToken),
             cancellationToken);
     }
 
@@ -220,16 +240,18 @@ internal abstract partial class AdoJobStoreBase
     /// the set actually needs — at most two, whatever the size of the set.
     /// </summary>
     /// <remarks>
-    /// The transitions are the ones <see cref="PauseTrigger(ConnectionAndTransactionHolder, TriggerKey, CancellationToken)" />
+    /// The transitions are the ones <see cref="PauseTrigger(ConnectionAndTransactionHolder, TriggerKey, PauseInfo, CancellationToken)" />
     /// makes: a waiting or acquired trigger becomes paused, a blocked one becomes paused-blocked, and
     /// anything else is left alone. The updates name the old states as well, so a trigger the lock-free
     /// acquisition path moved from waiting to acquired between the read and the write is still paused,
-    /// and one that left a pausable state entirely is not reported as paused.
+    /// and one that left a pausable state entirely is not reported as paused. Each row moved carries
+    /// <paramref name="pause" />, written by the statement that moves it.
     /// </remarks>
     /// <returns>The keys that were paused, in the order they were given, each named once.</returns>
     protected ValueTask<List<TriggerKey>> PauseTriggers(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
+        PauseInfo pause,
         CancellationToken cancellationToken = default)
     {
         return Guarded(
@@ -260,15 +282,15 @@ internal abstract partial class AdoJobStoreBase
 
                 if (pausable.Count > 0)
                 {
-                    await Delegate.UpdateTriggerStatesFromOtherStates(conn, pausable, StoredTriggerState.Paused,
-                        [StoredTriggerState.Waiting, StoredTriggerState.Acquired], cancellationToken).ConfigureAwait(false);
+                    await Delegate.PauseTriggerStates(conn, pausable, StoredTriggerState.Paused,
+                        [StoredTriggerState.Waiting, StoredTriggerState.Acquired], pause, cancellationToken).ConfigureAwait(false);
                     paused.UnionWith(pausable);
                 }
 
                 if (blocked.Count > 0)
                 {
-                    await Delegate.UpdateTriggerStatesFromOtherStates(conn, blocked, StoredTriggerState.PausedBlocked,
-                        [StoredTriggerState.Blocked], cancellationToken).ConfigureAwait(false);
+                    await Delegate.PauseTriggerStates(conn, blocked, StoredTriggerState.PausedBlocked,
+                        [StoredTriggerState.Blocked], pause, cancellationToken).ConfigureAwait(false);
                     paused.UnionWith(blocked);
                 }
 
@@ -301,11 +323,12 @@ internal abstract partial class AdoJobStoreBase
     /// </summary>
     /// <returns>
     /// <see langword="true" /> if the trigger existed in a pausable state and was moved into the
-    /// paused state by this call.
+    /// paused state by this call, carrying <paramref name="pause" />.
     /// </returns>
     protected ValueTask<bool> PauseTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
+        PauseInfo pause,
         CancellationToken cancellationToken = default)
     {
         return Guarded(
@@ -315,12 +338,14 @@ internal abstract partial class AdoJobStoreBase
 
                 if (oldState is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
                 {
-                    return await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false) > 0;
+                    return await Delegate.PauseTriggerStates(conn, [triggerKey], StoredTriggerState.Paused,
+                        [StoredTriggerState.Waiting, StoredTriggerState.Acquired], pause, cancellationToken).ConfigureAwait(false) > 0;
                 }
 
                 if (oldState == StoredTriggerState.Blocked)
                 {
-                    return await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false) > 0;
+                    return await Delegate.PauseTriggerStates(conn, [triggerKey], StoredTriggerState.PausedBlocked,
+                        [StoredTriggerState.Blocked], pause, cancellationToken).ConfigureAwait(false) > 0;
                 }
 
                 // missing, already paused, or in a state that cannot be paused
@@ -334,9 +359,18 @@ internal abstract partial class AdoJobStoreBase
     /// pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
     /// <seealso cref="ResumeJob(JobKey,CancellationToken)" />
-    public async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseJob(conn, jobKey, cancellationToken), cancellationToken).ConfigureAwait(false);
+        return PauseJobWith(jobKey, PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        PauseInfo pause = details.Stamp(timeProvider.GetUtcNow());
+        return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseJob(conn, jobKey, pause, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -346,12 +380,13 @@ internal abstract partial class AdoJobStoreBase
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
+        PauseInfo pause = PauseDetails.None.Stamp(timeProvider.GetUtcNow());
         return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
         {
             List<JobKey> paused = new List<JobKey>(jobKeys.Count);
             foreach (JobKey jobKey in jobKeys)
             {
-                if (await PauseJob(conn, jobKey, cancellationToken).ConfigureAwait(false))
+                if (await PauseJob(conn, jobKey, pause, cancellationToken).ConfigureAwait(false))
                 {
                     paused.Add(jobKey);
                 }
@@ -371,6 +406,7 @@ internal abstract partial class AdoJobStoreBase
     protected async ValueTask<bool> PauseJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
+        PauseInfo pause,
         CancellationToken cancellationToken = default)
     {
         if (!await Exists(conn, jobKey, cancellationToken).ConfigureAwait(false))
@@ -381,7 +417,7 @@ internal abstract partial class AdoJobStoreBase
         // The keys, not the triggers: pausing decides on the stored state, and building each trigger
         // would read its type table for a schedule nothing here looks at.
         List<TriggerKey> triggerKeys = await GetTriggerKeysForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-        await PauseTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
+        await PauseTriggers(conn, triggerKeys, pause, cancellationToken).ConfigureAwait(false);
 
         return true;
     }
@@ -427,6 +463,15 @@ internal abstract partial class AdoJobStoreBase
     /// <seealso cref="ResumeJobGroups" />
     public ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
+        return PauseJobGroupsWith(matcher, PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        PauseInfo pause = details.Stamp(timeProvider.GetUtcNow());
         return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
         {
             List<JobKey> jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
@@ -434,7 +479,7 @@ internal abstract partial class AdoJobStoreBase
             // Every matched job's triggers in one read, and then one pause for the whole set — where
             // this used to walk the jobs and pause a trigger at a time.
             List<TriggerKey> triggerKeys = await GetTriggerKeysForJobs(conn, jobKeys, cancellationToken).ConfigureAwait(false);
-            await PauseTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
+            await PauseTriggers(conn, triggerKeys, pause, cancellationToken).ConfigureAwait(false);
 
             var groupNames = new HashSet<string>();
             foreach (JobKey jobKey in jobKeys)
@@ -451,7 +496,7 @@ internal abstract partial class AdoJobStoreBase
                 groupNames.Add(matcher.CompareToValue);
             }
 
-            await RecordPausedJobGroups(conn, groupNames, cancellationToken).ConfigureAwait(false);
+            await RecordPausedJobGroups(conn, groupNames, pause, cancellationToken).ConfigureAwait(false);
 
             return new List<string>(groupNames);
         }, cancellationToken);
@@ -470,6 +515,7 @@ internal abstract partial class AdoJobStoreBase
     private ValueTask RecordPausedJobGroups(
         ConnectionAndTransactionHolder conn,
         HashSet<string> groupNames,
+        PauseInfo pause,
         CancellationToken cancellationToken)
     {
         return Guarded(
@@ -494,7 +540,7 @@ internal abstract partial class AdoJobStoreBase
 
                 if (missing.Count > 0)
                 {
-                    await Delegate.InsertPausedJobGroups(conn, missing, cancellationToken).ConfigureAwait(false);
+                    await Delegate.InsertJobGroupPauses(conn, missing, pause, cancellationToken).ConfigureAwait(false);
                 }
             },
             "pause job groups");
@@ -674,7 +720,12 @@ internal abstract partial class AdoJobStoreBase
                     resumed.UnionWith(entry.Value);
                 }
 
-                return InRequestedOrder(triggerKeys, resumed);
+                List<TriggerKey> ordered = InRequestedOrder(triggerKeys, resumed);
+
+                // One statement for the whole set, whatever each trigger's own transition was.
+                await Delegate.ClearTriggerPauses(conn, ordered, cancellationToken).ConfigureAwait(false);
+
+                return ordered;
             },
             "resume triggers");
     }
@@ -717,24 +768,26 @@ internal abstract partial class AdoJobStoreBase
                 StoredTriggerState newState = await CheckBlockedState(conn, status.JobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
                 newState = await CheckOverlapHeldState(conn, triggerKey, status.State, newState, cancellationToken).ConfigureAwait(false);
 
-                bool misfired = false;
+                bool resumed = false;
 
                 if (schedulerRunning && status.NextFireTimeUtc.Value < timeProvider.GetUtcNow())
                 {
-                    misfired = await UpdateMisfiredTrigger(conn, triggerKey, newState, forceState: true, cancellationToken).ConfigureAwait(false);
+                    resumed = await UpdateMisfiredTrigger(conn, triggerKey, newState, forceState: true, cancellationToken).ConfigureAwait(false);
                 }
 
-                if (misfired)
+                if (!resumed)
                 {
-                    return true;
+                    StoredTriggerState pausedState = blocked ? StoredTriggerState.PausedBlocked : StoredTriggerState.Paused;
+                    resumed = await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, pausedState, cancellationToken).ConfigureAwait(false) > 0;
                 }
 
-                if (blocked)
+                if (resumed)
                 {
-                    return await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false) > 0;
+                    // A resumed trigger forgets why it was paused, so the next pause starts from nothing.
+                    await Delegate.ClearTriggerPauses(conn, [triggerKey], cancellationToken).ConfigureAwait(false);
                 }
 
-                return await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false) > 0;
+                return resumed;
             },
             "resume trigger '" + triggerKey + "'");
     }
@@ -842,25 +895,45 @@ internal abstract partial class AdoJobStoreBase
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
+        return PauseTriggerGroupsWith(matcher, PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<string>> PauseTriggerGroupsWith(
+        GroupMatcher<TriggerKey> matcher,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        PauseInfo pause = details.Stamp(timeProvider.GetUtcNow());
         return ExecuteInLock(
             SchedulerLock.TriggerAccess,
-            conn => PauseTriggerGroup(conn, matcher, cancellationToken),
+            conn => PauseTriggerGroup(conn, matcher, pause, cancellationToken),
             cancellationToken);
     }
 
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
-    protected ValueTask<List<string>> PauseTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// The triggers it moves and the group rows it writes carry <paramref name="pause" />; a group that
+    /// already has a row keeps the record it had.
+    /// </remarks>
+    protected ValueTask<List<string>> PauseTriggerGroup(
+        ConnectionAndTransactionHolder conn,
+        GroupMatcher<TriggerKey> matcher,
+        PauseInfo pause,
+        CancellationToken cancellationToken = default)
     {
         return Guarded(
             async () =>
             {
-                await Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, StoredTriggerState.Paused,
-                    [StoredTriggerState.Acquired, StoredTriggerState.Waiting], cancellationToken).ConfigureAwait(false);
+                await Delegate.PauseTriggerGroupStates(conn, matcher, StoredTriggerState.Paused,
+                    [StoredTriggerState.Acquired, StoredTriggerState.Waiting], pause, cancellationToken).ConfigureAwait(false);
 
-                await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, StoredTriggerState.PausedBlocked,
-                    StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.PauseTriggerGroupStates(conn, matcher, StoredTriggerState.PausedBlocked,
+                    [StoredTriggerState.Blocked], pause, cancellationToken).ConfigureAwait(false);
 
                 var groups = new List<string>(await Delegate.SelectTriggerGroupNames(conn, matcher, cancellationToken).ConfigureAwait(false));
 
@@ -875,7 +948,7 @@ internal abstract partial class AdoJobStoreBase
                 {
                     if (!await Delegate.IsTriggerGroupPaused(conn, group, cancellationToken).ConfigureAwait(false))
                     {
-                        await Delegate.InsertPausedTriggerGroup(conn, group, cancellationToken).ConfigureAwait(false);
+                        await Delegate.InsertTriggerGroupPause(conn, group, pause, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -927,9 +1000,18 @@ internal abstract partial class AdoJobStoreBase
             "resume trigger group '" + matcher + "'");
     }
 
-    public async ValueTask PauseAll(CancellationToken cancellationToken = default)
+    public ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
-        await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+        return PauseAllWith(PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        PauseInfo pause = details.Stamp(timeProvider.GetUtcNow());
+        await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseAll(conn, pause, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -943,21 +1025,61 @@ internal abstract partial class AdoJobStoreBase
     /// <seealso cref="ResumeAll(CancellationToken)" />
     protected async ValueTask PauseAll(
         ConnectionAndTransactionHolder conn,
+        PauseInfo pause,
         CancellationToken cancellationToken = default)
     {
         // Every group at once. Asking for the group names and then pausing each of them by name issued
         // the same statements a group at a time, and the any-group matcher already means all of them.
-        await PauseTriggerGroup(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
+        await PauseTriggerGroup(conn, GroupMatcher<TriggerKey>.AnyGroup(), pause, cancellationToken).ConfigureAwait(false);
 
         await Guarded(
             async () =>
             {
+                // The marker carries the record too: a group it pauses later, by a trigger being stored
+                // into it, copies it onto that group's own row.
                 if (!await Delegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false))
                 {
-                    await Delegate.InsertPausedTriggerGroup(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false);
+                    await Delegate.InsertTriggerGroupPause(conn, AdoConstants.AllGroupsPaused, pause, cancellationToken).ConfigureAwait(false);
                 }
             },
             "pause all trigger groups").ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+
+        // No lock for a read, as GetTriggerState takes none.
+        return ExecuteWithoutLock(
+            conn => Guarded(
+                () => Delegate.SelectTriggerPause(conn, triggerKey, cancellationToken),
+                $"read the pause of trigger '{triggerKey}'"),
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+
+        return ExecuteWithoutLock(
+            conn => Guarded(
+                () => Delegate.SelectTriggerGroupPause(conn, groupName, cancellationToken),
+                $"read the pause of trigger group '{groupName}'"),
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+
+        return ExecuteWithoutLock(
+            conn => Guarded(
+                () => Delegate.SelectJobGroupPause(conn, groupName, cancellationToken),
+                $"read the pause of job group '{groupName}'"),
+            cancellationToken);
     }
 
     /// <summary>
