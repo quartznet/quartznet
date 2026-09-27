@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -530,6 +531,39 @@ public static class QuartzBuilderExtensions
         });
 
         return builder;
+    }
+
+    /// <summary>
+    /// A delegate job's handler together with the code that binds it, for Quartz's source generator to
+    /// pass to <c>AddJob</c> and <c>ScheduleJob</c> in the handler's place.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The generator intercepts each <c>AddJob(name, handler, …)</c> and <c>ScheduleJob(name, handler, …)</c>
+    /// whose handler is a lambda or a method group. It writes an <paramref name="invoker" /> that resolves
+    /// each of the handler's parameters and calls it, so a firing runs no reflection. The handler is still
+    /// checked and read as it is without the generator: the same refusals, the same startup validation,
+    /// the same exceptions.
+    /// </para>
+    /// <para>
+    /// Generated code calls this; an application does not need to. An <paramref name="invoker" /> that
+    /// does not call <paramref name="handler" /> runs anyway: nothing here can tell.
+    /// </para>
+    /// </remarks>
+    /// <param name="handler">The handler as the application wrote it.</param>
+    /// <param name="invoker">
+    /// Runs the handler for one firing, given the firing, the firing's scope and the firing's token.
+    /// </param>
+    /// <returns>The value to pass as the <c>handler</c> of <c>AddJob</c> or <c>ScheduleJob</c>.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="handler" /> or <paramref name="invoker" /> is <see langword="null" />.
+    /// </exception>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static Delegate WithCompiledBinding(
+        Delegate handler,
+        Func<IJobExecutionContext, IServiceProvider, CancellationToken, ValueTask> invoker)
+    {
+        return DelegateJobBinding.WithCompiledInvoker(handler, invoker);
     }
 
     /// <summary>

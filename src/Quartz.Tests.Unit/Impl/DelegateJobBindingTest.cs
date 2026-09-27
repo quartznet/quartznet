@@ -269,6 +269,97 @@ public sealed class DelegateJobBindingTest
             .WithMessage("*open instance delegate*");
     }
 
+    [Test]
+    public void AHandlerBoundHereIsInvokedThroughReflection()
+    {
+        Bind(() => { }).IsCompiled.Should().BeFalse(
+            "nothing intercepts a call to Bind, and this project does not run the generator, so there is no binding but the reflective one");
+    }
+
+    [Test]
+    public async Task AFiringRunsTheBindingTheGeneratorWrote()
+    {
+        await using ServiceProvider services = new ServiceCollection().BuildServiceProvider();
+        using CancellationTokenSource source = new();
+        int reflected = 0;
+        (IJobExecutionContext Context, IServiceProvider Services, CancellationToken Token)? handed = null;
+
+        Action handler = () => reflected++;
+        DelegateJobBinding binding = Bind(QuartzBuilderExtensions.WithCompiledBinding(handler, (firing, scope, token) =>
+        {
+            handed = (firing, scope, token);
+            return default;
+        }));
+
+        await binding.Invoke(context, services, source.Token);
+
+        binding.IsCompiled.Should().BeTrue("the handler arrived with the binding the source generator wrote for it");
+        handed.Should().Be((context, (IServiceProvider) services, source.Token),
+            "the generated binding is handed the firing, its scope and its token, and resolves the handler's arguments from them");
+        reflected.Should().Be(0, "calling the handler is the generated binding's business, so nothing reflects over it as well");
+    }
+
+    [Test]
+    public void AHandlerWithAGeneratedBindingIsRefusedAsItWouldBeWithout()
+    {
+        Action act = () => Bind(QuartzBuilderExtensions.WithCompiledBinding(() => Task.FromResult(42), static (_, _, _) => default));
+
+        act.Should().Throw<ArgumentException>(
+            "the handler is checked by the same rules whichever path will run it, so the generator cannot make a refused shape acceptable")
+            .WithParameterName("handler")
+            .WithMessage("*Task<Int32>*");
+    }
+
+    [Test]
+    public void AHandlerWithAGeneratedBindingListsItsOwnServicesForTheValidator()
+    {
+        Action<IJobExecutionContext, Clock, CancellationToken> handler = (_, _, _) => { };
+
+        DelegateJobBinding binding = Bind(QuartzBuilderExtensions.WithCompiledBinding(handler, static (_, _, _) => default));
+
+        binding.ServiceParameters.Select(parameter => parameter.ParameterType).Should().Equal([typeof(Clock)],
+            "the validator reads the handler the application wrote; the binding's own parameters are the firing, its scope and its token");
+    }
+
+    [Test]
+    public void TwoHandlersWithGeneratedBindingsCombinedAreRefused()
+    {
+        Delegate first = QuartzBuilderExtensions.WithCompiledBinding(() => { }, static (_, _, _) => default);
+        Delegate second = QuartzBuilderExtensions.WithCompiledBinding(() => { }, static (_, _, _) => default);
+
+        Action act = () => DelegateJobBinding.Bind(Delegate.Combine(first, second)!, "handler");
+
+        act.Should().Throw<ArgumentException>("a combined delegate is refused before anything reads what it wraps")
+            .WithMessage("*combines several*");
+    }
+
+    [Test]
+    public async Task TheHandlerAndItsGeneratedBindingAreAHandlerThatRunsTheBinding()
+    {
+        int runs = 0;
+        Delegate paired = QuartzBuilderExtensions.WithCompiledBinding(() => { }, (_, _, _) =>
+        {
+            runs++;
+            return default;
+        });
+
+        await paired.Should().BeOfType<Func<IJobExecutionContext, IServiceProvider, CancellationToken, ValueTask>>(
+            "the pair takes the firing, its scope and its token, so even invoked as it stands it runs the generated binding")
+            .Subject.Invoke(context, EmptyServices(), CancellationToken.None);
+
+        runs.Should().Be(1);
+    }
+
+    [Test]
+    public void AGeneratedBindingNeedsBothHalves()
+    {
+        Action withoutHandler = () => QuartzBuilderExtensions.WithCompiledBinding(null!, static (_, _, _) => default);
+        Action withoutInvoker = () => QuartzBuilderExtensions.WithCompiledBinding(() => { }, null!);
+
+        withoutHandler.Should().Throw<ArgumentNullException>().WithParameterName("handler");
+        withoutInvoker.Should().Throw<ArgumentNullException>().WithParameterName("invoker");
+    }
+
     private ValueTask Invoke(Delegate handler, IServiceProvider? services = null, CancellationToken cancellationToken = default)
     {
         return Bind(handler).Invoke(context, services ?? EmptyServices(), cancellationToken);

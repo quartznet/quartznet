@@ -1474,6 +1474,7 @@ namespace Quartz
         public static Quartz.IQuartzBuilder UseExecutionLogCapture(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ExecutionLogCaptureOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
         public static Quartz.IQuartzBuilder UseTypeLoader(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TypeLoaderOptions> configure) { }
+        public static System.Delegate WithCompiledBinding(System.Delegate handler, System.Func<Quartz.IJobExecutionContext, System.IServiceProvider, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask> invoker) { }
     }
     public static class QuartzHealthCheckExtensions
     {
