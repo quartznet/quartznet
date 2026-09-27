@@ -67,7 +67,7 @@ public class QuartzTypedOptionsTest
 
         scheduler.InstanceId.Should().Be(QuartzSchedulerOptions.DefaultInstanceId);
         scheduler.IdleWaitTime.Should().Be(TimeSpan.FromSeconds(30));
-        scheduler.MaxBatchSize.Should().Be(1);
+        scheduler.MaxBatchSize.Should().Be(0, "zero is automatic, resolved against the store when the scheduler is built");
         threadPool.MaxConcurrency.Should().Be(ThreadPoolOptions.DefaultMaxConcurrency);
     }
 

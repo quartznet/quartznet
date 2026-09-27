@@ -419,9 +419,10 @@ any node acquires a trigger, becomes the running execution, and is deleted when 
 cluster recovery cleans up after its node. Acquisition aggregates it by execution group, using the
 `EXECUTION_GROUP` column the 4.x schema already has, so no table, column or migration is added.
 
-**1. It is approximate by default, with a bounded overshoot.** By default the ADO.NET store acquires
-triggers *without* the cluster's `TRIGGER_ACCESS` lock (`AcquireTriggersWithinLock` is `false`,
-`MaxBatchSize` is `1`), so two nodes can both read "2 of 3 in flight" and each take one.
+**1. It is approximate by default, with a bounded overshoot.** By default a clustered ADO.NET store
+acquires triggers *without* the cluster's `TRIGGER_ACCESS` lock (`AcquireTriggersWithinLock` is `false`,
+and `MaxBatchSize` resolves to `1` on a clustered store), so two nodes can both read "2 of 3 in flight" and
+each take one.
 
 * The ceiling holds within one acquisition round. Overshoot is at most `limit + (nodes − 1)`, until the
   losers notice.
@@ -475,9 +476,9 @@ microseconds:
 
 * **Below about a thousand rows the aggregate is one round trip and almost no work.** It costs about the
   same on both databases (their candidate selects differ), and about the same at a thousand rows as at
-  ten. At the default `MaxBatchSize = 1` the ceiling costs *one extra round trip*, not one extra scan.
-  Raising `MaxBatchSize` spreads that round trip over the batch, but takes the cluster lock, trading
-  lock traffic for throughput and making the ceiling exact on those rounds.
+  ten. At `MaxBatchSize = 1`, a clustered store's default, the ceiling costs *one extra round trip*, not
+  one extra scan. Raising `MaxBatchSize` spreads that round trip over the batch, but takes the cluster
+  lock, trading lock traffic for throughput and making the ceiling exact on those rounds.
 * **Above that the scan shows.** `QRTZ_FIRED_TRIGGERS` has one row per reservation or running execution,
   so ten thousand is more than a realistic cluster's thread pools hold. A cluster reaches it by losing
   nodes faster than `ClusterRecover` cleans up after them.

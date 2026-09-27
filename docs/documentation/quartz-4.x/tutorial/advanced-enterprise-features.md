@@ -89,17 +89,29 @@ When some nodes are in 100% CPU, they may be unable to update the job store and 
 
 ### Batching trigger acquisition
 
-Each node acquires the triggers it is about to fire in batches, one trigger by default. That default is
-deliberate: at `MaxBatchSize = 1`, with `AcquireTriggersWithinLock` off (also the default), acquisition
-takes no cluster-wide lock. Above 1, **every** acquisition cycle takes the `TRIGGER_ACCESS` row lock,
-including cycles that acquire nothing; on a lightly loaded cluster that is more lock traffic for no
-batching.
+A scheduler acquires the triggers it is about to fire in batches. `MaxBatchSize` defaults to `0`,
+automatic:
+
+| Store | Triggers per acquisition |
+|---|---|
+| Persistent, not clustered | up to the thread pool's `MaxConcurrency` |
+| Clustered | 1 |
+| In memory | 1 |
+
+* **A persistent store that is not clustered batches.** A round there is round trips and a commit, and its
+  `TRIGGER_ACCESS` lock is in-process, so one round for every trigger already due is cheaper per firing.
+* **A clustered node stays at one on purpose.** At `MaxBatchSize = 1`, with `AcquireTriggersWithinLock`
+  off (also the default), acquisition takes no cluster-wide lock. Above 1, **every** acquisition cycle takes
+  the `TRIGGER_ACCESS` row lock, including cycles that acquire nothing.
+* **In memory a batch is not a clear win.** It measured faster for repeating triggers and slower for a
+  burst of one-offs, so the default stays at one.
+* **An explicit value wins.** `MaxBatchSize = 1` is 4.2's behaviour on every store.
 
 Two settings decide a batch's size:
 
 | Option | Flat key | Default |
 |---|---|---|
-| `Scheduler:MaxBatchSize` | `quartz.scheduler.batchTriggerAcquisitionMaxCount` | `1` |
+| `Scheduler:MaxBatchSize` | `quartz.scheduler.batchTriggerAcquisitionMaxCount` | `0` (automatic) |
 | `Scheduler:BatchTriggerAcquisitionFireAheadTimeWindow` | `quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow` | `00:00:00` |
 
 * `MaxBatchSize` is the upper bound on how many triggers one acquisition takes.

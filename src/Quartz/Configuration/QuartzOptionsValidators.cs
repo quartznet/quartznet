@@ -51,13 +51,17 @@ internal sealed class QuartzSchedulerOptionsValidator : IValidateOptions<QuartzS
                 $"was {options.IdleWaitTime.TotalMilliseconds}ms.");
         }
 
-        if (options.MaxBatchSize < 1)
+        if (options.MaxBatchSize < 0)
         {
             (failures ??= []).Add(
-                $"{nameof(QuartzSchedulerOptions.MaxBatchSize)} must be at least 1, was {options.MaxBatchSize}.");
+                $"{nameof(QuartzSchedulerOptions.MaxBatchSize)} must not be negative, was {options.MaxBatchSize}. "
+                + "Zero lets the scheduler choose.");
         }
-        else
+        else if (options.MaxBatchSize > 0)
         {
+            // Zero is automatic, and the value it resolves to never exceeds the pool, so only an
+            // explicit value can be wrong here.
+            //
             // Acquiring more triggers than there are threads to run them on does not make the surplus
             // fire sooner: it makes them this node's, unfireable by any other, until the pool drains.
             // The two are configured through different builder methods and different sections, so the

@@ -379,7 +379,7 @@ six times slower to deliver a due message:
 The three settings worth changing in front of a bus:
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part4TunedLatency.cs:49 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part4TunedLatency.cs:51 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -389,19 +389,19 @@ q.ConfigureScheduler(options =>
     // itself, so it is a clustering setting, not a latency setting.
     options.IdleWaitTime = TimeSpan.FromSeconds(10);
 
-    // Default 1. Must not exceed ThreadPoolOptions.MaxConcurrency, which defaults to 10.
+    // Default automatic: the pool on a persistent store that is not clustered, 1 otherwise.
+    // Must not exceed ThreadPoolOptions.MaxConcurrency, which defaults to 10.
     options.MaxBatchSize = 10;
 
-    // Default TimeSpan.Zero. Without this, MaxBatchSize above changes nothing for triggers
-    // that are due milliseconds apart rather than at the same instant.
+    // Default TimeSpan.Zero, which batches only triggers already due. This also batches
+    // triggers due up to half a second after the first, and fires them that much early.
     options.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.FromMilliseconds(500);
 });
 ```
 
-Set `MaxBatchSize` and `BatchTriggerAcquisitionFireAheadTimeWindow` together: with the default window of
-`TimeSpan.Zero` only triggers already due, or due at the same instant, batch. Set the window to how early a
-firing may run. `MaxBatchSize` must not exceed the thread pool's `MaxConcurrency`; `IdleWaitTime` has a
-floor of one second.
+With the default window of `TimeSpan.Zero` a batch takes the triggers already due, or due at the same
+instant as the first. Set the window to how early a firing may run. `MaxBatchSize` must not exceed the
+thread pool's `MaxConcurrency`; `IdleWaitTime` has a floor of one second.
 
 ## Letting Wolverine start the scheduler
 
