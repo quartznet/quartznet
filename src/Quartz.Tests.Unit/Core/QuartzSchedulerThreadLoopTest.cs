@@ -492,6 +492,151 @@ public sealed class QuartzSchedulerThreadLoopTest
         await ShouldObserve(fired, "started again, the scheduler fires the trigger that was due");
     }
 
+    /// <summary>
+    /// Signals that arrive while the loop is busy wait for it together, and what it is told when it
+    /// looks is the earliest of their candidates. A later one used to replace an earlier one — the
+    /// sentinel a pause sends included.
+    /// </summary>
+    /// <remarks>
+    /// The loop is held in its store call, after its round has drained the signal, so every signal the
+    /// test sends is one it has not read yet.
+    /// </remarks>
+    [Test]
+    public async Task SignalsTheLoopHasNotReadKeepTheEarliestCandidate()
+    {
+        TaskCompletionSource storeCallReleased = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        store.OnAcquireNextTriggers = async (call, _, callThrough) =>
+        {
+            if (call == 2)
+            {
+                await storeCallReleased.Task;
+            }
+
+            return await callThrough();
+        };
+
+        try
+        {
+            StartLoop();
+            await ShouldObserve(store.Acquisitions.Reaches(1), "the first round asks the store");
+            thread.SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+            await ShouldObserve(store.Acquisitions.Reaches(2), "a signal starts a round, which the store holds");
+
+            DateTimeOffset now = TimeProvider.System.GetUtcNow();
+            thread.SignalSchedulingChange(now.AddMinutes(1));
+            thread.SignalSchedulingChange(now.AddMinutes(5));
+            thread.GetSignaledNextFireTimeUtc().Should().Be(now.AddMinutes(1),
+                "a later schedule must not hide an earlier one the loop has yet to act on");
+
+            thread.SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
+            thread.SignalSchedulingChange(now.AddMinutes(2));
+            thread.GetSignaledNextFireTimeUtc().Should().Be(SchedulerConstants.SchedulingSignalDateTime,
+                "nor may it hide the sentinel a pause sends, which is what makes the loop let go of what it holds");
+
+            thread.SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+            thread.SignalSchedulingChange(now.AddMinutes(3));
+            thread.GetSignaledNextFireTimeUtc().Should().BeNull(
+                "a change that names no time could be about anything, which is earlier than any time");
+        }
+        finally
+        {
+            storeCallReleased.TrySetResult();
+        }
+    }
+
+    /// <summary>
+    /// What the overwrite cost a deployment: a trigger due now, scheduled just before one due tomorrow,
+    /// was passed over for the trigger the loop was already holding, and fired only once that one had.
+    /// </summary>
+    /// <remarks>
+    /// The loop holds its trigger in the store call that acquired it while both schedules are made, so
+    /// neither signal has been read when it looks; that is the order two quick schedule calls reach it in.
+    /// </remarks>
+    [Test]
+    public async Task ATriggerDueNowIsNotPassedOverBecauseALaterOneWasScheduledAfterIt()
+    {
+        resources.IdleWaitTime = TimeSpan.FromSeconds(10);
+        await GivenScheduledJob("held", TimeProvider.System.GetUtcNow().AddSeconds(3));
+        TaskCompletionSource release = HoldTheFirstAcquisition(out Task acquired);
+
+        StartLoop();
+        await ShouldObserve(acquired, "the loop acquires the trigger it will hold");
+
+        IOperableTrigger urgent = await GivenScheduledJob("urgent", TimeProvider.System.GetUtcNow());
+        thread.SignalSchedulingChange(urgent.NextFireTimeUtc);
+        IOperableTrigger tomorrow = await GivenScheduledJob("tomorrow", TimeProvider.System.GetUtcNow().AddDays(1));
+        thread.SignalSchedulingChange(tomorrow.NextFireTimeUtc);
+        release.SetResult();
+
+        await ShouldObserve(shellFactory.Created.Reaches(1), "the loop fires something");
+        shellFactory.Created.Entries[0].Name.Should().Be("urgent",
+            "the trigger due now is earlier than the one the loop holds, so it fires first rather than three seconds later");
+    }
+
+    /// <summary>
+    /// What the overwrite cost a deployment in standby: a schedule made just after <c>Standby()</c>
+    /// replaced the pause's signal before the loop read it, and the loop fired the trigger it was
+    /// holding while the scheduler was in standby.
+    /// </summary>
+    [Test]
+    public async Task AScheduleMadeJustAfterStandbyDoesNotLetTheHeldTriggerFire()
+    {
+        resources.IdleWaitTime = TimeSpan.FromSeconds(10);
+        await GivenScheduledJob("held", TimeProvider.System.GetUtcNow().AddSeconds(2));
+        TaskCompletionSource release = HoldTheFirstAcquisition(out Task acquired);
+
+        StartLoop();
+        await ShouldObserve(acquired, "the loop acquires the trigger it will hold");
+
+        thread.TogglePause(pause: true);
+        IOperableTrigger later = await GivenScheduledJob("later", TimeProvider.System.GetUtcNow().AddHours(1));
+        thread.SignalSchedulingChange(later.NextFireTimeUtc);
+        release.SetResult();
+
+        await ShouldObserve(store.Releases.Reaches(1),
+            "the scheduler is in standby, so the loop has to hand back the trigger it was holding");
+        store.Releases.Entries.Should().Equal([new TriggerKey("held", "loop")]);
+        shellFactory.Created.Count.Should().Be(0, "nothing fires while the scheduler is in standby");
+    }
+
+    /// <summary>
+    /// Makes the loop's first acquisition wait, once the store has answered it, until the returned source
+    /// is completed; <paramref name="acquired" /> completes when it has got that far.
+    /// </summary>
+    private TaskCompletionSource HoldTheFirstAcquisition(out Task acquired)
+    {
+        TaskCompletionSource answered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        store.OnAcquireNextTriggers = async (call, _, callThrough) =>
+        {
+            List<IOperableTrigger> result = await callThrough();
+            if (call == 1)
+            {
+                answered.TrySetResult();
+                await release.Task;
+            }
+
+            return result;
+        };
+
+        acquired = answered.Task;
+        return release;
+    }
+
+    private async Task<IOperableTrigger> GivenScheduledJob(string name, DateTimeOffset fireTimeUtc)
+    {
+        IJobDetail job = JobBuilder.Create<LoopTestJob>().WithIdentity(name, "loop").Build();
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(name, "loop")
+            .ForJob(job)
+            .StartAt(fireTimeUtc)
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(calendar: null);
+
+        await store.ScheduleJob(job, trigger);
+        return trigger;
+    }
+
     private void StartLoop()
     {
         thread.Start();
