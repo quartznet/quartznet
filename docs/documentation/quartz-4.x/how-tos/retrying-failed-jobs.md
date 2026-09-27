@@ -312,6 +312,10 @@ The dashboard's **History** page shows *Failed (retrying)* or *Failed*, has a *F
 in its **Outcome** filter, and gives a final failure a **Run again** button (recorded in the action log;
 absent when read-only).
 
+**4. Pause the trigger instead.** From 4.3, `q.PauseTriggerWhenRetriesExhausted()` pauses a trigger that
+gives up, with the exception's message as the reason, until someone resumes it. See
+[Pausing when retries run out](pausing-with-a-reason.md#pausing-when-retries-run-out).
+
 ## The rules worth knowing
 
 **A retry never displaces the trigger's next occurrence.** One that would land at, or within a second of,
@@ -323,7 +327,8 @@ The occurrence ends and the schedule continues.
 schedule afterwards is the one there would have been without the failure.
 
 **Running out of attempts is not an error.** The trigger returns to its schedule with the attempt reset, not
-to `TriggerState.Error`.
+to `TriggerState.Error`, unless [`PauseTriggerWhenRetriesExhausted()`](pausing-with-a-reason.md#pausing-when-retries-run-out)
+pauses it.
 
 **A missed retry is an ordinary misfire.** The trigger's misfire instruction decides, and the attempt is
 cleared with its occurrence. There is no separate retry-misfire policy.
@@ -373,3 +378,4 @@ belongs to the occurrence in flight.
 
 * [More About Triggers](../tutorial/more-about-triggers.md) — misfire instructions, priorities and calendars
 * [Rescheduling Jobs](rescheduling-jobs.md) — changing a live schedule, and recovering a trigger in error
+* [Pausing with a Reason](pausing-with-a-reason.md) — pausing a trigger whose retries ran out

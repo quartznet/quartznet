@@ -12,6 +12,7 @@ Each page answers one question. New to Quartz.NET? Start with the [Tutorial](../
 * [One-Off Job](one-off-job.md) — fire a job once, now or at a given time
 * [Rescheduling Jobs](rescheduling-jobs.md) — change a live schedule, retry a firing, recover a failed trigger
 * [Retrying Failed Jobs](retrying-failed-jobs.md) — give a trigger a retry policy
+* [Pausing with a Reason](pausing-with-a-reason.md) — say why and who paused, and pause a trigger whose retries ran out
 * [Job Continuations](job-continuations.md) — run a trigger when another trigger's firing ends with an outcome you name
 * [Overlap Policy](overlap-policy.md) — skip, hold or cancel when a trigger's firing is still running as the next comes due
 * [Progress and Execution Logs](progress-and-execution-logs.md) — show how far a running job has got, and keep what it logged

@@ -92,6 +92,7 @@ Holds the data shared by all trigger types. Type-specific data is in `QRTZ_CRON_
 | `EXECUTION_GROUP` | The trigger's [execution group](../tutorial/execution-groups.md). |
 | `PREFERRED_NODE`, `PREFERRED_NODE_AUTO` | [Node affinity](../tutorial/node-affinity.md): which node should acquire the trigger, and whether it claimed the pin itself. |
 | `RETRY_POLICY`, `RETRY_ATTEMPT` | The [retry policy](../how-tos/retrying-failed-jobs.md) in stored string form, and how many retries of the current occurrence have run. See below. |
+| `PAUSE_REASON`, `PAUSED_BY`, `PAUSED_AT` | From 4.3: why, by whom and when (UTC ticks) the trigger was [paused](../how-tos/pausing-with-a-reason.md). Read only while it is paused. The paused-group tables carry the same three. |
 | `JOB_DATA` | The trigger's own `JobDataMap`, serialized. |
 
 `RETRY_POLICY` is `NULL` on a trigger that does not retry, the default. `RETRY_ATTEMPT` is `0` on a row
