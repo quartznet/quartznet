@@ -1200,3 +1200,144 @@ unchanged fallback and the type check in front of it.
 pairs read 1,718-1,735 B a firing before and 1,720-1,729 B after, and the time column says nothing
 either way: this was the noisiest sitting of the three, with five-run ranges of 1.3-3.0 us on both
 sides.
+
+## What #3862 changed (2026-09-27, AMD Ryzen 9 5950X)
+
+`QuartzSchedulerOptions.MaxBatchSize` defaults to `0`, automatic, resolved when the scheduler is built:
+
+| Store | 4.2 | Since #3862 |
+|---|---:|---:|
+| Persistent, not clustered | 1 | `MaxConcurrency` |
+| Clustered | 1 | 1 |
+| In memory | 1 | 1 |
+
+The fire-ahead window stays at zero, so a round takes every trigger already due, up to the pool, and
+fires nothing early. An explicit value wins; `1` is 4.2's behaviour.
+
+**Taken on `80bda98291`, before, and on the change on top of it, after, with other sessions building
+and benchmarking throughout.**
+Every time column below is a range over sittings, and the statement and commit counts, which are exact,
+are what to read without qualification. PostgreSQL 15.1 in Docker over loopback, `fsync = on`, pool 10.
+
+### In memory: measured, and left at one
+
+#3822 found the batched profile slower in memory, where it is faster on PostgreSQL, so the in-memory
+half was measured before it was chosen: `FireThroughputBenchmark` with the new `Batching` parameter,
+and S1 in `Quartz.Benchmark.Competitors` with a new `Batched` arm. Both at a zero window.
+
+`FireThroughputBenchmark`, a hundred jobs, `--inProcess`, two sittings:
+
+| `MaxConcurrency` | `Batching` | Mean | Allocated |
+|---:|---|---:|---:|
+| 10 | `One` | 2.964-3.084 µs | 2.13 KB |
+| 10 | `Pool` | 2.076-2.140 µs | 1.85 KB |
+| 50 | `One` | 2.987-3.139 µs | 2.13 KB |
+| 50 | `Pool` | 2.043-2.577 µs | 1.85-1.93 KB |
+
+S1, twenty thousand one-offs due at one instant, seven sittings:
+
+| Sitting | Defaults (`MaxBatchSize` 1) | Batched (the pool) |
+|---:|---:|---:|
+| 1 | 7.50 µs | 11.40 µs |
+| 2 | 10.04 µs | 8.96 µs |
+| 3 | 11.92 µs | 6.41 µs |
+| 4 | 12.06 µs | 8.94 µs |
+| 5 | 7.50 µs | 8.07 µs |
+| 6 | 5.30 µs | 6.20 µs |
+| 7 | 13.98 µs | 10.10 µs |
+| Allocated | 2.74-2.84 KB | 2.52-2.83 KB |
+
+**The two workloads disagree, and the in-memory default stays at one.** Triggers that repeat take
+14-35 % less time a firing batched and allocate 13 % less. A burst of one-offs is noise in four
+sittings, and in the three where the defaults arm ran fastest — the quietest the box got — the batched
+arm was slower every time, by 8 %, 17 % and 52 %. That is #3822's finding again: at ten workers an
+in-memory firing waits on the store's monitor, and a batch holds it for longer. The issue's acceptance
+was "S1 not slower", which this cannot show, so `AutomaticMaxBatchSize` batches only a persistent store.
+
+### PostgreSQL: before and after
+
+`OneOffThroughputPostgresBenchmark`'s `Defaults` arm, out of process, three sittings a side, five
+iterations of a 500-firing drain each:
+
+| | Mean (3 sittings) | Fastest iteration | Median iteration | Allocated |
+|---|---:|---:|---:|---:|
+| Before, `MaxBatchSize` 1 | 12.80-15.16 ms | 10.98 ms | 12.48 ms | 86.1-86.5 KB |
+| After, automatic (10) | 7.98-9.51 ms | 7.93 ms | 8.00 ms | 72.4 KB |
+
+**1.56 times the firings a second by the median iteration**, 80 against 125, and 1.38 times by the
+fastest, 91 against 126 — the 87.6 and 128.7 #3824 measured for the same two settings on a quieter box.
+
+`--one-off-census`, one drain an arm, two sittings a side:
+
+| Arm | Statements/firing | Commits/firing | Firings/s |
+|---|---:|---:|---:|
+| `Defaults`, before | 23.02 | 6.01-6.02 | 65.3, 88.7 |
+| `Defaults`, after | **16.57** | **2.80** | 117.3, 123.6 |
+| `BatchOnly`, before | 16.56 | 2.80-2.83 | 114.9, 127.7 |
+| `BatchOnly`, after | 16.56 | 2.80 | 115.6, 126.4 |
+| `Defaults + no reset`, before | 20.01 | 3.01 | 87.1, 91.2 |
+| `Defaults + no reset`, after | 15.16 | 1.41 | 120.3, 129.5 |
+
+After, `Defaults` is the old `BatchOnly`, statement for statement, which is the change.
+
+### Punctuality
+
+S4 in memory, after — unchanged, because the in-memory store still resolves to one:
+
+| Engine | Fired / expected | within ±50 ms | within ±250 ms | Max deviation |
+|---|---:|---:|---:|---:|
+| Quartz, simple trigger, defaults | 6,000 / 6,000 | 100 % | 100 % | 29.9 ms |
+| Quartz, cron `* * * * * ?`, defaults | 6,000 / 6,000 | 100 % | 100 % | 33.0 ms |
+
+`--recurring-postgres` is new: the same question on the ADO store, where the default did change, at S4's
+hundred schedules a second (three sittings) and at twenty (two):
+
+| Load | `MaxBatchSize` | Fired / expected | within ±50 ms | within ±250 ms | Max deviation |
+|---:|---|---:|---:|---:|---:|
+| 100 | 1 | 5,314-6,016 / 6,000 | 0.0-3.8 % | 0.0-24.2 % | 1.2-8.7 s |
+| 100 | automatic | 4,420-6,000 / 6,000 | 0.5-9.8 % | 2.4-39.7 % | 0.8-18.9 s |
+| 20 | 1 | 1,200 / 1,200 | 20.9-21.8 % | 99.2-100 % | 222-291 ms |
+| 20 | automatic | 1,200 / 1,200 | 48.5-50.0 % | 100 % | 120-165 ms |
+
+**At twenty a second the batch is the more punctual of the two**, in both sittings: a same-second
+batch of twenty is two rounds instead of twenty. **At a hundred a second neither keeps time on this
+box.** The batch was ahead in two sittings of three; in the third, run beside the whole `--recurring`
+suite, it fell furthest behind. A hundred is above what one node fires a second on this PostgreSQL at
+one trigger a round, so those rows measure falling behind as much as punctuality.
+
+### The clustered gate
+
+A clustered store's automatic value stays at one. `ClusteredOneOffDrainPostgresTest` is the hand-run
+gate for changing that: two and four in-process nodes, pool 10 each, two thousand one-offs due at one
+instant, one trigger a round against the pool. The lock waits are `quartz.jobstore.lock.wait.duration`
+for `TRIGGER_ACCESS`; the commits are `xact_commit` once every backend has published it (#3861).
+
+Against a `postgres:15.1` container at its shipped durability, `fsync = on` and
+`synchronous_commit = on`, two sittings:
+
+| Nodes | `MaxBatchSize` | Drain | Firings/s | Share per node | Lock wait p50 | p99 | Max | Triggers/round | Commits/firing |
+|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|
+| 2 | 1 | 21.2 s | 94.2-94.3 | 50 % each | 10.8-10.9 ms | 14.9-16.6 ms | 148-192 ms | 1.00 | 6.01-6.02 |
+| 2 | 10 | 16.5-16.6 s | 120.6-121.5 | 50 % each | 51.1-52.5 ms | 93.8-105.7 ms | 161-216 ms | 4.97-4.99 | 2.81 |
+| 4 | 1 | 19.7-20.7 s | 96.6-101.6 | 25 % each | 24.8-30.9 ms | 31.8-36.8 ms | 117-141 ms | 1.00 | 6.02-6.03 |
+| 4 | 10 | 16.7 s | 119.5-119.6 | 25 % each | 117.2-117.4 ms | 195.6-216.9 ms | 298-406 ms | 4.95-4.99 | 2.82-2.83 |
+
+| Criterion | Sitting 1 | Sitting 2 | Passes |
+|---|---:|---:|---|
+| 2 nodes: batched / one ≥ 1.2× | 1.29× | 1.28× | yes |
+| 4 nodes: batched / one ≥ 1.0× | 1.18× | 1.24× | yes |
+| `TRIGGER_ACCESS` p99 < 250 ms, batched | 216.9 ms | 195.6 ms | yes |
+| No node under 20 %, batched | 25 % | 25 % | yes |
+
+**The gate passes at PostgreSQL's shipped durability, narrowly on the lock.** Four nodes' p99 is within
+33-54 ms of the limit, and a batched round averaged five triggers rather than ten: a round is sized by
+the threads free when it starts. The clustered default stays at one here, as #3862 ruled; the pass is a
+follow-up.
+
+**It fails on the integration suite's own PostgreSQL**, which Testcontainers starts with `fsync` and
+`synchronous_commit` off: two nodes 0.96-0.97×, four 0.92-0.98×, p99 98-104 ms, two sittings. A commit
+there costs nothing, so a batch saves nothing and pays the lock. That is why the test prints the
+server's durability, and why its remarks say to run it against a real one.
+
+Two nodes at one trigger a round fire 94 a second, and four fire 97-102: at one trigger a round a
+cluster is bound by the database's commits, not by its nodes.
