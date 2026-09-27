@@ -97,6 +97,18 @@ public class UpdateLockRowSemaphore : DBSemaphore
             catch (Exception e)
             {
                 lastFailure = e;
+
+                // A failure that ended the transaction - the loser of a write conflict on a memory-optimized
+                // row, a deadlock victim - leaves nothing to retry inside. SQL Server runs a statement bound
+                // to an ended transaction outside any transaction, so a retry here would report a lock
+                // nobody holds and let the caller's statements commit one by one. Reported instead: the
+                // store knows a write conflict as a transient failure and retries the whole operation on
+                // a fresh transaction.
+                if (conn.IsTransactionZombied)
+                {
+                    break;
+                }
+
                 if (i + 1 == RetryCount)
                 {
                     if (Log.IsDebugEnabled())
