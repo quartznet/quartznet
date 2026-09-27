@@ -319,17 +319,17 @@ public sealed class CronExpressionBuilder
     /// <exception cref="InvalidOperationException">a field the interval writes is already configured.</exception>
     public CronExpressionBuilder Every(TimeSpan interval)
     {
-        (IntervalUnit unit, int step) = ReadInterval(interval);
+        (IntervalField unit, int step) = ReadInterval(interval);
 
         // Checked before anything is written, as AtTime does, so a refused interval leaves the builder
         // as it was.
         ThrowIfConfiguredByEvery(second, "Second", interval, unit);
-        if (unit != IntervalUnit.Second)
+        if (unit != IntervalField.Second)
         {
             ThrowIfConfiguredByEvery(minute, "Minute", interval, unit);
         }
 
-        if (unit == IntervalUnit.Hour)
+        if (unit == IntervalField.Hour)
         {
             ThrowIfConfiguredByEvery(hour, "Hour", interval, unit);
         }
@@ -337,10 +337,10 @@ public sealed class CronExpressionBuilder
         string stepped = step == 1 ? "*" : $"0/{step}";
         switch (unit)
         {
-            case IntervalUnit.Second:
+            case IntervalField.Second:
                 second = stepped;
                 break;
-            case IntervalUnit.Minute:
+            case IntervalField.Minute:
                 second = "0";
                 minute = stepped;
                 break;
@@ -740,14 +740,14 @@ public sealed class CronExpressionBuilder
         }
     }
 
-    private static void ThrowIfConfiguredByEvery(string? field, string fieldName, TimeSpan interval, IntervalUnit unit)
+    private static void ThrowIfConfiguredByEvery(string? field, string fieldName, TimeSpan interval, IntervalField unit)
     {
         if (field is not null)
         {
             string written = unit switch
             {
-                IntervalUnit.Second => "the second field",
-                IntervalUnit.Minute => "the second and minute fields",
+                IntervalField.Second => "the second field",
+                IntervalField.Minute => "the second and minute fields",
                 _ => "the second, minute and hour fields",
             };
 
@@ -759,9 +759,21 @@ public sealed class CronExpressionBuilder
     }
 
     /// <summary>
+    /// The largest field an interval writes. Private rather than <c>Quartz.IntervalUnit</c>, which is a
+    /// scheduling type outside the cron parser's files: nothing here reaches past them, so they could
+    /// move into an assembly of their own.
+    /// </summary>
+    private enum IntervalField
+    {
+        Second,
+        Minute,
+        Hour,
+    }
+
+    /// <summary>
     /// The field an interval steps and the step, for the intervals that divide the next unit up evenly.
     /// </summary>
-    private static (IntervalUnit Unit, int Step) ReadInterval(TimeSpan interval)
+    private static (IntervalField Unit, int Step) ReadInterval(TimeSpan interval)
     {
         if (interval > TimeSpan.Zero && interval < TimeSpan.FromDays(1) && interval.Ticks % TimeSpan.TicksPerSecond == 0)
         {
@@ -769,17 +781,17 @@ public sealed class CronExpressionBuilder
 
             if (seconds < 60 && 60 % seconds == 0)
             {
-                return (IntervalUnit.Second, seconds);
+                return (IntervalField.Second, seconds);
             }
 
             if (seconds < 3600 && seconds % 60 == 0 && 60 % (seconds / 60) == 0)
             {
-                return (IntervalUnit.Minute, seconds / 60);
+                return (IntervalField.Minute, seconds / 60);
             }
 
             if (seconds % 3600 == 0 && 24 % (seconds / 3600) == 0)
             {
-                return (IntervalUnit.Hour, seconds / 3600);
+                return (IntervalField.Hour, seconds / 3600);
             }
         }
 
