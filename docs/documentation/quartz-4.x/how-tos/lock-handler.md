@@ -108,7 +108,10 @@ protected abstract ValueTask ExecuteSql(
 ```
 
 Take the row lock and **return normally on success, or throw**; ownership is recorded after it returns. Both
-statements arrive prefix-expanded; the insert covers a missing row. Issue them through:
+statements arrive prefix-expanded; the insert covers a missing row. If a failure ended the transaction
+(`conn.Transaction.Connection` is null — a deadlock victim, a write conflict on a memory-optimized row), throw
+rather than retry: SQL Server runs a retried statement outside any transaction, and the store retries the
+whole operation on a fresh one. Issue the statements through:
 
 <!-- A signature listing rather than code, so it is written out here rather than compiled. -->
 
