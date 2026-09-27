@@ -167,7 +167,7 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
         try
         {
             HttpResponseMessage response = await httpClient
-                .GetStream($"schedulers/{schedulerName}/events", jsonSerializerOptions, cancellationToken)
+                .GetStream(SchedulerRoutes.StreamEvents.For(schedulerName).Path, jsonSerializerOptions, cancellationToken)
                 .ConfigureAwait(false);
 
             return await Connection.Read(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);

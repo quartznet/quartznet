@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Serialization.SystemTextJson;
 using Quartz.Tests.AspNetCore.Support;
 using Quartz.Util;
@@ -42,7 +43,8 @@ public class SchedulerEndpointsTest : WebApiTest
             .ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
 
         using var httpClient = WebApplicationFactory.CreateClient();
-        var result = await httpClient.Get<SchedulerHeaderDto[]>("schedulers", serializerOptions, CancellationToken.None);
+        WireClient wire = new(new HttpWireTransport(httpClient), serializerOptions);
+        var result = await wire.SendAndRead<SchedulerHeaderDto[]>(SchedulerRoutes.GetAllSchedulers.For(), CancellationToken.None);
         using (new AssertionScope())
         {
             SchedulerHeaderDto bound = result.Should().ContainSingle(x => x.Name == TestData.SchedulerName).Subject;
@@ -256,9 +258,9 @@ public class SchedulerEndpointsTest : WebApiTest
             .ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
 
         using var httpClient = WebApplicationFactory.CreateClient();
-        var dto = await httpClient.Get<SchedulerContextDto>(
-            $"schedulers/{TestData.SchedulerName}/context",
-            serializerOptions,
+        WireClient wire = new(new HttpWireTransport(httpClient), serializerOptions);
+        var dto = await wire.SendAndRead<SchedulerContextDto>(
+            SchedulerRoutes.GetSchedulerContext.For(TestData.SchedulerName),
             CancellationToken.None);
 
         dto.Context.Should().Equal(new Dictionary<string, string?>

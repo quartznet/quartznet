@@ -20,7 +20,6 @@
 #endregion
 
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
@@ -37,12 +36,11 @@ internal static class HttpClientExtensions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Every body this file sends or reads is a contract type, and <c>HttpApiJsonContext</c> — which
+    /// Every body this client sends or reads is a contract type, and <c>HttpApiJsonContext</c> — which
     /// <c>ConfigureWireFormat</c> puts in front of whatever resolver the options already had — states all
-    /// of them. So the answer comes from generated metadata, and passing it to
-    /// <see cref="HttpClientJsonExtensions" /> binds the overloads that carry neither
-    /// <c>RequiresUnreferencedCode</c> nor <c>RequiresDynamicCode</c>: what a trimmed or native AOT
-    /// application publishes over is the same code path a reflecting one runs.
+    /// of them. So the answer comes from generated metadata, and passing it to the serializer binds the
+    /// overloads that carry neither <c>RequiresUnreferencedCode</c> nor <c>RequiresDynamicCode</c>: what a
+    /// trimmed or native AOT application publishes over is the same code path a reflecting one runs.
     /// </para>
     /// <para>
     /// The open half of the contract still goes through Quartz's converters, because a generated
@@ -61,10 +59,11 @@ internal static class HttpClientExtensions
     /// itself so that the caller owns both it and the stream.
     /// </summary>
     /// <remarks>
-    /// <see cref="HttpCompletionOption.ResponseHeadersRead" /> is what makes it a stream: every other
-    /// member here reads the whole body, which is the one thing that cannot be done with a body that has
-    /// no end. The status is checked the same way, which on anything but a success means the response is
-    /// disposed and the caller sees the exception rather than a stream that will never yield.
+    /// <see cref="HttpCompletionOption.ResponseHeadersRead" /> is what makes it a stream, which is the
+    /// one thing <see cref="IWireTransport" /> does not carry: its answer is a whole body, and this one
+    /// has no end. The status is checked by <see cref="EnsureSuccess" /> all the same, which on anything
+    /// but a success means the response is disposed and the caller sees the exception rather than a
+    /// stream that will never yield.
     /// </remarks>
     public static async ValueTask<HttpResponseMessage> GetStream(
         this HttpClient client,
@@ -78,7 +77,12 @@ internal static class HttpClientExtensions
 
         try
         {
-            await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                byte[] body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+                new WireResponse(response.StatusCode, body).EnsureSuccess(serializerOptions);
+            }
+
             return response;
         }
         catch
@@ -88,109 +92,28 @@ internal static class HttpClientExtensions
         }
     }
 
-    public static async ValueTask<TResponse> Get<TResponse>(
-        this HttpClient client,
-        string requestUri,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// Raises the exception an in-process caller would have seen for an answer that is not a success.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The one place a status and a problem-details body become an exception, whatever transport carried
+    /// them. A <c>404</c> naming an unknown scheduler always throws: no request to it can succeed.
+    /// </para>
+    /// <para>
+    /// An error that carries no problem details is not one this API wrote — a route the server does not
+    /// have, or a server that is not this one — and raises the <see cref="HttpRequestException" />
+    /// <see cref="HttpResponseMessage.EnsureSuccessStatusCode" /> raises, with its status, so a caller that
+    /// tells "this target has no such route" apart by it still can.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// <see langword="true" /> for a success; <see langword="false" /> for a <c>404</c> with problem
+    /// details, when <paramref name="throwOnNotFound" /> is off, which a read answers as "absent".
+    /// </returns>
+    public static bool EnsureSuccess(this WireResponse response, JsonSerializerOptions serializerOptions, bool throwOnNotFound = true)
     {
-        using var response = await client.GetAsync(requestUri, cancellationToken).ConfigureAwait(false);
-        await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
-
-        return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
-    }
-
-    public static async ValueTask<TResponse?> GetWithNullForNotFound<TResponse>(
-        this HttpClient client,
-        string requestUri,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken) where TResponse : class
-    {
-        using var response = await client.GetAsync(requestUri, cancellationToken).ConfigureAwait(false);
-        var okResponse = await response.CheckResponseStatusCode(serializerOptions, cancellationToken, throwOnNotFound: false).ConfigureAwait(false);
-        if (!okResponse)
-        {
-            return null;
-        }
-
-        return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
-    }
-
-    public static async ValueTask Post(
-        this HttpClient client,
-        string requestUri,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken)
-    {
-        using var response = await client.PostAsync(requestUri, content: null!, cancellationToken).ConfigureAwait(false);
-        await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
-    }
-
-    public static async ValueTask Post<TRequest>(
-        this HttpClient client,
-        string requestUri,
-        TRequest value,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken)
-    {
-        using var response = await client.PostAsJsonAsync(requestUri, value, WireFormatOf<TRequest>(serializerOptions), cancellationToken).ConfigureAwait(false);
-        await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
-    }
-
-    public static async Task<TResponse> PostWithResponse<TResponse>(
-        this HttpClient client,
-        string requestUri,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken)
-    {
-        using var response = await client.PostAsync(requestUri, content: null!, cancellationToken).ConfigureAwait(false);
-        await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
-
-        return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
-    }
-
-    public static async Task<TResponse> PostWithResponse<TRequest, TResponse>(
-        this HttpClient client,
-        string requestUri,
-        TRequest value,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken)
-    {
-        using var response = await client.PostAsJsonAsync(requestUri, value, WireFormatOf<TRequest>(serializerOptions), cancellationToken).ConfigureAwait(false);
-        await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
-
-        return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
-    }
-
-    public static async Task Delete(
-        this HttpClient client,
-        string requestUri,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken)
-    {
-        using var response = await client.DeleteAsync(requestUri, cancellationToken).ConfigureAwait(false);
-        await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
-    }
-
-    public static async Task<TResponse> DeleteWithResponse<TResponse>(
-        this HttpClient client,
-        string requestUri,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken)
-    {
-        using var response = await client.DeleteAsync(requestUri, cancellationToken).ConfigureAwait(false);
-        await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
-
-        return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async ValueTask<bool> CheckResponseStatusCode(
-        this HttpResponseMessage response,
-        JsonSerializerOptions serializerOptions,
-        CancellationToken cancellationToken,
-        bool throwOnNotFound = true)
-    {
-        if (response.IsSuccessStatusCode)
+        if ((int) response.Status is >= 200 and <= 299)
         {
             return true;
         }
@@ -199,21 +122,23 @@ internal static class HttpClientExtensions
 
         try
         {
-            problemDetails = await response.Content.ReadFromJsonAsync(WireFormatOf<ProblemDetailsDto>(serializerOptions), cancellationToken).ConfigureAwait(false);
+            problemDetails = JsonSerializer.Deserialize(response.Body, WireFormatOf<ProblemDetailsDto>(serializerOptions));
         }
-        catch
+        catch (JsonException)
         {
             // Ignored because we can have responses which are not json
         }
 
         if (problemDetails?.Detail is null || string.IsNullOrWhiteSpace(problemDetails.Detail))
         {
-            // When Web API returns error response it is always problem details, so let HTTP client throw if we do not have problem details
-            response.EnsureSuccessStatusCode();
+            // When Web API returns error response it is always problem details, so throw what HttpClient
+            // throws for a failure status if we do not have problem details
+            using HttpResponseMessage failure = new(response.Status);
+            failure.EnsureSuccessStatusCode();
             return false;
         }
 
-        if (response.StatusCode == HttpStatusCode.NotFound)
+        if (response.Status == HttpStatusCode.NotFound)
         {
             // If scheduler is not found, then no requests will succeed, so lets throw even if throwOnNotFound is true.
             // Could probably add separate flag for this in problem details...
@@ -234,7 +159,7 @@ internal static class HttpClientExtensions
         // so a bad request a scheduler raised is rethrown here as the same exception. Any other name -
         // a request the endpoint rejected before it reached the scheduler, or a server that is not
         // this one - is opaque, and reported as such.
-        if (response.StatusCode == HttpStatusCode.BadRequest)
+        if (response.Status == HttpStatusCode.BadRequest)
         {
             string? exceptionType = null;
             if (problemDetails.Extensions is not null &&
@@ -258,12 +183,16 @@ internal static class HttpClientExtensions
             };
         }
 
-        throw new HttpClientException($"Received response with status code {response.StatusCode}, error details: {problemDetails.Detail}");
+        throw new HttpClientException($"Received response with status code {response.Status}, error details: {problemDetails.Detail}");
     }
 
-    private static async Task<T> ReadOrThrow<T>(this HttpContent content, JsonSerializerOptions serializerOptions, CancellationToken cancellationToken)
+    /// <summary>
+    /// Reads a success's body as <typeparamref name="T" />.
+    /// </summary>
+    /// <exception cref="HttpClientException">The body is JSON <c>null</c>.</exception>
+    public static T ReadBody<T>(this WireResponse response, JsonSerializerOptions serializerOptions)
     {
-        var result = await content.ReadFromJsonAsync(WireFormatOf<T>(serializerOptions), cancellationToken).ConfigureAwait(false);
+        T? result = JsonSerializer.Deserialize(response.Body, WireFormatOf<T>(serializerOptions));
         return result ?? throw new HttpClientException("Could not deserialize response");
     }
 }
