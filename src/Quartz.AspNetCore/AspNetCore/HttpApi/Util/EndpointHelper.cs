@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
@@ -8,7 +7,6 @@ using Microsoft.Extensions.Options;
 
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
-using Quartz.Util;
 
 namespace Quartz.AspNetCore.HttpApi.Util;
 
@@ -62,111 +60,6 @@ internal sealed class EndpointHelper
         return Results.Json(data, (JsonTypeInfo<T>) serializerOptions.GetTypeInfo(typeof(T)));
     }
 
-    public static GroupMatcher<T> GetGroupMatcher<T>(string? groupContains, string? groupEndsWith, string? groupStartsWith, string? groupEquals) where T : Key<T>
-    {
-        // Allow only single value to be given
-        var givenValueCount = new[] { groupContains, groupEndsWith, groupStartsWith, groupEquals }.Count(x => !string.IsNullOrWhiteSpace(x));
-        if (givenValueCount > 1)
-        {
-            throw new BadHttpRequestException("Only single match rule can be given");
-        }
-
-        if (!string.IsNullOrWhiteSpace(groupContains))
-        {
-            return GroupMatcher<T>.GroupContains(groupContains);
-        }
-
-        if (!string.IsNullOrWhiteSpace(groupEndsWith))
-        {
-            return GroupMatcher<T>.GroupEndsWith(groupEndsWith);
-        }
-
-        if (!string.IsNullOrWhiteSpace(groupStartsWith))
-        {
-            return GroupMatcher<T>.GroupStartsWith(groupStartsWith);
-        }
-
-        if (!string.IsNullOrWhiteSpace(groupEquals))
-        {
-            return GroupMatcher<T>.GroupEquals(groupEquals);
-        }
-
-        return GroupMatcher<T>.AnyGroup();
-    }
-
-    /// <summary>
-    /// Builds the name filter a listing request asked for, or null when it asked for none — a name
-    /// filter is optional, where the group filter always ends up as "any group".
-    /// </summary>
-    public static NameMatcher<T>? GetNameMatcher<T>(string? nameContains, string? nameEndsWith, string? nameStartsWith, string? nameEquals) where T : Key<T>
-    {
-        // Allow only single value to be given
-        var givenValueCount = new[] { nameContains, nameEndsWith, nameStartsWith, nameEquals }.Count(x => !string.IsNullOrWhiteSpace(x));
-        if (givenValueCount > 1)
-        {
-            throw new BadHttpRequestException("Only single match rule can be given");
-        }
-
-        if (!string.IsNullOrWhiteSpace(nameContains))
-        {
-            return NameMatcher<T>.NameContains(nameContains);
-        }
-
-        if (!string.IsNullOrWhiteSpace(nameEndsWith))
-        {
-            return NameMatcher<T>.NameEndsWith(nameEndsWith);
-        }
-
-        if (!string.IsNullOrWhiteSpace(nameStartsWith))
-        {
-            return NameMatcher<T>.NameStartsWith(nameStartsWith);
-        }
-
-        if (!string.IsNullOrWhiteSpace(nameEquals))
-        {
-            return NameMatcher<T>.NameEquals(nameEquals);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The counterpart of <see cref="GetNameMatcher{T}" /> for the listings whose subject is named
-    /// rather than keyed — calendars and groups — so their filter is a <see cref="NameMatcher" />,
-    /// spelled the same way on the wire.
-    /// </summary>
-    public static NameMatcher? GetNameMatcher(string? nameContains, string? nameEndsWith, string? nameStartsWith, string? nameEquals)
-    {
-        // Allow only single value to be given
-        var givenValueCount = new[] { nameContains, nameEndsWith, nameStartsWith, nameEquals }.Count(x => !string.IsNullOrWhiteSpace(x));
-        if (givenValueCount > 1)
-        {
-            throw new BadHttpRequestException("Only single match rule can be given");
-        }
-
-        if (!string.IsNullOrWhiteSpace(nameContains))
-        {
-            return NameMatcher.NameContains(nameContains);
-        }
-
-        if (!string.IsNullOrWhiteSpace(nameEndsWith))
-        {
-            return NameMatcher.NameEndsWith(nameEndsWith);
-        }
-
-        if (!string.IsNullOrWhiteSpace(nameStartsWith))
-        {
-            return NameMatcher.NameStartsWith(nameStartsWith);
-        }
-
-        if (!string.IsNullOrWhiteSpace(nameEquals))
-        {
-            return NameMatcher.NameEquals(nameEquals);
-        }
-
-        return null;
-    }
-
     /// <summary>
     /// The most keys one bulk fetch request may carry.
     /// </summary>
@@ -194,70 +87,17 @@ internal sealed class EndpointHelper
     public const string TakeDescription = "A page size, or \"" + HttpApiConstants.AllItems + "\" for everything up to MaxPageSize";
 
     /// <summary>
-    /// Reads the paging a listing request carried, answering the <c>take</c> to apply or
-    /// <see langword="null" /> when the request named none and the query record's own default should
-    /// stand.
+    /// Reads the paging a listing request carried — and a fire-instance listing's state — with this API's
+    /// <see cref="QuartzHttpApiOptions.MaxPageSize" />, before any scheduler is looked up.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <c>take</c> is bound as a string rather than an <see cref="int" /> so that
-    /// <c>?take=all</c> can mean <see cref="PagedQuery.All" />. Asking for everything is a real thing
-    /// to want — an export, a group-name list, a migration — and the number behind it is
-    /// <c>2147483647</c>, which reads in a URL as a mistake rather than as an intention. The number
-    /// is still accepted, so a client that sends one keeps working; only the spelling is new.
-    /// </para>
-    /// <para>
-    /// <see cref="QuartzHttpApiOptions.MaxPageSize" /> bounds both spellings, and answers them
-    /// differently on purpose. A number is a request the server can meet or cannot, so one above the cap
-    /// is a <c>400</c> naming it. <c>all</c> is not a number — it says "as many as you will give me" —
-    /// so it is answered with the cap, and <c>hasMore</c> says whether that was all of them. Which means
-    /// a listing whose matches fit under the cap answers exactly as it would with no cap at all: this is
-    /// what every <c>SchedulerQueryExtensions</c> listing asks for through <c>HttpScheduler</c>,
-    /// three matches or three million, and a cap that refused it would refuse a three-job listing.
-    /// </para>
+    /// <see cref="ListingParameters.Read" /> says what <c>take</c> and <c>state</c> accept and why. A
+    /// listing's matchers are set on the result and read by the operation that applies them.
     /// </remarks>
-    /// <exception cref="BadHttpRequestException">
-    /// <paramref name="skip" /> is negative, or <paramref name="take" /> is negative, is neither a
-    /// number nor the "everything" sentinel, or is a number above
-    /// <see cref="QuartzHttpApiOptions.MaxPageSize" />.
-    /// </exception>
-    public int? ParsePaging(int skip, string? take)
+    /// <exception cref="InvalidRequestException">The page or the state is malformed.</exception>
+    public ListingParameters Listing(int skip, string? take, bool includeTotalCount, string? state = null)
     {
-        if (skip < 0)
-        {
-            throw new BadHttpRequestException("skip must not be negative");
-        }
-
-        if (string.IsNullOrWhiteSpace(take))
-        {
-            return null;
-        }
-
-        if (string.Equals(take, HttpApiConstants.AllItems, StringComparison.OrdinalIgnoreCase))
-        {
-            return maxPageSize > 0 ? maxPageSize : PagedQuery.All;
-        }
-
-        if (!int.TryParse(take, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
-        {
-            throw new BadHttpRequestException(
-                $"take must be a number or '{HttpApiConstants.AllItems}', which asks for every match");
-        }
-
-        if (parsed < 0)
-        {
-            throw new BadHttpRequestException("take must not be negative");
-        }
-
-        if (maxPageSize > 0 && parsed > maxPageSize)
-        {
-            throw new BadHttpRequestException(
-                $"take must be at most {maxPageSize}, was {parsed.ToString(CultureInfo.InvariantCulture)}. "
-                + $"Ask for '{HttpApiConstants.AllItems}' to take as many as the server allows, page the request, "
-                + $"or raise {nameof(QuartzHttpApiOptions)}.{nameof(QuartzHttpApiOptions.MaxPageSize)}.");
-        }
-
-        return parsed;
+        return ListingParameters.Read(skip, take, includeTotalCount, maxPageSize, state);
     }
 
     public static void AssertKeysToFetch(KeyDto[] keys)
@@ -319,7 +159,7 @@ internal sealed class EndpointHelper
     public static async Task<IResult> ExecuteWithScheduler(
         string schedulerName,
         ISchedulerRepository schedulerRepository,
-        Func<IScheduler, Task<IResult>> action)
+        Func<IScheduler, ValueTask<IResult>> action)
     {
         var scheduler = schedulerRepository.Lookup(schedulerName);
         if (scheduler is null)
@@ -333,7 +173,7 @@ internal sealed class EndpointHelper
     public Task<IResult> ExecuteWithJsonResponse<T>(
         string schedulerName,
         ISchedulerRepository schedulerRepository,
-        Func<IScheduler, Task<T>> action) where T : notnull
+        Func<IScheduler, ValueTask<T>> action) where T : notnull
     {
         return ExecuteWithScheduler(schedulerName, schedulerRepository, async scheduler =>
         {
@@ -345,7 +185,7 @@ internal sealed class EndpointHelper
     public static Task<IResult> ExecuteWithOkResponse(
         string schedulerName,
         ISchedulerRepository schedulerRepository,
-        Func<IScheduler, Task> action)
+        Func<IScheduler, ValueTask> action)
     {
         return ExecuteWithScheduler(schedulerName, schedulerRepository, async scheduler =>
         {
