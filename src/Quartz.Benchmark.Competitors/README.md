@@ -129,6 +129,14 @@ executions that is a one-in-twenty-thousand effect and is ignored; over one cens
 and `--commits` keeps its counters running for three seconds past the last start so that the final
 completion write is inside the count.
 
+**`--commits` closes every pooled connection before it reads the commit counter.** PostgreSQL 15
+publishes a backend's commits when the backend goes idle, at most once a second, and holds them for
+ten seconds when it goes idle within a second of its last publication. A backend publishes when it
+exits, so the census clears the pools and waits for the backends to go. Read three seconds after
+TickerQ's half-second burst without that, the counter showed 0.05-0.21 commits an execution where the
+truth was 2.0 (#3861). Writes — transactions that wrote — are counted from the transaction-id counter,
+which moves the instant a transaction writes.
+
 **Scheduling is not measured, so where a library has no batch API it is done concurrently.** Hangfire
 is the only one of the three without one, and two thousand sequential round trips to PostgreSQL took
 about sixteen seconds — longer than the lead time the harness needs. Eight at a time, in the
@@ -164,6 +172,23 @@ database. The job instance itself is newed up by source-generated code rather th
 scope. A ticker due within one second never reaches that loop at all:
 `TickerManager.AddTimeTickerAsync` compares `ExecutionTime` against `now.AddSeconds(1)` and, when it
 is inside, acquires and dispatches on the calling thread.
+
+On the EF Core store, at `c6ed1e7daa`:
+
+| Step | Statements | When |
+|---|---|---|
+| Claim each ticker (`QueueTimeTickers`) | one `UPDATE … WHERE Id = @id` per ticker | as soon as the loop sees it, however far ahead it is due |
+| Mark the batch `InProgress` (`SetTickersInProgress`) | one `UPDATE … WHERE Id = ANY(@ids)` | at the due instant |
+| Complete (`UpdateTimeTicker`) | one `UPDATE … WHERE Id = @id` per execution | after the function returns |
+
+Every one is its own implicit transaction, and each is followed by Npgsql's `DISCARD ALL` when its
+pooled connection is next used. No `synchronous_commit` setting, no batching of completions.
+
+**The loop wakes late by as long as the claims take.** `GetNextTickers` reads the clock, computes how
+long until the earliest ticker is due, *then* claims every ticker in that second one `UPDATE` at a time
+(`InternalTickerManager.cs:35`, `:60`, `:103`), and the loop sleeps the time it computed
+(`TickerQSchedulerBackgroundService.cs:160`). Two thousand claims took 6-7 s on this machine, so S2's
+two thousand executions all started 6-7 s after they were due, and ran in the next half second.
 
 **Hangfire.** A scheduled job sits in a sorted set until the `DelayedJobScheduler` — which polls at
 `SchedulePollingInterval` — moves it to the `Enqueued` state and puts its id on a queue. A worker
@@ -221,6 +246,13 @@ Recorded rather than acted on.
   more than three times running. On an idle engine every worker is inside that delay, so a work item
   dispatched by the immediate path waits for one to come out — which is what S3's TickerQ row is made
   of.
+- **TickerQ on EF Core runs a same-second batch late by as long as it takes to claim it.** About 3 ms a
+  ticker here, so 2,000 due at one instant started 6-7 s late; 20,000 would start about a minute late.
+  The sleep is computed before the claims and not recomputed after them. S2's TickerQ row is that
+  wait divided by 2,000.
+- **`pg_stat_database.xact_commit` is not a per-window instrument on PostgreSQL 15.** A backend's
+  commits reach it up to ten seconds late, so a census that reads it right after a burst undercounts by
+  whatever the burst was. The first S2 census published 0.21 commits a TickerQ execution for 2.0.
 - **Quartz's fire-ahead window trades punctuality for batching, and S4 prices it.** A second of
   window lets a batch hold triggers due up to a second later, and they fire at the batch's earliest
   fire time — so the tuned profile's worst deviation on a one-second schedule is ~1,000 ms against the
@@ -251,6 +283,5 @@ Recorded rather than acted on.
   iteration setup and is outside every measured window.
 - **S2 runs five iterations rather than seven**, because each one is two thousand round trips to a
   database and the better part of a minute.
-- **The numbers were taken on `89fbadcdc2`, and #3801's cron fast path landed after it.** That work is
-  on `CronExpression`'s parse and next-fire-time, so the S5 cron row and Quartz's S4 cron row are both
-  due a re-run on top of it. Nothing else in these tables touches cron.
+- **The numbers were taken on `89fbadcdc2`, before #3801's cron fast path.** S5, the S2 census and
+  Quartz's S4 cron row were re-taken on `936bf26e69` for #3861; the cron rows did not move.

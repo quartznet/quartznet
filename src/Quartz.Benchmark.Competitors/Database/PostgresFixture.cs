@@ -81,10 +81,73 @@ internal sealed class PostgresFixture : IAsyncDisposable
         await Execute($"DROP SCHEMA IF EXISTS {schema} CASCADE", cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The database's committed-transaction counter.</summary>
+    /// <summary>
+    /// The database's committed-transaction counter, once every other connection's share of it has
+    /// been published.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// PostgreSQL 15 does not publish a backend's commits as they happen. A backend flushes its counters
+    /// when it goes idle, at most once a second, and a backend that goes idle within a second of its last
+    /// flush holds them for <c>PGSTAT_IDLE_INTERVAL</c>, ten seconds. An engine that finishes its work in
+    /// a burst therefore reads as having committed almost nothing for ten seconds afterwards: read three
+    /// seconds after TickerQ's drain, the counter showed 0.05-0.21 commits an execution where the
+    /// statement census beside it showed two autocommitted statements for every one (#3861).
+    /// </para>
+    /// <para>
+    /// A backend also flushes when it exits. So before reading, every pooled connection in this process
+    /// is closed and the read waits for the backends that served them to go — the fixture's own
+    /// connection is open, so it is not among them. What that costs the measurement is a cold pool: the
+    /// engine reopens a connection when it next needs one, and PostgreSQL counts a connection's start-up
+    /// as a transaction of its own. At Npgsql's default of a hundred connections a pool, that is at most
+    /// a hundred commits a window.
+    /// </para>
+    /// </remarks>
     public async ValueTask<long> Commits(CancellationToken cancellationToken = default)
     {
+        List<int> backends = [];
+        await using (NpgsqlCommand command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT pid FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND backend_type = 'client backend'";
+            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                backends.Add(reader.GetInt32(0));
+            }
+        }
+
+        // A connection that is in use when the pool is cleared is closed when it is returned, so a
+        // backend in the middle of a statement publishes on its way out rather than being interrupted.
+        NpgsqlConnection.ClearAllPools();
+
+        if (backends.Count > 0)
+        {
+            string remaining = "SELECT count(*) FROM pg_stat_activity WHERE pid IN ("
+                + string.Join(",", backends.Select(pid => pid.ToString(CultureInfo.InvariantCulture))) + ")";
+            DateTimeOffset giveUp = DateTimeOffset.UtcNow.AddSeconds(10);
+
+            while (await Scalar(remaining, cancellationToken).ConfigureAwait(false) > 0 && DateTimeOffset.UtcNow < giveUp)
+            {
+                await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         return await Scalar("SELECT xact_commit FROM pg_stat_database WHERE datname = current_database()", cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// How many transactions have written something: the next transaction id to be assigned.
+    /// </summary>
+    /// <remarks>
+    /// A transaction id is assigned when a transaction first writes, and the counter moves the instant
+    /// it is — nothing waits to be published — so the difference between two reads is exactly the
+    /// writing transactions between them, anywhere on the server. Those are the commits that pay for
+    /// durability; a <c>DISCARD ALL</c>, a read-only <c>SELECT</c> and a connection's start-up are
+    /// commits to <c>xact_commit</c> and cost no flush. Reading it does not assign one.
+    /// </remarks>
+    public async ValueTask<long> Writes(CancellationToken cancellationToken = default)
+    {
+        return await Scalar("SELECT pg_snapshot_xmax(pg_current_snapshot())::text::bigint", cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

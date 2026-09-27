@@ -44,13 +44,16 @@ internal static class Completion
 
     private static long lastEntryTimestamp;
 
+    private static long firstEntryTimestamp;
+
     /// <summary>
     /// Whether <see cref="Record" /> stamps <see cref="Stopwatch.GetTimestamp" /> on the way past.
     /// </summary>
     /// <remarks>
-    /// Only the latency scenario wants it. A timestamp read is tens of nanoseconds against a firing of
-    /// a few microseconds, which is inside the noise of one measurement and not of twenty thousand, so
-    /// the throughput scenarios leave it off rather than pay it twenty thousand times an invocation.
+    /// Only the latency scenario and the database census want it. A timestamp read is tens of
+    /// nanoseconds against a firing of a few microseconds, which is inside the noise of one measurement
+    /// and not of twenty thousand, so the throughput scenarios leave it off rather than pay it twenty
+    /// thousand times an invocation.
     /// </remarks>
     public static bool CaptureEntryTimestamp { get; set; }
 
@@ -59,6 +62,16 @@ internal static class Completion
     /// instruction.
     /// </summary>
     public static long LastEntryTimestamp => Interlocked.Read(ref lastEntryTimestamp);
+
+    /// <summary>
+    /// <see cref="Stopwatch.GetTimestamp" /> as read by the first job body since the last
+    /// <see cref="Arm" />, or zero when none has run.
+    /// </summary>
+    /// <remarks>
+    /// What separates an engine that starts late from one that runs slowly: a drain is "due instant to
+    /// last execution", and the census reports where inside it the first execution fell.
+    /// </remarks>
+    public static long FirstEntryTimestamp => Interlocked.Read(ref firstEntryTimestamp);
 
     /// <summary>How many jobs have run since the last <see cref="Arm" />.</summary>
     public static long Completed => Interlocked.Read(ref completed);
@@ -74,6 +87,7 @@ internal static class Completion
     public static void Arm(int count)
     {
         Interlocked.Exchange(ref completed, 0);
+        Interlocked.Exchange(ref firstEntryTimestamp, 0);
         pending = new Waiter(count);
     }
 
@@ -107,7 +121,9 @@ internal static class Completion
     {
         if (CaptureEntryTimestamp)
         {
-            Interlocked.Exchange(ref lastEntryTimestamp, Stopwatch.GetTimestamp());
+            long now = Stopwatch.GetTimestamp();
+            Interlocked.Exchange(ref lastEntryTimestamp, now);
+            Interlocked.CompareExchange(ref firstEntryTimestamp, now, 0);
         }
 
         long count = Interlocked.Increment(ref completed);
