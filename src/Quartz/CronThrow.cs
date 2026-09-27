@@ -25,16 +25,23 @@ using System.Runtime.CompilerServices;
 namespace Quartz;
 
 /// <summary>
-/// The five members of <c>Quartz.Throw</c> the linked cron sources call, with the same bodies.
+/// The throw helpers the cron parser calls.
 /// </summary>
 /// <remarks>
-/// <c>src/Quartz/Throw.cs</c> is thirty members wide and two of them construct exceptions that live
-/// in <c>Quartz.Impl.AdoJobStore</c>, so linking it would drag a job store into an analyzer. The cron
-/// closure calls five, none of them that pair, and this is those five. Nothing here decides what an
-/// expression means — a thrower only shapes the exception — so the two copies cannot diverge in a way
-/// <c>CronParityTest</c> would not see: the message is built at the call site, in the linked source.
+/// <para>
+/// The cron closure — <c>CronExpression</c>, <c>UnixCronRewriter</c> and the files they reach — throws
+/// through this type rather than <c>Throw</c>, whose other members construct Quartz exceptions, two of
+/// them from <c>Quartz.Impl.AdoJobStore</c>. Keeping the closure's throwers apart is what lets
+/// <c>Quartz.Analyzers</c> link this file as it is, and what would let the closure move into an
+/// assembly of its own without a job store coming along.
+/// </para>
+/// <para>
+/// The name is deliberately not <c>Throw</c>. Were the closure split out and its internals made visible
+/// to <c>Quartz</c>, a type declared in both assemblies would be CS0436, which this repository's
+/// warnings-as-errors turns into a build break.
+/// </para>
 /// </remarks>
-internal static class Throw
+internal static class CronThrow
 {
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]

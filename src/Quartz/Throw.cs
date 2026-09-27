@@ -47,15 +47,6 @@ internal static class Throw
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static T ArgumentException<T>(string message)
-    {
-#pragma warning disable MA0015
-        throw new ArgumentException(message);
-#pragma warning restore MA0015
-    }
-
-    [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
     internal static T ArgumentException<T>(string message, string paramName)
     {
         throw new ArgumentException(message, paramName);
