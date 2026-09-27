@@ -156,6 +156,8 @@ matching on its text is not.
 | 3042 | Warning | `Quartz` | `"Lock handler {LockHandlerType} failed to shut down, so whatever it opened is still open."` |
 | 3043 | Information | `Quartz` | `"Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"` |
 | 3044 | Information | `Quartz` | `"Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node"` |
+| 3045 | Debug | `Quartz` | `"Completion of trigger {TriggerKey} found continuations awaiting it; running it again under TRIGGER_ACCESS"` |
+| 3046 | Warning | `Quartz` | `"Completion of trigger {TriggerKey} failed without TRIGGER_ACCESS; running it again under the lock"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |
