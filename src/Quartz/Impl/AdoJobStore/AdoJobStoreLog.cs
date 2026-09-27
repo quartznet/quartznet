@@ -191,6 +191,12 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3044, Level = LogLevel.Information, Message = "Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node")]
     public static partial void OverlappingFiringHeld(this ILogger logger, TriggerKey triggerKey, string schedulerInstanceId);
 
+    [LoggerMessage(EventId = 3045, Level = LogLevel.Debug, Message = "Completion of trigger {TriggerKey} found continuations awaiting it; running it again under TRIGGER_ACCESS")]
+    public static partial void CompletionEscalatedToLock(this ILogger logger, TriggerKey triggerKey);
+
+    [LoggerMessage(EventId = 3046, Level = LogLevel.Warning, Message = "Completion of trigger {TriggerKey} failed without TRIGGER_ACCESS; running it again under the lock")]
+    public static partial void CompletionWithoutLockFailed(this ILogger logger, TriggerKey triggerKey, Exception exception);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 

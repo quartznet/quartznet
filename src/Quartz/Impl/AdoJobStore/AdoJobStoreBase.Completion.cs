@@ -88,10 +88,22 @@ internal abstract partial class AdoJobStoreBase
         // leaving the fired trigger uncleaned and its DisallowConcurrentExecution siblings blocked.
         using var suppression = AmbientConnection.Suppress();
 
-        await RetryExecuteInLocalTransactionLock(
-            SchedulerLock.TriggerAccess,
-            conn => TriggeredJobComplete(conn, context, cancellationToken),
-            cancellationToken).ConfigureAwait(false);
+        // A firing that may run beside itself writes only its own rows when it ends, so it takes no
+        // lock: its completion commits in parallel with every other worker's and with the loop's fire,
+        // where TRIGGER_ACCESS used to queue them one behind the other for a whole fsync'd commit each
+        // (#3863). CompletionTakesLock says which completions still need the lock, and the transaction
+        // itself asks for it when it finds continuations to settle. Anything that stops the lock-free
+        // attempt falls through to the locked path below, which is the retry-forever path it always was.
+        bool completed = !CompletionTakesLock(context)
+                         && await TryCompleteWithoutLock(context, cancellationToken).ConfigureAwait(false);
+
+        if (!completed)
+        {
+            await RetryExecuteInLocalTransactionLock(
+                SchedulerLock.TriggerAccess,
+                conn => TriggeredJobComplete(conn, context, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+        }
 
         // Deliberately after the transaction, and only if it committed: these run listener code, which
         // has no business executing inside the store's transaction or seeing a state that may roll back.
@@ -102,6 +114,115 @@ internal abstract partial class AdoJobStoreBase
         else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
         {
             await signaler.NotifySchedulerListenersTriggersInError(trigger.JobKey, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Whether completing this firing has to hold <see cref="SchedulerLock.TriggerAccess" />, because
+    /// something it writes is decided from a read that only the lock keeps still, or is a row that is
+    /// not this firing's own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What a completion that takes no lock is left with is a firing that may run beside itself, ending
+    /// with <see cref="SchedulerInstruction.NoInstruction" /> or
+    /// <see cref="SchedulerInstruction.DeleteTrigger" />: it deletes its fired row by entry id, deletes
+    /// its trigger row by key when the trigger is spent, clears a retry count and writes its job's
+    /// data. Each is one statement on one row that no other path decides from, and a concurrent editor
+    /// of the same trigger key is answered by the row itself — a replace whose <c>UPDATE</c> finds the
+    /// row gone inserts, a reschedule whose <c>DELETE</c> finds it gone says so.
+    /// </para>
+    /// <para>
+    /// Everything else stays under the lock, each for a read it would otherwise race:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>SQLite serializes every operation (<see cref="LockAllOperations" />).</item>
+    /// <item>A <see cref="DisallowConcurrentExecutionAttribute" /> job's completion unblocks its other
+    /// triggers and applies their misfire policy, which reads their states.</item>
+    /// <item>A retry, <c>SetTrigger*</c> and <c>SetAllJobTriggers*</c> consult paused-group state or
+    /// write rows of other triggers.</item>
+    /// <item>A <see cref="OverlapPolicy.BufferOne" /> or <see cref="OverlapPolicy.CancelPrevious" />
+    /// firing may let go of its trigger, <c>BLOCKED</c> to <c>WAITING</c>, and then apply the misfire
+    /// policy to it with an unconditional write. <c>PauseTrigger</c> reads <c>BLOCKED</c> and writes
+    /// <c>PAUSED_BLOCKED</c> unconditionally too, so without the lock one of the two writes is lost.</item>
+    /// <item>A <see cref="OverlapPolicy.Skip" /> firing whose next occurrence is the trigger's last owes
+    /// the trigger a deletion if that occurrence was skipped while it ran, decided from a read of the
+    /// row that a skip under the lock could overtake.</item>
+    /// <item>A trigger of a job that is not durable, when this completion deletes it: the job goes with
+    /// its last trigger, and "last" is a count of the job's triggers. Two lock-free completions of the
+    /// job's last two triggers would each count the other's row and neither would delete the job.</item>
+    /// </list>
+    /// <para>
+    /// A firing with continuations awaiting it is not on this list because the completion cannot know
+    /// from what it holds: the lock-free transaction's first statement asks, and escalates when the
+    /// answer is not empty.
+    /// </para>
+    /// </remarks>
+    private bool CompletionTakesLock(TriggeredJobCompleteContext context)
+    {
+        if (LockAllOperations || context.JobDetail.ConcurrentExecutionDisallowed)
+        {
+            return true;
+        }
+
+        if (context.Instruction is not (SchedulerInstruction.NoInstruction or SchedulerInstruction.DeleteTrigger))
+        {
+            return true;
+        }
+
+        IOperableTrigger trigger = context.Trigger;
+        if (trigger.OverlapPolicy is OverlapPolicy.BufferOne or OverlapPolicy.CancelPrevious)
+        {
+            return true;
+        }
+
+        if (MayDeleteTrigger(context))
+        {
+            return !context.JobDetail.Durable;
+        }
+
+        return trigger.OverlapPolicy == OverlapPolicy.Skip
+               && trigger.NextFireTimeUtc is { } next
+               && trigger.GetFireTimeAfter(next) is null;
+    }
+
+    /// <summary>
+    /// Whether the completion may delete the trigger's row: the instruction says so, or the trigger has
+    /// no firing left and the row is the leftover the completion sweeps up.
+    /// </summary>
+    private static bool MayDeleteTrigger(TriggeredJobCompleteContext context)
+    {
+        return context.Instruction == SchedulerInstruction.DeleteTrigger || !context.Trigger.NextFireTimeUtc.HasValue;
+    }
+
+    /// <summary>
+    /// Runs the completion in a transaction of its own with no lock, once.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true" /> when it committed. <see langword="false" /> when the completion has to run
+    /// under the lock instead: it found continuations to settle, or it failed — a lost race with an
+    /// editor of the same rows, or a database that is gone — and the locked path is where the retries
+    /// live.
+    /// </returns>
+    private async ValueTask<bool> TryCompleteWithoutLock(TriggeredJobCompleteContext context, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await ExecuteInLocalTransactionLock(
+                lockKind: null,
+                conn => TriggeredJobComplete(conn, context, holdsLock: false, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (CompletionNeedsLockException)
+        {
+            Logger.CompletionEscalatedToLock(context.Trigger.Key);
+            return false;
+        }
+        catch (JobPersistenceException e)
+        {
+            Logger.CompletionWithoutLockFailed(context.Trigger.Key, e);
+            return false;
         }
     }
 
@@ -123,10 +244,34 @@ internal abstract partial class AdoJobStoreBase
             cancellationToken);
     }
 
-    protected async ValueTask TriggeredJobComplete(
+    /// <summary>
+    /// The completion's statements, on a unit of work whose caller holds
+    /// <see cref="SchedulerLock.TriggerAccess" />.
+    /// </summary>
+    protected ValueTask TriggeredJobComplete(
         ConnectionAndTransactionHolder conn,
         TriggeredJobCompleteContext context,
         CancellationToken cancellationToken = default)
+    {
+        return TriggeredJobComplete(conn, context, holdsLock: true, cancellationToken);
+    }
+
+    /// <summary>
+    /// The completion's statements.
+    /// </summary>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="context">What the scheduler is telling the store about the firing.</param>
+    /// <param name="holdsLock">
+    /// Whether the caller holds <see cref="SchedulerLock.TriggerAccess" />. Without it the triggers
+    /// awaiting this one are looked for and not settled: any found is a
+    /// <see cref="CompletionNeedsLockException" />, thrown before the first write.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask TriggeredJobComplete(
+        ConnectionAndTransactionHolder conn,
+        TriggeredJobCompleteContext context,
+        bool holdsLock,
+        CancellationToken cancellationToken)
     {
         IOperableTrigger trigger = context.Trigger;
         IJobDetail jobDetail = context.JobDetail;
@@ -155,10 +300,23 @@ internal abstract partial class AdoJobStoreBase
                 // one the deletion below would otherwise make — a round trip whose answer is already
                 // known to be empty. Settling leaves no row AWAITING for this parent: the ones its
                 // outcome named have joined the schedule, the rest are gone.
+                //
+                // Without the lock the scan is the transaction's first statement, and settles nothing:
+                // a row found escalates the whole completion to the locked path before anything here
+                // has been written. It is skipped when there is nothing it could find that matters —
+                // an occurrence that did not happen settles no continuation, and a trigger that stays
+                // has no deletion to settle them for — so the count of statements is the locked path's.
                 bool continuationsSettled = false;
                 if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
                 {
-                    continuationsSettled = await SettleContinuations(conn, trigger.Key, context.Outcome, cancellationToken).ConfigureAwait(false);
+                    if (holdsLock)
+                    {
+                        continuationsSettled = await SettleContinuations(conn, trigger.Key, context.Outcome, cancellationToken).ConfigureAwait(false);
+                    }
+                    else if (Continuation.ConditionFor(context.Outcome) is not null || MayDeleteTrigger(context))
+                    {
+                        continuationsSettled = await RequireNothingAwaiting(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
@@ -363,6 +521,34 @@ internal abstract partial class AdoJobStoreBase
             {
                 await DiscardContinuation(conn, continuation.Key, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The lock-free completion's first statement: asks whether anything awaits
+    /// <paramref name="parent" />, and escalates to the locked path when something does.
+    /// </summary>
+    /// <remarks>
+    /// Settlement moves a trigger into the schedule in a state read from paused groups and running
+    /// firings, which is what the lock keeps still; a completion that has not taken it does not settle.
+    /// Nothing has been written when this throws, so the rollback that follows undoes nothing and the
+    /// locked run starts from the same rows.
+    /// </remarks>
+    /// <returns>
+    /// <see langword="true" />: nothing awaits the parent, so a deletion below need not ask again.
+    /// </returns>
+    /// <exception cref="CompletionNeedsLockException">A trigger awaits the parent.</exception>
+    private async ValueTask<bool> RequireNothingAwaiting(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey parent,
+        CancellationToken cancellationToken)
+    {
+        List<AwaitingContinuation> awaiting = await Delegate.SelectAwaitingContinuations(conn, parent, cancellationToken).ConfigureAwait(false);
+        if (awaiting.Count > 0)
+        {
+            throw new CompletionNeedsLockException();
         }
 
         return true;
