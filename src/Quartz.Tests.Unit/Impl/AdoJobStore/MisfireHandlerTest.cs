@@ -26,6 +26,7 @@ using System.Data.Common;
 
 using FakeItEasy;
 
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Util;
@@ -73,6 +74,44 @@ public class MisfireHandlerTest
 
         // Assert
         completedTask.Should().Be(shutdownTask.AsTask(), "Shutdown should complete");
+    }
+
+    /// <summary>
+    /// The wait for the loop's task at shutdown is bounded in wall time, whatever clock the store keeps.
+    /// </summary>
+    /// <remarks>
+    /// The bound exists for a thread-scheduling race: a shutdown that arrives before the dispatch thread
+    /// has picked the loop up leaves a task nothing will ever run. Measured on the store's own
+    /// <see cref="TimeProvider" /> it was no bound at all for a store on a clock nobody advances — a
+    /// test's <see cref="FakeTimeProvider" /> — and the shutdown waited for ever, which is how
+    /// <c>ContinuationSettlementTest</c> hung the unit run (#3860). The race cannot be forced, so the
+    /// loop is parked instead in a store call that never returns, which the same bound has to cover.
+    /// </remarks>
+    [Test]
+    public async Task ShutdownGivesUpOnTheLoopInWallTimeWhateverClockTheStoreKeeps()
+    {
+        FakeTimeProvider frozen = new(new DateTimeOffset(2031, 6, 17, 10, 0, 0, TimeSpan.Zero));
+        TestAdoJobStoreBase jobStore = new(frozen);
+        MisfireHandler misfireHandler = new(jobStore, NullLogger<MisfireHandler>.Instance);
+
+        try
+        {
+            jobStore.ParkTheNextConnection();
+            misfireHandler.Initialize();
+
+            // Real time: the loop's first scan opens a connection, and this is the store saying it has.
+            await jobStore.ConnectionParked.WaitAsync(TimeSpan.FromSeconds(30));
+
+            Func<Task> shutdown = async () => await misfireHandler.Shutdown();
+
+            await shutdown.Should().CompleteWithinAsync(TimeSpan.FromSeconds(10),
+                "the loop is parked in a store call that ignores its cancellation, so the shutdown has to give up "
+                + "on it - and give up in wall time, because the store's clock is one nothing advances");
+        }
+        finally
+        {
+            jobStore.ReleaseParkedConnection();
+        }
     }
 
     /// <summary>
@@ -245,13 +284,23 @@ public class MisfireHandlerTest
         {
         }
 
+        /// <summary>
+        /// A store on the given clock, so that a test can freeze what the store measures by.
+        /// </summary>
+        public TestAdoJobStoreBase(TimeProvider timeProvider)
+            : this(TimeSpan.FromMilliseconds(100), TimeSpan.FromMinutes(1), timeProvider)
+        {
+        }
+
         /// <param name="misfireHandlerFrequency">
         /// The configured cadence, or <see langword="null" /> to leave it unset so that the fallback is
         /// what answers for it.
         /// </param>
         /// <param name="misfireThreshold">The configured misfire threshold.</param>
-        public TestAdoJobStoreBase(TimeSpan? misfireHandlerFrequency, TimeSpan misfireThreshold)
+        /// <param name="timeProvider">The store's clock; the system clock when not given.</param>
+        public TestAdoJobStoreBase(TimeSpan? misfireHandlerFrequency, TimeSpan misfireThreshold, TimeProvider timeProvider = null)
         : base(TestJobStores.Dependencies(
+            timeProvider: timeProvider,
             schedulerOptions: TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"),
             storeOptions: TestJobStores.StoreOptions(configure: options =>
             {
@@ -261,12 +310,34 @@ public class MisfireHandlerTest
         {
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
+        private readonly TaskCompletionSource connectionParked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource releaseParkedConnection = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private volatile bool parkNextConnection;
+
+        /// <summary>Completes once a caller has been parked in <see cref="GetLocalTransactionConnection" />.</summary>
+        public Task ConnectionParked => connectionParked.Task;
+
+        /// <summary>
+        /// Makes the next connection request wait, whatever its token says, until
+        /// <see cref="ReleaseParkedConnection" /> — which is what a store call that never comes back
+        /// looks like from the loop that made it.
+        /// </summary>
+        public void ParkTheNextConnection() => parkNextConnection = true;
+
+        public void ReleaseParkedConnection() => releaseParkedConnection.TrySetResult();
+
+        protected override async ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
+            if (parkNextConnection)
+            {
+                parkNextConnection = false;
+                connectionParked.TrySetResult();
+                await releaseParkedConnection.Task.ConfigureAwait(false);
+            }
+
             // Return a fake connection that will be used but won't actually do anything
             var fakeConnection = A.Fake<DbConnection>();
-            return new ValueTask<ConnectionAndTransactionHolder>(
-                new ConnectionAndTransactionHolder(fakeConnection, null));
+            return new ConnectionAndTransactionHolder(fakeConnection, null);
         }
 
         protected override ValueTask<T> ExecuteInLock<T>(

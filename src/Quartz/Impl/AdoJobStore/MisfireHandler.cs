@@ -158,7 +158,14 @@ internal sealed class MisfireHandler
             {
                 // CancellationToken.None deliberately: the loop's own token is already cancelled at this
                 // point, and passing it would abort the graceful wait we are here for.
-                await task.WaitAsync(ShutdownTimeout, jobStoreSupport.timeProvider, CancellationToken.None).ConfigureAwait(false);
+                //
+                // The system clock deliberately too, not the store's. This bounds a wait for a thread to
+                // get round to a task, or for a store call that ignores its cancellation to come back,
+                // and both happen in wall time whatever clock the scheduler keeps. Measured on the
+                // store's provider it was no bound at all for a store whose clock nobody advances — a
+                // test's FakeTimeProvider — and a shutdown that raced the loop's first dispatch waited
+                // for ever (#3860).
+                await task.WaitAsync(ShutdownTimeout, TimeProvider.System, CancellationToken.None).ConfigureAwait(false);
             }
             catch (TimeoutException)
             {
