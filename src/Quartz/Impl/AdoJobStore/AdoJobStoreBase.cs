@@ -619,6 +619,14 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         }
         else
         {
+            // The branch above names the handler this store built for itself; this names the one it was
+            // handed, so "which handler locks?" has an answer in the log whichever way the handler
+            // arrived. SQLite's substitution announced itself already.
+            if (LockHandler is not SqliteLockHandler)
+            {
+                Logger.UsingConfiguredLockHandler(LockHandler.GetType().Name);
+            }
+
             // A lock handler that was chosen explicitly carries its own statement, through its
             // constructor. SelectWithLockSql only ever reached a handler this store built for itself, so
             // configuring both leaves the statement doing nothing and the drift is invisible.

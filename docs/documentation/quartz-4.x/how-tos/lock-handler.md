@@ -245,6 +245,11 @@ the key the 4.x property name suggests.
 
 A non-clustered scheduler locks in memory, which is correct for a single node.
 
+The store logs the handler it ends up with at startup: event 3006 or 3007 for one it built, 3048 for one
+you registered. On SQL Server's memory-optimized schema, register
+`UseLockHandler<SqlServerMemoryOptimizedUpdateRowLockHandler>()`; the handler the store would build
+fails its first lock with *The table option 'rowlock' is not supported with memory optimized tables*.
+
 ## Testing one
 
 No scheduler needed:

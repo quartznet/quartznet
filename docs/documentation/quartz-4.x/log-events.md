@@ -159,6 +159,7 @@ matching on its text is not.
 | 3045 | Debug | `Quartz` | `"Completion of trigger {TriggerKey} found continuations awaiting it; running it again under TRIGGER_ACCESS"` |
 | 3046 | Warning | `Quartz` | `"Completion of trigger {TriggerKey} failed without TRIGGER_ACCESS; running it again under the lock"` |
 | 3047 | Information | `Quartz` | `"Settled {Count} continuation(s) awaiting a trigger that no longer exists: {Released} released, {Parked} parked in ERROR"` |
+| 3048 | Information | `Quartz` | `"Using configured lock handler {LockHandlerType} for data access locking (synchronization)."` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |
