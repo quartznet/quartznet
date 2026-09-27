@@ -200,6 +200,10 @@
     "Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"
 3044  Information  AdoJobStoreLog.OverlappingFiringHeld
     "Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node"
+3045  Debug  AdoJobStoreLog.CompletionEscalatedToLock
+    "Completion of trigger {TriggerKey} found continuations awaiting it; running it again under TRIGGER_ACCESS"
+3046  Warning  AdoJobStoreLog.CompletionWithoutLockFailed
+    "Completion of trigger {TriggerKey} failed without TRIGGER_ACCESS; running it again under the lock"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed

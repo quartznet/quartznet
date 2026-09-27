@@ -79,6 +79,9 @@ public class UpdateTriggerDetailsFamilyTest
         // loadJobType: false — updating a trigger never resolves the job's class (#3705).
         A.CallTo(() => driverDelegate.SelectJobForTrigger(conn, TestTrigger, A<ITypeLoader>.Ignored, false, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
+        // The row is there to take the write; a count of zero would say it went under the edit (#3863).
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, stored, A<StoredTriggerState>.Ignored, A<IJobDetail>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(1));
 
         stored.MisfireInstructionCode.Should().Be(MisfireInstruction.SmartPolicy,
             "the fixture needs a trigger whose instruction the update would visibly change");

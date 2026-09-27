@@ -294,18 +294,24 @@ internal abstract partial class AdoJobStoreBase
                             && await IsOverlapPolicyUnsettled(conn, stored, OverlapPolicy.CancelPrevious, cancellationToken).ConfigureAwait(false);
                     }
 
-                    await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    if (newTrigger is TriggerBase inserting)
+                    if (await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false) > 0)
                     {
-                        // A trigger that was not there has no firing running.
-                        inserting.OverlapPolicyUnsettled = false;
+                        return;
                     }
 
-                    await Delegate.InsertTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
+                    // The row went between the read that found it and this write: the firing it was
+                    // running completed without the lock and deleted it, which is the one way a row
+                    // disappears under a holder of TRIGGER_ACCESS (#3863). The trigger is stored as the
+                    // new one it now is, as AddJob stores a job whose row went the same way.
                 }
+
+                if (newTrigger is TriggerBase inserting)
+                {
+                    // A trigger that was not there has no firing running.
+                    inserting.OverlapPolicyUnsettled = false;
+                }
+
+                await Delegate.InsertTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
             },
             $"store trigger '{newTrigger.Key}' for '{newTrigger.JobKey}' job").ConfigureAwait(false);
     }
@@ -779,10 +785,17 @@ internal abstract partial class AdoJobStoreBase
                 await EnsureContinuationParentExists(conn, newTrigger, alsoStored: null, cancellationToken).ConfigureAwait(false);
 
                 bool removedTrigger = await Delegate.DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) > 0;
+                if (!removedTrigger)
+                {
+                    // The row was there for the read above and is gone for the delete: its last firing
+                    // completed without the lock in between (#3863). There is no trigger to replace, which
+                    // is the answer a caller that arrived after that completion gets.
+                    return false;
+                }
 
                 await AddTrigger(conn, newTrigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
 
-                return removedTrigger;
+                return true;
             },
             "replace trigger");
     }
@@ -909,9 +922,9 @@ internal abstract partial class AdoJobStoreBase
                     Throw.JobPersistenceException($"The job referenced by trigger '{triggerKey}' does not exist.");
                 }
 
-                await Delegate.UpdateTrigger(conn, existing, state, job!, cancellationToken).ConfigureAwait(false);
-
-                return true;
+                // The row's count rather than true: the trigger read above may have completed its last
+                // firing without the lock since, and an edit of a trigger that is gone is not an edit.
+                return await Delegate.UpdateTrigger(conn, existing, state, job!, cancellationToken).ConfigureAwait(false) > 0;
             },
             $"update trigger details for '{triggerKey}'");
     }
