@@ -69,6 +69,9 @@ CREATE TABLE qrtz_triggers
     continues_trigger_group TEXT NULL,
     continuation_condition INTEGER NULL,
     overlap_policy INTEGER NULL,
+    pause_reason VARCHAR(250) NULL,
+    paused_by VARCHAR(200) NULL,
+    paused_at BIGINT NULL,
     job_data BYTEA NULL,
     PRIMARY KEY (sched_name, trigger_name, trigger_group),
     FOREIGN KEY (sched_name, job_name, job_group)
@@ -149,6 +152,9 @@ CREATE TABLE qrtz_paused_trigger_grps
   (
     sched_name TEXT NOT NULL,
     trigger_group TEXT NOT NULL,
+    pause_reason VARCHAR(250) NULL,
+    paused_by VARCHAR(200) NULL,
+    paused_at BIGINT NULL,
     PRIMARY KEY (sched_name, trigger_group)
 );
 
@@ -156,6 +162,9 @@ CREATE TABLE qrtz_paused_job_grps
   (
     sched_name TEXT NOT NULL,
     job_group TEXT NOT NULL,
+    pause_reason VARCHAR(250) NULL,
+    paused_by VARCHAR(200) NULL,
+    paused_at BIGINT NULL,
     PRIMARY KEY (sched_name, job_group)
 );
 

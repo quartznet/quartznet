@@ -200,6 +200,9 @@ public class UpgradeRehearsalTest
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.3", "add_misfire_reason", dialect, RehearsalPrefix), dialect);
 
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.3", "add_pause_reason", dialect, RehearsalPrefix), dialect);
+
         await MigrationScriptTest.AssertSchemaMatchesAsync(connection, dialect, RehearsalPrefix);
 
         foreach (SeedManifest manifest in manifests)

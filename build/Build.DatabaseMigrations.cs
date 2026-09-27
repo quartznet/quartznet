@@ -42,6 +42,7 @@ partial class Build
     const string TableTriggers = "QRTZ_TRIGGERS";
     const string TableFired = "QRTZ_FIRED_TRIGGERS";
     const string TablePausedJobGroups = "QRTZ_PAUSED_JOB_GRPS";
+    const string TablePausedTriggerGroups = "QRTZ_PAUSED_TRIGGER_GRPS";
     const string TableExecutionHistory = "QRTZ_EXECUTION_HISTORY";
     const string TableMisfireHistory = "QRTZ_MISFIRE_HISTORY";
 

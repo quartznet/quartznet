@@ -119,7 +119,8 @@ public class MigrationScriptTest
         ("4.3", "add_fire_progress"),
         ("4.3", "add_execution_log"),
         ("4.3", "add_overlap_policy"),
-        ("4.3", "add_misfire_reason")
+        ("4.3", "add_misfire_reason"),
+        ("4.3", "add_pause_reason")
     ];
 
     /// <summary>
@@ -136,7 +137,8 @@ public class MigrationScriptTest
         ("4.3", "add_fire_progress"),
         ("4.3", "add_execution_log"),
         ("4.3", "add_overlap_policy"),
-        ("4.3", "add_misfire_reason")
+        ("4.3", "add_misfire_reason"),
+        ("4.3", "add_pause_reason")
     ];
 
     [Test]

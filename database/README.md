@@ -106,6 +106,7 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.3`](migrations/4.3) | `add_execution_log_<db>.sql`: `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`, the log lines an execution wrote (#3874) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
 | [`4.3`](migrations/4.3) | `add_overlap_policy_<db>.sql`: `OVERLAP_POLICY` on `QRTZ_TRIGGERS`, what a trigger does when a firing comes due while its last one runs (#3875) | **Required on 4.3+**, safe during a mixed 4.2/4.3 window; give a trigger a policy only once every node is 4.3 | all | `main` only |
 | [`4.3`](migrations/4.3) | `add_misfire_reason_<db>.sql`: `REASON` on `QRTZ_MISFIRE_HISTORY`, a misfire told apart from a firing the overlap policy skipped (#3875) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
+| [`4.3`](migrations/4.3) | `add_pause_reason_<db>.sql`: `PAUSE_REASON`, `PAUSED_BY` and `PAUSED_AT` on `QRTZ_TRIGGERS`, `QRTZ_PAUSED_TRIGGER_GRPS` and `QRTZ_PAUSED_JOB_GRPS`, why a trigger or group is paused (#3879) | **Required on 4.3+**, safe during a mixed 4.2/4.3 window; roll every node before relying on a reason | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -182,12 +183,13 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
 
 ### Upgrading 4.2 → 4.3
 
-[`migrations/4.3`](migrations/4.3) has four files.
+[`migrations/4.3`](migrations/4.3) has five files.
 
 | File | Status | What |
 |---|---|---|
 | `add_fire_progress_<db>.sql` | **Required** | `PROGRESS` and `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS`. A 4.3 node reads them whenever it lists what is running, and refuses to start without them. |
 | `add_overlap_policy_<db>.sql` | **Required** | `OVERLAP_POLICY` on `QRTZ_TRIGGERS`. A 4.3 node reads and writes it with every trigger, and refuses to start without it. |
+| `add_pause_reason_<db>.sql` | **Required** | `PAUSE_REASON`, `PAUSED_BY` and `PAUSED_AT` on `QRTZ_TRIGGERS`, `QRTZ_PAUSED_TRIGGER_GRPS` and `QRTZ_PAUSED_JOB_GRPS`. A 4.3 node writes them with every pause, and refuses to start without them. |
 | `add_execution_log_<db>.sql` | Optional | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY`. Needed only with `UseExecutionHistory()`; run it after `4.2/add_execution_history_<db>.sql`, because it alters that table and fails where the table is missing. |
 | `add_misfire_reason_<db>.sql` | Optional | `REASON` on `QRTZ_MISFIRE_HISTORY`. Needed only with `UseExecutionHistory()`; run it after `4.2/add_execution_history_<db>.sql`, for the same reason. |
 
@@ -196,7 +198,9 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
   misfires.
 - **Roll every node before giving a trigger an overlap policy.** A 4.2 node ignores the column and fires
   the trigger as `Default` does, overlapping.
-- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have all five columns.
+- **Roll every node before relying on a pause reason.** A 4.2 node's pause records no reason, and its
+  resume leaves the trigger's columns behind; a 4.3 node reports them only while the trigger is paused.
+- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have all fourteen columns.
 
 ## Where these files moved
 

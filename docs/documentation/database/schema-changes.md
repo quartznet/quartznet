@@ -453,14 +453,16 @@ The store trims both tables itself, to `ExecutionHistoryOptions.Retention` (24 h
 
 ## Version 4.3
 
-Four scripts; the first two are mandatory
+Five scripts; the first three are mandatory
 ([#3874](https://github.com/quartznet/quartznet/issues/3874),
-[#3875](https://github.com/quartznet/quartznet/issues/3875)).
+[#3875](https://github.com/quartznet/quartznet/issues/3875),
+[#3879](https://github.com/quartznet/quartznet/issues/3879)).
 
 | Script | Status | Adds |
 |---|---|---|
 | [`migrations/4.3/add_fire_progress_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | **Mandatory** for 4.3 and later | `PROGRESS`, `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS` |
 | [`migrations/4.3/add_overlap_policy_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | **Mandatory** for 4.3 and later | `OVERLAP_POLICY` on `QRTZ_TRIGGERS` |
+| [`migrations/4.3/add_pause_reason_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | **Mandatory** for 4.3 and later | `PAUSE_REASON`, `PAUSED_BY`, `PAUSED_AT` on `QRTZ_TRIGGERS`, `QRTZ_PAUSED_TRIGGER_GRPS` and `QRTZ_PAUSED_JOB_GRPS` |
 | [`migrations/4.3/add_execution_log_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | Optional: only with `UseExecutionHistory()` | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY` |
 | [`migrations/4.3/add_misfire_reason_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | Optional: only with `UseExecutionHistory()` | `REASON` on `QRTZ_MISFIRE_HISTORY` |
 
@@ -521,6 +523,23 @@ object on every dialect: `nvarchar(max)`, `TEXT`, `LONGTEXT`, `CLOB`, `BLOB SUB_
   it.
 - Run it only on a database that has `QRTZ_MISFIRE_HISTORY`, as for the execution log column.
 
+### The pause columns
+
+The same three columns on `QRTZ_TRIGGERS` and on both paused-group tables.
+
+| Column | What it holds |
+|---|---|
+| `PAUSE_REASON` | Why it was paused, cut to 250 characters |
+| `PAUSED_BY` | Who asked, cut to 200 characters; `quartz:retries-exhausted` when the scheduler paused a trigger whose retries ran out |
+| `PAUSED_AT` | When, in ticks |
+
+- A 4.3 node writes all three with every pause, a pause without a reason included, and clears a
+  trigger's on its own resume. A group's row is deleted on resume.
+- Read only while the trigger is `PAUSED` or `PAUSED_BLOCKED`, or while the group's row exists.
+- Oracle declares `PAUSE_REASON` as `VARCHAR2(1000)` and `PAUSED_BY` as `VARCHAR2(800)`, for the reason
+  `PROGRESS_MESSAGE` is wider.
+- No index. A 4.3 node refuses to start without them; the startup check names the column and the script.
+
 ### Rolling 4.2 → 4.3
 
 Run the scripts while 4.2 nodes are still up. Every column is nullable with no default, and a 4.2 node
@@ -530,7 +549,11 @@ its misfire rows read as misfires.
 **Roll every node before giving a trigger an overlap policy.** A 4.2 node ignores `OVERLAP_POLICY` and
 fires the trigger as `Default` does, overlapping.
 
-A fresh install from `database/tables/`, and `ProvisionSchema()`, create all five columns.
+**Roll every node before relying on a pause reason.** A 4.2 node's pause leaves the columns `NULL`, which
+reads as no reason. Its resume leaves a trigger's columns behind; a 4.3 node reads them only while the
+trigger is paused, so a later 4.2 pause of it would report the old reason.
+
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create all fourteen columns.
 
 ## See also
 

@@ -2492,6 +2492,9 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnMisfireTime = "MISFIRE_TIME";
         public const string ColumnNextFireTime = "NEXT_FIRE_TIME";
         public const string ColumnOverlapPolicy = "OVERLAP_POLICY";
+        public const string ColumnPauseReason = "PAUSE_REASON";
+        public const string ColumnPausedAt = "PAUSED_AT";
+        public const string ColumnPausedBy = "PAUSED_BY";
         public const string ColumnPreferredNode = "PREFERRED_NODE";
         public const string ColumnPreferredNodeAuto = "PREFERRED_NODE_AUTO";
         public const string ColumnPreviousFireTime = "PREV_FIRE_TIME";

@@ -197,7 +197,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     /// <remarks>
     /// Without it every case here would pass against a store that refused everything, and the migration
     /// scripts are what the messages tell the reader to run — so this is also the claim that following
-    /// them works. All of them: 4.2 added three columns and 4.3 three, and the message names those
+    /// them works. All of them: 4.2 added three columns and 4.3 twelve, and the message names those
     /// scripts too.
     /// </remarks>
     [Test]
@@ -208,6 +208,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
 
         Func<Task> act = async () => await (await GetScheduler(
             nameof(TheMigrationsTheMessageNamesAreTheOnesThatMakeTheSchemaStart), provision: true)).Shutdown();
@@ -259,12 +260,15 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
             "a reader with a 4.2 database needs the 4.3 scripts, and the message has to name them");
 
         failure.Message.Should().Contain("database/migrations/4.3/add_overlap_policy_sqlite.sql",
-            "the overlap policy column is the other half of what 4.3 requires, and its script is one of "
-            + "the two the reader has to run");
+            "the overlap policy column is part of what 4.3 requires, and its script is one of the three "
+            + "the reader has to run");
+
+        failure.Message.Should().Contain("database/migrations/4.3/add_pause_reason_sqlite.sql",
+            "and so are the pause columns, whose script is the third");
     }
 
     /// <summary>
-    /// A database that took one of 4.3's two required scripts and not the other is refused for the
+    /// A database that took the first of 4.3's required scripts and not the next is refused for the
     /// column the missing one adds.
     /// </summary>
     [Test]
@@ -283,6 +287,52 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
 
         failure.Message.Should().Contain("database/migrations/4.3/add_overlap_policy_sqlite.sql",
             "and the script that adds it is the remedy");
+    }
+
+    /// <summary>
+    /// A database that took every 4.3 script but the pause one is refused for the columns it adds, on
+    /// all three tables it adds them to.
+    /// </summary>
+    [Test]
+    public async Task A43SchemaWithoutThePauseColumnsIsRefusedForThem()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+
+        SchedulerException failure = await StartAndCatch(nameof(A43SchemaWithoutThePauseColumnsIsRefusedForThem));
+
+        MessagesOf(failure).Should().ContainMatch($"*{AdoConstants.ColumnPauseReason} of table QRTZ_TRIGGERS*",
+            "every pause a 4.3 node makes writes the pause columns, so their absence is refused at startup "
+            + "rather than at the first pause");
+
+        failure.Message.Should().Contain("database/migrations/4.3/add_pause_reason_sqlite.sql",
+            "and the one script that adds all nine is the remedy");
+    }
+
+    /// <summary>
+    /// The paused-group tables are probed for the pause columns as well as the trigger table: a group's
+    /// pause is recorded on its own row.
+    /// </summary>
+    [Test]
+    public async Task A43SchemaWithThePauseColumnsOnlyOnTheTriggerTableIsRefusedForTheGroupTables()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        Execute("ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PAUSE_REASON NVARCHAR(250) NULL;"
+                + "ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PAUSED_BY NVARCHAR(200) NULL;"
+                + "ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PAUSED_AT BIGINT NULL;");
+
+        SchedulerException failure = await StartAndCatch(nameof(A43SchemaWithThePauseColumnsOnlyOnTheTriggerTableIsRefusedForTheGroupTables));
+
+        MessagesOf(failure).Should().ContainMatch($"*{AdoConstants.ColumnPauseReason} of table QRTZ_PAUSED_TRIGGER_GRPS*",
+            "a paused group's reason is written on the group's own row, so a database whose group tables "
+            + "lack the columns fails the first group pause unless startup probes for them");
     }
 
     private void Install320Schema()
@@ -367,6 +417,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
 
         TableExists("QRTZ_EXECUTION_HISTORY").Should().BeFalse(
             "the migrations run so far are the ones every 4.2 database needs, and the history's are not "
@@ -414,6 +465,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.2", "add_execution_history_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
 
         Func<Task> withoutHistory = async () => await (await GetScheduler(
             nameof(A42HistoryTableIsRefusedForTheExecutionLogOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
@@ -450,6 +502,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.2", "add_execution_history_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
         ApplyMigration("4.3", "add_execution_log_sqlite.sql");
 
         Func<Task> withoutHistory = async () => await (await GetScheduler(
@@ -485,6 +538,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.2", "add_execution_history_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
         ApplyMigration("4.3", "add_execution_log_sqlite.sql");
         ApplyMigration("4.3", "add_misfire_reason_sqlite.sql");
 

@@ -128,6 +128,13 @@ public static class AdoConstants
     internal const string Migration43MisfireReason = "4.3/add_misfire_reason_{0}.sql";
 
     /// <summary>
+    /// The migration that adds why a trigger or a group is paused to <see cref="TableTriggers" />,
+    /// <see cref="TablePausedTriggers" /> and <see cref="TablePausedJobs" />, which a database created by
+    /// 4.2 or earlier needs.
+    /// </summary>
+    internal const string Migration43PauseReason = "4.3/add_pause_reason_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -166,8 +173,8 @@ public static class AdoConstants
     /// <para>
     /// Each entry names the migration that adds it, so the failure can point at the script the
     /// database in front of the reader actually needs — the 3.x-to-4.0 upgrade, 4.2's continuation
-    /// columns, which a database created by 4.0 or 4.1 is missing, or 4.3's progress and overlap policy
-    /// columns, which one created by 4.2 is.
+    /// columns, which a database created by 4.0 or 4.1 is missing, or 4.3's progress, overlap policy and
+    /// pause columns, which one created by 4.2 is.
     /// </para>
     /// </remarks>
     internal static readonly (string Table, string Column, string Migration)[] MigratedColumnNames =
@@ -184,7 +191,16 @@ public static class AdoConstants
         (TableTriggers, ColumnContinuationCondition, Migration42),
         (TableFiredTriggers, ColumnProgress, Migration43),
         (TableFiredTriggers, ColumnProgressMessage, Migration43),
-        (TableTriggers, ColumnOverlapPolicy, Migration43OverlapPolicy)
+        (TableTriggers, ColumnOverlapPolicy, Migration43OverlapPolicy),
+        (TableTriggers, ColumnPauseReason, Migration43PauseReason),
+        (TableTriggers, ColumnPausedBy, Migration43PauseReason),
+        (TableTriggers, ColumnPausedAt, Migration43PauseReason),
+        (TablePausedTriggers, ColumnPauseReason, Migration43PauseReason),
+        (TablePausedTriggers, ColumnPausedBy, Migration43PauseReason),
+        (TablePausedTriggers, ColumnPausedAt, Migration43PauseReason),
+        (TablePausedJobs, ColumnPauseReason, Migration43PauseReason),
+        (TablePausedJobs, ColumnPausedBy, Migration43PauseReason),
+        (TablePausedJobs, ColumnPausedAt, Migration43PauseReason)
     ];
 
     // Table names
@@ -417,6 +433,25 @@ public static class AdoConstants
     /// <c>OverlapPolicy</c>, where <see langword="null" /> is <c>OverlapPolicy.Default</c>.
     /// </summary>
     public const string ColumnOverlapPolicy = "OVERLAP_POLICY";
+
+    /// <summary>
+    /// The <c>PAUSE_REASON</c> column of <see cref="TableTriggers" />, <see cref="TablePausedTriggers" />
+    /// and <see cref="TablePausedJobs" />: why the row was paused, cut to 250 characters.
+    /// </summary>
+    public const string ColumnPauseReason = "PAUSE_REASON";
+
+    /// <summary>
+    /// The <c>PAUSED_BY</c> column of <see cref="TableTriggers" />, <see cref="TablePausedTriggers" />
+    /// and <see cref="TablePausedJobs" />: who asked for the pause, cut to 200 characters.
+    /// </summary>
+    public const string ColumnPausedBy = "PAUSED_BY";
+
+    /// <summary>
+    /// The <c>PAUSED_AT</c> column of <see cref="TableTriggers" />, <see cref="TablePausedTriggers" />
+    /// and <see cref="TablePausedJobs" />: when the pause was made, in ticks. <see langword="null" /> on a
+    /// row a 4.2 node paused.
+    /// </summary>
+    public const string ColumnPausedAt = "PAUSED_AT";
 
     // TableSimpleTriggers columns names
     /// <summary>

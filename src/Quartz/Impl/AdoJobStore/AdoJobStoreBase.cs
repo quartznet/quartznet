@@ -1091,7 +1091,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
                         + $" {string.Join(", then ", MigrationTemplates.Select(MigrationScriptName))} —"
                         + " because ProvisionSchema() creates missing tables and never adds a column to a table"
                         + " that exists. A schema created by 3.x needs all of them; one created by 4.0 or 4.1"
-                        + " needs the last three, and one created by 4.2 the last two.";
+                        + " needs the last four, and one created by 4.2 the last three.";
 
         if (ExecutionHistory)
         {
