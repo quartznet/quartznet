@@ -47,10 +47,26 @@ services.AddQuartzHostedService();
   [a registered job's constructor](../multi-tenancy.md#which-scheduler-s-parts-a-job-is-built-from).
 * **Job data** is `context.MergedJobDataMap`. It is not applied to properties, since a lambda has none.
 
-The parameters are read once, when the job is added, and the handler runs through reflection. It works
-trimmed and under native AOT: the repository's trimming canary runs a delegate job in its native
-binary. [#3882](https://github.com/quartznet/quartznet/issues/3882) replaces the reflection with
-generated code.
+## Bound at compile time
+
+Quartz's source generator binds a handler written as a lambda or a method group when the project
+compiles. It intercepts the `AddJob` or `ScheduleJob` call and writes code that resolves each parameter
+and calls the handler. A firing then runs no reflection and allocates nothing for the arguments.
+
+Any other handler is bound by reflection when the job is added. Both paths hand the same arguments and
+fail with the same exceptions, and both work trimmed and under native AOT.
+
+| The handler | Bound |
+|---|---|
+| A lambda or a method group, C# 11 or later | At compile time |
+| A `Delegate` variable or parameter, a cast, `new Func<…>(…)` | By reflection |
+| A parameter type another file cannot name: a type parameter, a `private` or `file` type, a tuple | By reflection |
+| A shape Quartz refuses: a result, `async void`, `ref`, a ref struct | Refused by the call |
+| Any, in C# 10 | By reflection |
+| Any, with `<DisableQuartzAnalyzers>true</DisableQuartzAnalyzers>` | By reflection |
+
+The package's build file adds `Quartz.Generated` to `InterceptorsNamespaces`. A project that removes it
+binds by reflection.
 
 ## Adding one
 
