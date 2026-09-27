@@ -169,8 +169,9 @@
         <section id="misfires" class="qz-section qz-misfires">
             <h2>Misfires</h2>
             <p class="qz-muted">
-                Firings the scheduler missed. Nothing ran, so these never appear above — they are the
-                triggers whose misfire instruction decided what happened instead.
+                Firings that did not happen. Nothing ran, so these never appear above: a misfire is one
+                the scheduler missed, whose misfire instruction decided what happened instead, and an
+                overlap is one the trigger's overlap policy skipped because its last firing still ran.
             </p>
 
             @if (_misfires.Count == 0)
@@ -187,6 +188,7 @@
                             <th>Node</th>
                             <th>Missed firing</th>
                             <th>Noticed</th>
+                            <th>Reason</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -207,6 +209,7 @@
                                 <td class="qz-table-cell-mono qz-misfire-node">@NodeLabel(misfire.SchedulerInstanceId)</td>
                                 <td>@FormatFiredAt(misfire.ScheduledFireTimeUtc)</td>
                                 <td>@FormatFiredAt(misfire.MisfiredAtUtc)</td>
+                                <td class="qz-misfire-reason">@(misfire.Reason == MisfireReason.Overlap ? "Overlap" : "Misfire")</td>
                             </tr>
                         }
                     </tbody>

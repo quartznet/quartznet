@@ -1186,7 +1186,7 @@ public sealed class RAMJobStore : IJobStore
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
                 && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
-                && !update.HasExecutionGroup && !update.HasRetryPolicy)
+                && !update.HasExecutionGroup && !update.HasRetryPolicy && !update.HasOverlapPolicy)
             {
                 return new ValueTask<bool>(true);
             }
@@ -1194,6 +1194,7 @@ public sealed class RAMJobStore : IJobStore
             IOperableTrigger trigger = tw.Trigger;
 
             update.EnsureMisfireInstructionMatchesFamily(trigger, triggerKey);
+            update.EnsureOverlapPolicyCanBeCarried(trigger, triggerKey);
 
             if (update.HasCalendarName && update.CalendarName is not null)
             {
@@ -1255,6 +1256,13 @@ public sealed class RAMJobStore : IJobStore
                 // Policy only. The attempt belongs to the occurrence in flight, and the stored
                 // instance is the one the scheduler is counting on.
                 trigger.RetryPolicy = update.RetryPolicy;
+            }
+
+            if (update.HasOverlapPolicy)
+            {
+                // From the next firing that comes due. A firing already running keeps the policy it
+                // started under, which is also what releases a trigger it held back.
+                ((TriggerBase) trigger).OverlapPolicy = update.OverlapPolicy;
             }
 
             return new ValueTask<bool>(true);
@@ -1761,7 +1769,8 @@ public sealed class RAMJobStore : IJobStore
             match.Trigger.RetryAttempt)
         {
             ContinuesAfter = match.Trigger.Continuation.Parent,
-            ContinuationCondition = match.Trigger.Continuation.IsNone ? null : match.Trigger.Continuation.When
+            ContinuationCondition = match.Trigger.Continuation.IsNone ? null : match.Trigger.Continuation.When,
+            OverlapPolicy = match.Trigger.OverlapPolicy
         }));
     }
 
@@ -2581,8 +2590,11 @@ public sealed class RAMJobStore : IJobStore
             return false;
         }
 
-        if (blockedJobs.Contains(tw.JobKey))
+        if (blockedJobs.Contains(tw.JobKey)
+            || (tw.state == StoredTriggerState.PausedBlocked && executingFireInstances.ContainsKey(tw.TriggerKey)))
         {
+            // Blocked by its job, or by a BufferOne firing of its own that is still running — which is
+            // the only other way a trigger comes to be blocked, and which releases it when it ends.
             tw.state = StoredTriggerState.Blocked;
         }
         else
@@ -3137,6 +3149,29 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
+        // Only a firing its overlap policy skipped leaves anything to announce, so the ordinary batch
+        // allocates nothing for this and returns without awaiting.
+        PendingSignals pending = default;
+        List<TriggerFiredResult> fired = FireAcquiredTriggers(triggers, ref pending);
+
+        ValueTask raised = pending.Raise(signaler, cancellationToken);
+        if (raised.IsCompletedSuccessfully)
+        {
+            raised.GetAwaiter().GetResult();
+            return new ValueTask<List<TriggerFiredResult>>(fired);
+        }
+
+        return AfterRaised(raised, fired);
+
+        static async ValueTask<List<TriggerFiredResult>> AfterRaised(ValueTask raised, List<TriggerFiredResult> fired)
+        {
+            await raised.ConfigureAwait(false);
+            return fired;
+        }
+    }
+
+    private List<TriggerFiredResult> FireAcquiredTriggers(IReadOnlyCollection<IOperableTrigger> triggers, ref PendingSignals pending)
+    {
         lock (lockObject)
         {
             List<TriggerFiredResult> results = new(triggers.Count);
@@ -3177,6 +3212,29 @@ public sealed class RAMJobStore : IJobStore
                 {
                     results.Add(TriggerFiredResult.NotFired);
                     continue;
+                }
+
+                // The trigger's overlap policy, asked only when an earlier firing of this trigger is
+                // still running and nothing else holds it back: a job that disallows concurrent
+                // execution never gets here while one of its firings runs, and a retry continues an
+                // occurrence rather than starting one. Default and AllowAll never look.
+                OverlapPolicy overlapPolicy = tw.Trigger.OverlapPolicy;
+                List<string>? superseded = null;
+                if (overlapPolicy is OverlapPolicy.Skip or OverlapPolicy.CancelPrevious
+                    && trigger.RetryAttempt == 0
+                    && !jobWrapper.JobDetail.ConcurrentExecutionDisallowed
+                    && executingFireInstances.TryGetValue(tw.TriggerKey, out var running))
+                {
+                    if (overlapPolicy == OverlapPolicy.Skip)
+                    {
+                        SkipOverlappingFiringNoLock(tw, calendar, ref pending);
+                        results.Add(TriggerFiredResult.Declined);
+                        continue;
+                    }
+
+                    // CancelPrevious. Every firing this store knows of runs in this process, so every
+                    // one of them can be interrupted and none is ever waited for.
+                    superseded = [.. running.Keys];
                 }
 
                 DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
@@ -3232,6 +3290,7 @@ public sealed class RAMJobStore : IJobStore
                     ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
                     PreviousFireTimeUtc = prevFireTime,
                     NextFireTimeUtc = trigger.NextFireTimeUtc,
+                    SupersededFireInstanceIds = superseded,
                 };
 
                 IJobDetail job = bndle.JobDetail;
@@ -3259,7 +3318,16 @@ public sealed class RAMJobStore : IJobStore
                 }
                 else if (tw.Trigger.NextFireTimeUtc is not null)
                 {
-                    timeTriggers.Add(tw);
+                    if (overlapPolicy == OverlapPolicy.BufferOne)
+                    {
+                        // Held back while this firing runs, as a [DisallowConcurrentExecution] job's
+                        // triggers are, but for this trigger alone. The completion lets go of it.
+                        tw.state = StoredTriggerState.Blocked;
+                    }
+                    else
+                    {
+                        timeTriggers.Add(tw);
+                    }
                 }
 
                 // Recorded only once the bundle is guaranteed, so nothing above can leave an execution
@@ -3283,7 +3351,7 @@ public sealed class RAMJobStore : IJobStore
                 results.Add(TriggerFiredResult.Fired(bndle));
             }
 
-            return new ValueTask<List<TriggerFiredResult>>(results);
+            return results;
         }
     }
 
@@ -3433,6 +3501,14 @@ public sealed class RAMJobStore : IJobStore
                 blockedJobs.Remove(jobDetail.Key);
             }
 
+            // BufferOne: this firing held its own trigger back while it ran, and lets go of it now. The
+            // firing's policy decides rather than the stored one, which may have changed since: it is
+            // this firing that did the holding.
+            if (trigger.OverlapPolicy == OverlapPolicy.BufferOne && !jobDetail.ConcurrentExecutionDisallowed)
+            {
+                ReleaseOverlapBlockNoLock(trigger.Key, ref pending);
+            }
+
             // The continuations waiting on this trigger, settled under the same lock as the rest of
             // the completion so that no reader ever sees the completion without its settlement — the
             // ADO store does this inside the completion's transaction. A released continuation joins
@@ -3563,6 +3639,81 @@ public sealed class RAMJobStore : IJobStore
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Drops the firing a <see cref="OverlapPolicy.Skip" /> trigger was acquired for, because an earlier
+    /// firing of it is still running, and moves the trigger on to the occurrence after it.
+    /// </summary>
+    /// <remarks>
+    /// The occurrence is advanced past as a firing would advance past it, so it is not a misfire and
+    /// nothing will ever treat it as one. A trigger left with nothing to fire is stored complete; the
+    /// running firing's completion removes it, as it removes any trigger it finds with no fire time.
+    /// </remarks>
+    private void SkipOverlappingFiringNoLock(TriggerWrapper tw, ICalendar? calendar, ref PendingSignals pending)
+    {
+        logger.OverlappingFiringSkipped(tw.TriggerKey, tw.Trigger.NextFireTimeUtc);
+
+        // As it is now, with the firing that will not happen still its next one.
+        pending.RecordSkipped(tw.Trigger.Clone());
+
+        timeTriggers.Remove(tw);
+        if (tw.Trigger is TriggerBase skipped)
+        {
+            skipped.MisfiredFromFireTimeUtc = null;
+        }
+
+        tw.Trigger.Triggered(calendar);
+
+        if (tw.Trigger.NextFireTimeUtc is null)
+        {
+            tw.state = StoredTriggerState.Complete;
+            pending.RecordFinalized(tw.Trigger.Clone());
+        }
+        else
+        {
+            tw.state = StoredTriggerState.Waiting;
+            timeTriggers.Add(tw);
+        }
+
+        pending.RecordSchedulingChange();
+    }
+
+    /// <summary>
+    /// Lets go of a trigger its own <see cref="OverlapPolicy.BufferOne" /> firing held back while it ran.
+    /// </summary>
+    /// <remarks>
+    /// What came due meanwhile is settled as it is for a trigger a job's completion unblocks: within the
+    /// misfire threshold it fires, past it the misfire instruction decides. A paused trigger accrues no
+    /// misfire, so it only goes back to paused.
+    /// </remarks>
+    private void ReleaseOverlapBlockNoLock(TriggerKey triggerKey, ref PendingSignals pending)
+    {
+        if (!triggersByKey.TryGetValue(triggerKey, out TriggerWrapper? tw))
+        {
+            return;
+        }
+
+        if (tw.state == StoredTriggerState.Blocked)
+        {
+            tw.state = StoredTriggerState.Waiting;
+            ApplyMisfireNoLock(tw, ref pending);
+
+            if (tw.state == StoredTriggerState.Waiting)
+            {
+                timeTriggers.Add(tw);
+            }
+            else
+            {
+                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: true, keepExecutions: false, keepDependants: false, ref pending);
+            }
+
+            pending.RecordSchedulingChange();
+        }
+        else if (tw.state == StoredTriggerState.PausedBlocked)
+        {
+            tw.state = StoredTriggerState.Paused;
+        }
+    }
+
     /// <inheritdoc />
     public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => TimeSpan.FromMilliseconds(5);
 
@@ -3675,6 +3826,9 @@ public sealed class RAMJobStore : IJobStore
         /// <summary>Records that <paramref name="trigger" /> has no fire time left.</summary>
         public void RecordFinalized(ITrigger trigger) => Record(PendingSignalKind.Finalized, trigger);
 
+        /// <summary>Records that a firing of <paramref name="trigger" /> was skipped, as it was when it was.</summary>
+        public void RecordSkipped(ITrigger trigger) => Record(PendingSignalKind.Skipped, trigger);
+
         /// <summary>Records that the job <paramref name="jobKey" /> named was deleted.</summary>
         public void RecordJobDeleted(JobKey jobKey) => Record(PendingSignalKind.JobDeleted, jobKey);
 
@@ -3713,6 +3867,9 @@ public sealed class RAMJobStore : IJobStore
                     case PendingSignalKind.Finalized:
                         await signaler.NotifySchedulerListenersFinalized((ITrigger) signal.Payload!, cancellationToken).ConfigureAwait(false);
                         break;
+                    case PendingSignalKind.Skipped:
+                        await signaler.NotifyTriggerListenersSkipped((ITrigger) signal.Payload!, cancellationToken).ConfigureAwait(false);
+                        break;
                     case PendingSignalKind.JobDeleted:
                         await signaler.NotifySchedulerListenersJobDeleted((JobKey) signal.Payload!, cancellationToken).ConfigureAwait(false);
                         break;
@@ -3735,6 +3892,7 @@ public sealed class RAMJobStore : IJobStore
         {
             Misfired,
             Finalized,
+            Skipped,
             JobDeleted,
             TriggerInError,
             TriggersInError,

@@ -555,8 +555,22 @@ internal sealed class QuartzSchedulerThread
                             // fired at this time...  or if the scheduler was shutdown (halted)
                             if (bndle is null)
                             {
-                                await SafeReleaseAcquiredTrigger(trigger, "for null fired bundle").ConfigureAwait(false);
+                                // A firing its overlap policy declined is one the store has settled
+                                // already - skipped past, or held behind the running firing - and a
+                                // release would undo that.
+                                if (!result.IsDeclined)
+                                {
+                                    await SafeReleaseAcquiredTrigger(trigger, "for null fired bundle").ConfigureAwait(false);
+                                }
+
                                 continue;
+                            }
+
+                            // CancelPrevious: the store has recorded this fire, so the firings it
+                            // replaces are interrupted before it runs. Only ever this node's own.
+                            if (bndle.SupersededFireInstanceIds is { Count: > 0 } superseded)
+                            {
+                                await InterruptSuperseded(bndle.Trigger.Key, superseded).ConfigureAwait(false);
                             }
 
                             // TODO: improvements:
@@ -756,6 +770,30 @@ internal sealed class QuartzSchedulerThread
         }
 
         return limits.LowerByNodeInFlight(runningExecutionGroupCounts);
+    }
+
+    /// <summary>
+    /// Interrupts the running firings a <see cref="OverlapPolicy.CancelPrevious" /> fire replaces.
+    /// </summary>
+    /// <remarks>
+    /// A failure is logged and the new firing goes ahead: the store has already recorded it, and the
+    /// old one running on beside it is what the policy degrades to when a job ignores its token anyway.
+    /// </remarks>
+    private async Task InterruptSuperseded(TriggerKey triggerKey, IReadOnlyList<string> fireInstanceIds)
+    {
+        foreach (string fireInstanceId in fireInstanceIds)
+        {
+            logger.PreviousFiringCancelled(triggerKey, fireInstanceId);
+
+            try
+            {
+                await qs.InterruptFireInstance(fireInstanceId, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                logger.PreviousFiringCancelFailed(triggerKey, fireInstanceId, e);
+            }
+        }
     }
 
     private async Task SafeReleaseAcquiredTrigger(IOperableTrigger trigger, string context)

@@ -371,6 +371,31 @@ public abstract class ExecutionHistoryStoreContractTest
     }
 
     [Test]
+    public async Task AFiringTheOverlapPolicySkippedIsReadBackWithItsReason()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddMisfire(Misfire(Start.AddMinutes(-2), "missed"));
+        await store.AddMisfire(Misfire(Start.AddMinutes(-1), "skipped") with { Reason = MisfireReason.Overlap });
+
+        (await Misfires(store)).Items.Select(entry => (entry.TriggerName, entry.Reason)).Should().Equal(
+            [("skipped", MisfireReason.Overlap), ("missed", MisfireReason.Missed)],
+            "a reader asking why a trigger did not run has to be able to tell a skip from a misfire");
+    }
+
+    [Test]
+    public async Task AFiringTheOverlapPolicySkippedIsNotCountedAsAMisfire()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddMisfire(Misfire(Start.AddMinutes(-2), "missed"));
+        await store.AddMisfire(Misfire(Start.AddMinutes(-1), "skipped") with { Reason = MisfireReason.Overlap });
+
+        (await store.CountMisfires(SchedulerName, Start.AddMinutes(-10))).Should().Be(1,
+            "a skip is the trigger doing what it was told, not the scheduler falling behind");
+    }
+
+    [Test]
     public async Task MisfiresAreBoundedTheWayExecutionsAre()
     {
         IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), maxEntriesPerScheduler: 2);

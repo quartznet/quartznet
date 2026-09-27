@@ -335,6 +335,22 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    public virtual async ValueTask<bool> IsTriggerCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectCountExecutingFiredTriggersOfTrigger));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
+        AddCommandParameter(cmd, SqlParameters.ExecutingState, StoredTriggerStates.ToStoredValue(StoredTriggerState.Executing));
+
+        object? result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt32(result, CultureInfo.InvariantCulture) > 0;
+    }
+
+    /// <inheritdoc />
     public virtual async ValueTask<int> InsertTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -385,6 +401,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.TriggerContinuesName, (object?) continuation.Parent?.Name ?? DBNull.Value);
         AddCommandParameter(cmd, SqlParameters.TriggerContinuesGroup, (object?) continuation.Parent?.Group ?? DBNull.Value);
         AddCommandParameter(cmd, SqlParameters.TriggerContinuationCondition, (object?) continuation.StoredCondition ?? DBNull.Value);
+        AddCommandParameter(cmd, SqlParameters.TriggerOverlapPolicy, OverlapPolicyColumn.ToDbValue(trigger));
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -544,6 +561,9 @@ public partial class StdAdoDelegate
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerContinuesName, (object?) continuation.Parent?.Name ?? DBNull.Value));
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerContinuesGroup, (object?) continuation.Parent?.Group ?? DBNull.Value));
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerContinuationCondition, (object?) continuation.StoredCondition ?? DBNull.Value));
+
+        // And the overlap policy, after the continuation and before the optional pin in every flavour.
+        parameters.Add(new SqlStatementParameter(SqlParameters.TriggerOverlapPolicy, OverlapPolicyColumn.ToDbValue(trigger)));
 
         if (writePreferredNode)
         {
@@ -1054,6 +1074,7 @@ public partial class StdAdoDelegate
         public string? ContinuesTriggerName;
         public string? ContinuesTriggerGroup;
         public int? ContinuationCondition;
+        public int? OverlapPolicy;
 
         /// <summary>Populated from the joined row for SIMPLE and CRON triggers, <c>null</c> otherwise.</summary>
         public TriggerPropertyBundle? Props;
@@ -1101,6 +1122,7 @@ public partial class StdAdoDelegate
             ContinuesTriggerName = rs.GetOrdinal(AdoConstants.ColumnContinuesTriggerName);
             ContinuesTriggerGroup = rs.GetOrdinal(AdoConstants.ColumnContinuesTriggerGroup);
             ContinuationCondition = rs.GetOrdinal(AdoConstants.ColumnContinuationCondition);
+            OverlapPolicy = rs.GetOrdinal(AdoConstants.ColumnOverlapPolicy);
         }
 
         public int TriggerName { get; }
@@ -1125,6 +1147,7 @@ public partial class StdAdoDelegate
         public int ContinuesTriggerName { get; }
         public int ContinuesTriggerGroup { get; }
         public int ContinuationCondition { get; }
+        public int OverlapPolicy { get; }
 
         public TriggerKey ReadKey(DbDataReader rs) => new(rs.GetString(TriggerName), rs.GetString(TriggerGroup));
     }
@@ -1178,6 +1201,7 @@ public partial class StdAdoDelegate
         row.ContinuationCondition = rs.IsDBNull(ordinals.ContinuationCondition)
             ? null
             : Convert.ToInt32(rs.GetValue(ordinals.ContinuationCondition), CultureInfo.InvariantCulture);
+        row.OverlapPolicy = OverlapPolicyColumn.Read(rs, ordinals.OverlapPolicy);
 
         return row;
     }
@@ -1221,6 +1245,7 @@ public partial class StdAdoDelegate
         {
             triggerBase.SetPreferredNode(PreferredNode.FromStored(row.PreferredNode, row.PreferredNodeAuto), markDirty: false);
             triggerBase.Continuation = Continuation.FromStored(row.ContinuesTriggerName, row.ContinuesTriggerGroup, row.ContinuationCondition);
+            OverlapPolicyColumn.Apply(triggerBase, row.OverlapPolicy);
         }
     }
 

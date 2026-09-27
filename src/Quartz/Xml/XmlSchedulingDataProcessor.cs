@@ -392,6 +392,7 @@ internal class XmlSchedulingDataProcessor
                 triggerNode.ContinuesAfterGroup.TrimEmptyToNull(),
                 triggerNode.ContinuationCondition.TrimEmptyToNull(),
                 $"XML trigger '{triggerName}'");
+            OverlapPolicy triggerOverlapPolicy = SchedulingFileValues.ReadOverlapPolicy(triggerNode.OverlapPolicy.TrimEmptyToNull(), $"XML trigger '{triggerName}'");
             string triggerJobName = triggerNode.JobName.TrimEmptyToNull()!;
             string triggerJobGroup = triggerNode.JobGroup.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
 
@@ -479,6 +480,7 @@ internal class XmlSchedulingDataProcessor
                 .WithExecutionGroup(triggerExecutionGroup is null ? null : ExecutionGroupTemplate.Escape(triggerExecutionGroup))
                 .WithRetryPolicy(triggerRetryPolicy)
                 .WithPreferredNode(triggerPreferredNode)
+                .WithOverlapPolicy(triggerOverlapPolicy)
                 .WithSchedule(scheduleBuilder);
 
             // StartAfter composes with the schedule rather than replacing it, and refuses a parent that

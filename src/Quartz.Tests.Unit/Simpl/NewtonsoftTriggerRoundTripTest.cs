@@ -232,6 +232,45 @@ public class NewtonsoftTriggerRoundTripTest
         restored.RetryAttempt.Should().Be(0);
     }
 
+    [TestCase(OverlapPolicy.Skip)]
+    [TestCase(OverlapPolicy.BufferOne)]
+    [TestCase(OverlapPolicy.CancelPrevious)]
+    [TestCase(OverlapPolicy.AllowAll)]
+    public void OverlapPolicySurvivesTheRoundTrip(OverlapPolicy policy)
+    {
+        CronTriggerImpl trigger = new CronTriggerImpl
+        {
+            Key = new TriggerKey("overlapping", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            CronExpressionString = "0 0 * * * ?",
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1),
+            OverlapPolicy = policy
+        };
+
+        RoundTrip(trigger).OverlapPolicy.Should().Be(policy,
+            "a stored trigger that was told not to overlap has to come back told so");
+    }
+
+    [Test]
+    public void ATriggerWithNoOverlapPolicyWritesThePayloadItAlwaysDid()
+    {
+        CronTriggerImpl trigger = new CronTriggerImpl
+        {
+            Key = new TriggerKey("plain", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            CronExpressionString = "0 0 * * * ?",
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1)
+        };
+
+        string payload = Encoding.UTF8.GetString(((IObjectSerializer) serializer).Serialize(trigger));
+
+        payload.Should().NotContain("OverlapPolicy",
+            "a trigger with no policy is written exactly as it was before triggers had one");
+        RoundTrip(trigger).OverlapPolicy.Should().Be(OverlapPolicy.Default);
+    }
+
     private T RoundTrip<T>(T trigger) where T : class, IOperableTrigger
     {
         byte[] bytes = ((IObjectSerializer) serializer).Serialize(trigger);

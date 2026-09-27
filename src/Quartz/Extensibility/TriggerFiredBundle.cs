@@ -78,4 +78,16 @@ public sealed record TriggerFiredBundle
     /// The trigger's next UTC fire time, after this fire.
     /// </summary>
     public required DateTimeOffset? NextFireTimeUtc { get; init; }
+
+    /// <summary>
+    /// The fire instance ids of the trigger's running firings this fire replaces, or
+    /// <see langword="null" /> when it replaces none.
+    /// </summary>
+    /// <remarks>
+    /// Set by a store when the trigger's <see cref="ITrigger.OverlapPolicy" /> is
+    /// <see cref="OverlapPolicy.CancelPrevious" /> and earlier firings of it are running on this node.
+    /// The scheduler interrupts each of them once the store has recorded this fire and before it runs the
+    /// job. A firing on another node is never named here: the store holds the trigger back instead.
+    /// </remarks>
+    public IReadOnlyList<string>? SupersededFireInstanceIds { get; init; }
 }

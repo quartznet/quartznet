@@ -11,5 +11,6 @@
   "preferredNode": "node-a",
   "preferredNodeAuto": false,
   "executionGroup": "imports",
-  "retryPolicy": "fixed;3;00:00:30"
+  "retryPolicy": "fixed;3;00:00:30",
+  "overlapPolicy": "Skip"
 }

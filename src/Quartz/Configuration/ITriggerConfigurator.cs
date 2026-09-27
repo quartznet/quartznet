@@ -204,6 +204,23 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     }
 
     /// <summary>
+    /// Set what the trigger does when one of its firings comes due while an earlier firing of it is
+    /// still running.
+    /// </summary>
+    /// <param name="overlapPolicy">the policy</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <exception cref="NotSupportedException">
+    /// The implementation does not build overlap policies.
+    /// </exception>
+    /// <seealso cref="ITrigger.OverlapPolicy" />
+    ITriggerConfigurator<TJob> WithOverlapPolicy(OverlapPolicy overlapPolicy)
+    {
+        Throw.NotSupportedException(
+            $"{GetType().FullName} does not support overlap policies; {nameof(WithOverlapPolicy)} was added in Quartz.NET 4.3 and this configurator has not implemented it.");
+        return this;
+    }
+
+    /// <summary>
     /// Set the time at which the Trigger will no longer fire - even if it's
     /// schedule has remaining repeats.
     /// </summary>

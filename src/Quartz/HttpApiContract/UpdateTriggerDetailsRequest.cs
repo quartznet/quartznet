@@ -24,6 +24,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
 using Quartz.Serialization.SystemTextJson;
+using Quartz.Util;
 
 namespace Quartz.HttpApiContract;
 
@@ -127,6 +128,15 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
     /// </summary>
     public string? RetryPolicy { get; init; }
 
+    /// <summary>Whether <see cref="OverlapPolicy" /> is part of the update.</summary>
+    public bool HasOverlapPolicy { get; init; }
+
+    /// <summary>
+    /// The overlap policy by name — <c>Skip</c>, <c>BufferOne</c>, <c>CancelPrevious</c>, <c>AllowAll</c>
+    /// or <c>Default</c> — or <see langword="null" /> for <c>Default</c>.
+    /// </summary>
+    public string? OverlapPolicy { get; init; }
+
     /// <summary>
     /// The five families, spelled on the wire. Written out rather than derived from the internal enum,
     /// so that renaming a member of that enum cannot quietly rename a wire value.
@@ -163,7 +173,9 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             HasExecutionGroup = update.HasExecutionGroup,
             ExecutionGroup = update.ExecutionGroup,
             HasRetryPolicy = update.HasRetryPolicy,
-            RetryPolicy = update.RetryPolicy?.ToStoredString()
+            RetryPolicy = update.RetryPolicy?.ToStoredString(),
+            HasOverlapPolicy = update.HasOverlapPolicy,
+            OverlapPolicy = update.HasOverlapPolicy ? update.OverlapPolicy.ToString() : null
         };
     }
 
@@ -237,6 +249,11 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             update.WithRetryPolicy(Quartz.RetryPolicy.TryParse(RetryPolicy, out Quartz.RetryPolicy? policy) ? policy : null);
         }
 
+        if (HasOverlapPolicy)
+        {
+            update.WithOverlapPolicy(SchedulingFileValues.TryReadOverlapPolicy(OverlapPolicy, out Quartz.OverlapPolicy overlapPolicy) ? overlapPolicy : Quartz.OverlapPolicy.Default);
+        }
+
         return update;
     }
 
@@ -255,6 +272,11 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
         if (HasRetryPolicy && RetryPolicy is not null && !Quartz.RetryPolicy.TryParse(RetryPolicy, out _))
         {
             yield return $"Retry policy '{RetryPolicy}' is not a valid retry policy";
+        }
+
+        if (HasOverlapPolicy && !SchedulingFileValues.TryReadOverlapPolicy(OverlapPolicy, out _))
+        {
+            yield return $"Overlap policy '{OverlapPolicy}' is not an overlap policy. {SchedulingFileValues.OverlapPolicyNames}";
         }
     }
 
@@ -313,6 +335,7 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             JsonElement? preferredNode = Member(root, options, "PreferredNode");
             JsonElement? executionGroup = Member(root, options, "ExecutionGroup");
             JsonElement? retryPolicy = Member(root, options, "RetryPolicy");
+            JsonElement? overlapPolicy = Member(root, options, "OverlapPolicy");
 
             return new UpdateTriggerDetailsRequest
             {
@@ -333,7 +356,9 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
                 HasExecutionGroup = executionGroup.HasValue,
                 ExecutionGroup = Text(executionGroup, "executionGroup"),
                 HasRetryPolicy = retryPolicy.HasValue,
-                RetryPolicy = Text(retryPolicy, "retryPolicy")
+                RetryPolicy = Text(retryPolicy, "retryPolicy"),
+                HasOverlapPolicy = overlapPolicy.HasValue,
+                OverlapPolicy = Text(overlapPolicy, "overlapPolicy")
             };
         }
 
@@ -433,6 +458,11 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             if (value.HasRetryPolicy)
             {
                 writer.WriteString(options.GetPropertyName("RetryPolicy"), value.RetryPolicy);
+            }
+
+            if (value.HasOverlapPolicy)
+            {
+                writer.WriteString(options.GetPropertyName("OverlapPolicy"), value.OverlapPolicy);
             }
 
             writer.WriteEndObject();

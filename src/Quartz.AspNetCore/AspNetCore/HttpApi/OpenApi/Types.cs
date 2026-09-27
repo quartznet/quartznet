@@ -145,6 +145,12 @@ internal interface Trigger
     int? ContinuationCondition { get; }
 
     /// <summary>
+    /// What the trigger does when one of its firings comes due while an earlier firing of it is still
+    /// running: Skip, BufferOne, CancelPrevious or AllowAll. Absent for Default, which starts it alongside
+    /// </summary>
+    string? OverlapPolicy { get; }
+
+    /// <summary>
     /// Should be present when TriggerType is CalendarIntervalTrigger, CronTrigger, DailyTimeIntervalTrigger or RecurrenceTrigger
     /// </summary>
     string? TimeZone { get; }
@@ -314,4 +320,11 @@ internal interface UpdateTriggerDetailsRequest
     /// column carries — for example "fixed;3;00:00:30" — or null to stop retrying
     /// </summary>
     string? RetryPolicy { get; }
+
+    /// <summary>
+    /// What the trigger does when one of its firings comes due while an earlier firing of it is still
+    /// running — Skip, BufferOne, CancelPrevious, AllowAll or Default — or null for Default. Decides from
+    /// the next firing that comes due
+    /// </summary>
+    string? OverlapPolicy { get; }
 }

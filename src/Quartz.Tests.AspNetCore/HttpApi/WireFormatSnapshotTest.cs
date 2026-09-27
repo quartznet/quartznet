@@ -312,7 +312,8 @@ public class WireFormatSnapshotTest : WebApiTest
             .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)
             .WithPreferredNode(PreferredNode.For("node-a"))
             .WithExecutionGroup("imports")
-            .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30))));
+            .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30)))
+            .WithOverlapPolicy(OverlapPolicy.Skip));
 
         await VerifyBody(body);
     }

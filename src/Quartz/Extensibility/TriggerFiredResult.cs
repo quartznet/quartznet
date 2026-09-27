@@ -4,12 +4,14 @@ namespace Quartz.Extensibility;
 /// What became of one trigger in a <see cref="IJobStore.TriggersFired" /> batch.
 /// </summary>
 /// <remarks>
-/// Exactly one of three things happened to each trigger the scheduler asked the store to fire, and
-/// the three factories are the only way to say so: it fired and there is a bundle to run
+/// Exactly one of four things happened to each trigger the scheduler asked the store to fire, and
+/// the four factories are the only way to say so: it fired and there is a bundle to run
 /// (<see cref="Fired" />), it turned out not to be firable after all — paused, blocked, removed, or
 /// the scheduler halted underneath it — and there is nothing to run and nothing wrong
-/// (<see cref="NotFired" />), or firing it failed (<see cref="Failed" />). A result carrying both a
-/// bundle and an exception, or claiming a failure with no exception, cannot be constructed.
+/// (<see cref="NotFired" />), its overlap policy declined the firing and the store settled the
+/// trigger itself (<see cref="Declined" />), or firing it failed (<see cref="Failed" />). A result
+/// carrying both a bundle and an exception, or claiming a failure with no exception, cannot be
+/// constructed.
 /// </remarks>
 public sealed class TriggerFiredResult
 {
@@ -43,6 +45,18 @@ public sealed class TriggerFiredResult
     public static TriggerFiredResult NotFired { get; } = new(triggerFiredBundle: null, exception: null);
 
     /// <summary>
+    /// The trigger did not fire, and the store has already put it where it belongs: it skipped the
+    /// firing, or held the trigger back until an earlier firing of it ends. The scheduler neither runs
+    /// nor releases anything.
+    /// </summary>
+    /// <remarks>
+    /// The answer to a firing its trigger's <see cref="ITrigger.OverlapPolicy" /> declined. Unlike
+    /// <see cref="NotFired" />, the store has released the acquisition itself, and a release by the
+    /// scheduler would undo what it decided.
+    /// </remarks>
+    public static TriggerFiredResult Declined { get; } = new(triggerFiredBundle: null, exception: null) { IsDeclined = true };
+
+    /// <summary>
     /// Firing the trigger failed. The scheduler releases the trigger, reporting the exception.
     /// </summary>
     public static TriggerFiredResult Failed(Exception exception)
@@ -64,4 +78,9 @@ public sealed class TriggerFiredResult
     /// Why firing failed; <see langword="null" /> when it did not.
     /// </summary>
     public Exception? Exception { get; }
+
+    /// <summary>
+    /// Whether this is <see cref="Declined" />: not fired, and already settled by the store.
+    /// </summary>
+    public bool IsDeclined { get; private init; }
 }

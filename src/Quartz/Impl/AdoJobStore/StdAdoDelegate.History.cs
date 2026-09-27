@@ -191,6 +191,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.JobGroup, entry.JobKey?.Group);
         AddCommandParameter(cmd, SqlParameters.MisfireTime, GetDbDateTimeValue(entry.MisfiredAtUtc));
         AddCommandParameter(cmd, SqlParameters.ScheduledTime, GetDbDateTimeValue(entry.ScheduledFireTimeUtc));
+        AddCommandParameter(cmd, SqlParameters.MisfireReason, (int) entry.Reason);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -555,7 +556,26 @@ public partial class StdAdoDelegate
             TriggerName: rs.GetString(1),
             JobKey: jobName is null || jobGroup is null ? null : new JobKey(jobName, jobGroup),
             MisfiredAtUtc: GetDateTimeFromDbValue(rs.GetValue(5)) ?? DateTimeOffset.MinValue,
-            ScheduledFireTimeUtc: rs.IsDBNull(6) ? null : GetDateTimeFromDbValue(rs.GetValue(6)));
+            ScheduledFireTimeUtc: rs.IsDBNull(6) ? null : GetDateTimeFromDbValue(rs.GetValue(6)))
+        {
+            Reason = ReadMisfireReason(rs, 7)
+        };
+    }
+
+    /// <summary>
+    /// A row's reason: <see cref="MisfireReason.Missed" /> for one a 4.2 node wrote, which has none, and
+    /// for a value a newer node wrote that this one does not know.
+    /// </summary>
+    private static MisfireReason ReadMisfireReason(DbDataReader rs, int ordinal)
+    {
+        if (rs.IsDBNull(ordinal))
+        {
+            return MisfireReason.Missed;
+        }
+
+        // Not GetInt32: Oracle hands back a decimal for a NUMBER column.
+        MisfireReason reason = (MisfireReason) Convert.ToInt32(rs.GetValue(ordinal), CultureInfo.InvariantCulture);
+        return Enum.IsDefined(reason) ? reason : MisfireReason.Missed;
     }
 
     /// <summary>

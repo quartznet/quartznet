@@ -175,6 +175,19 @@ public interface ITrigger
     Continuation Continuation => Quartz.Continuation.None;
 
     /// <summary>
+    /// What this trigger does when one of its firings comes due while an earlier firing of it is still
+    /// running: start it anyway, skip it, hold it until the running one ends, or cancel the running one.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Quartz.OverlapPolicy.Default" /> — the default — starts it alongside, which is what
+    /// every trigger did before the policy existed. <see cref="DisallowConcurrentExecutionAttribute" />
+    /// on the job still holds back every trigger of it while one of its firings runs, whatever the
+    /// policy says.
+    /// </remarks>
+    /// <seealso cref="Quartz.OverlapPolicy" />
+    OverlapPolicy OverlapPolicy => Quartz.OverlapPolicy.Default;
+
+    /// <summary>
     /// Get or set  the <see cref="ICalendar" /> with the given name with
     /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
     /// </summary>

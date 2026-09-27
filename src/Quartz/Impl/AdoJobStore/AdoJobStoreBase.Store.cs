@@ -20,6 +20,7 @@
 #endregion
 
 using Quartz.Extensibility;
+using Quartz.Impl.Triggers;
 
 namespace Quartz.Impl.AdoJobStore;
 
@@ -267,11 +268,16 @@ internal abstract partial class AdoJobStoreBase
                 }
                 if (existingTrigger)
                 {
+                    // Read back only when something below needs the row as it stands.
+                    bool overlapUnsettledCheck = newTrigger is TriggerBase { OverlapPolicy: OverlapPolicy.CancelPrevious };
+                    IOperableTrigger? existingTrig = newTrigger.PreviousFireTimeUtc is null || overlapUnsettledCheck
+                        ? await Delegate.SelectTrigger(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false)
+                        : null;
+
                     // Preserve PreviousFireTimeUtc from the existing trigger when replacing,
                     // so that context.PreviousFireTimeUtc is not lost on application restart (#1834)
                     if (newTrigger.PreviousFireTimeUtc is null)
                     {
-                        IOperableTrigger? existingTrig = await Delegate.SelectTrigger(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
                         var prevFireTime = existingTrig?.PreviousFireTimeUtc;
                         if (prevFireTime is not null)
                         {
@@ -279,10 +285,25 @@ internal abstract partial class AdoJobStoreBase
                         }
                     }
 
+                    // A trigger given CancelPrevious while a firing of it that started under another
+                    // policy runs is unsettled until none does; see TriggerBase.OverlapPolicyUnsettled.
+                    if (newTrigger is TriggerBase replacing)
+                    {
+                        replacing.OverlapPolicyUnsettled = overlapUnsettledCheck
+                            && existingTrig is TriggerBase stored
+                            && await IsOverlapPolicyUnsettled(conn, stored, OverlapPolicy.CancelPrevious, cancellationToken).ConfigureAwait(false);
+                    }
+
                     await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
+                    if (newTrigger is TriggerBase inserting)
+                    {
+                        // A trigger that was not there has no firing running.
+                        inserting.OverlapPolicyUnsettled = false;
+                    }
+
                     await Delegate.InsertTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
                 }
             },
@@ -795,12 +816,13 @@ internal abstract partial class AdoJobStoreBase
 
                 if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
                     && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
-                    && !update.HasExecutionGroup && !update.HasRetryPolicy)
+                    && !update.HasExecutionGroup && !update.HasRetryPolicy && !update.HasOverlapPolicy)
                 {
                     return true;
                 }
 
                 update.EnsureMisfireInstructionMatchesFamily(existing, triggerKey);
+                update.EnsureOverlapPolicyCanBeCarried(existing, triggerKey);
 
                 if (update.HasCalendarName && update.CalendarName is not null)
                 {
@@ -864,6 +886,16 @@ internal abstract partial class AdoJobStoreBase
                     // too, with the value just read back from the row - so a re-policy leaves an
                     // occurrence that is mid-retry counting from where it was.
                     existing.RetryPolicy = update.RetryPolicy;
+                }
+
+                if (update.HasOverlapPolicy)
+                {
+                    // OVERLAP_POLICY is part of the same generic UPDATE. Whether the new policy is
+                    // unsettled is read from the row as it stands, before the write replaces it.
+                    TriggerBase overlapping = (TriggerBase) existing;
+                    bool unsettled = await IsOverlapPolicyUnsettled(conn, overlapping, update.OverlapPolicy, cancellationToken).ConfigureAwait(false);
+                    overlapping.OverlapPolicy = update.OverlapPolicy;
+                    overlapping.OverlapPolicyUnsettled = unsettled;
                 }
 
                 StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);

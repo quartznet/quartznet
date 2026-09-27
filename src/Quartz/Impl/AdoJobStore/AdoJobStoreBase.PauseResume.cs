@@ -545,6 +545,33 @@ internal abstract partial class AdoJobStoreBase
             "determine if trigger should be in a blocked state '" + jobKey + "'").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Keeps a trigger that is being resumed held back while a firing of its own still runs, when that is
+    /// what held it back before it was paused.
+    /// </summary>
+    /// <remarks>
+    /// A <c>PAUSED_BLOCKED</c> trigger whose job is not what blocks it was held back by an overlap policy
+    /// — a <see cref="OverlapPolicy.BufferOne" /> firing of it, or a
+    /// <see cref="OverlapPolicy.CancelPrevious" /> firing on another node — and that firing's completion
+    /// is what lets go of it. Resuming it to <c>WAITING</c> while the firing runs would let the next one
+    /// start beside it.
+    /// </remarks>
+    private async ValueTask<StoredTriggerState> CheckOverlapHeldState(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        StoredTriggerState pausedState,
+        StoredTriggerState resumedState,
+        CancellationToken cancellationToken)
+    {
+        if (pausedState != StoredTriggerState.PausedBlocked || resumedState != StoredTriggerState.Waiting)
+        {
+            return resumedState;
+        }
+
+        bool running = await Delegate.IsTriggerCurrentlyExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        return running ? StoredTriggerState.Blocked : resumedState;
+    }
+
     public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken).ConfigureAwait(false);
@@ -619,6 +646,10 @@ internal abstract partial class AdoJobStoreBase
                         unpausedStateByJob[header.JobKey] = newState;
                     }
 
+                    // Per trigger rather than per job, and so not cached: what holds it back is a firing
+                    // of its own.
+                    newState = await CheckOverlapHeldState(conn, header.Key, header.State, newState, cancellationToken).ConfigureAwait(false);
+
                     if (schedulerRunning && header.NextFireTimeUtc.Value < now
                         && await UpdateMisfiredTrigger(conn, header.Key, newState, forceState: true, cancellationToken).ConfigureAwait(false))
                     {
@@ -684,6 +715,7 @@ internal abstract partial class AdoJobStoreBase
                 bool blocked = status.State == StoredTriggerState.PausedBlocked;
 
                 StoredTriggerState newState = await CheckBlockedState(conn, status.JobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
+                newState = await CheckOverlapHeldState(conn, triggerKey, status.State, newState, cancellationToken).ConfigureAwait(false);
 
                 bool misfired = false;
 

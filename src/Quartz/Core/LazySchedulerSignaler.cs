@@ -38,6 +38,13 @@ internal sealed class LazySchedulerSignaler : ISchedulerSignaler
         return signaler.Value.NotifyTriggerListenersMisfired(trigger, cancellationToken);
     }
 
+    // Declared rather than left to the interface default, which does nothing: a forwarder that omits a
+    // member answers it itself instead of the scheduler behind it.
+    public ValueTask NotifyTriggerListenersSkipped(ITrigger trigger, CancellationToken cancellationToken = default)
+    {
+        return signaler.Value.NotifyTriggerListenersSkipped(trigger, cancellationToken);
+    }
+
     public ValueTask NotifySchedulerListenersFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
     {
         return signaler.Value.NotifySchedulerListenersFinalized(trigger, cancellationToken);

@@ -118,6 +118,7 @@ namespace Quartz.Dashboard.Plugins
         public System.Threading.Tasks.ValueTask TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask TriggerSkipped(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class DashboardLiveEventsPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.IJobListener, Quartz.ISchedulerListener, Quartz.ITriggerListener
@@ -237,6 +238,7 @@ namespace Quartz.Dashboard.Services
         public DashboardMisfireEntry(string SchedulerName, string SchedulerInstanceId, string TriggerGroup, string TriggerName, Quartz.Dashboard.Services.JobKeyDto? JobKey, System.DateTimeOffset MisfiredAtUtc, System.DateTimeOffset? ScheduledFireTimeUtc) { }
         public Quartz.Dashboard.Services.JobKeyDto? JobKey { get; init; }
         public System.DateTimeOffset MisfiredAtUtc { get; init; }
+        public Quartz.MisfireReason Reason { get; init; }
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }

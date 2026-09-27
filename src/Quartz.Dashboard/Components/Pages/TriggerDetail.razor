@@ -54,6 +54,7 @@
                 <tr><th>Previous Fire</th><td>@FormatDate(_trigger.PreviousFireTimeUtc)</td></tr>
                 <tr><th>Retry Policy</th><td>@(_trigger.RetryPolicy is { } retryPolicy ? retryPolicy.ToStoredString() : "—")</td></tr>
                 <tr><th>Retry Attempt</th><td>@_trigger.RetryAttempt</td></tr>
+                <tr><th>Overlap Policy</th><td>@_trigger.OverlapPolicy</td></tr>
                 @if (_trigger.Continuation.Parent is { } continuationParent)
                 {
                     <tr>

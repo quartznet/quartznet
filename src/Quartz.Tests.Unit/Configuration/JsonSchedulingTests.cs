@@ -457,6 +457,62 @@ public class JsonSchedulingTests
     }
 
     [Test]
+    public void AddQuartz_WithOverlapPolicyInJson_GivesTheTriggerThatPolicy()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "reportJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "skipping" },
+            { "Schedule:Triggers:0:JobName", "reportJob" },
+            { "Schedule:Triggers:0:OverlapPolicy", "skip" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+            { "Schedule:Triggers:1:Name", "ordinary" },
+            { "Schedule:Triggers:1:JobName", "reportJob" },
+            { "Schedule:Triggers:1:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using var provider = services.BuildServiceProvider();
+        var triggers = provider.ScheduledTriggers();
+
+        triggers.Single(x => x.Key.Name == "skipping").OverlapPolicy.Should().Be(OverlapPolicy.Skip,
+            "the policy is a setting of the trigger, named in any case");
+        triggers.Single(x => x.Key.Name == "ordinary").OverlapPolicy.Should().Be(OverlapPolicy.Default,
+            "a trigger that names none gets Default, as one built in code does");
+    }
+
+    [Test]
+    public void AddQuartz_WithAnOverlapPolicyThatIsNotOne_IsRefused()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "reportJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "typo" },
+            { "Schedule:Triggers:0:JobName", "reportJob" },
+            { "Schedule:Triggers:0:OverlapPolicy", "SkipIt" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using var provider = services.BuildServiceProvider();
+        Action act = () => provider.ScheduledTriggers();
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a trigger meant not to overlap that silently would is a mistake to report at startup")
+            .WithMessage("*'SkipIt' is not an overlap policy*BufferOne*");
+    }
+
+    [Test]
     public void AddQuartz_WithContinuationInJson_MakesTheTriggerWaitForTheParent()
     {
         var config = BuildConfig(new Dictionary<string, string>

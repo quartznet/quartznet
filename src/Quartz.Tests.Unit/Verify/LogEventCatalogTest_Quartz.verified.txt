@@ -56,6 +56,10 @@
     "Runtime error occurred in main trigger firing loop."
 1036  Error  CoreLog.AcquiredTriggerReleaseFailed
     "Error releasing acquired trigger '{TriggerKey}' {Context}"
+1037  Information  CoreLog.PreviousFiringCancelled
+    "Interrupting fire instance {FireInstanceId} of trigger {TriggerKey}: a new firing of it is starting, and its overlap policy is CancelPrevious"
+1038  Warning  CoreLog.PreviousFiringCancelFailed
+    "Could not interrupt fire instance {FireInstanceId} of trigger {TriggerKey} for its CancelPrevious overlap policy; it runs on beside the new firing"
 1050  Debug  CoreLog.JobExecuting
     "Calling Execute on job {JobKey}"
 1051  Information  CoreLog.JobCancelled
@@ -78,6 +82,8 @@
     "Initialized Scheduler Signaller of type: {Type}"
 1071  Error  CoreLog.ListenerNotificationOfMisfireFailed
     "Error notifying listeners of trigger misfire."
+1072  Error  CoreLog.ListenerNotificationOfSkipFailed
+    "Error notifying listeners of a skipped trigger firing."
 1080  Error  CoreLog.SchedulerError
     "{Message} (scheduler: {SchedulerName})"
 1081  Error  CoreLog.SchedulerErrorForFire
@@ -102,6 +108,8 @@
     "Trigger {TriggerKey} set to ERROR state."
 2006  Information  RAMJobStoreLog.JobTriggersSetToError
     "All triggers of Job {JobKey} set to ERROR state."
+2007  Information  RAMJobStoreLog.OverlappingFiringSkipped
+    "Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"
 3000  Information  AdoJobStoreLog.SqliteLockHandlerSubstituted
     "Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking"
 3001  Information  AdoJobStoreLog.SqliteAcquireTriggersWithinLockForced
@@ -188,6 +196,10 @@
     "Schema creation under table prefix '{TablePrefix}' failed on attempt {Attempt} of {Attempts} and the schema does not validate yet, retrying"
 3042  Warning  AdoJobStoreLog.LockHandlerShutdownFailed
     "Lock handler {LockHandlerType} failed to shut down, so whatever it opened is still open."
+3043  Information  AdoJobStoreLog.OverlappingFiringSkipped
+    "Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"
+3044  Information  AdoJobStoreLog.OverlappingFiringHeld
+    "Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed

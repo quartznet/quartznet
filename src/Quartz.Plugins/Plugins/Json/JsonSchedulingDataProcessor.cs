@@ -346,6 +346,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
                 .WithExecutionGroup(NormalizeEmpty(triggerDef.ExecutionGroup) is { } executionGroup ? ExecutionGroupTemplate.Escape(executionGroup) : null)
                 .WithRetryPolicy(ParseRetryPolicy(NormalizeEmpty(triggerDef.RetryPolicy), triggerName))
                 .WithPreferredNode(SchedulingFileValues.ReadPreferredNode(NormalizeEmpty(triggerDef.PreferredNode), $"Trigger '{triggerName}'"))
+                .WithOverlapPolicy(SchedulingFileValues.ReadOverlapPolicy(NormalizeEmpty(triggerDef.OverlapPolicy), $"Trigger '{triggerName}'"))
                 .WithSchedule(schedule)
                 .Build();
 

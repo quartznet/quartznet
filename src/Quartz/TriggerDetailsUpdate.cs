@@ -55,6 +55,22 @@ public sealed class TriggerDetailsUpdate
     internal bool HasRetryPolicy { get; private set; }
     internal RetryPolicy? RetryPolicy { get; private set; }
 
+    internal bool HasOverlapPolicy { get; private set; }
+    internal OverlapPolicy OverlapPolicy { get; private set; }
+
+    /// <summary>
+    /// Refuses an overlap policy for a stored trigger that cannot carry one, before a store changes
+    /// anything else about it.
+    /// </summary>
+    internal void EnsureOverlapPolicyCanBeCarried(ITrigger trigger, TriggerKey triggerKey)
+    {
+        if (HasOverlapPolicy && trigger is not Impl.Triggers.TriggerBase)
+        {
+            Throw.JobPersistenceException(
+                $"Trigger '{triggerKey}' is a {trigger.GetType().FullName}, which does not derive from TriggerBase and so cannot carry an overlap policy.");
+        }
+    }
+
     /// <summary>
     /// Set the trigger's description.
     /// </summary>
@@ -228,6 +244,30 @@ public sealed class TriggerDetailsUpdate
     {
         HasRetryPolicy = true;
         RetryPolicy = retryPolicy;
+        return this;
+    }
+
+    /// <summary>
+    /// Set what the trigger does when one of its firings comes due while an earlier firing of it is
+    /// still running.
+    /// </summary>
+    /// <remarks>
+    /// The new policy decides from the next firing that comes due. A firing already running under the
+    /// old one is not cancelled, and one waiting behind it under <see cref="Quartz.OverlapPolicy.BufferOne" />
+    /// still starts when it ends.
+    /// </remarks>
+    /// <param name="overlapPolicy">the policy</param>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a member of <see cref="Quartz.OverlapPolicy" />.</exception>
+    /// <seealso cref="ITrigger.OverlapPolicy" />
+    public TriggerDetailsUpdate WithOverlapPolicy(OverlapPolicy overlapPolicy)
+    {
+        if (!Enum.IsDefined(overlapPolicy))
+        {
+            Throw.ArgumentOutOfRangeException(nameof(overlapPolicy), $"{(int) overlapPolicy} is not an overlap policy.");
+        }
+
+        HasOverlapPolicy = true;
+        OverlapPolicy = overlapPolicy;
         return this;
     }
 }

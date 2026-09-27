@@ -257,6 +257,29 @@ internal abstract partial class AdoJobStoreBase
 
                     await RecoverUnblockedMisfires(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
                 }
+                else if (!triggerDeleted && trigger.OverlapPolicy is OverlapPolicy.BufferOne or OverlapPolicy.CancelPrevious)
+                {
+                    // This firing may have held its own trigger back: BufferOne from the moment it
+                    // started, CancelPrevious when a firing of it came due on a node that could not
+                    // interrupt this one. The firing's policy decides rather than the stored one, which
+                    // may have changed since: it is this firing that did the holding.
+                    await ReleaseOverlapHold(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                }
+                else if (!triggerDeleted
+                         && trigger.OverlapPolicy == OverlapPolicy.Skip
+                         && triggerInstructionCode == SchedulerInstruction.NoInstruction
+                         && trigger.NextFireTimeUtc is { } next
+                         && trigger.GetFireTimeAfter(next) is null)
+                {
+                    // A Skip trigger whose next firing is its last may have had that firing skipped
+                    // while this one ran, which stores it COMPLETE with nothing left. This firing is the
+                    // one that owes it the deletion a spent trigger gets; the header says whether it did.
+                    StoredTriggerHeader? header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                    if (header is { State: StoredTriggerState.Complete, NextFireTimeUtc: null })
+                    {
+                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
+                    }
+                }
                 if (jobDetail.PersistJobDataAfterExecution && jobDetail.JobDataMap.Dirty)
                 {
                     // Its own catch rather than a Guarded call: the two failures name different
@@ -521,6 +544,21 @@ internal abstract partial class AdoJobStoreBase
             return;
         }
 
+        await RecoverReleasedMisfires(conn, waiting, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Applies the misfire policy of every trigger in <paramref name="waiting" /> whose fire time went
+    /// past the misfire threshold while it was held back, and deletes the ones left with nothing to fire.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="waiting">Triggers just put back to <c>WAITING</c>.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask RecoverReleasedMisfires(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerKey> waiting,
+        CancellationToken cancellationToken)
+    {
         List<IOperableTrigger> triggers = await Delegate.SelectTriggers(conn, waiting, cancellationToken).ConfigureAwait(false);
 
         DateTimeOffset misfireTime = timeProvider.GetUtcNow();

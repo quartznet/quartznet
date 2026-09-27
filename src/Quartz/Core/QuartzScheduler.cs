@@ -2400,6 +2400,51 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Notifies the trigger listeners that a firing was dropped by its trigger's
+    /// <see cref="OverlapPolicy.Skip" />.
+    /// </summary>
+    /// <remarks>
+    /// Not counted as a misfire, which it is not.
+    /// </remarks>
+    /// <param name="trigger">The trigger, with the dropped firing still its next fire time.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public ValueTask NotifyTriggerListenersSkipped(
+        ITrigger trigger,
+        CancellationToken cancellationToken = default)
+    {
+        AttachedListener<ITriggerListener, TriggerKey>[] listeners = listenerManager.GetAttachedTriggerListeners();
+
+        return listeners.Length == 0 ? default
+            : NotifyAwaited(Scheduler, listeners, trigger, cancellationToken);
+
+        static async ValueTask NotifyAwaited(
+            IScheduler scheduler,
+            AttachedListener<ITriggerListener, TriggerKey>[] listeners,
+            ITrigger trigger,
+            CancellationToken cancellationToken)
+        {
+            foreach (AttachedListener<ITriggerListener, TriggerKey> attached in listeners)
+            {
+                if (!attached.Matches(trigger.Key))
+                {
+                    continue;
+                }
+
+                ITriggerListener tl = attached.Listener;
+
+                try
+                {
+                    await tl.TriggerSkipped(trigger, scheduler, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    throw new SchedulerException($"TriggerListener '{tl.Name}' threw exception: {e.Message}", e);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Notifies the trigger listeners of completion.
     /// </summary>
     /// <param name="context">The job execution context.</param>

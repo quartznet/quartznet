@@ -82,6 +82,8 @@ internal static class HttpApiJson
         options.Converters.Add(new JsonStringEnumConverter<SchedulerEventKind>());
         options.Converters.Add(new JsonStringEnumConverter<TriggerConflict>());
         options.Converters.Add(new JsonStringEnumConverter<ScheduleOutcome>());
+        options.Converters.Add(new JsonStringEnumConverter<OverlapPolicy>());
+        options.Converters.Add(new JsonStringEnumConverter<MisfireReason>());
 
         options.UseQuartzContract(HttpApiJsonContext.Default, registry);
 

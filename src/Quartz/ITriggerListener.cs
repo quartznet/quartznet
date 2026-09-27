@@ -130,6 +130,30 @@ public interface ITriggerListener
         CancellationToken cancellationToken = default) => default;
 
     /// <summary>
+    /// Called by the <see cref="IScheduler" /> when a firing of a <see cref="ITrigger" /> whose
+    /// <see cref="ITrigger.OverlapPolicy" /> is <see cref="OverlapPolicy.Skip" /> came due while an
+    /// earlier firing of it was still running, and was dropped.
+    /// </summary>
+    /// <param name="trigger">
+    /// The trigger, as it was when the firing was dropped: <see cref="ITrigger.NextFireTimeUtc" /> is the
+    /// firing that did not happen.
+    /// </param>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// A skipped firing is not a misfire: <see cref="TriggerMisfired" /> is not called for it, and the
+    /// trigger's misfire instruction is not applied. The scheduler is passed for the reason it is passed
+    /// to <see cref="TriggerMisfired" />: nothing ran, so there is no execution context.
+    /// <para>
+    /// The default implementation does nothing.
+    /// </para>
+    /// </remarks>
+    ValueTask TriggerSkipped(
+        ITrigger trigger,
+        IScheduler scheduler,
+        CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
     /// has fired, it's associated <see cref="IJobDetail" />
     /// has been executed, and it's <see cref="IOperableTrigger.Triggered" /> method has been

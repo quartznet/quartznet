@@ -392,8 +392,7 @@ internal abstract partial class AdoJobStoreBase
                     {
                         // Clone so that trigger.Triggered() mutation doesn't affect retries
                         var triggerCopy = (IOperableTrigger) trigger.Clone();
-                        var bundle = await TriggerFired(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
-                        result = bundle is null ? TriggerFiredResult.NotFired : TriggerFiredResult.Fired(bundle);
+                        result = await FireTrigger(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
                     }
                     catch (JobPersistenceException jpe)
                     {
@@ -455,6 +454,20 @@ internal abstract partial class AdoJobStoreBase
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
+        TriggerFiredResult result = await FireTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+        return result.TriggerFiredBundle;
+    }
+
+    /// <summary>
+    /// Fires one acquired trigger inside the batch's transaction: <see cref="TriggerFiredResult.Fired" />
+    /// with what to run, <see cref="TriggerFiredResult.NotFired" /> when it may not fire after all, or
+    /// <see cref="TriggerFiredResult.Declined" /> when its overlap policy settled it instead.
+    /// </summary>
+    private async ValueTask<TriggerFiredResult> FireTrigger(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        CancellationToken cancellationToken)
+    {
         IJobDetail? job;
         ICalendar? calendar = null;
 
@@ -468,7 +481,7 @@ internal abstract partial class AdoJobStoreBase
 
         if (header is null || header.State != StoredTriggerState.Acquired)
         {
-            return null;
+            return TriggerFiredResult.NotFired;
         }
 
         try
@@ -476,7 +489,7 @@ internal abstract partial class AdoJobStoreBase
             job = await GetJob(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
             if (job is null)
             {
-                return null;
+                return TriggerFiredResult.NotFired;
             }
         }
         catch (JobPersistenceException jpe)
@@ -510,7 +523,7 @@ internal abstract partial class AdoJobStoreBase
             if (alreadyExecuting)
             {
                 Logger.ConcurrentExecutionDeclined(trigger.Key, trigger.JobKey);
-                return null;
+                return TriggerFiredResult.NotFired;
             }
         }
 
@@ -520,7 +533,23 @@ internal abstract partial class AdoJobStoreBase
             if (calendar is null)
             {
                 Logger.TriggerReferencesMissingCalendar(trigger.Key, trigger.CalendarName);
-                return null;
+                return TriggerFiredResult.NotFired;
+            }
+        }
+
+        // The trigger's overlap policy, asked only when it can say anything: Skip and CancelPrevious,
+        // for a job that lets concurrent firings through at all — one that does not is held back above —
+        // and for a scheduled occurrence rather than a retry, which continues one already started.
+        // Default, AllowAll and BufferOne ask nothing here, so the ordinary fire pays nothing for it.
+        List<string>? superseded = null;
+        if (trigger is TriggerBase { OverlapPolicy: OverlapPolicy.Skip or OverlapPolicy.CancelPrevious } overlapping
+            && trigger.RetryAttempt == 0
+            && !job.ConcurrentExecutionDisallowed)
+        {
+            superseded = [];
+            if (await ApplyOverlapPolicy(conn, overlapping, job, calendar, superseded, cancellationToken).ConfigureAwait(false) is { } declined)
+            {
+                return declined;
             }
         }
 
@@ -597,6 +626,13 @@ internal abstract partial class AdoJobStoreBase
             state2 = StoredTriggerState.Blocked;
             force = false;
         }
+        else if (trigger.OverlapPolicy == OverlapPolicy.BufferOne)
+        {
+            // Held back while this firing runs, as a [DisallowConcurrentExecution] job's triggers are,
+            // but this trigger alone: nothing of it is acquired until the completion lets go of it.
+            state2 = StoredTriggerState.Blocked;
+            force = false;
+        }
 
         if (!trigger.NextFireTimeUtc.HasValue)
         {
@@ -629,7 +665,7 @@ internal abstract partial class AdoJobStoreBase
 
         job.JobDataMap.ClearDirtyFlag();
 
-        return new TriggerFiredBundle
+        return TriggerFiredResult.Fired(new TriggerFiredBundle
         {
             JobDetail = job,
             Trigger = trigger,
@@ -639,6 +675,7 @@ internal abstract partial class AdoJobStoreBase
             ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
             PreviousFireTimeUtc = prevFireTime,
             NextFireTimeUtc = trigger.NextFireTimeUtc,
-        };
+            SupersededFireInstanceIds = superseded is { Count: > 0 } ? superseded : null,
+        });
     }
 }

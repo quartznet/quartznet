@@ -133,7 +133,8 @@ internal sealed record MisfireHistoryEntryDto(
     string TriggerName,
     KeyDto? JobKey,
     DateTimeOffset MisfiredAtUtc,
-    DateTimeOffset? ScheduledFireTimeUtc)
+    DateTimeOffset? ScheduledFireTimeUtc,
+    MisfireReason Reason = MisfireReason.Missed)
 {
     public static MisfireHistoryEntryDto Create(MisfireHistoryEntry entry)
     {
@@ -145,7 +146,8 @@ internal sealed record MisfireHistoryEntryDto(
             TriggerName: entry.TriggerName,
             JobKey: entry.JobKey is null ? null : KeyDto.Create(entry.JobKey),
             MisfiredAtUtc: entry.MisfiredAtUtc,
-            ScheduledFireTimeUtc: entry.ScheduledFireTimeUtc
+            ScheduledFireTimeUtc: entry.ScheduledFireTimeUtc,
+            Reason: entry.Reason
         );
     }
 
@@ -160,7 +162,11 @@ internal sealed record MisfireHistoryEntryDto(
             JobKey?.AsJobKey(),
             MisfiredAtUtc,
             ScheduledFireTimeUtc
-        );
+        )
+        {
+            // A body from a host that predates the reason carries none, which is what its rows were.
+            Reason = Reason
+        };
     }
 }
 

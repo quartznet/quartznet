@@ -46,4 +46,15 @@ public sealed record MisfireHistoryEntry(
     string TriggerName,
     JobKey? JobKey,
     DateTimeOffset MisfiredAtUtc,
-    DateTimeOffset? ScheduledFireTimeUtc);
+    DateTimeOffset? ScheduledFireTimeUtc)
+{
+    /// <summary>
+    /// Why the firing did not happen: a misfire, or a firing the trigger's
+    /// <see cref="OverlapPolicy.Skip" /> dropped because the previous one was still running.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MisfireReason.Missed" /> for a row written before 4.3, which had no other reason to
+    /// record.
+    /// </remarks>
+    public MisfireReason Reason { get; init; }
+}

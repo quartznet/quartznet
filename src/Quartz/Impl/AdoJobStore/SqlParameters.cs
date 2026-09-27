@@ -131,6 +131,7 @@ internal static class SqlParameters
     public const string TriggerContinuesName = "triggerContinuesName";
     public const string TriggerContinuesGroup = "triggerContinuesGroup";
     public const string TriggerContinuationCondition = "triggerContinuationCondition";
+    public const string TriggerOverlapPolicy = "triggerOverlapPolicy";
 
     // Releasing a continuation sets NEXT_FIRE_TIME to the later of now and the trigger's own start
     // time, so one statement names "now" twice: once compared with START_TIME and once as the value.
@@ -214,6 +215,7 @@ internal static class SqlParameters
     public const string Succeeded = "succeeded";
     public const string ErrorMessage = "errorMessage";
     public const string MisfireTime = "misfireTime";
+    public const string MisfireReason = "misfireReason";
 
     /// <summary>Which attempt at the occurrence a history row is of.</summary>
     /// <remarks>
