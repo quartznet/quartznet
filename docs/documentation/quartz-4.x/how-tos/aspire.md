@@ -401,7 +401,7 @@ pool, job factory, type loader and instance id generator that `Use*<T>()` chose)
 put an OpenTelemetry provider on it.
 
 Types no container builds read the ambient factory: a listener or trigger you constructed, `CronTriggerImpl`,
-static helpers such as `TimeZones`, and the jobs in `Quartz.Jobs`. Forward the host's factory to
+the static helpers, and the jobs in `Quartz.Jobs`. Forward the host's factory to
 `LogProvider.SetLogProvider` once to include them; see the
 [migration guide](../migration-guide.md#the-ambient-logger-factory-stays-ambient).
 
