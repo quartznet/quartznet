@@ -3270,8 +3270,9 @@ public sealed class RAMJobStore : IJobStore
                 }
                 else
                 {
-                    tw.Trigger.Triggered(calendar);
-                    trigger.Triggered(calendar);
+                    // The next fire time is computed once where the copy would provably compute the
+                    // same one, and on each instance otherwise; TriggerCopyFiring says which is which.
+                    TriggerCopyFiring.Triggered(tw.Trigger, trigger, calendar);
                 }
                 // Deliberately not an "executing" state: this field decides whether the trigger can be
                 // acquired and fired again, and TriggersFired/ReleaseAcquiredTrigger/the blocking fan-out

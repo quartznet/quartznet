@@ -1085,7 +1085,8 @@ change rather than a store one.
 ## What #3866 changed (2026-09-27, AMD Ryzen 9 5950X)
 
 Cut 3 of #3802, the one D3 designed and left: a job that takes nothing from the container is built
-without a dependency-injection scope.
+without a dependency-injection scope. And `RAMJobStore.TriggersFired` stops computing a cron trigger's
+next fire time twice.
 
 **Machine and runtime.** BenchmarkDotNet v0.15.8; Windows 11 (10.0.26200.9457/25H2); AMD Ryzen 9
 5950X 3.40 GHz, 1 CPU, 32 logical and 16 physical cores; .NET SDK 10.0.401; .NET 10.0.12, X64 RyuJIT
@@ -1120,3 +1121,27 @@ than its own five-run range.
 `JobRunShellBenchmark` is the control. It builds its scheduler with `PropertySettingJobFactory`, so
 nothing here reaches it: 608 B, 608 B and 880 B before and after, 448-573 ns before and 450-579 ns
 after.
+
+### A cron trigger's copy is advanced with the stored trigger's computation
+
+`TriggersFired` advanced two instances of each trigger, its own and the caller's copy, computing the
+next fire time twice from the same state. For a cron trigger it now computes it once and hands the
+copy the two fire times it wrote, when both instances are exactly `CronTriggerImpl`, there is no
+calendar, and every field the computation reads agrees. Everything else is fired twice, as before.
+
+`TriggerCopyFiringBenchmark`, both arms in one build, medians of three runs:
+
+| Trigger | Two advances | One advance and the copy | Allocated |
+|---|---:|---:|---:|
+| Cron, `0/1 * * * * ?` in UTC | 90.3 ns | **47.8 ns** | 0 B |
+| Simple | 19.5 ns | 20.9 ns | 0 B |
+
+**It is worth doing for cron and not for simple triggers.** A cron advance is the cron search; a
+simple one is a division, which costs what comparing the two instances does. An interim version that
+shared the simple trigger's computation too read 18.27 ns against 18.48 ns, so the simple row is the
+unchanged fallback and the type check in front of it.
+
+**`FireThroughputBenchmark` cannot show it**, because its triggers are simple ones. Five alternating
+pairs read 1,718-1,735 B a firing before and 1,720-1,729 B after, and the time column says nothing
+either way: this was the noisiest sitting of the three, with five-run ranges of 1.3-3.0 us on both
+sides.
