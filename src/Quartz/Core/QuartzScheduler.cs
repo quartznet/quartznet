@@ -561,9 +561,9 @@ internal sealed class QuartzScheduler
     /// needs out now is not made to wait on a job by this.
     /// </para>
     /// <para>
-    /// Measured on the scheduler's own <see cref="TimeProvider" />, as every other wait here is — so a
-    /// fixture that hands the scheduler a fake clock and then shuts down with a job parked has to
-    /// advance that clock, or the window it is waiting out never elapses.
+    /// Measured on the system clock, not the scheduler's <see cref="TimeProvider" />: what it bounds is
+    /// a job running and a store round trip, and both happen in wall time whatever clock the scheduler
+    /// keeps. See <see cref="SettleDispatchedExecutions" />.
     /// </para>
     /// </remarks>
     private static readonly TimeSpan DispatchedExecutionSettleWindow = TimeSpan.FromSeconds(2);
@@ -634,8 +634,14 @@ internal sealed class QuartzScheduler
 
         try
         {
+            // The system clock deliberately, not the scheduler's. This bounds a wait for jobs to finish
+            // and for their completions to reach the store, and both happen in wall time whatever clock
+            // the scheduler keeps. Measured on the scheduler's provider it was no bound at all for a
+            // scheduler whose clock nobody advances — a test's FakeTimeProvider — and a shutdown that did
+            // not wait for its jobs waited for ever on one that was still running, the same trap the
+            // misfire handler's and cluster manager's shutdown guards fell into (#3892).
             await settled.Task
-                .WaitAsync(DispatchedExecutionSettleWindow, resources.TimeProvider, cancellationToken)
+                .WaitAsync(DispatchedExecutionSettleWindow, TimeProvider.System, cancellationToken)
                 .ConfigureAwait(false);
             return true;
         }

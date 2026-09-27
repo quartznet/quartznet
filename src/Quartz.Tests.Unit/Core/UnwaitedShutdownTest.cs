@@ -22,6 +22,7 @@
 #nullable enable
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Core;
 using Quartz.Extensibility;
@@ -157,6 +158,53 @@ public sealed class UnwaitedShutdownTest
         Drained(scheduler).Should().BeTrue(
             "the execution settled inside the window the shutdown gave it, and the barrier covers the "
             + "store update as well as the job");
+    }
+
+    /// <summary>
+    /// The window an unwaited shutdown gives the executions it has dispatched is measured in wall time,
+    /// whatever clock the scheduler keeps.
+    /// </summary>
+    /// <remarks>
+    /// It bounds a job running and its completion reaching the store, which happen in wall time. Measured
+    /// on the scheduler's own <see cref="TimeProvider" /> it was no bound at all on a clock nobody
+    /// advances — a test's <see cref="FakeTimeProvider" /> — and a shutdown that did not wait for its jobs
+    /// waited for ever on one that was still running: the trap #3892 took out of the misfire handler's
+    /// and cluster manager's shutdown guards.
+    /// </remarks>
+    [Test]
+    public async Task AShutdownThatDidNotWaitGivesUpOnARunningJobInWallTimeWhateverClockTheSchedulerKeeps()
+    {
+        FakeTimeProvider frozen = new(new DateTimeOffset(2031, 6, 17, 10, 0, 0, TimeSpan.Zero));
+
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "unwaited-shutdown-frozen-clock")
+                .UseTimeProvider(frozen)
+                .UseInMemoryStore())
+            .BuildScheduler();
+
+        try
+        {
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<ParkingJob>().WithIdentity("parked").Build(),
+                TriggerBuilder.Create(frozen).WithIdentity("parked").StartAt(frozen.GetUtcNow()).Build());
+
+            await scheduler.Start();
+            await ParkingJob.Started.WaitAsync(TimeSpan.FromSeconds(30));
+
+            Func<Task> shutdown = async () => await scheduler.Shutdown(waitForJobsToComplete: false);
+
+            await shutdown.Should().CompleteWithinAsync(TimeSpan.FromSeconds(10),
+                "the job is still running and nothing advances the scheduler's clock, so the window the "
+                + "shutdown gives it has to close in wall time");
+
+            Drained(scheduler).Should().BeFalse(
+                "the job was still running when the window closed, so the shutdown left it behind");
+        }
+        finally
+        {
+            ParkingJob.Release();
+        }
     }
 
     private static bool? Drained(IScheduler scheduler)
