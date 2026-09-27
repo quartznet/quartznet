@@ -121,49 +121,41 @@ cannot.
 
 ## Level 1: one job, one context
 
-A job's `Execute` takes an `IJobExecutionContext`. Build one and call it:
+A job's `Execute` takes an `IJobExecutionContext`. Build one with `JobExecutionContextBuilder`, from
+`Quartz.Extensibility`, and call the job:
 
+<!-- snippet: sample_testing_job_execution_context -->
 ```csharp
-[Test]
-public async Task ImportJobWritesTheWatermark()
-{
-    IJobDetail detail = JobBuilder.Create<ImportJob>()
-        .WithIdentity("import", "sync")
-        .UsingJobData("source", "orders")
-        .Build();
+IJobDetail detail = JobBuilder.Create<ImportJob>()
+    .WithIdentity("import", "sync")
+    .UsingJobData("source", "orders")
+    .Build();
 
-    IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
-        .WithIdentity("import-trigger", "sync")
-        .ForJob(detail)
-        .Build();
+ImportJob job = new(importer);
+using JobExecutionContextImpl context = JobExecutionContextBuilder.For(job)
+    .WithJob(detail)
+    .FiredAt(new DateTimeOffset(2026, 3, 6, 9, 0, 0, TimeSpan.Zero))
+    .Build();
 
-    TriggerFiredBundle bundle = new()
-    {
-        JobDetail = detail,
-        Trigger = trigger,
-        Recovering = false,
-        FireTimeUtc = new DateTimeOffset(2026, 3, 6, 9, 0, 0, TimeSpan.Zero),
-        ScheduledFireTimeUtc = new DateTimeOffset(2026, 3, 6, 9, 0, 0, TimeSpan.Zero),
-        PreviousFireTimeUtc = null,
-        NextFireTimeUtc = null,
-    };
-
-    ImportJob job = new(importer);
-    using JobExecutionContextImpl context = new(scheduler: null!, bundle, job);
-
-    await job.Execute(context, CancellationToken.None);
-
-    importer.LastSource.Should().Be("orders");
-}
+await job.Execute(context, CancellationToken.None);
 ```
+<!-- endSnippet -->
 
-* `TriggerFiredBundle` is a required-init record, so the compiler lists what a firing needs. Required:
-  `JobDetail`, `Trigger`, `Recovering`, `FireTimeUtc`, `ScheduledFireTimeUtc`, `PreviousFireTimeUtc` and
-  `NextFireTimeUtc`. Three are nullable but still required, so write `null` explicitly. `Calendar` is
-  optional.
-* `JobExecutionContextImpl` does no null-checking in its constructor. `null` for the scheduler and the
-  job is fine if the code under test does not use them; `context.Scheduler` with a null scheduler throws
-  `NullReferenceException`. Fake the scheduler when the job uses it.
+Then assert on what the job did: `importer.LastSource.Should().Be("orders")`.
+
+| Member | Sets | When left out |
+|---|---|---|
+| `For(job)` | the instance whose `Execute` runs | required |
+| `WithJob(detail)` | `context.JobDetail` and its job data | a job detail of the job's type |
+| `WithTrigger(trigger)` | `context.Trigger`, whose job data wins in `MergedJobDataMap` | a trigger that fires once |
+| `FiredAt(fireTime, scheduledFireTime)` | `FireTimeUtc` and `ScheduledFireTimeUtc` | now, on time |
+| `WithInput(input)` | what an `IJob<TInput>` is handed and `GetInput<T>()` reads | no input |
+| `WithScheduler(scheduler)` | `context.Scheduler` | `null` |
+
+* The trigger is copied, as a job store copies the trigger it fires, so the one you pass is unchanged.
+* `NextFireTimeUtc` is the next time the trigger's schedule gives, as a job store reports it.
+* `context.Scheduler` is `null` unless you pass one. Fake the scheduler when the job uses it.
+* Dispose the context: it owns a cancellation source once the job reads its token.
 
 ::: warning
 `context.JobRunTime` while a job is running is computed from `DateTimeOffset.UtcNow`, not from the
@@ -183,7 +175,8 @@ and is always correct.
 
 ### Jobs the container builds
 
-When a job takes constructor dependencies, resolve it the way the scheduler will:
+When a job takes constructor dependencies, resolve it the way the scheduler will. A job factory takes the
+`TriggerFiredBundle` a job store hands the scheduler, so build that as well:
 
 ```csharp
 ServiceCollection services = new();
@@ -191,10 +184,27 @@ services.AddSingleton<IImporter, FakeImporter>();
 services.AddTransient<ImportJob>();
 ServiceProvider provider = services.BuildServiceProvider();
 
+DateTimeOffset firedAt = new(2026, 3, 6, 9, 0, 0, TimeSpan.Zero);
+TriggerFiredBundle bundle = new()
+{
+    JobDetail = detail,
+    Trigger = (IOperableTrigger) TriggerBuilder.Create().ForJob(detail).StartAt(firedAt).Build(),
+    Recovering = false,
+    FireTimeUtc = firedAt,
+    ScheduledFireTimeUtc = firedAt,
+    PreviousFireTimeUtc = null,
+    NextFireTimeUtc = null,
+};
+
 MicrosoftDependencyInjectionJobFactory factory = new(provider);
 JobScope scope = await factory.CreateJob(bundle, scheduler);
 try
 {
+    using JobExecutionContextImpl context = JobExecutionContextBuilder.For(scope.Job)
+        .WithJob(detail)
+        .FiredAt(firedAt)
+        .Build();
+
     await scope.Job.Execute(context, CancellationToken.None);
 }
 finally
@@ -202,6 +212,8 @@ finally
     await factory.ReturnJob(scope);
 }
 ```
+
+`TriggerFiredBundle` is a required-init record: write `null` for the three nullable members explicitly.
 
 This exercises the whole instantiation path: the scope, property injection, and any
 `ConfigureJobScope` hook. Test a per-firing `AsyncLocal` here: the hook is synchronous so that values it
@@ -311,7 +323,7 @@ cluster, not only on the node that answered.
 
 ### Controlling time
 
-With a `FakeTimeProvider`, every scheduler *computation* moves when you advance it:
+With a `FakeTimeProvider`, the scheduler computes *and waits* on the fake clock:
 
 ```csharp
 FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 6, 8, 0, 0, TimeSpan.Zero));
@@ -323,31 +335,28 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
     .Build();
 ```
 
-**Advancing the clock does not wake the scheduler.** The scheduling loop reads the `TimeProvider` for
-every decision, but *waits* on a `SemaphoreSlim`, which only knows real elapsed time.
-
-**Advance, then signal.** Move the fake clock, then signal a scheduling change. Scheduling,
-rescheduling, pausing or resuming anything releases the loop's semaphore, and it re-evaluates against
-the new "now":
+**Advancing the clock wakes the scheduler.** The scheduling loop's waits are timers on the
+`TimeProvider`, so `Advance` fires the ones that came due, and a trigger that came due fires:
 
 ```csharp
-clock.Advance(TimeSpan.FromHours(2));
-await scheduler.ScheduleJob(detail, trigger);   // this both schedules and wakes the loop
+ITrigger trigger = TriggerBuilder.Create(clock)
+    .ForJob(detail)
+    .StartAt(clock.GetUtcNow().AddHours(1))
+    .Build();
+
+await scheduler.ScheduleJob(detail, trigger);
+clock.Advance(TimeSpan.FromHours(1));
+
+JobExecutionException? failure = await listener.Completed.WaitAsync(TimeSpan.FromSeconds(30));
 ```
 
-Where there is nothing natural to signal, shorten the wait instead:
-
-<!-- snippet: sample_testing_idle_wait_time -->
-```csharp
-.ConfigureScheduler(o => o.IdleWaitTime = TimeSpan.FromSeconds(1))
-```
-<!-- endSnippet -->
-
-* `IdleWaitTime` is at least one second (the option validator's minimum); the default is thirty.
-* The misfire handler and the cluster manager also compute on the `TimeProvider` but wake on their own
-  real delay, so `Advance` alone cannot drive misfire recovery or cluster check-in either.
-* **Never write `Advance(1h)` and assert "therefore it fired".** That test depends on wall-clock timing,
-  which the fake clock was meant to remove.
+* The job still runs on a pool thread. Wait for its [completion signal](#signal-completion-never-sleep)
+  with a real deadline; the advance makes the trigger due, it does not run the job.
+* The misfire handler's scan and the cluster check-in sleep on the `TimeProvider` too, so `Advance` drives
+  misfire recovery and check-in.
+* Advance in steps. A jump past a fire time by more than the misfire threshold is a misfire, which the
+  trigger's misfire instruction handles, not a replay of every firing in between.
+* A shutdown never waits for the clock: it cancels every wait.
 
 ### Testing misfire behaviour
 

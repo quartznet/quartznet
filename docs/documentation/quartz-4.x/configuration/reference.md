@@ -713,7 +713,7 @@ under `AddQuartz` and `QuartzSchedulerBuilder.Create(q => …)`.
 | `UseDriverDelegate<T>()`, `UseDriverDelegate(factory)` (persistent store builder) | the SQL dialect of the ADO.NET store | chosen by the database method: `UseSqlServer` picks `SqlServerDelegate`, and so on |
 
 `UseTimeProvider` is for tests: a `FakeTimeProvider` makes `TriggerBuilder`, `GetFireTimeAfter` and
-misfire calculations see the time you set. The scheduler's own waiting still uses the real clock.
+misfire calculations see the time you set, and advancing it wakes the scheduler's own waits.
 
 ## Health check
 

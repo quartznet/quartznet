@@ -31,15 +31,24 @@ public static class TestingSamples
         #endregion
     }
 
-    public static void ShorteningTheIdleWait()
+    public static async ValueTask OneJobOneContext(IImporter importer)
     {
-        QuartzSchedulerBuilder.Create(q => q
-            #region sample_testing_idle_wait_time
+        #region sample_testing_job_execution_context
 
-            .ConfigureScheduler(o => o.IdleWaitTime = TimeSpan.FromSeconds(1))
+        IJobDetail detail = JobBuilder.Create<ImportJob>()
+            .WithIdentity("import", "sync")
+            .UsingJobData("source", "orders")
+            .Build();
 
-            #endregion
-            .UseInMemoryStore());
+        ImportJob job = new(importer);
+        using JobExecutionContextImpl context = JobExecutionContextBuilder.For(job)
+            .WithJob(detail)
+            .FiredAt(new DateTimeOffset(2026, 3, 6, 9, 0, 0, TimeSpan.Zero))
+            .Build();
+
+        await job.Execute(context, CancellationToken.None);
+
+        #endregion
     }
 
     public static void MisfireThreshold(TimeProvider clock)
@@ -65,6 +74,21 @@ public static class TestingSamples
 
             #endregion
             ;
+    }
+}
+
+/// <summary>What <see cref="ImportJob" /> imports from, which a test fakes.</summary>
+public interface IImporter
+{
+    ValueTask Import(string source, CancellationToken cancellationToken);
+}
+
+/// <summary>The job the Level 1 sample calls directly.</summary>
+public sealed class ImportJob(IImporter importer) : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        return importer.Import(context.MergedJobDataMap.GetString("source")!, cancellationToken);
     }
 }
 

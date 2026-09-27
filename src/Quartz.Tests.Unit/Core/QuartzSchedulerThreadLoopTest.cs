@@ -4,6 +4,7 @@ using FakeItEasy;
 using FakeItEasy.Core;
 
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Core;
 using Quartz.Extensibility;
@@ -411,6 +412,98 @@ public sealed class QuartzSchedulerThreadLoopTest
             "the node-scoped group has one of this node's firings in flight");
         LimitFor(second, "tenant").Should().Be(2,
             "the cluster-scoped group's firing is the store's to count, not this loop's");
+    }
+
+    /// <summary>
+    /// A wait a real signal ended leaves its timer armed, and if that timer comes due before the loop
+    /// arms it again it leaves a permit behind (#3869). That is a spurious wake, and the loop absorbs it:
+    /// the permit costs one round, and the round's drain takes any others with it.
+    /// </summary>
+    /// <remarks>
+    /// The timer's firings are played while the loop is parked in its store call, after its round's
+    /// drain, which is the worst moment for them: nothing is left between them and the next wait.
+    /// </remarks>
+    [Test]
+    public async Task PermitsATimerLeavesAfterASignalCostOneRoundAndAreDrained()
+    {
+        ArmingRecordingTimeProvider clock = new(new FakeTimeProvider(new DateTimeOffset(2026, 3, 6, 8, 0, 0, TimeSpan.Zero)));
+        resources.TimeProvider = clock;
+
+        TaskCompletionSource storeCallReleased = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        store.OnAcquireNextTriggers = async (call, _, callThrough) =>
+        {
+            if (call == 2)
+            {
+                await storeCallReleased.Task;
+            }
+
+            return await callThrough();
+        };
+
+        // Unpaused before it starts, so the loop never waits on its pause signal and every arming is
+        // the scheduling signal's.
+        thread.TogglePause(pause: false);
+        thread.Start();
+
+        await ShouldObserve(clock.Armed(_ => true), "an empty store leaves the loop parked in its idle wait");
+        int wakeTimer = clock.Armings[0].Timer;
+
+        thread.SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+        await ShouldObserve(store.Acquisitions.Reaches(2), "a signal ends the idle wait and starts a round");
+
+        // The idle wait's timer coming due after all, three times over, once the round has drained.
+        clock.Fire(wakeTimer);
+        clock.Fire(wakeTimer);
+        clock.Fire(wakeTimer);
+        storeCallReleased.SetResult();
+
+        await ShouldObserve(clock.Armed(_ => true, count: 3),
+            "the loop parks after the signalled round, is woken at once by a stale permit, and parks again");
+
+        store.Acquisitions.Count.Should().Be(3,
+            "the first stale permit ends the next wait at once, which is one spurious round; that round drains the other two before it asks the store");
+        thread.IsScheduleChanged().Should().BeFalse("a timer's permit is a wake, never a scheduling change");
+    }
+
+    /// <summary>
+    /// A pause signals a scheduling change so the loop leaves whatever wait it is in, and the round the
+    /// loop is starting drains that signal. A pause landing between the loop's pause check and the drain
+    /// used to be slept through for a whole idle wait — for ever, on a clock nobody advances.
+    /// </summary>
+    /// <remarks>
+    /// The thread pool is asked for free threads between those two points, so that is where the test
+    /// pauses the loop.
+    /// </remarks>
+    [Test]
+    public async Task APauseThatLandsAsARoundStartsIsNotSleptThrough()
+    {
+        ArmingRecordingTimeProvider clock = new(new FakeTimeProvider(new DateTimeOffset(2026, 3, 6, 8, 0, 0, TimeSpan.Zero)));
+        resources.TimeProvider = clock;
+        resources.IdleWaitTime = TimeSpan.FromSeconds(10);
+
+        int threadRequests = 0;
+        A.CallTo(() => threadPool.WaitForAvailableThreads(A<CancellationToken>.Ignored))
+            .ReturnsLazily(() =>
+            {
+                if (Interlocked.Increment(ref threadRequests) == 2)
+                {
+                    thread.TogglePause(pause: true);
+                }
+
+                return new ValueTask<int>(AvailableThreads);
+            });
+
+        thread.TogglePause(pause: false);
+        thread.Start();
+
+        await ShouldObserve(clock.Armed(arming => arming.DueTime > TimeSpan.FromSeconds(5)),
+            "an empty store leaves the loop parked in its idle wait");
+
+        thread.SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+
+        await ShouldObserve(clock.Armed(arming => arming.DueTime == TimeSpan.FromSeconds(1)),
+            "the loop was paused as its next round started, so it has to park in its pause wait rather than in another idle wait");
+        store.Acquisitions.Count.Should().Be(1, "a paused loop does not ask the store for triggers");
     }
 
     private void StartLoop()

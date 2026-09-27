@@ -46,10 +46,10 @@ namespace Quartz.Tests.Integration.Core;
 /// <para>
 /// The clock is a <see cref="FakeTimeProvider" /> and nothing here sleeps. Two facts about the
 /// scheduling loop shape the way it is driven, and both are written up in the testing tutorial:
-/// advancing a fake clock does not wake the loop, which waits on a semaphore that only knows real
-/// elapsed time, so every advance is followed by something that signals a scheduling change; and a
-/// fire that is late by less than the misfire threshold is fired late rather than skipped, which is
-/// why the threshold here is wider than the whole window. Between them the scheduler replays every
+/// advancing a fake clock wakes the loop, whose waits are timers on that clock, and every advance here
+/// is also followed by a scheduling signal, which this test was written with and which still wakes it;
+/// and a fire that is late by less than the misfire threshold is fired late rather than skipped, which
+/// is why the threshold here is wider than the whole window. Between them the scheduler replays every
 /// scheduled fire in the window in a burst after each advance, with
 /// <see cref="IJobExecutionContext.ScheduledFireTimeUtc" /> carrying the time it was scheduled for -
 /// which is the value under test.
@@ -198,9 +198,9 @@ public sealed class SchedulerAcrossDstTransitionTest
                     now = now + Step > windowEnd ? windowEnd : now + Step;
                     clock.SetUtcNow(now);
 
-                    // Advance, then signal. ResumeAll resumes nothing here - no group is paused - but
-                    // it releases the loop's semaphore, which is what makes the new "now" visible
-                    // without waiting out an idle wait.
+                    // Advance, then signal. The advance wakes the loop on its own since #3869; ResumeAll
+                    // resumes nothing here - no group is paused - and is the scheduling signal this test
+                    // was written with, which wakes it as well.
                     await scheduler.ResumeAll();
 
                     int dueByNow = expected.Count(x => x.FireTimeUtc <= now);

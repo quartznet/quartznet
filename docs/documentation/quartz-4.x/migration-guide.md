@@ -77,6 +77,7 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `IDriverDelegate.IsTriggerCurrentlyExecuting` | Default reads `SelectFiredTriggerRecords`; `StdAdoDelegate` counts |
 | `AdoConstants.ColumnOverlapPolicy`, `ColumnMisfireReason` | `OVERLAP_POLICY` on `QRTZ_TRIGGERS` and `REASON` on `QRTZ_MISFIRE_HISTORY` |
 | Log events `1037`, `1038`, `1072`, `2007`, `3043`, `3044` | A firing replaced, an interrupt that failed, a skip notification that failed, a skip (in memory, persistent), a firing held behind another node's |
+| `JobExecutionContextBuilder` | `Quartz.Extensibility`. Builds the context a job's `Execute` takes, to call a job directly: `For(job).WithJob(detail).WithTrigger(trigger).FiredAt(when).WithInput(input).Build()`. See [Level 1: one job, one context](tutorial/testing.md#level-1-one-job-one-context) |
 
 `ScheduleTrigger` and `StoreTrigger` are default interface members, so a scheduler or store written for
 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare both.
@@ -112,6 +113,10 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
   `ScheduleJob(trigger, options)`. A test double configured for `ScheduleJob` sees no call for a
   `Replacing(name)` one-liner; configure `ScheduleTrigger`. The default `Throw` makes the call it always
   made.
+* **Advancing a `TimeProvider` wakes the scheduling loop.** Its idle, pre-fire and standby waits are
+  timers on the scheduler's clock, so `FakeTimeProvider.Advance` fires a trigger that came due. A test
+  that advanced the clock and then signalled a change (`ResumeAll()`, another schedule) still works; the
+  signal is no longer needed. See [Controlling time](tutorial/testing.md#controlling-time).
 
 **Interface members are default interface members**, so an implementation written for 4.2 compiles and
 behaves as it did. Properties added to records are non-positional `init` properties, so constructors are
@@ -5313,7 +5318,8 @@ Two more are checked where they are set, not through `ValidateOnStart`:
 * `IScheduler.StartDelayed` checks its argument. An over-long delay used to fault an unobserved task and
   leave a scheduler that never started.
 
-`IdleWaitTime` has no upper bound: it waits on a `SemaphoreSlim`, which takes a timeout of any length.
+`IdleWaitTime` has no upper bound: a wait longer than a timer allows, about 49.7 days, ends there and the
+loop looks again.
 
 A value refused here used to start, so this is a startup failure for a configuration that ran before.
 

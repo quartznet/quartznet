@@ -65,7 +65,7 @@ Everything the container builds for a scheduler gets that scheduler's clock:
 
 | Component | What it uses the clock for |
 |---|---|
-| `QuartzScheduler` / the scheduling loop | deciding whether a trigger is due, `StartDelayed` |
+| `QuartzScheduler` / the scheduling loop | deciding whether a trigger is due, waiting for it, `StartDelayed` |
 | `RAMJobStore` | fire times, misfire detection |
 | The ADO.NET store | the same, plus retry backoff |
 | `IDriverDelegate` (via `DriverDelegateContext.TimeProvider`) | timestamps written to the database |
@@ -255,20 +255,18 @@ FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Ze
 builder.Services.AddQuartz(q => q.UseTimeProvider(clock));
 ```
 
-::: warning
-Advancing a fake clock changes what the scheduler *computes*, but it does not *wake* the scheduler.
-`clock.Advance(TimeSpan.FromHours(1))` does not make a trigger fire.
-:::
+Advancing the fake clock moves the scheduler's waits as well as its computations.
+`clock.Advance(TimeSpan.FromHours(1))` fires a trigger that came due in that hour.
 
-* The scheduling loop's idle wait and pre-fire wait are `SemaphoreSlim` waits on the real clock;
-  `SemaphoreSlim.WaitAsync` has no `TimeProvider` overload.
-* The misfire handler's and cluster manager's scan intervals run on the `TimeProvider`, but only wake
-  when their own real delay elapses.
-* The fake clock does drive every fire-time computation, misfire detection, `StartDelayed`, and the retry
-  and backoff delays in the ADO store.
+* The scheduling loop's waits, idle, before a firing and in standby, are timers on the `TimeProvider`.
+* The misfire handler's scan and the cluster check-in sleep on it too.
+* So do fire-time computation, misfire detection, `StartDelayed`, and the retry and backoff delays in the
+  ADO store.
+* A shutdown does not wait for the clock: it cancels every wait, and gives up on a stuck store call in
+  real time.
 
-[Testing](testing.md) turns this into a rule, **advance, then signal**, and covers the four levels of
-Quartz test, starting with computing fire times with no scheduler, where a fake clock works fully.
+[Testing](testing.md#controlling-time) shows a test that advances the clock, and covers the four levels of
+Quartz test, starting with computing fire times with no scheduler.
 `IdleWaitTime`, misfire thresholds and the other timings are in the
 [Configuration Reference](../configuration/reference.md).
 
