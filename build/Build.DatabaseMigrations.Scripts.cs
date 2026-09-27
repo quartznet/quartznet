@@ -459,6 +459,9 @@ partial class Build
 
             // --- 4.3: why a firing was missed, on the table only UseExecutionHistory() reads ---
             files.Add(($"4.3/add_misfire_reason_{d}.sql", Build43MisfireReasonScript(d)));
+
+            // --- 4.3: why a trigger or a group is paused, which every 4.3 node writes when it pauses one ---
+            files.Add(($"4.3/add_pause_reason_{d}.sql", Build43PauseReasonScript(d)));
         }
 
         return files;
@@ -651,6 +654,80 @@ partial class Build
 
         return header
             + "\n\n" + AddColumn(dialect, TableMisfireHistory, "REASON", ModelColumn(dialect, TableMisfireHistory, "REASON"));
+    }
+
+    /// <summary>
+    /// The three columns a pause is recorded in, on the trigger table and on both paused-group tables.
+    /// </summary>
+    /// <remarks>
+    /// One file for the three tables: every node reads and writes all of them, so a database needs the
+    /// nine columns together, and none of the tables is optional.
+    /// </remarks>
+    static string Build43PauseReasonScript(string dialect)
+    {
+        List<string> extra =
+        [
+            "PAUSE_REASON is why the trigger or group was paused, as the caller said it, cut to 250",
+            "characters. PAUSED_BY is who asked, cut to 200: a user name, or 'quartz:retries-exhausted'",
+            "when the scheduler paused a trigger whose retries ran out. PAUSED_AT is when, in ticks,",
+            "as every other instant in this schema is stored.",
+            "",
+            "A 4.3 node writes all three on every pause, a pause without a reason included, and clears",
+            "them on a trigger it resumes. A group's row is deleted when the group is resumed, so it",
+            "takes its columns with it.",
+            "",
+            "No index is added. The columns are read with the row they are on, never searched on.",
+            "",
+            "ALL NINE COLUMNS MUST BE ADDED TOGETHER.",
+        ];
+
+        if (dialect == "oracle")
+        {
+            extra.AddRange([
+                "",
+                "Oracle only: PAUSE_REASON is VARCHAR2(1000) and PAUSED_BY VARCHAR2(800), four times",
+                "as wide as the characters they hold, because VARCHAR2 counts bytes and a character of",
+                "UTF-8 can take up to four of them.",
+            ]);
+        }
+
+        string header = Header(dialect, "add the pause reason columns", "4.3.0", "#3879",
+            [
+                "4.3  REQUIRED. A 4.3 node writes these columns whenever it pauses a trigger or a group,",
+                "     so it refuses to start against a database without them.",
+                "",
+                "     Safe to run while 4.2 nodes are still up: the columns are nullable with no default,",
+                "     so every existing row is already valid, and a 4.2 node never names them. A pause a",
+                "     4.2 node makes leaves them NULL, which reads as a pause that gave no reason. A 4.2",
+                "     node's resume leaves a trigger's columns behind, so a 4.3 node reports them only",
+                "     while the trigger is paused -- migrate, and roll every node.",
+                "",
+                $"4.1  Run ../4.2/add_continuations_{dialect}.sql first on a database created by",
+                "     4.0 or 4.1.",
+                "",
+                "3.x  Not applicable. Upgrading from 3.x means running",
+                $"     ../4.0/schema_30_to_40_upgrade_{dialect}.sql and every later migration first;",
+                "     this file is what 4.3 adds on top of them.",
+            ],
+            extra,
+            sqliteNotIdempotent: true);
+
+        List<string> sections = [];
+        (string Table, string Title)[] tables =
+        [
+            (TableTriggers, "1. QRTZ_TRIGGERS"),
+            (TablePausedTriggerGroups, "2. QRTZ_PAUSED_TRIGGER_GRPS"),
+            (TablePausedJobGroups, "3. QRTZ_PAUSED_JOB_GRPS"),
+        ];
+
+        foreach ((string table, string title) in tables)
+        {
+            sections.Add($"-- === {title} ===\n\n" + string.Join("\n\n",
+                new[] { "PAUSE_REASON", "PAUSED_BY", "PAUSED_AT" }.Select(
+                    column => AddColumn(dialect, table, column, ModelColumn(dialect, table, column)))));
+        }
+
+        return header + "\n\n" + string.Join("\n\n", sections);
     }
 
     /// <summary>

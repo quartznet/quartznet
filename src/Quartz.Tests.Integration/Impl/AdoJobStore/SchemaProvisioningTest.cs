@@ -299,6 +299,9 @@ public class SchemaProvisioningTest
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.3", "add_misfire_reason", dialect, UnmigratedPrefix), dialect);
 
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.3", "add_pause_reason", dialect, UnmigratedPrefix), dialect);
+
         await StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}_migrated");
 
         SchemaSnapshot afterMigration = await SchemaSnapshot.ReadAsync(connection, dialect, UnmigratedPrefix);
@@ -314,6 +317,8 @@ public class SchemaProvisioningTest
             "4.3's progress columns among them, which every 4.3 node reads when it lists what is running");
         afterMigration.Columns.Should().Contain(column => column.Contains("OVERLAP_POLICY", StringComparison.Ordinal),
             "and its overlap policy column, which every 4.3 node reads and writes with every trigger");
+        afterMigration.Columns.Should().Contain(column => column.Contains("PAUSE_REASON", StringComparison.Ordinal),
+            "and its pause columns, which every 4.3 node writes whenever it pauses a trigger or a group");
     }
 
     /// <summary>

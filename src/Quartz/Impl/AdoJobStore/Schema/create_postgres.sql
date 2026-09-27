@@ -64,6 +64,9 @@ CREATE TABLE IF NOT EXISTS {0}triggers (
   continues_trigger_group text null,
   continuation_condition integer null,
   overlap_policy integer null,
+  pause_reason varchar(250) null,
+  paused_by varchar(200) null,
+  paused_at bigint null,
   job_data bytea null,
   primary key (sched_name,trigger_name,trigger_group),
   foreign key (sched_name,job_name,job_group) references {0}job_details (sched_name,job_name,job_group)
@@ -135,6 +138,9 @@ CREATE TABLE IF NOT EXISTS {0}calendars (
 CREATE TABLE IF NOT EXISTS {0}paused_trigger_grps (
   sched_name text not null,
   trigger_group text not null,
+  pause_reason varchar(250) null,
+  paused_by varchar(200) null,
+  paused_at bigint null,
   primary key (sched_name,trigger_group)
 );
 --;;
@@ -142,6 +148,9 @@ CREATE TABLE IF NOT EXISTS {0}paused_trigger_grps (
 CREATE TABLE IF NOT EXISTS {0}paused_job_grps (
   sched_name text not null,
   job_group text not null,
+  pause_reason varchar(250) null,
+  paused_by varchar(200) null,
+  paused_at bigint null,
   primary key (sched_name,job_group)
 );
 --;;

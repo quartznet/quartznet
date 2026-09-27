@@ -504,6 +504,7 @@ partial class Build
                     oracle: "NUMBER(13) NULL",
                     sqlite: "INTEGER NULL",
                     firebird: "INTEGER DEFAULT NULL") with { AddedBy = "4.3" },
+                .. PauseColumns(),
                 Blob("JOB_DATA", required: false),
             ],
             new SchemaForeignKey(JobKey, "JOB_DETAILS", JobKey, Cascade: false, OracleName: "TRIGGER_TO_JOBS_FK")),
@@ -615,6 +616,7 @@ partial class Build
             [
                 Text("SCHED_NAME", 120, 120, required: true),
                 Text("TRIGGER_GROUP", 150, 200, required: true),
+                .. PauseColumns(),
             ],
             OracleStem: "PAUSED_TRIG_GRPS"),
 
@@ -623,6 +625,7 @@ partial class Build
             [
                 Text("SCHED_NAME", 120, 120, required: true),
                 Text("JOB_GROUP", 150, 200, required: true),
+                .. PauseColumns(),
             ]),
 
         new("FIRED_TRIGGERS",
@@ -706,6 +709,34 @@ partial class Build
             ]),
 
         .. ExecutionHistoryTables,
+    ];
+
+    /// <summary>
+    /// The three columns a pause is recorded in, on a trigger's row and on a paused group's.
+    /// </summary>
+    /// <remarks>
+    /// Why it was paused, as the caller put it and cut to 250 characters; who asked, cut to 200; and
+    /// when, in ticks like every other instant here. Oracle is declared four times as wide for the
+    /// reason <c>PROGRESS_MESSAGE</c> is: its <c>VARCHAR2</c> counts bytes. All three are NULL on a
+    /// row a 4.2 node paused, which reads as a pause that said nothing.
+    /// </remarks>
+    static SchemaColumn[] PauseColumns() =>
+    [
+        Column("PAUSE_REASON",
+            sqlServer: "nvarchar(250) NULL",
+            postgres: "VARCHAR(250) NULL",
+            mysql: "VARCHAR(250) NULL",
+            oracle: "VARCHAR2(1000) NULL",
+            sqlite: "NVARCHAR(250) NULL",
+            firebird: "VARCHAR(250) DEFAULT NULL") with { AddedBy = "4.3" },
+        Column("PAUSED_BY",
+            sqlServer: "nvarchar(200) NULL",
+            postgres: "VARCHAR(200) NULL",
+            mysql: "VARCHAR(200) NULL",
+            oracle: "VARCHAR2(800) NULL",
+            sqlite: "NVARCHAR(200) NULL",
+            firebird: "VARCHAR(200) DEFAULT NULL") with { AddedBy = "4.3" },
+        Timestamp("PAUSED_AT", required: false) with { AddedBy = "4.3" },
     ];
 
     static SchemaColumn SimpropInt(string name) => Column(name,
