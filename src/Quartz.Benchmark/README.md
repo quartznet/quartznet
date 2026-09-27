@@ -1081,3 +1081,42 @@ acquisition's second read of the triggers it has just named, the fire's job-deta
 completion's reschedule double-check — three statements, each of which needs a shape change rather
 than a deletion. Getting to TickerQ's class needs fewer transactions per firing, which is a scheduler
 change rather than a store one.
+
+## What #3866 changed (2026-09-27, AMD Ryzen 9 5950X)
+
+Cut 3 of #3802, the one D3 designed and left: a job that takes nothing from the container is built
+without a dependency-injection scope.
+
+**Machine and runtime.** BenchmarkDotNet v0.15.8; Windows 11 (10.0.26200.9457/25H2); AMD Ryzen 9
+5950X 3.40 GHz, 1 CPU, 32 logical and 16 physical cores; .NET SDK 10.0.401; .NET 10.0.12, X64 RyuJIT
+x86-64-v3, concurrent workstation GC. Base commit `4a29e014ef`.
+
+**How these were taken.** As D3's were: five alternating pairs, the order reversed between pairs, in
+process, two built trees in one sitting, medians over the five. The bytes are exact rather than read
+off the rounded `Allocated` column: each case's `// GC:` line divided by its operation count. Other
+agent sessions were building throughout, so read the time column as direction.
+
+### A job that takes nothing from the container is built without a scope
+
+**It helps only such a job.** The factory has to be exactly `MicrosoftDependencyInjectionJobFactory`,
+`ConfigureJobScope` has to be unset, the container must hold no registration of the job type, and the
+type's only public constructor must take no parameters. `AddJob<T>()` and `ScheduleJob<T>()` register
+the job type, so a job added through `AddQuartz` keeps its scope and every byte of it. The benchmark's
+job is the case this is for: `JobBuilder.Create<NoOpJob>()`, scheduled on the scheduler directly.
+
+`FireThroughputBenchmark`, before and after:
+
+| `MaxConcurrency` | `JobCount` | B/firing before | B/firing after | Δ B | Median before | Median after |
+|---:|---:|---:|---:|---:|---:|---:|
+| 10 | 100 | 1,888 | 1,718 | −170 | 1.754 us | 1.683 us |
+| 10 | 1 | 1,890 | 1,717 | −173 | 1.682 us | 1.593 us |
+| 50 | 100 | 1,889 | 1,722 | −167 | 1.627 us | 1.614 us |
+| 50 | 1 | 1,891 | 1,721 | −170 | 1.614 us | 1.556 us |
+
+**1.84 KB to 1.68 KB a firing,** which is #3866's 1.83 to ~1.67 on a base that has grown by a few
+bytes since D3: 167-173 B, where D1's census priced the scope at 161 B. The time column moves by less
+than its own five-run range.
+
+`JobRunShellBenchmark` is the control. It builds its scheduler with `PropertySettingJobFactory`, so
+nothing here reaches it: 608 B, 608 B and 880 B before and after, 448-573 ns before and 450-579 ns
+after.
