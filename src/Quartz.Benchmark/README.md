@@ -551,6 +551,11 @@ than a published package. The sections above compare 4.0 against 3.x and against
 compares it against the two other .NET schedulers it gets put beside: **TickerQ 10.4.0** and
 **Hangfire 1.8.25**.
 
+**Corrected on 2026-09-27 (#3861).** The S2 census, S5 and Quartz's S4 cron row were re-taken on
+`936bf26e69`. The census had TickerQ at 0.21 commits an execution; it is 2.0 in the window and about
+4.0 over an execution's life, and S2's TickerQ time is mostly its own lateness. Both are explained
+under S2.
+
 **What makes these rows different from the published comparison they answer.** Every arm here
 executes a job, and every arm counts inside the executing job: an `Interlocked` counter incremented
 by the job body, an absolute target published before the work is scheduled, and a wait with a timeout
@@ -633,9 +638,14 @@ rather than two, because two thousand schedules against a database is seconds of
 | TickerQ           |  2.91-3.15 ms | 0.03-0.34 ms |  48.7-50.0 KB | 317-344 |
 | Hangfire          | 15.78-15.84 ms | 0.65-0.66 ms | 101.5 KB |      63 |
 
-**Quartz loses this one to TickerQ by 3.5-4x**, and beats Hangfire by about 1.4x. The row below says
-where the difference is: TickerQ's execution costs the database about two statements and Quartz's
-about twenty.
+**Quartz loses this one to TickerQ by 3.5-4x**, and beats Hangfire by about 1.4x.
+
+**TickerQ's row is a wait, not a rate** (#3861). The census below times every drain: TickerQ started
+its first execution 5.8-7.0 s after the work was due and ran all 2,000 in the next quarter to half
+second. Its Mean is that lateness divided by 2,000. The lateness is its claiming, one `UPDATE` a ticker
+made after its loop had already worked out how long to sleep, so it grows with the batch —
+[`Quartz.Benchmark.Competitors/README.md`](../Quartz.Benchmark.Competitors/README.md#what-one-firing-does)
+has the source lines. Quartz's time is spread over the drain; the census says what it is made of.
 
 **Here the tuned profile is the faster of the two Quartz rows**, which is the opposite of what
 happened in memory — 10.2-10.5 ms against 11.3-11.8, and 76.5 KB against 89.9. On a database an
@@ -656,37 +666,73 @@ outside every measured window; the first sitting's rows were taken at ten.
 
 ### S2 — what one execution costs the database
 
-Counted at the database rather than in the client, over one complete window per engine — the drain
-plus a three-second tail, so that the last execution's own completion write is inside it. The idle
-column is the same engine, still running, with nothing left to do.
+**Re-taken on `936bf26e69` for #3861, three sittings.** The first version of this table read TickerQ
+at 0.21 commits an execution. That was PostgreSQL publishing late, not TickerQ committing little.
 
-| Engine | Window (s) | Commits | Commits/execution | Statements | Statements/execution | Idle statements/s |
-|------- |----------: |-------: |----------------: |---------: |-------------------: |----------------: |
-| Quartz (defaults) | 26.6 |  11,724 |  **5.86** |  51,999 | **26.00** |   0.2 |
-| Quartz (tuned)    | 23.7 |   5,466 |  **2.73** |  39,173 | **19.59** |   0.2 |
-| TickerQ           |  9.0 |     415 |  **0.21** |   3,913 |  **1.96** |   0.2 |
-| Hangfire          | 33.3 |  58,850 | **29.43** | 123,135 | **61.57** | 526.0 |
+Counted at the database, one window per engine: from half a second before the due instant to three
+seconds after the last execution started. Three counters:
 
-**TickerQ costs the database an order of magnitude less than Quartz here, and half of why is that it
-deletes nothing.** Its acquisition marks a whole second's worth of tickers in one bulk statement, so
-the only per-row write is the completion — and the completed ticker stays in the table afterwards.
-That is the trade: the cheapest execution of the three, and a table that only grows.
+| Counter | Source | What it counts |
+|---|---|---|
+| Commits | `pg_stat_database.xact_commit`, read after every pooled connection is closed | every transaction, `DISCARD ALL` and connection start-ups included |
+| Writes | the transaction-id counter, `pg_snapshot_xmax(pg_current_snapshot())` | transactions that wrote, which are the ones that flush |
+| Statements | `pg_stat_statements` | every statement |
+
+"Ahead" runs from the scheduling call returning to the window opening: what the engine did with work
+not yet due. "First" and "last" are when the first and last execution started, in seconds after the
+due instant.
+
+| Engine | First (s) | Last (s) | Commits/exec | Writes/exec | Statements/exec | Ahead: writes/exec | Ahead: statements/exec | Idle statements/s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Quartz (defaults) | 0.06-0.32 | 25.6-26.6 | **6.00** | 3.00 | **26.00** | 0.00 | 0.00 | 0.0 |
+| Quartz (tuned) | 0.03-0.04 | 19.7-23.4 | **2.80** | 1.40 | **19.59** | 0.00 | 0.01 | 0.0 |
+| TickerQ | 5.75-7.01 | 5.99-7.27 | **2.01-2.02** | 1.00 | **1.96** | 1.00-1.01 | 2.00 | 0.6 |
+| Hangfire | 0.10-0.40 | 31.7-33.7 | **29.6-29.8** | 11.36 | **62.0-62.3** | 0.24-0.30 | 4.0-4.4 | 520 |
+
+Hangfire's "ahead" columns are its idle polling over the 16-17 s it waited; the others did nothing
+there but TickerQ.
+
+**Over an execution's whole life, TickerQ costs about four statements, four commits and two writes.**
+The half the old window missed is its claim: its loop claims each ticker with an `UPDATE` of its own as
+soon as it sees it — twenty seconds early here — and Npgsql follows each with `DISCARD ALL`. At the due
+instant one statement marks the batch `InProgress`, and each execution completes with one
+autocommitted `UPDATE`. Every statement is its own transaction.
+
+| Per execution, window + ahead | Commits | Writes | Statements |
+|---|---:|---:|---:|
+| Quartz (defaults) | 6.0 | 3.0 | 26.0 |
+| Quartz (tuned) | 2.8 | 1.4 | 19.6 |
+| TickerQ | ≈ 4.0 | 2.0 | 4.0 |
+| Hangfire | 29.7 | 11.4 | 62.1 |
+
+**TickerQ's lead is statements, not commits.** Quartz's tuned profile commits less often than TickerQ,
+2.8 against 4.0, and writes less often, 1.4 against 2.0. What it issues is five times the statements:
+a firing is three transactions of several statements each, where a TickerQ execution is two
+transactions of one. At the defaults Quartz also pays an acquisition round and a `TriggersFired` per
+execution, which is 6.0 commits and 3.0 writes.
+
+**Why the first census read 0.21.** PostgreSQL 15 publishes a backend's counters when it goes idle, at
+most once a second, and holds them for ten seconds (`PGSTAT_IDLE_INTERVAL`) when it goes idle within a
+second of its last publication. TickerQ's 2,000 completions land in half a second, 6-7 s after they
+were due, and the backends then go idle, so three seconds later `xact_commit` had heard of almost none
+of them; it caught up ten seconds after the burst. `pg_stat_statements` counts as each statement ends,
+so the statement column was right all along. The census now clears the connection pools before
+reading, because a backend publishes as it exits. The cold pool costs each engine its connection
+start-ups, one commit each and at most a hundred a window, and is why Quartz's first execution reads
+up to 0.3 s late here and not in the BenchmarkDotNet rows.
 
 **Quartz's figure is a one-off schedule's, which is its most expensive kind.** Completing one deletes
 the trigger row, the simple-trigger row and — because the job detail has no other trigger and is not
 durable — the job detail too. The fire-path figure #3802's D1 report measured on a *repeating*
-trigger is 9.7 statements and 1.24 commits an execution, against 19.6 and 2.73 here; the difference
-is the deletion. The defaults profile pays an acquisition round and a `TriggersFired` per execution
-on top of that, where the tuned profile amortises both across a batch of ten — which is also why
-batching is worth something on a database and was worth nothing in memory.
+trigger is 9.7 statements and 1.24 commits an execution, against 19.6 and 2.8 here; the difference
+is the deletion. TickerQ deletes nothing: the completed ticker stays in the table, which only grows.
 
 **Hangfire's figure is the largest, and part of it is the server watching rather than working.** An
-idle Hangfire server at these settings issues about 526 statements a second — ten workers polling a
-queue at `QueuePollInterval`, plus the delayed-job and recurring-job schedulers — so over a 33-second
+idle Hangfire server at these settings issues about 520 statements a second — ten workers polling a
+queue at `QueuePollInterval`, plus the delayed-job and recurring-job schedulers — so over a 35-second
 window roughly a seventh of its statements are polls. The rest is its state machine: every
 transition through `Enqueued`, `Processing` and `Succeeded` is a storage write with a state-history
-entry. Quartz's and TickerQ's idle rates are indistinguishable from zero, because both sleep until
-the next fire time rather than polling for it.
+entry. Quartz and TickerQ sleep until the next fire time rather than polling for it.
 
 ### S3 — schedule-to-execute latency
 
@@ -738,6 +784,9 @@ job and the occurrence it came from is rewritten to "now" before the job is crea
 | TickerQ, cron `* * * * * *` | 6,000 / 6,000 | 73-78 % | 100 % | 74-75 ms |
 | Hangfire, cron `* * * * * *`, poll 1 s | 5,900-6,000 / 6,000 | 0-15 % | 21-71 % | 494-497 ms |
 
+Quartz's cron row, re-taken on `936bf26e69` for #3861, after #3801's cron fast path: 6,000 / 6,000,
+100 %, 100 %, 21.8 ms.
+
 **All three fire the right number of times.** What differs is when. At its defaults Quartz put every
 one of six thousand firings inside fifty milliseconds of its scheduled second, twice; TickerQ put all
 of them inside 250 ms and about three-quarters inside 50 ms, which is its hundred-millisecond poll;
@@ -758,20 +807,25 @@ allowed for. What bounds it is the poll, set to one second here, and
 
 Fifty thousand schedules into a store that started empty, through the API each library teaches, each
 due an hour out so nothing fires while the measurement runs. This is `ScheduleJobBenchmark`'s
-arrangement, so the Quartz rows are comparable with the numbers earlier in this file. Three sittings,
-the middle one in reverse order.
+arrangement, so the Quartz rows are comparable with the numbers earlier in this file. Re-taken on
+`936bf26e69` for #3861, three sittings in the declared order; the first table, on `89fbadcdc2`, was
+before #3801's cron fast path.
 
-| Call | Mean (3 sittings) | Allocated |
-|----- |-----------------: |---------: |
-| `ITimeTickerManager.AddAsync`                   |  1.06-1.28 µs |   562 B |
-| `ICronTickerManager.AddAsync`                   |  1.96-2.35 µs |   450 B |
-| Hangfire recurring job, `AddOrUpdate`           |  6.58-6.92 µs | 5,040-5,159 B |
-| Hangfire background job, `Schedule`             |  6.54-7.08 µs | 7,240-7,416 B |
-| `IScheduler.ScheduleJob`, simple trigger        |  7.67-7.93 µs | 3,540-3,656 B |
-| `IScheduler.ScheduleJob`, cron trigger          |  9.84-10.09 µs | 4,430-4,537 B |
+| Call | Mean (3 sittings) | Median of the means | Allocated | On `89fbadcdc2` |
+|----- |-----------------: |------------------: |---------: |---------------: |
+| `ITimeTickerManager.AddAsync`                   |  1.15-1.93 µs |  1.58 µs |   562-666 B |  1.06-1.28 µs, 562 B |
+| `ICronTickerManager.AddAsync`                   |  1.90-2.55 µs |  2.12 µs |       450 B |  1.96-2.35 µs, 450 B |
+| Hangfire recurring job, `AddOrUpdate`           |  6.88-7.98 µs |  7.03 µs | 5,158-5,159 B |  6.58-6.92 µs, 5,040-5,159 B |
+| Hangfire background job, `Schedule`             |  6.99-7.25 µs |  7.01 µs |     7,416 B |  6.54-7.08 µs, 7,240-7,416 B |
+| `IScheduler.ScheduleJob`, simple trigger        |  6.85-8.22 µs |  7.12 µs | 3,378-3,514 B |  7.67-7.93 µs, 3,540-3,656 B |
+| `IScheduler.ScheduleJob`, cron trigger          |  9.67-10.45 µs |  9.69 µs | 4,299-4,497 B |  9.84-10.09 µs, 4,430-4,537 B |
+
+The cron row did not move beyond this sitting's spread. The Errors ran to 56-130 % of the Mean on the
+Quartz rows, so read the medians.
 
 **Quartz loses this row, and it is the one that makes the rest of the table worth reading.** Writing a
-schedule costs it six to eight times what it costs TickerQ, and about a third more than Hangfire.
+schedule costs it about four and a half times what it costs TickerQ by the medians, and about what it
+costs Hangfire for a simple trigger, 1.4 times for a cron one.
 
 Two things are worth saying beside it, neither of which changes the ordering. The first is that the
 three calls do not store the same thing: `ScheduleJob(job, trigger)` writes a job detail *and* a
@@ -780,9 +834,6 @@ trigger, Hangfire's `Schedule` writes a job with its serialised method and argum
 generator — there is no job to store. The second is that Quartz's number is a *schedule*, not a
 *firing*: a trigger it writes once will fire for years, and S1 is what that costs. A reader choosing
 between them on this row alone would be choosing on the operation Quartz does least often.
-
-The cron row is measured on `89fbadcdc2`, which is before #3801's cron fast path landed; that work
-moves `CronExpression` parsing and next-fire-time, so this row is due a re-run on top of it.
 
 ### Verdict
 
@@ -793,14 +844,18 @@ into a worker**: 58-70 µs p50 against 14.7 ms and 30.7 ms. On a one-second recu
 defaults it is the only one of the three that put every one of six thousand firings inside fifty
 milliseconds of the second it was due.
 
-**On a database it loses to TickerQ, and not narrowly.** 10.5-11.3 ms an execution against 2.9, and
-19.6-26 statements against 1.96. Some of that is the workload — a one-off schedule is Quartz's most
-expensive kind, and TickerQ leaves its completed rows where they are — and some of it is a per-execution
-acquisition round the defaults profile pays and the tuned one does not. Neither reading makes 19.6
-statements look like a floor.
+**On a database it loses the drain to TickerQ by 3.5-4x and the statement count by five to six
+times; it does not lose the commit count.** TickerQ's drain is 6-7 s of starting late and half a
+second of executing, and an execution is two single-statement transactions: about four statements and
+four commits over its life, where Quartz's is 19.6-26 statements and 2.8-6.0 commits. Some of the
+statement gap is the workload — a one-off schedule is Quartz's most expensive kind, and TickerQ
+leaves its completed rows where they are — and some is the acquisition round the defaults profile
+pays per execution and the tuned one does not. Neither reading makes 19.6 statements look like a
+floor.
 
-**It loses the schedule-writing row by six to eight times to TickerQ**, which writes a ticker naming
-a function that was registered at compile time where Quartz writes a job detail and a trigger.
+**It loses the schedule-writing row by about four and a half times to TickerQ**, which writes a
+ticker naming a function that was registered at compile time where Quartz writes a job detail and a
+trigger.
 
 Both halves are on this page on purpose. The comparison this answers publishes only the half its
 author wins.
