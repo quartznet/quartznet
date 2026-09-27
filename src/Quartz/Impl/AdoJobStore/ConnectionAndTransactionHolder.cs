@@ -139,6 +139,15 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     public DbTransaction? Transaction => transaction;
 
     /// <summary>
+    /// Whether the database has ended this unit of work's transaction from its side — as it does to a
+    /// deadlock victim, or to the loser of a write conflict on a memory-optimized table — which the driver
+    /// reports by detaching the transaction from its connection. Nothing can be committed or rolled back
+    /// in it any more, and SQL Server runs a command still bound to it outside any transaction rather
+    /// than refusing it.
+    /// </summary>
+    internal bool IsTransactionZombied => transaction is not null && transaction.Connection is null;
+
+    /// <summary>
     /// Puts this unit of work's connection and transaction on a command, so that it takes part in it.
     /// </summary>
     /// <param name="cmd">The command to attach.</param>
@@ -364,7 +373,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
 
         if (transaction is not null)
         {
-            if (transaction.Connection is null)
+            if (IsTransactionZombied)
             {
                 // Transaction lost its connection - nothing to rollback, the database
                 // will have already aborted it. This commonly happens with transient
@@ -395,7 +404,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
 
     private void CheckNotZombied()
     {
-        if (transaction is not null && transaction.Connection is null)
+        if (IsTransactionZombied)
         {
             Throw.InvalidOperationException("Transaction not connected, or was disconnected");
         }
