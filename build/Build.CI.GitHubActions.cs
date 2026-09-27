@@ -18,7 +18,7 @@ using Quartz.Build;
     GitHubActionsImage.WindowsLatest,
     GitHubActionsImage.UbuntuLatest,
     GitHubActionsImage.MacOsLatest,
-    OnPullRequestBranches = ["main", "3.x"],
+    OnPullRequestBranches = ["main", "3.x", "4.2.x"],
     OnPullRequestIncludePaths = ["**/*"],
     OnPullRequestExcludePaths = ["docs/**/*", "apidoc/**/*", "package.json", "package-lock.json", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "database/README.md", ".github/SECURITY.md", ".github/pull_request_template.md"],
     PublishArtifacts = false,
@@ -139,7 +139,7 @@ namespace Quartz.Build
         public DatabaseIntegrationGitHubActionsAttribute(string name, string database)
             : base(name, database, GitHubActionsImage.UbuntuLatest)
         {
-            OnPullRequestBranches = ["main", "3.x"];
+            OnPullRequestBranches = ["main", "3.x", "4.2.x"];
             OnPullRequestIncludePaths = ["**/*"];
             OnPullRequestExcludePaths = ["docs/**/*", "apidoc/**/*", "package.json", "package-lock.json", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "database/README.md", ".github/SECURITY.md", ".github/pull_request_template.md"];
             PublishArtifacts = false;
