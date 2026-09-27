@@ -361,6 +361,17 @@ internal sealed class QuartzSchedulerThread
                     DateTimeOffset now = qsRsrcs.TimeProvider.GetUtcNow();
 
                     ClearSignaledSchedulingChange();
+
+                    // A pause that landed since the check at the top signalled a change, and the line
+                    // above has just drained it. Without the signal nothing below would know, so the
+                    // round would acquire, and fire, whatever came due within the idle wait while the
+                    // scheduler was in standby — the window is widest while the loop waits above for a
+                    // free worker.
+                    if (paused)
+                    {
+                        continue;
+                    }
+
                     try
                     {
                         ExecutionLimits? availableLimits = ComputeAvailableExecutionGroupLimits();

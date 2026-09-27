@@ -37,6 +37,12 @@ public sealed class QuartzSchedulerThreadLoopTest
     /// </summary>
     private static readonly TimeSpan observationDeadline = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// How long a test watches a paused loop for something it must not do. A loop that does it does so
+    /// within milliseconds of being let go; this is a margin that no loaded agent eats.
+    /// </summary>
+    private static readonly TimeSpan pausedObservation = TimeSpan.FromSeconds(3);
+
     private const int AvailableThreads = 4;
 
     private FaultInjectingJobStore store;
@@ -411,6 +417,79 @@ public sealed class QuartzSchedulerThreadLoopTest
             "the node-scoped group has one of this node's firings in flight");
         LimitFor(second, "tenant").Should().Be(2,
             "the cluster-scoped group's firing is the store's to count, not this loop's");
+    }
+
+    /// <summary>
+    /// A pause signals a scheduling change so the loop leaves whatever it is doing, and the round the
+    /// loop is starting drains that signal. A pause landing between the loop's pause check and the
+    /// drain was lost, and the paused loop went on to ask the store for triggers.
+    /// </summary>
+    /// <remarks>
+    /// The thread pool is asked for free threads between those two points, so that is where the test
+    /// pauses the loop. A loop that loses the pause asks the store within milliseconds; the seconds the
+    /// test gives it are margin, not a measurement.
+    /// </remarks>
+    [Test]
+    public async Task APauseThatLandsAsARoundStartsStopsTheRound()
+    {
+        int threadRequests = 0;
+        A.CallTo(() => threadPool.WaitForAvailableThreads(A<CancellationToken>.Ignored))
+            .ReturnsLazily(() =>
+            {
+                if (Interlocked.Increment(ref threadRequests) == 2)
+                {
+                    thread.TogglePause(pause: true);
+                }
+
+                return new ValueTask<int>(AvailableThreads);
+            });
+
+        StartLoop();
+        await ShouldObserve(store.Acquisitions.Reaches(1), "the first round asks the store");
+
+        thread.SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+
+        Task secondRound = store.Acquisitions.Reaches(2);
+        (await Task.WhenAny(secondRound, Task.Delay(pausedObservation))).Should().NotBeSameAs(secondRound,
+            "the loop was paused as its next round started, so a paused loop must not ask the store for triggers");
+
+        thread.TogglePause(pause: false);
+        await ShouldObserve(secondRound, "resumed, the loop asks the store again, so it was paused rather than stuck");
+    }
+
+    /// <summary>
+    /// What losing the pause cost a deployment: <c>Standby()</c> landing while the loop waited for a free
+    /// worker let the round that followed fire a trigger that was due, after <c>Standby()</c> had
+    /// returned.
+    /// </summary>
+    [Test]
+    public async Task AStandbyThatLandsWhileTheLoopWaitsForAWorkerFiresNothing()
+    {
+        await GivenScheduledJobs(1);
+
+        int threadRequests = 0;
+        A.CallTo(() => threadPool.WaitForAvailableThreads(A<CancellationToken>.Ignored))
+            .ReturnsLazily(() =>
+            {
+                // Past the loop's pause check and short of its drain, which is where a saturated
+                // scheduler waits for a worker to come free.
+                if (Interlocked.Increment(ref threadRequests) == 1)
+                {
+                    thread.TogglePause(pause: true);
+                }
+
+                return new ValueTask<int>(AvailableThreads);
+            });
+
+        StartLoop();
+
+        Task fired = shellFactory.Created.Reaches(1);
+        (await Task.WhenAny(fired, Task.Delay(pausedObservation))).Should().NotBeSameAs(fired,
+            "the scheduler was in standby before the round acquired anything, so the due trigger must wait for it to start again");
+        store.Acquisitions.Count.Should().Be(0, "a paused loop does not ask the store for triggers");
+
+        thread.TogglePause(pause: false);
+        await ShouldObserve(fired, "started again, the scheduler fires the trigger that was due");
     }
 
     private void StartLoop()
