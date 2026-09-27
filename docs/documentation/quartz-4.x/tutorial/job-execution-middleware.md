@@ -6,8 +6,8 @@ title: 'Job Execution Middleware'
 # Job Execution Middleware
 
 Middleware wraps every job a scheduler executes. Use it for a cross-cutting concern that must *surround*
-the call to the job: a log scope, a tenant context, a metric, translating a third-party library's
-exceptions.
+the call to the job: a log scope, a tenant context, a metric, a
+[rate limit](execution-groups.md#rate-limiting), translating a third-party library's exceptions.
 
 A [listener](trigger-and-job-listeners.md) cannot do this: the job runs *between* its two notifications,
 so it cannot open an `await using` around the job, skip it, or catch its exception. Before 4.0 such code

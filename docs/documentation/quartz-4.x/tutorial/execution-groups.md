@@ -364,6 +364,84 @@ CREATE INDEX IDX_QRTZ_FT_EG_TG ON QRTZ_FIRED_TRIGGERS (SCHED_NAME, EXECUTION_GRO
 
 :::
 
+## Rate limiting
+
+Execution limits cap how many firings run *at once*, not how many *start* per hour. To cap starts per
+window, register a [job middleware](job-execution-middleware.md) that waits for a
+`System.Threading.RateLimiting` permit before it calls the job:
+
+<!-- snippet: sample_execution_groups_rate_limit_middleware -->
+```csharp
+public sealed class RateLimitMiddleware(PartitionedRateLimiter<IJobExecutionContext> limiter) : IJobExecutionMiddleware
+{
+    public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
+    {
+        // The firing's token, so interrupting the firing ends the wait and the job does not run.
+        using RateLimitLease lease = await limiter.AcquireAsync(context, permitCount: 1, cancellationToken);
+
+        if (!lease.IsAcquired)
+        {
+            // The limiter's queue is full. A failure, so the trigger's retry policy decides what follows.
+            throw new JobExecutionException($"No start permit for execution group '{context.Trigger.ExecutionGroup}'.");
+        }
+
+        await next(context, cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+Give it a limiter partitioned by execution group, and an execution limit for the same groups:
+
+<!-- snippet: sample_execution_groups_rate_limit_register -->
+```csharp
+// 100 starts an hour for each tenant's group, counted in ten-minute segments
+PartitionedRateLimiter<IJobExecutionContext> limiter = PartitionedRateLimiter.Create<IJobExecutionContext, string>(context =>
+    context.Trigger.ExecutionGroup is { } group && group.StartsWith("tenant:", StringComparison.Ordinal)
+        ? RateLimitPartition.GetSlidingWindowLimiter(group, _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit = 100,
+            Window = TimeSpan.FromHours(1),
+            SegmentsPerWindow = 6,
+            QueueLimit = int.MaxValue, // the execution limit below bounds what can wait
+        })
+        : RateLimitPartition.GetNoLimiter(string.Empty));
+
+services.AddQuartz(q =>
+{
+    // before AddJobTimeout, so waiting for a permit does not spend the job's budget
+    q.AddJobMiddleware(new RateLimitMiddleware(limiter));
+
+    // a waiting firing holds a thread and counts here: two per tenant, waiting or running
+    q.UseExecutionLimits(limits => limits.ForGroupsWithPrefix("tenant:", 2));
+});
+```
+<!-- endSnippet -->
+
+| Case | What happens |
+|---|---|
+| A firing over the limit | waits for a permit, then runs |
+| Misfire | none: the trigger was acquired before the wait |
+| `ScheduledFireTimeUtc`, retries, continuations | unchanged |
+| Interrupted while waiting | the job does not run; the firing ends as cancelled |
+| The limiter's queue is full | `JobExecutionException`, so the trigger's retry policy decides |
+
+**The cost is a thread per waiting firing.** A waiting firing is a running one: it holds a thread-pool
+thread and a slot of its group's execution limit, and `[DisallowConcurrentExecution]` counts it.
+
+* What can wait at once is bounded by the thread pool and by the group's execution limit. Set one, as the
+  sample does, or a throttled group can fill the pool.
+* Past its execution limit, a group's triggers stay in the store and can misfire, like any held-back work
+  (item 4 of [Cluster-scoped limits](#cluster-scoped-limits)).
+* Register it before `AddJobTimeout`, or the wait spends the job's timeout.
+* A shutdown that waits for its jobs waits for their permits too. Set
+  [`ShutdownJobInterruption`](../configuration/reference.md#scheduler) to cancel them instead.
+* The wait counts in the firing's execution span and duration.
+
+**When this is not enough.** The limiter lives in one process: `N` nodes allow `N` times the rate, and a
+restart starts a new window. A cluster-wide "N starts per window" needs the job store to count starts.
+That is [#3347](https://github.com/quartznet/quartznet/issues/3347), declined for now.
+
 ## How it works
 
 On each trigger acquisition cycle, the scheduler thread:

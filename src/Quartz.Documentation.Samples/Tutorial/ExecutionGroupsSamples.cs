@@ -1,3 +1,5 @@
+using System.Threading.RateLimiting;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -226,7 +228,56 @@ public static class ExecutionGroupsSamples
 
         #endregion
     }
+
+    public static void RateLimit(IServiceCollection services)
+    {
+        #region sample_execution_groups_rate_limit_register
+
+        // 100 starts an hour for each tenant's group, counted in ten-minute segments
+        PartitionedRateLimiter<IJobExecutionContext> limiter = PartitionedRateLimiter.Create<IJobExecutionContext, string>(context =>
+            context.Trigger.ExecutionGroup is { } group && group.StartsWith("tenant:", StringComparison.Ordinal)
+                ? RateLimitPartition.GetSlidingWindowLimiter(group, _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromHours(1),
+                    SegmentsPerWindow = 6,
+                    QueueLimit = int.MaxValue, // the execution limit below bounds what can wait
+                })
+                : RateLimitPartition.GetNoLimiter(string.Empty));
+
+        services.AddQuartz(q =>
+        {
+            // before AddJobTimeout, so waiting for a permit does not spend the job's budget
+            q.AddJobMiddleware(new RateLimitMiddleware(limiter));
+
+            // a waiting firing holds a thread and counts here: two per tenant, waiting or running
+            q.UseExecutionLimits(limits => limits.ForGroupsWithPrefix("tenant:", 2));
+        });
+
+        #endregion
+    }
 }
+
+#region sample_execution_groups_rate_limit_middleware
+
+public sealed class RateLimitMiddleware(PartitionedRateLimiter<IJobExecutionContext> limiter) : IJobExecutionMiddleware
+{
+    public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
+    {
+        // The firing's token, so interrupting the firing ends the wait and the job does not run.
+        using RateLimitLease lease = await limiter.AcquireAsync(context, permitCount: 1, cancellationToken);
+
+        if (!lease.IsAcquired)
+        {
+            // The limiter's queue is full. A failure, so the trigger's retry policy decides what follows.
+            throw new JobExecutionException($"No start permit for execution group '{context.Trigger.ExecutionGroup}'.");
+        }
+
+        await next(context, cancellationToken);
+    }
+}
+
+#endregion
 
 #region sample_execution_groups_per_tenant_attribute
 
