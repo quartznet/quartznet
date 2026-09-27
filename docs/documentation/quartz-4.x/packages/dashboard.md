@@ -215,6 +215,9 @@ detail page.
 | **Calendars**: names | one calendar | create, replace or delete a cron calendar |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do.
+- From 4.3, *Pause*, *Pause group* and *Pause all* ask for an optional reason, recorded with the signed-in
+  user's name. A paused trigger shows **Paused: reason (by who, when)** on its page and its listing rows, and a
+  paused job group shows its record on the Jobs page. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
 - *Reset error state* clears an `ERROR` trigger once its cause is fixed.
 - The cron reschedule editor previews the next five fires.
 

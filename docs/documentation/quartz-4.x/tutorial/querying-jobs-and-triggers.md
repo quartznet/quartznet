@@ -37,6 +37,8 @@ The trigger fields are explained in [More About Triggers](more-about-triggers.md
   [from a page to full detail](#from-a-page-to-full-detail).
 * `TriggerHeader.State` is computed by the store in the same query. In 3.x you called `GetTriggerState`
   per key.
+* From 4.3, `TriggerHeader.Pause` is a paused trigger's reason, requester and time; see
+  [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
 
 ## Filtering
 
@@ -245,6 +247,7 @@ The stores persist pause state for trigger groups and job groups, so `TriggerGro
 | is one trigger group paused? | `new TriggerGroupQuery { Name = NameMatcher.NameEquals("reporting"), Take = 1 }` |
 | paused job groups | `QueryJobGroups(new JobGroupQuery { Paused = true })` |
 | is one job group paused? | `new JobGroupQuery { Name = NameMatcher.NameEquals("reporting"), Take = 1 }` |
+| why is a group paused? (from 4.3) | `GetTriggerGroupPause("reporting")`, `GetJobGroupPause("reporting")`; see [Pausing with a Reason](../how-tos/pausing-with-a-reason.md#reading-it-back) |
 
 The other comparisons list a tenant's or subsystem's groups: `NameMatcher.NameStartsWith("tenant-42-")`.
 

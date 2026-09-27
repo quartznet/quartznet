@@ -157,6 +157,8 @@ services.AddQuartz(q =>
 * When attempts run out, TickerQ marks the ticker failed; Quartz returns the trigger to its schedule and
   reports it through
   [`ITriggerListener.TriggerRetriesExhausted`, a log event, a counter and a final history row](retrying-failed-jobs.md#when-the-policy-gives-up).
+  From 4.3, [`PauseTriggerWhenRetriesExhausted()`](pausing-with-a-reason.md#pausing-when-retries-run-out)
+  stops it instead, paused with the error as the reason, which is closer to TickerQ's failed ticker.
 
 ### Concurrency has two settings, and one of them can be the cluster's
 

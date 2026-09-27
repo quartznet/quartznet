@@ -249,6 +249,9 @@ services.AddQuartz(q =>
   repeat count. When attempts run out, `ITriggerListener.TriggerRetriesExhausted`, a log event, a counter
   and a final history row report it; the row has the dashboard's *Run again* button, the equivalent of a
   requeue. See [When the policy gives up](retrying-failed-jobs.md#when-the-policy-gives-up).
+* From 4.3, [`PauseTriggerWhenRetriesExhausted()`](pausing-with-a-reason.md#pausing-when-retries-run-out)
+  pauses a trigger that gave up, with the error as the reason, so it stays stopped until resumed, as a
+  Hangfire job stays `Failed` until requeued.
 
 ### Continuations
 

@@ -539,6 +539,7 @@ The same three columns on `QRTZ_TRIGGERS` and on both paused-group tables.
 - Oracle declares `PAUSE_REASON` as `VARCHAR2(1000)` and `PAUSED_BY` as `VARCHAR2(800)`, for the reason
   `PROGRESS_MESSAGE` is wider.
 - No index. A 4.3 node refuses to start without them; the startup check names the column and the script.
+- What a pause records, and how to read it: [Pausing with a Reason](../quartz-4.x/how-tos/pausing-with-a-reason.md).
 
 ### Rolling 4.2 → 4.3
 

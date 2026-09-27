@@ -78,9 +78,21 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `AdoConstants.ColumnOverlapPolicy`, `ColumnMisfireReason` | `OVERLAP_POLICY` on `QRTZ_TRIGGERS` and `REASON` on `QRTZ_MISFIRE_HISTORY` |
 | Log events `1037`, `1038`, `1072`, `2007`, `3043`, `3044` | A firing replaced, an interrupt that failed, a skip notification that failed, a skip (in memory, persistent), a firing held behind another node's |
 | `JobExecutionContextBuilder` | `Quartz.Extensibility`. Builds the context a job's `Execute` takes, to call a job directly: `For(job).WithJob(detail).WithTrigger(trigger).FiredAt(when).WithInput(input).Build()`. See [Level 1: one job, one context](tutorial/testing.md#level-1-one-job-one-context) |
+| `IScheduler.PauseTriggerWith`, `PauseJobWith`, `PauseTriggerGroupsWith`, `PauseJobGroupsWith`, `PauseAllWith` | Each pause, recording a `PauseDetails`. Defaults call the reasonless member. See [Pausing with a Reason](how-tos/pausing-with-a-reason.md) |
+| `IScheduler.GetTriggerPause`, `GetTriggerGroupPause`, `GetJobGroupPause` | The recorded `PauseInfo`, or `null`. Defaults answer `null` |
+| `IJobStore`: the same eight members | The store half. Defaults as on `IScheduler` |
+| `PauseDetails` | `Reason`, `RequestedBy`, both `init`; `MaxReasonLength` (`250`), `MaxRequestedByLength` (`200`) |
+| `PauseInfo` | `Reason`, `RequestedBy`, `PausedAtUtc` |
+| `TriggerHeader.Pause` | `init`: the trigger's own record. HTTP: `pause` on the listing header |
+| `QuartzBuilderExtensions.PauseTriggerWhenRetriesExhausted()` | Pauses a trigger whose retry policy gives up. A second call adds nothing. See [Pausing when retries run out](how-tos/pausing-with-a-reason.md#pausing-when-retries-run-out) |
+| `IDriverDelegate.PauseTriggerStates`, `PauseTriggerGroupStates`, `ClearTriggerPauses`, `InsertTriggerGroupPause`, `InsertJobGroupPauses`, `SelectTriggerPause`, `SelectTriggerGroupPause`, `SelectJobGroupPause` | Write and read the pause columns. Defaults make the reasonless write or answer `null`; `StdAdoDelegate` implements them |
+| `AdoConstants.ColumnPauseReason`, `ColumnPausedBy`, `ColumnPausedAt` | `PAUSE_REASON`, `PAUSED_BY`, `PAUSED_AT` on `QRTZ_TRIGGERS` and both paused-group tables, from `4.3/add_pause_reason_<db>.sql` |
+| `IQuartzApiClient.PauseTriggerWith`, `PauseJobWith`, `PauseAllWith`, `GetTriggerPause`, `GetJobGroupPause`; `TriggerHeaderDto.Pause` | `Quartz.Dashboard`. Defaults call the reasonless member or answer `null` |
+| `HttpScheduler`: the eight pause members | Send the reason and read it back |
+| HTTP: optional `{ reason, requestedBy }` body on the pause routes; `pause` on the state, group-paused and listing answers | See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
 
-`ScheduleTrigger` and `StoreTrigger` are default interface members, so a scheduler or store written for
-4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare both.
+`ScheduleTrigger`, `StoreTrigger` and the pause members are default interface members, so a scheduler or
+store written for 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare them all.
 
 **Mixed 4.2 and 4.3 versions:** a 4.2 host ignores `onConflict`. `HttpScheduler` also sends `replace` for
 `Replace`, so that still replaces; `Keep` and `KeepEarlier` throw `ObjectAlreadyExistsException` on a
@@ -107,6 +119,13 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 * **A one-liner for a job whose `[ExecutionGroup]` has placeholders needs `OneOffJobOptions.ExecutionGroup`.**
   Without it the call throws `FormatException`: a one-off trigger's job data is its input, stored whole.
   `OneOffJobOptions.ExecutionGroup` itself is stored as written, braces included, as in 4.2.
+* **The ADO store pauses and resumes through the new `IDriverDelegate` members.** A delegate derived from
+  `StdAdoDelegate` that overrides `UpdateTriggerState`, `UpdateTriggerStatesFromOtherStates`,
+  `UpdateTriggerGroupStateFromOtherStates`, `InsertPausedTriggerGroup` or `InsertPausedJobGroups` to change a
+  pause overrides `PauseTriggerStates`, `PauseTriggerGroupStates`, `InsertTriggerGroupPause` or
+  `InsertJobGroupPauses` as well. A delegate that implements `IDriverDelegate` directly is unchanged.
+* **Every pause is recorded, a reasonless one included.** `PausedAtUtc` is set and both texts are `null`.
+* The HTTP state, group-paused and trigger-listing answers carry a `pause` member, `null` unless paused.
 * **`OneOffJobOptions.Replacing(name)` sets `OnConflict = Replace`**, not `Replace = true`. `Replace` still
   reads `true`. `Replace = true` beside a different `OnConflict` throws `ArgumentException`.
 * **A one-liner with `OnConflict` other than `Throw` calls `IScheduler.ScheduleTrigger`**, not
@@ -141,6 +160,11 @@ unchanged.
   giving a trigger an overlap policy.**
 * **Behaviour change:** `CountMisfires` counts `MisfireReason.Missed` rows only. An
   `IExecutionHistoryStore` of your own keeps a `Skip`'s rows beside the misfires and should do the same.
+* A 4.2 node's pause records nothing, and its resume leaves a trigger's record behind, which a later 4.2
+  pause of that trigger makes current again. **Roll every node before relying on a pause reason.** See
+  [A mixed cluster](how-tos/pausing-with-a-reason.md#a-mixed-cluster).
+* A 4.2 HTTP host ignores the reason body and answers no `pause`, so `HttpScheduler.GetTriggerPause` reads
+  `null` there.
 
 ### `MaxBatchSize` is automatic
 
@@ -178,6 +202,7 @@ To keep 4.2's behaviour, set it:
 |---|---|
 | `database/migrations/4.3/add_fire_progress_<db>.sql` | **Required.** A 4.3 node refuses to start without the two columns, and the error names the column and the script |
 | `database/migrations/4.3/add_overlap_policy_<db>.sql` | **Required.** A 4.3 node refuses to start without the column |
+| `database/migrations/4.3/add_pause_reason_<db>.sql` | **Required.** A 4.3 node refuses to start without the nine columns |
 | `database/migrations/4.3/add_execution_log_<db>.sql` | Optional. Needed only with `UseExecutionHistory()`, which refuses to start without it. Run it after `4.2/add_execution_history_<db>.sql` |
 | `database/migrations/4.3/add_misfire_reason_<db>.sql` | Optional, as the execution log is |
 

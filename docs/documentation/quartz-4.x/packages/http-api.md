@@ -122,7 +122,7 @@ Sixty-six routes in four groups.
 | `POST` | `{ApiPath}/schedulers/{name}/standby` | empty; `400` for a store-attached window |
 | `POST` | `{ApiPath}/schedulers/{name}/shutdown` | empty; `?waitForJobsToComplete=true` waits for running jobs; `400` for a store-attached window |
 | `POST` | `{ApiPath}/schedulers/{name}/clear` | empty; deletes every job, trigger and calendar |
-| `POST` | `{ApiPath}/schedulers/{name}/pause-all` | empty |
+| `POST` | `{ApiPath}/schedulers/{name}/pause-all` | empty; optional [reason body](#a-pause-can-say-why) |
 | `POST` | `{ApiPath}/schedulers/{name}/resume-all` | empty |
 | `GET` | `{ApiPath}/schedulers/{name}/nodes` | The cluster's nodes ([below](#cluster-nodes)) |
 | `GET` | `{ApiPath}/schedulers/{name}/events` | Live events as `text/event-stream` ([below](#the-event-stream)) |
@@ -146,8 +146,8 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/{jobGroup}/{jobName}/exists` | `{ exists }` |
 | `GET` | `…/jobs/{jobGroup}/{jobName}/triggers` | Every trigger pointing at that job |
 | `GET` | `…/jobs/fire-instances` | paged fire instances ([below](#fire-instances)) |
-| `POST` | `…/jobs/{jobGroup}/{jobName}/pause` | `{ applied }` |
-| `POST` | `…/jobs/pause` | `{ groups }`; group matcher in the query string |
+| `POST` | `…/jobs/{jobGroup}/{jobName}/pause` | `{ applied }`; optional [reason body](#a-pause-can-say-why) |
+| `POST` | `…/jobs/pause` | `{ groups }`; group matcher in the query string; optional reason body |
 | `POST` | `…/jobs/keys/pause` | `{ jobs }`; key set in the body |
 | `POST` | `…/jobs/{jobGroup}/{jobName}/resume` | `{ applied }` |
 | `POST` | `…/jobs/resume` | `{ groups }` |
@@ -160,7 +160,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/jobs/delete-by-group` | `{ jobs }`; group matcher in the query string |
 | `POST` | `…/jobs` | empty; adds the job; `replace` and `storeNonDurableWhileAwaitingScheduling` are body fields |
 | `GET` | `…/jobs/groups` | paged job groups; the four `name*` filters, `paused` |
-| `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused }` |
+| `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused, pause }` |
 
 ### Triggers — 22
 
@@ -170,17 +170,17 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/fetch` | Whole triggers for a page of keys, at most 1000 |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}` | The trigger |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}/exists` | `{ exists }` |
-| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state }`, the `TriggerState` name |
+| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state, pause }`; `state` is the `TriggerState` name |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reset-from-error-state` | `{ applied }` |
 | `POST` | `…/triggers/keys/reset-from-error-state` | `{ triggers }` |
-| `POST` | `…/triggers/{triggerGroup}/{triggerName}/pause` | `{ applied }` |
-| `POST` | `…/triggers/pause` | `{ groups }` |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/pause` | `{ applied }`; optional [reason body](#a-pause-can-say-why) |
+| `POST` | `…/triggers/pause` | `{ groups }`; optional reason body |
 | `POST` | `…/triggers/keys/pause` | `{ triggers }` |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/resume` | `{ applied }` |
 | `POST` | `…/triggers/resume` | `{ groups }` |
 | `POST` | `…/triggers/keys/resume` | `{ triggers }` |
 | `GET` | `…/triggers/groups` | paged trigger groups; the four `name*` filters, `paused` |
-| `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused }` |
+| `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused, pause }` |
 | `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }`; one job and its trigger. A trigger alone may carry `onConflict` (`Throw`, `Replace`, `Keep`, `KeepEarlier`); the answer then adds `outcome` (`Created`, `Replaced`, `Kept`). See [One-off job](../how-tos/one-off-job.md#scheduling-over-a-firing-that-is-already-there) |
 | `POST` | `…/triggers/schedule-multiple` | empty; several jobs and their triggers |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/unschedule` | `{ applied }` |
@@ -673,6 +673,44 @@ the groups they recorded:
 ```
 
 The `…/keys/pause` and `…/keys/resume` routes beside them return the keys they moved.
+
+### A pause can say why
+
+From 4.3. These routes take an optional body; no body is the reasonless pause:
+
+- `POST …/triggers/{group}/{name}/pause`, `…/triggers/pause`
+- `POST …/jobs/{group}/{name}/pause`, `…/jobs/pause`
+- `POST {ApiPath}/schedulers/{name}/pause-all`
+
+```json
+{ "reason": "vendor API is down until 18:00", "requestedBy": "alice" }
+```
+
+- Both members are optional. `requestedBy` left out is the authenticated user's name, the one the
+  [mutation audit](#production-hardening) logs.
+- The key-set `…/keys/pause` routes take no reason.
+
+The record is read back as `pause`:
+
+| Where | Member |
+|---|---|
+| `GET …/triggers/{group}/{name}/state` | `"pause"`: the trigger's record while it is `Paused`, else `null` |
+| `GET …/triggers/groups/{group}/paused`, `…/jobs/groups/{group}/paused` | `"pause"`: the group's record while it is paused, else `null` |
+| Trigger listing header | `"pause"`: the trigger's own record, else `null` |
+
+```json
+{
+  "state": "Paused",
+  "pause": {
+    "reason": "vendor API is down until 18:00",
+    "requestedBy": "alice",
+    "pausedAtUtc": "2031-06-17T10:00:00+00:00"
+  }
+}
+```
+
+`reason` and `requestedBy` are `null` for a pause that did not say. A 4.2 client ignores `pause`; a 4.2 host
+ignores the body. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
 
 ### A whole set of keys in one call
 

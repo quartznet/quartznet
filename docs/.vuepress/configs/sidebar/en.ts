@@ -72,6 +72,7 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/quartz-4.x/how-tos/one-off-job",
       "/documentation/quartz-4.x/how-tos/rescheduling-jobs",
       "/documentation/quartz-4.x/how-tos/retrying-failed-jobs",
+      "/documentation/quartz-4.x/how-tos/pausing-with-a-reason",
       "/documentation/quartz-4.x/how-tos/job-continuations",
       "/documentation/quartz-4.x/how-tos/overlap-policy",
       "/documentation/quartz-4.x/how-tos/progress-and-execution-logs",
