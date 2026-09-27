@@ -59,6 +59,18 @@ internal sealed class QuartzScheduler
     /// </summary>
     private readonly Lock internalSchedulerListenersLock = new();
 
+    /// <summary>
+    /// <see cref="internalSchedulerListeners" /> as the notifications read it: rebuilt by every change,
+    /// under <see cref="internalSchedulerListenersLock" />, and never written to afterwards (#3865).
+    /// </summary>
+    private ISchedulerListener[] internalSchedulerListenerSnapshot = [];
+
+    /// <summary>
+    /// The registered and the internal scheduler listeners in one array, with the two snapshots it was
+    /// built from, so that it is built once per change rather than once per notification.
+    /// </summary>
+    private SchedulerListenerList? schedulerListenerList;
+
     private IJobFactory jobFactory = new PropertySettingJobFactory();
     private readonly ExecutingJobsManager jobMgr;
     private readonly List<object> holdToPreventGc = new List<object>(5);
@@ -202,6 +214,7 @@ internal sealed class QuartzScheduler
         lock (internalSchedulerListenersLock)
         {
             internalSchedulerListeners.Add(schedulerListener);
+            Volatile.Write(ref internalSchedulerListenerSnapshot, [.. internalSchedulerListeners]);
         }
     }
 
@@ -214,7 +227,13 @@ internal sealed class QuartzScheduler
     {
         lock (internalSchedulerListenersLock)
         {
-            return internalSchedulerListeners.Remove(schedulerListener);
+            if (!internalSchedulerListeners.Remove(schedulerListener))
+            {
+                return false;
+            }
+
+            Volatile.Write(ref internalSchedulerListenerSnapshot, [.. internalSchedulerListeners]);
+            return true;
         }
     }
 
@@ -222,16 +241,7 @@ internal sealed class QuartzScheduler
     /// Get a List containing all of the <i>internal</i> <see cref="ISchedulerListener" />s
     /// registered with the <see cref="IScheduler" />.
     /// </summary>
-    public List<ISchedulerListener> InternalSchedulerListeners
-    {
-        get
-        {
-            lock (internalSchedulerListenersLock)
-            {
-                return new List<ISchedulerListener>(internalSchedulerListeners);
-            }
-        }
-    }
+    public List<ISchedulerListener> InternalSchedulerListeners => [.. Volatile.Read(ref internalSchedulerListenerSnapshot)];
 
     /// <summary>
     /// Gets or sets the job factory.
@@ -1108,6 +1118,11 @@ internal sealed class QuartzScheduler
         // make sure all triggers refer to their associated job, materializing the operable
         // shape the store contract takes while validating each trigger
         Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> validated = new(triggersAndJobs.Count);
+
+        // The batch's earliest first fire, which is what the scheduler thread is told: it wakes for the
+        // batch only if that is before its next look at the store, as it does for one trigger (#3865).
+        // A batch with no triggers says nothing about a time, and wakes it.
+        DateTimeOffset? earliestFireTimeUtc = null;
         foreach (var pair in triggersAndJobs)
         {
             var job = pair.Key;
@@ -1154,6 +1169,11 @@ internal sealed class QuartzScheduler
                     Throw.SchedulerException(message);
                 }
 
+                if (earliestFireTimeUtc is null || ft.Value < earliestFireTimeUtc.Value)
+                {
+                    earliestFireTimeUtc = ft.Value;
+                }
+
                 operableTriggers.Add(trigger);
             }
 
@@ -1161,7 +1181,7 @@ internal sealed class QuartzScheduler
         }
 
         await resources.JobStore.ScheduleJobs(validated, options, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(null);
+        NotifySchedulerThread(earliestFireTimeUtc);
         foreach (var pair in validated)
         {
             var job = pair.Key;
@@ -2296,9 +2316,46 @@ internal sealed class QuartzScheduler
         }
     }
 
-    private IEnumerable<ISchedulerListener> BuildSchedulerListenerList()
+    /// <summary>
+    /// Every scheduler listener a notification goes to: the registered ones, then the internal ones.
+    /// </summary>
+    /// <remarks>
+    /// An array, so a notification's <c>foreach</c> allocates no enumerator, and one built when the
+    /// listeners change rather than for every notification (#3865). With no registered listeners it is
+    /// the internal snapshot itself, which always holds the error logger.
+    /// </remarks>
+    private ISchedulerListener[] BuildSchedulerListenerList()
     {
-        return ListenerManager.GetSchedulerListeners().Concat(InternalSchedulerListeners);
+        ISchedulerListener[] registered = listenerManager.GetSchedulerListenerArray();
+        ISchedulerListener[] internals = Volatile.Read(ref internalSchedulerListenerSnapshot);
+        if (registered.Length == 0)
+        {
+            return internals;
+        }
+
+        SchedulerListenerList? list = Volatile.Read(ref schedulerListenerList);
+        if (list is null || !ReferenceEquals(list.Registered, registered) || !ReferenceEquals(list.Internal, internals))
+        {
+            // Notifications racing a change may each build one, and any of them may be the one kept;
+            // one built from snapshots that are no longer current is rebuilt by the next notification.
+            list = new SchedulerListenerList(registered, internals);
+            Volatile.Write(ref schedulerListenerList, list);
+        }
+
+        return list.All;
+    }
+
+    /// <summary>
+    /// The registered and the internal scheduler listeners in one array, and the two snapshots it was
+    /// built from, which say when it is out of date.
+    /// </summary>
+    private sealed class SchedulerListenerList(ISchedulerListener[] registered, ISchedulerListener[] internals)
+    {
+        public ISchedulerListener[] Registered { get; } = registered;
+
+        public ISchedulerListener[] Internal { get; } = internals;
+
+        public ISchedulerListener[] All { get; } = [.. registered, .. internals];
     }
 
     /// <summary>
@@ -2701,7 +2758,7 @@ internal sealed class QuartzScheduler
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.JobScheduled(Scheduler, trigger, cancellationToken), $"scheduled job. Trigger={trigger.Key}");
+        return NotifySchedulerListeners(trigger, static (l, s, t, ct) => l.JobScheduled(s, t, ct), static t => $"scheduled job. Trigger={t.Key}", cancellationToken);
     }
 
     /// <summary>
@@ -2744,7 +2801,7 @@ internal sealed class QuartzScheduler
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.TriggerFinalized(Scheduler, trigger, cancellationToken), $"finalized trigger. Trigger={trigger.Key}");
+        return NotifySchedulerListeners(trigger, static (l, s, t, ct) => l.TriggerFinalized(s, t, ct), static t => $"finalized trigger. Trigger={t.Key}", cancellationToken);
     }
 
     /// <summary>
@@ -2850,7 +2907,7 @@ internal sealed class QuartzScheduler
         string? group,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.TriggersResumed(Scheduler, group, cancellationToken), $"resumed group: {group}");
+        return NotifySchedulerListeners(group, static (l, s, g, ct) => l.TriggersResumed(s, g, ct), static g => $"resumed group: {g}", cancellationToken);
     }
 
     /// <summary>
@@ -2975,19 +3032,19 @@ internal sealed class QuartzScheduler
     public ValueTask NotifySchedulerListenersInStandbyMode(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerInStandbyMode(Scheduler, cancellationToken), "inStandByMode");
+        return NotifySchedulerListeners<object?>(null, static (l, s, _, ct) => l.SchedulerInStandbyMode(s, ct), static _ => "inStandByMode", cancellationToken);
     }
 
     public ValueTask NotifySchedulerListenersStarted(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerStarted(Scheduler, cancellationToken), "startup");
+        return NotifySchedulerListeners<object?>(null, static (l, s, _, ct) => l.SchedulerStarted(s, ct), static _ => "startup", cancellationToken);
     }
 
     public ValueTask NotifySchedulerListenersStarting(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerStarting(Scheduler, cancellationToken), "scheduler starting");
+        return NotifySchedulerListeners<object?>(null, static (l, s, _, ct) => l.SchedulerStarting(s, ct), static _ => "scheduler starting", cancellationToken);
     }
 
     /// <summary>
@@ -2996,44 +3053,53 @@ internal sealed class QuartzScheduler
     public ValueTask NotifySchedulerListenersShutdown(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerShutdown(Scheduler, cancellationToken), "shutdown");
+        return NotifySchedulerListeners<object?>(null, static (l, s, _, ct) => l.SchedulerShutdown(s, ct), static _ => "shutdown", cancellationToken);
     }
 
     public ValueTask NotifySchedulerListenersShuttingDown(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerShuttingDown(Scheduler, cancellationToken), "shutting down");
+        return NotifySchedulerListeners<object?>(null, static (l, s, _, ct) => l.SchedulerShuttingDown(s, ct), static _ => "shutting down", cancellationToken);
     }
 
     public ValueTask NotifySchedulerListenersJobAdded(
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.JobAdded(Scheduler, jobDetail, cancellationToken), "job addition");
+        return NotifySchedulerListeners(jobDetail, static (l, s, job, ct) => l.JobAdded(s, job, ct), static _ => "job addition", cancellationToken);
     }
 
     public ValueTask NotifySchedulerListenersJobDeleted(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.JobDeleted(Scheduler, jobKey, cancellationToken), "job deletion");
+        return NotifySchedulerListeners(jobKey, static (l, s, key, ct) => l.JobDeleted(s, key, ct), static _ => "job deletion", cancellationToken);
     }
 
-    private async ValueTask NotifySchedulerListeners(
-        Func<ISchedulerListener, ValueTask> notifier,
-        string action)
+    /// <summary>
+    /// Tells every scheduler listener one thing, logging and carrying on past any listener that throws.
+    /// </summary>
+    /// <remarks>
+    /// The call and the description a failure is logged under both take the notification's state rather
+    /// than closing over it, and are static at every call site, so a notification allocates neither a
+    /// closure nor its description: the description is only written for a listener that throws. A
+    /// schedule sends two of these (#3865).
+    /// </remarks>
+    private async ValueTask NotifySchedulerListeners<TState>(
+        TState state,
+        Func<ISchedulerListener, IScheduler, TState, CancellationToken, ValueTask> notify,
+        Func<TState, string> describe,
+        CancellationToken cancellationToken)
     {
-        // notify all scheduler listeners
-        var listeners = BuildSchedulerListenerList();
-        foreach (var listener in listeners)
+        foreach (ISchedulerListener listener in BuildSchedulerListenerList())
         {
             try
             {
-                await notifier(listener).ConfigureAwait(false);
+                await notify(listener, Scheduler, state, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                logger.ListenerNotificationFailed(action, e);
+                logger.ListenerNotificationFailed(describe(state), e);
             }
         }
     }
@@ -3067,9 +3133,7 @@ internal sealed class QuartzScheduler
 
         foreach (string fireInstanceId in interruptedFirings)
         {
-            await NotifySchedulerListeners(
-                l => l.JobInterrupted(Scheduler, jobKey, fireInstanceId, cancellationToken),
-                "job interruption").ConfigureAwait(false);
+            await NotifyJobInterrupted(jobKey, fireInstanceId, cancellationToken).ConfigureAwait(false);
         }
 
         return interruptedFirings.Count > 0;
@@ -3101,11 +3165,17 @@ internal sealed class QuartzScheduler
         }
 
         interruptableContext.Interrupt();
-        var jobKey = interruptableContext.JobDetail.Key;
-        await NotifySchedulerListeners(
-            l => l.JobInterrupted(Scheduler, jobKey, fireInstanceId, cancellationToken),
-            "job interruption").ConfigureAwait(false);
+        await NotifyJobInterrupted(interruptableContext.JobDetail.Key, fireInstanceId, cancellationToken).ConfigureAwait(false);
         return true;
+    }
+
+    private ValueTask NotifyJobInterrupted(JobKey jobKey, string fireInstanceId, CancellationToken cancellationToken)
+    {
+        return NotifySchedulerListeners(
+            (JobKey: jobKey, FireInstanceId: fireInstanceId),
+            static (l, s, firing, ct) => l.JobInterrupted(s, firing.JobKey, firing.FireInstanceId, ct),
+            static _ => "job interruption",
+            cancellationToken);
     }
 
     private async Task ShutdownPlugins(

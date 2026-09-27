@@ -13,9 +13,9 @@ namespace Quartz.Examples.Wolverine;
  *     than sleeping the full interval.
  *
  *   - Every in-process mutation — ScheduleJob, AddTrigger, RescheduleJob, DeleteJob — calls
- *     SignalSchedulingChange, which releases the semaphore the loop is waiting on. A trigger scheduled
- *     from a Wolverine handler through this process's own IScheduler therefore does not wait for the
- *     next sweep at all; the loop is woken synchronously by the scheduling call.
+ *     SignalSchedulingChange, which wakes the loop unless the trigger is due after its next look, which
+ *     finds it anyway. A trigger scheduled from a Wolverine handler through this process's own
+ *     IScheduler therefore never waits for the next sweep; the scheduling call wakes the loop.
  *
  *   - So IdleWaitTime bounds *discovery of work this node did not learn about in process*: a trigger
  *     another node wrote to the shared database, or one recovered from a node that died. It is a

@@ -108,6 +108,15 @@ public interface ISchedulerSignaler
     /// <summary>
     /// Signals the scheduling change.
     /// </summary>
+    /// <remarks>
+    /// A candidate due after the scheduler thread's next look at the store does not wake the thread,
+    /// because that look finds it. Pass <see langword="null" /> for a change that is not about one
+    /// trigger's time; that always wakes it.
+    /// </remarks>
+    /// <param name="candidateNewNextFireTimeUtc">
+    /// When the trigger the change is about next fires, or <see langword="null" />.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask SignalSchedulingChange(
         DateTimeOffset? candidateNewNextFireTimeUtc,
         CancellationToken cancellationToken = default);

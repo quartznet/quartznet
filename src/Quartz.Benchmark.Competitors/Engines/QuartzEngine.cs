@@ -216,7 +216,17 @@ internal sealed class QuartzEngine : IEngine
     /// One schedule through <c>IScheduler.ScheduleJob(job, trigger)</c>, which is the whole of what the
     /// per-schedule cost scenario measures.
     /// </summary>
-    public async ValueTask ScheduleOne(int index, bool cron, DateTimeOffset dueAt, CancellationToken cancellationToken = default)
+    public ValueTask ScheduleOne(int index, bool cron, DateTimeOffset dueAt, CancellationToken cancellationToken = default)
+    {
+        (IJobDetail job, ITrigger trigger) = BuildOne(index, cron, dueAt);
+        return ScheduleBuilt(job, trigger, cancellationToken);
+    }
+
+    /// <summary>
+    /// The job detail and trigger <see cref="ScheduleOne" /> schedules, built and not stored: the
+    /// builder half of the per-schedule cost, which the scenario's split arms measure on its own.
+    /// </summary>
+    public static (IJobDetail Job, ITrigger Trigger) BuildOne(int index, bool cron, DateTimeOffset dueAt)
     {
         string name = index.ToString(CultureInfo.InvariantCulture);
 
@@ -232,7 +242,15 @@ internal sealed class QuartzEngine : IEngine
             ? trigger.WithCronSchedule("0 0 12 * * ?").Build()
             : trigger.WithSimpleSchedule(TimeSpan.FromHours(1)).Build();
 
-        await Scheduler.ScheduleJob(job, built, cancellationToken: cancellationToken).ConfigureAwait(false);
+        return (job, built);
+    }
+
+    /// <summary>
+    /// The scheduler half of <see cref="ScheduleOne" />: storing a job detail and trigger already built.
+    /// </summary>
+    public async ValueTask ScheduleBuilt(IJobDetail job, ITrigger trigger, CancellationToken cancellationToken = default)
+    {
+        await Scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

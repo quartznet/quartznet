@@ -6,21 +6,37 @@ namespace Quartz.Core;
 /// Default concrete implementation of <see cref="IListenerManager" />.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A job or trigger listener is held as an <see cref="AttachedListener{TListener,TKey}" />, so the
 /// matchers it was attached with travel with it. Matchers are settled when the listener is attached
 /// and are not editable afterwards: a listener that has to hear about something else is attached
 /// again, under the same name, with the matchers it needs.
+/// </para>
+/// <para>
+/// <b>Reads are snapshots built when the registrations change</b> (#3865). Every notification starts by
+/// asking for the listeners registered right now, four times a firing and twice a schedule, while the
+/// registrations change a handful of times in a process's life. So each change, under its kind's lock,
+/// builds a new <see cref="Registrations{TEntry,TListener}" /> and publishes it whole, and a read takes
+/// the published one without a lock and without a copy. A reader racing a change holds the set from
+/// before it or the set from after it, never a mixture, and the set it holds never changes under it.
+/// </para>
 /// </remarks>
 internal sealed class ListenerManagerImpl : IListenerManager
 {
     private readonly Lock globalJobListenerLock = new();
     private OrderedDictionary<string, AttachedListener<IJobListener, JobKey>>? globalJobListeners;
+    private Registrations<AttachedListener<IJobListener, JobKey>, IJobListener> jobListenerSnapshot =
+        Registrations<AttachedListener<IJobListener, JobKey>, IJobListener>.None;
 
     private readonly Lock globalTriggerListenerLock = new();
     private OrderedDictionary<string, AttachedListener<ITriggerListener, TriggerKey>>? globalTriggerListeners;
+    private Registrations<AttachedListener<ITriggerListener, TriggerKey>, ITriggerListener> triggerListenerSnapshot =
+        Registrations<AttachedListener<ITriggerListener, TriggerKey>, ITriggerListener>.None;
 
     private readonly Lock schedulerListenerLock = new();
     private OrderedDictionary<string, ISchedulerListener>? schedulerListeners;
+    private Registrations<ISchedulerListener, ISchedulerListener> schedulerListenerSnapshot =
+        Registrations<ISchedulerListener, ISchedulerListener>.None;
 
     public void AddJobListener(IJobListener jobListener, params IReadOnlyCollection<IMatcher<JobKey>> matchers)
     {
@@ -42,6 +58,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             // Add or replace the job listener, together with the matchers it is to be selected by
             globalJobListeners ??= new OrderedDictionary<string, AttachedListener<IJobListener, JobKey>>();
             globalJobListeners[name] = new AttachedListener<IJobListener, JobKey>(name, jobListener, Copy(matchers));
+            Volatile.Write(ref jobListenerSnapshot, Snapshot(globalJobListeners));
         }
     }
 
@@ -52,69 +69,47 @@ internal sealed class ListenerManagerImpl : IListenerManager
             Throw.ArgumentNullException(nameof(name));
         }
 
-        if (globalJobListeners is null)
+        if (Volatile.Read(ref jobListenerSnapshot).Entries.Length == 0)
         {
             return false;
         }
 
         lock (globalJobListenerLock)
         {
-            if (globalJobListeners is null)
+            if (globalJobListeners is null || !globalJobListeners.Remove(name))
             {
                 return false;
             }
 
-            bool removed = globalJobListeners.Remove(name);
-
-            if (removed && globalJobListeners.Count == 0)
+            if (globalJobListeners.Count == 0)
             {
                 globalJobListeners = null;
             }
 
-            return removed;
+            Volatile.Write(ref jobListenerSnapshot, Snapshot(globalJobListeners));
+            return true;
         }
     }
 
+    /// <remarks>
+    /// The same read-only list until the registrations next change, not a copy per call.
+    /// </remarks>
     public IReadOnlyList<IJobListener> GetJobListeners()
     {
-        if (globalJobListeners is null)
-        {
-            return [];
-        }
-
-        lock (globalJobListenerLock)
-        {
-            if (globalJobListeners is null)
-            {
-                return [];
-            }
-
-            IJobListener[] listeners = new IJobListener[globalJobListeners.Count];
-            int index = 0;
-            foreach (AttachedListener<IJobListener, JobKey> attached in globalJobListeners.Values)
-            {
-                listeners[index++] = attached.Listener;
-            }
-
-            return listeners;
-        }
+        return Volatile.Read(ref jobListenerSnapshot).Listeners;
     }
 
     /// <summary>
     /// The job listeners with the matchers each of them was attached with, which is what the
     /// notification path needs and the only place the pairing is read.
     /// </summary>
+    /// <remarks>
+    /// The published snapshot itself, which nothing writes to once it is published: a caller iterates
+    /// it and never changes it.
+    /// </remarks>
     internal AttachedListener<IJobListener, JobKey>[] GetAttachedJobListeners()
     {
-        if (globalJobListeners is null)
-        {
-            return [];
-        }
-
-        lock (globalJobListenerLock)
-        {
-            return globalJobListeners is not null ? [.. globalJobListeners.Values] : [];
-        }
+        return Volatile.Read(ref jobListenerSnapshot).Entries;
     }
 
     public IJobListener? GetJobListener(string name)
@@ -156,6 +151,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             // Add or replace the trigger listener, together with the matchers it is to be selected by
             globalTriggerListeners ??= new OrderedDictionary<string, AttachedListener<ITriggerListener, TriggerKey>>();
             globalTriggerListeners[name] = new AttachedListener<ITriggerListener, TriggerKey>(name, triggerListener, Copy(matchers));
+            Volatile.Write(ref triggerListenerSnapshot, Snapshot(globalTriggerListeners));
         }
     }
 
@@ -166,69 +162,47 @@ internal sealed class ListenerManagerImpl : IListenerManager
             Throw.ArgumentNullException(nameof(name));
         }
 
-        if (globalTriggerListeners is null)
+        if (Volatile.Read(ref triggerListenerSnapshot).Entries.Length == 0)
         {
             return false;
         }
 
         lock (globalTriggerListenerLock)
         {
-            if (globalTriggerListeners is null)
+            if (globalTriggerListeners is null || !globalTriggerListeners.Remove(name))
             {
                 return false;
             }
 
-            bool removed = globalTriggerListeners.Remove(name);
-
-            if (removed && globalTriggerListeners.Count == 0)
+            if (globalTriggerListeners.Count == 0)
             {
                 globalTriggerListeners = null;
             }
 
-            return removed;
+            Volatile.Write(ref triggerListenerSnapshot, Snapshot(globalTriggerListeners));
+            return true;
         }
     }
 
+    /// <remarks>
+    /// The same read-only list until the registrations next change, not a copy per call.
+    /// </remarks>
     public IReadOnlyList<ITriggerListener> GetTriggerListeners()
     {
-        if (globalTriggerListeners is null)
-        {
-            return [];
-        }
-
-        lock (globalTriggerListenerLock)
-        {
-            if (globalTriggerListeners is null)
-            {
-                return [];
-            }
-
-            ITriggerListener[] listeners = new ITriggerListener[globalTriggerListeners.Count];
-            int index = 0;
-            foreach (AttachedListener<ITriggerListener, TriggerKey> attached in globalTriggerListeners.Values)
-            {
-                listeners[index++] = attached.Listener;
-            }
-
-            return listeners;
-        }
+        return Volatile.Read(ref triggerListenerSnapshot).Listeners;
     }
 
     /// <summary>
     /// The trigger listeners with the matchers each of them was attached with, which is what the
     /// notification path needs and the only place the pairing is read.
     /// </summary>
+    /// <remarks>
+    /// The published snapshot itself, which nothing writes to once it is published: a caller iterates
+    /// it and never changes it.
+    /// </remarks>
     internal AttachedListener<ITriggerListener, TriggerKey>[] GetAttachedTriggerListeners()
     {
-        if (globalTriggerListeners is null)
-        {
-            return [];
-        }
-
-        lock (globalTriggerListenerLock)
-        {
-            return globalTriggerListeners is not null ? [.. globalTriggerListeners.Values] : [];
-        }
+        return Volatile.Read(ref triggerListenerSnapshot).Entries;
     }
 
     public ITriggerListener? GetTriggerListener(string name)
@@ -268,6 +242,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         {
             schedulerListeners ??= new OrderedDictionary<string, ISchedulerListener>();
             schedulerListeners[schedulerListener.Name] = schedulerListener;
+            Volatile.Write(ref schedulerListenerSnapshot, Snapshot(schedulerListeners));
         }
     }
 
@@ -278,42 +253,46 @@ internal sealed class ListenerManagerImpl : IListenerManager
             Throw.ArgumentNullException(nameof(name));
         }
 
-        if (schedulerListeners is null)
+        if (Volatile.Read(ref schedulerListenerSnapshot).Entries.Length == 0)
         {
             return false;
         }
 
         lock (schedulerListenerLock)
         {
-            if (schedulerListeners is null)
+            if (schedulerListeners is null || !schedulerListeners.Remove(name))
             {
                 return false;
             }
 
-            bool removed = schedulerListeners.Remove(name);
-
-            if (removed && schedulerListeners.Count == 0)
+            if (schedulerListeners.Count == 0)
             {
                 schedulerListeners = null;
             }
 
-            return removed;
+            Volatile.Write(ref schedulerListenerSnapshot, Snapshot(schedulerListeners));
+            return true;
         }
     }
 
+    /// <remarks>
+    /// The same read-only list until the registrations next change, not a copy per call.
+    /// </remarks>
     public IReadOnlyList<ISchedulerListener> GetSchedulerListeners()
     {
-        if (schedulerListeners is null)
-        {
-            return [];
-        }
+        return Volatile.Read(ref schedulerListenerSnapshot).Listeners;
+    }
 
-        lock (schedulerListenerLock)
-        {
-            return schedulerListeners is not null
-                ? [.. schedulerListeners.Values]
-                : [];
-        }
+    /// <summary>
+    /// The scheduler listeners as an array, which is what the notification path iterates.
+    /// </summary>
+    /// <remarks>
+    /// The published snapshot itself, which nothing writes to once it is published: a caller iterates
+    /// it and never changes it.
+    /// </remarks>
+    internal ISchedulerListener[] GetSchedulerListenerArray()
+    {
+        return Volatile.Read(ref schedulerListenerSnapshot).Entries;
     }
 
     public ISchedulerListener? GetSchedulerListener(string name)
@@ -344,6 +323,67 @@ internal sealed class ListenerManagerImpl : IListenerManager
     private static IMatcher<TKey>[] Copy<TKey>(IReadOnlyCollection<IMatcher<TKey>>? matchers) where TKey : Key<TKey>
     {
         return matchers is null || matchers.Count == 0 ? [] : [.. matchers];
+    }
+
+    /// <summary>
+    /// What readers of one kind of attached listener see once a change has been made, built from the
+    /// registrations as the change left them.
+    /// </summary>
+    private static Registrations<AttachedListener<TListener, TKey>, TListener> Snapshot<TListener, TKey>(
+        OrderedDictionary<string, AttachedListener<TListener, TKey>>? registered) where TKey : Key<TKey>
+    {
+        if (registered is null || registered.Count == 0)
+        {
+            return Registrations<AttachedListener<TListener, TKey>, TListener>.None;
+        }
+
+        AttachedListener<TListener, TKey>[] entries = [.. registered.Values];
+        TListener[] listeners = new TListener[entries.Length];
+        for (int i = 0; i < entries.Length; i++)
+        {
+            listeners[i] = entries[i].Listener;
+        }
+
+        return new Registrations<AttachedListener<TListener, TKey>, TListener>(entries, listeners);
+    }
+
+    /// <inheritdoc cref="Snapshot{TListener,TKey}" />
+    private static Registrations<ISchedulerListener, ISchedulerListener> Snapshot(OrderedDictionary<string, ISchedulerListener>? registered)
+    {
+        if (registered is null || registered.Count == 0)
+        {
+            return Registrations<ISchedulerListener, ISchedulerListener>.None;
+        }
+
+        ISchedulerListener[] entries = [.. registered.Values];
+        return new Registrations<ISchedulerListener, ISchedulerListener>(entries, entries);
+    }
+
+    /// <summary>
+    /// One kind of listener as every reader sees it until the next change: built whole by the change
+    /// and never written to afterwards.
+    /// </summary>
+    /// <typeparam name="TEntry">What the notification path iterates.</typeparam>
+    /// <typeparam name="TListener">What <see cref="IListenerManager" /> hands out.</typeparam>
+    private sealed class Registrations<TEntry, TListener>
+    {
+        /// <summary>No listeners of this kind, which is where every manager starts.</summary>
+        public static readonly Registrations<TEntry, TListener> None = new([], []);
+
+        public Registrations(TEntry[] entries, TListener[] listeners)
+        {
+            Entries = entries;
+
+            // Read-only rather than the array itself, which is shared by every caller until the next
+            // change: an array handed out could be cast back and written to.
+            Listeners = listeners.Length == 0 ? Array.Empty<TListener>() : Array.AsReadOnly(listeners);
+        }
+
+        /// <summary>The entries, in registration order, for the notification path.</summary>
+        public TEntry[] Entries { get; }
+
+        /// <summary>The listeners, in registration order, for the public reads.</summary>
+        public IReadOnlyList<TListener> Listeners { get; }
     }
 
     /// <summary>
