@@ -207,7 +207,7 @@ public class ConnectionAndTransactionHolder : IDisposable
 
         if (transaction != null)
         {
-            if (transaction.Connection == null)
+            if (IsTransactionZombied)
             {
                 // Transaction lost its connection - nothing to rollback, the database
                 // will have already aborted it. This commonly happens with transient
@@ -238,9 +238,18 @@ public class ConnectionAndTransactionHolder : IDisposable
         }
     }
 
+    /// <summary>
+    /// Whether the database has ended this unit of work's transaction from its side — as it does to a
+    /// deadlock victim, or to the loser of a write conflict on a memory-optimized table — which the driver
+    /// reports by detaching the transaction from its connection. Nothing can be committed or rolled back
+    /// in it any more, and SQL Server runs a command still bound to it outside any transaction rather
+    /// than refusing it.
+    /// </summary>
+    internal bool IsTransactionZombied => transaction != null && transaction.Connection == null;
+
     private void CheckNotZombied()
     {
-        if (transaction != null && transaction.Connection == null)
+        if (IsTransactionZombied)
         {
             throw new InvalidOperationException("Transaction not connected, or was disconnected");
         }

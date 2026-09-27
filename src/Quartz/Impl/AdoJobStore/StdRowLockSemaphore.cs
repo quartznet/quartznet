@@ -170,6 +170,14 @@ public class StdRowLockSemaphore : DBSemaphore
                     initCause = sqle;
                 }
 
+                // Nothing to retry inside a transaction the database has ended, as it does to a deadlock
+                // victim: SQL Server would run the retried statement outside any transaction. The store
+                // retries the whole operation on a fresh one; see UpdateLockRowSemaphore for the long form.
+                if (conn.IsTransactionZombied)
+                {
+                    throw new LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
+                }
+
                 if (Log.IsDebugEnabled())
                 {
                     Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, requestorId, count < maxRetryLocal ? " - will try again." : "");
