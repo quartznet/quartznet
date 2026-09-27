@@ -156,7 +156,8 @@ To remove the analyzer from the build entirely, set one property in the project 
 
 ::: tip
 The property removes the whole assembly, so the [source generator](declaring-jobs-with-attributes.md)
-and its `AddDeclaredJobs()` go with the four diagnostics; nothing else Quartz does is affected. To quiet
+and its `AddDeclaredJobs()` go with the four diagnostics, and [delegate jobs](delegate-jobs.md#bound-at-compile-time)
+are bound by reflection; nothing else Quartz does is affected. To quiet
 one rule, use `.editorconfig` instead. `ExcludeAssets="analyzers"` on the package reference does not
 work: the .NET 10 SDK still passes the assembly to the compiler.
 :::
