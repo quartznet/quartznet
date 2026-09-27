@@ -613,12 +613,22 @@ With several nodes:
 - **Every node runs its own cluster manager**: one `SELECT` of the state table and one `UPDATE` per node
   per `CheckinInterval`. At 7.5 seconds, ten nodes issue 160 statements a minute before any job runs. A
   shorter interval buys faster failure detection with more of this traffic.
-- **Batching trades round trips for balance.** A clustered store's automatic `MaxBatchSize` is 1. Above
-  1, every acquisition cycle takes the `TRIGGER_ACCESS` lock, even cycles that acquire nothing. At the
+- **Batching trades round trips for the lock and for balance.** Since 4.3 a clustered store's automatic
+  `MaxBatchSize` is the pool, as on any persistent store. Above 1, every acquisition cycle takes the
+  `TRIGGER_ACCESS` lock, even cycles that acquire nothing, and load can become uneven: a node that
+  acquires ten triggers holds them until it can run them. It pays anyway; see the table below. At the
   shipped window of zero a batch takes the triggers already due;
-  `BatchTriggerAcquisitionFireAheadTimeWindow` adds those due within it. Load can become uneven: a node
-  that acquires ten triggers holds them until it can run them. See
+  `BatchTriggerAcquisitionFireAheadTimeWindow` adds those due within it. `MaxBatchSize = 1` keeps
+  acquisition off the lock. See
   [Batching trigger acquisition](tutorial/advanced-enterprise-features.md#batching-trigger-acquisition).
+
+What the batch buys a cluster: 2,000 one-offs due at once, durable PostgreSQL, pool 10 a node
+([#3900](https://github.com/quartznet/quartznet/issues/3900)):
+
+| Nodes | Batched, against one trigger a round | `TRIGGER_ACCESS` wait p99 | Smallest node share |
+|---:|---:|---:|---:|
+| 2 | 1.78-1.84× | 18-19 ms | 43 % |
+| 4 | 1.53-1.54× | 52-56 ms | 21 % |
 
 More nodes add capacity for concurrent firings and a node to fail over to. They do not make one trigger
 fire faster or one job finish sooner; a schedule dominated by one long job gains nothing.

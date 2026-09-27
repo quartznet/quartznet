@@ -1581,3 +1581,31 @@ times one trigger a round. The waits column is the change made visible: at one t
 takes the lock for the fire alone, so two thousand firings are exactly two thousand waits where the
 baseline's four thousand count the completions too. The clustered default is unchanged in this pull
 request, as #3900 rules; flipping it is that issue's own change.
+
+### The clustered default follows (2026-09-27, #3900)
+
+On that pass, #3900 made a clustered store's automatic `MaxBatchSize` the pool, as every persistent
+store's already was; the in-memory store stays at one. The gate's batched arm now sets nothing, so it
+measures what ships, and it asserts that every node resolved the default to its pool. Four sittings on a
+fresh `postgres:15.1` at its shipped durability, with other sessions' containers starting and stopping
+throughout:
+
+| Nodes | `MaxBatchSize` | Firings/s | `TRIGGER_ACCESS` waits | Lock wait p99 | Triggers/round | Commits/firing | Smallest share |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 1 | 106.9-151.6 | 2,000 | 2.6-5.4 ms | 1.00 | 5.98-6.01 | 50 % |
+| 2 | automatic (10) | 228.7-266.7 | 678-698 | 19.6-21.8 ms | 4.90-4.91 | 2.79-2.81 | 43 % |
+| 4 | 1 | 133.4-178.4 | 2,000 | 11.6-15.7 ms | 1.00 | 5.98-6.03 | 21 % |
+| 4 | automatic (10) | 248.4-268.7, and 138.4 once | 687-716 | 56.1-60.4 ms, and 155.8 once | 4.89-4.95 | 2.80-2.81 | 21 % |
+
+| Criterion | Sitting 1 | Sitting 2 | Sitting 3 | Sitting 4 |
+|---|---:|---:|---:|---:|
+| 2 nodes: automatic / one ≥ 1.2× | 1.72× | 1.76× | 1.81× | 2.14× |
+| 4 nodes: automatic / one ≥ 1.0× | **0.78×** | 1.55× | 1.56× | 2.01× |
+| `TRIGGER_ACCESS` p99 < 250 ms, automatic | 155.8 ms | 60.4 ms | 57.2 ms | 56.1 ms |
+| No node under 20 %, automatic | 21 % | 22 % | 22 % | 22 % |
+
+**The default is the batch=pool arm of the gate above**: the same waits, triggers a round and commits a
+firing in every sitting, and in all but one arm a throughput 1-17 % below it, on a busier box, and a p99
+within 5 ms of it. That one, sitting 1's four-node arm, ran at half speed with every lock wait slower
+(p50 48.9 ms against 29.7-32.0) and the same round structure, which is what slower commits look like
+rather than a stalled node; it did not recur in three more sittings.

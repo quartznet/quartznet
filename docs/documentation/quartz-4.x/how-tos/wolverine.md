@@ -390,7 +390,7 @@ q.ConfigureScheduler(options =>
     // itself, so it is a clustering setting, not a latency setting.
     options.IdleWaitTime = TimeSpan.FromSeconds(10);
 
-    // Default automatic: the pool on a persistent store that is not clustered, 1 otherwise.
+    // Default automatic: the pool on a persistent store, clustered or not, 1 in memory.
     // Must not exceed ThreadPoolOptions.MaxConcurrency, which defaults to 10.
     options.MaxBatchSize = 10;
 
