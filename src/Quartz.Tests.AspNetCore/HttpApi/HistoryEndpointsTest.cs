@@ -269,12 +269,20 @@ public sealed class HistoryEndpointsTest
         entry.SchedulerName.Should().Be(TestData.SchedulerName, "the route named the scheduler, and the row belongs to it");
     }
 
+    /// <summary>
+    /// Reads one history route the way the remote client does: the catalogue names the route the URL is
+    /// a call of, and the answer comes back through the client's own status mapping.
+    /// </summary>
     private async Task<T> Read<T>(string url) where T : class
     {
         JsonSerializerOptions serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
             .ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
 
-        return await client.Get<T>(url, serializerOptions, CancellationToken.None);
+        WireRoute route = SchedulerRoutes.Match("GET", url)?.Route
+                          ?? throw new InvalidOperationException($"GET {url} is no route of the catalogue");
+
+        WireClient wire = new(new HttpWireTransport(client), serializerOptions);
+        return await wire.SendAndRead<T>(new WireRequest(route, url), CancellationToken.None);
     }
 
     private static ExecutionHistoryEntry Entry(

@@ -41,6 +41,11 @@ namespace Quartz;
 /// <c>MapQuartzHttpApi</c> is mapped, or register it with <c>AddQuartzHttpClient</c>.
 /// </para>
 /// <para>
+/// Every request is built from the route the server maps for it, out of the one table both ends read,
+/// and goes through a transport that HTTP is one implementation of — so a scheduler reached some other
+/// way is this same client over another transport, not a second mapping of <see cref="IScheduler" />.
+/// </para>
+/// <para>
 /// What the server rejects arrives as the exception it named: <see cref="SchedulerException" /> and its
 /// subclasses come back as themselves, and anything else — a request the endpoint refused before it
 /// reached a scheduler, or a server that is not this API — as <see cref="HttpClientException" />, which
@@ -62,8 +67,7 @@ namespace Quartz;
 /// </remarks>
 public sealed class HttpScheduler : IScheduler, IProxyScheduler
 {
-    private readonly HttpClient httpClient;
-    private readonly JsonSerializerOptions jsonSerializerOptions;
+    private readonly WireClient wire;
 
     /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler.</param>
     /// <param name="httpClient">The client to call the remote scheduler with.</param>
@@ -81,28 +85,54 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null,
         SystemTextJsonSerializerRegistry? serializerRegistry = null)
+        : this(RequireName(schedulerName), OverHttp(httpClient), jsonSerializerOptions, serializerRegistry)
+    {
+    }
+
+    /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler.</param>
+    /// <param name="transport">What carries the requests to the remote scheduler and its answers back.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options, copied as the public constructor copies them.</param>
+    /// <param name="serializerRegistry">The trigger and calendar serializers to understand.</param>
+    internal HttpScheduler(
+        string schedulerName,
+        IWireTransport transport,
+        JsonSerializerOptions? jsonSerializerOptions,
+        SystemTextJsonSerializerRegistry? serializerRegistry)
+    {
+        SchedulerName = RequireName(schedulerName);
+        ArgumentNullException.ThrowIfNull(transport);
+
+        // The caller's options are borrowed, not owned: adding our converters to their instance would
+        // throw once those options had been used for anything (they are read-only from then on), and
+        // would add the converters a second time when two clients share one instance.
+        JsonSerializerOptions serializerOptions = jsonSerializerOptions is null
+            ? new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            : new JsonSerializerOptions(jsonSerializerOptions);
+
+        serializerOptions.ConfigureWireFormat(serializerRegistry ?? new SystemTextJsonSerializerRegistry());
+
+        wire = new WireClient(transport, serializerOptions);
+    }
+
+    private static string RequireName(string schedulerName)
     {
         if (string.IsNullOrWhiteSpace(schedulerName))
         {
             throw new ArgumentException("Scheduler name required", nameof(schedulerName));
         }
 
-        SchedulerName = schedulerName;
+        return schedulerName;
+    }
 
-        this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        if (!this.httpClient.BaseAddress?.ToString().EndsWith('/') == true)
+    private static HttpWireTransport OverHttp(HttpClient httpClient)
+    {
+        ArgumentNullException.ThrowIfNull(httpClient);
+        if (!httpClient.BaseAddress?.ToString().EndsWith('/') == true)
         {
             throw new ArgumentException("HttpClient's BaseAddress must end in /", nameof(httpClient));
         }
 
-        // The caller's options are borrowed, not owned: adding our converters to their instance would
-        // throw once those options had been used for anything (they are read-only from then on), and
-        // would add the converters a second time when two clients share one instance.
-        this.jsonSerializerOptions = jsonSerializerOptions is null
-            ? new JsonSerializerOptions(JsonSerializerDefaults.Web)
-            : new JsonSerializerOptions(jsonSerializerOptions);
-
-        this.jsonSerializerOptions.ConfigureWireFormat(serializerRegistry ?? new SystemTextJsonSerializerRegistry());
+        return new HttpWireTransport(httpClient);
     }
 
     /// <inheritdoc />
@@ -274,8 +304,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         // the parameter would have to mean "every state", and then the default could not travel.
         parameters.Add("state", query.State?.ToString() ?? HttpApiConstants.AnyFireInstanceState);
 
-        PagedResultDto<FireInstanceDto> result = await httpClient
-            .Get<PagedResultDto<FireInstanceDto>>($"{JobEndpointUrl()}/fire-instances{parameters}", jsonSerializerOptions, cancellationToken)
+        PagedResultDto<FireInstanceDto> result = await wire
+            .SendAndRead<PagedResultDto<FireInstanceDto>>(At(SchedulerRoutes.QueryFireInstances).WithQuery(parameters.ToString()), cancellationToken)
             .ConfigureAwait(false);
 
         return WholeAnswer(query, new PagedResult<FireInstance>(result.Items.Select(x => x.AsFireInstance()).ToList(), result.HasMore, result.TotalCount));
@@ -284,8 +314,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// <inheritdoc />
     public async ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
     {
-        ClusterNodeDto[] result = await httpClient
-            .Get<ClusterNodeDto[]>($"{SchedulerEndpointUrl()}/nodes", jsonSerializerOptions, cancellationToken)
+        ClusterNodeDto[] result = await wire
+            .SendAndRead<ClusterNodeDto[]>(At(SchedulerRoutes.GetClusterNodes), cancellationToken)
             .ConfigureAwait(false);
 
         // The server has already put the current node first, so the order travels rather than being
@@ -302,26 +332,26 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// <inheritdoc />
     public ValueTask Start(CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{SchedulerEndpointUrl()}/start", jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.Start), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default)
     {
         // "c" is the invariant round-trip form, which is what the endpoint parses the parameter with.
-        return httpClient.Post($"{SchedulerEndpointUrl()}/start?delay={delay.ToString("c")}", jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.Start).WithQuery($"?delay={delay.ToString("c")}"), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask Standby(CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{SchedulerEndpointUrl()}/standby", jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.Standby), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask Shutdown(bool waitForJobsToComplete = false, CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{SchedulerEndpointUrl()}/shutdown?waitForJobsToComplete={waitForJobsToComplete}", jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.Shutdown).WithQuery($"?waitForJobsToComplete={waitForJobsToComplete}"), cancellationToken);
     }
 
     /// <summary>
@@ -374,10 +404,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(trigger);
         TriggerConflictResolution.RequireDefined(onConflict, nameof(onConflict));
 
-        ScheduleJobResponse result = await httpClient.PostWithResponse<ScheduleJobRequest, ScheduleJobResponse>(
-            $"{TriggerEndpointUrl()}/schedule",
+        ScheduleJobResponse result = await wire.SendAndRead<ScheduleJobRequest, ScheduleJobResponse>(
+            At(SchedulerRoutes.ScheduleJob),
             new ScheduleJobRequest(trigger, Job: null, Replace: onConflict == TriggerConflict.Replace) { OnConflict = onConflict },
-            jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -389,10 +418,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(trigger);
 
         var jobDetailsDto = jobDetail is not null ? JobDetailDto.Create(jobDetail) : null;
-        var result = await httpClient.PostWithResponse<ScheduleJobRequest, ScheduleJobResponse>(
-            $"{TriggerEndpointUrl()}/schedule",
+        var result = await wire.SendAndRead<ScheduleJobRequest, ScheduleJobResponse>(
+            At(SchedulerRoutes.ScheduleJob),
             new ScheduleJobRequest(trigger, jobDetailsDto, replace),
-            jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -407,7 +435,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         var requestItems = triggersAndJobs.Select(CreateRequestItem).ToArray();
         var request = new ScheduleJobsRequest(requestItems, options.Replace);
 
-        return httpClient.Post($"{TriggerEndpointUrl()}/schedule-multiple", request, jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.ScheduleJobs), request, cancellationToken);
 
         static ScheduleJobsRequestItem CreateRequestItem(KeyValuePair<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJob)
         {
@@ -430,9 +458,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// <inheritdoc />
     public async ValueTask<bool> UnscheduleJob(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.PostWithResponse<OperationAppliedResponse>(
-            $"{TriggerEndpointUrl(triggerKey)}/unschedule",
-            jsonSerializerOptions,
+        var result = await wire.SendAndRead<OperationAppliedResponse>(
+            At(SchedulerRoutes.UnscheduleJob, triggerKey),
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -444,10 +471,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     {
         ArgumentNullException.ThrowIfNull(triggerKeys);
 
-        var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, AppliedTriggerKeysResponse>(
-            $"{TriggerEndpointUrl()}/unschedule",
+        var result = await wire.SendAndRead<UnscheduleJobsRequest, AppliedTriggerKeysResponse>(
+            At(SchedulerRoutes.UnscheduleJobs),
             new UnscheduleJobsRequest(triggerKeys.Select(KeyDto.Create).ToArray()),
-            jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -460,9 +486,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(matcher);
 
         var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.PostWithResponse<AppliedTriggerKeysResponse>(
-            $"{TriggerEndpointUrl()}/unschedule-by-group?{urlParams}",
-            jsonSerializerOptions,
+        var result = await wire.SendAndRead<AppliedTriggerKeysResponse>(
+            At(SchedulerRoutes.UnscheduleJobsByGroup).WithQuery($"?{urlParams}"),
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -474,10 +499,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     {
         ArgumentNullException.ThrowIfNull(newTrigger);
 
-        var result = await httpClient.PostWithResponse<RescheduleJobRequest, RescheduleJobResponse>(
-            $"{TriggerEndpointUrl(triggerKey)}/reschedule",
+        var result = await wire.SendAndRead<RescheduleJobRequest, RescheduleJobResponse>(
+            At(SchedulerRoutes.RescheduleJob, triggerKey),
             new RescheduleJobRequest(newTrigger),
-            jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -495,10 +519,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     {
         ArgumentNullException.ThrowIfNull(update);
 
-        var result = await httpClient.PostWithResponse<UpdateTriggerDetailsRequest, OperationAppliedResponse>(
-            $"{TriggerEndpointUrl(triggerKey)}/update-details",
+        var result = await wire.SendAndRead<UpdateTriggerDetailsRequest, OperationAppliedResponse>(
+            At(SchedulerRoutes.UpdateTriggerDetails, triggerKey),
             UpdateTriggerDetailsRequest.Create(update),
-            jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -510,7 +533,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     {
         if (limits is null)
         {
-            await httpClient.Delete($"{SchedulerEndpointUrl()}/execution-limits", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+            await wire.Send(At(SchedulerRoutes.ClearExecutionLimits), cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -519,10 +542,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             {
                 dict[limit.Group.ToConfigurationKey()] = new ExecutionLimitDto(limit.MaxConcurrent, limit.Scope);
             }
-            await httpClient.Post(
-                $"{SchedulerEndpointUrl()}/execution-limits",
+            await wire.Send(
+                At(SchedulerRoutes.SetExecutionLimits),
                 new SetExecutionLimitsRequest(dict, limits.UsesTriggerGroupWhenUnset),
-                jsonSerializerOptions,
                 cancellationToken).ConfigureAwait(false);
         }
     }
@@ -530,7 +552,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// <inheritdoc />
     public async ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default)
     {
-        ExecutionLimitsResponse response = await httpClient.Get<ExecutionLimitsResponse>($"{SchedulerEndpointUrl()}/execution-limits", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        ExecutionLimitsResponse response = await wire.SendAndRead<ExecutionLimitsResponse>(At(SchedulerRoutes.GetExecutionLimits), cancellationToken).ConfigureAwait(false);
 
         // No groups and no derivation is the one answer that means "nothing is configured". A scheduler
         // that limits nothing but asked for the trigger group to stand in for an unset execution group
@@ -564,13 +586,13 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             StoreNonDurableWhileAwaitingScheduling: options.StoreNonDurableWhileAwaitingScheduling
         );
 
-        return httpClient.Post(JobEndpointUrl(), request, jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.AddJob), request, cancellationToken);
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.DeleteWithResponse<OperationAppliedResponse>($"{JobEndpointUrl(jobKey)}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<OperationAppliedResponse>(At(SchedulerRoutes.DeleteJob, jobKey), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
@@ -579,10 +601,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     {
         ArgumentNullException.ThrowIfNull(jobKeys);
 
-        var result = await httpClient.PostWithResponse<DeleteJobsRequest, AppliedJobKeysResponse>(
-            $"{JobEndpointUrl()}/delete",
+        var result = await wire.SendAndRead<DeleteJobsRequest, AppliedJobKeysResponse>(
+            At(SchedulerRoutes.DeleteJobs),
             new DeleteJobsRequest(jobKeys.Select(KeyDto.Create).ToArray()),
-            jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -595,9 +616,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(matcher);
 
         var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.PostWithResponse<AppliedJobKeysResponse>(
-            $"{JobEndpointUrl()}/delete-by-group?{urlParams}",
-            jsonSerializerOptions,
+        var result = await wire.SendAndRead<AppliedJobKeysResponse>(
+            At(SchedulerRoutes.DeleteJobsByGroup).WithQuery($"?{urlParams}"),
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -609,17 +629,17 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     {
         if (data is null)
         {
-            return httpClient.Post($"{JobEndpointUrl(jobKey)}/trigger", jsonSerializerOptions, cancellationToken);
+            return wire.Send(At(SchedulerRoutes.TriggerJob, jobKey), cancellationToken);
         }
 
         var request = new TriggerJobRequest(data);
-        return httpClient.Post($"{JobEndpointUrl(jobKey)}/trigger", request, jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.TriggerJob, jobKey), request, cancellationToken);
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{JobEndpointUrl(jobKey)}/pause", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<OperationAppliedResponse>(At(SchedulerRoutes.PauseJob, jobKey), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
@@ -627,7 +647,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     public async ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{JobEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<AffectedGroupsResponse>(At(SchedulerRoutes.PauseJobs).WithQuery($"?{urlParams}"), cancellationToken).ConfigureAwait(false);
         return [.. result.Groups];
     }
 
@@ -637,14 +657,14 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(jobKeys);
 
         var request = new JobKeySetRequest([.. jobKeys.Select(KeyDto.Create)]);
-        var result = await httpClient.PostWithResponse<JobKeySetRequest, AppliedJobKeysResponse>($"{JobEndpointUrl()}/keys/pause", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<JobKeySetRequest, AppliedJobKeysResponse>(At(SchedulerRoutes.PauseJobKeys), request, cancellationToken).ConfigureAwait(false);
         return [.. result.Jobs.Select(x => x.AsJobKey())];
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/pause", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<OperationAppliedResponse>(At(SchedulerRoutes.PauseTrigger, triggerKey), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
@@ -652,7 +672,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     public async ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{TriggerEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<AffectedGroupsResponse>(At(SchedulerRoutes.PauseTriggers).WithQuery($"?{urlParams}"), cancellationToken).ConfigureAwait(false);
         return [.. result.Groups];
     }
 
@@ -662,14 +682,14 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(triggerKeys);
 
         var request = new TriggerKeySetRequest([.. triggerKeys.Select(KeyDto.Create)]);
-        var result = await httpClient.PostWithResponse<TriggerKeySetRequest, AppliedTriggerKeysResponse>($"{TriggerEndpointUrl()}/keys/pause", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<TriggerKeySetRequest, AppliedTriggerKeysResponse>(At(SchedulerRoutes.PauseTriggerKeys), request, cancellationToken).ConfigureAwait(false);
         return [.. result.Triggers.Select(x => x.AsTriggerKey())];
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{JobEndpointUrl(jobKey)}/resume", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<OperationAppliedResponse>(At(SchedulerRoutes.ResumeJob, jobKey), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
@@ -677,7 +697,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     public async ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{JobEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<AffectedGroupsResponse>(At(SchedulerRoutes.ResumeJobs).WithQuery($"?{urlParams}"), cancellationToken).ConfigureAwait(false);
         return [.. result.Groups];
     }
 
@@ -687,14 +707,14 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(jobKeys);
 
         var request = new JobKeySetRequest([.. jobKeys.Select(KeyDto.Create)]);
-        var result = await httpClient.PostWithResponse<JobKeySetRequest, AppliedJobKeysResponse>($"{JobEndpointUrl()}/keys/resume", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<JobKeySetRequest, AppliedJobKeysResponse>(At(SchedulerRoutes.ResumeJobKeys), request, cancellationToken).ConfigureAwait(false);
         return [.. result.Jobs.Select(x => x.AsJobKey())];
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/resume", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<OperationAppliedResponse>(At(SchedulerRoutes.ResumeTrigger, triggerKey), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
@@ -702,7 +722,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     public async ValueTask<List<string>> ResumeTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{TriggerEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<AffectedGroupsResponse>(At(SchedulerRoutes.ResumeTriggers).WithQuery($"?{urlParams}"), cancellationToken).ConfigureAwait(false);
         return [.. result.Groups];
     }
 
@@ -712,20 +732,20 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(triggerKeys);
 
         var request = new TriggerKeySetRequest([.. triggerKeys.Select(KeyDto.Create)]);
-        var result = await httpClient.PostWithResponse<TriggerKeySetRequest, AppliedTriggerKeysResponse>($"{TriggerEndpointUrl()}/keys/resume", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<TriggerKeySetRequest, AppliedTriggerKeysResponse>(At(SchedulerRoutes.ResumeTriggerKeys), request, cancellationToken).ConfigureAwait(false);
         return [.. result.Triggers.Select(x => x.AsTriggerKey())];
     }
 
     /// <inheritdoc />
     public ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{SchedulerEndpointUrl()}/pause-all", jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.PauseAll), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{SchedulerEndpointUrl()}/resume-all", jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.ResumeAll), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -742,8 +762,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             return await PauseTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
         }
 
-        var result = await httpClient.PostWithResponse<PauseRequest, OperationAppliedResponse>(
-            $"{TriggerEndpointUrl(triggerKey)}/pause", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<PauseRequest, OperationAppliedResponse>(
+            At(SchedulerRoutes.PauseTrigger, triggerKey), PauseBody(details), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
@@ -758,8 +778,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             return await PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
         }
 
-        var result = await httpClient.PostWithResponse<PauseRequest, OperationAppliedResponse>(
-            $"{JobEndpointUrl(jobKey)}/pause", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<PauseRequest, OperationAppliedResponse>(
+            At(SchedulerRoutes.PauseJob, jobKey), PauseBody(details), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
@@ -777,8 +797,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(matcher);
 
         var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.PostWithResponse<PauseRequest, AffectedGroupsResponse>(
-            $"{TriggerEndpointUrl()}/pause?{urlParams}", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<PauseRequest, AffectedGroupsResponse>(
+            At(SchedulerRoutes.PauseTriggers).WithQuery($"?{urlParams}"), PauseBody(details), cancellationToken).ConfigureAwait(false);
         return [.. result.Groups];
     }
 
@@ -796,8 +816,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(matcher);
 
         var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.PostWithResponse<PauseRequest, AffectedGroupsResponse>(
-            $"{JobEndpointUrl()}/pause?{urlParams}", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<PauseRequest, AffectedGroupsResponse>(
+            At(SchedulerRoutes.PauseJobs).WithQuery($"?{urlParams}"), PauseBody(details), cancellationToken).ConfigureAwait(false);
         return [.. result.Groups];
     }
 
@@ -812,7 +832,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             return PauseAll(cancellationToken);
         }
 
-        return httpClient.Post($"{SchedulerEndpointUrl()}/pause-all", PauseBody(details), jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.PauseAll), PauseBody(details), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -822,7 +842,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// </remarks>
     public async ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.Get<TriggerStateDto>($"{TriggerEndpointUrl(triggerKey)}/state", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<TriggerStateDto>(At(SchedulerRoutes.GetTriggerState, triggerKey), cancellationToken).ConfigureAwait(false);
         return result.Pause?.AsPauseInfo();
     }
 
@@ -834,8 +854,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
 
-        var result = await httpClient.Get<GroupPausedResponse>(
-            $"{TriggerEndpointUrl()}/groups/{Uri.EscapeDataString(groupName)}/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<GroupPausedResponse>(
+            SchedulerRoutes.IsTriggerGroupPaused.For(SchedulerName, Uri.EscapeDataString(groupName)), cancellationToken).ConfigureAwait(false);
         return result.Pause?.AsPauseInfo();
     }
 
@@ -847,8 +867,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
 
-        var result = await httpClient.Get<GroupPausedResponse>(
-            $"{JobEndpointUrl()}/groups/{Uri.EscapeDataString(groupName)}/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<GroupPausedResponse>(
+            SchedulerRoutes.IsJobGroupPaused.For(SchedulerName, Uri.EscapeDataString(groupName)), cancellationToken).ConfigureAwait(false);
         return result.Pause?.AsPauseInfo();
     }
 
@@ -864,8 +884,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         parameters.AddGroupMatcher(query.Group);
         parameters.AddNameMatcher(query.Name);
 
-        PagedResultDto<JobHeaderDto> result = await httpClient
-            .Get<PagedResultDto<JobHeaderDto>>($"{JobEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
+        PagedResultDto<JobHeaderDto> result = await wire
+            .SendAndRead<PagedResultDto<JobHeaderDto>>(At(SchedulerRoutes.QueryJobs).WithQuery(parameters.ToString()), cancellationToken)
             .ConfigureAwait(false);
 
         return WholeAnswer(query, new PagedResult<JobHeader>(result.Items.Select(x => x.AsJobHeader()).ToList(), result.HasMore, result.TotalCount));
@@ -903,8 +923,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             parameters.Add("nextFireTimeBefore", nextFireTimeBefore.ToString("O", CultureInfo.InvariantCulture));
         }
 
-        PagedResultDto<TriggerHeaderDto> result = await httpClient
-            .Get<PagedResultDto<TriggerHeaderDto>>($"{TriggerEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
+        PagedResultDto<TriggerHeaderDto> result = await wire
+            .SendAndRead<PagedResultDto<TriggerHeaderDto>>(At(SchedulerRoutes.QueryTriggers).WithQuery(parameters.ToString()), cancellationToken)
             .ConfigureAwait(false);
 
         return WholeAnswer(query, new PagedResult<TriggerHeader>(result.Items.Select(x => x.AsTriggerHeader()).ToList(), result.HasMore, result.TotalCount));
@@ -924,8 +944,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             parameters.Add("paused", query.Paused.Value);
         }
 
-        PagedResultDto<JobGroupDto> result = await httpClient
-            .Get<PagedResultDto<JobGroupDto>>($"{JobEndpointUrl()}/groups{parameters}", jsonSerializerOptions, cancellationToken)
+        PagedResultDto<JobGroupDto> result = await wire
+            .SendAndRead<PagedResultDto<JobGroupDto>>(At(SchedulerRoutes.QueryJobGroups).WithQuery(parameters.ToString()), cancellationToken)
             .ConfigureAwait(false);
 
         return WholeAnswer(query, new PagedResult<JobGroup>(result.Items.Select(x => x.AsJobGroup()).ToList(), result.HasMore, result.TotalCount));
@@ -945,8 +965,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             parameters.Add("paused", query.Paused.Value);
         }
 
-        PagedResultDto<TriggerGroupDto> result = await httpClient
-            .Get<PagedResultDto<TriggerGroupDto>>($"{TriggerEndpointUrl()}/groups{parameters}", jsonSerializerOptions, cancellationToken)
+        PagedResultDto<TriggerGroupDto> result = await wire
+            .SendAndRead<PagedResultDto<TriggerGroupDto>>(At(SchedulerRoutes.QueryTriggerGroups).WithQuery(parameters.ToString()), cancellationToken)
             .ConfigureAwait(false);
 
         return WholeAnswer(query, new PagedResult<TriggerGroup>(result.Items.Select(x => x.AsTriggerGroup()).ToList(), result.HasMore, result.TotalCount));
@@ -961,8 +981,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         parameters.AddPaging(query);
         parameters.AddNameMatcher(query.Name);
 
-        PagedResultDto<string> result = await httpClient
-            .Get<PagedResultDto<string>>($"{CalendarEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
+        PagedResultDto<string> result = await wire
+            .SendAndRead<PagedResultDto<string>>(At(SchedulerRoutes.QueryCalendarNames).WithQuery(parameters.ToString()), cancellationToken)
             .ConfigureAwait(false);
 
         return WholeAnswer(query, new PagedResult<string>([..result.Items], result.HasMore, result.TotalCount));
@@ -978,10 +998,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             return [];
         }
 
-        JobDetailDto[] dtos = await httpClient.PostWithResponse<KeyDto[], JobDetailDto[]>(
-            $"{JobEndpointUrl()}/fetch",
+        JobDetailDto[] dtos = await wire.SendAndRead<KeyDto[], JobDetailDto[]>(
+            At(SchedulerRoutes.FetchJobs),
             jobKeys.Select(KeyDto.Create).ToArray(),
-            jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -1010,10 +1029,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             return [];
         }
 
-        return await httpClient.PostWithResponse<KeyDto[], List<ITrigger>>(
-            $"{TriggerEndpointUrl()}/fetch",
+        return await wire.SendAndRead<KeyDto[], List<ITrigger>>(
+            At(SchedulerRoutes.FetchTriggers),
             triggerKeys.Select(KeyDto.Create).ToArray(),
-            jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
     }
@@ -1021,7 +1039,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// <inheritdoc />
     public async ValueTask<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetWithNullForNotFound<JobDetailDto>($"{JobEndpointUrl(jobKey)}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndReadOrNull<JobDetailDto>(At(SchedulerRoutes.GetJobDetails, jobKey), cancellationToken).ConfigureAwait(false);
         if (result is null)
         {
             return null;
@@ -1039,21 +1057,21 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// <inheritdoc />
     public async ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetWithNullForNotFound<ITrigger>(TriggerEndpointUrl(triggerKey), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndReadOrNull<ITrigger>(At(SchedulerRoutes.GetTrigger, triggerKey), cancellationToken).ConfigureAwait(false);
         return result;
     }
 
     /// <inheritdoc />
     public async ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.Get<TriggerStateDto>($"{TriggerEndpointUrl(triggerKey)}/state", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<TriggerStateDto>(At(SchedulerRoutes.GetTriggerState, triggerKey), cancellationToken).ConfigureAwait(false);
         return result.State;
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/reset-from-error-state", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<OperationAppliedResponse>(At(SchedulerRoutes.ResetTriggerFromErrorState, triggerKey), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
@@ -1063,7 +1081,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(triggerKeys);
 
         var request = new TriggerKeySetRequest([.. triggerKeys.Select(KeyDto.Create)]);
-        var result = await httpClient.PostWithResponse<TriggerKeySetRequest, AppliedTriggerKeysResponse>($"{TriggerEndpointUrl()}/keys/reset-from-error-state", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<TriggerKeySetRequest, AppliedTriggerKeysResponse>(At(SchedulerRoutes.ResetTriggerKeysFromErrorState), request, cancellationToken).ConfigureAwait(false);
         return [.. result.Triggers.Select(x => x.AsTriggerKey())];
     }
 
@@ -1078,26 +1096,26 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ArgumentNullException.ThrowIfNull(calendar);
 
         var requestContent = new AddCalendarRequest(calendarName, calendar, options.Replace, options.UpdateTriggers);
-        return httpClient.Post(CalendarEndpointUrl(), requestContent, jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.AddCalendar), requestContent, cancellationToken);
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.DeleteWithResponse<OperationAppliedResponse>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<OperationAppliedResponse>(AtCalendar(SchedulerRoutes.DeleteCalendar, calendarName), cancellationToken).ConfigureAwait(false);
         return result.Applied;
     }
 
     /// <inheritdoc />
     public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        return httpClient.GetWithNullForNotFound<ICalendar>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken);
+        return wire.SendAndReadOrNull<ICalendar>(AtCalendar(SchedulerRoutes.GetCalendar, calendarName), cancellationToken);
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostWithResponse<OperationAppliedResponse>($"{JobEndpointUrl(jobKey)}/interrupt", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var response = await wire.SendAndRead<OperationAppliedResponse>(At(SchedulerRoutes.InterruptJob, jobKey), cancellationToken).ConfigureAwait(false);
         return response.Applied;
     }
 
@@ -1109,9 +1127,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
             throw new ArgumentException("Fire instance id required", nameof(fireInstanceId));
         }
 
-        var response = await httpClient.PostWithResponse<OperationAppliedResponse>(
-            $"{JobEndpointUrl()}/interrupt/{fireInstanceId}",
-            jsonSerializerOptions,
+        var response = await wire.SendAndRead<OperationAppliedResponse>(
+            SchedulerRoutes.InterruptJobInstance.For(SchedulerName, fireInstanceId),
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -1121,66 +1138,63 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// <inheritdoc />
     public async ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.Get<ExistsResponse>($"{JobEndpointUrl(jobKey)}/exists", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<ExistsResponse>(At(SchedulerRoutes.CheckJobExists, jobKey), cancellationToken).ConfigureAwait(false);
         return result.Exists;
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.Get<ExistsResponse>($"{TriggerEndpointUrl(triggerKey)}/exists", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<ExistsResponse>(At(SchedulerRoutes.CheckTriggerExists, triggerKey), cancellationToken).ConfigureAwait(false);
         return result.Exists;
     }
 
     /// <inheritdoc />
     public async ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.Get<ExistsResponse>($"{CalendarEndpointUrl(calendarName)}/exists", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await wire.SendAndRead<ExistsResponse>(AtCalendar(SchedulerRoutes.CheckCalendarExists, calendarName), cancellationToken).ConfigureAwait(false);
         return result.Exists;
     }
 
     /// <inheritdoc />
     public ValueTask Clear(CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{SchedulerEndpointUrl()}/clear", jsonSerializerOptions, cancellationToken);
+        return wire.Send(At(SchedulerRoutes.Clear), cancellationToken);
     }
 
-    private string SchedulerEndpointUrl() => $"schedulers/{SchedulerName}";
+    /// <summary>
+    /// A request to <paramref name="route" /> for this client's scheduler.
+    /// </summary>
+    private WireRequest At(WireRoute route) => route.For(SchedulerName);
 
-    private string CalendarEndpointUrl() => $"schedulers/{SchedulerName}/calendars";
-
-    private string CalendarEndpointUrl(string calendarName)
-    {
-        if (string.IsNullOrWhiteSpace(calendarName))
-        {
-            throw new ArgumentException("Calendar name required", nameof(calendarName));
-        }
-
-        return $"schedulers/{SchedulerName}/calendars/{calendarName}";
-    }
-
-    private string JobEndpointUrl() => $"schedulers/{SchedulerName}/jobs";
-
-    private string JobEndpointUrl(JobKey job)
+    private WireRequest At(WireRoute route, JobKey job)
     {
         if (job is null)
         {
             throw new ArgumentNullException(nameof(job), "JobKey required");
         }
 
-        return $"schedulers/{SchedulerName}/jobs/{job.Group}/{job.Name}";
+        return route.For(SchedulerName, job.Group, job.Name);
     }
 
-    private string TriggerEndpointUrl() => $"schedulers/{SchedulerName}/triggers";
-
-    private string TriggerEndpointUrl(TriggerKey trigger)
+    private WireRequest At(WireRoute route, TriggerKey trigger)
     {
         if (trigger is null)
         {
             throw new ArgumentNullException(nameof(trigger), "TriggerKey required");
         }
 
-        return $"schedulers/{SchedulerName}/triggers/{trigger.Group}/{trigger.Name}";
+        return route.For(SchedulerName, trigger.Group, trigger.Name);
+    }
+
+    private WireRequest AtCalendar(WireRoute route, string calendarName)
+    {
+        if (string.IsNullOrWhiteSpace(calendarName))
+        {
+            throw new ArgumentException("Calendar name required", nameof(calendarName));
+        }
+
+        return route.For(SchedulerName, calendarName);
     }
 
     private SchedulerDto GetSchedulerDetailsSync()
@@ -1193,6 +1207,6 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
 
     private ValueTask<SchedulerDto> GetSchedulerDetails(CancellationToken cancellationToken)
     {
-        return httpClient.Get<SchedulerDto>(SchedulerEndpointUrl(), jsonSerializerOptions, cancellationToken);
+        return wire.SendAndRead<SchedulerDto>(At(SchedulerRoutes.GetSchedulerDetails), cancellationToken);
     }
 }

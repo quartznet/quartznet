@@ -49,8 +49,7 @@ namespace Quartz.Impl;
 internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
 {
     private readonly string schedulerName;
-    private readonly HttpClient httpClient;
-    private readonly JsonSerializerOptions jsonSerializerOptions;
+    private readonly WireClient wire;
 
     /// <param name="schedulerName">The remote scheduler's name, which every request is addressed to.</param>
     /// <param name="httpClient">The client to call the remote scheduler with.</param>
@@ -67,13 +66,14 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         ArgumentNullException.ThrowIfNull(httpClient);
 
         this.schedulerName = schedulerName;
-        this.httpClient = httpClient;
 
-        this.jsonSerializerOptions = jsonSerializerOptions is null
+        JsonSerializerOptions serializerOptions = jsonSerializerOptions is null
             ? new JsonSerializerOptions(JsonSerializerDefaults.Web)
             : new JsonSerializerOptions(jsonSerializerOptions);
 
-        this.jsonSerializerOptions.ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+        serializerOptions.ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+
+        wire = new WireClient(new HttpWireTransport(httpClient), serializerOptions);
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         }
 
         PagedResultDto<ExecutionHistoryEntryDto> result = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
-            $"{HistoryUrl}/executions{parameters}", cancellationToken).ConfigureAwait(false);
+            At(SchedulerRoutes.QueryExecutionHistory).WithQuery(parameters.ToString()), cancellationToken).ConfigureAwait(false);
 
         List<ExecutionHistoryEntry> items = new(result.Items.Length);
         foreach (ExecutionHistoryEntryDto item in result.Items)
@@ -139,8 +139,8 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         ExecutionHistoryEntryDto? result;
         try
         {
-            result = await httpClient.GetWithNullForNotFound<ExecutionHistoryEntryDto>(
-                $"{HistoryUrl}/executions/{Uri.EscapeDataString(entryId)}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+            result = await wire.SendAndReadOrNull<ExecutionHistoryEntryDto>(
+                SchedulerRoutes.GetExecution.For(this.schedulerName, Uri.EscapeDataString(entryId)), cancellationToken).ConfigureAwait(false);
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
@@ -163,7 +163,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         AddFilters(parameters, query.SchedulerInstanceId, query.TriggerContains);
 
         PagedResultDto<MisfireHistoryEntryDto> result = await Read<PagedResultDto<MisfireHistoryEntryDto>>(
-            $"{HistoryUrl}/misfires{parameters}", cancellationToken).ConfigureAwait(false);
+            At(SchedulerRoutes.QueryMisfireHistory).WithQuery(parameters.ToString()), cancellationToken).ConfigureAwait(false);
 
         List<MisfireHistoryEntry> items = new(result.Items.Length);
         foreach (MisfireHistoryEntryDto item in result.Items)
@@ -180,17 +180,20 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         parameters.Add("since", since.ToString("O", CultureInfo.InvariantCulture));
 
         MisfireCountResponse result = await Read<MisfireCountResponse>(
-            $"{HistoryUrl}/misfires/count{parameters}", cancellationToken).ConfigureAwait(false);
+            At(SchedulerRoutes.CountMisfires).WithQuery(parameters.ToString()), cancellationToken).ConfigureAwait(false);
 
         return result.Count;
     }
 
+    /// <summary>
+    /// A request to one of the history routes for this client's scheduler.
+    /// </summary>
     /// <remarks>
     /// The name in the route is this client's own rather than the argument's: one registration is one
     /// remote scheduler, and a caller asking about another scheduler's misfires here is asking the wrong
     /// target.
     /// </remarks>
-    private string HistoryUrl => $"schedulers/{schedulerName}/history";
+    private WireRequest At(WireRoute route) => route.For(schedulerName);
 
     private static void AddFilters(QueryStringBuilder parameters, string? schedulerInstanceId, string? triggerContains)
     {
@@ -211,16 +214,16 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// </summary>
     /// <remarks>
     /// An unmatched route answers <c>404</c> with no body at all, which
-    /// <c>HttpClientExtensions</c> surfaces as <see cref="HttpRequestException" /> because there are no
-    /// problem details to read. That is exactly what a host older than these routes answers, and it is a
+    /// <c>HttpClientExtensions.EnsureSuccess</c> surfaces as <see cref="HttpRequestException" /> because
+    /// there are no problem details to read. That is exactly what a host older than these routes answers, and it is a
     /// capability rather than a failure — the dashboard renders it as "the target serves no history"
     /// beside a misfire tile showing a dash rather than a zero.
     /// </remarks>
-    private async ValueTask<T> Read<T>(string url, CancellationToken cancellationToken)
+    private async ValueTask<T> Read<T>(WireRequest request, CancellationToken cancellationToken)
     {
         try
         {
-            return await httpClient.Get<T>(url, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+            return await wire.SendAndRead<T>(request, cancellationToken).ConfigureAwait(false);
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
