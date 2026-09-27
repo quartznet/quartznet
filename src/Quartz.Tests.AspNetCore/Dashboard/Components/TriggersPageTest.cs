@@ -274,6 +274,331 @@ public class TriggersPageTest
             + "a reason to show an error where a listing belongs");
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Filters
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public void EveryFilterIsPassedToTheQueryAndWrittenToTheAddress()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("#trigger-filter-group").Change("night");
+        page.Find("#trigger-filter-name").Change("trigger");
+        page.Find("#trigger-filter-job-group").Change("reports");
+        page.Find("#trigger-filter-job-name").Change("export");
+        page.Find("#trigger-filter-calendar").Change("holidays");
+        page.Find("#trigger-filter-state").Change("Paused");
+        page.Find("#trigger-filter-before").Change("2026-09-27T12:30");
+        page.Find(".qz-filter-apply").Click();
+
+        DateTimeOffset before = new(2026, 9, 27, 12, 30, 0, TimeSpan.Zero);
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.QueryTriggers(
+                TestData.SchedulerName,
+                A<DashboardTriggerQuery>.That.Matches(query =>
+                    query.GroupContains == "night"
+                    && query.NameContains == "trigger"
+                    && query.Job == new JobKeyDto("reports", "export")
+                    && query.CalendarName == "holidays"
+                    && query.State == TriggerState.Paused
+                    && query.NextFireTimeBefore == before
+                    && query.Skip == 0),
+                A<CancellationToken>._))
+            .MustHaveHappened());
+        context.CurrentUri.Should().EndWith(
+            "/quartz/triggers?group=night&name=trigger&jobGroup=reports&jobName=export&calendar=holidays&state=Paused&before=2026-09-27T12%3A30%3A00.0000000%2B00%3A00",
+            "every filter is a query parameter, so a narrowed listing is a link someone can send or bookmark");
+    }
+
+    [Test]
+    public void AFilteredAddressOpensTheListingNarrowedByItWithTheFieldsFilledIn()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        context.Navigate("/quartz/triggers?name=trigger-2&jobGroup=reports&jobName=export&calendar=holidays&before=2026-09-27T12%3A30%3A00.0000000%2B00%3A00");
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        A.CallTo(() => context.Api.QueryTriggers(
+                TestData.SchedulerName,
+                A<DashboardTriggerQuery>.That.Matches(query =>
+                    query.NameContains == "trigger-2"
+                    && query.Job == new JobKeyDto("reports", "export")
+                    && query.CalendarName == "holidays"
+                    && query.NextFireTimeBefore == new DateTimeOffset(2026, 9, 27, 12, 30, 0, TimeSpan.Zero)),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+        page.Find("#trigger-filter-name").GetAttribute("value").Should().Be("trigger-2",
+            "the fields show what the listing is narrowed by, or it looks like the whole truth");
+        page.Find("#trigger-filter-before").GetAttribute("value").Should().Be("2026-09-27T12:30",
+            "the bound is shown on the clock the dashboard shows, which the context pins to UTC");
+    }
+
+    [Test]
+    public void HalfAJobKeyIsRefusedBeforeAnythingIsAsked()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        Fake.ClearRecordedCalls(context.Api);
+
+        page.Find("#trigger-filter-job-group").Change("reports");
+        page.Find(".qz-filter-apply").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=trigger-filter-error]").TextContent
+            .Should().Contain("give both to filter by job", "a job is a key, and half of one names no job"));
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public void ClearingTheFiltersListsEverythingAgain()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        context.Navigate("/quartz/triggers?name=trigger-2");
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find(".qz-filter-clear").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.QueryTriggers(
+                TestData.SchedulerName,
+                A<DashboardTriggerQuery>.That.Matches(query => query.NameContains == null && query.Job == null && query.State == null),
+                A<CancellationToken>._))
+            .MustHaveHappened());
+        context.CurrentUri.Should().EndWith("/quartz/triggers");
+        page.Find("#trigger-filter-name").GetAttribute("value").Should().BeEmpty();
+    }
+
+    [Test]
+    public void TheStateSelectOffersEveryStateATriggerCanBeListedIn()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("#trigger-filter-state option").Select(option => option.TextContent)
+            .Should().Equal(["All states", "Normal", "Paused", "Complete", "Error", "Blocked", "Executing", "Awaiting"],
+                "None is what a key that resolves to nothing answers, and no listed trigger is in it");
+    }
+
+    /// <summary>
+    /// A target whose HTTP API predates the next-fire filter ignores it. The client proves that and
+    /// refuses; the page drops that one filter, says why beside its field, and lists the rest.
+    /// </summary>
+    [Test]
+    public void ANextFireFilterTheTargetCannotApplyIsDisabledWithTheReason()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        A.CallTo(() => context.Api.QueryTriggers(
+                A<string>._, A<DashboardTriggerQuery>.That.Matches(query => query.NextFireTimeBefore != null), A<CancellationToken>._))
+            .Throws(new NotSupportedException("This scheduler does not filter by next fire time."));
+        context.Navigate("/quartz/triggers?name=trigger&before=2026-09-27T12%3A30%3A00.0000000%2B00%3A00");
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=trigger-filter-before-unavailable]").TextContent.Should().Contain("does not filter by next fire time");
+            page.Find("#trigger-filter-before").HasAttribute("disabled").Should().BeTrue();
+            page.TextOfAll("td.qz-col-state").Should().HaveCount(2, "the listing is still shown, narrowed by what the target can apply");
+            page.FindAll(".qz-error-alert").Should().BeEmpty("a filter a target cannot apply is not an error page");
+        });
+        context.CurrentUri.Should().EndWith("/quartz/triggers?name=trigger",
+            "the address stops claiming a filter the listing is not narrowed by");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Acting on a selection
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public void PausingASelectionIsOneCallAndSaysWhichRowsItDidNotReach()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 3));
+        TriggerKeyDto first = new("nightly", "trigger-1");
+        TriggerKeyDto second = new("nightly", "trigger-2");
+        A.CallTo(() => context.Api.PauseTriggers(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKeyDto> { first });
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        Select(page, "nightly.trigger-1");
+        Select(page, "nightly.trigger-2");
+        page.WaitForAssertion(() => page.Find(".qz-bulk-count").TextContent.Should().Be("2 selected"));
+        page.Find(".qz-bulk-pause").Click();
+        page.WaitForAssertion(() => page.Markup.Should().Contain("Pause 2 selected trigger(s)?",
+            "the prompt is asked once, for the whole batch"));
+        page.ConfirmPause();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseTriggers(
+                TestData.SchedulerName,
+                A<IReadOnlyCollection<TriggerKeyDto>>.That.Matches(keys => keys.Count == 2 && keys.Contains(first) && keys.Contains(second)),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() =>
+        {
+            IElement result = page.Find("[data-testid=trigger-bulk-result]");
+            result.TextContent.Should().Contain("Paused 1 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("nightly.trigger-2",
+                "the row the batch did not reach is the one somebody has to go and look at");
+            result.TextContent.Should().Contain("no longer exists or was already paused");
+        });
+        A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        context.Toasts.Messages[^1].Message.Should().Be("Paused 1 of 2 selected trigger(s).");
+        context.ActionLog.GetLatest(2).Should().BeEquivalentTo(
+            [
+                new { Action = "PauseTrigger", Target = "nightly.trigger-2", Succeeded = false },
+                new { Action = "PauseTrigger", Target = "nightly.trigger-1", Succeeded = true }
+            ],
+            options => options.ExcludingMissingMembers(),
+            "a bulk pause is recorded under each trigger's own key, where 'who paused this' looks");
+        page.FindAll(".qz-bulk-count").Should().BeEmpty("the selection is spent once it has been acted on");
+    }
+
+    /// <summary>
+    /// The key-set route takes no reason, so a pause that says something is made a key at a time through
+    /// the member that records it — the prompt still asked once.
+    /// </summary>
+    [Test]
+    public void APauseWithAReasonIsMadeThroughTheMemberThatRecordsItForEachSelectedRow()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        A.CallTo(() => context.Api.PauseTrigger(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._)).Returns(true);
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("input.qz-select-group").Change(true);
+        page.WaitForAssertion(() => page.Find(".qz-bulk-count").TextContent.Should().Be("2 selected",
+            "the group's box selects every row of that group on the page"));
+        page.Find(".qz-bulk-pause").Click();
+        page.ConfirmPause("disk full on the export host");
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseTriggerWith(
+                TestData.SchedulerName,
+                A<TriggerKeyDto>._,
+                A<PauseDetails>.That.Matches(details => details.Reason == "disk full on the export host"),
+                A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly());
+        A.CallTo(() => context.Api.PauseTriggers(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected trigger(s)."));
+        page.FindAll("[data-testid=trigger-bulk-result]").Should().BeEmpty("every row was reached, so there is nothing to follow up");
+    }
+
+    [Test]
+    public void OneRowWhoseOwnPauseFailsDoesNotStopTheRest()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        A.CallTo(() => context.Api.PauseTrigger(A<string>._, new TriggerKeyDto("nightly", "trigger-1"), A<CancellationToken>._))
+            .Throws(new SchedulerException("the store refused"));
+        A.CallTo(() => context.Api.PauseTrigger(A<string>._, new TriggerKeyDto("nightly", "trigger-2"), A<CancellationToken>._))
+            .Returns(true);
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("input.qz-select-group").Change(true);
+        page.Find(".qz-bulk-pause").Click();
+        page.ConfirmPause("maintenance");
+
+        page.WaitForAssertion(() =>
+        {
+            IElement result = page.Find("[data-testid=trigger-bulk-result]");
+            result.TextContent.Should().Contain("Paused 1 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("the store refused", "a failure says what the scheduler said");
+        });
+        context.Toasts.Messages[^1].Message.Should().Be("Paused 1 of 2 selected trigger(s). 1 failed.");
+    }
+
+    [Test]
+    public void ResumingASelectionIsOneCall()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2, TriggerState.Paused));
+        A.CallTo(() => context.Api.ResumeTriggers(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<TriggerKeyDto> keys, CancellationToken _) => keys.ToList());
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("input.qz-select-group").Change(true);
+        page.Find(".qz-bulk-resume").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.ResumeTriggers(
+                TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>.That.Matches(keys => keys.Count == 2), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Resumed 2 of 2 selected trigger(s)."));
+    }
+
+    [Test]
+    public void UnschedulingASelectionAsksFirst()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        A.CallTo(() => context.Api.UnscheduleJobs(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<TriggerKeyDto> keys, CancellationToken _) => keys.ToList());
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("input.qz-select-group").Change(true);
+        page.Find(".qz-bulk-unschedule").Click();
+
+        page.WaitForAssertion(() => page.Markup.Should().Contain("Unschedule 2 selected trigger(s)?"));
+        A.CallTo(() => context.Api.UnscheduleJobs(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.UnscheduleJobs(
+                TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>.That.Matches(keys => keys.Count == 2), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(2).Should().OnlyContain(entry => entry.Action == "UnscheduleTrigger" && entry.Succeeded));
+    }
+
+    [Test]
+    public void ABatchTheSchedulerRefusesReportsEveryRowAsNotReached()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        A.CallTo(() => context.Api.ResumeTriggers(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .Throws(new HttpClientException("Received response with status code Forbidden, error details: read-only"));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("input.qz-select-group").Change(true);
+        page.Find(".qz-bulk-resume").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            IElement result = page.Find("[data-testid=trigger-bulk-result]");
+            result.TextContent.Should().Contain("Resumed 0 of 2 selected trigger(s).");
+            result.QuerySelectorAll("li").Should().HaveCount(2, "one request, so a refusal is the whole batch's");
+        });
+        context.Toasts.Messages[^1].Message.Should().Be("Resumed 0 of 2 selected trigger(s). 2 failed.");
+        context.ActionLog.GetLatest(2).Should().OnlyContain(entry => !entry.Succeeded && entry.Message!.Contains("read-only"));
+    }
+
+    [Test]
+    public void ApplyingAFilterClearsTheSelection()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        Select(page, "nightly.trigger-1");
+        page.WaitForElement(".qz-bulk-count");
+
+        page.Find("#trigger-filter-name").Change("trigger-2");
+        page.Find(".qz-filter-apply").Click();
+
+        page.WaitForAssertion(() => page.FindAll(".qz-bulk-count").Should().BeEmpty(
+            "a bulk action on rows the narrowed listing no longer shows would be a surprise"));
+    }
+
+    [Test]
+    public void ReadOnlyModeOffersNoSelection()
+    {
+        context.Options.ReadOnly = true;
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("input[type=checkbox]").Should().BeEmpty("a selection is only for acting on, and read-only acts on nothing");
+        page.FindAll(".qz-filter-apply").Should().ContainSingle("filtering is reading, not writing");
+    }
+
+    private static void Select(IRenderedComponent<Triggers> page, string key)
+    {
+        page.Find("input.qz-select-trigger[aria-label='Select " + key + "']").Change(true);
+    }
+
     private void GivenTriggers(IReadOnlyList<TriggerHeaderDto> triggers)
     {
         A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))

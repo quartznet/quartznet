@@ -37,6 +37,7 @@
                 <th>Fire Time</th>
                 <th>Run Time</th>
                 <th>Progress</th>
+                <th>History</th>
                 @if (ShowInterrupt)
                 {
                     <th>Actions</th>
@@ -89,6 +90,15 @@
                                 <span class="qz-muted">&#8212;</span>
                             }
                         </td>
+                        <td>
+                            @* A firing's own execution page exists once it has finished and the history has a
+                               row for it, so what a running row links to is its trigger's finished runs, each
+                               of which opens its execution page with the log it captured. *@
+                            <a class="qz-details-link"
+                               data-testid="executing-history-link"
+                               title="This firing gets an execution page of its own once it finishes"
+                               href="@GetHistoryPathForTrigger(fireInstance.TriggerKey)">Past runs</a>
+                        </td>
                         @if (ShowInterrupt)
                         {
                             <td>
@@ -128,7 +138,7 @@
     private bool _isWindow;
 
     private bool ShowInterrupt => !IsReadOnly && !_isWindow;
-    private int TableColumnCount => ShowInterrupt ? 8 : 7;
+    private int TableColumnCount => ShowInterrupt ? 9 : 8;
 
     protected override async Task OnInitializedAsync()
     {
@@ -271,6 +281,12 @@
                 ex.Message,
                 nodeLocal: true);
         }
+    }
+
+    private string GetHistoryPathForTrigger(TriggerKeyDto triggerKey)
+    {
+        string filterValue = Uri.EscapeDataString(DisplayValueHelper.FormatKey(triggerKey.Group, triggerKey.Name));
+        return DashboardLink.To(Options.Value, "history?trigger=" + filterValue);
     }
 
     private string FormatFireTime(DateTimeOffset? fireTime)

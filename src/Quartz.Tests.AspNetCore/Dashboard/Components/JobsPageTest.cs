@@ -103,6 +103,43 @@ public class JobsPageTest
     }
 
     [Test]
+    public void ANameFilterNarrowsTheListingAndIsWrittenToTheAddress()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 12));
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.Find("#job-filter-name").Input("job-1");
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.QueryJobs(
+                TestData.SchedulerName,
+                A<DashboardJobQuery>.That.Matches(query => query.NameContains == "job-1" && query.Skip == 0),
+                A<CancellationToken>._))
+            .MustHaveHappened());
+        page.WaitForAssertion(() => page.TextOfAll(".qz-key-badge-value").Should().Equal(
+            ["reports.job-1", "reports.job-10", "reports.job-11", "reports.job-12"]));
+        context.CurrentUri.Should().EndWith("/quartz/jobs?name=job-1",
+            "a narrowed listing is a link someone can send or bookmark");
+    }
+
+    [Test]
+    public void AFilteredAddressOpensTheJobListingNarrowedWithTheFieldsFilledIn()
+    {
+        GivenJobs([.. TestData.Dashboard.JobKeys("reports", 2), .. TestData.Dashboard.JobKeys("imports", 2)]);
+        GivenGroups(("reports", false), ("imports", false));
+        context.Navigate("/quartz/jobs?group=imp&name=job-2");
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.TextOfAll(".qz-key-badge-value").Should().Equal(["imports.job-2"]);
+        page.Find("#job-filter-group").GetAttribute("value").Should().Be("imp");
+        page.Find("#job-filter-name").GetAttribute("value").Should().Be("job-2");
+        page.Find("#job-filter-group").Input("");
+
+        page.WaitForAssertion(() => page.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-2", "imports.job-2"]));
+        context.CurrentUri.Should().EndWith("/quartz/jobs?name=job-2");
+    }
+
+    [Test]
     public void ReadOnlyModeHidesEveryMutatingAction()
     {
         context.Options.ReadOnly = true;
@@ -275,8 +312,10 @@ public class JobsPageTest
             .ReturnsLazily((string _, DashboardJobQuery query, CancellationToken _) =>
             {
                 List<JobKeyDto> matched = jobs
-                    .Where(job => query.GroupContains is null
-                        || job.Group.Contains(query.GroupContains, StringComparison.OrdinalIgnoreCase))
+                    .Where(job => (query.GroupContains is null
+                            || job.Group.Contains(query.GroupContains, StringComparison.OrdinalIgnoreCase))
+                        && (query.NameContains is null
+                            || job.Name.Contains(query.NameContains, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
 
                 return TestData.Dashboard.Page<JobKeyDto>(

@@ -232,6 +232,7 @@ namespace Quartz.Dashboard.Services
     {
         public DashboardJobQuery() { }
         public string? GroupContains { get; init; }
+        public string? NameContains { get; init; }
     }
     public sealed record DashboardMisfireEntry : System.IEquatable<Quartz.Dashboard.Services.DashboardMisfireEntry>
     {
@@ -255,7 +256,11 @@ namespace Quartz.Dashboard.Services
     public sealed record DashboardTriggerQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardTriggerQuery>
     {
         public DashboardTriggerQuery() { }
+        public string? CalendarName { get; init; }
         public string? GroupContains { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto? Job { get; init; }
+        public string? NameContains { get; init; }
+        public System.DateTimeOffset? NextFireTimeBefore { get; init; }
         public Quartz.TriggerState? State { get; init; }
     }
     public sealed record ExecutionLimitsDto : System.IEquatable<Quartz.Dashboard.Services.ExecutionLimitsDto>
@@ -315,6 +320,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<bool> PauseJobWith(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, Quartz.PauseDetails? details, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> PauseTrigger(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> PauseTriggerWith(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, Quartz.PauseDetails? details, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerKeyDto>> PauseTriggers(string schedulerName, System.Collections.Generic.IReadOnlyCollection<Quartz.Dashboard.Services.TriggerKeyDto> triggerKeys, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.ClusterNodeDto>> QueryClusterNodes(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.DashboardHistoryEntry>> QueryExecutions(Quartz.Dashboard.Services.DashboardHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.FireInstanceDto>> QueryFireInstances(string schedulerName, Quartz.Dashboard.Services.DashboardFireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default);
@@ -328,12 +334,15 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask ResumeAll(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> ResumeJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> ResumeTrigger(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerKeyDto>> ResumeTriggers(string schedulerName, System.Collections.Generic.IReadOnlyCollection<Quartz.Dashboard.Services.TriggerKeyDto> triggerKeys, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask ScheduleJob(string schedulerName, Quartz.Dashboard.Services.ScheduleJobRequest request, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Shutdown(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Standby(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Start(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask TriggerJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, Quartz.JobDataMap? jobDataMap = null, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> UnscheduleJob(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerKeyDto>> UnscheduleJobs(string schedulerName, System.Collections.Generic.IReadOnlyCollection<Quartz.Dashboard.Services.TriggerKeyDto> triggerKeys, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default); // default implementation
     }
     public sealed record JobDetailDto : System.IEquatable<Quartz.Dashboard.Services.JobDetailDto>
     {

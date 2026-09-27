@@ -202,6 +202,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         JobQuery storeQuery = new()
         {
             Group = BuildGroupMatcher<JobKey>(query.GroupContains),
+            Name = BuildNameMatcher<JobKey>(query.NameContains),
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = true
@@ -486,16 +487,27 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         ArgumentNullException.ThrowIfNull(query);
 
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        // Every filter is the store's own predicate, so each narrows the page the store reads rather than
+        // the rows this client hands back, and paging and the total stay exact.
         TriggerQuery storeQuery = new()
         {
             Group = BuildGroupMatcher<TriggerKey>(query.GroupContains),
+            Name = BuildNameMatcher<TriggerKey>(query.NameContains),
+            Job = query.Job is null ? null : AsJobKey(query.Job),
+            CalendarName = string.IsNullOrWhiteSpace(query.CalendarName) ? null : query.CalendarName,
             State = query.State,
+            NextFireTimeBefore = query.NextFireTimeBefore,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = true
         };
 
         PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers(storeQuery, cancellationToken).ConfigureAwait(false);
+
+        if (query.NextFireTimeBefore is { } before)
+        {
+            EnsureNextFireTimeFilterWasApplied(triggers, before);
+        }
 
         List<TriggerHeaderDto> items = new(triggers.Items.Count);
         foreach (TriggerHeader trigger in triggers.Items)
@@ -520,6 +532,28 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         }
 
         return new PagedResult<TriggerHeaderDto>(items, triggers.HasMore, triggers.TotalCount ?? items.Count);
+    }
+
+    /// <summary>
+    /// Refuses a page the next-fire filter was asked of and not applied to.
+    /// </summary>
+    /// <remarks>
+    /// A Quartz HTTP API older than 4.2 has no <c>nextFireTimeBefore</c> and ignores it, answering with
+    /// every trigger — a filtered listing that is not filtered, which is worse than none. Each header
+    /// carries the next fire time the store compared, so a row the filter excludes is proof of that, not a
+    /// guess, and the page is told the filter is unavailable instead of being shown the rows.
+    /// </remarks>
+    private static void EnsureNextFireTimeFilterWasApplied(PagedResult<TriggerHeader> page, DateTimeOffset before)
+    {
+        foreach (TriggerHeader header in page.Items)
+        {
+            if (header.NextFireTimeUtc is not { } nextFireTime || nextFireTime >= before)
+            {
+                throw new NotSupportedException(
+                    "This scheduler does not filter by next fire time: it answered with triggers that are not due before the time given. "
+                    + "A Quartz HTTP API older than 4.2 ignores the filter; upgrade that host to use it here.");
+            }
+        }
     }
 
     public async ValueTask<ITrigger> GetTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
@@ -581,6 +615,49 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         EnsureWritable();
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         return await scheduler.ResetTriggerFromErrorState(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <remarks>
+    /// A write to the store, like pausing, so a window may make it: whichever node fires the trigger next
+    /// reads what was written. Over HTTP it is the <c>update-details</c> route.
+    /// </remarks>
+    public async ValueTask<bool> UpdateTriggerDetails(string schedulerName, TriggerKeyDto key, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        TriggerKey triggerKey = AsTriggerKey(key);
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.UpdateTriggerDetails(triggerKey, update, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <remarks>
+    /// The scheduler's own key-set member, so a selection is one call — one store transaction in process,
+    /// one <c>…/triggers/keys/pause</c> request over HTTP — rather than a call per row.
+    /// </remarks>
+    public async ValueTask<List<TriggerKeyDto>> PauseTriggers(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        TriggerKey[] keys = AsTriggerKeys(triggerKeys);
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return AsTriggerKeyDtos(await scheduler.PauseTriggers(keys, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <inheritdoc cref="PauseTriggers" />
+    public async ValueTask<List<TriggerKeyDto>> ResumeTriggers(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        TriggerKey[] keys = AsTriggerKeys(triggerKeys);
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return AsTriggerKeyDtos(await scheduler.ResumeTriggers(keys, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <inheritdoc cref="PauseTriggers" />
+    public async ValueTask<List<TriggerKeyDto>> UnscheduleJobs(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        TriggerKey[] keys = AsTriggerKeys(triggerKeys);
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return AsTriggerKeyDtos(await scheduler.UnscheduleJobs(keys, cancellationToken).ConfigureAwait(false));
     }
 
     public async ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default)
@@ -754,6 +831,36 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     private static GroupMatcher<TKey>? BuildGroupMatcher<TKey>(string? groupFilter) where TKey : Key<TKey>
     {
         return string.IsNullOrWhiteSpace(groupFilter) ? null : GroupMatcher<TKey>.GroupContains(groupFilter);
+    }
+
+    private static NameMatcher<TKey>? BuildNameMatcher<TKey>(string? nameFilter) where TKey : Key<TKey>
+    {
+        return string.IsNullOrWhiteSpace(nameFilter) ? null : NameMatcher<TKey>.NameContains(nameFilter);
+    }
+
+    private static TriggerKey[] AsTriggerKeys(IReadOnlyCollection<TriggerKeyDto> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+
+        TriggerKey[] result = new TriggerKey[keys.Count];
+        int index = 0;
+        foreach (TriggerKeyDto key in keys)
+        {
+            result[index++] = AsTriggerKey(key);
+        }
+
+        return result;
+    }
+
+    private static List<TriggerKeyDto> AsTriggerKeyDtos(List<TriggerKey> keys)
+    {
+        List<TriggerKeyDto> result = new(keys.Count);
+        foreach (TriggerKey key in keys)
+        {
+            result.Add(new TriggerKeyDto(key.Group, key.Name));
+        }
+
+        return result;
     }
 
     private static JobKey AsJobKey(JobKeyDto key)

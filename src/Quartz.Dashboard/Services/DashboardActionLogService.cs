@@ -54,6 +54,13 @@ internal sealed record DashboardActionLogEntry(
     /// cluster is bound by it — so naming a node beside it would suggest the other nodes were unaffected.
     /// </remarks>
     public bool NodeLocal { get; init; }
+
+    /// <summary>
+    /// Who took the action, as the application's log line names them: the signed-in user, or
+    /// <c>(anonymous)</c> when nothing authenticated the visitor. <see langword="null" /> on an entry
+    /// recorded without one.
+    /// </summary>
+    public string? User { get; init; }
 }
 
 internal sealed class DashboardActionLogService

@@ -189,6 +189,41 @@ public sealed class StoreAttachedTargetTest
     }
 
     /// <summary>
+    /// The trigger editor, the listing filters and the bulk actions are all writes and reads of the shared
+    /// tables, so a window offers every one of them and the nodes read what it wrote.
+    /// </summary>
+    [Test]
+    public async Task AWindowEditsFiltersAndActsOnASelectionThroughTheStore()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        IQuartzApiClient client = dashboard.Client;
+        TriggerKeyDto trigger = new("nightly", "at-midnight");
+
+        (await client.UpdateTriggerDetails(ClusterScheduler, trigger, new TriggerDetailsUpdate()
+            .WithDescription("edited through the window")
+            .WithOverlapPolicy(OverlapPolicy.Skip))).Should().BeTrue(
+            "an edit in place is an UPDATE of the trigger's row, which any node honours");
+
+        IScheduler nodeScheduler = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        ITrigger stored = (await nodeScheduler.GetTrigger(new TriggerKey("at-midnight", "nightly")))!;
+        stored.Description.Should().Be("edited through the window", "the node reads what the window wrote");
+        stored.OverlapPolicy.Should().Be(OverlapPolicy.Skip);
+
+        PagedResult<TriggerHeaderDto> byJob = await client.QueryTriggers(
+            ClusterScheduler, new DashboardTriggerQuery { Job = new JobKeyDto("batch", "nightly"), NameContains = "midnight" });
+        byJob.Items.Should().ContainSingle().Which.Name.Should().Be("at-midnight");
+
+        (await client.PauseTriggers(ClusterScheduler, [trigger])).Should().Equal([trigger]);
+        (await client.GetTriggerState(ClusterScheduler, trigger)).Should().Be(TriggerState.Paused);
+        (await client.ResumeTriggers(ClusterScheduler, [trigger])).Should().Equal([trigger]);
+        (await client.UnscheduleJobs(ClusterScheduler, [trigger])).Should().Equal([trigger]);
+        (await nodeScheduler.GetTrigger(new TriggerKey("at-midnight", "nightly"))).Should().BeNull();
+    }
+
+    /// <summary>
     /// A window onto a store attached without <c>UseExecutionHistory()</c> says there is no history
     /// there, naming the store and the window, rather than showing this process's own history.
     /// </summary>

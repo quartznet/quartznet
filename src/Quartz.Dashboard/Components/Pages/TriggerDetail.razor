@@ -41,8 +41,28 @@
                 <button type="button" class="qz-button" @onclick="PromptPause">Pause</button>
                 <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
                 <button type="button" class="qz-button" @onclick="ResetFromErrorAsync">Reset error state</button>
+                <button type="button"
+                        class="qz-button qz-trigger-edit"
+                        disabled="@(_editing || _editUnavailable is not null)"
+                        title="@_editUnavailable"
+                        @onclick="StartEditing">Edit details</button>
                 <button type="button" class="qz-button qz-button-danger" @onclick="PromptUnschedule">Unschedule</button>
             </div>
+
+            @if (_editUnavailable is { } editUnavailable)
+            {
+                @* Said where the button is rather than in a toast that fades: the data source cannot edit
+                   a trigger in place, which stays true for as long as the page is open. *@
+                <p class="qz-muted" data-testid="trigger-editor-unavailable">@editUnavailable</p>
+            }
+        }
+
+        @if (_editing && !IsReadOnly)
+        {
+            <TriggerDetailsEditor Trigger="@_trigger"
+                                  OnSaved="OnDetailsSavedAsync"
+                                  OnUnavailable="OnEditingUnavailable"
+                                  OnCancel="CancelEditing" />
         }
 
         <table class="qz-table">
@@ -50,6 +70,10 @@
                 <tr><th>Type</th><td>@TriggerDisplay.TypeName(_trigger)</td></tr>
                 <tr><th>Execution Group</th><td>@(_trigger.ExecutionGroup is { Length: > 0 } executionGroup ? executionGroup : "\u2014")</td></tr>
                 <tr><th>Description</th><td>@_trigger.Description</td></tr>
+                <tr><th>Priority</th><td>@_trigger.Priority</td></tr>
+                <tr><th>Calendar</th><td>@(_trigger.CalendarName is { Length: > 0 } calendarName ? calendarName : "\u2014")</td></tr>
+                <tr><th>Preferred Node</th><td>@DisplayPreferredNode(_trigger.PreferredNode)</td></tr>
+                <tr><th>Misfire Instruction</th><td>@_misfireName</td></tr>
                 <tr><th>Schedule</th><td>@BuildScheduleDescription()</td></tr>
                 <tr><th>Next Fire</th><td>@FormatDate(_trigger.NextFireTimeUtc)</td></tr>
                 <tr><th>Previous Fire</th><td>@FormatDate(_trigger.PreviousFireTimeUtc)</td></tr>
@@ -126,6 +150,19 @@
     private bool _showUnscheduleConfirm;
     private string? _cronExpression;
     private string _editedCronExpression = string.Empty;
+    private string _misfireName = string.Empty;
+    private bool _editing;
+
+    /// <summary>
+    /// Why this page's data source cannot edit a trigger in place, once it has said so, or
+    /// <see langword="null" /> while nothing has.
+    /// </summary>
+    /// <remarks>
+    /// Learned from the source rather than guessed at: an <see cref="IQuartzApiClient" /> of an
+    /// application's own that predates the member answers <see cref="NotSupportedException" />, and the
+    /// editor is disabled with that reason from then on instead of failing the same way on every save.
+    /// </remarks>
+    private string? _editUnavailable;
 
     [Parameter]
     public string Group { get; set; } = string.Empty;
@@ -152,6 +189,9 @@
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        // What one scheduler's source could not do says nothing about the next one's.
+        _editUnavailable = null;
+        _editing = false;
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -179,6 +219,7 @@
             _pause = _triggerState == TriggerState.Paused ? await Api.GetTriggerPause(schedulerName, TriggerKey) : null;
             _cronExpression = (_trigger as ICronTrigger)?.CronExpressionString;
             _editedCronExpression = _cronExpression ?? string.Empty;
+            _misfireName = TriggerDetailsForm.MisfireNameOf(_trigger);
 
             // A continuation keeps naming its parent after the parent is gone - a deleted parent parks
             // the trigger in Error rather than erasing what it waited for - so the row links to a page
@@ -298,6 +339,48 @@
     {
         _editedCronExpression = _cronExpression ?? string.Empty;
         return Task.CompletedTask;
+    }
+
+    private static string DisplayPreferredNode(PreferredNode preferredNode)
+    {
+        if (preferredNode.IsNone)
+        {
+            return "—";
+        }
+
+        if (preferredNode.IsAutomatic)
+        {
+            return preferredNode.Node is { } claimedBy ? "auto (claimed by " + claimedBy + ")" : "auto";
+        }
+
+        return preferredNode.Node ?? "—";
+    }
+
+    private void StartEditing()
+    {
+        if (IsReadOnly || _trigger is null)
+        {
+            return;
+        }
+
+        _editing = true;
+    }
+
+    private void CancelEditing()
+    {
+        _editing = false;
+    }
+
+    private async Task OnDetailsSavedAsync()
+    {
+        _editing = false;
+        await LoadDataAsync();
+    }
+
+    private void OnEditingUnavailable(string reason)
+    {
+        _editUnavailable = reason;
+        _editing = false;
     }
 
     private void PromptUnschedule()

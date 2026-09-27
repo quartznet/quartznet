@@ -2,86 +2,100 @@
 @using Quartz
 
 <div class="qz-job-data-map-editor">
-    @if (DataMap is null || _entries.Count == 0)
+    @if (ReadOnly)
     {
-        <span class="qz-muted">No JobDataMap entries.</span>
-    }
-    else if (ReadOnly)
-    {
-        <table class="qz-table">
-            <thead>
-                <tr>
-                    <th>Key</th>
-                    <th>Type</th>
-                    <th>Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (JobDataMapEntry entry in _entries)
-                {
+        @if (DataMap is null || _entries.Count == 0)
+        {
+            <span class="qz-muted">No JobDataMap entries.</span>
+        }
+        else
+        {
+            <table class="qz-table">
+                <thead>
                     <tr>
-                        <td>@entry.Key</td>
-                        <td>@entry.ValueType</td>
-                        <td>@entry.ValueText</td>
+                        <th>Key</th>
+                        <th>Type</th>
+                        <th>Value</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (JobDataMapEntry entry in _entries)
+                    {
+                        <tr>
+                            <td>@entry.Key</td>
+                            <td>@entry.ValueType</td>
+                            <td>@entry.ValueText</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
     }
-    else
+    else if (DataMap is not null)
     {
-        <table class="qz-table">
-            <thead>
-                <tr>
-                    <th>Key</th>
-                    <th>Type</th>
-                    <th>Value</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (int i = 0; i < _entries.Count; i++)
-                {
-                    int index = i;
+        @if (_entries.Count == 0)
+        {
+            <span class="qz-muted">No JobDataMap entries.</span>
+        }
+        else
+        {
+            <table class="qz-table">
+                <thead>
                     <tr>
-                        <td>
-                            <input class="qz-input"
-                                   value="@_entries[index].Key"
-                                   @oninput="args => UpdateKey(index, args)" />
-                        </td>
-                        <td>
-                            <select class="qz-select"
-                                    value="@_entries[index].ValueType"
-                                    @onchange="args => UpdateType(index, args)">
-                                @foreach (string typeOption in TypeOptions)
-                                {
-                                    <option value="@typeOption">@typeOption</option>
-                                }
-                            </select>
-                        </td>
-                        <td>
-                            <input class="qz-input"
-                                   value="@_entries[index].ValueText"
-                                   @oninput="args => UpdateValue(index, args)" />
-                        </td>
-                        <td>
-                            <button type="button"
-                                    class="qz-button qz-button-danger"
-                                    @onclick="() => RemoveEntry(index)">
-                                Remove
-                            </button>
-                        </td>
+                        <th>Key</th>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th></th>
                     </tr>
-                }
-            </tbody>
-        </table>
-        <button type="button" class="qz-button" @onclick="AddEntry">Add entry</button>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < _entries.Count; i++)
+                    {
+                        int index = i;
+                        <tr>
+                            <td>
+                                <input class="qz-input qz-job-data-key"
+                                       value="@_entries[index].Key"
+                                       @oninput="args => UpdateKey(index, args)" />
+                            </td>
+                            <td>
+                                <select class="qz-select qz-job-data-type"
+                                        value="@_entries[index].ValueType"
+                                        @onchange="args => UpdateType(index, args)">
+                                    @foreach (string typeOption in TypeOptions)
+                                    {
+                                        <option value="@typeOption">@typeOption</option>
+                                    }
+                                </select>
+                            </td>
+                            <td>
+                                <input class="qz-input qz-job-data-value"
+                                       value="@_entries[index].ValueText"
+                                       @oninput="args => UpdateValue(index, args)" />
+                            </td>
+                            <td>
+                                <button type="button"
+                                        class="qz-button qz-button-danger"
+                                        @onclick="() => RemoveEntry(index)">
+                                    Remove
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @* Offered on an empty map too: a map with nothing in it is exactly the one an editor has to be able
+           to add the first entry to. *@
+        <button type="button" class="qz-button qz-job-data-add" @onclick="AddEntry">Add entry</button>
     }
 </div>
 
 @code {
     private static readonly IReadOnlyList<string> TypeOptions = ["string", "int", "long", "double", "bool", "datetime"];
     private readonly List<JobDataMapEntry> _entries = [];
+    private JobDataMap? _loadedFrom;
 
     [Parameter]
     public JobDataMap? DataMap { get; set; }
@@ -89,9 +103,18 @@
     [Parameter]
     public bool ReadOnly { get; set; }
 
+    /// <remarks>
+    /// An editable map is read once per instance it is handed. The parent re-renders on every keystroke
+    /// in any of its own fields, which sets these parameters again, and reading the map afresh then would
+    /// drop a row just added and not yet named — its blank key is not in the map yet.
+    /// </remarks>
     protected override void OnParametersSet()
     {
-        LoadEntries();
+        if (ReadOnly || !ReferenceEquals(_loadedFrom, DataMap))
+        {
+            _loadedFrom = DataMap;
+            LoadEntries();
+        }
     }
 
     private void LoadEntries()
@@ -109,7 +132,8 @@
             {
                 Key = pair.Key,
                 ValueType = valueType,
-                ValueText = FormatValue(pair.Value)
+                ValueText = FormatValue(pair.Value),
+                OriginalValue = pair.Value
             });
         }
     }
@@ -173,12 +197,14 @@
     private void UpdateType(int index, ChangeEventArgs args)
     {
         _entries[index].ValueType = args.Value?.ToString() ?? "string";
+        _entries[index].Edited = true;
         ApplyToDataMap();
     }
 
     private void UpdateValue(int index, ChangeEventArgs args)
     {
         _entries[index].ValueText = args.Value?.ToString() ?? string.Empty;
+        _entries[index].Edited = true;
         ApplyToDataMap();
     }
 
@@ -188,7 +214,8 @@
         {
             Key = string.Empty,
             ValueType = "string",
-            ValueText = string.Empty
+            ValueText = string.Empty,
+            Edited = true
         });
         ApplyToDataMap();
     }
@@ -204,6 +231,12 @@
         ApplyToDataMap();
     }
 
+    /// <remarks>
+    /// An entry nobody edited keeps the value it was read with rather than the one its text parses back
+    /// to. The text is a rendering, and for a value of a type this editor has no row type for — a
+    /// <see cref="Guid" />, a decimal, anything a job put there — parsing it back would turn it into a
+    /// string the job was never given, merely because a different row was edited.
+    /// </remarks>
     private void ApplyToDataMap()
     {
         if (ReadOnly || DataMap is null)
@@ -219,7 +252,7 @@
                 continue;
             }
 
-            DataMap[entry.Key] = ParseValue(entry.ValueType, entry.ValueText);
+            DataMap[entry.Key] = entry.Edited ? ParseValue(entry.ValueType, entry.ValueText) : entry.OriginalValue;
         }
     }
 
@@ -267,5 +300,15 @@
         public string ValueType { get; set; } = "string";
 
         public string ValueText { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The value the map held when it was read, which is what an entry nobody edited writes back.
+        /// </summary>
+        public object? OriginalValue { get; init; }
+
+        /// <summary>
+        /// Whether the row's type or value was touched, so its text is what the map should now hold.
+        /// </summary>
+        public bool Edited { get; set; }
     }
 }

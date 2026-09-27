@@ -252,6 +252,54 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// The control panel's three operations mean the same thing whichever process the scheduler is in: an
+    /// edit in place, a narrowed listing and a key set.
+    /// </summary>
+    /// <remarks>
+    /// For the HTTP carrier these are the <c>update-details</c> route, the listing's query parameters and
+    /// the <c>…/keys/pause</c>, <c>…/keys/resume</c> and <c>…/unschedule</c> key-set routes, so a page
+    /// fronting a remote scheduler has nothing to disable.
+    /// </remarks>
+    [Test]
+    public async Task ATriggerIsEditedFilteredAndActedOnAsASetThroughTheClient()
+    {
+        JobKey jobKey = new("nightly", "panel");
+        DateTimeOffset soon = DateTimeOffset.UtcNow.AddMinutes(10);
+        await scheduler.AddCalendar("holidays", new Impl.Calendar.HolidayCalendar(), new AddCalendarOptions { Replace = true });
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(), new AddJobOptions { Replace = true });
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("soon", "panel").ForJob(jobKey).StartAt(soon).Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("later", "panel").ForJob(jobKey).StartAt(soon.AddDays(2)).Build());
+
+        TriggerKeyDto soonKey = new("panel", "soon");
+        TriggerKeyDto laterKey = new("panel", "later");
+
+        (await client.UpdateTriggerDetails(scheduler.SchedulerName, soonKey, new TriggerDetailsUpdate()
+            .WithDescription("edited from the dashboard")
+            .WithCalendarName("holidays")
+            .WithPriority(8))).Should().BeTrue();
+        ITrigger edited = (await scheduler.GetTrigger(new TriggerKey("soon", "panel")))!;
+        edited.Description.Should().Be("edited from the dashboard");
+        edited.CalendarName.Should().Be("holidays");
+        edited.Priority.Should().Be(8);
+
+        async Task<List<string>> Names(DashboardTriggerQuery query) =>
+            (await client.QueryTriggers(scheduler.SchedulerName, query with { GroupContains = "panel" })).Items.Select(x => x.Name).ToList();
+
+        (await Names(new DashboardTriggerQuery { CalendarName = "holidays" })).Should().Equal(["soon"]);
+        (await Names(new DashboardTriggerQuery { NameContains = "lat" })).Should().Equal(["later"]);
+        (await Names(new DashboardTriggerQuery { Job = new JobKeyDto("panel", "nightly") })).Should().BeEquivalentTo(["soon", "later"]);
+        (await Names(new DashboardTriggerQuery { NextFireTimeBefore = soon.AddHours(1) })).Should().Equal(["soon"],
+            "the bound travels as an instant with its offset, and the server reads the same moment");
+
+        List<TriggerKeyDto> selection = [soonKey, laterKey, new("panel", "gone")];
+        (await client.PauseTriggers(scheduler.SchedulerName, selection)).Should().BeEquivalentTo([soonKey, laterKey]);
+        (await client.ResumeTriggers(scheduler.SchedulerName, selection)).Should().BeEquivalentTo([soonKey, laterKey]);
+        (await client.UnscheduleJobs(scheduler.SchedulerName, selection)).Should().BeEquivalentTo([soonKey, laterKey],
+            "a key that names nothing is left out of the answer, over both carriers");
+        (await scheduler.GetTriggersOfJob(jobKey)).Should().BeEmpty();
+    }
+
+    /// <summary>
     /// The history of what a scheduler has run is readable through the client, filters and paging
     /// included — from the process the scheduler runs in.
     /// </summary>

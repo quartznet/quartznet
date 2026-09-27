@@ -1,4 +1,5 @@
 @page "/quartz/triggers"
+@using System.Globalization
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -14,7 +15,69 @@
 <div class="qz-page">
     <h1>Triggers</h1>
 
-    <SearchFilter Placeholder="Filter by group" OnFilterChanged="OnFilterChangedAsync" />
+    <div class="qz-live-filters" data-testid="trigger-filters">
+        <div class="qz-live-filter-grid">
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="trigger-filter-group">Group</label>
+                <input id="trigger-filter-group" class="qz-input" placeholder="contains" @bind="_groupInput" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="trigger-filter-name">Name</label>
+                <input id="trigger-filter-name" class="qz-input" placeholder="contains" @bind="_nameInput" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="trigger-filter-job-group">Job group</label>
+                <input id="trigger-filter-job-group" class="qz-input" placeholder="exactly" @bind="_jobGroupInput" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="trigger-filter-job-name">Job name</label>
+                <input id="trigger-filter-job-name" class="qz-input" placeholder="exactly" @bind="_jobNameInput" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="trigger-filter-calendar">Calendar</label>
+                <input id="trigger-filter-calendar" class="qz-input" list="trigger-filter-calendars" placeholder="any" @bind="_calendarInput" />
+                <datalist id="trigger-filter-calendars">
+                    @foreach (string calendarName in _calendarNames)
+                    {
+                        <option value="@calendarName"></option>
+                    }
+                </datalist>
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="trigger-filter-state">State</label>
+                <select id="trigger-filter-state" class="qz-select" @bind="_stateInput">
+                    <option value="">All states</option>
+                    @foreach (TriggerState state in FilterableStates)
+                    {
+                        <option value="@state.ToString()">@state</option>
+                    }
+                </select>
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="trigger-filter-before">Next fire before</label>
+                <input id="trigger-filter-before"
+                       class="qz-input"
+                       type="datetime-local"
+                       disabled="@(_beforeUnavailable is not null)"
+                       title="@_beforeUnavailable"
+                       value="@_beforeInput"
+                       @onchange="OnBeforeInputChanged" />
+                @if (_beforeUnavailable is { } beforeReason)
+                {
+                    <span class="qz-muted" data-testid="trigger-filter-before-unavailable">@beforeReason</span>
+                }
+            </div>
+        </div>
+        @if (_filterError is { } filterError)
+        {
+            <p class="qz-form-errors" role="alert" data-testid="trigger-filter-error">@filterError</p>
+        }
+        <div class="qz-actions qz-group-actions">
+            <button type="button" class="qz-button qz-button-primary qz-filter-apply" @onclick="ApplyFiltersAsync">Apply filters</button>
+            <button type="button" class="qz-button qz-filter-clear" disabled="@(_applied.IsEmpty)" @onclick="ClearFiltersAsync">Clear filters</button>
+        </div>
+    </div>
+
     <div class="qz-actions qz-group-actions">
         <button type="button" class="qz-button @GetStateFilterButtonClass(null)" @onclick="ShowAllStates">All states</button>
         <button type="button" class="qz-button @GetStateFilterButtonClass(TriggerState.Error)" @onclick="ShowErrorStateOnly">Error only</button>
@@ -22,9 +85,39 @@
         <button type="button" class="qz-button @GetStateFilterButtonClass(TriggerState.Awaiting)" @onclick="ShowAwaitingStateOnly">Awaiting only</button>
         @if (StateFilterIsUnbuttoned)
         {
-            <span class="qz-muted">Showing @_stateFilter triggers only</span>
+            <span class="qz-muted">Showing @_applied.State triggers only</span>
         }
     </div>
+
+    @if (!IsReadOnly && _selected.Count > 0)
+    {
+        <div class="qz-actions qz-group-actions qz-bulk-actions" data-testid="trigger-bulk-actions">
+            <span class="qz-bulk-count">@_selected.Count selected</span>
+            <button type="button" class="qz-button qz-bulk-pause" @onclick="PromptPauseSelection">Pause selected</button>
+            <button type="button" class="qz-button qz-bulk-resume" @onclick="ResumeSelectionAsync">Resume selected</button>
+            <button type="button" class="qz-button qz-button-danger qz-bulk-unschedule" @onclick="PromptUnscheduleSelection">Unschedule selected</button>
+            <button type="button" class="qz-button qz-bulk-clear" @onclick="ClearSelection">Clear selection</button>
+        </div>
+    }
+
+    @if (_bulkResult is { } bulkResult)
+    {
+        @* Stays on the page until the next action: a toast fades before a reader can copy the keys out of it,
+           and the keys a batch did not reach are the ones somebody has to go and look at. *@
+        <div class="qz-bulk-result" role="status" data-testid="trigger-bulk-result">
+            <p>@bulkResult.Summary</p>
+            @if (bulkResult.Misses.Count > 0)
+            {
+                <ul>
+                    @foreach ((TriggerKeyDto key, string reason) in bulkResult.Misses)
+                    {
+                        <li><span class="qz-table-cell-mono">@DisplayValueHelper.FormatKey(key.Group, key.Name)</span> &mdash; @reason</li>
+                    }
+                </ul>
+            }
+            <button type="button" class="qz-button qz-bulk-result-dismiss" @onclick="DismissBulkResult">Dismiss</button>
+        </div>
+    }
 
     @if (_isLoading)
     {
@@ -36,7 +129,7 @@
     }
     else if (_triggers.Count == 0)
     {
-        <p class="qz-muted">No triggers found.</p>
+        <p class="qz-muted">@(_applied.IsEmpty ? "No triggers found." : "No triggers matched the current filters.")</p>
     }
     else
     {
@@ -54,6 +147,17 @@
                 <table class="qz-table qz-entity-table">
                     <thead>
                         <tr>
+                            @if (!IsReadOnly)
+                            {
+                                List<TriggerHeaderDto> groupRows = group.ToList();
+                                <th class="qz-col-select">
+                                    <input type="checkbox"
+                                           class="qz-select-group"
+                                           aria-label="@("Select every trigger of " + group.Key + " on this page")"
+                                           checked="@AllSelected(groupRows)"
+                                           @onchange="args => ToggleGroupSelection(groupRows, args)" />
+                                </th>
+                            }
                             <th class="qz-col-key">Trigger</th>
                             <th class="qz-col-state">State</th>
                             <th>Execution Group</th>
@@ -69,11 +173,22 @@
                         {
                             string triggerGroup = trigger.Group;
                             string triggerName = trigger.Name;
+                            TriggerKeyDto triggerKey = new(triggerGroup, triggerName);
                             <tr class="qz-row-link"
                                 tabindex="0"
                                 role="link"
                                 @onclick="() => NavigateToTrigger(triggerGroup, triggerName)"
                                 @onkeydown="args => OnTriggerRowKeyDown(args, triggerGroup, triggerName)">
+                                @if (!IsReadOnly)
+                                {
+                                    <td class="qz-col-select" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                                        <input type="checkbox"
+                                               class="qz-select-trigger"
+                                               aria-label="@("Select " + DisplayValueHelper.FormatKey(triggerGroup, triggerName))"
+                                               checked="@_selected.Contains(triggerKey)"
+                                               @onchange="args => ToggleSelection(triggerKey, args)" />
+                                    </td>
+                                }
                                 <td class="qz-col-key">
                                     <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
                                     @if (trigger.ContinuesAfter is { } parent)
@@ -130,6 +245,12 @@
                OnConfirm="ConfirmUnscheduleAsync"
                OnCancel="CancelUnscheduleAsync" />
 
+<ConfirmDialog IsOpen="@_showBulkUnscheduleConfirm"
+               Title="Unschedule selected triggers"
+               Message="@($"Unschedule {_selected.Count} selected trigger(s)? A job left with no trigger and no durability goes with them.")"
+               OnConfirm="UnscheduleSelectionAsync"
+               OnCancel="CancelBulkUnscheduleAsync" />
+
 <PauseDialog IsOpen="@(_pauseAction is not null)"
              Title="@_pauseTitle"
              Message="@_pauseMessage"
@@ -137,21 +258,57 @@
              OnCancel="CancelPauseAsync" />
 
 @code {
+    /// <summary>
+    /// The states the filter offers: every one a trigger can be listed in. <see cref="TriggerState.None" />
+    /// is what a key that resolves to nothing answers, and no listed trigger is in it.
+    /// </summary>
+    private static readonly TriggerState[] FilterableStates =
+    [
+        TriggerState.Normal,
+        TriggerState.Paused,
+        TriggerState.Complete,
+        TriggerState.Error,
+        TriggerState.Blocked,
+        TriggerState.Executing,
+        TriggerState.Awaiting
+    ];
+
     private readonly List<TriggerHeaderDto> _triggers = [];
+    private readonly HashSet<TriggerKeyDto> _selected = [];
     private bool _isLoading = true;
+    private bool _loaded;
     private string? _error;
-    private string _filter = string.Empty;
     private int _currentPage = 1;
     private int _totalTriggers;
     private readonly int _pageSize = 25;
     private bool _showUnscheduleConfirm;
+    private bool _showBulkUnscheduleConfirm;
     private Func<string?, Task>? _pauseAction;
     private string _pauseTitle = string.Empty;
     private string _pauseMessage = string.Empty;
     private string? _pendingGroup;
     private string? _pendingName;
     private string _pendingTriggerKey = string.Empty;
-    private TriggerState? _stateFilter;
+    private BulkResult? _bulkResult;
+
+    private TriggerFilters _applied = TriggerFilters.None;
+    private string _groupInput = string.Empty;
+    private string _nameInput = string.Empty;
+    private string _jobGroupInput = string.Empty;
+    private string _jobNameInput = string.Empty;
+    private string _calendarInput = string.Empty;
+    private string _stateInput = string.Empty;
+    private string _beforeInput = string.Empty;
+    private string? _filterError;
+
+    /// <summary>
+    /// Why this scheduler cannot filter by next fire time, once it has shown that it does not, or
+    /// <see langword="null" />. A target whose HTTP API predates the filter ignores it.
+    /// </summary>
+    private string? _beforeUnavailable;
+
+    private List<string> _calendarNames = [];
+    private string? _calendarNamesLoadedFor;
 
     /// <summary>
     /// The state to open on, so that a count somewhere else can be a link to the triggers behind it —
@@ -160,11 +317,43 @@
     /// <remarks>
     /// A string rather than a <see cref="TriggerState" /> because a query string is whatever the address
     /// bar holds: a spelling that names no state opens the unfiltered listing rather than failing to
-    /// bind. The buttons are unaffected — they set the filter directly and never navigate.
+    /// bind.
     /// </remarks>
     [Parameter]
     [SupplyParameterFromQuery(Name = "state")]
     public string? StateQuery { get; set; }
+
+    /// <summary>
+    /// The group fragment to open on. Every filter is a query parameter, so a narrowed listing is a link
+    /// someone can send or bookmark.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "group")]
+    public string? GroupQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "name")]
+    public string? NameQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "jobGroup")]
+    public string? JobGroupQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "jobName")]
+    public string? JobNameQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "calendar")]
+    public string? CalendarQuery { get; set; }
+
+    /// <summary>
+    /// The next-fire bound, as an ISO 8601 instant with its offset, so the link means the same moment
+    /// in every reader's time zone.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "before")]
+    public string? BeforeQuery { get; set; }
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
@@ -174,7 +363,7 @@
     /// five states.
     /// </summary>
     private bool StateFilterIsUnbuttoned =>
-        _stateFilter is not null and not TriggerState.Error and not TriggerState.Executing and not TriggerState.Awaiting;
+        _applied.State is not null and not TriggerState.Error and not TriggerState.Executing and not TriggerState.Awaiting;
 
     /// <summary>
     /// What the row's "after …" line says on hover: which outcomes of the parent's firing release this
@@ -190,25 +379,56 @@
     private IEnumerable<IGrouping<string, TriggerHeaderDto>> GroupedTriggers => _triggers.GroupBy(trigger => trigger.Group);
 
     /// <summary>
-    /// The 1-based page the pager speaks, as the <c>Skip</c>/<c>Take</c> the API speaks.
+    /// The 1-based page the pager speaks, as the <c>Skip</c>/<c>Take</c> the API speaks, narrowed by every
+    /// applied filter.
     /// </summary>
-    private DashboardTriggerQuery PageQuery(string? groupFilter, int page) => new()
+    private DashboardTriggerQuery PageQuery(int page) => new()
     {
-        GroupContains = groupFilter,
-        State = _stateFilter,
+        GroupContains = Blank(_applied.Group),
+        NameContains = Blank(_applied.Name),
+        Job = _applied.JobGroup.Length > 0 ? new JobKeyDto(_applied.JobGroup, _applied.JobName) : null,
+        CalendarName = Blank(_applied.Calendar),
+        State = _applied.State,
+        NextFireTimeBefore = _applied.NextFireBefore,
         Skip = Math.Max(0, page - 1) * _pageSize,
         Take = _pageSize
     };
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
-        _stateFilter = Enum.TryParse(StateQuery, ignoreCase: true, out TriggerState requested) ? requested : null;
+    }
+
+    /// <remarks>
+    /// The filters are read from the address every time the router hands the page new parameters, and
+    /// the listing is read again only when they differ from what is applied: a filter applied here
+    /// writes the address itself, and reading the listing twice for one click would be one round trip
+    /// too many for a remote scheduler.
+    /// </remarks>
+    protected override async Task OnParametersSetAsync()
+    {
+        TriggerFilters requested = FromQuery();
+        if (_loaded && requested == _applied)
+        {
+            return;
+        }
+
+        // Marked before the read rather than after it: the read can itself rewrite the address (a filter
+        // the target cannot apply is dropped from it), and the parameters the router hands back for that
+        // must find the page already showing them.
+        _loaded = true;
+        _applied = requested;
+        ShowInInputs(requested);
+        _currentPage = 1;
+        _selected.Clear();
         await LoadDataAsync();
     }
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        _selected.Clear();
+        _bulkResult = null;
+        _beforeUnavailable = null;
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -229,18 +449,37 @@
                 return;
             }
 
-            string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
-            PagedResult<TriggerHeaderDto> page = await Api.QueryTriggers(schedulerName, PageQuery(groupFilter, _currentPage));
+            await LoadCalendarNamesAsync(schedulerName);
+
+            PagedResult<TriggerHeaderDto> page;
+            try
+            {
+                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage));
+            }
+            catch (NotSupportedException ex) when (_applied.NextFireBefore is not null)
+            {
+                // The one filter a target can be too old for. It is dropped — from the listing and from
+                // the address — and the field says why, rather than the page showing an error where the
+                // listing belongs.
+                _beforeUnavailable = ex.Message;
+                _applied = _applied with { NextFireBefore = null };
+                _beforeInput = string.Empty;
+                WriteAddress(_applied);
+                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage));
+            }
 
             int totalCount = page.TotalCount ?? page.Items.Count;
             int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / _pageSize));
             if (_currentPage > totalPages)
             {
                 _currentPage = totalPages;
-                page = await Api.QueryTriggers(schedulerName, PageQuery(groupFilter, _currentPage));
+                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage));
                 totalCount = page.TotalCount ?? page.Items.Count;
             }
 
+            // Replaced rather than appended to: two reads can overlap — a scheduler switch during a
+            // filter's read — and the page shows the last one to answer, not both.
+            _triggers.Clear();
             _triggers.AddRange(page.Items);
             _totalTriggers = totalCount;
         }
@@ -256,11 +495,26 @@
         }
     }
 
-    private Task OnFilterChangedAsync(string filter)
+    /// <summary>
+    /// Reads the calendar names the filter suggests, once per scheduler. A source that cannot answer
+    /// leaves a filter that suggests nothing, which is a narrower control rather than an error.
+    /// </summary>
+    private async Task LoadCalendarNamesAsync(string schedulerName)
     {
-        _filter = filter;
-        _currentPage = 1;
-        return LoadDataAsync();
+        if (string.Equals(_calendarNamesLoadedFor, schedulerName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _calendarNamesLoadedFor = schedulerName;
+        try
+        {
+            _calendarNames = await Api.GetCalendarNames(schedulerName);
+        }
+        catch (Exception)
+        {
+            _calendarNames = [];
+        }
     }
 
     private Task OnPageChangedAsync(int page)
@@ -268,6 +522,171 @@
         _currentPage = page;
         return LoadDataAsync();
     }
+
+    private Task ApplyFiltersAsync()
+    {
+        if (!TryReadInputs(out TriggerFilters? filters, out string? problem))
+        {
+            _filterError = problem;
+            return Task.CompletedTask;
+        }
+
+        _filterError = null;
+        return ApplyAsync(filters);
+    }
+
+    private Task ClearFiltersAsync()
+    {
+        _filterError = null;
+        ShowInInputs(TriggerFilters.None);
+        return ApplyAsync(TriggerFilters.None);
+    }
+
+    /// <summary>
+    /// Narrows the listing to <paramref name="filters" />, from its first page, and puts them in the
+    /// address.
+    /// </summary>
+    /// <remarks>
+    /// Applied before the address is written, so the parameters the router hands back for that address
+    /// are the ones already applied and read nothing twice. A selection is cleared: the rows it named may
+    /// not be on the narrowed listing, and a bulk action on rows nobody can see would be a surprise.
+    /// </remarks>
+    private Task ApplyAsync(TriggerFilters filters)
+    {
+        _applied = filters;
+        _currentPage = 1;
+        _selected.Clear();
+        WriteAddress(filters);
+        return LoadDataAsync();
+    }
+
+    private void WriteAddress(TriggerFilters filters)
+    {
+        string target = BuildRelativeUri(filters);
+        string current = (DashboardLink.ToBaseRelative(Navigation.Uri, Navigation.BaseUri) ?? string.Empty).TrimStart('/');
+        if (!string.Equals(target, current, StringComparison.Ordinal))
+        {
+            Navigation.NavigateTo(target, replace: true);
+        }
+    }
+
+    private string BuildRelativeUri(TriggerFilters filters)
+    {
+        List<string> parts = [];
+        AddPart(parts, "group", filters.Group);
+        AddPart(parts, "name", filters.Name);
+        AddPart(parts, "jobGroup", filters.JobGroup);
+        AddPart(parts, "jobName", filters.JobName);
+        AddPart(parts, "calendar", filters.Calendar);
+        AddPart(parts, "state", filters.State?.ToString());
+        AddPart(parts, "before", filters.NextFireBefore?.ToString("O", CultureInfo.InvariantCulture));
+
+        return parts.Count == 0
+            ? DashboardLink.To(Options.Value, "triggers")
+            : DashboardLink.To(Options.Value, "triggers?" + string.Join("&", parts));
+    }
+
+    private static void AddPart(List<string> parts, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parts.Add(name + "=" + Uri.EscapeDataString(value));
+        }
+    }
+
+    /// <summary>
+    /// The filters the address names. A value nothing recognises — a state that is not one, a time that
+    /// is not an instant — narrows nothing, since a query string is whatever the address bar holds.
+    /// </summary>
+    private TriggerFilters FromQuery()
+    {
+        string jobGroup = Trim(JobGroupQuery);
+        string jobName = Trim(JobNameQuery);
+        if (jobGroup.Length == 0 || jobName.Length == 0)
+        {
+            // A job is a key, and half of one names no job.
+            jobGroup = string.Empty;
+            jobName = string.Empty;
+        }
+
+        TriggerState? state = Enum.TryParse(StateQuery, ignoreCase: true, out TriggerState requested) && requested != TriggerState.None
+            ? requested
+            : null;
+
+        DateTimeOffset? before = DateTimeOffset.TryParse(BeforeQuery, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset instant)
+            ? instant
+            : null;
+
+        return new TriggerFilters(Trim(GroupQuery), Trim(NameQuery), jobGroup, jobName, Trim(CalendarQuery), state, before);
+    }
+
+    private bool TryReadInputs([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out TriggerFilters? filters, out string? problem)
+    {
+        filters = null;
+
+        string jobGroup = Trim(_jobGroupInput);
+        string jobName = Trim(_jobNameInput);
+        if ((jobGroup.Length == 0) != (jobName.Length == 0))
+        {
+            problem = "A job is named by its group and its name: give both to filter by job, or neither.";
+            return false;
+        }
+
+        TriggerState? state = null;
+        if (Trim(_stateInput) is { Length: > 0 } stateText)
+        {
+            if (!Enum.TryParse(stateText, ignoreCase: true, out TriggerState parsed))
+            {
+                problem = "'" + stateText + "' is not a trigger state.";
+                return false;
+            }
+
+            state = parsed;
+        }
+
+        DateTimeOffset? before = null;
+        if (Trim(_beforeInput) is { Length: > 0 } beforeText)
+        {
+            if (!DateTime.TryParseExact(beforeText, ["yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss"], CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime wallClock))
+            {
+                problem = "'" + beforeText + "' is not a date and time.";
+                return false;
+            }
+
+            // What the reader typed is a time on the clock the dashboard shows, not the browser's.
+            before = Scheduler.FromSelectedTimeZone(wallClock);
+        }
+
+        filters = new TriggerFilters(Trim(_groupInput), Trim(_nameInput), jobGroup, jobName, Trim(_calendarInput), state, before);
+        problem = null;
+        return true;
+    }
+
+    private void ShowInInputs(TriggerFilters filters)
+    {
+        _groupInput = filters.Group;
+        _nameInput = filters.Name;
+        _jobGroupInput = filters.JobGroup;
+        _jobNameInput = filters.JobName;
+        _calendarInput = filters.Calendar;
+        _stateInput = filters.State?.ToString() ?? string.Empty;
+        _beforeInput = filters.NextFireBefore is { } before
+            ? Scheduler.ConvertToSelectedTimeZone(before).ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
+            : string.Empty;
+    }
+
+    /// <remarks>
+    /// Not <c>@bind</c>: a bound <c>datetime-local</c> binds a <see cref="DateTime" /> and drops text it
+    /// cannot read without a word, where the text is kept here and refused out loud when it is applied.
+    /// </remarks>
+    private void OnBeforeInputChanged(ChangeEventArgs args)
+    {
+        _beforeInput = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private static string Trim(string? value) => value?.Trim() ?? string.Empty;
+
+    private static string? Blank(string value) => value.Length == 0 ? null : value;
 
     private string GetTriggerPath(string group, string name)
     {
@@ -362,14 +781,13 @@
 
     private Task ApplyStateFilter(TriggerState? state)
     {
-        _stateFilter = state;
-        _currentPage = 1;
-        return LoadDataAsync();
+        _stateInput = state?.ToString() ?? string.Empty;
+        return ApplyAsync(_applied with { State = state });
     }
 
     private string GetStateFilterButtonClass(TriggerState? state)
     {
-        return _stateFilter == state ? "qz-button-primary" : string.Empty;
+        return _applied.State == state ? "qz-button-primary" : string.Empty;
     }
 
     private void PromptUnschedule(string group, string name)
@@ -403,30 +821,251 @@
         return Task.CompletedTask;
     }
 
-    private async Task ExecuteMutatingActionAsync(
-        Func<ValueTask> operation,
-        string successMessage,
-        string actionName,
-        string target)
+    private void ToggleSelection(TriggerKeyDto key, ChangeEventArgs args)
     {
-        if (IsReadOnly || string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
+        if (IsChecked(args))
+        {
+            _selected.Add(key);
+        }
+        else
+        {
+            _selected.Remove(key);
+        }
+    }
+
+    private void ToggleGroupSelection(List<TriggerHeaderDto> rows, ChangeEventArgs args)
+    {
+        bool isChecked = IsChecked(args);
+        foreach (TriggerHeaderDto row in rows)
+        {
+            TriggerKeyDto key = new(row.Group, row.Name);
+            if (isChecked)
+            {
+                _selected.Add(key);
+            }
+            else
+            {
+                _selected.Remove(key);
+            }
+        }
+    }
+
+    private bool AllSelected(List<TriggerHeaderDto> rows)
+    {
+        foreach (TriggerHeaderDto row in rows)
+        {
+            if (!_selected.Contains(new TriggerKeyDto(row.Group, row.Name)))
+            {
+                return false;
+            }
+        }
+
+        return rows.Count > 0;
+    }
+
+    private static bool IsChecked(ChangeEventArgs args)
+    {
+        return args.Value switch
+        {
+            bool value => value,
+            string text => bool.TryParse(text, out bool parsed) && parsed,
+            _ => false
+        };
+    }
+
+    private void ClearSelection()
+    {
+        _selected.Clear();
+    }
+
+    private void DismissBulkResult()
+    {
+        _bulkResult = null;
+    }
+
+    /// <summary>
+    /// The selection in a stable order: the order the listing shows keys in, group then name.
+    /// </summary>
+    private List<TriggerKeyDto> SelectedKeys()
+    {
+        List<TriggerKeyDto> keys = [.. _selected];
+        keys.Sort(static (left, right) =>
+        {
+            int byGroup = string.CompareOrdinal(left.Group, right.Group);
+            return byGroup != 0 ? byGroup : string.CompareOrdinal(left.Name, right.Name);
+        });
+        return keys;
+    }
+
+    private void PromptPauseSelection()
+    {
+        int count = _selected.Count;
+        _pauseTitle = "Pause selected triggers";
+        _pauseMessage = "Pause " + count.ToString(CultureInfo.InvariantCulture) + " selected trigger(s)?";
+        _pauseAction = PauseSelectionAsync;
+    }
+
+    /// <summary>
+    /// Pauses the selection, with the one reason the prompt asked for once.
+    /// </summary>
+    /// <remarks>
+    /// A pause that says nothing is the key-set pause, one call — over HTTP the <c>…/triggers/keys/pause</c>
+    /// route. That route takes no reason, so a pause that says something is made a key at a time through
+    /// the member that records it: the record is the point of having typed one.
+    /// </remarks>
+    private Task PauseSelectionAsync(string? reason)
+    {
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
+        return ExecuteBulkAsync(
+            "PauseTrigger",
+            "Paused",
+            "not paused - it no longer exists or was already paused",
+            (schedulerName, keys) => PauseDetails.SaysNothing(details)
+                ? Api.PauseTriggers(schedulerName, keys)
+                : KeyAtATimeAsync(keys, key => Api.PauseTriggerWith(schedulerName, key, details)));
+    }
+
+    private Task ResumeSelectionAsync()
+    {
+        return ExecuteBulkAsync(
+            "ResumeTrigger",
+            "Resumed",
+            "not resumed - it no longer exists or was not paused",
+            (schedulerName, keys) => Api.ResumeTriggers(schedulerName, keys));
+    }
+
+    private void PromptUnscheduleSelection()
+    {
+        _showBulkUnscheduleConfirm = true;
+    }
+
+    private async Task UnscheduleSelectionAsync()
+    {
+        _showBulkUnscheduleConfirm = false;
+        await ExecuteBulkAsync(
+            "UnscheduleTrigger",
+            "Unscheduled",
+            "not unscheduled - it no longer exists",
+            (schedulerName, keys) => Api.UnscheduleJobs(schedulerName, keys));
+    }
+
+    private Task CancelBulkUnscheduleAsync()
+    {
+        _showBulkUnscheduleConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Makes a per-key call for each key, answering with the keys it applied to, as the key-set members
+    /// do. A key whose call throws is left out and the rest still go.
+    /// </summary>
+    private async ValueTask<List<TriggerKeyDto>> KeyAtATimeAsync(List<TriggerKeyDto> keys, Func<TriggerKeyDto, ValueTask<bool>> operation)
+    {
+        List<TriggerKeyDto> applied = [];
+        foreach (TriggerKeyDto key in keys)
+        {
+            try
+            {
+                if (await operation(key))
+                {
+                    applied.Add(key);
+                }
+            }
+            catch (Exception ex)
+            {
+                _keyFailures[key] = ex.Message;
+            }
+        }
+
+        return applied;
+    }
+
+    /// <summary>
+    /// The keys whose own call failed during the batch in progress, with what each failure said.
+    /// </summary>
+    private readonly Dictionary<TriggerKeyDto, string> _keyFailures = [];
+
+    /// <summary>
+    /// Runs one bulk action over the selection and reports it: a toast for the count, a panel for the keys
+    /// it did not reach and why, and an action-log entry per key in the shape the single-row action
+    /// records — so "who paused this trigger" finds a bulk pause under the trigger's own key.
+    /// </summary>
+    private async Task ExecuteBulkAsync(
+        string actionName,
+        string verb,
+        string missedReason,
+        Func<string, List<TriggerKeyDto>, ValueTask<List<TriggerKeyDto>>> operation)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        List<TriggerKeyDto> keys = SelectedKeys();
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || keys.Count == 0)
         {
             return;
         }
 
+        string batch = "one of " + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected";
+        _keyFailures.Clear();
+
+        HashSet<TriggerKeyDto> applied;
         try
         {
-            await operation();
-            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: true);
-            Toasts.Success(successMessage);
-            await LoadDataAsync();
+            applied = [.. await operation(schedulerName, keys)];
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
-            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: false, ex.Message);
-            Toasts.Error(ex.Message);
+            // The key-set call is one request and one store transaction, so a refusal is the whole
+            // batch's: nothing it names was applied.
+            applied = [];
+            foreach (TriggerKeyDto key in keys)
+            {
+                _keyFailures[key] = ex.Message;
+            }
         }
+
+        List<(TriggerKeyDto Key, string Reason)> misses = [];
+        foreach (TriggerKeyDto key in keys)
+        {
+            string target = DisplayValueHelper.FormatKey(key.Group, key.Name);
+            if (applied.Contains(key))
+            {
+                ActionLog.Record(schedulerName, actionName, target, succeeded: true, batch);
+            }
+            else if (_keyFailures.TryGetValue(key, out string? failure))
+            {
+                misses.Add((key, failure));
+                ActionLog.Record(schedulerName, actionName, target, succeeded: false, batch + "; " + failure);
+            }
+            else
+            {
+                misses.Add((key, missedReason));
+                ActionLog.Record(schedulerName, actionName, target, succeeded: false, batch + "; " + missedReason);
+            }
+        }
+
+        string summary = verb + " " + applied.Count.ToString(CultureInfo.InvariantCulture) + " of "
+            + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected trigger(s).";
+
+        if (misses.Count == 0)
+        {
+            _bulkResult = null;
+            Toasts.Success(summary);
+        }
+        else
+        {
+            _bulkResult = new BulkResult(summary, misses);
+            if (_keyFailures.Count > 0)
+            {
+                Toasts.Error(summary + " " + _keyFailures.Count.ToString(CultureInfo.InvariantCulture) + " failed.");
+            }
+            else
+            {
+                Toasts.Info(summary);
+            }
+        }
+
+        _keyFailures.Clear();
+        _selected.Clear();
+        await LoadDataAsync();
     }
 
     private async Task ExecuteMutatingActionAsync(
@@ -530,4 +1169,29 @@
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
     }
+
+    /// <summary>
+    /// The filters the listing is narrowed by, as the address carries them. Empty strings are "any".
+    /// </summary>
+    /// <remarks>
+    /// A record, so that "is this what is already applied" is one comparison.
+    /// </remarks>
+    private sealed record TriggerFilters(
+        string Group,
+        string Name,
+        string JobGroup,
+        string JobName,
+        string Calendar,
+        TriggerState? State,
+        DateTimeOffset? NextFireBefore)
+    {
+        public static readonly TriggerFilters None = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, null, null);
+
+        public bool IsEmpty => this == None;
+    }
+
+    /// <summary>
+    /// What a bulk action reports once it is done: the count, and each key it did not reach with why.
+    /// </summary>
+    private sealed record BulkResult(string Summary, List<(TriggerKeyDto Key, string Reason)> Misses);
 }

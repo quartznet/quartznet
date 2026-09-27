@@ -14,7 +14,10 @@
 <div class="qz-page">
     <h1>Jobs</h1>
 
-    <SearchFilter Placeholder="Filter by group" OnFilterChanged="OnFilterChangedAsync" />
+    <div class="qz-actions qz-group-actions qz-job-filters">
+        <SearchFilter Id="job-filter-group" Placeholder="Filter by group" Value="@_filter" OnFilterChanged="OnFilterChangedAsync" />
+        <SearchFilter Id="job-filter-name" Placeholder="Filter by name" Value="@_nameFilter" OnFilterChanged="OnNameFilterChangedAsync" />
+    </div>
 
     @if (_isLoading)
     {
@@ -26,7 +29,7 @@
     }
     else if (_jobs.Count == 0)
     {
-        <p class="qz-muted">No jobs found.</p>
+        <p class="qz-muted">@(HasFilters ? "No jobs matched the current filters." : "No jobs found.")</p>
     }
     else
     {
@@ -123,12 +126,31 @@
     private int _totalJobs;
     private readonly int _pageSize = 25;
     private string _filter = string.Empty;
+    private string _nameFilter = string.Empty;
+    private bool _loaded;
     private bool _showDeleteConfirm;
     private string? _pendingDeleteGroup;
     private string? _pendingDeleteName;
     private string _pendingDeleteKey = string.Empty;
 
+    /// <summary>
+    /// The group fragment to open on. Both filters are query parameters, so a narrowed listing is a link
+    /// someone can send or bookmark.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "group")]
+    public string? GroupQuery { get; set; }
+
+    /// <summary>
+    /// The job-name fragment to open on.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "name")]
+    public string? NameQuery { get; set; }
+
     private bool IsReadOnly => Options.Value.ReadOnly;
+
+    private bool HasFilters => _filter.Length > 0 || _nameFilter.Length > 0;
 
     private IEnumerable<IGrouping<string, JobKeyDto>> GroupedJobs => _jobs.GroupBy(job => job.Group);
 
@@ -138,13 +160,34 @@
     private DashboardJobQuery PageQuery(string? groupFilter, int page) => new()
     {
         GroupContains = groupFilter,
+        NameContains = _nameFilter.Length == 0 ? null : _nameFilter,
         Skip = Math.Max(0, page - 1) * _pageSize,
         Take = _pageSize
     };
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+    }
+
+    /// <remarks>
+    /// The listing is read again only when the address names other filters than the ones applied: a
+    /// filter typed here writes the address itself, and the parameters the router hands back for it are
+    /// the ones already applied.
+    /// </remarks>
+    protected override async Task OnParametersSetAsync()
+    {
+        string group = GroupQuery?.Trim() ?? string.Empty;
+        string name = NameQuery?.Trim() ?? string.Empty;
+        if (_loaded && group == _filter && name == _nameFilter)
+        {
+            return;
+        }
+
+        _loaded = true;
+        _filter = group;
+        _nameFilter = name;
+        _currentPage = 1;
         await LoadDataAsync();
     }
 
@@ -233,8 +276,40 @@
 
     private Task OnFilterChangedAsync(string filter)
     {
-        _filter = filter;
+        _filter = filter.Trim();
+        return ApplyFiltersAsync();
+    }
+
+    private Task OnNameFilterChangedAsync(string filter)
+    {
+        _nameFilter = filter.Trim();
+        return ApplyFiltersAsync();
+    }
+
+    private Task ApplyFiltersAsync()
+    {
         _currentPage = 1;
+
+        List<string> parts = [];
+        if (_filter.Length > 0)
+        {
+            parts.Add("group=" + Uri.EscapeDataString(_filter));
+        }
+
+        if (_nameFilter.Length > 0)
+        {
+            parts.Add("name=" + Uri.EscapeDataString(_nameFilter));
+        }
+
+        string target = parts.Count == 0
+            ? DashboardLink.To(Options.Value, "jobs")
+            : DashboardLink.To(Options.Value, "jobs?" + string.Join("&", parts));
+        string current = (DashboardLink.ToBaseRelative(Navigation.Uri, Navigation.BaseUri) ?? string.Empty).TrimStart('/');
+        if (!string.Equals(target, current, StringComparison.Ordinal))
+        {
+            Navigation.NavigateTo(target, replace: true);
+        }
+
         return LoadDataAsync();
     }
 
