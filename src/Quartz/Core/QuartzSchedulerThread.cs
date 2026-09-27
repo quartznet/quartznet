@@ -193,8 +193,16 @@ public class QuartzSchedulerThread
     {
         lock (sigLock)
         {
+            // The earlier of this candidate and one already waiting, with no time counting as earliest.
+            // A later schedule used to replace an earlier one the loop had not read yet - the sentinel a
+            // pause sends included, so a schedule made just after a pause could keep the loop holding,
+            // and firing, a trigger it acquired as the pause landed.
+            signaledNextFireTimeUtc = !signaled
+                ? candidateNewNextFireTimeUtc
+                : signaledNextFireTimeUtc is { } waiting && candidateNewNextFireTimeUtc is { } incoming
+                    ? incoming < waiting ? incoming : waiting
+                    : null;
             signaled = true;
-            signaledNextFireTimeUtc = candidateNewNextFireTimeUtc;
         }
 
         schedulingChangeSignal.Release();

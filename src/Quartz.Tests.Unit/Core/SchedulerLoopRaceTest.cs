@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -123,6 +125,103 @@ public class SchedulerLoopRaceTest
 
         await scheduler.Start();
         await ShouldObserve(fired, "started again, the scheduler fires the trigger that was due");
+    }
+
+    /// <summary>
+    /// Signals that arrive while the loop is busy wait for it together, and what it is told when it
+    /// looks is the earliest of their candidates. A later one used to replace an earlier one — the
+    /// sentinel a pause sends included.
+    /// </summary>
+    /// <remarks>
+    /// The loop is held in its store call, after its round has drained the signal, so every signal the
+    /// test sends is one it has not read yet.
+    /// </remarks>
+    [Test]
+    public async Task SignalsTheLoopHasNotReadKeepTheEarliestCandidate()
+    {
+        QuartzSchedulerThread loop = LoopOf(scheduler);
+        store.HoldAcquisitionBeforeAnswering = 2;
+
+        await scheduler.Start();
+        await ShouldObserve(store.Acquisitions.Reaches(1), "the first round asks the store");
+        loop.SignalSchedulingChange(null);
+        await ShouldObserve(store.AcquisitionHeld, "a signal starts a round, which the store holds");
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        loop.SignalSchedulingChange(now.AddMinutes(1));
+        loop.SignalSchedulingChange(now.AddMinutes(5));
+        loop.GetSignaledNextFireTimeUtc().Should().Be(now.AddMinutes(1),
+            "a later schedule must not hide an earlier one the loop has yet to act on");
+
+        loop.SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
+        loop.SignalSchedulingChange(now.AddMinutes(2));
+        loop.GetSignaledNextFireTimeUtc().Should().Be(SchedulerConstants.SchedulingSignalDateTime,
+            "nor may it hide the sentinel a pause sends, which is what makes the loop let go of what it holds");
+
+        loop.SignalSchedulingChange(null);
+        loop.SignalSchedulingChange(now.AddMinutes(3));
+        loop.GetSignaledNextFireTimeUtc().Should().BeNull(
+            "a change that names no time could be about anything, which is earlier than any time");
+    }
+
+    /// <summary>
+    /// What the overwrite cost a deployment: a trigger due now, scheduled just before one due tomorrow,
+    /// was passed over for the trigger the loop was already holding, and fired only once that one had.
+    /// </summary>
+    /// <remarks>
+    /// The loop holds its trigger in the store call that acquired it while both schedules are made, so
+    /// neither signal has been read when it looks; that is the order two quick schedule calls reach it in.
+    /// </remarks>
+    [Test]
+    public async Task ATriggerDueNowIsNotPassedOverBecauseALaterOneWasScheduledAfterIt()
+    {
+        await scheduler.ScheduleJob(Job("held"), Trigger("held", DateTimeOffset.UtcNow.AddSeconds(3)));
+        store.HoldFirstAcquisitionWithTriggers = true;
+
+        await scheduler.Start();
+        await ShouldObserve(store.AcquisitionHeld, "the loop acquires the trigger it will hold");
+
+        await scheduler.ScheduleJob(Job("urgent"), Trigger("urgent", DateTimeOffset.UtcNow));
+        await scheduler.ScheduleJob(Job("tomorrow"), Trigger("tomorrow", DateTimeOffset.UtcNow.AddDays(1)));
+        store.ReleaseHeldAcquisition();
+
+        await ShouldObserve(store.Fired.Reaches(1), "the loop fires something");
+        store.Fired.Entries[0].Name.Should().Be("urgent",
+            "the trigger due now is earlier than the one the loop holds, so it fires first rather than three seconds later");
+    }
+
+    /// <summary>
+    /// What the overwrite cost a deployment in standby: a schedule made just after <c>Standby()</c>
+    /// replaced the pause's signal before the loop read it, and the loop fired the trigger it was
+    /// holding while the scheduler was in standby.
+    /// </summary>
+    [Test]
+    public async Task AScheduleMadeJustAfterStandbyDoesNotLetTheHeldTriggerFire()
+    {
+        await scheduler.ScheduleJob(Job("held"), Trigger("held", DateTimeOffset.UtcNow.AddSeconds(2)));
+        store.HoldFirstAcquisitionWithTriggers = true;
+
+        await scheduler.Start();
+        await ShouldObserve(store.AcquisitionHeld, "the loop acquires the trigger it will hold");
+
+        await scheduler.Standby();
+        await scheduler.ScheduleJob(Job("later"), Trigger("later", DateTimeOffset.UtcNow.AddHours(1)));
+        store.ReleaseHeldAcquisition();
+
+        await ShouldObserve(store.Released.Reaches(1),
+            "the scheduler is in standby, so the loop has to hand back the trigger it was holding");
+        store.Released.Entries.Should().Equal(new TriggerKey("held", "loopRace"));
+        store.Fired.Count.Should().Be(0, "nothing fires while the scheduler is in standby");
+    }
+
+    /// <summary>
+    /// The scheduler's loop, which a test drives its signals into directly.
+    /// </summary>
+    private static QuartzSchedulerThread LoopOf(IScheduler scheduler)
+    {
+        FieldInfo field = typeof(QuartzScheduler).GetField("schedThread", BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull("the scheduler keeps its loop in that field");
+        return (QuartzSchedulerThread) field.GetValue(((StdScheduler) scheduler).sched);
     }
 
     /// <summary>
