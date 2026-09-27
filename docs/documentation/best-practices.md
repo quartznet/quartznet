@@ -633,8 +633,10 @@ pool timeout that names the pool, not the cause.
 
 ### Batching changes the round trips, not the connections
 
-`MaxBatchSize` (flat key `quartz.scheduler.batchTriggerAcquisitionMaxCount`) defaults to 1. Raising
-it acquires several triggers in one round trip. It adds no connections, but:
+`MaxBatchSize` (flat key `quartz.scheduler.batchTriggerAcquisitionMaxCount`) defaults to 1 up to
+Quartz.NET 4.2. From 4.3 it is automatic: the pool on a persistent store, clustered or not, and 1 in
+memory ([Batching trigger acquisition](quartz-4.x/tutorial/advanced-enterprise-features.md#batching-trigger-acquisition)).
+A batch acquires several triggers in one round trip. It adds no connections, but:
 
 - A round that asks for more than one trigger takes the cluster-wide trigger-access lock; a
   single-trigger round does not.

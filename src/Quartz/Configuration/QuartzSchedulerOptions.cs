@@ -55,18 +55,18 @@ public sealed class QuartzSchedulerOptions
     /// </para>
     /// <list type="table">
     /// <listheader><term>Store</term><description>Batch</description></listheader>
-    /// <item><term>Persistent, not clustered</term><description>the thread pool's size</description></item>
-    /// <item><term>Clustered</term><description>1</description></item>
+    /// <item><term>Persistent, clustered or not</term><description>the thread pool's size</description></item>
     /// <item><term>In memory</term><description>1</description></item>
     /// </list>
     /// <para>
     /// On a database a round is round trips and a commit, so taking every trigger already due in one
-    /// round is cheaper per firing (#3824 measured 128.7 firings a second against 87.6). A clustered
-    /// store stays at one because a batch above one takes the cluster-wide <c>TRIGGER_ACCESS</c> row
-    /// lock on every round, including rounds that acquire nothing. The in-memory store stays at one
-    /// because its round is a monitor rather than a round trip, and a batch there measured faster for
-    /// repeating triggers but slower for a burst of one-offs (#3862). An explicit value always wins;
-    /// <c>1</c> is 4.2's behaviour.
+    /// round is cheaper per firing (#3824 measured 128.7 firings a second against 87.6). On a cluster a
+    /// batch above one also takes the cluster-wide <c>TRIGGER_ACCESS</c> row lock on every round,
+    /// including rounds that acquire nothing, and still pays: two nodes drained a backlog 1.8 times as
+    /// fast as at one, and four nodes 1.5 times (#3900). The in-memory store stays at one because its
+    /// round is a monitor rather than a round trip, and a batch there measured faster for repeating
+    /// triggers but slower for a burst of one-offs (#3862). An explicit value always wins; <c>1</c> is
+    /// 4.2's behaviour.
     /// </para>
     /// <para>
     /// This is only the upper bound. The store ends a batch at the later of now and the first trigger's

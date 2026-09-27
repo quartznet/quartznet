@@ -94,15 +94,16 @@ automatic:
 
 | Store | Triggers per acquisition |
 |---|---|
-| Persistent, not clustered | up to the thread pool's `MaxConcurrency` |
-| Clustered | 1 |
+| Persistent, clustered or not | up to the thread pool's `MaxConcurrency` |
 | In memory | 1 |
 
-* **A persistent store that is not clustered batches.** A round there is round trips and a commit, and its
-  `TRIGGER_ACCESS` lock is in-process, so one round for every trigger already due is cheaper per firing.
-* **A clustered node stays at one on purpose.** At `MaxBatchSize = 1`, with `AcquireTriggersWithinLock`
-  off (also the default), acquisition takes no cluster-wide lock. Above 1, **every** acquisition cycle takes
-  the `TRIGGER_ACCESS` row lock, including cycles that acquire nothing.
+* **A persistent store batches.** A round there is round trips and a commit, so one round for every
+  trigger already due is cheaper per firing.
+* **On a cluster a batch takes the lock, and still pays.** Above 1, **every** acquisition cycle takes the
+  `TRIGGER_ACCESS` row lock, including cycles that acquire nothing. The measured gain is in
+  [Sizing a cluster](../operations.md#sizing-a-cluster).
+* **`MaxBatchSize = 1` keeps a cluster's acquisition off the lock.** With `AcquireTriggersWithinLock` off
+  (the default), a round of one takes no cluster-wide lock.
 * **In memory a batch is not a clear win.** It measured faster for repeating triggers and slower for a
   burst of one-offs, so the default stays at one.
 * **An explicit value wins.** `MaxBatchSize = 1` is 4.2's behaviour on every store.

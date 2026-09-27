@@ -509,11 +509,11 @@ configure it.
 
 ::: warning What a cluster-scoped quota does and does not promise
 
-- The ceiling holds **within one acquisition round**. Acquisition takes no cluster lock by default, so
-  several nodes acquiring at once can briefly overshoot, to at most `limit + (nodes − 1)`. The lock-free
-  path is only taken when a round acquires one trigger — the ADO store takes the `TRIGGER_ACCESS` lock
-  for more — so each node adds at most one. `AcquireTriggersWithinLock = true` makes it exact and
-  serializes acquisition cluster-wide.
+- The ceiling holds **within one acquisition round**. A round that asks for one trigger takes no cluster
+  lock by default, so several nodes acquiring at once can briefly overshoot, to at most
+  `limit + (nodes − 1)`. The ADO store takes the `TRIGGER_ACCESS` lock for a round that asks for more, so
+  each node adds at most one. `AcquireTriggersWithinLock = true` makes it exact and serializes
+  acquisition cluster-wide.
 - It **fails closed**: the quota ledger and the work queue are the same database, so a node that cannot
   reach the store fires nothing. A database outage stops work; it does not remove the ceiling.
 - A group held at its ceiling longer than `MisfireThreshold` (one minute by default) sends its backlog to

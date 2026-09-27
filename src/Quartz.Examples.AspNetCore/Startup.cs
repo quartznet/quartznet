@@ -110,8 +110,8 @@ public class Startup
             // scheduler.Shutdown(waitForJobsToComplete: true))
             q.ConfigureScheduler(options => options.ShutdownJobInterruption = ShutdownJobInterruption.Always);
 
-            // we can change from the automatic default: the pool on a database that is not
-            // clustered, 1 otherwise
+            // we can change from the automatic default: the pool on a database, clustered or
+            // not, 1 in memory
             q.ConfigureScheduler(options => options.MaxBatchSize = 5);
 
             // we take this from appsettings.json, just show it's possible

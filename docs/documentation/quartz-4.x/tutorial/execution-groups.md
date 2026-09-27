@@ -420,9 +420,9 @@ cluster recovery cleans up after its node. Acquisition aggregates it by executio
 `EXECUTION_GROUP` column the 4.x schema already has, so no table, column or migration is added.
 
 **1. It is approximate by default, with a bounded overshoot.** By default a clustered ADO.NET store
-acquires triggers *without* the cluster's `TRIGGER_ACCESS` lock (`AcquireTriggersWithinLock` is `false`,
-and `MaxBatchSize` resolves to `1` on a clustered store), so two nodes can both read "2 of 3 in flight" and
-each take one.
+acquires a round of one trigger *without* the cluster's `TRIGGER_ACCESS` lock (`AcquireTriggersWithinLock`
+is `false`), so two nodes each down to their last free thread can both read "2 of 3 in flight" and each
+take one.
 
 * The ceiling holds within one acquisition round. Overshoot is at most `limit + (nodes − 1)`, until the
   losers notice.
@@ -430,9 +430,9 @@ each take one.
   group, not only the limited ones.
 * Overshoot is one trigger per node because the lock-free path only runs at an effective batch of one. A
   round asks for `min(available threads, MaxBatchSize)`, and the store takes `TRIGGER_ACCESS` whenever
-  asked for more than one. Raising `MaxBatchSize` therefore removes the overshoot for rounds with more
-  than one free thread, by taking the lock. A node down to its last free thread still acquires lock-free,
-  so the bound is per node.
+  asked for more than one. The automatic `MaxBatchSize`, the pool, therefore removes the overshoot for
+  rounds with more than one free thread, by taking the lock. A node down to its last free thread still
+  acquires lock-free, so the bound is per node. `MaxBatchSize = 1` makes every round lock-free.
 
 That is far below `limit × nodes`. For a tenant quota, "8, occasionally 9 for a moment" is fine; "8
 became 24" is not. If you need exactness more than acquisition throughput, turn the lock on.
@@ -476,9 +476,8 @@ microseconds:
 
 * **Below about a thousand rows the aggregate is one round trip and almost no work.** It costs about the
   same on both databases (their candidate selects differ), and about the same at a thousand rows as at
-  ten. At `MaxBatchSize = 1`, a clustered store's default, the ceiling costs *one extra round trip*, not
-  one extra scan. Raising `MaxBatchSize` spreads that round trip over the batch, but takes the cluster
-  lock, trading lock traffic for throughput and making the ceiling exact on those rounds.
+  ten. The ceiling costs *one extra round trip* a round, not one extra scan. A batched round, the default,
+  spreads it over the batch; at `MaxBatchSize = 1` it is one round trip a firing.
 * **Above that the scan shows.** `QRTZ_FIRED_TRIGGERS` has one row per reservation or running execution,
   so ten thousand is more than a realistic cluster's thread pools hold. A cluster reaches it by losing
   nodes faster than `ClusterRecover` cleans up after them.

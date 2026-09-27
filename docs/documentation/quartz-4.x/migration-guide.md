@@ -109,7 +109,7 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 
 **Behaviour changes:**
 
-* **A persistent store that is not clustered batches what is already due.** `MaxBatchSize` defaults to
+* **A persistent store, clustered or not, batches what is already due.** `MaxBatchSize` defaults to
   automatic. See [`MaxBatchSize` is automatic](#maxbatchsize-is-automatic).
 * **A firing that may run beside itself completes without `TRIGGER_ACCESS`.** A persistent store takes no
   lock to complete a firing whose job allows concurrent execution and whose trigger asks for nothing
@@ -194,13 +194,18 @@ scheduler is built:
 
 | Store | 4.2 | 4.3 |
 |---|---:|---:|
-| Persistent, not clustered | 1 | `ThreadPool:MaxConcurrency` |
-| Clustered | 1 | 1 |
+| Persistent, clustered or not | 1 | `ThreadPool:MaxConcurrency` |
 | In memory | 1 | 1 |
 
 One round now takes every trigger already due, up to the pool, with one acquisition and one
 `TriggersFired`. The fire-ahead window is still zero, so nothing fires early. On PostgreSQL a backlog of
 one-offs costs 16.6 statements and 2.8 commits a firing instead of 23.0 and 6.0.
+
+**On a cluster, acquisition now takes `TRIGGER_ACCESS`.** A round that asks for more than one trigger
+takes the lock, including a round that finds nothing; at `1` only the fire took it. An `ILockHandler` of
+your own sees `TriggerAccess` taken to acquire as well as to fire, and `quartz.jobstore.lock.wait.duration`
+includes those waits. A batched cluster drained a backlog 1.5-1.8 times as fast: see
+[Sizing a cluster](operations.md#sizing-a-cluster).
 
 To keep 4.2's behaviour, set it:
 
@@ -6538,8 +6543,8 @@ Behavioural notes:
 * `StdAdoDelegate.SelectTriggersForJob` reads the job's trigger keys, then one `SelectTriggers` for the set,
   instead of reading each trigger separately. The triggers and their order are the same.
 * `StdAdoDelegate.SelectTriggers` and `InsertFiredTriggers` answer a one-element set through
-  `SelectTrigger` and `InsertFiredTrigger`, since the default acquisition batch size is one. An override of
-  either singular member therefore also applies to a set of one.
+  `SelectTrigger` and `InsertFiredTrigger`. An override of either singular member therefore also applies
+  to a set of one.
 * Pausing or resuming a job no longer loads that job's triggers to reach their keys.
 * `PauseAll` and `ResumeAll` pass the any-group matcher once, instead of once per trigger group.
 * A resume still applies each overdue trigger's misfire policy with that trigger's own write, since

@@ -293,13 +293,14 @@ internal sealed class QuartzSchedulerResources
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The pool on a persistent store that is not clustered: there a round is round trips and a commit,
-    /// and one round for every trigger already due is cheaper per firing than one round each (#3824).
-    /// One on a clustered store, whose batched round takes the cluster-wide <c>TRIGGER_ACCESS</c> row
-    /// lock even when it acquires nothing, until the clustered drain gate in
-    /// <c>ClusteredOneOffDrainPostgresTest</c> says otherwise. One in memory, where a round is a monitor
-    /// rather than a round trip: #3862 measured a batch there faster for triggers that repeat and slower
-    /// for a burst of one-offs, so the default that cannot make an in-memory scheduler slower stays.
+    /// The pool on a persistent store, clustered or not: there a round is round trips and a commit, and
+    /// one round for every trigger already due is cheaper per firing than one round each (#3824). On a
+    /// cluster the batched round also takes the cluster-wide <c>TRIGGER_ACCESS</c> row lock, even when it
+    /// acquires nothing, and it pays anyway: with completions off that lock (#3863), the drain gate in
+    /// <c>ClusteredOneOffDrainPostgresTest</c> measured two nodes 1.8 times as fast batched and four
+    /// nodes 1.5 times (#3900). One in memory, where a round is a monitor rather than a round trip:
+    /// #3862 measured a batch there faster for triggers that repeat and slower for a burst of one-offs,
+    /// so the default that cannot make an in-memory scheduler slower stays.
     /// </para>
     /// <para>
     /// Never more than the pool, which is the bound the options validator holds an explicit value to,
@@ -308,7 +309,7 @@ internal sealed class QuartzSchedulerResources
     /// </remarks>
     internal static int AutomaticMaxBatchSize(IJobStore jobStore, IThreadPool threadPool)
     {
-        if (jobStore.SupportsPersistence && !jobStore.Clustered)
+        if (jobStore.SupportsPersistence)
         {
             return Math.Max(1, threadPool.PoolSize);
         }

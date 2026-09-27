@@ -77,7 +77,7 @@ public sealed class AutomaticMaxBatchSizeTest
     }
 
     [Test]
-    public void AClusteredStoreStaysAtOne()
+    public void AClusteredStoreBatchesUpToThePoolToo()
     {
         ServiceCollection services = new();
         services.AddQuartz(quartz =>
@@ -92,9 +92,30 @@ public sealed class AutomaticMaxBatchSizeTest
 
         using ServiceProvider provider = services.BuildServiceProvider();
 
+        provider.GetRequiredService<QuartzSchedulerResources>().MaxBatchSize.Should().Be(12,
+            "a batched round takes the cluster-wide TRIGGER_ACCESS lock even when it acquires nothing, and the "
+            + "clustered drain gate (#3900) measured it 1.5-1.8 times as fast as one trigger a round anyway");
+    }
+
+    [Test]
+    public void AnExplicitOneWinsOnAClusteredStore()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(quartz =>
+        {
+            quartz.UseDefaultThreadPool(maxConcurrency: 12);
+            quartz.ConfigureScheduler(options => options.MaxBatchSize = 1);
+            quartz.UsePersistentStore(store =>
+            {
+                store.UsePostgres(PostgresConnectionString);
+                store.UseClustering();
+            });
+        });
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
         provider.GetRequiredService<QuartzSchedulerResources>().MaxBatchSize.Should().Be(1,
-            "a batched round takes the cluster-wide TRIGGER_ACCESS lock even when it acquires nothing, and "
-            + "the clustered drain gate has not said that is worth it");
+            "one is how a cluster keeps acquisition off TRIGGER_ACCESS, as 4.2 did, and it has to mean one");
     }
 
     [Test]
@@ -186,8 +207,9 @@ public sealed class AutomaticMaxBatchSizeTest
     /// can know about it.
     /// </summary>
     [TestCase(true, false, 7, 7)]
-    [TestCase(true, true, 7, 1)]
+    [TestCase(true, true, 7, 7)]
     [TestCase(false, false, 7, 1)]
+    [TestCase(false, true, 7, 1)]
     public void AStoreIsJudgedByWhatItSaysItIs(bool persistent, bool clustered, int poolSize, int expected)
     {
         IJobStore store = A.Fake<IJobStore>();

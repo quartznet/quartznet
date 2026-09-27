@@ -15,8 +15,8 @@ public enum FireBatching
     One,
 
     /// <summary>
-    /// A round takes every trigger already due, up to the pool, which is what a persistent store that is
-    /// not clustered gets by default.
+    /// A round takes every trigger already due, up to the pool, which is what a persistent store gets by
+    /// default, clustered or not.
     /// </summary>
     Pool,
 }

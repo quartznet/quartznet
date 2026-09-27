@@ -16,8 +16,8 @@ internal enum QuartzProfile
 {
     /// <summary>
     /// The shipped defaults: nothing set. In memory that is <c>MaxBatchSize</c> 1 and a zero fire-ahead
-    /// window, so one acquisition round per firing; on a persistent store that is not clustered,
-    /// <c>MaxBatchSize</c> tracks the pool (#3862).
+    /// window, so one acquisition round per firing; on a persistent store, clustered or not,
+    /// <c>MaxBatchSize</c> tracks the pool (#3862, #3900).
     /// </summary>
     Defaults,
 
@@ -27,7 +27,7 @@ internal enum QuartzProfile
     /// </summary>
     /// <remarks>
     /// What #3862 measured in memory before choosing the automatic default, and what that default is
-    /// on a persistent store that is not clustered.
+    /// on a persistent store.
     /// </remarks>
     Batched,
 
