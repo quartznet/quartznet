@@ -59,6 +59,48 @@ public class ClusterManagerTest
         completedTask.Should().Be(shutdownTask, "Shutdown should complete without hanging");
     }
 
+    /// <summary>
+    /// The wait for the loop's task at shutdown is bounded in wall time, whatever clock the store keeps.
+    /// </summary>
+    /// <remarks>
+    /// The same bound, for the same reason, as <c>MisfireHandlerTest</c> pins: measured on the store's
+    /// own clock it never expired on a <see cref="FakeTimeProvider" />, and a shutdown that raced the
+    /// loop's first dispatch waited for ever (#3860). The loop is parked in a store call that never
+    /// returns, on its second check-in — the first one runs inline in <c>Initialize</c>, and the loop
+    /// only reaches its own once the frozen clock has been moved past the sleep it registered.
+    /// </remarks>
+    [Test]
+    public async Task ShutdownGivesUpOnTheLoopInWallTimeWhateverClockTheStoreKeeps()
+    {
+        FakeTimeProvider frozen = new(new DateTimeOffset(2031, 6, 17, 10, 0, 0, TimeSpan.Zero));
+        RecordingTimeProvider recorder = new(frozen);
+        TestAdoJobStoreBase jobStore = new(recorder, driverDelegate: null, checkinInterval: TimeSpan.FromMilliseconds(100));
+        ClusterManager clusterManager = new(jobStore, NullLogger<ClusterManager>.Instance);
+
+        try
+        {
+            await clusterManager.Initialize();
+
+            await WaitUntil(() => recorder.Delays.Count >= 1);
+
+            jobStore.ParkTheNextConnection();
+            frozen.Advance(recorder.Delays[0]);
+
+            // Real time: the loop has woken, and this is the store saying its check-in is parked.
+            await jobStore.ConnectionParked.WaitAsync(TimeSpan.FromSeconds(30));
+
+            Func<Task> shutdown = async () => await clusterManager.Shutdown();
+
+            await shutdown.Should().CompleteWithinAsync(TimeSpan.FromSeconds(10),
+                "the loop is parked in a store call that ignores its cancellation, so the shutdown has to give up "
+                + "on it - and give up in wall time, because the store's clock is one nothing advances");
+        }
+        finally
+        {
+            jobStore.ReleaseParkedConnection();
+        }
+    }
+
     [Test]
     public async Task Shutdown_ShouldComplete_WhenTaskIsRunning()
     {
@@ -437,6 +479,14 @@ public class ClusterManagerTest
     /// times are exactly the values it computed, and the test can wait for a registration instead of
     /// guessing when to advance.
     /// </summary>
+    /// <remarks>
+    /// A due time is recorded only once the timer exists. A test that sees the record and advances the
+    /// clock at once must find a timer to fire; recorded first, an advance that landed between the
+    /// record and the timer's creation left the timer due in a future nothing advanced to, and the loop
+    /// slept for ever — the intermittent "expected to have registered its next sleep" failure of
+    /// <see cref="TheLoopTimesItsRetriesFromTheLastCheckinThatReachedTheDatabase_NotFromTheStampAFailedScanLeaves" />
+    /// under load.
+    /// </remarks>
     private sealed class RecordingTimeProvider : TimeProvider
     {
         private readonly FakeTimeProvider inner;
@@ -468,12 +518,14 @@ public class ClusterManagerTest
 
         public override ITimer CreateTimer(TimerCallback callback, object state, TimeSpan dueTime, TimeSpan period)
         {
+            ITimer timer = inner.CreateTimer(callback, state, dueTime, period);
+
             lock (delays)
             {
                 delays.Add(dueTime);
             }
 
-            return inner.CreateTimer(callback, state, dueTime, period);
+            return timer;
         }
     }
 
@@ -506,12 +558,34 @@ public class ClusterManagerTest
             fieldInfo.SetValue(this, value);
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
+        private readonly TaskCompletionSource connectionParked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource releaseParkedConnection = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private volatile bool parkNextConnection;
+
+        /// <summary>Completes once a caller has been parked in <see cref="GetLocalTransactionConnection" />.</summary>
+        public Task ConnectionParked => connectionParked.Task;
+
+        /// <summary>
+        /// Makes the next connection request wait, whatever its token says, until
+        /// <see cref="ReleaseParkedConnection" /> — which is what a store call that never comes back
+        /// looks like from the loop that made it.
+        /// </summary>
+        public void ParkTheNextConnection() => parkNextConnection = true;
+
+        public void ReleaseParkedConnection() => releaseParkedConnection.TrySetResult();
+
+        protected override async ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
+            if (parkNextConnection)
+            {
+                parkNextConnection = false;
+                connectionParked.TrySetResult();
+                await releaseParkedConnection.Task.ConfigureAwait(false);
+            }
+
             // Return a fake connection that will be used but won't actually do anything
             var fakeConnection = A.Fake<DbConnection>();
-            return new ValueTask<ConnectionAndTransactionHolder>(
-                new ConnectionAndTransactionHolder(fakeConnection, null));
+            return new ConnectionAndTransactionHolder(fakeConnection, null);
         }
 
         protected override ValueTask<T> ExecuteInLock<T>(

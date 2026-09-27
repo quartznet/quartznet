@@ -105,7 +105,12 @@ internal sealed class ClusterManager
             {
                 // CancellationToken.None deliberately: the loop's own token is already cancelled at this
                 // point, and passing it would abort the graceful wait we are here for.
-                await task.WaitAsync(ShutdownTimeout, jobStoreSupport.timeProvider, CancellationToken.None).ConfigureAwait(false);
+                //
+                // The system clock deliberately too, not the store's, for the reason MisfireHandler
+                // gives: this bounds a thread-scheduling race and a store call that will not come back,
+                // both of which happen in wall time, and on a store whose clock nobody advances a bound
+                // measured by that clock never expires (#3860).
+                await task.WaitAsync(ShutdownTimeout, TimeProvider.System, CancellationToken.None).ConfigureAwait(false);
             }
             catch (TimeoutException)
             {
