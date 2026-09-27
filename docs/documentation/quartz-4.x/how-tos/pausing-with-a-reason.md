@@ -124,7 +124,7 @@ Content-Type: application/json
 
 ## In the dashboard
 
-- *Pause*, *Pause group* and *Pause all* ask for an optional reason.
+- *Pause*, *Pause group*, *Pause all* and *Pause selected* ask for an optional reason, once per click.
 - The requester is the signed-in user's name. An anonymous visitor who types no reason makes the reasonless
   pause.
 - A paused trigger shows **Paused: reason (by who, when)** on its page and in the listings; a paused job group
