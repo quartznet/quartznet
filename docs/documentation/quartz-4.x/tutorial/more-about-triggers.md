@@ -132,6 +132,19 @@ public sealed class TutorialContinuation
 See [Job Continuations](../how-tos/job-continuations.md), including what a deleted parent does and why a
 retry releases nothing.
 
+## Overlap Policies
+
+From 4.3, a trigger says what happens when one of its firings comes due while its last one still runs:
+
+```csharp
+.WithOverlapPolicy(OverlapPolicy.Skip) // or BufferOne, CancelPrevious, AllowAll
+```
+
+* `Default` starts it beside the running one, as every trigger did before 4.3.
+* `[DisallowConcurrentExecution]` on the job still wins, whatever the policy.
+
+See [Overlap Policy](../how-tos/overlap-policy.md).
+
 ## Execution Groups
 
 An **execution group** is an optional tag on a trigger that names the job's resource needs (e.g.

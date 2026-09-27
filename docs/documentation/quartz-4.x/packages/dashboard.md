@@ -211,7 +211,7 @@ detail page.
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
 | **Jobs**: job details and keys | the `JobDataMap` and the triggers pointing at the job | trigger-now with overrides, pause, resume, delete |
-| **Triggers**: state, next and previous fire times, execution group | the trigger's `JobDataMap`, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence | pause, resume, unschedule, *reset error state*, and a cron reschedule editor |
+| **Triggers**: state, next and previous fire times, execution group | the trigger's `JobDataMap`, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, and a cron reschedule editor |
 | **Calendars**: names | one calendar | create, replace or delete a cron calendar |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do.
@@ -632,8 +632,9 @@ without further setup. Each row: job, trigger, node, fire time, duration, succes
   stored data maps, not the merged map of the failed run, which history does not record. A row that will be
   retried has no button.
 
-Below, **misfires** lists firings the scheduler missed, which never appear as executions: trigger, its job, the
-node that noticed, the missed firing, and when it was noticed.
+Below, **misfires** lists firings that did not happen, which never appear as executions: trigger, its job, the
+node that noticed, the missed firing, when it was noticed, and the reason — `Misfire`, or `Overlap` for one a
+trigger's [overlap policy](../how-tos/overlap-policy.md) skipped. The overview's tile counts misfires only.
 
 The history belongs to Quartz: `AddQuartzExecutionHistory()`'s recorder writes it, the container's
 `IExecutionHistoryStore` holds it, and the [HTTP API](http-api.md#execution-history) serves the same rows. The

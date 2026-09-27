@@ -737,7 +737,7 @@ member as `null` clears them all.
 ```
 
 This sets the description and priority, removes the calendar, and leaves job data, misfire instruction, node
-pin, execution group and retry policy unchanged.
+pin, execution group, retry policy and overlap policy unchanged.
 
 | Member | Type | Meaning |
 |---|---|---|
@@ -751,6 +751,7 @@ pin, execution group and retry policy unchanged.
 | `preferredNodeAuto` | bool | Sent with `preferredNode`: whether the pin was assigned automatically |
 | `executionGroup` | string or `null` | The [execution group](../tutorial/execution-groups.md) whose thread limit applies; `null` leaves every group |
 | `retryPolicy` | string or `null` | The [retry policy](../how-tos/retrying-failed-jobs.md) in stored form, e.g. `"fixed;3;00:00:30"`; `null` stops retrying |
+| `overlapPolicy` | string or `null` | The [overlap policy](../how-tos/overlap-policy.md) by name: `Skip`, `BufferOne`, `CancelPrevious`, `AllowAll`, `Default`; `null` is `Default`. From 4.3 |
 
 **Name the misfire instruction's family.** `misfireInstructionFamily` is `Simple`, `Cron`, `CalendarInterval`,
 `DailyTimeInterval` or `Recurrence`. The same number means a different policy per family (`2` is *do nothing*
@@ -765,6 +766,19 @@ applies at the next scheduling evaluation.
 
 A continuation cannot be edited here: what a trigger waits for is set when it is scheduled, and changing it is a
 reschedule.
+
+## Overlap policies
+
+From 4.3. A trigger's [overlap policy](../how-tos/overlap-policy.md) travels by name:
+
+| Where | Member |
+|---|---|
+| Trigger body | `"overlapPolicy": "Skip"`, beside `continuationCondition`; absent for `Default` |
+| Listing header | `"overlapPolicy"`, always present |
+| `update-details` | `overlapPolicy`, [above](#editing-a-trigger-in-place) |
+| Misfire history | `"reason"`: `Missed`, or `Overlap` for a firing `Skip` dropped |
+
+A 4.2 client ignores the members, and a 4.2 host ignores `overlapPolicy` in a trigger body it is sent.
 
 ## Continuations
 

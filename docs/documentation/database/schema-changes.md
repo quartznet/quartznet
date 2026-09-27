@@ -506,6 +506,7 @@ object on every dialect: `nvarchar(max)`, `TEXT`, `LONGTEXT`, `CLOB`, `BLOB SUB_
 
 - Read and written with the rest of the trigger's row. No index.
 - A 4.3 node refuses to start without it; the startup check names the column and the script.
+- What each policy does: [Overlap Policy](../quartz-4.x/how-tos/overlap-policy.md).
 
 ### The misfire reason column
 

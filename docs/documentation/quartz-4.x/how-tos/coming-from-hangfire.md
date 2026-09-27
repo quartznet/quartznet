@@ -184,6 +184,9 @@ which `AutomaticRetry` then retries. Quartz's attribute has no timeout: while a 
 its other triggers are `Blocked` and released on completion, with no worker occupied. With a persistent
 store the exclusion is cluster-wide.
 
+From 4.3 a trigger can decide instead of its job, with an [overlap policy](overlap-policy.md): `BufferOne`
+holds one firing until the running one ends, `Skip` drops it, `CancelPrevious` interrupts the running one.
+
 ### Queues become limits, not routes
 
 Hangfire's `[Queue]` bounds how much work runs *and* chooses which servers run it (a server subscribes to

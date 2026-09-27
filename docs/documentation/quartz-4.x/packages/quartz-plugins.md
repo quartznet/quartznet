@@ -241,6 +241,7 @@ applies to both formats.
 | a trigger with a [retry policy](../how-tos/retrying-failed-jobs.md) | `<retry-policy>` | `RetryPolicy` |
 | a trigger with a [preferred node](../tutorial/node-affinity.md) | `<preferred-node>` | `PreferredNode` |
 | a [continuation](../how-tos/job-continuations.md) (waits for another trigger's firing) | `<continues-after>`, `<continuation-condition>` | `ContinuesAfter`, `ContinuationCondition` |
+| a trigger with an [overlap policy](../how-tos/overlap-policy.md) | `<overlap-policy>` | `OverlapPolicy` |
 
 - **XML scheduling is not deprecated and is not going away in 4.x.** A `quartz_jobs.xml` that worked on 3.x
   works here.
