@@ -5,31 +5,41 @@ using Quartz.Configuration;
 namespace Quartz.Benchmark.Competitors.Engines;
 
 /// <summary>
-/// Which of the two Quartz rows an engine is.
+/// Which of the Quartz rows an engine is.
 /// </summary>
 /// <remarks>
-/// Both are published, and the pair is the point: a reader comparing a table against their own
-/// deployment needs to know whether the number came from the settings they have or from settings
-/// somebody chose for a benchmark. <see cref="Defaults" /> is what
-/// <c>AddQuartz(q =&gt; q.UseInMemoryStore())</c> gives you.
+/// All are published, and that is the point: a reader comparing a table against their own deployment
+/// needs to know whether the number came from the settings they have or from settings somebody chose
+/// for a benchmark. <see cref="Defaults" /> is what <c>AddQuartz</c> gives you.
 /// </remarks>
 internal enum QuartzProfile
 {
     /// <summary>
-    /// The shipped defaults: <c>MaxBatchSize</c> 1 and a zero fire-ahead window, so one acquisition
-    /// round per firing.
+    /// The shipped defaults: nothing set. In memory that is <c>MaxBatchSize</c> 1 and a zero fire-ahead
+    /// window, so one acquisition round per firing; on a persistent store that is not clustered,
+    /// <c>MaxBatchSize</c> tracks the pool (#3862).
     /// </summary>
     Defaults,
 
     /// <summary>
-    /// <c>MaxBatchSize</c> = the pool size and a one-second fire-ahead window, which is what
-    /// <c>FireThroughputBenchmark</c> uses and what the 2026-09-02 README numbers were taken at.
+    /// <c>MaxBatchSize</c> = the pool size with the fire-ahead window left at zero: a round takes every
+    /// trigger already due, up to the pool, and fires nothing early.
     /// </summary>
     /// <remarks>
-    /// Neither setting batches anything on its own. The store ends a batch at the first acquired
-    /// trigger's own fire time plus the window, so at the shipped window of zero a batch holds only the
-    /// triggers due at the same instant; and the scheduler refuses a batch larger than the pool that
-    /// would have to run it, so the batch tracks the pool.
+    /// What #3862 measured in memory before choosing the automatic default, and what that default is
+    /// on a persistent store that is not clustered.
+    /// </remarks>
+    Batched,
+
+    /// <summary>
+    /// <c>MaxBatchSize</c> = the pool size and a one-second fire-ahead window, which is what
+    /// the 2026-09-02 fire-throughput numbers in <c>Quartz.Benchmark/README.md</c> were taken at.
+    /// </summary>
+    /// <remarks>
+    /// The store ends a batch at the later of now and the first trigger's fire time, plus the window, so
+    /// the window adds the triggers due within a second of the first and fires them that much early. The
+    /// scheduler refuses a batch larger than the pool that would have to run it, so the batch tracks the
+    /// pool.
     /// </remarks>
     Tuned,
 }
@@ -87,7 +97,12 @@ internal sealed class QuartzEngine : IEngine
         this.recurringKind = recurringKind;
     }
 
-    public string Name => profile == QuartzProfile.Defaults ? "Quartz (defaults)" : "Quartz (tuned)";
+    public string Name => profile switch
+    {
+        QuartzProfile.Defaults => "Quartz (defaults)",
+        QuartzProfile.Batched => "Quartz (batched)",
+        _ => "Quartz (tuned)",
+    };
 
     /// <summary>The started scheduler, for the scenarios that call its own API directly.</summary>
     public IScheduler Scheduler => scheduler ?? throw new InvalidOperationException("Start has not been called.");
@@ -102,9 +117,13 @@ internal sealed class QuartzEngine : IEngine
                 options.InstanceName = instanceName;
                 options.InstanceId = "NODE-01";
 
-                if (chosen == QuartzProfile.Tuned)
+                if (chosen != QuartzProfile.Defaults)
                 {
                     options.MaxBatchSize = maxConcurrency;
+                }
+
+                if (chosen == QuartzProfile.Tuned)
+                {
                     options.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.FromSeconds(1);
                 }
             });

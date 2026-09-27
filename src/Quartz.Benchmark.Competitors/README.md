@@ -58,6 +58,9 @@ $env:QUARTZ_BENCHMARK_POSTGRES='Host=localhost;Port=55432;Database=quartznet;Use
 
 dotnet run -c Release --project src/Quartz.Benchmark.Competitors -- --filter '*S2*'
 dotnet run -c Release --project src/Quartz.Benchmark.Competitors -- --commits
+
+# S4 against Quartz's ADO store: one trigger a round against the automatic batch
+dotnet run -c Release --project src/Quartz.Benchmark.Competitors -- --recurring-postgres
 ```
 
 The `shared_preload_libraries` argument is only needed for the statement census; without it
@@ -73,7 +76,7 @@ libraries share the database and each lives in its own schema at its own default
 | S1 | In-memory throughput: ns and bytes per execution | 20,000 one-offs due at one instant |
 | S2 | The same against PostgreSQL, plus commits per execution | 2,000 one-offs |
 | S3 | Schedule-to-execute latency on an idle engine | 200 repetitions |
-| S4 | Recurring accuracy: does "every second" fire every second | 100 schedules × 60 s |
+| S4 | Recurring accuracy: does "every second" fire every second | 100 schedules × 60 s; on PostgreSQL, 20 as well |
 | S5 | What one schedule costs to write | 50,000 into an empty store |
 
 ## The settings, and why they are what they are
@@ -81,20 +84,25 @@ libraries share the database and each lives in its own schema at its own default
 | | Quartz | TickerQ | Hangfire |
 |---|---|---|---|
 | Worker limit | `MaxConcurrency` **10** (its default) | `MaxConcurrency` **10** (default `ProcessorCount` = 32 here) | `WorkerCount` **10** (default `ProcessorCount × 5` = 160 here) |
-| Poll / batch | `MaxBatchSize` 1 and no fire-ahead window (defaults); or batch = pool with a 1 s window (tuned) | `MinPollingInterval` **100 ms** (default 1 s) | `SchedulePollingInterval` **50 ms** in memory, **100 ms** on PostgreSQL (default 15 s) |
+| Poll / batch | `MaxBatchSize` automatic, no fire-ahead window (defaults); the pool, no window (batched, S1); the pool with a 1 s window (tuned) | `MinPollingInterval` **100 ms** (default 1 s) | `SchedulePollingInterval` **50 ms** in memory, **100 ms** on PostgreSQL (default 15 s) |
 | Everything else | shipped defaults | shipped defaults | shipped defaults |
 
 Ten workers is the one number all three had to be told, and it is the most consequential setting in
 the file: left alone, Hangfire would have run this workload with sixteen times Quartz's workers.
 
-**Quartz gets two rows, not one.** `Defaults` is what `AddQuartz(q => q.UseInMemoryStore())` gives
-you: `MaxBatchSize` 1 and a zero fire-ahead window, so one acquisition round per firing. `Tuned` is
-what `FireThroughputBenchmark` uses and what the fire-throughput numbers in
-`../Quartz.Benchmark/README.md` were taken at: the batch tracks the pool and the window is a second.
-Neither setting batches anything on its own — the store ends a batch at the first acquired trigger's
-own fire time plus the window, and the scheduler refuses a batch larger than the pool that would have
-to run it. A reader comparing a table against their own deployment needs to know which of the two
-they have.
+**Quartz gets more than one row.** A reader comparing a table against their own deployment needs to
+know which of these they have:
+
+| Profile | `MaxBatchSize` | Window | What it is |
+|---|---|---|---|
+| `Defaults` | not set: 1 in memory, the pool on PostgreSQL since #3862 | zero | what `AddQuartz` gives you |
+| `Batched` | the pool | zero | what #3862 measured in memory before choosing that default |
+| `Tuned` | the pool | one second | what the fire-throughput numbers in `../Quartz.Benchmark/README.md` were taken at |
+
+A batch ends at the later of now and the first trigger's fire time, plus the window, so at zero it
+takes every trigger already due and nothing that is not. The scheduler refuses a batch larger than the
+pool that would have to run it. The S2 rows in `../Quartz.Benchmark/README.md` predate #3862, so their
+"defaults" is `MaxBatchSize` 1.
 
 **Due times are aligned to a whole second.** Hangfire records a scheduled job's due time as a
 whole-second Unix timestamp — `ScheduledState.Handler.Apply` stores `JobHelper.ToTimestamp(EnqueueAt)`

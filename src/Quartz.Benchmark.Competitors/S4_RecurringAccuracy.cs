@@ -1,5 +1,6 @@
 using System.Globalization;
 
+using Quartz.Benchmark.Competitors.Database;
 using Quartz.Benchmark.Competitors.Engines;
 
 namespace Quartz.Benchmark.Competitors;
@@ -42,36 +43,65 @@ internal static class S4RecurringAccuracy
     /// </summary>
     private static readonly TimeSpan settle = TimeSpan.FromSeconds(3);
 
+    /// <summary>
+    /// The lighter load the PostgreSQL run adds, below what one node fires a second at one trigger a
+    /// round, so that its rows say how punctual a store is that keeps up rather than how far behind one
+    /// falls that cannot.
+    /// </summary>
+    private const int LightSchedules = 20;
+
     public static void Run()
     {
-        RunCore().GetAwaiter().GetResult();
+        RunCore(Arms(), [Schedules]).GetAwaiter().GetResult();
     }
 
-    private static async Task RunCore()
+    /// <summary>
+    /// The same question against Quartz's ADO store on PostgreSQL, one trigger a round against the
+    /// automatic batch, at the S4 load and at a lighter one.
+    /// </summary>
+    /// <remarks>
+    /// A run of its own rather than rows in <see cref="Run" />, because it needs a database and because
+    /// a hundred one-second schedules is more than a node fires a second on this machine's PostgreSQL at
+    /// one trigger a round (#3824 measured 87.6), so at that load the rows measure falling behind as
+    /// much as punctuality. #3862 is the reason it exists: that default changed on this store.
+    /// </remarks>
+    public static void RunPostgres()
     {
-        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"S4 recurring accuracy: {Schedules} one-second schedules per engine, {window.TotalSeconds:F0} s window, MaxConcurrency {Harness.MaxConcurrency}."));
-        Console.WriteLine();
-        Console.WriteLine("| Engine                          |   Fired | Expected | ±50 ms  | ±250 ms |  Max (ms) | Last (ms) |");
-        Console.WriteLine("|---------------------------------|--------:|---------:|--------:|--------:|----------:|----------:|");
+        string connectionString = PostgresFixture.ConnectionString;
+        RunCore(PostgresArms(connectionString), [Schedules, LightSchedules]).GetAwaiter().GetResult();
+    }
 
-        foreach ((string label, Func<IEngine> create) in Arms())
+    private static async Task RunCore(IEnumerable<(string Label, Func<IEngine> Create)> arms, int[] loads)
+    {
+        List<(string Label, Func<IEngine> Create)> chosen = [.. arms];
+
+        foreach (int schedules in loads)
         {
-            await Measure(label, create).ConfigureAwait(false);
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"S4 recurring accuracy: {schedules} one-second schedules per engine, {window.TotalSeconds:F0} s window, MaxConcurrency {Harness.MaxConcurrency}."));
+            Console.WriteLine();
+            Console.WriteLine("| Engine                          |   Fired | Expected | ±50 ms  | ±250 ms |  Max (ms) | Last (ms) |");
+            Console.WriteLine("|---------------------------------|--------:|---------:|--------:|--------:|----------:|----------:|");
+
+            foreach ((string label, Func<IEngine> create) in chosen)
+            {
+                await Measure(label, create, schedules).ConfigureAwait(false);
+            }
+
+            Console.WriteLine();
         }
 
-        Console.WriteLine();
         Console.WriteLine("\"Last\" is the deviation of the final firing in the window, which is where drift shows.");
     }
 
-    private static async Task Measure(string label, Func<IEngine> create)
+    private static async Task Measure(string label, Func<IEngine> create, int schedules)
     {
         IEngine engine = create();
 
         try
         {
             await engine.Start(Harness.MaxConcurrency).ConfigureAwait(false);
-            await engine.ScheduleRecurring(Schedules).ConfigureAwait(false);
+            await engine.ScheduleRecurring(schedules).ConfigureAwait(false);
 
             DateTimeOffset open = QuartzEngine.NextSecondBoundary() + settle;
             Harness.WaitUntil(open);
@@ -82,7 +112,7 @@ internal static class S4RecurringAccuracy
             Harness.WaitUntil(open + window);
 
             Recurring.Capturing = false;
-            Console.WriteLine(Recurring.Summarise(Schedules, window).Describe(label));
+            Console.WriteLine(Recurring.Summarise(schedules, window).Describe(label));
         }
         finally
         {
@@ -111,5 +141,50 @@ internal static class S4RecurringAccuracy
 
         yield return ("Hangfire (cron * * * * * *)", static () => new HangfireEngine(
             "Hangfire", HangfireEngine.InMemory, TimeSpan.FromSeconds(1)));
+    }
+
+    /// <summary>
+    /// A hundred triggers due at the same second is a batch, and on a database a round is round trips,
+    /// so whether a round takes one trigger or all of them is the punctuality question #3862's default
+    /// changed the answer to. The explicit one is 4.2's default.
+    /// </summary>
+    private static IEnumerable<(string Label, Func<IEngine> Create)> PostgresArms(string connectionString)
+    {
+        yield return ("Quartz (simple, batch 1, PostgreSQL)", () => PostgresQuartz(connectionString, maxBatchSize: 1));
+        yield return ("Quartz (simple, defaults, PostgreSQL)", () => PostgresQuartz(connectionString, maxBatchSize: null));
+    }
+
+    /// <summary>
+    /// Quartz's ADO store on an emptied schema, at the defaults or at an explicit <c>MaxBatchSize</c>.
+    /// </summary>
+    private static QuartzEngine PostgresQuartz(string connectionString, int? maxBatchSize)
+    {
+        PostgresFixture fixture = PostgresFixture.Open().AsTask().GetAwaiter().GetResult();
+        try
+        {
+            fixture.ResetQuartz().AsTask().GetAwaiter().GetResult();
+        }
+        finally
+        {
+            fixture.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
+        return new QuartzEngine(
+            QuartzProfile.Defaults,
+            maxBatchSize is null ? "S4Postgres" : "S4PostgresBatchOfOne",
+            quartz =>
+            {
+                if (maxBatchSize is { } explicitBatch)
+                {
+                    quartz.ConfigureScheduler(options => options.MaxBatchSize = explicitBatch);
+                }
+
+                quartz.UsePersistentStore(store =>
+                {
+                    store.UsePostgres(connectionString);
+                    store.UseSystemTextJsonSerializer();
+                });
+            },
+            QuartzRecurringKind.Simple);
     }
 }

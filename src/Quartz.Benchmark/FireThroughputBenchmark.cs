@@ -21,12 +21,12 @@ namespace Quartz.Benchmark;
 /// scheduler is started once and left running, and what the workload is.
 /// </para>
 /// <para>
-/// <c>MaxBatchSize</c> tracks <see cref="MaxConcurrency" /> because it has to: the scheduler refuses
-/// a batch larger than the pool that would have to run it, so the two cannot be swept independently
-/// across 10 and 50. The fire-ahead window is a second rather than the shipped default of zero,
-/// without which a batch is one trigger however large <c>MaxBatchSize</c> is. Both are stated in
-/// <c>README.md</c> beside the numbers, because a reader comparing these against their own
-/// deployment's defaults would otherwise be comparing two different things.
+/// <see cref="Batching" /> is the two values <c>MaxBatchSize</c> can ship with: one trigger a round,
+/// and the pool. The pool is the largest it may be — the scheduler refuses a batch larger than the
+/// pool that would have to run it — so across 10 and 50 the batched arm tracks
+/// <see cref="MaxConcurrency" />. The fire-ahead window is left at zero on both, which on this
+/// workload decides nothing: every trigger is overdue, so a round fills to <c>MaxBatchSize</c> either
+/// way, and the rows taken before #3862 at a one-second window are the batched arm's.
 /// </para>
 /// <para>
 /// In the <c>--smoke</c> run, deliberately. It builds a scheduler, schedules two hundred triggers and
@@ -52,6 +52,18 @@ public class FireThroughputBenchmark
     [Params(FireThroughput.DefaultJobCount, 1)]
     public int JobCount { get; set; }
 
+    /// <summary>
+    /// One trigger an acquisition round, or as many as the pool can run.
+    /// </summary>
+    /// <remarks>
+    /// Both, because the answer is not the same on the two stores or on every workload: #3824 measured
+    /// the batched round 47 % faster on PostgreSQL, #3822 found it slower in memory for a burst of
+    /// one-offs, and #3862 measured it faster here, for triggers that repeat. The in-memory default
+    /// stays at one on the strength of the burst.
+    /// </remarks>
+    [Params(FireBatching.One, FireBatching.Pool)]
+    public FireBatching Batching { get; set; }
+
     private IScheduler scheduler = null!;
 
     /// <summary>Starts the scheduler and gets it firing before anything is measured.</summary>
@@ -62,7 +74,8 @@ public class FireThroughputBenchmark
             instanceName: "RamThroughputBenchmark",
             maxConcurrency: MaxConcurrency,
             configureStore: quartz => quartz.UseInMemoryStore(),
-            jobCount: JobCount).ConfigureAwait(false);
+            jobCount: JobCount,
+            batching: Batching).ConfigureAwait(false);
     }
 
     /// <summary>Stops the scheduler this case has been running throughout.</summary>

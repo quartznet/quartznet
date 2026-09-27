@@ -3,6 +3,25 @@ using System.Globalization;
 namespace Quartz.Benchmark;
 
 /// <summary>
+/// How a fire-throughput case sets <c>MaxBatchSize</c>, with the fire-ahead window at its shipped zero.
+/// </summary>
+/// <remarks>
+/// The two values a scheduler can ship with, measured side by side because #3822 found the in-memory
+/// store slower batched where PostgreSQL is faster, and #3862 had to choose between them.
+/// </remarks>
+public enum FireBatching
+{
+    /// <summary>One trigger an acquisition round, which is what the in-memory store gets by default.</summary>
+    One,
+
+    /// <summary>
+    /// A round takes every trigger already due, up to the pool, which is what a persistent store that is
+    /// not clustered gets by default.
+    /// </summary>
+    Pool,
+}
+
+/// <summary>
 /// The workload the fire-throughput benchmarks measure, and the counting that turns it into a
 /// per-fire number. Shared by the <c>RAMJobStore</c> arm and the PostgreSQL one, which differ in
 /// nothing but the store they are pointed at.
@@ -94,11 +113,15 @@ internal static class FireThroughput
     public const string Group = "fireThroughput";
 
     /// <summary>
-    /// Batching only batches with a window: the store stops a batch at the first trigger's fire time
-    /// plus this, so at the shipped default of zero a batch is one trigger whatever
-    /// <c>MaxBatchSize</c> says. A second is far more than the span these triggers occupy, so the
-    /// batch is bounded by the pool rather than by the clock.
+    /// The fire-ahead window the PostgreSQL arm runs at, which every row in <c>README.md</c> before #3862
+    /// was taken at.
     /// </summary>
+    /// <remarks>
+    /// The store ends a batch at <c>max(now, the first trigger's fire time)</c> plus this. Every trigger
+    /// here is overdue, so a batch fills to <c>MaxBatchSize</c> at a window of zero just as it does at a
+    /// second; the window decides nothing on this workload, and <see cref="FireBatching" /> leaves it at
+    /// zero.
+    /// </remarks>
     public static readonly TimeSpan FireAheadWindow = TimeSpan.FromSeconds(1);
 
     /// <summary>
@@ -178,11 +201,16 @@ internal static class FireThroughput
     /// How many jobs the <see cref="TriggerCount" /> triggers are spread over. One is the one-off API's
     /// shape and the arrangement #3823 is about; the default is a hundred.
     /// </param>
+    /// <param name="batching">
+    /// How <c>MaxBatchSize</c> is set. Left out, it tracks the pool with a one-second window, which is
+    /// what the PostgreSQL arm has always run at.
+    /// </param>
     public static async Task<IScheduler> StartScheduler(
         string instanceName,
         int maxConcurrency,
         Action<IQuartzBuilder> configureStore,
-        int jobCount = DefaultJobCount)
+        int jobCount = DefaultJobCount,
+        FireBatching? batching = null)
     {
         QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(quartz =>
         {
@@ -194,8 +222,8 @@ internal static class FireThroughput
                 // Never reached: the triggers below are always due. It is short anyway so that a run
                 // which somehow did idle would end rather than sit out the default half minute.
                 options.IdleWaitTime = TimeSpan.FromSeconds(1);
-                options.MaxBatchSize = maxConcurrency;
-                options.BatchTriggerAcquisitionFireAheadTimeWindow = FireAheadWindow;
+                options.MaxBatchSize = batching == FireBatching.One ? 1 : maxConcurrency;
+                options.BatchTriggerAcquisitionFireAheadTimeWindow = batching is null ? FireAheadWindow : TimeSpan.Zero;
             });
 
             quartz.UseDefaultThreadPool(maxConcurrency);

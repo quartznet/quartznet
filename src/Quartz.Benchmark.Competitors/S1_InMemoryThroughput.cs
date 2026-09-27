@@ -13,6 +13,9 @@ public enum S1Arm
     /// <summary>Quartz with the batch tracking the pool and a one-second fire-ahead window.</summary>
     QuartzTuned,
 
+    /// <summary>Quartz with the batch tracking the pool and the fire-ahead window left at zero.</summary>
+    QuartzBatched,
+
     /// <summary>TickerQ with <c>MinPollingInterval</c> at 100 ms.</summary>
     TickerQ,
 
@@ -76,7 +79,7 @@ public class S1InMemoryThroughputBenchmark
 
     private IEngine engine = null!;
 
-    [Params(S1Arm.QuartzDefaults, S1Arm.QuartzTuned, S1Arm.TickerQ, S1Arm.HangfireScheduled, S1Arm.HangfireEnqueued)]
+    [Params(S1Arm.QuartzDefaults, S1Arm.QuartzTuned, S1Arm.QuartzBatched, S1Arm.TickerQ, S1Arm.HangfireScheduled, S1Arm.HangfireEnqueued)]
     public S1Arm Arm { get; set; }
 
     [IterationSetup]
@@ -130,6 +133,7 @@ public class S1InMemoryThroughputBenchmark
     {
         S1Arm.QuartzDefaults => new QuartzEngine(QuartzProfile.Defaults, "S1Defaults", quartz => quartz.UseInMemoryStore()),
         S1Arm.QuartzTuned => new QuartzEngine(QuartzProfile.Tuned, "S1Tuned", quartz => quartz.UseInMemoryStore()),
+        S1Arm.QuartzBatched => new QuartzEngine(QuartzProfile.Batched, "S1Batched", quartz => quartz.UseInMemoryStore()),
         S1Arm.TickerQ => new TickerQEngine("TickerQ", TimeSpan.FromMilliseconds(100)),
         S1Arm.HangfireScheduled => new HangfireEngine("Hangfire (scheduled)", HangfireEngine.InMemory, TimeSpan.FromMilliseconds(50)),
         _ => new HangfireEngine("Hangfire (enqueued)", HangfireEngine.InMemory, TimeSpan.FromMilliseconds(50),
