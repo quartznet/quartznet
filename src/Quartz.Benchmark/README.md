@@ -1341,3 +1341,97 @@ server's durability, and why its remarks say to run it against a real one.
 
 Two nodes at one trigger a round fire 94 a second, and four fire 97-102: at one trigger a round a
 cluster is bound by the database's commits, not by its nodes.
+
+## What #3865 and #3869 changed (2026-09-27, AMD Ryzen 9 5950X)
+
+Same machine and runtime as the sections above; base commit `80bda98291`. Other agent sessions were
+building and testing on the box throughout, so read the time columns as ranges. `Allocated` is exact.
+
+**#3869** moved the scheduler loop's three waits onto the `TimeProvider`, so advancing a fake clock
+wakes it. **#3865** stopped a schedule due after the loop's next look waking it, and built the
+listener snapshots when the registrations change instead of on every notification.
+
+### One schedule, cut by cut
+
+`ScheduleJobBenchmark.ScheduleJob_SimpleTrigger`'s loop, 50,000 schedules into a started in-memory
+scheduler, bytes from `GC.GetTotalAllocatedBytes`, median of six rounds. "Schedule only" builds every
+job detail and trigger first, so it is `ScheduleJob` alone; the builders are 1,368 B throughout.
+
+| Cut | Schedule only | Δ | Build + schedule |
+|---|---:|---:|---:|
+| base `80bda98291` | 2,512 B | — | 3,881 B |
+| the loop's waits are timers on the `TimeProvider`, one per semaphore, re-armed per wait | 2,415 B | −97 B | 3,785 B |
+| a signal for a trigger due after the loop's next look does not wake it | 2,043 B | −372 B | |
+| listener snapshots built on change: no copy, no `Concat`, no enumerator | 1,835 B | −208 B | 3,203 B |
+| scheduler-listener notifications are static calls over their state; the failure text is built only on a failure | 1,419 B | −416 B | 2,787 B |
+
+The first row is a saving, not a cost: the old wait's `SemaphoreSlim` timeout armed a timer of its own
+every time, and the loop's timer is now armed once and re-armed. The second is the whole wake — the
+loop's continuation, its acquisition round and its next wait — which every far-future schedule paid,
+and which on a persistent store is also a round trip to the database.
+
+### Before and after
+
+| Benchmark | Before | After |
+|---|---:|---:|
+| `ScheduleJobBenchmark.ScheduleJob_SimpleTrigger` | 6.46 µs / 3.8 KB | 4.76 µs / **2.74 KB** |
+| `ScheduleJobBenchmark.ScheduleJob_CronTrigger` | 12.88 µs / 4.4 KB | 7.50 µs / 3.28 KB |
+| `ListenerSnapshotBenchmark`, 0 listeners | 7.1 ns / 0 B | 2.2 ns / 0 B |
+| `ListenerSnapshotBenchmark`, 1 listener | 42.0 ns / 128 B | 5.4 ns / 0 B |
+| `ListenerSnapshotBenchmark`, 3 listeners | 58.1 ns / 192 B | 5.3 ns / 0 B |
+| S5, `IScheduler.ScheduleJob`, simple trigger | 9.45 µs / 3,106 B | 5.62 µs / 2,556 B |
+| S5, `IScheduler.ScheduleJob`, cron trigger | 11.55 µs / 3,973 B | 8.32 µs / 3,141 B |
+
+`ScheduleJobBenchmark`'s simple arm read 3.8 KB on the base, not the 3.58 KB of #3802's table: main
+had gained about 220 B since. #3865's target was 2.8 KB.
+
+Taken again after rebasing onto `21b2337710`, which #3862, #3866 and the overlap policy had moved on:
+
+| Benchmark | `21b2337710` | Rebased |
+|---|---:|---:|
+| `ScheduleJobBenchmark.ScheduleJob_SimpleTrigger` | 5.03 µs / 3.83 KB | 4.60 µs / **2.76 KB** |
+| `ScheduleJobBenchmark.ScheduleJob_CronTrigger` | 6.42 µs / 4.6 KB | 5.79 µs / 3.31 KB |
+| the loop above, build + schedule | 3,905 B | 2,811 B |
+| the loop above, schedule only | 2,476 B | 1,427 B |
+
+### S5, split
+
+The S5 simple row builds its job detail and trigger inside the measured call. Two arms now measure
+the halves on their own:
+
+| Arm | Mean | Allocated |
+|---|---:|---:|
+| `QuartzSimple`, both halves | 5.62 µs | 2,556 B |
+| `QuartzSimpleBuildOnly`, `JobBuilder` and `TriggerBuilder` | 0.60 µs | 1,157 B |
+| `QuartzSimplePrebuilt`, `ScheduleJob` over pairs built before the measurement | 3.19 µs | 1,397 B |
+
+Almost half of what remains is the builders, which neither issue touched.
+
+### Latency and punctuality did not move
+
+The waits changed, so the two scenarios about waiting were measured before and after on the system
+clock: the latency probe, `--latency`, in alternating runs, and S3 and S4 from
+`Quartz.Benchmark.Competitors`. "E3" is the tree with #3869 alone.
+
+| Schedule → `Execute` | Runs | p50 | p95 | p99 |
+|---|---:|---:|---:|---:|
+| `--latency`, base | 6 | 42-99 µs | 129-155 µs, one 8.1 ms | 210-270 µs, one 17.4 ms |
+| `--latency`, E3 | 3 | 56-61 µs | 124-138 µs | 186-292 µs |
+| `--latency`, both | 3 | 60-77 µs | 143-239 µs | 218-477 µs, one 9.3 ms |
+| S3 `QuartzStartNow`, base | 1 | 61.1 µs | 174.0 µs | 271.2 µs |
+| S3 `QuartzStartNow`, both | 1 | 62.1 µs | 193.9 µs | 340.5 µs |
+
+The millisecond outliers are the box: they land on either tree, and between the same two S3 runs
+Hangfire's `Enqueue` row, which nothing here touches, went from 162 µs to 7.1 ms p50. S3's `Allocated`
+for one schedule-and-fire went from 6.51 KB to 5.25 KB.
+
+| S4, Quartz rows | Fired | ±50 ms | Max |
+|---|---:|---:|---:|
+| simple: base / E3 / both / both again | 6,000 each | 100 / 100 / 97.1 / 100 % | 15.0 / 15.5 / 58.0 / 15.2 ms |
+| cron: base / E3 / both / both again | 6,000 each | 98.3 / 100 / 98.3 / 98.3 % | 78.6 / 15.4 / 52.2 / 56.6 ms |
+| fire-ahead 1 s: base / E3 / both / both again | 6,000 / 5,995 / 5,916 / 6,000 | 97.7 / 98.1 / 97.9 / 97.9 % | 999.8 / 999.8 / 999.7 / 999.4 ms |
+
+The simple and cron rows stayed 100 % inside ±250 ms on every tree. The simple row's 97.1 % and the
+fire-ahead row's 5,916 came back on the next sitting of the same tree, and the cron row reads 98.3 % on
+the base too. TickerQ's control row read 63.3, 70.7 and 48.3 % inside ±50 ms across the first three
+sittings, which is the size of this box's noise on the day.

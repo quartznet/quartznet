@@ -53,6 +53,20 @@ internal sealed class QuartzSchedulerThread
 
     private bool signaled;
     private DateTimeOffset? signaledNextFireTimeUtc;
+
+    /// <summary>
+    /// When the loop will next look at the store, while it is parked until then: the fire time of the
+    /// trigger it holds, or the end of its idle wait. <see langword="null" /> whenever it is anywhere
+    /// else, which makes every signal wake it. Guarded by <see cref="sigLock" />.
+    /// </summary>
+    private DateTimeOffset? nextLookUtc;
+
+    /// <summary>
+    /// How many signals have released the loop, as against being answered by its next look. Guarded by
+    /// <see cref="sigLock" />.
+    /// </summary>
+    private long schedulingWakes;
+
     private volatile bool paused;
     private volatile bool halted;
 
@@ -136,6 +150,36 @@ internal sealed class QuartzSchedulerThread
     /// randomize how long the scheduler should wait before checking again when there is no current trigger to fire.
     /// </value>
     internal int IdleWaitVariableness => idleWaitVariableness;
+
+    /// <summary>
+    /// When the loop will next look at the store, if it is parked until then; otherwise
+    /// <see langword="null" />.
+    /// </summary>
+    internal DateTimeOffset? NextLookUtc
+    {
+        get
+        {
+            lock (sigLock)
+            {
+                return nextLookUtc;
+            }
+        }
+    }
+
+    /// <summary>
+    /// How many scheduling signals have released the loop. One the loop's next look answers anyway
+    /// is not counted.
+    /// </summary>
+    internal long SchedulingWakes
+    {
+        get
+        {
+            lock (sigLock)
+            {
+                return schedulingWakes;
+            }
+        }
+    }
 
     /// <summary>
     /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
@@ -249,15 +293,60 @@ internal sealed class QuartzSchedulerThread
     /// will fire.  If this method is being called do to some other even (rather
     /// than scheduling a trigger), the caller should pass null.
     /// </param>
+    /// <remarks>
+    /// <para>
+    /// <b>A trigger that fires after the loop's next look does not wake it</b> (#3865). The look asks the
+    /// store for everything due within the idle wait time of it, so it finds the trigger without being
+    /// told, and a wake would only cost a round: an allocation and a thread hop in memory, a round trip
+    /// to the database on a persistent store, for every far-future schedule. Such a signal changes
+    /// nothing at all, not even the candidate recorded for an earlier one.
+    /// </para>
+    /// <para>
+    /// Everything else wakes it: <see langword="null" />, which says nothing about a time; the sentinel
+    /// that only asks the loop to look; any candidate while the loop is not parked until a known look;
+    /// and any candidate once that look is due, which is also what a wall clock stepped forward
+    /// past it looks like.
+    /// </para>
+    /// </remarks>
     public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc)
     {
         lock (sigLock)
         {
+            if (candidateNewNextFireTimeUtc is { } candidate
+                && nextLookUtc is { } nextLook
+                && candidate > nextLook
+                && candidate != SchedulerConstants.SchedulingSignalDateTime
+                && qsRsrcs.TimeProvider.GetUtcNow() < nextLook)
+            {
+                return;
+            }
+
+            // The earlier of this candidate and one already waiting, with no time counting as earliest.
+            // A later schedule used to replace an earlier one the loop had not read yet - the sentinel a
+            // pause sends included, so a schedule made just after a pause could keep the loop holding,
+            // and firing, a trigger it acquired as the pause landed.
+            signaledNextFireTimeUtc = !signaled
+                ? candidateNewNextFireTimeUtc
+                : signaledNextFireTimeUtc is { } waiting && candidateNewNextFireTimeUtc is { } incoming
+                    ? incoming < waiting ? incoming : waiting
+                    : null;
             signaled = true;
-            signaledNextFireTimeUtc = candidateNewNextFireTimeUtc;
+            schedulingWakes++;
         }
 
         schedulingChangeSignal.Release();
+    }
+
+    /// <summary>
+    /// Says when the loop will next look at the store, for the wait it is about to park in, or that it
+    /// is not parked until a known look.
+    /// </summary>
+    private void PublishNextLook(DateTimeOffset? nextLook)
+    {
+        lock (sigLock)
+        {
+            nextLookUtc = nextLook;
+        }
     }
 
     public void ClearSignaledSchedulingChange()
@@ -493,6 +582,9 @@ internal sealed class QuartzSchedulerThread
                                 timeUntilTrigger = triggerTime - now;
                                 if (timeUntilTrigger > TimeSpan.Zero)
                                 {
+                                    // The next look is after this batch has fired, and anything due later
+                                    // than the trigger held here is found by it.
+                                    PublishNextLook(triggerTime);
                                     try
                                     {
                                         // Cap the wait time to recover from system clock backward jumps.
@@ -503,6 +595,10 @@ internal sealed class QuartzSchedulerThread
                                     catch (OperationCanceledException)
                                     {
                                         break;
+                                    }
+                                    finally
+                                    {
+                                        PublishNextLook(null);
                                     }
                                 }
                             }
@@ -710,6 +806,8 @@ internal sealed class QuartzSchedulerThread
                 TimeSpan timeUntilContinue = GetRandomizedIdleWaitTime();
                 if (!halted && !IsScheduleChanged())
                 {
+                    // The next look is when this wait ends.
+                    PublishNextLook(now + timeUntilContinue);
                     try
                     {
                         // QTZ-336 A job might have been completed in the mean time and we might have
@@ -720,6 +818,10 @@ internal sealed class QuartzSchedulerThread
                     }
                     catch (OperationCanceledException)
                     {
+                    }
+                    finally
+                    {
+                        PublishNextLook(null);
                     }
                 }
             }

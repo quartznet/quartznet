@@ -77,7 +77,7 @@ libraries share the database and each lives in its own schema at its own default
 | S2 | The same against PostgreSQL, plus commits per execution | 2,000 one-offs |
 | S3 | Schedule-to-execute latency on an idle engine | 200 repetitions |
 | S4 | Recurring accuracy: does "every second" fire every second | 100 schedules × 60 s; on PostgreSQL, 20 as well |
-| S5 | What one schedule costs to write | 50,000 into an empty store |
+| S5 | What one schedule costs to write; two Quartz-only arms split its simple row into the builders and `ScheduleJob` | 50,000 into an empty store |
 
 ## The settings, and why they are what they are
 

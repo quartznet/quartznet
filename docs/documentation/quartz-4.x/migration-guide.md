@@ -117,6 +117,12 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
   timers on the scheduler's clock, so `FakeTimeProvider.Advance` fires a trigger that came due. A test
   that advanced the clock and then signalled a change (`ResumeAll()`, another schedule) still works; the
   signal is no longer needed. See [Controlling time](tutorial/testing.md#controlling-time).
+* **A schedule due after the scheduler loop's next look no longer wakes it.** That look finds it anyway.
+  A job store of your own that calls `ISchedulerSignaler.SignalSchedulingChange(time)` to wake the loop
+  for some other reason passes `null`, which always wakes it.
+* **`IListenerManager`'s `GetJobListeners()`, `GetTriggerListeners()` and `GetSchedulerListeners()`
+  return one read-only list per registration change**, not a new array per call. Casting the result to an
+  array, or writing to it through `IList<T>`, throws.
 
 **Interface members are default interface members**, so an implementation written for 4.2 compiles and
 behaves as it did. Properties added to records are non-positional `init` properties, so constructors are

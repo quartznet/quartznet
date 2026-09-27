@@ -1,12 +1,18 @@
+using System.Collections.Concurrent;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Time.Testing;
+
+using Quartz.Core;
+using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
 /// The scheduling loop waits on the scheduler's clock (#3869): advancing a <see cref="FakeTimeProvider" />
 /// wakes it, a scheduling signal still wakes it without the clock moving, and shutting it down does not
-/// depend on anybody advancing the clock.
+/// depend on anybody advancing the clock. A signal the loop's next look answers anyway does not wake it
+/// at all (#3865).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -195,6 +201,7 @@ public sealed class SchedulerLoopClockTest
 
         await scheduler.Start();
         await scheduler.Standby();
+        await ShouldArrive(clock.Armed(PauseCheck), "a scheduler in standby parks in its pause wait");
         await scheduler.ScheduleJob(Job("missed"), Trigger(clock, "missed", start.AddSeconds(10)));
 
         // The store's misfire threshold, and so its scan interval: one minute unless configured.
@@ -205,6 +212,113 @@ public sealed class SchedulerLoopClockTest
         ITrigger trigger = await ShouldArrive(misfired.Misfired,
             "the advance ends the misfire handler's sleep, and its next scan finds the trigger four minutes past its misfire threshold");
         trigger.Key.Should().Be(new TriggerKey("missed"));
+    }
+
+    /// <summary>
+    /// A trigger due after the loop's next look is found by that look, so scheduling one does not wake
+    /// the loop (#3865) — which on a persistent store is a round trip saved per far-future schedule. One
+    /// due before it still wakes the loop at once.
+    /// </summary>
+    [TestCase(StoreKind.InMemory)]
+    [TestCase(StoreKind.Sqlite)]
+    public async Task SchedulingATriggerDueAfterTheNextLookDoesNotWakeTheLoop(StoreKind store)
+    {
+        ArmingRecordingTimeProvider clock = new(new FakeTimeProvider(start));
+        TimeSpan idleWaitTime = TimeSpan.FromMinutes(5);
+        using SqliteTestDatabase database = new("loop-clock-no-wake");
+        await using StandaloneSchedulerFactory factory = Build(clock, store, database, idleWaitTime);
+        IScheduler scheduler = await factory.GetScheduler();
+        FiredListener fired = new();
+        scheduler.ListenerManager.AddJobListener(fired);
+        QuartzSchedulerThread loop = LoopOf(scheduler);
+
+        await scheduler.Start();
+        await ShouldArrive(clock.Armed(IdleWait(idleWaitTime)), "a scheduler with nothing to do parks in its idle wait");
+        long wakes = loop.SchedulingWakes;
+
+        await scheduler.ScheduleJob(Job("later"), Trigger(clock, "later", start.AddHours(1)));
+
+        loop.SchedulingWakes.Should().Be(wakes, "the trigger is due an hour after the loop's next look, which finds it without being told");
+        loop.IsScheduleChanged().Should().BeFalse("a schedule the next look answers leaves nothing for the loop to act on");
+
+        await scheduler.ScheduleJob(Job("now"), Trigger(clock, "now", start));
+
+        // Greater rather than one more: the firing it starts may complete, and a completion signals too.
+        loop.SchedulingWakes.Should().BeGreaterThan(wakes, "a trigger due now is due before the next look");
+        await ShouldArrive(fired.FiredFor("now"), "the woken loop acquires and fires the trigger that is due");
+
+        clock.Clock.Advance(TimeSpan.FromHours(1));
+
+        await ShouldArrive(fired.FiredFor("later"), "the trigger that did not wake the loop is found by a later look");
+    }
+
+    [Test]
+    public async Task ABatchWakesTheLoopOnlyWhenItsEarliestTriggerIsDueBeforeTheNextLook()
+    {
+        ArmingRecordingTimeProvider clock = new(new FakeTimeProvider(start));
+        TimeSpan idleWaitTime = TimeSpan.FromMinutes(5);
+        using SqliteTestDatabase database = new("loop-clock-batch");
+        await using StandaloneSchedulerFactory factory = Build(clock, StoreKind.InMemory, database, idleWaitTime);
+        IScheduler scheduler = await factory.GetScheduler();
+        FiredListener fired = new();
+        scheduler.ListenerManager.AddJobListener(fired);
+        QuartzSchedulerThread loop = LoopOf(scheduler);
+
+        await scheduler.Start();
+        await ShouldArrive(clock.Armed(IdleWait(idleWaitTime)), "a scheduler with nothing to do parks in its idle wait");
+        long wakes = loop.SchedulingWakes;
+
+        await scheduler.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>
+        {
+            [Job("in-an-hour")] = [Trigger(clock, "in-an-hour", start.AddHours(1))],
+            [Job("in-two-hours")] = [Trigger(clock, "in-two-hours", start.AddHours(2))],
+        });
+
+        loop.SchedulingWakes.Should().Be(wakes, "every trigger in the batch is due after the loop's next look");
+
+        await scheduler.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>
+        {
+            [Job("in-three-hours")] = [Trigger(clock, "in-three-hours", start.AddHours(3))],
+            [Job("due")] = [Trigger(clock, "due", start)],
+        });
+
+        loop.SchedulingWakes.Should().BeGreaterThan(wakes, "a batch is signalled with its earliest trigger, and this one's is due now");
+        await ShouldArrive(fired.FiredFor("due"), "the woken loop fires the batch's due trigger");
+    }
+
+    /// <summary>
+    /// A loop in standby is not parked until a known look, so a schedule made then always reaches it,
+    /// and is fired once the scheduler starts again.
+    /// </summary>
+    [Test]
+    public async Task AScheduleMadeInStandbyFiresOnceTheSchedulerStartsAgain()
+    {
+        ArmingRecordingTimeProvider clock = new(new FakeTimeProvider(start));
+        using SqliteTestDatabase database = new("loop-clock-standby-schedule");
+        await using StandaloneSchedulerFactory factory = Build(clock, StoreKind.InMemory, database, idleWaitTime: TimeSpan.FromMinutes(5));
+        IScheduler scheduler = await factory.GetScheduler();
+        FiredListener fired = new();
+        scheduler.ListenerManager.AddJobListener(fired);
+        QuartzSchedulerThread loop = LoopOf(scheduler);
+
+        await scheduler.Start();
+        await scheduler.Standby();
+        await ShouldArrive(clock.Armed(PauseCheck), "a scheduler in standby parks in its pause wait");
+        long wakes = loop.SchedulingWakes;
+
+        await scheduler.ScheduleJob(Job("while-paused"), Trigger(clock, "while-paused", start.AddHours(1)));
+
+        loop.SchedulingWakes.Should().Be(wakes + 1, "a paused loop is signalled whatever the trigger's time");
+
+        await scheduler.Start();
+        clock.Clock.Advance(TimeSpan.FromHours(1));
+
+        await ShouldArrive(fired.FiredFor("while-paused"), "the trigger scheduled in standby fires once the scheduler runs and its time comes");
+    }
+
+    private static QuartzSchedulerThread LoopOf(IScheduler scheduler)
+    {
+        return ((StdScheduler) scheduler).scheduler.schedThread;
     }
 
     private static StandaloneSchedulerFactory Build(TimeProvider clock, StoreKind store, SqliteTestDatabase database, TimeSpan idleWaitTime)
@@ -283,13 +397,24 @@ public sealed class SchedulerLoopClockTest
     private sealed class FiredListener : IJobListener
     {
         private readonly TaskCompletionSource<IJobExecutionContext> fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly ConcurrentDictionary<string, TaskCompletionSource<IJobExecutionContext>> byJob = new(StringComparer.Ordinal);
 
+        /// <summary>The first job to have run.</summary>
         public Task<IJobExecutionContext> Fired => fired.Task;
+
+        /// <summary>The job named <paramref name="jobName" />, once it has run.</summary>
+        public Task<IJobExecutionContext> FiredFor(string jobName) => For(jobName).Task;
 
         public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException, CancellationToken cancellationToken = default)
         {
             fired.TrySetResult(context);
+            For(context.JobDetail.Key.Name).TrySetResult(context);
             return default;
+        }
+
+        private TaskCompletionSource<IJobExecutionContext> For(string jobName)
+        {
+            return byJob.GetOrAdd(jobName, static _ => new TaskCompletionSource<IJobExecutionContext>(TaskCreationOptions.RunContinuationsAsynchronously));
         }
     }
 

@@ -506,6 +506,171 @@ public sealed class QuartzSchedulerThreadLoopTest
         store.Acquisitions.Count.Should().Be(1, "a paused loop does not ask the store for triggers");
     }
 
+    /// <summary>
+    /// A signal for a trigger due after the loop's next look is answered by that look, which asks the
+    /// store for everything due within the idle wait time of it, so it does not wake the loop (#3865).
+    /// One for a trigger due before the look still does.
+    /// </summary>
+    [Test]
+    public async Task ASignalForATriggerDueAfterTheNextLookDoesNotWakeTheLoop()
+    {
+        ArmingRecordingTimeProvider clock = FrozenClock();
+        await ParkIdle(clock);
+
+        DateTimeOffset nextLook = thread.NextLookUtc.Value;
+        long wakes = thread.SchedulingWakes;
+
+        thread.SignalSchedulingChange(nextLook.AddMinutes(1));
+
+        thread.SchedulingWakes.Should().Be(wakes, "the loop's next look finds a trigger due after it, so there is nothing to wake it for");
+        thread.IsScheduleChanged().Should().BeFalse("a signal the next look answers records nothing, not even its candidate");
+        thread.NextLookUtc.Should().Be(nextLook, "the loop is still parked in the wait it was in");
+
+        thread.SignalSchedulingChange(nextLook.AddSeconds(-1));
+
+        thread.SchedulingWakes.Should().Be(wakes + 1, "the next look could miss a trigger due before it");
+        await ShouldObserve(store.Acquisitions.Reaches(2), "the woken loop asks the store again");
+    }
+
+    public enum TimelessSignal
+    {
+        NoCandidate,
+        LookSentinel,
+        AfterTheLookIsDue,
+    }
+
+    /// <summary>
+    /// Only a candidate the next look is certain to answer is dropped. A signal naming no time, the
+    /// sentinel that only asks the loop to look, and any signal once the look is due all wake it — the
+    /// last being what a wall clock stepped forward past the look looks like before the loop's timer
+    /// notices.
+    /// </summary>
+    [TestCase(TimelessSignal.NoCandidate)]
+    [TestCase(TimelessSignal.LookSentinel)]
+    [TestCase(TimelessSignal.AfterTheLookIsDue)]
+    public async Task ASignalTheNextLookCannotBeSureToAnswerWakesTheLoop(TimelessSignal signal)
+    {
+        ArmingRecordingTimeProvider clock = FrozenClock();
+        await ParkIdle(clock);
+
+        DateTimeOffset nextLook = thread.NextLookUtc.Value;
+        long wakes = thread.SchedulingWakes;
+
+        switch (signal)
+        {
+            case TimelessSignal.NoCandidate:
+                thread.SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+                break;
+            case TimelessSignal.LookSentinel:
+                thread.SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
+                break;
+            default:
+                clock.Skew = TimeSpan.FromHours(1);
+                thread.SignalSchedulingChange(nextLook.AddHours(2));
+                break;
+        }
+
+        thread.SchedulingWakes.Should().Be(wakes + 1, "this signal is not one the loop's next look is sure to answer");
+        await ShouldObserve(store.Acquisitions.Reaches(2), "the woken loop asks the store again");
+    }
+
+    /// <summary>
+    /// A paused loop is not parked until a known look, so nothing lets a signal be answered later, and
+    /// every signal is recorded for when it resumes.
+    /// </summary>
+    [Test]
+    public async Task APausedLoopIsSignalledWhateverTheTime()
+    {
+        ArmingRecordingTimeProvider clock = FrozenClock();
+        resources.TimeProvider = clock;
+        resources.IdleWaitTime = TimeSpan.FromSeconds(10);
+
+        thread.Start();
+        await ShouldObserve(clock.Armed(arming => arming.DueTime == TimeSpan.FromSeconds(1)),
+            "a loop that has not been unpaused parks in its pause wait");
+
+        long wakes = thread.SchedulingWakes;
+        thread.SignalSchedulingChange(clock.GetUtcNow().AddDays(1));
+
+        thread.NextLookUtc.Should().BeNull("a paused loop is not waiting for a look");
+        thread.SchedulingWakes.Should().Be(wakes + 1, "a signal to a paused loop is never dropped");
+        thread.IsScheduleChanged().Should().BeTrue("the change is waiting for the loop when it resumes");
+    }
+
+    /// <summary>
+    /// Signals that arrive while the loop is busy wait for it together, and what it is told when it
+    /// looks is the earliest of their candidates. A later one used to replace an earlier one — the
+    /// sentinel a pause sends included, which is how a schedule made just after a pause could leave the
+    /// loop holding, and firing, a trigger it had acquired as the pause landed.
+    /// </summary>
+    /// <remarks>
+    /// The loop is held in its store call, after its round has drained the signal, so every signal the
+    /// test sends is one it has not read yet.
+    /// </remarks>
+    [Test]
+    public async Task SignalsTheLoopHasNotReadKeepTheEarliestCandidate()
+    {
+        ArmingRecordingTimeProvider clock = FrozenClock();
+        TaskCompletionSource storeCallReleased = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        store.OnAcquireNextTriggers = async (call, _, callThrough) =>
+        {
+            if (call == 2)
+            {
+                await storeCallReleased.Task;
+            }
+
+            return await callThrough();
+        };
+
+        try
+        {
+            await ParkIdle(clock);
+            thread.SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+            await ShouldObserve(store.Acquisitions.Reaches(2), "a signal wakes the loop into a round, which the store holds");
+
+            DateTimeOffset now = clock.GetUtcNow();
+            thread.SignalSchedulingChange(now.AddMinutes(1));
+            thread.SignalSchedulingChange(now.AddMinutes(5));
+            thread.GetSignaledNextFireTimeUtc().Should().Be(now.AddMinutes(1),
+                "a later schedule must not hide an earlier one the loop has yet to act on");
+
+            thread.SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
+            thread.SignalSchedulingChange(now.AddMinutes(2));
+            thread.GetSignaledNextFireTimeUtc().Should().Be(SchedulerConstants.SchedulingSignalDateTime,
+                "nor may it hide the sentinel a pause sends, which is what makes the loop let go of what it holds");
+
+            thread.SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+            thread.SignalSchedulingChange(now.AddMinutes(3));
+            thread.GetSignaledNextFireTimeUtc().Should().BeNull(
+                "a change that names no time could be about anything, which is earlier than any time");
+        }
+        finally
+        {
+            storeCallReleased.TrySetResult();
+        }
+    }
+
+    private static ArmingRecordingTimeProvider FrozenClock()
+    {
+        return new ArmingRecordingTimeProvider(new FakeTimeProvider(new DateTimeOffset(2026, 3, 6, 8, 0, 0, TimeSpan.Zero)));
+    }
+
+    /// <summary>
+    /// Starts the loop over an empty store on <paramref name="clock" /> and waits for it to park in its
+    /// idle wait, which it publishes its next look for before it arms the wait.
+    /// </summary>
+    private async Task ParkIdle(ArmingRecordingTimeProvider clock)
+    {
+        resources.TimeProvider = clock;
+        resources.IdleWaitTime = TimeSpan.FromSeconds(10);
+
+        thread.TogglePause(pause: false);
+        thread.Start();
+
+        await ShouldObserve(clock.Armed(arming => arming.DueTime > TimeSpan.FromSeconds(5)),
+            "an empty store leaves the loop parked in its idle wait");
+    }
+
     private void StartLoop()
     {
         thread.Start();

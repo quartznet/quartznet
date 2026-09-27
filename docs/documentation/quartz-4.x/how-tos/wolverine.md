@@ -371,8 +371,9 @@ six times slower to deliver a due message:
 
 * `QuartzSchedulerThread` acquires triggers due within the next `IdleWaitTime` and waits for the exact
   fire time.
-* Every in-process `ScheduleJob`, `AddTrigger`, `RescheduleJob` or `DeleteJob` wakes the loop, so a trigger
-  scheduled from a handler through this process's `IScheduler` never waits for a sweep.
+* Every in-process `ScheduleJob`, `AddTrigger`, `RescheduleJob` or `DeleteJob` wakes the loop, unless the
+  trigger is due after the loop's next look, which finds it anyway. A trigger scheduled from a handler
+  through this process's `IScheduler` never waits for a sweep.
 * `IdleWaitTime` bounds only the pickup of work scheduled elsewhere (another node, a recovered trigger) and
   the look-ahead of one acquisition. It matters in the [last section](#sharing-the-outbox-s-transaction).
 
