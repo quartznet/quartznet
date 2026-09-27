@@ -97,24 +97,14 @@ public class PauseResumeStatementCountTest
                 A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<CancellationToken>._))
             .MustNotHaveHappened();
 
-        // Two transitions are wanted — to paused and to paused-blocked — so two statements, not eight,
-        // each of which records the pause on the rows it moves.
-        A.CallTo(() => driverDelegate.PauseTriggerStates(
-                A<ConnectionAndTransactionHolder>._,
-                A<IReadOnlyCollection<TriggerKey>>._,
-                A<StoredTriggerState>._,
-                A<IReadOnlyCollection<StoredTriggerState>>._,
-                A<PauseInfo>._,
-                A<CancellationToken>._))
-            .MustHaveHappened(2, Times.Exactly);
-
+        // Two transitions are wanted — to paused and to paused-blocked — so two statements, not eight.
         A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStates(
                 A<ConnectionAndTransactionHolder>._,
                 A<IReadOnlyCollection<TriggerKey>>._,
                 A<StoredTriggerState>._,
                 A<IReadOnlyCollection<StoredTriggerState>>._,
                 A<CancellationToken>._))
-            .MustNotHaveHappened();
+            .MustHaveHappened(2, Times.Exactly);
 
         A.CallTo(() => driverDelegate.UpdateTriggerState(
                 A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<StoredTriggerState>._, A<CancellationToken>._))
@@ -133,12 +123,11 @@ public class PauseResumeStatementCountTest
 
         await store.PauseTriggers(Keys("a", "b"));
 
-        A.CallTo(() => driverDelegate.PauseTriggerStates(
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStates(
                 A<ConnectionAndTransactionHolder>._,
                 A<IReadOnlyCollection<TriggerKey>>.That.Matches(keys => keys.Count == 2),
                 StoredTriggerState.Paused,
                 A<IReadOnlyCollection<StoredTriggerState>>._,
-                A<PauseInfo>._,
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }

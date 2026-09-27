@@ -29,7 +29,10 @@ await scheduler.PauseTriggerWith(
 - Each answers what its reasonless twin answers and raises the same listener events.
 - The key-set forms, `PauseTriggers` and `PauseJobs`, take no details.
 - An already paused trigger or group **keeps the pause it had**.
-- A reasonless pause is recorded too: `PausedAtUtc` set, `Reason` and `RequestedBy` `null`.
+- **`null`, or details with both texts blank, is the reasonless pause.** It records nothing and is made exactly
+  as the reasonless member makes it.
+- A persistent store makes a reasonless pause through the `IDriverDelegate` members 4.2 used. A
+  `StdAdoDelegate` subclass that overrides them keeps deciding how such a pause is written.
 
 <!-- snippet: sample_pause_group_with_reason -->
 ```csharp
@@ -41,8 +44,8 @@ await scheduler.PauseJobGroupsWith(
 
 | `PauseDetails` | Longest kept | Blank |
 |---|---|---|
-| `Reason` | 250 UTF-16 code units, `PauseDetails.MaxReasonLength`; longer is cut | `null` |
-| `RequestedBy` | 200, `PauseDetails.MaxRequestedByLength`; longer is cut | `null` |
+| `Reason` | 250 UTF-16 code units, `PauseDetails.MaxReasonLength`; longer is cut | `null`; both blank is the reasonless pause |
+| `RequestedBy` | 200, `PauseDetails.MaxRequestedByLength`; longer is cut | `null`; both blank is the reasonless pause |
 
 `PausedAtUtc` is the scheduler's clock, its `TimeProvider`.
 
@@ -53,7 +56,7 @@ await scheduler.PauseJobGroupsWith(
 PauseInfo? pause = await scheduler.GetTriggerPause(new TriggerKey("nightly-export"));
 if (pause is not null)
 {
-    // Reason and RequestedBy are null when the pause did not say; PausedAtUtc is always set.
+    // Either text may be null; a pause that said neither recorded nothing, so reads as null.
     Console.WriteLine($"Paused {pause.PausedAtUtc:u} by {pause.RequestedBy ?? "?"}: {pause.Reason}");
 }
 ```
@@ -66,8 +69,8 @@ if (pause is not null)
 | `GetJobGroupPause(group)` | the job group's record |
 | `TriggerHeader.Pause` | the trigger's own record, on every [`QueryTriggers`](../tutorial/querying-jobs-and-triggers.md#headers-not-entities) row |
 
-Each is `null` when the trigger or group is not paused, does not exist, or was paused by something that records
-nothing (see [below](#a-mixed-cluster)). **Resuming clears the record.**
+Each is `null` when the trigger or group is not paused, does not exist, was paused without a reason, or was paused
+by a 4.2 node (see [below](#a-mixed-cluster)). **Resuming clears the record.**
 
 ## Pausing when retries run out
 
@@ -101,8 +104,8 @@ builder.Services.AddQuartz(q =>
 
 ## Over HTTP
 
-The single-key, group and pause-all routes take an optional JSON body; no body is the reasonless pause. The
-key-set `…/keys/pause` routes take none.
+The single-key, group and pause-all routes take an optional JSON body. The key-set `…/keys/pause` routes take
+none.
 
 ```http
 POST /quartz-api/schedulers/core/triggers/reports/nightly-export/pause
@@ -111,16 +114,19 @@ Content-Type: application/json
 { "reason": "vendor API is down until 18:00", "requestedBy": "alice" }
 ```
 
-- `requestedBy` left out is the authenticated user's name, `HttpContext.User.Identity.Name`.
+- **No body is the 4.2 pause:** the reasonless member, nothing recorded, the caller not named.
+- With a body, `requestedBy` left out is the authenticated user's name, `HttpContext.User.Identity.Name`.
+- `AddQuartzHttpClient` sends no body for details that say nothing.
 - The state, group-paused and trigger-listing answers carry a `pause` object. Details:
   [HTTP API](../packages/http-api.md#a-pause-can-say-why).
-- `AddQuartzHttpClient` sends and reads all of it, so `PauseTriggerWith` on a remote scheduler records the reason
+- `AddQuartzHttpClient` sends and reads the rest, so `PauseTriggerWith` on a remote scheduler records the reason
   on the server.
 
 ## In the dashboard
 
 - *Pause*, *Pause group* and *Pause all* ask for an optional reason.
-- The requester is the signed-in user's name; `null` when anonymous.
+- The requester is the signed-in user's name. An anonymous visitor who types no reason makes the reasonless
+  pause.
 - A paused trigger shows **Paused: reason (by who, when)** on its page and in the listings; a paused job group
   shows its record on the Jobs page.
 - Read-only mode hides the prompts and keeps the notes.
@@ -136,9 +142,10 @@ clears them.
 |---|---|
 | A 4.2 node pauses | `null`: no record |
 | A 4.3 node pauses, a 4.2 node resumes | `null`: a record is read only while the trigger is paused or the group row exists |
-| A 4.3 node pauses a trigger, a 4.2 node resumes it and pauses it again | **the first pause's record**, which is stale |
+| A 4.3 node pauses a trigger with a reason, a 4.2 node resumes it, then any node pauses it without one | **the first pause's record**, which is stale |
 
-Roll every node to 4.3 before relying on the record.
+A pause without a reason writes what 4.2 wrote, so it cannot clear what a 4.2 resume left. Roll every node to
+4.3 before relying on the record.
 
 ## See also
 

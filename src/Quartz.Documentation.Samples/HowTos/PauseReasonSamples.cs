@@ -37,7 +37,7 @@ public sealed class PauseReasonSamples
         PauseInfo? pause = await scheduler.GetTriggerPause(new TriggerKey("nightly-export"));
         if (pause is not null)
         {
-            // Reason and RequestedBy are null when the pause did not say; PausedAtUtc is always set.
+            // Either text may be null; a pause that said neither recorded nothing, so reads as null.
             Console.WriteLine($"Paused {pause.PausedAtUtc:u} by {pause.RequestedBy ?? "?"}: {pause.Reason}");
         }
 

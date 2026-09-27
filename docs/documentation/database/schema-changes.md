@@ -533,8 +533,9 @@ The same three columns on `QRTZ_TRIGGERS` and on both paused-group tables.
 | `PAUSED_BY` | Who asked, cut to 200 characters; `quartz:retries-exhausted` when the scheduler paused a trigger whose retries ran out |
 | `PAUSED_AT` | When, in ticks |
 
-- A 4.3 node writes all three with every pause, a pause without a reason included, and clears a
-  trigger's on its own resume. A group's row is deleted on resume.
+- A 4.3 node writes all three for a pause that gives a reason or a requester. A pause that gives neither
+  runs 4.2's statements and leaves them `NULL`.
+- A 4.3 node clears a trigger's on its own resume. A group's row is deleted on resume.
 - Read only while the trigger is `PAUSED` or `PAUSED_BLOCKED`, or while the group's row exists.
 - Oracle declares `PAUSE_REASON` as `VARCHAR2(1000)` and `PAUSED_BY` as `VARCHAR2(800)`, for the reason
   `PROGRESS_MESSAGE` is wider.
@@ -551,8 +552,8 @@ its misfire rows read as misfires.
 fires the trigger as `Default` does, overlapping.
 
 **Roll every node before relying on a pause reason.** A 4.2 node's pause leaves the columns `NULL`, which
-reads as no reason. Its resume leaves a trigger's columns behind; a 4.3 node reads them only while the
-trigger is paused, so a later 4.2 pause of it would report the old reason.
+reads as no reason. Its resume leaves a trigger's columns behind. A 4.3 node reads them only while the
+trigger is paused, so a later pause of it without a reason, on either version, reports the old reason.
 
 A fresh install from `database/tables/`, and `ProvisionSchema()`, create all fourteen columns.
 

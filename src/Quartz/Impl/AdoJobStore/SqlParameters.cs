@@ -139,6 +139,10 @@ internal static class SqlParameters
     public const string PausedBy = "pausedBy";
     public const string PausedAt = "pausedAt";
 
+    // The pause-all marker's group name, which a trigger's pause read joins on.
+
+    public const string AllGroupsPaused = "allGroupsPaused";
+
     // Releasing a continuation sets NEXT_FIRE_TIME to the later of now and the trigger's own start
     // time, so one statement names "now" twice: once compared with START_TIME and once as the value.
     // A provider that binds positionally adapts each placeholder in turn, so the two occurrences are

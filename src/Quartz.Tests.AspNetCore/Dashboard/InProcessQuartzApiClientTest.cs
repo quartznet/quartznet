@@ -106,6 +106,28 @@ public class InProcessQuartzApiClientTest
     }
 
     [Test]
+    public async Task APauseThatSaysNothingIsTheSchedulersReasonlessPause()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("acme");
+        A.CallTo(() => scheduler.PauseTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => scheduler.PauseJob(A<JobKey>._, A<CancellationToken>._)).Returns(true);
+        InProcessQuartzApiClient client = CreateClient(scheduler);
+
+        // No reason typed and nobody signed in: the dashboard's pause is the one it made before 4.3.
+        (await client.PauseTriggerWith("acme", new TriggerKeyDto("g", "t"), new PauseDetails())).Should().BeTrue();
+        (await client.PauseJobWith("acme", new JobKeyDto("g", "j"), null)).Should().BeTrue();
+        await client.PauseAllWith("acme", new PauseDetails { Reason = "  " });
+
+        A.CallTo(() => scheduler.PauseTrigger(new TriggerKey("t", "g"), A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseJob(new JobKey("j", "g"), A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseAll(A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseTriggerWith(A<TriggerKey>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => scheduler.PauseJobWith(A<JobKey>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => scheduler.PauseAllWith(A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
     public async Task ADataSourceOfAnEarlier4xPausesWithoutTheDetailsAndReportsNoRecord()
     {
         IQuartzApiClient client = A.Fake<IQuartzApiClient>();

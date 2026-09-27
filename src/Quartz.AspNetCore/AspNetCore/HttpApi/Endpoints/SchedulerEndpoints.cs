@@ -275,8 +275,9 @@ internal static class SchedulerEndpoints
     /// Pauses every trigger group, recording why and who asked.
     /// </summary>
     /// <remarks>
-    /// The body is optional, and so is each of its members: no body is the reasonless pause, and a
-    /// missing <c>requestedBy</c> is the authenticated user.
+    /// The body is optional, and so is each of its members. No body — or one that says nothing — is the
+    /// reasonless pause, made through the reasonless member as before 4.3; with a body, a missing
+    /// <c>requestedBy</c> is the authenticated user.
     /// </remarks>
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> PauseAll(
@@ -287,8 +288,10 @@ internal static class SchedulerEndpoints
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         CancellationToken cancellationToken = default)
     {
-        PauseDetails details = EndpointHelper.PauseDetailsFor(request, httpContext);
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.PauseAllWith(details, cancellationToken).AsTask());
+        PauseDetails? details = EndpointHelper.PauseDetailsFor(request, httpContext);
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => PauseDetails.SaysNothing(details)
+            ? scheduler.PauseAll(cancellationToken).AsTask()
+            : scheduler.PauseAllWith(details, cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]

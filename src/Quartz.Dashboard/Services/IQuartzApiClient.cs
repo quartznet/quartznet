@@ -397,7 +397,7 @@ public interface IQuartzApiClient
     /// A default interface member, added in 4.3. The default drops the details and calls
     /// <see cref="PauseTrigger" />, so an implementation of an application's own still pauses.
     /// </remarks>
-    ValueTask<bool> PauseTriggerWith(string schedulerName, TriggerKeyDto triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    ValueTask<bool> PauseTriggerWith(string schedulerName, TriggerKeyDto triggerKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return PauseTrigger(schedulerName, triggerKey, cancellationToken);
     }
@@ -409,7 +409,7 @@ public interface IQuartzApiClient
     /// A default interface member, added in 4.3. The default drops the details and calls
     /// <see cref="PauseJob" />.
     /// </remarks>
-    ValueTask<bool> PauseJobWith(string schedulerName, JobKeyDto jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    ValueTask<bool> PauseJobWith(string schedulerName, JobKeyDto jobKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return PauseJob(schedulerName, jobKey, cancellationToken);
     }
@@ -421,7 +421,7 @@ public interface IQuartzApiClient
     /// A default interface member, added in 4.3. The default drops the details and calls
     /// <see cref="PauseAll" />.
     /// </remarks>
-    ValueTask PauseAllWith(string schedulerName, PauseDetails details, CancellationToken cancellationToken = default)
+    ValueTask PauseAllWith(string schedulerName, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return PauseAll(schedulerName, cancellationToken);
     }

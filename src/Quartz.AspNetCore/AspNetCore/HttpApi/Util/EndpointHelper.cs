@@ -280,17 +280,28 @@ internal sealed class EndpointHelper
 
     /// <summary>
     /// What a pause request's optional body says, with the authenticated user as the requester when
-    /// the body names none.
+    /// the body names none — or <see langword="null" /> for no body at all.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The user is the name <c>MutationAudit</c> logs the same request under. A body that names a
     /// requester of its own wins, which is how a dashboard calling on its operator's behalf through a
     /// service identity says whose pause it is; the audit line still says who called.
+    /// </para>
+    /// <para>
+    /// No body is the pause every caller before 4.3 made, so it is answered as that pause was: through
+    /// the reasonless member, recording nothing, and not in the user's name.
+    /// </para>
     /// </remarks>
-    public static PauseDetails PauseDetailsFor(PauseRequest? request, HttpContext context)
+    public static PauseDetails? PauseDetailsFor(PauseRequest? request, HttpContext context)
     {
+        if (request is null)
+        {
+            return null;
+        }
+
         string? user = context.User.Identity?.Name;
-        return (request ?? new PauseRequest()).AsPauseDetails(string.IsNullOrWhiteSpace(user) ? null : user);
+        return request.AsPauseDetails(string.IsNullOrWhiteSpace(user) ? null : user);
     }
 
     public static void AssertIsValid(IValidatable toValidate)

@@ -170,8 +170,18 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         await scheduler.PauseAll(cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask PauseAllWith(string schedulerName, PauseDetails details, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// <see cref="PauseAll" /> when <paramref name="details" /> says nothing — no reason typed, and nobody
+    /// signed in — so such a pause is the one the dashboard made before a pause could say anything.
+    /// </summary>
+    public async ValueTask PauseAllWith(string schedulerName, PauseDetails? details, CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            await PauseAll(schedulerName, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         EnsureWritable();
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         await scheduler.PauseAllWith(details, cancellationToken).ConfigureAwait(false);
@@ -395,8 +405,16 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await scheduler.PauseJob(AsJobKey(key), cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<bool> PauseJobWith(string schedulerName, JobKeyDto key, PauseDetails details, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// <see cref="PauseJob" /> when <paramref name="details" /> says nothing, as <see cref="PauseAllWith" /> is.
+    /// </summary>
+    public async ValueTask<bool> PauseJobWith(string schedulerName, JobKeyDto key, PauseDetails? details, CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseJob(schedulerName, key, cancellationToken).ConfigureAwait(false);
+        }
+
         EnsureWritable();
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseJobWith(AsJobKey(key), details, cancellationToken).ConfigureAwait(false);
@@ -530,8 +548,16 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await scheduler.PauseTrigger(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<bool> PauseTriggerWith(string schedulerName, TriggerKeyDto key, PauseDetails details, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// <see cref="PauseTrigger" /> when <paramref name="details" /> says nothing, as <see cref="PauseAllWith" /> is.
+    /// </summary>
+    public async ValueTask<bool> PauseTriggerWith(string schedulerName, TriggerKeyDto key, PauseDetails? details, CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTrigger(schedulerName, key, cancellationToken).ConfigureAwait(false);
+        }
+
         EnsureWritable();
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseTriggerWith(AsTriggerKey(key), details, cancellationToken).ConfigureAwait(false);

@@ -147,14 +147,29 @@ public sealed class PauseReasonStoreTest
     }
 
     [Test]
-    public async Task AReasonlessPauseStillRecordsWhenItWasMade()
+    public async Task AReasonlessPauseRecordsNothing()
     {
-        TriggerKey key = await Schedule("nightly");
+        TriggerKey reasonless = await Schedule("reasonless");
+        TriggerKey withNull = await Schedule("with-null");
+        TriggerKey saysNothing = await Schedule("says-nothing");
 
-        (await store.PauseTrigger(key)).Should().BeTrue();
+        (await store.PauseTrigger(reasonless)).Should().BeTrue();
+        (await store.PauseTriggerWith(withNull, null)).Should().BeTrue();
+        (await store.PauseTriggerWith(saysNothing, new PauseDetails())).Should().BeTrue();
 
-        (await store.GetTriggerPause(key)).Should().Be(new PauseInfo(null, null, epoch),
-            "every pause a 4.3 store makes records its time, so a paused trigger always says since when");
+        foreach (TriggerKey key in new[] { reasonless, withNull, saysNothing })
+        {
+            (await store.GetTriggerState(key)).Should().Be(TriggerState.Paused);
+            (await store.GetTriggerPause(key)).Should().BeNull(
+                "a pause that says nothing is the pause 4.2 made, and leaves nothing behind to read");
+            (await Header(key)).Pause.Should().BeNull();
+
+            if (kind == PauseStoreKind.Sqlite)
+            {
+                (await ReadColumn(AdoConstants.ColumnPausedAt, key)).Should().BeNull(
+                    "the reasonless pause writes what 4.2 wrote, which is the state and nothing else");
+            }
+        }
     }
 
     [Test]
@@ -199,8 +214,9 @@ public sealed class PauseReasonStoreTest
             "a reason is cut to what the column holds, and never between the halves of a surrogate pair");
         stored.RequestedBy.Should().HaveLength(PauseDetails.MaxRequestedByLength);
 
-        (await store.GetTriggerPause(blank)).Should().Be(new PauseInfo(null, null, epoch),
-            "a blank text says nothing, so it is recorded as nothing");
+        (await store.GetTriggerState(blank)).Should().Be(TriggerState.Paused);
+        (await store.GetTriggerPause(blank)).Should().BeNull(
+            "blank texts say nothing, so the pause is the reasonless one and records nothing");
     }
 
     [Test]
@@ -335,25 +351,32 @@ public sealed class PauseReasonStoreTest
 
         (await store.GetTriggerState(key)).Should().Be(TriggerState.Paused, "pause-all pauses a group nothing had used yet");
         (await store.GetTriggerGroupPause("brand-new")).Should().Be(new PauseInfo("database maintenance", "alice", epoch),
-            "the group's row is written from the pause-all's, so the group says why it is paused");
+            "the group's row is written as it always was, and the pause-all's record answers for a row that has none");
         (await store.GetTriggerPause(key)).Should().Be(new PauseInfo("database maintenance", "alice", epoch));
     }
 
     [Test]
-    public async Task ReasonlessGroupPausesRecordWhenTheyWereMade()
+    public async Task ReasonlessGroupPausesRecordNothing()
     {
-        await Schedule("first");
+        TriggerKey key = await Schedule("first");
 
         await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(Group));
-        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("jobs-" + Group));
+        await store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("jobs-" + Group), null);
+        await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals("other"), new PauseDetails { Reason = " " });
 
-        (await store.GetTriggerGroupPause(Group)).Should().Be(new PauseInfo(null, null, epoch));
-        (await store.GetJobGroupPause("jobs-" + Group)).Should().Be(new PauseInfo(null, null, epoch));
+        (await store.GetTriggerState(key)).Should().Be(TriggerState.Paused, "the reasonless group pause paused its trigger");
+        (await store.GetTriggerState(await Schedule("born-paused", group: "other"))).Should().Be(TriggerState.Paused,
+            "the group paused with details that said nothing is paused all the same");
+
+        (await store.GetTriggerGroupPause(Group)).Should().BeNull("the group is paused, and the pause said nothing");
+        (await store.GetJobGroupPause("jobs-" + Group)).Should().BeNull();
+        (await store.GetTriggerGroupPause("other")).Should().BeNull();
+        (await store.GetTriggerPause(key)).Should().BeNull();
         (await store.GetTriggerGroupPause("never-paused")).Should().BeNull();
     }
 
     [Test]
-    public async Task TheReasonlessSetFormsRecordWhenTheyWereMade()
+    public async Task TheReasonlessSetFormsRecordNothing()
     {
         IJobDetail job = await StoreJob("reports");
         TriggerKey ofJob = await Schedule("of-job", job);
@@ -362,12 +385,25 @@ public sealed class PauseReasonStoreTest
         (await store.PauseTriggers([single])).Should().Equal([single]);
         (await store.PauseJobs([job.Key])).Should().Equal([job.Key]);
 
-        (await store.GetTriggerPause(single)).Should().Be(new PauseInfo(null, null, epoch));
-        (await store.GetTriggerPause(ofJob)).Should().Be(new PauseInfo(null, null, epoch));
-
-        (await store.ResumeTriggers([single, ofJob])).Should().Equal([single, ofJob]);
         (await store.GetTriggerPause(single)).Should().BeNull();
         (await store.GetTriggerPause(ofJob)).Should().BeNull();
+
+        (await store.ResumeTriggers([single, ofJob])).Should().Equal([single, ofJob]);
+        (await store.GetTriggerState(single)).Should().Be(TriggerState.Normal,
+            "a resume of a trigger that carries no record still resumes it");
+    }
+
+    [Test]
+    public async Task AReasonlessResumeOfAPauseWithAReasonForgetsIt()
+    {
+        TriggerKey key = await Schedule("nightly");
+        await store.PauseTriggerWith(key, maintenance);
+
+        (await store.ResumeTriggers([key])).Should().Equal([key]);
+        await store.PauseTrigger(key);
+
+        (await store.GetTriggerPause(key)).Should().BeNull(
+            "the resume forgot the first pause's reason, so the second pause, which said nothing, has none");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -408,8 +444,17 @@ public sealed class PauseReasonStoreTest
         clock.Advance(TimeSpan.FromHours(1));
         await store.PauseTrigger(key);
 
-        (await store.GetTriggerPause(key)).Should().Be(new PauseInfo(null, null, epoch.AddHours(1)),
-            "a 4.3 pause writes all three columns, so it replaces what the old node left rather than reviving it");
+        // The hazard the upgrade notes name: a pause without a reason makes 4.2's statements, which
+        // do not touch the columns, so what the 4.2 node left reads as current again.
+        (await store.GetTriggerPause(key)).Should().Be(new PauseInfo("database maintenance", "alice", epoch),
+            "a reasonless pause writes what 4.2 wrote, so it cannot clear what a 4.2 resume left behind");
+
+        await store.ResumeTrigger(key);
+        clock.Advance(TimeSpan.FromHours(1));
+        await store.PauseTriggerWith(key, new PauseDetails { Reason = "second window", RequestedBy = "bob" });
+
+        (await store.GetTriggerPause(key)).Should().Be(new PauseInfo("second window", "bob", epoch.AddHours(2)),
+            "a 4.3 node's resume forgets the record, and a pause with a reason writes its own");
     }
 
     [Test]

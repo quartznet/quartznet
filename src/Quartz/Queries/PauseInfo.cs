@@ -25,7 +25,8 @@ namespace Quartz;
 /// <remarks>
 /// What <see cref="IScheduler.GetTriggerPause" />, <see cref="IScheduler.GetTriggerGroupPause" /> and
 /// <see cref="IScheduler.GetJobGroupPause" /> answer, and what <see cref="TriggerHeader.Pause" /> carries.
-/// A pause made through a reasonless member is recorded too, with both texts <see langword="null" />.
+/// Only a pause that said something is recorded, so at least one of the two texts is set; a
+/// reasonless pause has no <see cref="PauseInfo" />.
 /// </remarks>
 /// <param name="Reason">Why, as <see cref="PauseDetails.Reason" /> said it, cut to
 /// <see cref="PauseDetails.MaxReasonLength" />; <see langword="null" /> when nothing was said.</param>

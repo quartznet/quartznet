@@ -1733,13 +1733,10 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> InsertTriggerGroupPause(
         ConnectionAndTransactionHolder conn,
         string groupName,
-        PauseInfo? pause,
+        PauseInfo pause,
         CancellationToken cancellationToken = default)
     {
-        if (pause is null)
-        {
-            return await InsertPausedTriggerGroup(conn, groupName, cancellationToken).ConfigureAwait(false);
-        }
+        ArgumentNullException.ThrowIfNull(pause);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertPausedTriggerGroupWithPause));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
@@ -1756,6 +1753,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggerPause));
+        // In SQL token order, for providers with positional binding: the marker's join comes first.
+        AddCommandParameter(cmd, SqlParameters.AllGroupsPaused, AdoConstants.AllGroupsPaused);
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
         AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
@@ -1766,9 +1765,14 @@ public partial class StdAdoDelegate
             return null;
         }
 
-        // The trigger's own record, then its trigger group's, then its job group's: the two group
+        // The trigger's own record, then its trigger group's — or, for a group row the pause-all
+        // marker wrote with no record of its own, the marker's — then its job group's. The group
         // records are what a trigger stored into a group that was already paused has instead of one.
-        return ReadPause(rs, 1) ?? ReadPause(rs, 4) ?? ReadPause(rs, 7);
+        bool triggerGroupPaused = !await rs.IsDBNullAsync(10, cancellationToken).ConfigureAwait(false);
+        return ReadPause(rs, 1)
+               ?? ReadPause(rs, 4)
+               ?? (triggerGroupPaused ? ReadPause(rs, 11) : null)
+               ?? ReadPause(rs, 7);
     }
 
     /// <inheritdoc />

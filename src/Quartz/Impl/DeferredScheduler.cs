@@ -437,31 +437,31 @@ internal sealed class DeferredScheduler : IScheduler
         await target.ResumeAll(cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.PauseTriggerWith(triggerKey, details, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.PauseJobWith(jobKey, details, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.PauseTriggerGroupsWith(matcher, details, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.PauseJobGroupsWith(matcher, details, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    public async ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
     {
         IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
         await target.PauseAllWith(details, cancellationToken).ConfigureAwait(false);

@@ -1091,20 +1091,25 @@ public interface IScheduler : IAsyncDisposable
     /// are cut.
     /// </para>
     /// <para>
+    /// <see langword="null" />, or details that say nothing, is exactly <see cref="PauseTrigger" />, and
+    /// records nothing. So is it for every <c>*With</c> member.
+    /// </para>
+    /// <para>
     /// A default interface member: the default drops the details and calls <see cref="PauseTrigger" />,
     /// which is what a scheduler written against an earlier 4.x does. A new name rather than an overload,
     /// because the API baseline marks default implementations per name.
     /// </para>
     /// </remarks>
     /// <param name="triggerKey">The trigger to pause.</param>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseTrigger" /> returns.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> or <paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> PauseTriggerWith(
         TriggerKey triggerKey,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
         return PauseTrigger(triggerKey, cancellationToken);
@@ -1118,14 +1123,15 @@ public interface IScheduler : IAsyncDisposable
     /// calls <see cref="PauseJob" />.
     /// </remarks>
     /// <param name="jobKey">The job whose triggers to pause.</param>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseJob" /> returns.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> or <paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<bool> PauseJobWith(
         JobKey jobKey,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
         return PauseJob(jobKey, cancellationToken);
@@ -1141,14 +1147,15 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="PauseTriggerWith" /> is one; the default calls <see cref="PauseTriggerGroups" />.
     /// </remarks>
     /// <param name="matcher">The groups to pause.</param>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseTriggerGroups" /> returns.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> or <paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<string>> PauseTriggerGroupsWith(
         GroupMatcher<TriggerKey> matcher,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
         return PauseTriggerGroups(matcher, cancellationToken);
@@ -1164,14 +1171,15 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="PauseJobGroups" />.
     /// </remarks>
     /// <param name="matcher">The groups to pause.</param>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseJobGroups" /> returns.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> or <paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     ValueTask<List<string>> PauseJobGroupsWith(
         GroupMatcher<JobKey> matcher,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
         return PauseJobGroups(matcher, cancellationToken);
@@ -1184,11 +1192,11 @@ public interface IScheduler : IAsyncDisposable
     /// A default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default
     /// calls <see cref="PauseAll" />.
     /// </remarks>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="details" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
-    ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return PauseAll(cancellationToken);
     }
@@ -1198,14 +1206,14 @@ public interface IScheduler : IAsyncDisposable
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The pause recorded on the trigger itself, by any of the <c>*With</c> members or their reasonless
-    /// twins. A trigger that is paused without a record of its own — one stored into a group that was
-    /// already paused — answers its trigger group's record, and then its job group's.
+    /// The pause a <c>*With</c> member recorded on the trigger itself. A trigger that is paused without a
+    /// record of its own — one stored into a group that was already paused — answers its trigger group's
+    /// record, and then its job group's.
     /// </para>
     /// <para>
     /// <see langword="null" /> when the trigger does not exist, is not paused, or was paused by
-    /// something that records nothing: a scheduler or store written against an earlier 4.x, or a 4.2
-    /// node sharing the database. A default interface member, whose default answers
+    /// something that records nothing: a reasonless pause, a scheduler or store written against an
+    /// earlier 4.x, or a 4.2 node sharing the database. A default interface member, whose default answers
     /// <see langword="null" />.
     /// </para>
     /// </remarks>
@@ -1222,7 +1230,7 @@ public interface IScheduler : IAsyncDisposable
     /// Why the trigger group is paused, who asked, and when.
     /// </summary>
     /// <remarks>
-    /// <see langword="null" /> when the group is not paused, or its pause recorded nothing. A default
+    /// <see langword="null" /> when the group is not paused, or was paused without a reason. A default
     /// interface member, whose default answers <see langword="null" />.
     /// </remarks>
     /// <param name="groupName">The trigger group to ask about.</param>
@@ -1238,7 +1246,7 @@ public interface IScheduler : IAsyncDisposable
     /// Why the job group is paused, who asked, and when.
     /// </summary>
     /// <remarks>
-    /// <see langword="null" /> when the group is not paused, or its pause recorded nothing. A default
+    /// <see langword="null" /> when the group is not paused, or was paused without a reason. A default
     /// interface member, whose default answers <see langword="null" />.
     /// </remarks>
     /// <param name="groupName">The job group to ask about.</param>
