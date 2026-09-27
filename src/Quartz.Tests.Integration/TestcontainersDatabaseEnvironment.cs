@@ -38,7 +38,6 @@ internal static class TestcontainersDatabaseEnvironment
 
     private static PostgreSqlContainer postgreSqlContainer;
     private static MsSqlContainer sqlServerContainer;
-    private static MsSqlContainer sqlServerMotContainer;
     private static MySqlContainer mySqlContainer;
     private static FirebirdSqlContainer firebirdSqlContainer;
     private static OracleContainer oracleContainer;
@@ -79,8 +78,9 @@ internal static class TestcontainersDatabaseEnvironment
 
                 if (startAll || targetDatabase == "sqlserver")
                 {
-                    await StartSqlServerContainerAsync(await ReadScriptAsync("database", "tables", "tables_sqlServer.sql"));
-                    await StartSqlServerMotContainerAsync(await ReadScriptAsync("database", "tables", "tables_sqlServerMOT.sql"));
+                    await StartSqlServerContainerAsync(
+                        await ReadScriptAsync("database", "tables", "tables_sqlServer.sql"),
+                        await ReadScriptAsync("database", "tables", "tables_sqlServerMOT.sql"));
                 }
 
                 if (startAll || targetDatabase == "mysql")
@@ -159,25 +159,45 @@ internal static class TestcontainersDatabaseEnvironment
     }
 
     /// <summary>
-    /// Prepares a SQL Server table script for use with a fresh Testcontainer by replacing
-    /// the placeholder database name with 'quartznet' and prepending CREATE DATABASE.
+    /// The database the standard SQL Server schema is created in.
     /// </summary>
-    private static string PrepareSqlServerScript(string script)
+    private const string SqlServerDatabase = "quartznet";
+
+    /// <summary>
+    /// The database the memory-optimized schema is created in, on the same server: the filegroup and
+    /// the snapshot settings <c>tables_sqlServerMOT.sql</c> adds are per database, so the two schemas
+    /// share one container rather than each costing a SQL Server of their own.
+    /// </summary>
+    private const string SqlServerMotDatabase = "quartznet_mot";
+
+    /// <summary>
+    /// Prepares a SQL Server table script for a fresh Testcontainer: substitutes its placeholders for
+    /// <paramref name="databaseName" /> and prepends the <c>CREATE DATABASE</c> the script assumes.
+    /// </summary>
+    private static string PrepareSqlServerScript(string script, string databaseName)
     {
-        // The database/tables/ scripts use placeholder values that need to be replaced
-        // for Testcontainers. The MOT script also needs a file path for memory-optimized data.
-        script = script
-            .Replace("[enter_db_name_here]", "[quartznet]")
-            .Replace("[enter_path_here]", "/tmp");
+        script = SubstituteSqlServerPlaceholders(script, databaseName);
 
         // Strip USE [master] — it causes sqlcmd to write "Changed database context" to stderr
         // which fails the exit code check. ALTER DATABASE works from any context.
         script = StripUseMasterStatements(script);
 
         // Prepend CREATE DATABASE before the rest of the script
-        script = "CREATE DATABASE quartznet;\nGO\n" + script;
+        script = $"CREATE DATABASE {databaseName};\nGO\n" + script;
 
         return script;
+    }
+
+    /// <summary>
+    /// Fills in the two placeholders the SQL Server scripts ship with: the database name every one of
+    /// them has, and the directory the memory-optimized variant puts its filegroup's file in, which on
+    /// the Linux image is where the server keeps its other data files.
+    /// </summary>
+    private static string SubstituteSqlServerPlaceholders(string script, string databaseName)
+    {
+        return script
+            .Replace("[enter_db_name_here]", $"[{databaseName}]")
+            .Replace(@"[enter_path_here]\", "/var/opt/mssql/data/");
     }
 
     private static string StripUseMasterStatements(string script)
@@ -202,7 +222,7 @@ internal static class TestcontainersDatabaseEnvironment
         return string.Join('\n', filtered);
     }
 
-    private static async Task StartSqlServerContainerAsync(string script)
+    private static async Task StartSqlServerContainerAsync(string script, string memoryOptimizedScript)
     {
         sqlServerContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04")
             .WithPassword("Quartz!DockerP4ss")
@@ -210,39 +230,24 @@ internal static class TestcontainersDatabaseEnvironment
 
         await sqlServerContainer.StartAsync();
 
-        ExecResult result = await sqlServerContainer.ExecScriptAsync(PrepareSqlServerScript(script));
+        ExecResult result = await sqlServerContainer.ExecScriptAsync(PrepareSqlServerScript(script, SqlServerDatabase));
         EnsureScriptSucceeded("SQL Server", result);
+
+        ExecResult memoryOptimizedResult = await sqlServerContainer.ExecScriptAsync(PrepareSqlServerScript(memoryOptimizedScript, SqlServerMotDatabase));
+        EnsureScriptSucceeded("SQL Server (memory-optimized)", memoryOptimizedResult);
 
         string connectionString = sqlServerContainer.GetConnectionString();
         SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(connectionString)
         {
-            InitialCatalog = "quartznet",
+            InitialCatalog = SqlServerDatabase,
             TrustServerCertificate = true
         };
 
         Environment.SetEnvironmentVariable("MSSQL_CONNECTION_STRING", builder.ConnectionString);
         Environment.SetEnvironmentVariable("MSSQL_USER", builder.UserID);
         Environment.SetEnvironmentVariable("MSSQL_PASSWORD", builder.Password);
-    }
 
-    private static async Task StartSqlServerMotContainerAsync(string script)
-    {
-        sqlServerMotContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2017-latest")
-            .WithPassword("Quartz!DockerP4ss")
-            .Build();
-
-        await sqlServerMotContainer.StartAsync();
-
-        ExecResult result = await sqlServerMotContainer.ExecScriptAsync(PrepareSqlServerScript(script));
-        EnsureScriptSucceeded("SQL Server (MOT)", result);
-
-        string connectionString = sqlServerMotContainer.GetConnectionString();
-        SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(connectionString)
-        {
-            InitialCatalog = "quartznet",
-            TrustServerCertificate = true
-        };
-
+        builder.InitialCatalog = SqlServerMotDatabase;
         Environment.SetEnvironmentVariable("MSSQL_CONNECTION_STRING_MOT", builder.ConnectionString);
     }
 
@@ -326,11 +331,9 @@ internal static class TestcontainersDatabaseEnvironment
         if (dialect == "sqlServer")
         {
             // The database already exists here, so only the placeholder substitution applies.
-            script = script
-                .Replace("[enter_db_name_here]", "[quartznet]")
-                .Replace("[enter_path_here]", "/tmp");
+            script = SubstituteSqlServerPlaceholders(script, SqlServerDatabase);
             script = StripUseMasterStatements(script);
-            script = "USE quartznet;\nGO\n" + script;
+            script = $"USE {SqlServerDatabase};\nGO\n" + script;
         }
 
         if (dialect == "firebird")
@@ -429,14 +432,12 @@ internal static class TestcontainersDatabaseEnvironment
         await DisposeContainerAsync(oracleContainer, exceptions);
         await DisposeContainerAsync(firebirdSqlContainer, exceptions);
         await DisposeContainerAsync(mySqlContainer, exceptions);
-        await DisposeContainerAsync(sqlServerMotContainer, exceptions);
         await DisposeContainerAsync(sqlServerContainer, exceptions);
         await DisposeContainerAsync(postgreSqlContainer, exceptions);
 
         oracleContainer = null;
         firebirdSqlContainer = null;
         mySqlContainer = null;
-        sqlServerMotContainer = null;
         sqlServerContainer = null;
         postgreSqlContainer = null;
 

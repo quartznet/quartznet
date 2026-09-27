@@ -126,8 +126,10 @@ Shipped implementations, both `public` and unsealed, waiting on the `TimeProvide
 
 - **`UpdateRowLockHandler`** — `UPDATE {0}LOCKS SET LOCK_NAME = LOCK_NAME WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName`,
   retried `RetryCount` times (`protected virtual`, 2 by default) with `RetryPeriod` between attempts,
-  inserting the row if none was updated. `SqlServerMemoryOptimizedUpdateRowLockHandler` is a two-line
-  subclass raising the retry count to 5.
+  inserting the row if none was updated. `SqlServerMemoryOptimizedUpdateRowLockHandler` adds the
+  `WITH (SNAPSHOT)` hint and raises the retry count to 5; it is the handler for `tables_sqlServerMOT.sql`,
+  whose memory-optimized `QRTZ_LOCKS` refuses the `UPDLOCK,ROWLOCK` hints the store's own SQL Server
+  handler locks with.
 - **`SelectForUpdateLockHandler`** — `SELECT * FROM {0}LOCKS … FOR UPDATE`, with
   `PostgreSqlSelectForUpdateLockHandler` as its dialect variant.
 

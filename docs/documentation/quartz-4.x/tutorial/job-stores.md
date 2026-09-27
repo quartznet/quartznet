@@ -218,7 +218,10 @@ for that database and the setting to fall back to.
 | SQL Server's [memory-optimized or pre-2016 schema](https://github.com/quartznet/quartznet/tree/main/database/tables) | the *standard* schema, which is not what you asked for |
 
 `StdAdoDelegate` writes portable SQL, so it cannot know what DDL your database accepts. The two SQL Server
-variants have no delegate of their own; run them by hand and leave `SchemaProvisioning` at `Validate`.
+variants have no delegate of their own; run them by hand and leave `SchemaProvisioning` at `Validate`. The
+memory-optimized one also needs its lock handler, `UseLockHandler<SqlServerMemoryOptimizedUpdateRowLockHandler>()`
+or the flat key `quartz.jobStore.lockHandler.type`: its `QRTZ_LOCKS` refuses the `UPDLOCK,ROWLOCK` hints the
+store's own SQL Server handler uses.
 
 Validation checks every table and every column 4.x added to a table 3.x already had. An unmigrated 3.x
 database is refused at startup, with a message naming the missing column and the migration script that

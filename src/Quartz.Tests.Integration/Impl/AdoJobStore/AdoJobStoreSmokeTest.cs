@@ -38,31 +38,90 @@ public class AdoJobStoreSmokeTest
     private readonly List<IScheduler> createdSchedulers = [];
 
     private const string KeyResetEvent = "ResetEvent";
+    private const string KeyJobFired = "JobFired";
 
     [Test]
     [Category("db-sqlserver")]
     [TestCaseSource(nameof(GetSmokeTestCases))]
     public Task TestSqlServer(string serializerType, ProviderMode providerMode)
     {
-        var properties = new NameValueCollection
-        {
-            ["quartz.jobStore.driverDelegateType"] = typeof(Quartz.Impl.AdoJobStore.SqlServerDelegate).AssemblyQualifiedNameWithoutVersion()
-        };
-        return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties, providerMode: providerMode);
+        return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, typeof(SqlServerDelegate), providerMode: providerMode);
     }
 
+    /// <summary>
+    /// A memory-optimized <c>QRTZ_LOCKS</c> refuses the <c>UPDLOCK,ROWLOCK</c> hints the store's own SQL
+    /// Server handler locks with, so the handler has to be named. This names it the way 4.x code does;
+    /// <see cref="TheLegacyLockHandlerKeyIsTheOneThatLocksAMemoryOptimizedTable" /> names it the way a
+    /// 3.x configuration file does.
+    /// </summary>
+    /// <remarks>
+    /// Until #3903 this passed <c>quartz.jobStore.lockHandler.type</c> in a property bag the harness never
+    /// read, ran the store's default handler and failed on the first lock — and was <c>[Explicit]</c>,
+    /// so nothing noticed.
+    /// </remarks>
     [Test]
-    [Explicit("Memory-optimized SQL Server tables are unstable in Testcontainers CI runs.")]
     [Category("db-sqlserver")]
     [TestCase("stj")]
     public Task TestSqlServerMemoryOptimizedTables(string serializerType)
     {
-        var properties = new NameValueCollection
+        return RunAdoJobStoreTest(
+            TestConstants.DefaultSqlServerProvider,
+            "SQLServerMOT",
+            serializerType,
+            typeof(SqlServerDelegate),
+            configureStore: store => store.UseLockHandler<SqlServerMemoryOptimizedUpdateRowLockHandler>());
+    }
+
+    /// <summary>
+    /// The legacy key names the handler, the bridge registers it and the store locks with it. With the
+    /// store's own SQL Server handler instead, the first lock fails with "The table option 'rowlock' is
+    /// not supported with memory optimized tables".
+    /// </summary>
+    [Test]
+    [Category("db-sqlserver")]
+    public async Task TheLegacyLockHandlerKeyIsTheOneThatLocksAMemoryOptimizedTable()
+    {
+        NameValueCollection properties = new NameValueCollection
         {
-            ["quartz.jobStore.driverDelegateType"] = typeof(Quartz.Impl.AdoJobStore.SqlServerDelegate).AssemblyQualifiedNameWithoutVersion(),
-            ["quartz.jobStore.lockHandler.type"] = typeof(Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowLockHandler).AssemblyQualifiedNameWithoutVersion()
+            ["quartz.scheduler.instanceName"] = "TestScheduler_SQLServerMOT_LegacyKey",
+            ["quartz.scheduler.instanceId"] = "AUTO",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
+            ["quartz.jobStore.driverDelegateType"] = typeof(SqlServerDelegate).AssemblyQualifiedNameWithoutVersion(),
+            ["quartz.jobStore.lockHandler.type"] = typeof(SqlServerMemoryOptimizedUpdateRowLockHandler).AssemblyQualifiedNameWithoutVersion(),
+            ["quartz.jobStore.dataSource"] = "default",
+            ["quartz.jobStore.clustered"] = "true",
+            ["quartz.dataSource.default.connectionString"] = GetConnectionString("SQLServerMOT"),
+            ["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider,
         };
-        return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServerMOT", serializerType, properties);
+
+        ServiceCollection services = new ServiceCollection();
+        services.AddQuartz(properties);
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            AdoJobStoreBase store = (AdoJobStoreBase) provider.GetRequiredService<IJobStore>();
+            store.LockHandler.Should().BeOfType<SqlServerMemoryOptimizedUpdateRowLockHandler>(
+                "quartz.jobStore.lockHandler.type named it, and Initialize builds a handler only when it was handed none");
+
+            // A firing takes TRIGGER_ACCESS on the memory-optimized row, which is what the handler is for.
+            TaskCompletionSource fired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            scheduler.Context[KeyJobFired] = fired;
+            await scheduler.Clear();
+            await scheduler.Start();
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<SignalingJob>().WithIdentity("mot-legacy-key").Build(),
+                TriggerBuilder.Create().WithIdentity("mot-legacy-key").StartNow().Build());
+
+            await fired.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        }
+        finally
+        {
+            // Before the provider goes, since the store and its connections belong to it.
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
     }
 
     [Test]
@@ -70,9 +129,7 @@ public class AdoJobStoreSmokeTest
     [TestCaseSource(nameof(GetSmokeTestCases))]
     public Task TestPostgreSql(string serializerType, ProviderMode providerMode)
     {
-        NameValueCollection properties = new NameValueCollection();
-        properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
-        return RunAdoJobStoreTest("Npgsql", "PostgreSQL", serializerType, properties, providerMode: providerMode);
+        return RunAdoJobStoreTest("Npgsql", "PostgreSQL", serializerType, typeof(PostgreSQLDelegate), providerMode: providerMode);
     }
 
     [Test]
@@ -80,9 +137,7 @@ public class AdoJobStoreSmokeTest
     [TestCaseSource(nameof(GetSmokeTestCases))]
     public Task TestMySql(string serializerType, ProviderMode providerMode)
     {
-        NameValueCollection properties = new NameValueCollection();
-        properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-        return RunAdoJobStoreTest("MySqlConnector", "MySQL", serializerType, properties, providerMode: providerMode);
+        return RunAdoJobStoreTest("MySqlConnector", "MySQL", serializerType, typeof(MySQLDelegate), providerMode: providerMode);
     }
 
     [Test]
@@ -109,9 +164,7 @@ public class AdoJobStoreSmokeTest
             connection.Close();
         }
 
-        NameValueCollection properties = new NameValueCollection();
-        properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
-        await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, properties, clustered: false, providerMode: providerMode);
+        await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, typeof(SQLiteDelegate), clustered: false, providerMode: providerMode);
     }
 
     /// <summary>
@@ -173,9 +226,7 @@ public class AdoJobStoreSmokeTest
     [TestCaseSource(nameof(GetSmokeTestCases))]
     public Task TestFirebird(string serializerType, ProviderMode providerMode)
     {
-        NameValueCollection properties = new NameValueCollection();
-        properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.FirebirdDelegate, Quartz";
-        return RunAdoJobStoreTest("Firebird", "Firebird", serializerType, properties, clustered: false, providerMode: providerMode);
+        return RunAdoJobStoreTest("Firebird", "Firebird", serializerType, typeof(FirebirdDelegate), clustered: false, providerMode: providerMode);
     }
 
     [Test]
@@ -183,9 +234,7 @@ public class AdoJobStoreSmokeTest
     [TestCaseSource(nameof(GetSmokeTestCases))]
     public Task TestOracleODPManaged(string serializerType, ProviderMode providerMode)
     {
-        NameValueCollection properties = new NameValueCollection();
-        properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-        return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties, providerMode: providerMode);
+        return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, typeof(OracleDelegate), providerMode: providerMode);
     }
 
     [Test]
@@ -214,9 +263,7 @@ public class AdoJobStoreSmokeTest
             connection.Close();
         }
 
-        NameValueCollection properties = new NameValueCollection();
-        properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
-        await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false, providerMode: providerMode);
+        await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, typeof(SQLiteDelegate), clustered: false, providerMode: providerMode);
     }
 
     public static string[] GetSerializerTypes() => ["stj", "newtonsoft"];
@@ -252,18 +299,23 @@ public class AdoJobStoreSmokeTest
         yield return new TestCaseData(TestConstants.DefaultSerializerType, ProviderMode.Factory);
     }
 
-    private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
-    {
-        return RunAdoJobStoreTest(dbProvider, connectionStringId, serializerType, null);
-    }
-
+    /// <summary>
+    /// Builds a scheduler through the typed API and runs the smoke workload against it.
+    /// </summary>
+    /// <remarks>
+    /// The dialect delegate is a <see cref="Type" /> and anything else the store needs goes through
+    /// <paramref name="configureStore" />. It used to be a <c>NameValueCollection</c> of flat keys, of
+    /// which only <c>quartz.jobStore.driverDelegateType</c> was ever read — a bag that looks like
+    /// configuration and mostly is not is how the memory-optimized test lost its lock handler (#3903).
+    /// </remarks>
     private async Task RunAdoJobStoreTest(
         string dbProvider,
         string connectionStringId,
         string serializerType,
-        NameValueCollection extraProperties,
+        Type driverDelegateType,
         bool clustered = true,
-        ProviderMode providerMode = ProviderMode.Name)
+        ProviderMode providerMode = ProviderMode.Name,
+        Action<IPersistentStoreBuilder> configureStore = null)
     {
         string schedulerInstanceId = $"instance_{dbProvider}_{connectionStringId}_{serializerType}_{providerMode}_{Guid.NewGuid():N}".Replace('-', '_');
         string schedulerName = $"TestScheduler_{dbProvider}_{connectionStringId}_{serializerType}_{providerMode}".Replace('-', '_');
@@ -302,13 +354,10 @@ public class AdoJobStoreSmokeTest
                 store.UseGenericDatabase(dbProvider, GetConnectionString(connectionStringId));
             }
 
-            // Some databases need their own dialect delegate, which the test supplies by name.
-            var driverDelegateType = extraProperties?["quartz.jobStore.driverDelegateType"];
-            if (!string.IsNullOrWhiteSpace(driverDelegateType))
-            {
-                var type = new SimpleTypeLoader().LoadType(driverDelegateType)!;
-                store.Services.Replace(ServiceDescriptor.Singleton(typeof(IDriverDelegate), type));
-            }
+            // Every dialect names its own delegate, whichever way the provider was registered above.
+            store.Services.Replace(ServiceDescriptor.Singleton(typeof(IDriverDelegate), driverDelegateType));
+
+            configureStore?.Invoke(store);
 
             if (serializerType == "stj")
             {
@@ -410,9 +459,11 @@ public class AdoJobStoreSmokeTest
     [Test]
     [Explicit]
     [Category("db-sqlserver")]
-    [TestCaseSource(nameof(GetSmokeTestCases))]
+    [TestCaseSource(nameof(GetSerializerTypes))]
     public async Task TestSqlServerStress(string serializerType)
     {
+        await RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, typeof(SqlServerDelegate));
+
         NameValueCollection properties = new NameValueCollection();
 
         properties["quartz.scheduler.instanceName"] = "TestScheduler";
@@ -423,9 +474,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.jobStore.dataSource"] = "default";
         properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
         properties["quartz.jobStore.clustered"] = true.ToString();
-
         properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-        await RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties);
 
         string connectionString = GetConnectionString("SQLServer");
         properties["quartz.dataSource.default.connectionString"] = connectionString;
@@ -653,6 +702,19 @@ public class AdoJobStoreSmokeTest
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// Completes the <see cref="TaskCompletionSource" /> the test left in the scheduler context, so the
+    /// test knows a firing went all the way through the store's locks.
+    /// </summary>
+    public class SignalingJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            ((TaskCompletionSource) context.Scheduler.Context[KeyJobFired]).TrySetResult();
             return default;
         }
     }
