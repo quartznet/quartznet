@@ -18,10 +18,10 @@ namespace Quartz.Diagnostics;
 /// What is left over cannot be injected anything, and this is the whole of it:
 /// <see cref="Quartz.Listeners.JobChainingJobListener" />, which a caller constructs and hands over
 /// already built; <see cref="Quartz.Impl.Triggers.CronTriggerImpl" />, which is a trigger and may have
-/// been deserialized out of a job store; the static helpers <c>MisfireInstructionNames</c>,
-/// <c>FileUtil</c> and <c>QuartzEnvironment</c>; and the types in the satellite packages a caller
-/// constructs directly, such as the jobs in <c>Quartz.Jobs</c>. A type cannot be handed a logger by a
-/// container it never meets, so those sites read this instead of going unlogged.
+/// been deserialized out of a job store; the static helpers <c>MisfireInstructionNames</c> and
+/// <c>FileUtil</c>; and the types in the satellite packages a caller constructs directly, such as the
+/// jobs in <c>Quartz.Jobs</c>. A type cannot be handed a logger by a container it never meets, so those
+/// sites read this instead of going unlogged.
 /// </para>
 /// <para>
 /// It is deliberately <em>not</em> seeded from the container either, which would otherwise be the obvious

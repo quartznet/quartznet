@@ -295,8 +295,6 @@ matching on its text is not.
 | 5106 | Information | `Quartz` | `"Job '{JobKey}' will now chain to Job '{Job}'"` |
 | 5107 | Error | `Quartz` | `"Error encountered during chaining to Job '{Job}'"` |
 | 5108 | Warning | `Quartz` | `"Unable to resolve file path '{FileName}' due to security exception, probably running under medium trust"` |
-| 5109 | Warning | `Quartz` | `"Unable to read environment variable '{Key}' due to security exception, probably running under medium trust"` |
-| 5110 | Warning | `Quartz` | `"Unable to read environment variables due to security exception, probably running under medium trust"` |
 | 5111 | Debug | `Quartz` | `"Type '{OldName}' was resolved as '{NewName}' through a declared type loader alias."` |
 | 6000 | Information | `Quartz.Plugins` | `"{Message}"` |
 | 6001 | Information | `Quartz.Plugins` | `"{Message}"` |
