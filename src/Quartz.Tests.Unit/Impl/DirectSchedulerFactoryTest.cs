@@ -59,6 +59,69 @@ public class DirectSchedulerFactoryTest
         Assert.AreEqual("TestPlugin|MyScheduler|Start|Shutdown", result.ToString());
     }
 
+    /// <summary>
+    /// A scheduling call made as soon as CreateScheduler returns reaches a store that has finished
+    /// initializing (#3908).
+    /// </summary>
+    [Test]
+    public async Task CreateSchedulerReturnsOnlyOnceTheJobStoreHasInitialized()
+    {
+        SlowlyInitializingJobStore jobStore = new SlowlyInitializingJobStore();
+
+        DirectSchedulerFactory.Instance.CreateScheduler("SlowStore", "Instance1", new DedicatedThreadPool { ThreadCount = 1 }, jobStore);
+        try
+        {
+            jobStore.Initialized.Should().BeTrue(
+                "a caller takes CreateScheduler's return as the scheduler being ready, and a store still initializing behind it is half-configured for the first call");
+        }
+        finally
+        {
+            IScheduler scheduler = await DirectSchedulerFactory.Instance.GetScheduler("SlowStore");
+            await scheduler.Shutdown();
+        }
+    }
+
+    /// <summary>
+    /// A store that cannot initialize fails CreateScheduler, instead of being handed out to fail its
+    /// first call; nothing of the scheduler is bound.
+    /// </summary>
+    [Test]
+    public void CreateSchedulerReportsAJobStoreThatCannotInitialize()
+    {
+        Action act = () => DirectSchedulerFactory.Instance.CreateScheduler("FailingStore", "Instance1", new DedicatedThreadPool { ThreadCount = 1 }, new FailingJobStore());
+
+        act.Should().Throw<SchedulerConfigException>().WithMessage(FailingJobStore.Message);
+        SchedulerRepository.Instance.Lookup("FailingStore").Should().BeNull(
+            "a scheduler whose store failed to initialize would fail every call made to it");
+    }
+
+    /// <summary>
+    /// Initializes the way a database store does: its first await goes out to the database and returns
+    /// to the caller, which is what let CreateScheduler return with the store still configuring itself.
+    /// </summary>
+    private sealed class SlowlyInitializingJobStore : RAMJobStore
+    {
+        public bool Initialized { get; private set; }
+
+        public override async Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+            await base.Initialize(loadHelper, signaler, cancellationToken).ConfigureAwait(false);
+            Initialized = true;
+        }
+    }
+
+    private sealed class FailingJobStore : RAMJobStore
+    {
+        public const string Message = "the store's data source is not configured";
+
+        public override async Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            throw new SchedulerConfigException(Message);
+        }
+    }
+
     class TestPlugin : ISchedulerPlugin
     {
         readonly StringBuilder result;

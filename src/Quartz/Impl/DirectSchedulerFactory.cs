@@ -334,7 +334,30 @@ public class DirectSchedulerFactory : ISchedulerFactory
         cch.Initialize();
 
         SchedulerDetailsSetter.SetDetails(jobStore, schedulerName, schedulerInstanceId);
-        jobStore.Initialize(cch, qs.SchedulerSignaler);
+
+        // Waited for, not merely started: a caller takes this method's return as the scheduler being
+        // ready for calls, and a store still initializing behind it is not. JobStoreSupport learns its
+        // schema in Initialize, and a trigger read made beside that learning chose its SQL by one answer
+        // and decoded the row by another (#3908). This method is void and public on this branch, so it
+        // blocks; the store's own awaits capture no context, so blocking cannot deadlock.
+        try
+        {
+            jobStore.Initialize(cch, qs.SchedulerSignaler).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // As StdSchedulerFactory does: the scheduler is never bound, so nothing of it may stay running.
+            try
+            {
+                qs.Shutdown(false).ConfigureAwait(false).GetAwaiter().GetResult();
+            }
+            catch (Exception e)
+            {
+                Log.ErrorException("Got another exception while shutting down after the job store failed to initialize", e);
+            }
+
+            throw;
+        }
 
         IScheduler scheduler = new StdScheduler(qs);
 
