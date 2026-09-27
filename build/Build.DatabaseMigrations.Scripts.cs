@@ -453,6 +453,12 @@ partial class Build
 
             // --- 4.3: the captured log of an execution, on the table only UseExecutionHistory() reads ---
             files.Add(($"4.3/add_execution_log_{d}.sql", Build43ExecutionLogScript(d)));
+
+            // --- 4.3: a trigger's overlap policy, which every 4.3 node reads when it fires one ---
+            files.Add(($"4.3/add_overlap_policy_{d}.sql", Build43OverlapPolicyScript(d)));
+
+            // --- 4.3: why a firing was missed, on the table only UseExecutionHistory() reads ---
+            files.Add(($"4.3/add_misfire_reason_{d}.sql", Build43MisfireReasonScript(d)));
         }
 
         return files;
@@ -570,6 +576,81 @@ partial class Build
 
         return header
             + "\n\n" + AddColumn(dialect, TableExecutionHistory, "EXECUTION_LOG", ModelColumn(dialect, TableExecutionHistory, "EXECUTION_LOG"));
+    }
+
+    /// <summary>
+    /// The column a trigger's overlap policy is kept in, on the table every node reads a trigger from.
+    /// </summary>
+    static string Build43OverlapPolicyScript(string dialect)
+    {
+        string header = Header(dialect, "add the overlap policy column", "4.3.0", "#3875",
+            [
+                "4.3  REQUIRED. A 4.3 node reads and writes this column on every trigger it stores, so",
+                "     it refuses to start against a database without it.",
+                "",
+                "     Safe to run while 4.2 nodes are still up: the column is nullable with no default,",
+                "     so every existing row is already valid, and a 4.2 node never names it. What a 4.2",
+                "     node cannot do is honour a policy -- it fires every trigger as Default does -- so",
+                "     migrate, roll every node, and only then give a trigger an overlap policy.",
+                "",
+                $"4.1  Run ../4.2/add_continuations_{dialect}.sql first on a database created by",
+                "     4.0 or 4.1.",
+                "",
+                "3.x  Not applicable. Upgrading from 3.x means running",
+                $"     ../4.0/schema_30_to_40_upgrade_{dialect}.sql and every later migration first;",
+                "     this file is what 4.3 adds on top of them.",
+            ],
+            [
+                "OVERLAP_POLICY is the integer of the trigger's OverlapPolicy: what happens when a",
+                "firing comes due while an earlier firing of the same trigger is still running.",
+                "NULL and 0 are Default, 1 Skip, 2 BufferOne, 3 CancelPrevious, 4 AllowAll. The store",
+                "adds 16 to CancelPrevious (19) while a firing that started under another policy may",
+                "still be running, and clears it once none is.",
+                "",
+                "No index is added. The column is read with the rest of the trigger's row, never",
+                "searched on.",
+            ],
+            sqliteNotIdempotent: true);
+
+        return header
+            + "\n\n" + AddColumn(dialect, TableTriggers, "OVERLAP_POLICY", ModelColumn(dialect, TableTriggers, "OVERLAP_POLICY"));
+    }
+
+    /// <summary>
+    /// The column that says why a firing was missed, on the optional misfire-history table.
+    /// </summary>
+    /// <remarks>
+    /// A file of its own rather than a section of <see cref="Build43OverlapPolicyScript" />, for the
+    /// reason <see cref="Build43ExecutionLogScript" /> is one: the table it alters is optional.
+    /// </remarks>
+    static string Build43MisfireReasonScript(string dialect)
+    {
+        string header = Header(dialect, "add the misfire reason column", "4.3.0", "#3875",
+            [
+                "4.3  OPTIONAL, and only for a database that has QRTZ_MISFIRE_HISTORY -- one that",
+                $"     ran ../4.2/add_execution_history_{dialect}.sql or was created by 4.2 or later.",
+                "     A store configured with UsePersistentStore(s => s.UseExecutionHistory()) writes",
+                "     this column with every misfire row, so it refuses to start without it. No other",
+                "     scheduler reads that table.",
+                "",
+                "     Do NOT run it against a database without QRTZ_MISFIRE_HISTORY: the statement",
+                "     alters that table, and fails when the table is not there.",
+                "",
+                "     Safe under a mixed cluster: a 4.2 node's misfire rows name their own columns and",
+                "     leave this one NULL, which reads as a misfire.",
+                "",
+                "3.x  Not applicable.",
+            ],
+            [
+                "REASON is the integer of MisfireReason: NULL and 0 are Missed -- the scheduler could",
+                "not fire the trigger in time and applied its misfire instruction -- and 1 is Overlap:",
+                "the trigger's OverlapPolicy.Skip dropped the firing because the previous one was still",
+                "running.",
+            ],
+            sqliteNotIdempotent: true);
+
+        return header
+            + "\n\n" + AddColumn(dialect, TableMisfireHistory, "REASON", ModelColumn(dialect, TableMisfireHistory, "REASON"));
     }
 
     /// <summary>

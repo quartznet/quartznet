@@ -116,6 +116,18 @@ public static class AdoConstants
     internal const string Migration43ExecutionLog = "4.3/add_execution_log_{0}.sql";
 
     /// <summary>
+    /// The migration that adds a trigger's overlap policy to <see cref="TableTriggers" />, which a
+    /// database created by 4.2 or earlier needs.
+    /// </summary>
+    internal const string Migration43OverlapPolicy = "4.3/add_overlap_policy_{0}.sql";
+
+    /// <summary>
+    /// The migration that adds why a firing was missed to <see cref="TableMisfireHistory" />. Optional,
+    /// as the table is.
+    /// </summary>
+    internal const string Migration43MisfireReason = "4.3/add_misfire_reason_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -126,7 +138,8 @@ public static class AdoConstants
     /// </remarks>
     internal static readonly (string Table, string Column, string Migration, string Feature)[] OptionalColumnNames =
     [
-        (TableExecutionHistory, ColumnExecutionLog, Migration43ExecutionLog, "UsePersistentStore(store => store.UseExecutionHistory())")
+        (TableExecutionHistory, ColumnExecutionLog, Migration43ExecutionLog, "UsePersistentStore(store => store.UseExecutionHistory())"),
+        (TableMisfireHistory, ColumnMisfireReason, Migration43MisfireReason, "UsePersistentStore(store => store.UseExecutionHistory())")
     ];
 
     /// <summary>
@@ -153,8 +166,8 @@ public static class AdoConstants
     /// <para>
     /// Each entry names the migration that adds it, so the failure can point at the script the
     /// database in front of the reader actually needs — the 3.x-to-4.0 upgrade, 4.2's continuation
-    /// columns, which a database created by 4.0 or 4.1 is missing, or 4.3's progress columns, which one
-    /// created by 4.2 is.
+    /// columns, which a database created by 4.0 or 4.1 is missing, or 4.3's progress and overlap policy
+    /// columns, which one created by 4.2 is.
     /// </para>
     /// </remarks>
     internal static readonly (string Table, string Column, string Migration)[] MigratedColumnNames =
@@ -170,7 +183,8 @@ public static class AdoConstants
         (TableTriggers, ColumnContinuesTriggerGroup, Migration42),
         (TableTriggers, ColumnContinuationCondition, Migration42),
         (TableFiredTriggers, ColumnProgress, Migration43),
-        (TableFiredTriggers, ColumnProgressMessage, Migration43)
+        (TableFiredTriggers, ColumnProgressMessage, Migration43),
+        (TableTriggers, ColumnOverlapPolicy, Migration43OverlapPolicy)
     ];
 
     // Table names
@@ -398,6 +412,12 @@ public static class AdoConstants
     /// </summary>
     public const string ColumnContinuationCondition = "CONTINUATION_CONDITION";
 
+    /// <summary>
+    /// The <c>OVERLAP_POLICY</c> column of <see cref="TableTriggers" />: the integer of the trigger's
+    /// <c>OverlapPolicy</c>, where <see langword="null" /> is <c>OverlapPolicy.Default</c>.
+    /// </summary>
+    public const string ColumnOverlapPolicy = "OVERLAP_POLICY";
+
     // TableSimpleTriggers columns names
     /// <summary>
     /// The <c>REPEAT_COUNT</c> column of <see cref="TableSimpleTriggers" />.
@@ -548,6 +568,16 @@ public static class AdoConstants
     /// noticed, which is not a firing and so is not <see cref="ColumnFiredTime" />.
     /// </summary>
     public const string ColumnMisfireTime = "MISFIRE_TIME";
+
+    /// <summary>
+    /// The <c>REASON</c> column of <see cref="TableMisfireHistory" />: the integer of the
+    /// <c>MisfireReason</c> the firing was missed for, where <see langword="null" /> is
+    /// <c>MisfireReason.Missed</c>.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.3 migration.
+    /// </remarks>
+    public const string ColumnMisfireReason = "REASON";
 
     // PARAMETER NAMES A DIALECT DELEGATE HAS TO AGREE WITH
 

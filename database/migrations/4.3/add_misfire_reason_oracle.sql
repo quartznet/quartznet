@@ -1,0 +1,44 @@
+--
+-- Quartz.NET schema migration -- add the misfire reason column
+--
+-- Introduced in Quartz.NET 4.3.0 (#3875)
+--
+-- Oracle only. Run the file matching your database; the other dialects live
+-- alongside this one in the same folder.
+--
+-- STATUS
+--   4.3  OPTIONAL, and only for a database that has QRTZ_MISFIRE_HISTORY -- one that
+--        ran ../4.2/add_execution_history_oracle.sql or was created by 4.2 or later.
+--        A store configured with UsePersistentStore(s => s.UseExecutionHistory()) writes
+--        this column with every misfire row, so it refuses to start without it. No other
+--        scheduler reads that table.
+--
+--        Do NOT run it against a database without QRTZ_MISFIRE_HISTORY: the statement
+--        alters that table, and fails when the table is not there.
+--
+--        Safe under a mixed cluster: a 4.2 node's misfire rows name their own columns and
+--        leave this one NULL, which reads as a misfire.
+--
+--   3.x  Not applicable.
+--
+-- REASON is the integer of MisfireReason: NULL and 0 are Missed -- the scheduler could
+-- not fire the trigger in time and applied its misfire instruction -- and 1 is Overlap:
+-- the trigger's OverlapPolicy.Skip dropped the firing because the previous one was still
+-- running.
+--
+-- Replace 'QRTZ_' with your configured table prefix if different.
+-- Every statement checks first, so this script is safe to run more than once.
+--
+-- !! FIRST RUN IN TEST ENVIRONMENT AGAINST A COPY OF YOUR PRODUCTION DATABASE !!
+--
+
+DECLARE
+  column_exists NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO column_exists FROM user_tab_columns
+  WHERE table_name = 'QRTZ_MISFIRE_HISTORY' AND column_name = 'REASON';
+  IF column_exists = 0 THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE QRTZ_MISFIRE_HISTORY ADD (REASON NUMBER(13) NULL)';
+  END IF;
+END;
+/

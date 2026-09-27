@@ -453,13 +453,16 @@ The store trims both tables itself, to `ExecutionHistoryOptions.Retention` (24 h
 
 ## Version 4.3
 
-Two scripts; only the first is mandatory
-([#3874](https://github.com/quartznet/quartznet/issues/3874)).
+Four scripts; the first two are mandatory
+([#3874](https://github.com/quartznet/quartznet/issues/3874),
+[#3875](https://github.com/quartznet/quartznet/issues/3875)).
 
 | Script | Status | Adds |
 |---|---|---|
 | [`migrations/4.3/add_fire_progress_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | **Mandatory** for 4.3 and later | `PROGRESS`, `PROGRESS_MESSAGE` on `QRTZ_FIRED_TRIGGERS` |
+| [`migrations/4.3/add_overlap_policy_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | **Mandatory** for 4.3 and later | `OVERLAP_POLICY` on `QRTZ_TRIGGERS` |
 | [`migrations/4.3/add_execution_log_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | Optional: only with `UseExecutionHistory()` | `EXECUTION_LOG` on `QRTZ_EXECUTION_HISTORY` |
+| [`migrations/4.3/add_misfire_reason_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.3) | Optional: only with `UseExecutionHistory()` | `REASON` on `QRTZ_MISFIRE_HISTORY` |
 
 ### The progress columns
 
@@ -488,12 +491,45 @@ object on every dialect: `nvarchar(max)`, `TEXT`, `LONGTEXT`, `CLOB`, `BLOB SUB_
 - Run it only on a database that has `QRTZ_EXECUTION_HISTORY`: it alters that table, and fails where the
   table is missing. A database without the table runs `4.2/add_execution_history_<db>.sql` first.
 
+### The overlap policy column
+
+`OVERLAP_POLICY` is the integer of the trigger's `OverlapPolicy`.
+
+| Value | Policy |
+|---|---|
+| `NULL`, `0` | `Default` |
+| `1` | `Skip` |
+| `2` | `BufferOne` |
+| `3` | `CancelPrevious` |
+| `4` | `AllowAll` |
+| `19` | `CancelPrevious`, set while a firing that started under another policy may still run; the store clears the `16` once none does |
+
+- Read and written with the rest of the trigger's row. No index.
+- A 4.3 node refuses to start without it; the startup check names the column and the script.
+
+### The misfire reason column
+
+`REASON` says why a row of `QRTZ_MISFIRE_HISTORY` is there.
+
+| Value | Reason |
+|---|---|
+| `NULL`, `0` | `Missed`: a misfire; the trigger's misfire instruction was applied |
+| `1` | `Overlap`: `OverlapPolicy.Skip` dropped the firing because the previous one was still running |
+
+- A store configured with `UseExecutionHistory()` refuses to start without it. No other store probes for
+  it.
+- Run it only on a database that has `QRTZ_MISFIRE_HISTORY`, as for the execution log column.
+
 ### Rolling 4.2 → 4.3
 
-Run both scripts while 4.2 nodes are still up. Every column is nullable with no default, and a 4.2 node
-never names them: its firings read as having reported no progress, and its history rows carry no log.
+Run the scripts while 4.2 nodes are still up. Every column is nullable with no default, and a 4.2 node
+never names them: its firings read as having reported no progress, its history rows carry no log, and
+its misfire rows read as misfires.
 
-A fresh install from `database/tables/`, and `ProvisionSchema()`, create all three columns.
+**Roll every node before giving a trigger an overlap policy.** A 4.2 node ignores `OVERLAP_POLICY` and
+fires the trigger as `Default` does, overlapping.
+
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create all five columns.
 
 ## See also
 

@@ -68,6 +68,7 @@ CREATE TABLE qrtz_triggers
     continues_trigger_name TEXT NULL,
     continues_trigger_group TEXT NULL,
     continuation_condition INTEGER NULL,
+    overlap_policy INTEGER NULL,
     job_data BYTEA NULL,
     PRIMARY KEY (sched_name, trigger_name, trigger_group),
     FOREIGN KEY (sched_name, job_name, job_group)
@@ -228,6 +229,7 @@ CREATE TABLE qrtz_misfire_history
     job_group TEXT NULL,
     misfire_time BIGINT NOT NULL,
     sched_time BIGINT NULL,
+    reason INTEGER NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 

@@ -107,8 +107,8 @@ public sealed class MigratedColumnTest
     /// of them ships per dialect.
     /// </summary>
     /// <remarks>
-    /// Three of them since 4.3: a database created by 3.x needs all three, one created by 4.0 or 4.1
-    /// the last two, one created by 4.2 the last, and what startup probes is the union — which is why
+    /// Four of them since 4.3: a database created by 3.x needs all four, one created by 4.0 or 4.1
+    /// the last three, one created by 4.2 the last two, and what startup probes is the union — which is why
     /// the union is what this compares against. The optional history migrations are not among them:
     /// startup probes those only when the history is on, which <c>AdoConstants.OptionalColumnNames</c>
     /// holds.
@@ -117,7 +117,8 @@ public sealed class MigratedColumnTest
     [
         ("4.0", "schema_30_to_40_upgrade_{0}.sql"),
         ("4.2", "add_continuations_{0}.sql"),
-        ("4.3", "add_fire_progress_{0}.sql")
+        ("4.3", "add_fire_progress_{0}.sql"),
+        ("4.3", "add_overlap_policy_{0}.sql")
     ];
 
     /// <summary>
@@ -150,7 +151,8 @@ public sealed class MigratedColumnTest
     /// </summary>
     private static readonly (string Folder, string FileFormat)[] OptionalMigrations =
     [
-        ("4.3", "add_execution_log_{0}.sql")
+        ("4.3", "add_execution_log_{0}.sql"),
+        ("4.3", "add_misfire_reason_{0}.sql")
     ];
 
     private static HashSet<(string Table, string Column)> ColumnsAddedBy(string dialect)
