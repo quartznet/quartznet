@@ -497,19 +497,24 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
-    public async Task AReasonlessPauseRecordsWhenAndAnAlreadyPausedTriggerKeepsItsPause()
+    public async Task AReasonlessPauseRecordsNothingAndAnAlreadyPausedTriggerKeepsItsPause()
     {
-        IOperableTrigger trigger = await ScheduleJobWithTrigger("reasonless", JobGroupA, TriggerGroupA);
+        IOperableTrigger reasonless = await ScheduleJobWithTrigger("reasonless", JobGroupA, TriggerGroupA);
+        IOperableTrigger withReason = await ScheduleJobWithTrigger("with-reason", JobGroupA, TriggerGroupA);
 
-        (await Store.PauseTrigger(trigger.Key)).Should().BeTrue();
-        PauseInfo first = await Store.GetTriggerPause(trigger.Key);
-        first.Should().NotBeNull("every pause records when it was made");
-        first.Reason.Should().BeNull();
-        first.RequestedBy.Should().BeNull();
+        (await Store.PauseTrigger(reasonless.Key)).Should().BeTrue();
+        (await Store.GetTriggerPause(reasonless.Key)).Should().BeNull(
+            "a pause without a reason is the pause 4.2 made, and records nothing");
 
-        (await Store.PauseTriggerWith(trigger.Key, Maintenance)).Should().BeFalse("the trigger was already paused");
-        (await Store.GetTriggerPause(trigger.Key)).Should().Be(first,
+        (await Store.PauseTriggerWith(reasonless.Key, Maintenance)).Should().BeFalse("the trigger was already paused");
+        (await Store.GetTriggerPause(reasonless.Key)).Should().BeNull(
             "a pause that moved nothing records nothing over the one the trigger has");
+
+        (await Store.PauseTriggerWith(withReason.Key, Maintenance)).Should().BeTrue();
+        PauseInfo first = await Store.GetTriggerPause(withReason.Key);
+        (await Store.PauseTriggerWith(withReason.Key, new PauseDetails { Reason = "second thoughts" })).Should().BeFalse();
+        (await Store.GetTriggerPause(withReason.Key)).Should().Be(first,
+            "the second pause moved nothing, so the first one's reason stands");
     }
 
     [Test]

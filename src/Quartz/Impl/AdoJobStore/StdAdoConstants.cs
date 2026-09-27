@@ -1224,8 +1224,12 @@ internal static class StdAdoConstants
     /// Prefix of what a resume forgets about the pause; the caller appends a key-set predicate built by
     /// <c>AdoUtil.BuildTriggerKeyPredicate</c>.
     /// </summary>
+    /// <remarks>
+    /// Only rows that carry a record: every record has a <c>PAUSED_AT</c>, so a trigger paused without
+    /// one — by a reasonless pause, or by a 4.2 node — is not written at all.
+    /// </remarks>
     public static readonly string SqlClearTriggerPausesPrefix =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnPauseReason} = NULL, {AdoConstants.ColumnPausedBy} = NULL, {AdoConstants.ColumnPausedAt} = NULL WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND ");
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnPauseReason} = NULL, {AdoConstants.ColumnPausedBy} = NULL, {AdoConstants.ColumnPausedAt} = NULL WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnPausedAt} IS NOT NULL AND ");
 
     public static readonly string SqlInsertPausedTriggerGroupWithPause =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TablePausedTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnPauseReason}, {AdoConstants.ColumnPausedBy}, {AdoConstants.ColumnPausedAt}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.PauseReason}, @{SqlParameters.PausedBy}, @{SqlParameters.PausedAt})");
@@ -1234,11 +1238,13 @@ internal static class StdAdoConstants
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TablePausedJobs} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnPauseReason}, {AdoConstants.ColumnPausedBy}, {AdoConstants.ColumnPausedAt}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.JobGroup}, @{SqlParameters.PauseReason}, @{SqlParameters.PausedBy}, @{SqlParameters.PausedAt})");
 
     /// <summary>
-    /// A trigger's state and its own pause record, beside its trigger group's and its job group's, in one
-    /// round trip: the second and third are what a trigger paused only because its group is answers.
+    /// A trigger's state and its own pause record, beside its trigger group's, its job group's and the
+    /// pause-all marker's, in one round trip: the others are what a trigger paused only because its group
+    /// is answers. Whether the trigger group has a row at all is read too, since a row the marker made
+    /// has no record of its own.
     /// </summary>
     public static readonly string SqlSelectTriggerPause =
-        Invariant($"SELECT t.{AdoConstants.ColumnTriggerState}, t.{AdoConstants.ColumnPauseReason}, t.{AdoConstants.ColumnPausedBy}, t.{AdoConstants.ColumnPausedAt}, tg.{AdoConstants.ColumnPauseReason}, tg.{AdoConstants.ColumnPausedBy}, tg.{AdoConstants.ColumnPausedAt}, jg.{AdoConstants.ColumnPauseReason}, jg.{AdoConstants.ColumnPausedBy}, jg.{AdoConstants.ColumnPausedAt} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t LEFT JOIN {TablePrefixSubst}{AdoConstants.TablePausedTriggers} tg ON tg.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND tg.{AdoConstants.ColumnTriggerGroup} = t.{AdoConstants.ColumnTriggerGroup} LEFT JOIN {TablePrefixSubst}{AdoConstants.TablePausedJobs} jg ON jg.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND jg.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} WHERE t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND t.{AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+        Invariant($"SELECT t.{AdoConstants.ColumnTriggerState}, t.{AdoConstants.ColumnPauseReason}, t.{AdoConstants.ColumnPausedBy}, t.{AdoConstants.ColumnPausedAt}, tg.{AdoConstants.ColumnPauseReason}, tg.{AdoConstants.ColumnPausedBy}, tg.{AdoConstants.ColumnPausedAt}, jg.{AdoConstants.ColumnPauseReason}, jg.{AdoConstants.ColumnPausedBy}, jg.{AdoConstants.ColumnPausedAt}, tg.{AdoConstants.ColumnTriggerGroup}, m.{AdoConstants.ColumnPauseReason}, m.{AdoConstants.ColumnPausedBy}, m.{AdoConstants.ColumnPausedAt} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t LEFT JOIN {TablePrefixSubst}{AdoConstants.TablePausedTriggers} tg ON tg.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND tg.{AdoConstants.ColumnTriggerGroup} = t.{AdoConstants.ColumnTriggerGroup} LEFT JOIN {TablePrefixSubst}{AdoConstants.TablePausedJobs} jg ON jg.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND jg.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} LEFT JOIN {TablePrefixSubst}{AdoConstants.TablePausedTriggers} m ON m.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND m.{AdoConstants.ColumnTriggerGroup} = @{SqlParameters.AllGroupsPaused} WHERE t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND t.{AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlSelectTriggerGroupPause =
         Invariant($"SELECT {AdoConstants.ColumnPauseReason}, {AdoConstants.ColumnPausedBy}, {AdoConstants.ColumnPausedAt} FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");

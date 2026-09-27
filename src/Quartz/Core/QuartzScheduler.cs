@@ -1987,13 +1987,21 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// <see cref="PauseTrigger" />, with the details handed to the store to record.
     /// </summary>
+    /// <remarks>
+    /// Details that <see cref="PauseDetails.SaysNothing">say nothing</see> are the reasonless pause, and
+    /// the store is asked for exactly that: its <see cref="IJobStore.PauseTrigger" />.
+    /// </remarks>
     public async ValueTask<bool> PauseTriggerWith(
         TriggerKey triggerKey,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        }
+
         ArgumentNullException.ThrowIfNull(triggerKey);
-        ArgumentNullException.ThrowIfNull(details);
         ValidateState();
 
         bool paused = await resources.JobStore.PauseTriggerWith(triggerKey, details, cancellationToken).ConfigureAwait(false);
@@ -2009,13 +2017,20 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// <see cref="PauseJob" />, with the details handed to the store to record.
     /// </summary>
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseJob" />.
+    /// </remarks>
     public async ValueTask<bool> PauseJobWith(
         JobKey jobKey,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
+        }
+
         ArgumentNullException.ThrowIfNull(jobKey);
-        ArgumentNullException.ThrowIfNull(details);
         ValidateState();
 
         bool found = await resources.JobStore.PauseJobWith(jobKey, details, cancellationToken).ConfigureAwait(false);
@@ -2031,13 +2046,20 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// <see cref="PauseTriggerGroups" />, with the details handed to the store to record.
     /// </summary>
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseTriggerGroups" />.
+    /// </remarks>
     public async ValueTask<List<string>> PauseTriggerGroupsWith(
         GroupMatcher<TriggerKey> matcher,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
+        }
+
         ArgumentNullException.ThrowIfNull(matcher);
-        ArgumentNullException.ThrowIfNull(details);
         ValidateState();
 
         var pausedGroups = await resources.JobStore.PauseTriggerGroupsWith(matcher, details, cancellationToken).ConfigureAwait(false);
@@ -2049,13 +2071,20 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// <see cref="PauseJobGroups" />, with the details handed to the store to record.
     /// </summary>
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseJobGroups" />.
+    /// </remarks>
     public async ValueTask<List<string>> PauseJobGroupsWith(
         GroupMatcher<JobKey> matcher,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseJobGroups(matcher, cancellationToken).ConfigureAwait(false);
+        }
+
         ArgumentNullException.ThrowIfNull(matcher);
-        ArgumentNullException.ThrowIfNull(details);
         ValidateState();
 
         var pausedGroups = await resources.JobStore.PauseJobGroupsWith(matcher, details, cancellationToken).ConfigureAwait(false);
@@ -2067,9 +2096,17 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// <see cref="PauseAll" />, with the details handed to the store to record.
     /// </summary>
-    public async ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseAll" />.
+    /// </remarks>
+    public async ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(details);
+        if (PauseDetails.SaysNothing(details))
+        {
+            await PauseAll(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         ValidateState();
 
         await resources.JobStore.PauseAllWith(details, cancellationToken).ConfigureAwait(false);

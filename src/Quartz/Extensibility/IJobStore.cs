@@ -839,18 +839,24 @@ public interface IJobStore
     /// trigger is resumed. A trigger that was already paused keeps the pause it had.
     /// </para>
     /// <para>
+    /// Details that say nothing record nothing, and must pause exactly as <see cref="PauseTrigger" />
+    /// does — the same writes, through the same extension points — so a pause that has nothing to say
+    /// behaves as it did before a pause could say anything.
+    /// </para>
+    /// <para>
     /// A default interface member, so a store written against an earlier 4.x keeps working: the default
     /// drops the details and calls <see cref="PauseTrigger" />. A new name rather than an overload,
     /// because the API baseline marks default implementations per name.
     /// </para>
     /// </remarks>
     /// <param name="triggerKey">The trigger to pause.</param>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseTrigger" /> returns.</returns>
     ValueTask<bool> PauseTriggerWith(
         TriggerKey triggerKey,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
         return PauseTrigger(triggerKey, cancellationToken);
@@ -864,12 +870,13 @@ public interface IJobStore
     /// calls <see cref="PauseJob" />.
     /// </remarks>
     /// <param name="jobKey">The job whose triggers to pause.</param>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseJob" /> returns.</returns>
     ValueTask<bool> PauseJobWith(
         JobKey jobKey,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
         return PauseJob(jobKey, cancellationToken);
@@ -884,12 +891,13 @@ public interface IJobStore
     /// <see cref="PauseTriggerWith" /> is one; the default calls <see cref="PauseTriggerGroups" />.
     /// </remarks>
     /// <param name="matcher">The groups to pause.</param>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseTriggerGroups" /> returns.</returns>
     ValueTask<List<string>> PauseTriggerGroupsWith(
         GroupMatcher<TriggerKey> matcher,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
         return PauseTriggerGroups(matcher, cancellationToken);
@@ -904,12 +912,13 @@ public interface IJobStore
     /// <see cref="PauseTriggerWith" /> is one; the default calls <see cref="PauseJobGroups" />.
     /// </remarks>
     /// <param name="matcher">The groups to pause.</param>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>What <see cref="PauseJobGroups" /> returns.</returns>
     ValueTask<List<string>> PauseJobGroupsWith(
         GroupMatcher<JobKey> matcher,
-        PauseDetails details,
+        PauseDetails? details,
         CancellationToken cancellationToken = default)
     {
         return PauseJobGroups(matcher, cancellationToken);
@@ -922,9 +931,10 @@ public interface IJobStore
     /// A default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default
     /// calls <see cref="PauseAll" />.
     /// </remarks>
-    /// <param name="details">Why, and who asked.</param>
+    /// <param name="details">Why, and who asked. <see langword="null" />, or details that say nothing, is the
+    /// reasonless pause.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return PauseAll(cancellationToken);
     }
@@ -936,7 +946,7 @@ public interface IJobStore
     /// <para>
     /// The record on the trigger itself; for a trigger paused without one — stored into a group that was
     /// already paused — its trigger group's record, and then its job group's. <see langword="null" />
-    /// when the trigger does not exist, is not paused, or its pause recorded nothing.
+    /// when the trigger does not exist, is not paused, or was paused without a reason.
     /// </para>
     /// <para>
     /// A store that shares its data with nodes that record nothing — a 4.2 node over the same database —
@@ -956,7 +966,7 @@ public interface IJobStore
     /// The pause recorded for the trigger group, while it is paused.
     /// </summary>
     /// <remarks>
-    /// <see langword="null" /> when the group is not paused, or its pause recorded nothing. A default
+    /// <see langword="null" /> when the group is not paused, or was paused without a reason. A default
     /// interface member, whose default answers <see langword="null" />.
     /// </remarks>
     /// <param name="groupName">The trigger group to ask about.</param>
@@ -970,7 +980,7 @@ public interface IJobStore
     /// The pause recorded for the job group, while it is paused.
     /// </summary>
     /// <remarks>
-    /// <see langword="null" /> when the group is not paused, or its pause recorded nothing. A default
+    /// <see langword="null" /> when the group is not paused, or was paused without a reason. A default
     /// interface member, whose default answers <see langword="null" />.
     /// </remarks>
     /// <param name="groupName">The job group to ask about.</param>

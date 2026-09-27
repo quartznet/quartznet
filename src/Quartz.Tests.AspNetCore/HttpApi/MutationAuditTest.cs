@@ -351,7 +351,6 @@ public sealed class MutationAuditTest
 
         fake = A.Fake<IScheduler>();
         A.CallTo(() => fake.SchedulerName).Returns(TestData.SchedulerName);
-        FakeSchedulers.AnswerThePausesWithDetailsFromTheReasonlessOnes(fake);
         A.CallTo(() => fake.QueryJobs(A<JobQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<JobHeader>([], HasMore: false));
         A.CallTo(() => fake.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))

@@ -926,6 +926,10 @@ public interface IDriverDelegate
 
     //---------------------------------------------------------------------------
     // what a pause records
+    //
+    // The store calls these only for a pause that records something. A pause without a
+    // reason — every pause a 4.2 caller makes — goes through the members it always went
+    // through, so a delegate that overrides those still decides how such a pause is made.
     //---------------------------------------------------------------------------
 
     /// <summary>
@@ -987,7 +991,9 @@ public interface IDriverDelegate
     /// Forgets the pause recorded on the given triggers, which a resume does.
     /// </summary>
     /// <remarks>
-    /// A default interface member; the default forgets nothing, having recorded nothing.
+    /// Called after the resume's own statements, which are unchanged, for the triggers they moved. A
+    /// trigger with no record is left as it is. A default interface member; the default forgets
+    /// nothing, having recorded nothing.
     /// </remarks>
     /// <param name="conn">The DB Connection.</param>
     /// <param name="triggerKeys">The triggers resumed. An empty collection does nothing.</param>
@@ -1004,19 +1010,18 @@ public interface IDriverDelegate
     /// Records that a trigger group is paused, and why.
     /// </summary>
     /// <remarks>
-    /// <see cref="InsertPausedTriggerGroup" /> with the record; <see langword="null" /> records nothing,
-    /// as that member does. A default interface member; the default calls
-    /// <see cref="InsertPausedTriggerGroup" />.
+    /// <see cref="InsertPausedTriggerGroup" /> with the record. A default interface member; the default
+    /// calls <see cref="InsertPausedTriggerGroup" />.
     /// </remarks>
     /// <param name="conn">The DB Connection.</param>
     /// <param name="groupName">Name of the group.</param>
-    /// <param name="pause">What to record, or <see langword="null" /> for nothing.</param>
+    /// <param name="pause">What to record.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The number of rows inserted.</returns>
     ValueTask<int> InsertTriggerGroupPause(
         ConnectionAndTransactionHolder conn,
         string groupName,
-        PauseInfo? pause,
+        PauseInfo pause,
         CancellationToken cancellationToken = default)
     {
         return InsertPausedTriggerGroup(conn, groupName, cancellationToken);
@@ -1043,8 +1048,8 @@ public interface IDriverDelegate
     }
 
     /// <summary>
-    /// The pause recorded for a trigger that is paused: its own record, or its trigger group's, or its
-    /// job group's.
+    /// The pause recorded for a trigger that is paused: its own record, or its trigger group's — the
+    /// pause-all marker's, for a group row written with no record of its own — or its job group's.
     /// </summary>
     /// <remarks>
     /// <see langword="null" /> for a trigger that is missing or not <c>PAUSED</c> or

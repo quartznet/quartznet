@@ -676,7 +676,7 @@ The `…/keys/pause` and `…/keys/resume` routes beside them return the keys th
 
 ### A pause can say why
 
-From 4.3. These routes take an optional body; no body is the reasonless pause:
+From 4.3. These routes take an optional body:
 
 - `POST …/triggers/{group}/{name}/pause`, `…/triggers/pause`
 - `POST …/jobs/{group}/{name}/pause`, `…/jobs/pause`
@@ -686,8 +686,11 @@ From 4.3. These routes take an optional body; no body is the reasonless pause:
 { "reason": "vendor API is down until 18:00", "requestedBy": "alice" }
 ```
 
-- Both members are optional. `requestedBy` left out is the authenticated user's name, the one the
+- **No body is the pause a 4.2 client makes.** It calls the reasonless `IScheduler` member, records nothing,
+  and does not name the caller.
+- Both members are optional. With a body, `requestedBy` left out is the authenticated user's name, the one the
   [mutation audit](#production-hardening) logs.
+- A body that says nothing (no reason, no requester, nobody authenticated) is the reasonless pause too.
 - The key-set `…/keys/pause` routes take no reason.
 
 The record is read back as `pause`:
@@ -709,8 +712,8 @@ The record is read back as `pause`:
 }
 ```
 
-`reason` and `requestedBy` are `null` for a pause that did not say. A 4.2 client ignores `pause`; a 4.2 host
-ignores the body. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
+`pause` is `null` for a pause that said nothing; in a record, either text may be `null`. A 4.2 client ignores
+`pause`; a 4.2 host ignores the body. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
 
 ### A whole set of keys in one call
 

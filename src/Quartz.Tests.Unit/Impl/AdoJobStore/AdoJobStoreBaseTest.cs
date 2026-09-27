@@ -598,9 +598,6 @@ public class AdoJobStoreBaseTest
             .Returns(new ValueTask<bool>(false));
         A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        // A marker a 4.2 node wrote, which recorded no reason.
-        A.CallTo(() => driverDelegate.SelectTriggerGroupPause(conn, AdoConstants.AllGroupsPaused, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<PauseInfo>((PauseInfo) null));
         A.CallTo(() => driverDelegate.TriggerExists(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
 
@@ -611,34 +608,12 @@ public class AdoJobStoreBaseTest
         // A trigger stored into a paused group is stored paused.
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, trigger, StoredTriggerState.Paused, job, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
-    }
 
-    /// <summary>
-    /// The row a pause-all's marker materializes carries the marker's record, so the group it pauses
-    /// says why.
-    /// </summary>
-    [Test]
-    public async Task AddTrigger_MaterializesAWildcardPauseWithTheRecordItCarries()
-    {
-        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
-        IOperableTrigger trigger = CreateTestTrigger();
-        IJobDetail job = CreateConcurrentJob();
-        PauseInfo record = new("maintenance window", "ops", new DateTimeOffset(2031, 1, 1, 0, 0, 0, TimeSpan.Zero));
-
-        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, trigger.Key.Group, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<bool>(false));
-        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.SelectTriggerGroupPause(conn, AdoConstants.AllGroupsPaused, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<PauseInfo>(record));
-        A.CallTo(() => driverDelegate.TriggerExists(conn, trigger.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<bool>(true));
-
-        await jobStoreSupport.CallAddTrigger(conn, trigger, job, replace: true);
-
-        A.CallTo(() => driverDelegate.InsertTriggerGroupPause(conn, trigger.Key.Group, record, A<CancellationToken>.Ignored))
-            .MustHaveHappenedOnceExactly();
-        A.CallTo(() => driverDelegate.InsertPausedTriggerGroup(conn, A<string>._, A<CancellationToken>.Ignored))
+        // Storing a trigger makes the calls it made before a pause could say why: the marker's record is
+        // read where it is kept, when a pause is asked about, not copied here.
+        A.CallTo(() => driverDelegate.SelectTriggerGroupPause(A<ConnectionAndTransactionHolder>._, A<string>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.InsertTriggerGroupPause(A<ConnectionAndTransactionHolder>._, A<string>._, A<PauseInfo>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 

@@ -104,23 +104,52 @@ public sealed class PauseReasonSchedulerTest
         await using ServiceProvider provider = BuildScheduler("arguments");
         IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
 
-        Func<Task> withoutDetails = async () => await scheduler.PauseTriggerWith(new TriggerKey("nightly", "reports"), null!);
+        Func<Task> withoutTriggerKey = async () => await scheduler.PauseTriggerWith(null!, maintenance);
         Func<Task> withoutKey = async () => await scheduler.PauseJobWith(null!, maintenance);
         Func<Task> withoutMatcher = async () => await scheduler.PauseTriggerGroupsWith(null!, maintenance);
         Func<Task> withoutJobMatcher = async () => await scheduler.PauseJobGroupsWith(null!, maintenance);
-        Func<Task> pauseAllWithoutDetails = async () => await scheduler.PauseAllWith(null!);
+        Func<Task> reasonlessWithoutKey = async () => await scheduler.PauseTriggerWith(null!, null);
         Func<Task> readWithoutKey = async () => await scheduler.GetTriggerPause(null!);
         Func<Task> readWithoutGroup = async () => await scheduler.GetTriggerGroupPause(null!);
         Func<Task> readWithoutJobGroup = async () => await scheduler.GetJobGroupPause(null!);
 
-        await withoutDetails.Should().ThrowAsync<ArgumentNullException>();
+        await withoutTriggerKey.Should().ThrowAsync<ArgumentNullException>();
         await withoutKey.Should().ThrowAsync<ArgumentNullException>();
         await withoutMatcher.Should().ThrowAsync<ArgumentNullException>();
         await withoutJobMatcher.Should().ThrowAsync<ArgumentNullException>();
-        await pauseAllWithoutDetails.Should().ThrowAsync<ArgumentNullException>();
+        await reasonlessWithoutKey.Should().ThrowAsync<ArgumentNullException>(
+            "a pause that says nothing is the reasonless member, which checks its key as it always did");
         await readWithoutKey.Should().ThrowAsync<ArgumentNullException>();
         await readWithoutGroup.Should().ThrowAsync<ArgumentNullException>();
         await readWithoutJobGroup.Should().ThrowAsync<ArgumentNullException>();
+
+        await scheduler.Shutdown();
+    }
+
+    [Test]
+    public async Task DetailsThatSayNothingAreTheReasonlessPauseAndRecordNothing()
+    {
+        PauseRecorder recorder = new();
+        await using ServiceProvider provider = BuildScheduler("says-nothing", quartz =>
+            quartz.AddSchedulerListener(recorder));
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        TriggerKey nightly = new("nightly", "reports");
+
+        (await scheduler.PauseTriggerWith(nightly, null)).Should().BeTrue();
+        (await scheduler.PauseJobWith(new JobKey("import", "imports"), new PauseDetails())).Should().BeTrue();
+        (await scheduler.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals("reports"), null)).Should().Equal(["reports"]);
+        (await scheduler.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("imports"), new PauseDetails())).Should().Equal(["imports"]);
+        await scheduler.PauseAllWith(new PauseDetails { Reason = " ", RequestedBy = "" });
+
+        (await scheduler.GetTriggerState(nightly)).Should().Be(TriggerState.Paused);
+        (await scheduler.GetTriggerPause(nightly)).Should().BeNull(
+            "null, or details with nothing in them, is the pause every caller made before 4.3, and it records nothing");
+        (await scheduler.GetTriggerGroupPause("reports")).Should().BeNull();
+        (await scheduler.GetJobGroupPause("imports")).Should().BeNull();
+
+        recorder.Events.Should().Equal(
+            ["trigger reports.nightly", "job imports.import", "trigger group reports", "job group imports", "all triggers"],
+            "the reasonless pause is announced as it always was");
 
         await scheduler.Shutdown();
     }

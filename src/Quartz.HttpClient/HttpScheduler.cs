@@ -732,11 +732,15 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     /// <remarks>
     /// The details go as the pause route's optional body. A host older than 4.3 ignores it and pauses
     /// without them, which is what <see cref="IScheduler.PauseTriggerWith" /> promises of a scheduler that
-    /// records nothing.
+    /// records nothing. Details that say nothing are <see cref="PauseTrigger" />, which sends no body, so
+    /// the host makes the pause it made before a pause could say anything.
     /// </remarks>
-    public async ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(details);
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        }
 
         var result = await httpClient.PostWithResponse<PauseRequest, OperationAppliedResponse>(
             $"{TriggerEndpointUrl(triggerKey)}/pause", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -744,9 +748,15 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     }
 
     /// <inheritdoc />
-    public async ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseJob" />, which sends no body.
+    /// </remarks>
+    public async ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(details);
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
+        }
 
         var result = await httpClient.PostWithResponse<PauseRequest, OperationAppliedResponse>(
             $"{JobEndpointUrl(jobKey)}/pause", PauseBody(details), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -754,10 +764,17 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     }
 
     /// <inheritdoc />
-    public async ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseTriggerGroups" />, which sends no body.
+    /// </remarks>
+    public async ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
+        }
+
         ArgumentNullException.ThrowIfNull(matcher);
-        ArgumentNullException.ThrowIfNull(details);
 
         var urlParams = matcher.ToUrlParameters();
         var result = await httpClient.PostWithResponse<PauseRequest, AffectedGroupsResponse>(
@@ -766,10 +783,17 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     }
 
     /// <inheritdoc />
-    public async ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseJobGroups" />, which sends no body.
+    /// </remarks>
+    public async ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseJobGroups(matcher, cancellationToken).ConfigureAwait(false);
+        }
+
         ArgumentNullException.ThrowIfNull(matcher);
-        ArgumentNullException.ThrowIfNull(details);
 
         var urlParams = matcher.ToUrlParameters();
         var result = await httpClient.PostWithResponse<PauseRequest, AffectedGroupsResponse>(
@@ -778,9 +802,15 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
     }
 
     /// <inheritdoc />
-    public ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseAll" />, which sends no body.
+    /// </remarks>
+    public ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(details);
+        if (PauseDetails.SaysNothing(details))
+        {
+            return PauseAll(cancellationToken);
+        }
 
         return httpClient.Post($"{SchedulerEndpointUrl()}/pause-all", PauseBody(details), jsonSerializerOptions, cancellationToken);
     }

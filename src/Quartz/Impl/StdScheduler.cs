@@ -406,31 +406,31 @@ internal sealed class StdScheduler : IScheduler
     }
 
     /// <inheritdoc />
-    public ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseTriggerWith(triggerKey, details, cancellationToken);
     }
 
     /// <inheritdoc />
-    public ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseJobWith(jobKey, details, cancellationToken);
     }
 
     /// <inheritdoc />
-    public ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseTriggerGroupsWith(matcher, details, cancellationToken);
     }
 
     /// <inheritdoc />
-    public ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseJobGroupsWith(matcher, details, cancellationToken);
     }
 
     /// <inheritdoc />
-    public ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    public ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseAllWith(details, cancellationToken);
     }

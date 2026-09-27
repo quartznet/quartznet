@@ -57,7 +57,6 @@ public abstract class WebApiTest
         A.CallTo(() => fake.SchedulerName).Returns(TestData.Metadata.SchedulerName);
         A.CallTo(() => fake.SchedulerInstanceId).Returns(TestData.Metadata.SchedulerInstanceId);
         AnswerTheAsyncTwinsFromTheProperties(fake);
-        FakeSchedulers.AnswerThePausesWithDetailsFromTheReasonlessOnes(fake);
 
         return fake;
     }

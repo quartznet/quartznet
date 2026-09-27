@@ -29,11 +29,19 @@ public sealed class PauseDetailsTest
     private static readonly DateTimeOffset instant = new(2031, 6, 17, 10, 0, 0, TimeSpan.Zero);
 
     [Test]
-    public void AStampKeepsWhatFitsAndTheInstantItIsGiven()
+    public void ARecordKeepsWhatFitsAndTheInstantItIsGiven()
     {
-        PauseInfo stamped = new PauseDetails { Reason = "maintenance", RequestedBy = "alice" }.Stamp(instant);
+        PauseInfo? recorded = PauseDetails.Record(new PauseDetails { Reason = "maintenance", RequestedBy = "alice" }, instant);
 
-        stamped.Should().Be(new PauseInfo("maintenance", "alice", instant));
+        recorded.Should().Be(new PauseInfo("maintenance", "alice", instant));
+    }
+
+    [Test]
+    public void DetailsThatSayOneThingAreRecorded()
+    {
+        PauseDetails.Record(new PauseDetails { RequestedBy = "alice" }, instant).Should().Be(new PauseInfo(null, "alice", instant),
+            "who asked is worth keeping even when they gave no reason");
+        PauseDetails.SaysNothing(new PauseDetails { Reason = "maintenance" }).Should().BeFalse();
     }
 
     [Test]
@@ -71,8 +79,15 @@ public sealed class PauseDetailsTest
     }
 
     [Test]
-    public void TheReasonlessDetailsSayNothing()
+    public void NoDetailsAndDetailsThatSayNothingRecordNothing()
     {
-        PauseDetails.None.Stamp(instant).Should().Be(new PauseInfo(null, null, instant));
+        PauseDetails.SaysNothing(null).Should().BeTrue();
+        PauseDetails.SaysNothing(new PauseDetails()).Should().BeTrue();
+        PauseDetails.SaysNothing(new PauseDetails { Reason = "  ", RequestedBy = "" }).Should().BeTrue(
+            "blank texts say nothing, so such details are the reasonless pause");
+
+        PauseDetails.Record(null, instant).Should().BeNull();
+        PauseDetails.Record(new PauseDetails { Reason = " " }, instant).Should().BeNull(
+            "a pause with nothing to say leaves nothing behind, as a pause before 4.3 did");
     }
 }

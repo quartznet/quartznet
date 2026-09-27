@@ -207,7 +207,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
     // TriggeredJobComplete's: an operator watching pauses is watching these too, and a dashboard written
     // against the names needs no new one.
 
-    public override ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    public override ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.PauseAll);
         if (!operation.IsRecording)
@@ -219,7 +219,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.PauseAllWith(s.details, s.cancellationToken));
     }
 
-    public override ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    public override ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.PauseTrigger);
         if (!operation.IsRecording)
@@ -232,7 +232,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.PauseTriggerWith(s.triggerKey, s.details, s.cancellationToken));
     }
 
-    public override ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    public override ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.PauseTriggerGroups);
         if (!operation.IsRecording)
@@ -244,7 +244,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.PauseTriggerGroupsWith(s.matcher, s.details, s.cancellationToken));
     }
 
-    public override ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    public override ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.PauseJob);
         if (!operation.IsRecording)
@@ -257,7 +257,7 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.PauseJobWith(s.jobKey, s.details, s.cancellationToken));
     }
 
-    public override ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    public override ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.PauseJobGroups);
         if (!operation.IsRecording)
