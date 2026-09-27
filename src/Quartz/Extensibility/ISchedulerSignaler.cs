@@ -49,6 +49,21 @@ public interface ISchedulerSignaler
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Notifies the scheduler that a firing of a trigger was dropped because an earlier firing of it was
+    /// still running and its <see cref="ITrigger.OverlapPolicy" /> says <see cref="OverlapPolicy.Skip" />.
+    /// </summary>
+    /// <remarks>
+    /// Default-implemented as a no-op so that an existing signaler keeps compiling; a job store that
+    /// calls it against one gets no notification, as a store that predates overlap policies never
+    /// skips anything.
+    /// </remarks>
+    /// <param name="trigger">The trigger, with the dropped firing still its next fire time.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask NotifyTriggerListenersSkipped(
+        ITrigger trigger,
+        CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
     /// Notifies the scheduler about finalized trigger.
     /// </summary>
     /// <param name="trigger">The trigger that has finalized.</param>

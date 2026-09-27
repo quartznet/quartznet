@@ -156,7 +156,8 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         int count = 0;
         foreach (MisfireHistoryEntry entry in Snapshot(misfiresByScheduler, schedulerName, MisfiredAt))
         {
-            if (entry.MisfiredAtUtc >= since)
+            // A firing the overlap policy skipped is recorded beside the misfires, and is not one.
+            if (entry.MisfiredAtUtc >= since && entry.Reason == MisfireReason.Missed)
             {
                 count++;
             }

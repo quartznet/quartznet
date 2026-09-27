@@ -83,4 +83,13 @@ public sealed record TriggerHeader(
     /// trigger waits for nothing.
     /// </summary>
     public ContinuationCondition? ContinuationCondition { get; init; }
+
+    /// <summary>
+    /// What the trigger does when one of its firings comes due while an earlier one is still running.
+    /// </summary>
+    /// <remarks>
+    /// An <c>init</c> property for the reason <see cref="ContinuesAfter" /> is one.
+    /// </remarks>
+    /// <seealso cref="ITrigger.OverlapPolicy" />
+    public OverlapPolicy OverlapPolicy { get; init; }
 }

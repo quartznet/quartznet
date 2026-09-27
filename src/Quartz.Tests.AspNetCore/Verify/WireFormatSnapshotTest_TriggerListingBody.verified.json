@@ -19,7 +19,8 @@
       "retryAttempt": 2,
       "continuesAfterTriggerName": null,
       "continuesAfterTriggerGroup": null,
-      "continuationCondition": null
+      "continuationCondition": null,
+      "overlapPolicy": "Default"
     },
     {
       "name": "AwaitingTriggerKey",
@@ -40,7 +41,8 @@
       "retryAttempt": 2,
       "continuesAfterTriggerName": "CronTriggerKey",
       "continuesAfterTriggerGroup": "CronTriggerGroup",
-      "continuationCondition": "OnFailure, OnCancellation"
+      "continuationCondition": "OnFailure, OnCancellation",
+      "overlapPolicy": "Default"
     }
   ],
   "hasMore": false,

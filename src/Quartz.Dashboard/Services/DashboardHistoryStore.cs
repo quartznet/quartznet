@@ -118,7 +118,13 @@ public sealed record DashboardMisfireEntry(
     string TriggerName,
     JobKeyDto? JobKey,
     DateTimeOffset MisfiredAtUtc,
-    DateTimeOffset? ScheduledFireTimeUtc);
+    DateTimeOffset? ScheduledFireTimeUtc)
+{
+    /// <summary>
+    /// Why the firing did not happen: a misfire, or a firing the trigger's overlap policy skipped.
+    /// </summary>
+    public MisfireReason Reason { get; init; }
+}
 
 /// <summary>
 /// Where the dashboard's execution history and misfire feed live.

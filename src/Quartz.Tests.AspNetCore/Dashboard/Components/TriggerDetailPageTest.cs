@@ -115,6 +115,22 @@ public class TriggerDetailPageTest
     }
 
     [Test]
+    public void ThePageShowsTheTriggersOverlapPolicy()
+    {
+        GivenTrigger(TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("CronJobKey", "CronJobGroup")
+            .WithCronSchedule("0/25 * * * * ?")
+            .WithOverlapPolicy(OverlapPolicy.BufferOne)
+            .Build());
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Markup.Should().Contain("<th>Overlap Policy</th><td>BufferOne</td>",
+            "what a trigger does when its last firing is still running is part of what it is"));
+    }
+
+    [Test]
     public void ATriggerWithNoCronExpressionIsNotOfferedACronEditor()
     {
         GivenTrigger(TestData.SimpleTrigger);

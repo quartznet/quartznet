@@ -446,7 +446,10 @@ public partial class StdAdoDelegate
             rs.IsDBNull(15) ? 0 : Convert.ToInt32(rs.GetValue(15), CultureInfo.InvariantCulture))
         {
             ContinuesAfter = continuation.Parent,
-            ContinuationCondition = continuation.IsNone ? null : continuation.When
+            ContinuationCondition = continuation.IsNone ? null : continuation.When,
+            // After the executing flag rather than beside the continuation, so every ordinal above
+            // stays where the listing has always read it.
+            OverlapPolicy = OverlapPolicyColumn.Decode(OverlapPolicyColumn.Read(rs, 20)).Policy
         };
     }
 

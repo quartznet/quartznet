@@ -65,6 +65,39 @@ public class DashboardHistoryPluginTest
     }
 
     [Test]
+    public async Task ASkippedFiringIsRecordedAsAnOverlap()
+    {
+        IDashboardHistoryStore store = TestData.Dashboard.HistoryStore(new FakeTimeProvider(Now));
+        IScheduler scheduler = FakeScheduler();
+
+        DashboardHistoryPlugin plugin = new(ProviderWith(store), new FakeTimeProvider(Now));
+        await plugin.Initialize("history", scheduler);
+        await plugin.TriggerSkipped(MisfiringTrigger(), scheduler);
+
+        PagedResult<DashboardMisfireEntry> misfires = await store.QueryMisfires(
+            new DashboardMisfireQuery { SchedulerName = "TestScheduler" });
+
+        DashboardMisfireEntry entry = misfires.Items.Should().ContainSingle().Subject;
+        entry.Reason.Should().Be(MisfireReason.Overlap);
+        entry.ScheduledFireTimeUtc.Should().Be(Now.AddMinutes(-10), "the trigger still names the firing that was dropped");
+
+        (await store.CountMisfires("TestScheduler", Now.AddHours(-1))).Should().Be(0,
+            "the overview's tile counts misfires, and a skip is not one");
+    }
+
+    [Test]
+    public async Task ASkipWithoutADashboardRegisteredIsNotWorthFailingTheSchedulerOver()
+    {
+        IScheduler scheduler = FakeScheduler();
+        DashboardHistoryPlugin plugin = new(new ServiceCollection().BuildServiceProvider(), new FakeTimeProvider(Now));
+        await plugin.Initialize("history", scheduler);
+
+        Func<Task> skipped = async () => await plugin.TriggerSkipped(MisfiringTrigger(), scheduler);
+
+        await skipped.Should().NotThrowAsync();
+    }
+
+    [Test]
     public async Task AMisfireIsNotAnExecution()
     {
         IDashboardHistoryStore store = TestData.Dashboard.HistoryStore(new FakeTimeProvider(Now));

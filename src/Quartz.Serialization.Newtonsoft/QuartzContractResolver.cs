@@ -96,6 +96,13 @@ internal sealed class QuartzContractResolver : DefaultContractResolver
             property.Converter = retryPolicyConverter;
         }
 
+        // Left out when it is Default, so a trigger with no overlap policy writes the object graph it
+        // wrote before triggers had one; an absent member reads back as Default.
+        if (property.PropertyType == typeof(OverlapPolicy))
+        {
+            property.DefaultValueHandling = DefaultValueHandling.Ignore;
+        }
+
         return property;
     }
 

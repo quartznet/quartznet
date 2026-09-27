@@ -592,6 +592,12 @@ internal abstract partial class AdoJobStoreBase
                 residue.JobsToUnblock.Add(firedTrigger.JobKey!);
                 residue.JobsToUnpause.Add(firedTrigger.JobKey!);
             }
+            else if (firedTrigger.FireInstanceState == StoredTriggerState.Executing)
+            {
+                // Its own trigger may be held back behind it by an overlap policy, and the completion
+                // that would let go of it is not coming.
+                residue.TriggersToRelease.Add(firedTrigger.TriggerKey);
+            }
         }
 
         return residue;
@@ -688,6 +694,27 @@ internal abstract partial class AdoJobStoreBase
                 residue.JobsToUnpause,
                 StoredTriggerState.Paused,
                 StoredTriggerState.PausedBlocked,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        // A trigger an overlap policy held back behind one of these executions: the BufferOne firing
+        // itself, or the firing a CancelPrevious trigger on another node was waiting for. Nothing else
+        // holds a trigger of such a job back, so the whole set goes back in one statement per state; one
+        // that was waiting for a firing on a third node as well is decided again when it next comes due.
+        if (residue.TriggersToRelease.Count > 0)
+        {
+            await Delegate.UpdateTriggerStatesFromOtherStates(
+                conn,
+                residue.TriggersToRelease,
+                StoredTriggerState.Waiting,
+                [StoredTriggerState.Blocked],
+                cancellationToken).ConfigureAwait(false);
+
+            await Delegate.UpdateTriggerStatesFromOtherStates(
+                conn,
+                residue.TriggersToRelease,
+                StoredTriggerState.Paused,
+                [StoredTriggerState.PausedBlocked],
                 cancellationToken).ConfigureAwait(false);
         }
     }
@@ -938,6 +965,12 @@ internal abstract partial class AdoJobStoreBase
 
         /// <summary>The jobs whose triggers go back from PAUSED_BLOCKED to PAUSED.</summary>
         public HashSet<JobKey> JobsToUnpause { get; } = [];
+
+        /// <summary>
+        /// The triggers of the interrupted executions of jobs that allow concurrent execution, which an
+        /// overlap policy may have held back behind them.
+        /// </summary>
+        public HashSet<TriggerKey> TriggersToRelease { get; } = [];
 
         /// <summary>
         /// The rows held back this pass: an execution of a serial job that may still be running on a node

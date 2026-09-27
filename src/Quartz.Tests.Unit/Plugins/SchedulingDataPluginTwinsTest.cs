@@ -275,6 +275,110 @@ public sealed class SchedulingDataPluginTwinsTest
             "and the continuations they agree on are the ones the documents state");
     }
 
+    /// <summary>
+    /// The two formats declare an overlap policy in the same words, and produce the same trigger.
+    /// </summary>
+    [Test]
+    public async Task BothFormatsDeclareTheSameOverlapPolicy()
+    {
+        List<ITrigger> xml = await ReadXml($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+              <schedule>
+                <job>
+                  <name>job1</name>
+                  <job-type>{JobType}</job-type>
+                </job>
+                <trigger>
+                  <cron>
+                    <name>skipping</name>
+                    <job-name>job1</job-name>
+                    <overlap-policy>Skip</overlap-policy>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+                <trigger>
+                  <simple>
+                    <name>buffering</name>
+                    <job-name>job1</job-name>
+                    <overlap-policy>bufferone</overlap-policy>
+                    <repeat-count>-1</repeat-count>
+                    <repeat-interval>60000</repeat-interval>
+                  </simple>
+                </trigger>
+                <trigger>
+                  <cron>
+                    <name>ordinary</name>
+                    <job-name>job1</job-name>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+              </schedule>
+            </job-scheduling-data>
+            """);
+
+        List<ITrigger> json = ReadJson($$"""
+            {
+              "Schedule": {
+                "Jobs": [{ "Name": "job1", "JobType": "{{JobType}}" }],
+                "Triggers": [
+                  { "Name": "skipping", "JobName": "job1", "OverlapPolicy": "Skip", "Cron": { "Expression": "0 0 12 * * ?" } },
+                  { "Name": "buffering", "JobName": "job1", "OverlapPolicy": "bufferone", "Simple": { "RepeatCount": -1, "Interval": "00:01:00" } },
+                  { "Name": "ordinary", "JobName": "job1", "Cron": { "Expression": "0 0 12 * * ?" } }
+                ]
+              }
+            }
+            """);
+
+        OverlapPolicies(xml).Should().Equal(OverlapPolicies(json),
+            "the two formats are one feature spelled twice, and a policy is a setting any schedule can carry");
+
+        OverlapPolicies(xml).Should().Equal(
+            ["skipping: Skip", "buffering: BufferOne", "ordinary: Default"],
+            "and the policies they agree on are the ones the documents state, whatever their case");
+    }
+
+    [Test]
+    public async Task BothFormatsRefuseAnOverlapPolicyThatIsNotOne()
+    {
+        Func<Task> xml = () => ReadXml($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+              <schedule>
+                <job>
+                  <name>job1</name>
+                  <job-type>{JobType}</job-type>
+                </job>
+                <trigger>
+                  <cron>
+                    <name>typo</name>
+                    <job-name>job1</job-name>
+                    <overlap-policy>Sometimes</overlap-policy>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+              </schedule>
+            </job-scheduling-data>
+            """);
+
+        Action json = () => ReadJson($$"""
+            {
+              "Schedule": {
+                "Jobs": [{ "Name": "job1", "JobType": "{{JobType}}" }],
+                "Triggers": [{ "Name": "typo", "JobName": "job1", "OverlapPolicy": "Sometimes", "Cron": { "Expression": "0 0 12 * * ?" } }]
+              }
+            }
+            """);
+
+        (await xml.Should().ThrowAsync<SchedulerConfigException>()).WithMessage("*'Sometimes' is not an overlap policy*");
+        json.Should().Throw<SchedulerConfigException>().WithMessage("*'Sometimes' is not an overlap policy*");
+    }
+
+    private static List<string> OverlapPolicies(List<ITrigger> triggers)
+    {
+        return triggers.Select(x => $"{x.Key.Name}: {x.OverlapPolicy}").ToList();
+    }
+
     private const string JobType = "Quartz.Jobs.NoOpJob, Quartz.Jobs";
 
     private static List<string> Continuations(List<ITrigger> triggers)

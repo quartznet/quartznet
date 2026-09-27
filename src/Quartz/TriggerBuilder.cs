@@ -124,6 +124,7 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     private PreferredNode preferredNode;
     private RetryPolicy? retryPolicy;
     private Continuation continuation;
+    private OverlapPolicy overlapPolicy;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -204,6 +205,15 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
             // StartAfter clears a stored continuation when it replaces an existing trigger.
             // IMutableTrigger is not the seam — 4.0 froze it — so this is written here.
             triggerBase.Continuation = continuation;
+
+            // Unconditionally too, and for the same reason: a definition without WithOverlapPolicy
+            // puts a replaced trigger back to Default.
+            triggerBase.OverlapPolicy = overlapPolicy;
+        }
+        else if (overlapPolicy != OverlapPolicy.Default)
+        {
+            Throw.NotSupportedException(
+                $"{trig.GetType().FullName} does not derive from TriggerBase, so it cannot carry the overlap policy {overlapPolicy}.");
         }
 
         trig.CalendarName = calendarName;
@@ -409,6 +419,30 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     public TriggerBuilder<TJob> WithRetryPolicy(RetryPolicy? retryPolicy)
     {
         this.retryPolicy = retryPolicy;
+        return this;
+    }
+
+    /// <summary>
+    /// Set what the trigger does when one of its firings comes due while an earlier firing of it is
+    /// still running.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="OverlapPolicy.Default" /> — what a builder that is never told otherwise builds — starts
+    /// the firing alongside the running one. <see cref="DisallowConcurrentExecutionAttribute" /> on the
+    /// job still holds back every trigger of it while one of its firings runs, whatever the policy says.
+    /// </remarks>
+    /// <param name="overlapPolicy">the policy</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a member of <see cref="OverlapPolicy" />.</exception>
+    /// <seealso cref="ITrigger.OverlapPolicy" />
+    public TriggerBuilder<TJob> WithOverlapPolicy(OverlapPolicy overlapPolicy)
+    {
+        if (!Enum.IsDefined(overlapPolicy))
+        {
+            Throw.ArgumentOutOfRangeException(nameof(overlapPolicy), $"{(int) overlapPolicy} is not an overlap policy.");
+        }
+
+        this.overlapPolicy = overlapPolicy;
         return this;
     }
 
@@ -723,6 +757,8 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithPreferredNode(PreferredNode preferredNode) => WithPreferredNode(preferredNode);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithRetryPolicy(RetryPolicy? retryPolicy) => WithRetryPolicy(retryPolicy);
+
+    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithOverlapPolicy(OverlapPolicy overlapPolicy) => WithOverlapPolicy(overlapPolicy);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithCalendarName(string? calendarName) => WithCalendarName(calendarName);
 

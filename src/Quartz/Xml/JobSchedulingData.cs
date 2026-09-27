@@ -229,6 +229,7 @@ internal sealed class JobSchedulingData
         }
 
         trigger.ContinuationCondition = Text(element, "continuation-condition");
+        trigger.OverlapPolicy = Text(element, "overlap-policy");
         trigger.MisfireInstruction = Text(element, "misfire-instruction");
         trigger.JobDataMap = ReadJobDataMap(element);
         trigger.StartTime = Timestamp(element, "start-time");
@@ -395,6 +396,12 @@ internal abstract class TriggerDefinition
     /// joined with <c>|</c>, or null for <c>OnSuccess</c>.
     /// </summary>
     public string? ContinuationCondition { get; set; }
+
+    /// <summary>
+    /// The <c>overlap-policy</c> element: <c>Skip</c>, <c>BufferOne</c>, <c>CancelPrevious</c>,
+    /// <c>AllowAll</c> or <c>Default</c>, or null for <c>Default</c>.
+    /// </summary>
+    public string? OverlapPolicy { get; set; }
 
     public string? MisfireInstruction { get; set; }
 

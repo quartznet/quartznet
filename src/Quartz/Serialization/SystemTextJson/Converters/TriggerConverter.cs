@@ -88,6 +88,16 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
                     rootElement.GetPropertyOrNull(options.GetPropertyName("ContinuesAfterTriggerName"))?.GetString(),
                     rootElement.GetPropertyOrNull(options.GetPropertyName("ContinuesAfterTriggerGroup"))?.GetString(),
                     condition is { ValueKind: JsonValueKind.Number } number ? number.GetInt32() : null);
+
+                // Absent from every payload of a trigger that has none, and from every payload written
+                // before triggers had one: both read back as Default. A name this version does not know
+                // reads as Default too, as an unreadable retry policy reads as none.
+                abstractTrigger.OverlapPolicy = rootElement.GetPropertyOrNull(options.GetPropertyName("OverlapPolicy")) switch
+                {
+                    { ValueKind: JsonValueKind.String } name when Enum.TryParse(name.GetString(), ignoreCase: true, out OverlapPolicy named) && Enum.IsDefined(named) => named,
+                    { ValueKind: JsonValueKind.Number } numeric when numeric.TryGetInt32(out int stored) && Enum.IsDefined((OverlapPolicy) stored) => (OverlapPolicy) stored,
+                    _ => OverlapPolicy.Default
+                };
             }
 
             triggerSerializer.DeserializeFields(trigger, rootElement, options);
@@ -144,6 +154,13 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
                 else
                 {
                     writer.WriteNull(options.GetPropertyName("ContinuationCondition"));
+                }
+
+                // Only when there is one, by name: a trigger with none writes exactly the payload it
+                // wrote before triggers had one.
+                if (abstractTrigger.OverlapPolicy != OverlapPolicy.Default)
+                {
+                    writer.WriteString(options.GetPropertyName("OverlapPolicy"), abstractTrigger.OverlapPolicy.ToString());
                 }
             }
 

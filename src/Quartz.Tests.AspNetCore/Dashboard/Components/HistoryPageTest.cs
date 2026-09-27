@@ -275,6 +275,20 @@ public class HistoryPageTest
     }
 
     [Test]
+    public void AFiringTheOverlapPolicySkippedIsToldApartFromAMisfire()
+    {
+        GivenHistory(Entry(100));
+        GivenMisfires(
+            TestData.Dashboard.MisfireEntry("skipped") with { Reason = MisfireReason.Overlap },
+            TestData.Dashboard.MisfireEntry("missed"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.TextOfAll(".qz-misfire-reason").Should().Equal(["Overlap", "Misfire"],
+            "a skip is the trigger doing what it was told, and a reader chasing a slow scheduler needs to tell it from one");
+    }
+
+    [Test]
     public void ASchedulerWithNoMisfiresSaysSoRatherThanShowingNothing()
     {
         GivenHistory(Entry(100));

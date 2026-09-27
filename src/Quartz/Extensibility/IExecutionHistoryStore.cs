@@ -78,7 +78,8 @@ public interface IExecutionHistoryStore
     /// <remarks>
     /// A count rather than a page, because a summary asks "how bad is it right now" and a store that
     /// keeps history in a database can answer that with one <c>COUNT(*)</c> instead of loading rows it
-    /// would throw away.
+    /// would throw away. Only <see cref="MisfireReason.Missed" /> rows count: a firing the overlap
+    /// policy skipped is recorded beside the misfires, and is not one.
     /// </remarks>
     /// <param name="schedulerName">The scheduler whose misfires to count.</param>
     /// <param name="since">The instant to count from.</param>

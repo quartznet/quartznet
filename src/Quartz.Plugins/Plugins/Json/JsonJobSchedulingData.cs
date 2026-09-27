@@ -139,6 +139,13 @@ internal sealed class JsonFileTriggerDefinition
     /// </summary>
     public string? ContinuationCondition { get; set; }
 
+    /// <summary>
+    /// What the trigger does when one of its firings comes due while an earlier firing of it is still
+    /// running: <c>Skip</c>, <c>BufferOne</c>, <c>CancelPrevious</c>, <c>AllowAll</c> or <c>Default</c>.
+    /// Absent means <c>Default</c>. A setting rather than a kind of trigger, so any schedule can carry it.
+    /// </summary>
+    public string? OverlapPolicy { get; set; }
+
     public string? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public string? EndTime { get; set; }

@@ -90,7 +90,10 @@ internal static class DashboardHistoryMapping
             entry.TriggerName,
             entry.JobKey is null ? null : new JobKey(entry.JobKey.Name, entry.JobKey.Group),
             entry.MisfiredAtUtc,
-            entry.ScheduledFireTimeUtc);
+            entry.ScheduledFireTimeUtc)
+        {
+            Reason = entry.Reason
+        };
     }
 
     public static DashboardMisfireEntry AsDashboardMisfireEntry(this MisfireHistoryEntry entry)
@@ -102,7 +105,10 @@ internal static class DashboardHistoryMapping
             entry.TriggerName,
             entry.JobKey is null ? null : new JobKeyDto(entry.JobKey.Group, entry.JobKey.Name),
             entry.MisfiredAtUtc,
-            entry.ScheduledFireTimeUtc);
+            entry.ScheduledFireTimeUtc)
+        {
+            Reason = entry.Reason
+        };
     }
 
     public static ExecutionHistoryQuery AsExecutionHistoryQuery(this DashboardHistoryQuery query)

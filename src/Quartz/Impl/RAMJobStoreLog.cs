@@ -51,4 +51,7 @@ internal static partial class RAMJobStoreLog
 
     [LoggerMessage(EventId = 2006, Level = LogLevel.Information, Message = "All triggers of Job {JobKey} set to ERROR state.")]
     public static partial void JobTriggersSetToError(this ILogger logger, JobKey jobKey);
+
+    [LoggerMessage(EventId = 2007, Level = LogLevel.Information, Message = "Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip")]
+    public static partial void OverlappingFiringSkipped(this ILogger logger, TriggerKey triggerKey, DateTimeOffset? scheduledFireTimeUtc);
 }

@@ -102,6 +102,15 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     private string? continuesAfterTriggerGroup;
     private int? continuationCondition;
 
+    // A blob written before triggers had an overlap policy has no such field and deserializes to
+    // Default, which is what it is.
+    private OverlapPolicy overlapPolicy;
+
+    // The ADO.NET store's bookkeeping for CancelPrevious; see OverlapPolicyUnsettled. Not serialized:
+    // the store's column carries it, and a blob is not the store's row.
+    [NonSerialized]
+    private bool overlapPolicyUnsettled;
+
     // Whether ExecutionComplete has just cleared a non-zero attempt, so the stores know they have a
     // write to make on a completion that otherwise writes nothing. Not serialized: it says something
     // about this completion, not about the trigger.
@@ -230,6 +239,7 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
             // retries of the occurrence being executed, and a rebuilt trigger has no occurrence in
             // flight, exactly as it has no NextFireTimeUtc.
             .WithRetryPolicy(RetryPolicy)
+            .WithOverlapPolicy(OverlapPolicy)
             .EndAt(EndTimeUtc)
             .WithIdentity(Key)
             .WithPriority(Priority)
@@ -414,6 +424,46 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
             continuesAfterTriggerGroup = value.Parent?.Group;
             continuationCondition = value.StoredCondition;
         }
+    }
+
+    /// <summary>
+    /// Gets or sets what this trigger does when one of its firings comes due while an earlier firing of
+    /// it is still running. <see cref="Quartz.OverlapPolicy.Default" /> — the default — starts it
+    /// alongside.
+    /// </summary>
+    /// <remarks>
+    /// Settable here rather than on <see cref="IMutableTrigger" />, which 4.0 froze, for the reason
+    /// <see cref="Continuation" /> is.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a member of <see cref="Quartz.OverlapPolicy" />.</exception>
+    /// <seealso cref="Quartz.OverlapPolicy" />
+    public OverlapPolicy OverlapPolicy
+    {
+        get => overlapPolicy;
+        set
+        {
+            if (!Enum.IsDefined(value))
+            {
+                Throw.ArgumentOutOfRangeException(nameof(value), $"{(int) value} is not an overlap policy.");
+            }
+
+            overlapPolicy = value;
+        }
+    }
+
+    /// <summary>
+    /// Whether <see cref="Quartz.OverlapPolicy.CancelPrevious" /> was given to this trigger while a
+    /// firing of it that started under another policy may still be running.
+    /// </summary>
+    /// <remarks>
+    /// The ADO.NET store's own bookkeeping, carried in its <c>OVERLAP_POLICY</c> column and nowhere
+    /// else. Such a firing does not release the trigger when it ends, so a firing on another node is not
+    /// waited for while this is set; the store clears it once it finds no firing of the trigger running.
+    /// </remarks>
+    internal bool OverlapPolicyUnsettled
+    {
+        get => overlapPolicyUnsettled;
+        set => overlapPolicyUnsettled = value;
     }
 
     /// <summary>

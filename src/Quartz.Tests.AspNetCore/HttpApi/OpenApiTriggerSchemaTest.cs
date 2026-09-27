@@ -41,9 +41,11 @@ public class OpenApiTriggerSchemaTest
             .WithCalendarIntervalSchedule(builder => builder.WithInterval(42, IntervalUnit.Second))
             .Build(),
 
+        // With an overlap policy, which a trigger body carries only when it is not Default.
         TriggerBuilder.Create()
             .WithIdentity("cron", "group")
             .WithCronSchedule("0/5 * * * * ?")
+            .WithOverlapPolicy(OverlapPolicy.Skip)
             .Build(),
 
         TriggerBuilder.Create()

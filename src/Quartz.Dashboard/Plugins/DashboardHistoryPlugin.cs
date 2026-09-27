@@ -170,6 +170,40 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener, ITr
         }
     }
 
+    /// <summary>
+    /// Records a firing the trigger's overlap policy skipped, beside the misfires, with
+    /// <see cref="MisfireReason.Overlap" /> as its reason.
+    /// </summary>
+    public ValueTask TriggerSkipped(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IDashboardHistoryStore? store = Store();
+            if (store is null)
+            {
+                return default;
+            }
+
+            DashboardMisfireEntry entry = new(
+                SchedulerName: scheduler.SchedulerName,
+                SchedulerInstanceId: scheduler.SchedulerInstanceId,
+                TriggerGroup: trigger.Key.Group,
+                TriggerName: trigger.Key.Name,
+                JobKey: trigger.JobKey is null ? null : new JobKeyDto(trigger.JobKey.Group, trigger.JobKey.Name),
+                MisfiredAtUtc: timeProvider.GetUtcNow(),
+                ScheduledFireTimeUtc: trigger.NextFireTimeUtc)
+            {
+                Reason = MisfireReason.Overlap
+            };
+
+            return store.AddMisfire(entry, cancellationToken);
+        }
+        catch (ObjectDisposedException)
+        {
+            return default;
+        }
+    }
+
     /// <inheritdoc />
     public ValueTask TriggerComplete(
         ITrigger trigger,

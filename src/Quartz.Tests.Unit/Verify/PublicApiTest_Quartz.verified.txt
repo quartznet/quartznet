@@ -873,6 +873,7 @@ namespace Quartz
         bool MayFireAgain { get; }
         int MisfireInstructionCode { get; }
         System.DateTimeOffset? NextFireTimeUtc { get; }
+        Quartz.OverlapPolicy OverlapPolicy { get; } // default implementation
         Quartz.PreferredNode PreferredNode { get; }
         System.DateTimeOffset? PreviousFireTimeUtc { get; }
         int Priority { get; }
@@ -908,6 +909,7 @@ namespace Quartz
         Quartz.ITriggerConfigurator<TJob> WithIdentity(Quartz.TriggerKey key);
         Quartz.ITriggerConfigurator<TJob> WithIdentity(string name);
         Quartz.ITriggerConfigurator<TJob> WithIdentity(string name, string group);
+        Quartz.ITriggerConfigurator<TJob> WithOverlapPolicy(Quartz.OverlapPolicy overlapPolicy); // default implementation
         Quartz.ITriggerConfigurator<TJob> WithPreferredNode(Quartz.PreferredNode preferredNode);
         Quartz.ITriggerConfigurator<TJob> WithPriority(int priority);
         Quartz.ITriggerConfigurator<TJob> WithRetryPolicy(Quartz.RetryPolicy? retryPolicy);
@@ -920,6 +922,7 @@ namespace Quartz
         System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask TriggerRetriesExhausted(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.JobExecutionException exception, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask TriggerSkipped(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default); // default implementation
     }
     public sealed class InMemoryJobStoreOptions
@@ -1195,6 +1198,7 @@ namespace Quartz
         public MisfireHistoryEntry(string SchedulerName, string SchedulerInstanceId, string TriggerGroup, string TriggerName, Quartz.JobKey? JobKey, System.DateTimeOffset MisfiredAtUtc, System.DateTimeOffset? ScheduledFireTimeUtc) { }
         public Quartz.JobKey? JobKey { get; init; }
         public System.DateTimeOffset MisfiredAtUtc { get; init; }
+        public Quartz.MisfireReason Reason { get; init; }
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
@@ -1207,6 +1211,11 @@ namespace Quartz
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public string? TriggerContains { get; init; }
+    }
+    public enum MisfireReason
+    {
+        Missed = 0,
+        Overlap = 1,
     }
     public readonly record struct MonthDay : System.IComparable<Quartz.MonthDay>, System.IEquatable<Quartz.MonthDay>, System.IFormattable, System.IParsable<Quartz.MonthDay>, System.ISpanFormattable, System.ISpanParsable<Quartz.MonthDay>, System.IUtf8SpanFormattable
     {
@@ -1299,6 +1308,14 @@ namespace Quartz
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public bool IsMatch(TKey key) { }
+    }
+    public enum OverlapPolicy
+    {
+        Default = 0,
+        Skip = 1,
+        BufferOne = 2,
+        CancelPrevious = 3,
+        AllowAll = 4,
     }
     public abstract record PagedQuery : System.IEquatable<Quartz.PagedQuery>
     {
@@ -1921,6 +1938,7 @@ namespace Quartz
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithIdentity(Quartz.TriggerKey)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithIdentity(string)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithIdentity(string, string)
+        // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithOverlapPolicy(Quartz.OverlapPolicy)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithPreferredNode(Quartz.PreferredNode)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithPriority(int)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithRetryPolicy(Quartz.RetryPolicy)
@@ -1944,6 +1962,7 @@ namespace Quartz
         public Quartz.TriggerBuilder<TJob> WithIdentity(Quartz.TriggerKey key) { }
         public Quartz.TriggerBuilder<TJob> WithIdentity(string name) { }
         public Quartz.TriggerBuilder<TJob> WithIdentity(string name, string group) { }
+        public Quartz.TriggerBuilder<TJob> WithOverlapPolicy(Quartz.OverlapPolicy overlapPolicy) { }
         public Quartz.TriggerBuilder<TJob> WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerBuilder<TJob> WithPriority(int priority) { }
         public Quartz.TriggerBuilder<TJob> WithRetryPolicy(Quartz.RetryPolicy? retryPolicy) { }
@@ -2004,6 +2023,7 @@ namespace Quartz
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.RecurrenceTriggerMisfireInstruction misfireInstruction) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.SimpleTriggerMisfireInstruction misfireInstruction) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstructionCode(int misfireInstructionCode) { }
+        public Quartz.TriggerDetailsUpdate WithOverlapPolicy(Quartz.OverlapPolicy overlapPolicy) { }
         public Quartz.TriggerDetailsUpdate WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerDetailsUpdate WithPriority(int priority) { }
         public Quartz.TriggerDetailsUpdate WithRetryPolicy(Quartz.RetryPolicy? retryPolicy) { }
@@ -2032,6 +2052,7 @@ namespace Quartz
         public Quartz.JobKey JobKey { get; init; }
         public Quartz.TriggerKey Key { get; init; }
         public System.DateTimeOffset? NextFireTimeUtc { get; init; }
+        public Quartz.OverlapPolicy OverlapPolicy { get; init; }
         public System.DateTimeOffset? PreviousFireTimeUtc { get; init; }
         public int Priority { get; init; }
         public int RetryAttempt { get; init; }
@@ -2326,6 +2347,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask NotifySchedulerListenersTriggerInError(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask NotifySchedulerListenersTriggersInError(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask NotifyTriggerListenersMisfired(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask NotifyTriggerListenersSkipped(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask SignalSchedulingChange(System.DateTimeOffset? candidateNewNextFireTimeUtc, System.Threading.CancellationToken cancellationToken = default);
     }
     public interface IThreadPool
@@ -2395,12 +2417,15 @@ namespace Quartz.Extensibility
         public required System.DateTimeOffset? PreviousFireTimeUtc { get; init; }
         public required bool Recovering { get; init; }
         public required System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
+        public System.Collections.Generic.IReadOnlyList<string>? SupersededFireInstanceIds { get; init; }
         public required Quartz.Extensibility.IOperableTrigger Trigger { get; init; }
     }
     public sealed class TriggerFiredResult
     {
         public System.Exception? Exception { get; }
+        public bool IsDeclined { get; }
         public Quartz.Extensibility.TriggerFiredBundle? TriggerFiredBundle { get; }
+        public static Quartz.Extensibility.TriggerFiredResult Declined { get; }
         public static Quartz.Extensibility.TriggerFiredResult NotFired { get; }
         public static Quartz.Extensibility.TriggerFiredResult Failed(System.Exception exception) { }
         public static Quartz.Extensibility.TriggerFiredResult Fired(Quartz.Extensibility.TriggerFiredBundle triggerFiredBundle) { }
@@ -2452,8 +2477,10 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnLockName = "LOCK_NAME";
         public const string ColumnMisfireInstruction = "MISFIRE_INSTR";
         public const string ColumnMisfireOriginalFireTime = "MISFIRE_ORIG_FIRE_TIME";
+        public const string ColumnMisfireReason = "REASON";
         public const string ColumnMisfireTime = "MISFIRE_TIME";
         public const string ColumnNextFireTime = "NEXT_FIRE_TIME";
+        public const string ColumnOverlapPolicy = "OVERLAP_POLICY";
         public const string ColumnPreferredNode = "PREFERRED_NODE";
         public const string ColumnPreferredNodeAuto = "PREFERRED_NODE_AUTO";
         public const string ColumnPreviousFireTime = "PREV_FIRE_TIME";
@@ -2665,6 +2692,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<int> InsertTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> IsJobCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> IsTriggerCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> JobExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> ReleaseContinuation(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.Extensibility.StoredTriggerState newState, System.DateTimeOffset fireTime, System.Threading.CancellationToken cancellationToken = default); // default implementation
@@ -3031,6 +3059,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<int> InsertTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> IsJobCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<bool> IsTriggerCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> JobExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
@@ -3895,6 +3924,7 @@ namespace Quartz.Impl.Triggers
         public abstract bool MayFireAgain { get; }
         public virtual int MisfireInstructionCode { get; set; }
         public abstract System.DateTimeOffset? NextFireTimeUtc { get; set; }
+        public Quartz.OverlapPolicy OverlapPolicy { get; set; }
         public Quartz.PreferredNode PreferredNode { get; set; }
         public abstract System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public virtual int Priority { get; set; }

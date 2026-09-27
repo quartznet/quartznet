@@ -174,6 +174,44 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
         }
     }
 
+    /// <summary>
+    /// Records a firing the trigger's overlap policy dropped, beside the misfires and told apart from
+    /// them by <see cref="MisfireHistoryEntry.Reason" />.
+    /// </summary>
+    /// <remarks>
+    /// Like a misfire it never becomes an execution, so without a row here a reader asking why the
+    /// trigger did not run at that time would find nothing at all.
+    /// </remarks>
+    public ValueTask TriggerSkipped(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IExecutionHistoryStore? store = Store();
+            if (store is null)
+            {
+                return default;
+            }
+
+            MisfireHistoryEntry entry = new(
+                SchedulerName: scheduler.SchedulerName,
+                SchedulerInstanceId: scheduler.SchedulerInstanceId,
+                TriggerGroup: trigger.Key.Group,
+                TriggerName: trigger.Key.Name,
+                JobKey: trigger.JobKey,
+                MisfiredAtUtc: timeProvider.GetUtcNow(),
+                ScheduledFireTimeUtc: trigger.NextFireTimeUtc)
+            {
+                Reason = MisfireReason.Overlap
+            };
+
+            return store.AddMisfire(entry, cancellationToken);
+        }
+        catch (ObjectDisposedException)
+        {
+            return default;
+        }
+    }
+
     /// <inheritdoc />
     public ValueTask TriggerComplete(
         ITrigger trigger,

@@ -97,7 +97,8 @@ internal sealed record TriggerHeaderDto(
     int RetryAttempt,
     string? ContinuesAfterTriggerName = null,
     string? ContinuesAfterTriggerGroup = null,
-    ContinuationCondition? ContinuationCondition = null)
+    ContinuationCondition? ContinuationCondition = null,
+    OverlapPolicy OverlapPolicy = OverlapPolicy.Default)
 {
     public static TriggerHeaderDto Create(TriggerHeader header)
     {
@@ -122,7 +123,8 @@ internal sealed record TriggerHeaderDto(
             RetryAttempt: header.RetryAttempt,
             ContinuesAfterTriggerName: header.ContinuesAfter?.Name,
             ContinuesAfterTriggerGroup: header.ContinuesAfter?.Group,
-            ContinuationCondition: header.ContinuationCondition
+            ContinuationCondition: header.ContinuationCondition,
+            OverlapPolicy: header.OverlapPolicy
         );
     }
 
@@ -150,7 +152,8 @@ internal sealed record TriggerHeaderDto(
             ContinuesAfter = ContinuesAfterTriggerName is not null && ContinuesAfterTriggerGroup is not null
                 ? new TriggerKey(ContinuesAfterTriggerName, ContinuesAfterTriggerGroup)
                 : null,
-            ContinuationCondition = ContinuationCondition
+            ContinuationCondition = ContinuationCondition,
+            OverlapPolicy = OverlapPolicy
         };
     }
 }

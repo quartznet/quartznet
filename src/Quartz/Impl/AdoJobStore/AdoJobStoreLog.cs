@@ -185,6 +185,12 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3038, Level = LogLevel.Warning, Message = "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInLocalTransactionLock, will retry after {RetryInterval}")]
     public static partial void TransientFailureInLocalTransactionLock(this ILogger logger, int attempt, int totalAttempts, TimeSpan retryInterval, Exception exception);
 
+    [LoggerMessage(EventId = 3043, Level = LogLevel.Information, Message = "Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip")]
+    public static partial void OverlappingFiringSkipped(this ILogger logger, TriggerKey triggerKey, DateTimeOffset? scheduledFireTimeUtc);
+
+    [LoggerMessage(EventId = 3044, Level = LogLevel.Information, Message = "Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node")]
+    public static partial void OverlappingFiringHeld(this ILogger logger, TriggerKey triggerKey, string schedulerInstanceId);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 

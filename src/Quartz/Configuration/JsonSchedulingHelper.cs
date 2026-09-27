@@ -183,6 +183,7 @@ internal static class JsonSchedulingHelper
                 NormalizeEmpty(continuesAfterSection[nameof(JsonTriggerKey.Group)]),
                 NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ContinuationCondition)]),
                 $"JSON trigger '{name}'");
+            OverlapPolicy overlapPolicy = SchedulingFileValues.ReadOverlapPolicy(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.OverlapPolicy)]), $"JSON trigger '{name}'");
             var priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             var startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             var startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
@@ -265,6 +266,7 @@ internal static class JsonSchedulingHelper
                 .WithExecutionGroup(executionGroup is null ? null : ExecutionGroupTemplate.Escape(executionGroup))
                 .WithRetryPolicy(retryPolicy)
                 .WithPreferredNode(preferredNode)
+                .WithOverlapPolicy(overlapPolicy)
                 .WithSchedule(schedule)
                 .Build();
 

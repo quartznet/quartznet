@@ -102,9 +102,47 @@ public class RetryColumnStatementsTest
         placeholders[policyIndex].Should().Be("@" + SqlParameters.TriggerRetryPolicy);
         placeholders[attemptIndex].Should().Be("@" + SqlParameters.TriggerRetryAttempt);
 
-        columns[^1].Should().Be(AdoConstants.ColumnContinuationCondition,
-            "columns are appended, which is what keeps every other position unchanged — the continuation "
-            + "columns are the newest, so the last of them is last");
+        columns[^2].Should().Be(AdoConstants.ColumnContinuationCondition,
+            "columns are appended, which is what keeps every other position unchanged");
+        columns[^1].Should().Be(AdoConstants.ColumnOverlapPolicy,
+            "the overlap policy is the newest column, so it is last");
+        placeholders[^1].Should().Be("@" + SqlParameters.TriggerOverlapPolicy);
+    }
+
+    /// <summary>
+    /// The overlap policy follows the continuation and precedes the optional pin in every flavour, which
+    /// is where the binder adds its parameter whichever flavour it is binding.
+    /// </summary>
+    [TestCaseSource(nameof(TriggerUpdates))]
+    public void TheOverlapPolicySitsBetweenTheContinuationAndThePin(string sql)
+    {
+        int continuation = sql.IndexOf(AdoConstants.ColumnContinuationCondition, StringComparison.Ordinal);
+        int overlap = sql.IndexOf($"{AdoConstants.ColumnOverlapPolicy} = @{SqlParameters.TriggerOverlapPolicy}", StringComparison.Ordinal);
+
+        overlap.Should().BeGreaterThan(continuation, "every flavour writes the policy, after the continuation");
+
+        int preferredNode = sql.IndexOf(AdoConstants.ColumnPreferredNode, StringComparison.Ordinal);
+        if (preferredNode >= 0)
+        {
+            overlap.Should().BeLessThan(preferredNode, "the pin is written only when it changed, so it comes last");
+        }
+    }
+
+    /// <summary>
+    /// The listing reads by ordinal, and the overlap policy is appended after the computed executing
+    /// flag so that every ordinal before it stays where the reader has always taken it from.
+    /// </summary>
+    [Test]
+    public void TheTriggerListingAppendsTheOverlapPolicyAfterTheComputedFlag()
+    {
+        string sql = StdAdoConstants.SqlSelectTriggerHeaders;
+
+        int computedFlag = sql.IndexOf("END", sql.IndexOf("CASE WHEN", StringComparison.Ordinal), StringComparison.Ordinal);
+        int overlap = sql.IndexOf(AdoConstants.ColumnOverlapPolicy, StringComparison.Ordinal);
+        int from = sql.LastIndexOf(" FROM ", StringComparison.Ordinal);
+
+        overlap.Should().BeGreaterThan(computedFlag);
+        overlap.Should().BeLessThan(from, "it is the last column projected");
     }
 
     /// <summary>

@@ -84,6 +84,8 @@ matching on its text is not.
 | 1034 | Error | `Quartz` | `"ThreadPool.TryRun() returned false"` |
 | 1035 | Error | `Quartz` | `"Runtime error occurred in main trigger firing loop."` |
 | 1036 | Error | `Quartz` | `"Error releasing acquired trigger '{TriggerKey}' {Context}"` |
+| 1037 | Information | `Quartz` | `"Interrupting fire instance {FireInstanceId} of trigger {TriggerKey}: a new firing of it is starting, and its overlap policy is CancelPrevious"` |
+| 1038 | Warning | `Quartz` | `"Could not interrupt fire instance {FireInstanceId} of trigger {TriggerKey} for its CancelPrevious overlap policy; it runs on beside the new firing"` |
 | 1050 | Debug | `Quartz` | `"Calling Execute on job {JobKey}"` |
 | 1051 | Information | `Quartz` | `"Job {JobDetailKey} was cancelled"` |
 | 1052 | Error | `Quartz` | `"Job {JobDetailKey} threw a JobExecutionException: "` |
@@ -95,6 +97,7 @@ matching on its text is not.
 | 1058 | Warning | `Quartz` | `"Could not record the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on"` |
 | 1070 | Information | `Quartz` | `"Initialized Scheduler Signaller of type: {Type}"` |
 | 1071 | Error | `Quartz` | `"Error notifying listeners of trigger misfire."` |
+| 1072 | Error | `Quartz` | `"Error notifying listeners of a skipped trigger firing."` |
 | 1080 | Error | `Quartz` | `"{Message} (scheduler: {SchedulerName})"` |
 | 1081 | Error | `Quartz` | `"{Message} (scheduler: {SchedulerName}, trigger: {TriggerKey}, job: {JobKey}, fire instance: {FireInstanceId})"` |
 | 1090 | Warning | `Quartz` | `"Job {JobKey} exceeded the {Budget} it was allowed; interrupting fire instance {FireInstanceId}"` |
@@ -107,6 +110,7 @@ matching on its text is not.
 | 2004 | Debug | `Quartz` | `"Deleting cancelled - trigger still active"` |
 | 2005 | Information | `Quartz` | `"Trigger {TriggerKey} set to ERROR state."` |
 | 2006 | Information | `Quartz` | `"All triggers of Job {JobKey} set to ERROR state."` |
+| 2007 | Information | `Quartz` | `"Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"` |
 | 3000 | Information | `Quartz` | `"Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking"` |
 | 3001 | Information | `Quartz` | `"With SQLite we need to set AcquireTriggersWithinLock to true, changing"` |
 | 3002 | Information | `Quartz` | `"Detected usage of SQLiteDelegate - forcing transaction isolation level to 'Serializable'"` |
@@ -150,6 +154,8 @@ matching on its text is not.
 | 3040 | Debug | `Quartz` | `"Schema creation under table prefix '{TablePrefix}' failed, but the schema validates, so another node created it first"` |
 | 3041 | Debug | `Quartz` | `"Schema creation under table prefix '{TablePrefix}' failed on attempt {Attempt} of {Attempts} and the schema does not validate yet, retrying"` |
 | 3042 | Warning | `Quartz` | `"Lock handler {LockHandlerType} failed to shut down, so whatever it opened is still open."` |
+| 3043 | Information | `Quartz` | `"Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"` |
+| 3044 | Information | `Quartz` | `"Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |

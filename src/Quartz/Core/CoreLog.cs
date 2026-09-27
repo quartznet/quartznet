@@ -129,6 +129,12 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1036, Level = LogLevel.Error, Message = "Error releasing acquired trigger '{TriggerKey}' {Context}")]
     public static partial void AcquiredTriggerReleaseFailed(this ILogger logger, TriggerKey triggerKey, string context, Exception exception);
 
+    [LoggerMessage(EventId = 1037, Level = LogLevel.Information, Message = "Interrupting fire instance {FireInstanceId} of trigger {TriggerKey}: a new firing of it is starting, and its overlap policy is CancelPrevious")]
+    public static partial void PreviousFiringCancelled(this ILogger logger, TriggerKey triggerKey, string fireInstanceId);
+
+    [LoggerMessage(EventId = 1038, Level = LogLevel.Warning, Message = "Could not interrupt fire instance {FireInstanceId} of trigger {TriggerKey} for its CancelPrevious overlap policy; it runs on beside the new firing")]
+    public static partial void PreviousFiringCancelFailed(this ILogger logger, TriggerKey triggerKey, string fireInstanceId, Exception exception);
+
     [LoggerMessage(EventId = 1050, Level = LogLevel.Debug, Message = "Calling Execute on job {JobKey}")]
     public static partial void JobExecuting(this ILogger logger, JobKey jobKey);
 
@@ -161,6 +167,9 @@ internal static partial class CoreLog
 
     [LoggerMessage(EventId = 1071, Level = LogLevel.Error, Message = "Error notifying listeners of trigger misfire.")]
     public static partial void ListenerNotificationOfMisfireFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 1072, Level = LogLevel.Error, Message = "Error notifying listeners of a skipped trigger firing.")]
+    public static partial void ListenerNotificationOfSkipFailed(this ILogger logger, Exception exception);
 
     [LoggerMessage(EventId = 1080, Level = LogLevel.Error, Message = "{Message} (scheduler: {SchedulerName})")]
     public static partial void SchedulerError(this ILogger logger, string? message, string schedulerName, Exception? exception);

@@ -193,4 +193,69 @@ internal static class SchedulingFileValues
 
     private const string ConditionNames =
         "Name one or more of OnSuccess, OnFailure, OnCancellation, OnVeto and OnAnyOutcome, joined with '|'.";
+
+    /// <summary>
+    /// Reads a trigger's overlap policy by name — <c>Skip</c>, <c>BufferOne</c>, <c>CancelPrevious</c>,
+    /// <c>AllowAll</c> or <c>Default</c>, in any case — or nothing at all.
+    /// </summary>
+    /// <param name="value">The value the file stated, or <see langword="null" /> when it stated none.</param>
+    /// <param name="trigger">How the reader names the trigger in a diagnostic, for example <c>Trigger 'nightly'</c>.</param>
+    /// <remarks>
+    /// A file that states none gets <see cref="OverlapPolicy.Default" />, which is also what a trigger
+    /// built with no <c>WithOverlapPolicy</c> gets, so re-reading a file clears a policy set some other
+    /// way, as it clears a retry policy. The names are listed rather than parsed as an enum, for the
+    /// reason the continuation's outcomes are: a misspelling is a diagnostic naming them, and the integer
+    /// the <c>OVERLAP_POLICY</c> column holds is not a second spelling a file can use.
+    /// </remarks>
+    /// <exception cref="SchedulerConfigException">
+    /// The file stated something that is not an overlap policy. Refused as the file is read, rather than
+    /// scheduling a trigger that overlaps when it was meant not to.
+    /// </exception>
+    internal static OverlapPolicy ReadOverlapPolicy(string? value, string trigger)
+    {
+        if (TryReadOverlapPolicy(value, out OverlapPolicy policy))
+        {
+            return policy;
+        }
+
+        throw new SchedulerConfigException($"{trigger}: '{value}' is not an overlap policy. {OverlapPolicyNames}");
+    }
+
+    /// <summary>
+    /// Reads an overlap policy by name, in any case; nothing at all is <see cref="OverlapPolicy.Default" />.
+    /// </summary>
+    /// <returns><see langword="false" /> when <paramref name="value" /> names no policy.</returns>
+    internal static bool TryReadOverlapPolicy(string? value, out OverlapPolicy policy)
+    {
+        if (value is null)
+        {
+            policy = OverlapPolicy.Default;
+            return true;
+        }
+
+        string trimmed = value.Trim();
+        foreach ((string name, OverlapPolicy candidate) in overlapPolicies)
+        {
+            if (string.Equals(trimmed, name, StringComparison.OrdinalIgnoreCase))
+            {
+                policy = candidate;
+                return true;
+            }
+        }
+
+        policy = OverlapPolicy.Default;
+        return false;
+    }
+
+    /// <summary>The names an overlap policy is spelled by, for a diagnostic.</summary>
+    internal const string OverlapPolicyNames = "Name one of Default, Skip, BufferOne, CancelPrevious and AllowAll.";
+
+    private static readonly (string Name, OverlapPolicy Policy)[] overlapPolicies =
+    [
+        (nameof(OverlapPolicy.Default), OverlapPolicy.Default),
+        (nameof(OverlapPolicy.Skip), OverlapPolicy.Skip),
+        (nameof(OverlapPolicy.BufferOne), OverlapPolicy.BufferOne),
+        (nameof(OverlapPolicy.CancelPrevious), OverlapPolicy.CancelPrevious),
+        (nameof(OverlapPolicy.AllowAll), OverlapPolicy.AllowAll)
+    ];
 }

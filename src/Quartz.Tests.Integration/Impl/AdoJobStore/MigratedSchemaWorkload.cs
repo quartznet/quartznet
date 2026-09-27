@@ -179,6 +179,16 @@ internal static class MigratedSchemaWorkload
                 .StartAt(startAt)
                 .WithRetryPolicy(RetryPolicyUnderTest)
                 .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(1)).RepeatForever())
+                .Build(),
+
+            // OVERLAP_POLICY (4.3). The job returns at once, so nothing overlaps; what is under test is
+            // that the policy is written to the migrated column and read back.
+            TriggerBuilder.Create()
+                .WithIdentity("skipping", group)
+                .ForJob(jobKey)
+                .StartAt(startAt)
+                .WithOverlapPolicy(OverlapPolicy.Skip)
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(1)).RepeatForever())
                 .Build()
         ];
     }
@@ -240,6 +250,11 @@ internal static class MigratedSchemaWorkload
             "RETRY_POLICY is one of the columns the migration adds, so a policy written to it has to come "
             + "back as the same policy — same shape and same waits, not merely a string that parsed");
         retrying.RetryAttempt.Should().Be(0, "the job succeeds, so no occurrence has ever been retried");
+
+        ITrigger skipping = await scheduler.GetTrigger(new TriggerKey("skipping", group));
+        skipping.Should().NotBeNull();
+        skipping.OverlapPolicy.Should().Be(OverlapPolicy.Skip,
+            "OVERLAP_POLICY is the column 4.3's migration adds, so the policy written to it has to come back");
     }
 
     /// <summary>

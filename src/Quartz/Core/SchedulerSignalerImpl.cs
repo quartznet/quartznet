@@ -79,6 +79,30 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
     }
 
 
+    /// <inheritdoc />
+    public async ValueTask NotifyTriggerListenersSkipped(
+        ITrigger trigger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await scheduler.NotifyTriggerListenersSkipped(trigger, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SchedulerException se)
+        {
+            logger.ListenerNotificationOfSkipFailed(se);
+
+            SchedulerErrorContext error = new()
+            {
+                Message = "Error notifying listeners of a skipped trigger firing.",
+                Exception = se,
+                TriggerKey = trigger.Key,
+                JobKey = trigger.JobKey,
+            };
+            await scheduler.NotifySchedulerListenersError(error, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>
     /// Notifies the scheduler about finalized trigger.
     /// </summary>

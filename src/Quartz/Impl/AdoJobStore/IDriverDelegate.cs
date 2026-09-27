@@ -1081,6 +1081,39 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Checks whether a trigger has a firing in EXECUTING state, on any node. Used by a trigger's
+    /// <see cref="ITrigger.OverlapPolicy" /> across cluster nodes.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, so a delegate written against an earlier 4.x keeps compiling. The
+    /// default reads the trigger's fired rows through <see cref="SelectFiredTriggerRecords" />;
+    /// <see cref="StdAdoDelegate" /> counts them instead.
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="triggerKey">The key identifying the trigger.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask<bool> IsTriggerCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        List<FiredTriggerRecord> firings = await SelectFiredTriggerRecords(
+            conn,
+            new FiredTriggerQuery { Trigger = triggerKey },
+            cancellationToken).ConfigureAwait(false);
+
+        foreach (FiredTriggerRecord firing in firings)
+        {
+            if (firing.FireInstanceState == StoredTriggerState.Executing)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Selects a trigger's stored state together with whether it currently has an execution in flight.
     /// </summary>
     /// <returns>

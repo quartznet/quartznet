@@ -81,6 +81,14 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
 
                 writer.WritePropertyName("ContinuationCondition");
                 writer.WriteValue(continuation.StoredCondition);
+
+                // Only when there is one, by name: a trigger with none writes exactly the payload it
+                // wrote before triggers had one.
+                if (abstractTrigger.OverlapPolicy != OverlapPolicy.Default)
+                {
+                    writer.WritePropertyName("OverlapPolicy");
+                    writer.WriteValue(abstractTrigger.OverlapPolicy.ToString());
+                }
             }
 
             // The pin travels as the pair the triggers table holds - the node name (or the auto-pin
@@ -187,6 +195,13 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
                     source.Value<string>("ContinuesAfterTriggerName"),
                     source.Value<string>("ContinuesAfterTriggerGroup"),
                     source.Value<int?>("ContinuationCondition"));
+
+                // Absent for a trigger that has none and from payloads written before triggers had one:
+                // both read back as Default, as does a name this version does not know.
+                abstractTrigger.OverlapPolicy = Enum.TryParse(source.Value<string>("OverlapPolicy"), ignoreCase: true, out OverlapPolicy overlapPolicy)
+                                                && Enum.IsDefined(overlapPolicy)
+                    ? overlapPolicy
+                    : OverlapPolicy.Default;
             }
 
             triggerSerializer.DeserializeFields(trigger, source);
