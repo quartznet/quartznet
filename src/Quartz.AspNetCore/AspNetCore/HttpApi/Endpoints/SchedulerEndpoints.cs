@@ -4,6 +4,7 @@ using System.Net.ServerSentEvents;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -270,14 +271,24 @@ internal static class SchedulerEndpoints
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.Clear(cancellationToken).AsTask());
     }
 
+    /// <summary>
+    /// Pauses every trigger group, recording why and who asked.
+    /// </summary>
+    /// <remarks>
+    /// The body is optional, and so is each of its members: no body is the reasonless pause, and a
+    /// missing <c>requestedBy</c> is the authenticated user.
+    /// </remarks>
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> PauseAll(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.PauseAll(cancellationToken).AsTask());
+        PauseDetails details = EndpointHelper.PauseDetailsFor(request, httpContext);
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.PauseAllWith(details, cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]

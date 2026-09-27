@@ -30,11 +30,12 @@
     {
         <div class="qz-row">
             <KeyBadge GroupName="@Group" ItemName="@Name" />
+            <PauseNote Pause="@_groupPause" />
             <a class="qz-details-link" href="@GetHistoryPathForJob(Group, Name)">View execution history</a>
             @if (!IsReadOnly)
             {
                 <div class="qz-actions">
-                    <button type="button" class="qz-button" @onclick="PauseAsync">Pause</button>
+                    <button type="button" class="qz-button" @onclick="PromptPause">Pause</button>
                     <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
                     <button type="button" class="qz-button qz-button-primary" @onclick="TriggerAsync">Trigger now</button>
                     <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete</button>
@@ -98,7 +99,10 @@
                             </td>
                             <td>@(triggerType is { Length: > 0 } ? triggerType : "—")</td>
                             <td>@(triggerSchedule is { Length: > 0 } ? triggerSchedule : "—")</td>
-                            <td><StateIndicator State="@triggerState" /></td>
+                            <td>
+                                <StateIndicator State="@triggerState" />
+                                <PauseNote Pause="@trigger.Pause" />
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -113,12 +117,20 @@
                OnConfirm="DeleteAsync"
                OnCancel="CancelDeleteAsync" />
 
+<PauseDialog IsOpen="@_showPausePrompt"
+             Title="Pause job"
+             Message="@($"Pause every trigger of {DisplayValueHelper.FormatKey(Group, Name)}?")"
+             OnConfirm="PauseAsync"
+             OnCancel="CancelPauseAsync" />
+
 @code {
     private bool _isLoading = true;
     private string? _error;
     private JobDetailDto? _job;
     private readonly List<TriggerHeaderDto> _triggers = [];
     private bool _showDeleteConfirm;
+    private bool _showPausePrompt;
+    private PauseInfo? _groupPause;
     private JobDataMap _triggerDataMap = new();
 
     [Parameter]
@@ -158,6 +170,7 @@
         try
         {
             _job = null;
+            _groupPause = null;
             _triggers.Clear();
 
             string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -169,6 +182,10 @@
             _job = await Api.GetJobDetail(schedulerName, JobKey);
             _triggerDataMap = CloneJobDataMap(JobDataMap);
             _triggers.AddRange(await Api.GetTriggersOfJob(schedulerName, JobKey));
+
+            // A job is paused through its triggers, each of which says why; its group's pause says it for
+            // the triggers the group paused and for the ones added to it later.
+            _groupPause = await Api.GetJobGroupPause(schedulerName, Group);
         }
         catch (Exception ex)
         {
@@ -191,10 +208,23 @@
         return DashboardLink.To(Options.Value, "history?job=" + filterValue);
     }
 
-    private Task PauseAsync()
+    private void PromptPause()
     {
+        _showPausePrompt = true;
+    }
+
+    private Task CancelPauseAsync()
+    {
+        _showPausePrompt = false;
+        return Task.CompletedTask;
+    }
+
+    private Task PauseAsync(string? reason)
+    {
+        _showPausePrompt = false;
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
         return ExecuteMutatingActionAsync(
-            () => Api.PauseJob(Scheduler.ActiveSchedulerName!, JobKey),
+            () => Api.PauseJobWith(Scheduler.ActiveSchedulerName!, JobKey, details),
             "Paused job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Job " + DisplayValueHelper.FormatKey(Group, Name) + " was not paused - it no longer exists.",
             actionName: "PauseJob",

@@ -122,6 +122,7 @@ public class TriggersPageTest
         IRenderedComponent<Triggers> page = context.Render<Triggers>();
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "Pause group").Click();
+        page.ConfirmPause();
 
         A.CallTo(() => context.Api.PauseTrigger(
                 TestData.SchedulerName,

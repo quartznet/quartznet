@@ -590,4 +590,49 @@ public partial class StdAdoDelegate
 
         await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    public virtual async ValueTask InsertJobGroupPauses(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<string> groupNames,
+        PauseInfo pause,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pause);
+
+        if (groupNames.Count == 0)
+        {
+            return;
+        }
+
+        object? pausedAt = GetDbDateTimeValue(pause.PausedAtUtc);
+        List<SqlStatement> statements = new(groupNames.Count);
+        foreach (string groupName in groupNames)
+        {
+            statements.Add(new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlInsertPausedJobGroupWithPause),
+            [
+                new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName),
+                new SqlStatementParameter(SqlParameters.JobGroup, groupName),
+                new SqlStatementParameter(SqlParameters.PauseReason, pause.Reason),
+                new SqlStatementParameter(SqlParameters.PausedBy, pause.RequestedBy),
+                new SqlStatementParameter(SqlParameters.PausedAt, pausedAt)
+            ]));
+        }
+
+        await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<PauseInfo?> SelectJobGroupPause(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectJobGroupPause));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.JobGroup, groupName);
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await rs.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadPause(rs, 0) : null;
+    }
 }

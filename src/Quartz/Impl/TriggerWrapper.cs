@@ -29,6 +29,14 @@ internal sealed class TriggerWrapper : IEquatable<TriggerWrapper>
     /// </summary>
     public DateTimeOffset acquiredAtUtc;
 
+    /// <summary>
+    /// What the pause that moved this trigger into <see cref="StoredTriggerState.Paused" /> or
+    /// <see cref="StoredTriggerState.PausedBlocked" /> recorded, until it is resumed. The in-memory
+    /// counterpart of the ADO store's <c>PAUSE_REASON</c>, <c>PAUSED_BY</c> and <c>PAUSED_AT</c>;
+    /// <see langword="null" /> for a trigger paused only because its group is.
+    /// </summary>
+    public PauseInfo? pause;
+
     internal TriggerWrapper(IOperableTrigger trigger)
     {
         Trigger = trigger;

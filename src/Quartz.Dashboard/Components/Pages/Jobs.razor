@@ -36,11 +36,12 @@
                 <div class="qz-row">
                     <h2>@group.Key</h2>
                     <StateIndicator State="@GetGroupState(group.Key)" />
+                    <PauseNote Pause="@_groupPauses.GetValueOrDefault(group.Key)" />
                 </div>
                 @if (!IsReadOnly)
                 {
                     <div class="qz-actions qz-group-actions">
-                        <button type="button" class="qz-button" @onclick="() => PauseGroup(group.Key)">Pause group</button>
+                        <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
                         <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
                         <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerGroup(group.Key)">Trigger group</button>
                     </div>
@@ -76,7 +77,7 @@
                                 {
                                     <td class="qz-col-actions">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
-                                            <button type="button" class="qz-button" @onclick="() => PauseJob(jobGroup, jobName)">Pause</button>
+                                            <button type="button" class="qz-button" @onclick="() => PromptPauseJob(jobGroup, jobName)">Pause</button>
                                             <button type="button" class="qz-button" @onclick="() => ResumeJob(jobGroup, jobName)">Resume</button>
                                             <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerJob(jobGroup, jobName)">Trigger now</button>
                                             <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptDelete(jobGroup, jobName)">Delete</button>
@@ -103,9 +104,19 @@
                OnConfirm="ConfirmDeleteAsync"
                OnCancel="CancelDeleteAsync" />
 
+<PauseDialog IsOpen="@(_pauseAction is not null)"
+             Title="@_pauseTitle"
+             Message="@_pauseMessage"
+             OnConfirm="ConfirmPauseAsync"
+             OnCancel="CancelPauseAsync" />
+
 @code {
     private readonly List<JobKeyDto> _jobs = [];
     private readonly Dictionary<string, string> _groupStates = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PauseInfo> _groupPauses = new(StringComparer.Ordinal);
+    private Func<string?, Task>? _pauseAction;
+    private string _pauseTitle = string.Empty;
+    private string _pauseMessage = string.Empty;
     private bool _isLoading = true;
     private string? _error;
     private int _currentPage = 1;
@@ -152,6 +163,7 @@
         {
             _jobs.Clear();
             _groupStates.Clear();
+            _groupPauses.Clear();
             _totalJobs = 0;
 
             string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -195,12 +207,22 @@
 
                 groupQuery = groupQuery with { Skip = groupQuery.Skip + groups.Items.Count };
             }
+
+            // Why each paused group on this page is paused: asked of those alone, which are few.
+            foreach (string group in _jobs.Select(job => job.Group).Distinct(StringComparer.Ordinal))
+            {
+                if (GetGroupState(group) == "Paused" && await Api.GetJobGroupPause(schedulerName, group) is { } pause)
+                {
+                    _groupPauses[group] = pause;
+                }
+            }
         }
         catch (Exception ex)
         {
             _error = ex.Message;
             _jobs.Clear();
             _groupStates.Clear();
+            _groupPauses.Clear();
             _totalJobs = 0;
         }
         finally
@@ -245,15 +267,43 @@
         Navigation.NavigateTo(GetJobDetailPath(group, name));
     }
 
-    private async Task PauseJob(string group, string name)
+    private void PromptPauseJob(string group, string name)
+    {
+        _pauseTitle = "Pause job";
+        _pauseMessage = "Pause every trigger of " + DisplayValueHelper.FormatKey(group, name) + "?";
+        _pauseAction = reason => PauseJob(group, name, reason);
+    }
+
+    private void PromptPauseGroup(string group)
+    {
+        _pauseTitle = "Pause job group";
+        _pauseMessage = "Pause every job in " + group + "?";
+        _pauseAction = reason => PauseGroup(group, reason);
+    }
+
+    private Task ConfirmPauseAsync(string? reason)
+    {
+        Func<string?, Task>? pause = _pauseAction;
+        _pauseAction = null;
+        return pause is null ? Task.CompletedTask : pause(reason);
+    }
+
+    private Task CancelPauseAsync()
+    {
+        _pauseAction = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task PauseJob(string group, string name, string? reason)
     {
         if (IsReadOnly)
         {
             return;
         }
 
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
         await ExecuteMutatingActionAsync(
-            () => Api.PauseJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(group, name)),
+            () => Api.PauseJobWith(Scheduler.ActiveSchedulerName!, new JobKeyDto(group, name), details),
             "Paused job " + DisplayValueHelper.FormatKey(group, name) + ".",
             "Job " + DisplayValueHelper.FormatKey(group, name) + " was not paused - it no longer exists.",
             actionName: "PauseJob",
@@ -289,11 +339,12 @@
             target: DisplayValueHelper.FormatKey(group, name));
     }
 
-    private Task PauseGroup(string group)
+    private Task PauseGroup(string group, string? reason)
     {
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
         return ExecuteGroupMutatingActionAsync(
             group,
-            (schedulerName, jobKey) => Api.PauseJob(schedulerName, jobKey),
+            (schedulerName, jobKey) => Api.PauseJobWith(schedulerName, jobKey, details),
             "Paused");
     }
 

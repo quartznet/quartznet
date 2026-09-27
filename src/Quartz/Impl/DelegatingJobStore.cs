@@ -398,6 +398,54 @@ public class DelegatingJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    public virtual ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return jobStore.PauseTriggerWith(triggerKey, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return jobStore.PauseJobWith(jobKey, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return jobStore.PauseTriggerGroupsWith(matcher, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return jobStore.PauseJobGroupsWith(matcher, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return jobStore.PauseAllWith(details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return jobStore.GetTriggerPause(triggerKey, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return jobStore.GetTriggerGroupPause(groupName, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return jobStore.GetJobGroupPause(groupName, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
     {
         return jobStore.AcquireNextTriggers(request, cancellationToken);

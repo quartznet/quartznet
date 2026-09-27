@@ -1,0 +1,60 @@
+@using Quartz
+
+@* Asks what a pause is for before it is made. The reason is optional: confirming with the field empty
+   pauses without one, as the button did before it asked. *@
+@if (IsOpen)
+{
+    <div class="qz-confirm-overlay">
+        <div class="qz-confirm-dialog qz-pause-dialog" role="dialog" aria-labelledby="qz-pause-dialog-title">
+            <h3 id="qz-pause-dialog-title">@Title</h3>
+            <p>@Message</p>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="qz-pause-reason">Reason (optional)</label>
+                <input id="qz-pause-reason"
+                       class="qz-input"
+                       maxlength="@PauseDetails.MaxReasonLength"
+                       placeholder="Why is this being paused?"
+                       @bind="_reason" />
+            </div>
+            <div class="qz-confirm-actions">
+                <button type="button" class="qz-button qz-button-primary qz-pause-confirm" @onclick="ConfirmAsync">Pause</button>
+                <button type="button" class="qz-button" @onclick="CancelAsync">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string _reason = string.Empty;
+
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Pause";
+
+    [Parameter]
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Raised with the reason typed, trimmed, or <see langword="null" /> when none was.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string?> OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private async Task ConfirmAsync()
+    {
+        string? reason = string.IsNullOrWhiteSpace(_reason) ? null : _reason.Trim();
+        _reason = string.Empty;
+        await OnConfirm.InvokeAsync(reason);
+    }
+
+    private async Task CancelAsync()
+    {
+        _reason = string.Empty;
+        await OnCancel.InvokeAsync();
+    }
+}

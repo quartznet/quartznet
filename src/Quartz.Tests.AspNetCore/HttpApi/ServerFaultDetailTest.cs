@@ -83,6 +83,7 @@ public sealed class ServerFaultDetailTest
 
         IScheduler fake = A.Fake<IScheduler>();
         A.CallTo(() => fake.SchedulerName).Returns(TestData.SchedulerName);
+        FakeSchedulers.AnswerThePausesWithDetailsFromTheReasonlessOnes(fake);
         A.CallTo(() => fake.PauseAll(A<CancellationToken>._)).Throws(_ => new InvalidOperationException(Secret));
 
         HttpClient client = configured.CreateClient();

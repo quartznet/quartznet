@@ -96,8 +96,9 @@ public sealed class RAMJobStore : IJobStore
     /// written to; its callers only read.
     /// </summary>
     private static readonly Dictionary<TriggerKey, TriggerWrapper> noTriggersForJob = [];
-    private readonly HashSet<string> pausedTriggerGroups = [];
-    private readonly HashSet<string> pausedJobGroups = [];
+    // Keyed by group, holding what each group's pause recorded: why, who asked, and when.
+    private readonly Dictionary<string, PauseInfo> pausedTriggerGroups = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PauseInfo> pausedJobGroups = new(StringComparer.Ordinal);
     private readonly HashSet<JobKey> blockedJobs = [];
     private readonly HashSet<JobKey> resumedJobsInPausedGroups = new HashSet<JobKey>();
 
@@ -816,8 +817,8 @@ public sealed class RAMJobStore : IJobStore
     /// </remarks>
     private bool IsTriggerGroupPausedNoLock(TriggerWrapper tw)
     {
-        return pausedTriggerGroups.Contains(tw.TriggerKey.Group)
-               || (pausedJobGroups.Contains(tw.JobKey.Group) && !resumedJobsInPausedGroups.Contains(tw.JobKey));
+        return pausedTriggerGroups.ContainsKey(tw.TriggerKey.Group)
+               || (pausedJobGroups.ContainsKey(tw.JobKey.Group) && !resumedJobsInPausedGroups.Contains(tw.JobKey));
     }
 
     /// <summary>
@@ -1455,7 +1456,7 @@ public sealed class RAMJobStore : IJobStore
             tw.Trigger.NextFireTimeUtc = tw.Trigger.StartTimeUtc > now ? tw.Trigger.StartTimeUtc : now;
         }
 
-        if (pausedTriggerGroups.Contains(triggerKey.Group))
+        if (pausedTriggerGroups.ContainsKey(triggerKey.Group))
         {
             tw.state = StoredTriggerState.Paused;
         }
@@ -1770,7 +1771,8 @@ public sealed class RAMJobStore : IJobStore
         {
             ContinuesAfter = match.Trigger.Continuation.Parent,
             ContinuationCondition = match.Trigger.Continuation.IsNone ? null : match.Trigger.Continuation.When,
-            OverlapPolicy = match.Trigger.OverlapPolicy
+            OverlapPolicy = match.Trigger.OverlapPolicy,
+            Pause = match.Pause
         }));
     }
 
@@ -1814,7 +1816,13 @@ public sealed class RAMJobStore : IJobStore
                 continue;
             }
 
-            matches.Add(new TriggerMatch(triggerWrapper.Trigger, state));
+            // The record on the trigger itself, while it is paused: what the ADO store's listing reads
+            // off the trigger's own row.
+            PauseInfo? pause = triggerWrapper.state is StoredTriggerState.Paused or StoredTriggerState.PausedBlocked
+                ? triggerWrapper.pause
+                : null;
+
+            matches.Add(new TriggerMatch(triggerWrapper.Trigger, state, pause));
         }
     }
 
@@ -1830,7 +1838,7 @@ public sealed class RAMJobStore : IJobStore
             if (query.Paused == true)
             {
                 // a group can be paused while holding no jobs, and a listing of paused groups has to report it
-                foreach (string group in pausedJobGroups)
+                foreach (string group in pausedJobGroups.Keys)
                 {
                     if (MatchesName(query.Name, group))
                     {
@@ -1847,7 +1855,7 @@ public sealed class RAMJobStore : IJobStore
                         continue;
                     }
 
-                    bool paused = pausedJobGroups.Contains(group);
+                    bool paused = pausedJobGroups.ContainsKey(group);
                     if (query.Paused is null || !paused)
                     {
                         groups.Add(new JobGroup(group, paused));
@@ -1873,7 +1881,7 @@ public sealed class RAMJobStore : IJobStore
             if (query.Paused == true)
             {
                 // a group can be paused while holding no triggers, and a listing of paused groups has to report it
-                foreach (string group in pausedTriggerGroups)
+                foreach (string group in pausedTriggerGroups.Keys)
                 {
                     if (MatchesName(query.Name, group))
                     {
@@ -1890,7 +1898,7 @@ public sealed class RAMJobStore : IJobStore
                         continue;
                     }
 
-                    bool paused = pausedTriggerGroups.Contains(group);
+                    bool paused = pausedTriggerGroups.ContainsKey(group);
                     if (query.Paused is null || !paused)
                     {
                         groups.Add(new TriggerGroup(group, paused));
@@ -2227,7 +2235,7 @@ public sealed class RAMJobStore : IJobStore
     /// <summary>
     /// A trigger that matched a query, with the state it had when it matched.
     /// </summary>
-    private readonly record struct TriggerMatch(IOperableTrigger Trigger, TriggerState State);
+    private readonly record struct TriggerMatch(IOperableTrigger Trigger, TriggerState State, PauseInfo? Pause);
 
     /// <summary>
     /// Get all the Triggers that are associated to the given Job.
@@ -2306,9 +2314,17 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
+        return PauseTriggerWith(triggerKey, PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
         lock (lockObject)
         {
-            return new ValueTask<bool>(PauseTriggerNoLock(triggerKey));
+            return new ValueTask<bool>(PauseTriggerNoLock(triggerKey, details.Stamp(timeProvider.GetUtcNow())));
         }
     }
 
@@ -2321,10 +2337,11 @@ public sealed class RAMJobStore : IJobStore
     {
         lock (lockObject)
         {
+            PauseInfo pause = PauseDetails.None.Stamp(timeProvider.GetUtcNow());
             List<TriggerKey> paused = new List<TriggerKey>(triggerKeys.Count);
             foreach (TriggerKey triggerKey in triggerKeys)
             {
-                if (PauseTriggerNoLock(triggerKey))
+                if (PauseTriggerNoLock(triggerKey, pause))
                 {
                     paused.Add(triggerKey);
                 }
@@ -2343,8 +2360,12 @@ public sealed class RAMJobStore : IJobStore
     /// nothing left to pause, a paused one is already there, and a trigger in error is a failure
     /// somebody has to see — pausing its group must not quietly clear it, or
     /// <see cref="ResetTriggerFromErrorState" /> finds nothing left to reset.
+    /// <para>
+    /// A trigger this moves carries <paramref name="pause" /> until it is resumed; one that was already
+    /// paused keeps the pause it had.
+    /// </para>
     /// </remarks>
-    private bool PauseTriggerNoLock(TriggerKey triggerKey)
+    private bool PauseTriggerNoLock(TriggerKey triggerKey, PauseInfo pause)
     {
         // does the trigger exist?
         if (!triggersByKey.TryGetValue(triggerKey, out var tw))
@@ -2365,6 +2386,7 @@ public sealed class RAMJobStore : IJobStore
             return false;
         }
 
+        tw.pause = pause;
         timeTriggers.Remove(tw);
         return true;
     }
@@ -2379,20 +2401,28 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
+        return PauseTriggerGroupsWith(matcher, PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
         lock (lockObject)
         {
-            return new ValueTask<List<string>>(PauseTriggersNoLock(matcher));
+            return new ValueTask<List<string>>(PauseTriggersNoLock(matcher, details.Stamp(timeProvider.GetUtcNow())));
         }
     }
 
-    private List<string> PauseTriggersNoLock(GroupMatcher<TriggerKey> matcher)
+    private List<string> PauseTriggersNoLock(GroupMatcher<TriggerKey> matcher, PauseInfo pause)
     {
         var pausedGroups = new HashSet<string>();
 
         StringOperator op = matcher.CompareWithOperator;
         if (StringOperator.Equality.Equals(op))
         {
-            if (pausedTriggerGroups.Add(matcher.CompareToValue))
+            if (pausedTriggerGroups.TryAdd(matcher.CompareToValue, pause))
             {
                 pausedGroups.Add(matcher.CompareToValue);
             }
@@ -2404,7 +2434,7 @@ public sealed class RAMJobStore : IJobStore
             // pause for every later one.
             foreach (string group in triggersByGroup.Keys)
             {
-                if (op.Evaluate(group, matcher.CompareToValue) && pausedTriggerGroups.Add(group))
+                if (op.Evaluate(group, matcher.CompareToValue) && pausedTriggerGroups.TryAdd(group, pause))
                 {
                     pausedGroups.Add(group);
                 }
@@ -2417,7 +2447,7 @@ public sealed class RAMJobStore : IJobStore
 
             foreach (TriggerKey key in keys)
             {
-                PauseTriggerNoLock(key);
+                PauseTriggerNoLock(key, pause);
             }
         }
 
@@ -2430,9 +2460,17 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
+        return PauseJobWith(jobKey, PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
         lock (lockObject)
         {
-            return new ValueTask<bool>(PauseJobNoLock(jobKey));
+            return new ValueTask<bool>(PauseJobNoLock(jobKey, details.Stamp(timeProvider.GetUtcNow())));
         }
     }
 
@@ -2445,10 +2483,11 @@ public sealed class RAMJobStore : IJobStore
     {
         lock (lockObject)
         {
+            PauseInfo pause = PauseDetails.None.Stamp(timeProvider.GetUtcNow());
             List<JobKey> paused = new List<JobKey>(jobKeys.Count);
             foreach (JobKey jobKey in jobKeys)
             {
-                if (PauseJobNoLock(jobKey))
+                if (PauseJobNoLock(jobKey, pause))
                 {
                     paused.Add(jobKey);
                 }
@@ -2458,7 +2497,7 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
-    private bool PauseJobNoLock(JobKey jobKey)
+    private bool PauseJobNoLock(JobKey jobKey, PauseInfo pause)
     {
         if (!jobsByKey.ContainsKey(jobKey))
         {
@@ -2469,7 +2508,7 @@ public sealed class RAMJobStore : IJobStore
         var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
         foreach (TriggerKey key in triggerKeysForJob)
         {
-            PauseTriggerNoLock(key);
+            PauseTriggerNoLock(key, pause);
         }
 
         return true;
@@ -2486,14 +2525,23 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
+        return PauseJobGroupsWith(matcher, PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
         lock (lockObject)
         {
+            PauseInfo pause = details.Stamp(timeProvider.GetUtcNow());
             List<string> pausedGroups = [];
             StringOperator op = matcher.CompareWithOperator;
             if (StringOperator.Equality.Equals(op))
             {
                 resumedJobsInPausedGroups.RemoveWhere(k => k.Group == matcher.CompareToValue);
-                if (pausedJobGroups.Add(matcher.CompareToValue))
+                if (pausedJobGroups.TryAdd(matcher.CompareToValue, pause))
                 {
                     pausedGroups.Add(matcher.CompareToValue);
                 }
@@ -2505,7 +2553,7 @@ public sealed class RAMJobStore : IJobStore
                     if (op.Evaluate(group, matcher.CompareToValue))
                     {
                         resumedJobsInPausedGroups.RemoveWhere(k => k.Group == group);
-                        if (pausedJobGroups.Add(group))
+                        if (pausedJobGroups.TryAdd(group, pause))
                         {
                             pausedGroups.Add(group);
                         }
@@ -2520,7 +2568,7 @@ public sealed class RAMJobStore : IJobStore
                     var triggerKeys = GetTriggerKeysForJobNoLock(jobKey);
                     foreach (TriggerKey key in triggerKeys)
                     {
-                        PauseTriggerNoLock(key);
+                        PauseTriggerNoLock(key, pause);
                     }
                 }
             }
@@ -2602,6 +2650,7 @@ public sealed class RAMJobStore : IJobStore
             tw.state = StoredTriggerState.Waiting;
         }
 
+        tw.pause = null;
         ApplyMisfireNoLock(tw, ref pending);
 
         if (tw.state == StoredTriggerState.Waiting)
@@ -2645,7 +2694,7 @@ public sealed class RAMJobStore : IJobStore
             if (triggersByKey.TryGetValue(triggerKey, out var tw))
             {
                 string jobGroup = tw.JobKey.Group;
-                if (pausedJobGroups.Contains(jobGroup))
+                if (pausedJobGroups.ContainsKey(jobGroup))
                 {
                     continue;
                 }
@@ -2665,7 +2714,10 @@ public sealed class RAMJobStore : IJobStore
         }
         else
         {
-            pausedTriggerGroups.RemoveWhere(group => op.Evaluate(group, matcherGroup));
+            foreach (string group in pausedTriggerGroups.Keys.Where(group => op.Evaluate(group, matcherGroup)).ToList())
+            {
+                pausedTriggerGroups.Remove(group);
+            }
         }
 
         return [..groups];
@@ -2726,7 +2778,7 @@ public sealed class RAMJobStore : IJobStore
             return false;
         }
 
-        if (pausedJobGroups.Contains(jobKey.Group))
+        if (pausedJobGroups.ContainsKey(jobKey.Group))
         {
             resumedJobsInPausedGroups.Add(jobKey);
         }
@@ -2758,7 +2810,7 @@ public sealed class RAMJobStore : IJobStore
         {
             var keys = GetJobKeysNoLock(matcher);
 
-            foreach (string pausedJobGroup in pausedJobGroups)
+            foreach (string pausedJobGroup in pausedJobGroups.Keys)
             {
                 if (matcher.CompareWithOperator.Evaluate(pausedJobGroup, matcher.CompareToValue))
                 {
@@ -2797,15 +2849,80 @@ public sealed class RAMJobStore : IJobStore
     /// <seealso cref="ResumeAll(CancellationToken)" />
     public ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
+        return PauseAllWith(PauseDetails.None, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
         lock (lockObject)
         {
+            PauseInfo pause = details.Stamp(timeProvider.GetUtcNow());
             foreach (string groupName in triggersByGroup.Keys)
             {
-                PauseTriggersNoLock(GroupMatcher<TriggerKey>.GroupEquals(groupName));
+                PauseTriggersNoLock(GroupMatcher<TriggerKey>.GroupEquals(groupName), pause);
             }
         }
 
         return default;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The record on the trigger, and for a trigger paused without one — stored into a group that was
+    /// already paused — its trigger group's, then its job group's. A job resumed on its own inside a
+    /// paused job group is not paused by that group, so that group's record is not its answer.
+    /// </remarks>
+    public ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+
+        lock (lockObject)
+        {
+            if (!triggersByKey.TryGetValue(triggerKey, out TriggerWrapper? tw)
+                || tw.state is not (StoredTriggerState.Paused or StoredTriggerState.PausedBlocked))
+            {
+                return new ValueTask<PauseInfo?>((PauseInfo?) null);
+            }
+
+            if (tw.pause is not null)
+            {
+                return new ValueTask<PauseInfo?>(tw.pause);
+            }
+
+            if (pausedTriggerGroups.TryGetValue(tw.TriggerKey.Group, out PauseInfo? groupPause))
+            {
+                return new ValueTask<PauseInfo?>(groupPause);
+            }
+
+            bool pausedByJobGroup = pausedJobGroups.TryGetValue(tw.JobKey.Group, out PauseInfo? jobGroupPause)
+                                    && !resumedJobsInPausedGroups.Contains(tw.JobKey);
+            return new ValueTask<PauseInfo?>(pausedByJobGroup ? jobGroupPause : null);
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+
+        lock (lockObject)
+        {
+            return new ValueTask<PauseInfo?>(pausedTriggerGroups.GetValueOrDefault(groupName));
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+
+        lock (lockObject)
+        {
+            return new ValueTask<PauseInfo?>(pausedJobGroups.GetValueOrDefault(groupName));
+        }
     }
 
     /// <summary>

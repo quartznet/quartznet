@@ -31,13 +31,14 @@
         <div class="qz-row">
             <KeyBadge GroupName="@Group" ItemName="@Name" />
             <StateIndicator State="@_triggerState.ToString()" />
+            <PauseNote Pause="@_pause" />
             <a class="qz-details-link" href="@GetHistoryPathForTrigger(Group, Name)">View execution history</a>
         </div>
 
         @if (!IsReadOnly)
         {
             <div class="qz-actions">
-                <button type="button" class="qz-button" @onclick="PauseAsync">Pause</button>
+                <button type="button" class="qz-button" @onclick="PromptPause">Pause</button>
                 <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
                 <button type="button" class="qz-button" @onclick="ResetFromErrorAsync">Reset error state</button>
                 <button type="button" class="qz-button qz-button-danger" @onclick="PromptUnschedule">Unschedule</button>
@@ -108,11 +109,19 @@
                OnConfirm="UnscheduleAsync"
                OnCancel="CancelUnscheduleAsync" />
 
+<PauseDialog IsOpen="@_showPausePrompt"
+             Title="Pause trigger"
+             Message="@($"Pause {DisplayValueHelper.FormatKey(Group, Name)}?")"
+             OnConfirm="PauseAsync"
+             OnCancel="CancelPauseAsync" />
+
 @code {
     private bool _isLoading = true;
     private string? _error;
     private ITrigger? _trigger;
     private TriggerState _triggerState = TriggerState.None;
+    private PauseInfo? _pause;
+    private bool _showPausePrompt;
     private bool _continuationParentExists;
     private bool _showUnscheduleConfirm;
     private string? _cronExpression;
@@ -159,11 +168,15 @@
             {
                 _trigger = null;
                 _triggerState = TriggerState.None;
+                _pause = null;
                 return;
             }
 
             _trigger = await Api.GetTrigger(schedulerName, TriggerKey);
             _triggerState = await Api.GetTriggerState(schedulerName, TriggerKey);
+
+            // Only a paused trigger has a pause to explain, so nothing else asks.
+            _pause = _triggerState == TriggerState.Paused ? await Api.GetTriggerPause(schedulerName, TriggerKey) : null;
             _cronExpression = (_trigger as ICronTrigger)?.CronExpressionString;
             _editedCronExpression = _cronExpression ?? string.Empty;
 
@@ -209,10 +222,23 @@
         return DashboardLink.To(Options.Value, "history?trigger=" + filterValue);
     }
 
-    private Task PauseAsync()
+    private void PromptPause()
     {
+        _showPausePrompt = true;
+    }
+
+    private Task CancelPauseAsync()
+    {
+        _showPausePrompt = false;
+        return Task.CompletedTask;
+    }
+
+    private Task PauseAsync(string? reason)
+    {
+        _showPausePrompt = false;
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
         return ExecuteMutatingActionAsync(
-            () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, TriggerKey),
+            () => Api.PauseTriggerWith(Scheduler.ActiveSchedulerName!, TriggerKey, details),
             "Paused trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not paused - it no longer exists or cannot be paused.",
             actionName: "PauseTrigger",

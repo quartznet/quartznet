@@ -59,6 +59,7 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(DeleteJobsRequest))]
 [JsonSerializable(typeof(JobKeySetRequest))]
 [JsonSerializable(typeof(KeyDto[]))]
+[JsonSerializable(typeof(PauseRequest))]
 [JsonSerializable(typeof(RescheduleJobRequest))]
 [JsonSerializable(typeof(ScheduleJobRequest))]
 [JsonSerializable(typeof(ScheduleJobsRequest))]

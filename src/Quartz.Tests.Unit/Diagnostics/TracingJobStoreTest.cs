@@ -356,6 +356,43 @@ public sealed class TracingJobStoreTest
     }
 
     /// <summary>
+    /// A pause that carries a reason is the pause it names: traced under that pause's span, with the
+    /// same tags, and handed on with its details rather than as its reasonless twin.
+    /// </summary>
+    [Test]
+    public async Task APauseWithAReasonIsTracedAsThePauseItIsAndHandedOnWithItsDetails()
+    {
+        IJobStore inner = StubStore();
+        TriggerKey triggerKey = new("trigger", "triggers");
+        JobKey jobKey = new("job", "jobs");
+        PauseDetails details = new() { Reason = "maintenance", RequestedBy = "ops" };
+        A.CallTo(() => inner.PauseTriggerWith(triggerKey, details, A<CancellationToken>.Ignored)).Returns(true);
+        A.CallTo(() => inner.PauseJobWith(jobKey, details, A<CancellationToken>.Ignored)).Returns(true);
+
+        IJobStore store = await Decorated(inner);
+
+        (await store.PauseTriggerWith(triggerKey, details)).Should().BeTrue("the decorator answers what the store answered");
+        (await store.PauseJobWith(jobKey, details)).Should().BeTrue();
+        await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals("triggers"), details);
+        await store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("jobs"), details);
+        await store.PauseAllWith(details);
+
+        A.CallTo(() => inner.PauseTrigger(A<TriggerKey>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => inner.PauseTriggerGroupsWith(A<GroupMatcher<TriggerKey>>.Ignored, details, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseJobGroupsWith(A<GroupMatcher<JobKey>>.Ignored, details, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseAllWith(details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        Activity triggerSpan = SpanFor(OperationName.JobStore.PauseTrigger);
+        triggerSpan.GetTagItem(ActivityTags.TriggerName).Should().Be("trigger");
+        SpanFor(OperationName.JobStore.PauseJob).GetTagItem(ActivityTags.JobName).Should().Be("job");
+        SpanFor(OperationName.JobStore.PauseTriggerGroups);
+        SpanFor(OperationName.JobStore.PauseJobGroups);
+        SpanFor(OperationName.JobStore.PauseAll);
+    }
+
+    /// <summary>
     /// The cost when nobody is watching, which is what makes wrapping every store affordable.
     /// </summary>
     [Test]
@@ -371,12 +408,24 @@ public sealed class TracingJobStoreTest
 
         await store.PauseAll();
 
+        PauseDetails details = new() { Reason = "quiet" };
+        await store.PauseTriggerWith(new TriggerKey("t"), details);
+        await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.AnyGroup(), details);
+        await store.PauseJobWith(new JobKey("j"), details);
+        await store.PauseJobGroupsWith(GroupMatcher<JobKey>.AnyGroup(), details);
+        await store.PauseAllWith(details);
+
         lock (stoppedActivities)
         {
             stoppedActivities.Should().BeEmpty("no listener means no activity to create");
         }
 
         A.CallTo(() => inner.PauseAll(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseAllWith(details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseTriggerWith(new TriggerKey("t"), details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseJobWith(new JobKey("j"), details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseTriggerGroupsWith(A<GroupMatcher<TriggerKey>>.Ignored, details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseJobGroupsWith(A<GroupMatcher<JobKey>>.Ignored, details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     /// <summary>
@@ -501,6 +550,13 @@ public sealed class TracingJobStoreTest
         await store.ResumeJobs([jobKey]);
         await store.PauseAll();
         await store.ResumeAll();
+        // The pauses that carry a reason, which begin their reasonless twins' spans rather than names of
+        // their own: the snapshot below has none for them.
+        await store.PauseTriggerWith(triggerKey, new PauseDetails { Reason = "traced" });
+        await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.AnyGroup(), new PauseDetails());
+        await store.PauseJobWith(jobKey, new PauseDetails());
+        await store.PauseJobGroupsWith(GroupMatcher<JobKey>.AnyGroup(), new PauseDetails());
+        await store.PauseAllWith(new PauseDetails());
         await store.Clear();
         await store.AcquireNextTriggers(new TriggerAcquisitionRequest
         {

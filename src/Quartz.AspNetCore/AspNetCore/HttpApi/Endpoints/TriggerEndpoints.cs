@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
 
 using Quartz.AspNetCore.HttpApi.Util;
@@ -224,8 +225,15 @@ internal static class TriggerEndpoints
     {
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var state = await scheduler.GetTriggerState(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
-            return new TriggerStateDto(state);
+            TriggerKey key = new(triggerName, triggerGroup);
+            var state = await scheduler.GetTriggerState(key, cancellationToken).ConfigureAwait(false);
+
+            // Asked only of a paused trigger: nothing else has a pause to report.
+            PauseInfo? pause = state == TriggerState.Paused
+                ? await scheduler.GetTriggerPause(key, cancellationToken).ConfigureAwait(false)
+                : null;
+
+            return new TriggerStateDto(state, PauseDto.Create(pause));
         });
     }
 
@@ -262,37 +270,56 @@ internal static class TriggerEndpoints
         });
     }
 
+    /// <summary>
+    /// Pauses a trigger, recording why and who asked.
+    /// </summary>
+    /// <remarks>
+    /// The body is optional, and so is each of its members: no body is the reasonless pause, and a
+    /// missing <c>requestedBy</c> is the authenticated user.
+    /// </remarks>
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseTrigger(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
         string triggerGroup,
         string triggerName,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         CancellationToken cancellationToken = default)
     {
+        PauseDetails details = EndpointHelper.PauseDetailsFor(request, httpContext);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var applied = await scheduler.PauseTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
+            var applied = await scheduler.PauseTriggerWith(new TriggerKey(triggerName, triggerGroup), details, cancellationToken).ConfigureAwait(false);
             return new OperationAppliedResponse(applied);
         });
     }
 
+    /// <summary>
+    /// Pauses the matching trigger groups, recording why and who asked.
+    /// </summary>
+    /// <remarks>
+    /// The body is optional, as on the single-trigger pause.
+    /// </remarks>
     [ProducesResponseType(typeof(AffectedGroupsResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseTriggers(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
+        PauseDetails details = EndpointHelper.PauseDetailsFor(request, httpContext);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            var pausedGroups = await scheduler.PauseTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
+            var pausedGroups = await scheduler.PauseTriggerGroupsWith(matcher, details, cancellationToken).ConfigureAwait(false);
             return new AffectedGroupsResponse([.. pausedGroups]);
         });
     }
@@ -414,7 +441,8 @@ internal static class TriggerEndpoints
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             bool paused = await scheduler.IsTriggerGroupPaused(triggerGroup, cancellationToken).ConfigureAwait(false);
-            return new GroupPausedResponse(paused);
+            PauseInfo? pause = paused ? await scheduler.GetTriggerGroupPause(triggerGroup, cancellationToken).ConfigureAwait(false) : null;
+            return new GroupPausedResponse(paused, PauseDto.Create(pause));
         });
     }
 

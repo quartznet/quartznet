@@ -203,6 +203,72 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.ResumeAll(s.cancellationToken));
     }
 
+    // The pauses that carry a reason keep the span name of the pause they are, as FiringComplete keeps
+    // TriggeredJobComplete's: an operator watching pauses is watching these too, and a dashboard written
+    // against the names needs no new one.
+
+    public override ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.PauseAll);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.PauseAllWith(details, cancellationToken);
+        }
+
+        return Complete(operation, (InnerJobStore, details, cancellationToken),
+            static s => s.InnerJobStore.PauseAllWith(s.details, s.cancellationToken));
+    }
+
+    public override ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.PauseTrigger);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.PauseTriggerWith(triggerKey, details, cancellationToken);
+        }
+
+        operation.Trigger(triggerKey);
+        return Complete(operation, (InnerJobStore, triggerKey, details, cancellationToken),
+            static s => s.InnerJobStore.PauseTriggerWith(s.triggerKey, s.details, s.cancellationToken));
+    }
+
+    public override ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.PauseTriggerGroups);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.PauseTriggerGroupsWith(matcher, details, cancellationToken);
+        }
+
+        return Complete(operation, (InnerJobStore, matcher, details, cancellationToken),
+            static s => s.InnerJobStore.PauseTriggerGroupsWith(s.matcher, s.details, s.cancellationToken));
+    }
+
+    public override ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.PauseJob);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.PauseJobWith(jobKey, details, cancellationToken);
+        }
+
+        operation.Job(jobKey);
+        return Complete(operation, (InnerJobStore, jobKey, details, cancellationToken),
+            static s => s.InnerJobStore.PauseJobWith(s.jobKey, s.details, s.cancellationToken));
+    }
+
+    public override ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.PauseJobGroups);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.PauseJobGroupsWith(matcher, details, cancellationToken);
+        }
+
+        return Complete(operation, (InnerJobStore, matcher, details, cancellationToken),
+            static s => s.InnerJobStore.PauseJobGroupsWith(s.matcher, s.details, s.cancellationToken));
+    }
+
     public override ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.ReleaseAcquiredTrigger);

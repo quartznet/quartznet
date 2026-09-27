@@ -1205,6 +1205,23 @@ body{
     gap: var(--qz-space-sm);
 }
 
+/* The pause prompt's reason field sits between the message and the buttons. */
+.qz-pause-dialog .qz-form-group {
+    margin-bottom: var(--qz-space-md);
+}
+
+/* What a pause recorded, beside the paused state it explains: the paused states' amber, as a note. */
+.qz-pause-note {
+    display: inline-block;
+    max-width: 100%;
+    padding: 2px 8px;
+    border-radius: var(--qz-radius-sm);
+    background-color: var(--qz-color-warning-bg);
+    color: var(--qz-color-warning);
+    font-size: var(--qz-font-size-sm);
+    overflow-wrap: anywhere;
+}
+
 /* ==========================================================================
    13. BUTTONS
    ========================================================================== */

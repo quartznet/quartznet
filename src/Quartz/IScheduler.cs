@@ -1080,6 +1080,177 @@ public interface IScheduler : IAsyncDisposable
     ValueTask ResumeAll(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// <see cref="PauseTrigger" />, recording why and who asked.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The store records the details, stamped with the scheduler's clock, on the trigger if this call
+    /// moves it into the paused state; <see cref="GetTriggerPause" /> reads them back until the trigger
+    /// is resumed. A trigger that was already paused keeps the pause it had. Texts longer than
+    /// <see cref="PauseDetails.MaxReasonLength" /> and <see cref="PauseDetails.MaxRequestedByLength" />
+    /// are cut.
+    /// </para>
+    /// <para>
+    /// A default interface member: the default drops the details and calls <see cref="PauseTrigger" />,
+    /// which is what a scheduler written against an earlier 4.x does. A new name rather than an overload,
+    /// because the API baseline marks default implementations per name.
+    /// </para>
+    /// </remarks>
+    /// <param name="triggerKey">The trigger to pause.</param>
+    /// <param name="details">Why, and who asked.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseTrigger" /> returns.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> or <paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<bool> PauseTriggerWith(
+        TriggerKey triggerKey,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        return PauseTrigger(triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="PauseJob" />, recording why and who asked on each trigger of the job this call pauses.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default
+    /// calls <see cref="PauseJob" />.
+    /// </remarks>
+    /// <param name="jobKey">The job whose triggers to pause.</param>
+    /// <param name="details">Why, and who asked.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseJob" /> returns.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> or <paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<bool> PauseJobWith(
+        JobKey jobKey,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        return PauseJob(jobKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="PauseTriggerGroups" />, recording why and who asked on each group this call pauses and
+    /// on each trigger it moves.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="GetTriggerGroupPause" /> reads the group's record back until the group is resumed. A
+    /// group that was already paused keeps the pause it had. A default interface member for the reason
+    /// <see cref="PauseTriggerWith" /> is one; the default calls <see cref="PauseTriggerGroups" />.
+    /// </remarks>
+    /// <param name="matcher">The groups to pause.</param>
+    /// <param name="details">Why, and who asked.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseTriggerGroups" /> returns.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> or <paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<List<string>> PauseTriggerGroupsWith(
+        GroupMatcher<TriggerKey> matcher,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        return PauseTriggerGroups(matcher, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="PauseJobGroups" />, recording why and who asked on each group this call pauses and on
+    /// each trigger it moves.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="GetJobGroupPause" /> reads the group's record back until the group is resumed. A
+    /// default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default calls
+    /// <see cref="PauseJobGroups" />.
+    /// </remarks>
+    /// <param name="matcher">The groups to pause.</param>
+    /// <param name="details">Why, and who asked.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseJobGroups" /> returns.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="matcher" /> or <paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<List<string>> PauseJobGroupsWith(
+        GroupMatcher<JobKey> matcher,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        return PauseJobGroups(matcher, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="PauseAll" />, recording why and who asked on each group and trigger this call pauses.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member for the reason <see cref="PauseTriggerWith" /> is one; the default
+    /// calls <see cref="PauseAll" />.
+    /// </remarks>
+    /// <param name="details">Why, and who asked.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="details" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return PauseAll(cancellationToken);
+    }
+
+    /// <summary>
+    /// Why the trigger is paused, who asked, and when.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The pause recorded on the trigger itself, by any of the <c>*With</c> members or their reasonless
+    /// twins. A trigger that is paused without a record of its own — one stored into a group that was
+    /// already paused — answers its trigger group's record, and then its job group's.
+    /// </para>
+    /// <para>
+    /// <see langword="null" /> when the trigger does not exist, is not paused, or was paused by
+    /// something that records nothing: a scheduler or store written against an earlier 4.x, or a 4.2
+    /// node sharing the database. A default interface member, whose default answers
+    /// <see langword="null" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="triggerKey">The trigger to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
+    /// Why the trigger group is paused, who asked, and when.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null" /> when the group is not paused, or its pause recorded nothing. A default
+    /// interface member, whose default answers <see langword="null" />.
+    /// </remarks>
+    /// <param name="groupName">The trigger group to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="groupName" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
+    /// Why the job group is paused, who asked, and when.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null" /> when the group is not paused, or its pause recorded nothing. A default
+    /// interface member, whose default answers <see langword="null" />.
+    /// </remarks>
+    /// <param name="groupName">The job group to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="groupName" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
     /// Lists jobs matching the query, as <see cref="JobHeader" />s, ordered by group and
     /// then name (ordinal). Listing never loads job data.
     /// </summary>

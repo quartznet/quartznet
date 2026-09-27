@@ -303,6 +303,54 @@ public class DelegatingScheduler : IScheduler
     }
 
     /// <inheritdoc />
+    public virtual ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseTriggerWith(triggerKey, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseJobWith(jobKey, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseTriggerGroupsWith(matcher, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseJobGroupsWith(matcher, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseAllWith(details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetTriggerPause(triggerKey, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetTriggerGroupPause(groupName, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetJobGroupPause(groupName, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public virtual ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
         return scheduler.QueryJobs(query, cancellationToken);

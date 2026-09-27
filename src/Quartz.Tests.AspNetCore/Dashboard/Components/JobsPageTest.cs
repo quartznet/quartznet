@@ -77,6 +77,7 @@ public class JobsPageTest
         // The listing shrinks under the reader — someone deleted the jobs the second page was showing.
         GivenJobs(TestData.Dashboard.JobKeys("reports", 3));
         page.FindAll("button").First(button => button.TextContent.Trim() == "Pause").Click();
+        page.ConfirmPause();
 
         page.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-1", "reports.job-2", "reports.job-3"],
             "a page past the end shows the last page rather than an empty one that looks like a deleted group");
@@ -128,6 +129,7 @@ public class JobsPageTest
         IRenderedComponent<Jobs> page = context.Render<Jobs>();
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "Pause group").Click();
+        page.ConfirmPause();
 
         A.CallTo(() => context.Api.PauseJob(
                 TestData.SchedulerName,

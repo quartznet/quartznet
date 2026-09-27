@@ -90,6 +90,27 @@ internal static class DashboardMarkup
     }
 
     /// <summary>
+    /// Answers the pause prompt a pause button opened: types <paramref name="reason" /> when there is one,
+    /// and confirms.
+    /// </summary>
+    /// <remarks>
+    /// Waited for, because the prompt renders on the click that opened it and a read straight after a
+    /// click races the render.
+    /// </remarks>
+    public static void ConfirmPause<TComponent>(this IRenderedComponent<TComponent> component, string? reason = null)
+        where TComponent : IComponent
+    {
+        component.WaitForElement(".qz-pause-dialog");
+
+        if (reason is not null)
+        {
+            component.Find("#qz-pause-reason").Change(reason);
+        }
+
+        component.Find(".qz-pause-dialog .qz-pause-confirm").Click();
+    }
+
+    /// <summary>
     /// Whether the page renders a button with the given label.
     /// </summary>
     public static bool HasButton<TComponent>(this IRenderedComponent<TComponent> component, string label)

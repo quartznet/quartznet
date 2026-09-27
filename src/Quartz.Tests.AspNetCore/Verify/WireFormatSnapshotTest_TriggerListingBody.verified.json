@@ -20,7 +20,12 @@
       "continuesAfterTriggerName": null,
       "continuesAfterTriggerGroup": null,
       "continuationCondition": null,
-      "overlapPolicy": "Default"
+      "overlapPolicy": "Default",
+      "pause": {
+        "reason": "nightly load delayed",
+        "requestedBy": "ops@example.com",
+        "pausedAtUtc": "2031-06-17T10:00:00+00:00"
+      }
     },
     {
       "name": "AwaitingTriggerKey",
@@ -42,7 +47,8 @@
       "continuesAfterTriggerName": "CronTriggerKey",
       "continuesAfterTriggerGroup": "CronTriggerGroup",
       "continuationCondition": "OnFailure, OnCancellation",
-      "overlapPolicy": "Default"
+      "overlapPolicy": "Default",
+      "pause": null
     }
   ],
   "hasMore": false,

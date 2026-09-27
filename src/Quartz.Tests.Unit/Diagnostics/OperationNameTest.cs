@@ -80,6 +80,14 @@ public class OperationNameTest
         // operator already filters on is the one that was there first.
         "FiringComplete",
 
+        // The same, for the pauses that carry a reason: each is the pause it names with what it
+        // records attached, and begins that pause's span.
+        "PauseAllWith",
+        "PauseJobGroupsWith",
+        "PauseJobWith",
+        "PauseTriggerGroupsWith",
+        "PauseTriggerWith",
+
         // A write, but one queued off the job's flow at up to one a second per running firing: it has
         // no caller's span to be a child of, so tracing it would open a new root trace every second
         // for every job that reports — the unbounded-trace shape #3797 took out.
@@ -104,6 +112,9 @@ public class OperationNameTest
         "GetTriggers",
         "GetTriggersForJob",
         "GetTriggerState",
+        "GetTriggerPause",
+        "GetTriggerGroupPause",
+        "GetJobGroupPause",
         "QueryCalendarNames",
         "QueryClusterNodes",
         "QueryFireInstances",

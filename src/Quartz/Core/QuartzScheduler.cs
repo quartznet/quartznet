@@ -1985,6 +1985,132 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// <see cref="PauseTrigger" />, with the details handed to the store to record.
+    /// </summary>
+    public async ValueTask<bool> PauseTriggerWith(
+        TriggerKey triggerKey,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        ArgumentNullException.ThrowIfNull(details);
+        ValidateState();
+
+        bool paused = await resources.JobStore.PauseTriggerWith(triggerKey, details, cancellationToken).ConfigureAwait(false);
+        if (paused)
+        {
+            NotifySchedulerThread(null);
+            await NotifySchedulerListenersPausedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        return paused;
+    }
+
+    /// <summary>
+    /// <see cref="PauseJob" />, with the details handed to the store to record.
+    /// </summary>
+    public async ValueTask<bool> PauseJobWith(
+        JobKey jobKey,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKey);
+        ArgumentNullException.ThrowIfNull(details);
+        ValidateState();
+
+        bool found = await resources.JobStore.PauseJobWith(jobKey, details, cancellationToken).ConfigureAwait(false);
+        if (found)
+        {
+            NotifySchedulerThread(null);
+            await NotifySchedulerListenersPausedJob(jobKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// <see cref="PauseTriggerGroups" />, with the details handed to the store to record.
+    /// </summary>
+    public async ValueTask<List<string>> PauseTriggerGroupsWith(
+        GroupMatcher<TriggerKey> matcher,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+        ArgumentNullException.ThrowIfNull(details);
+        ValidateState();
+
+        var pausedGroups = await resources.JobStore.PauseTriggerGroupsWith(matcher, details, cancellationToken).ConfigureAwait(false);
+        NotifySchedulerThread(null);
+        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
+        return pausedGroups;
+    }
+
+    /// <summary>
+    /// <see cref="PauseJobGroups" />, with the details handed to the store to record.
+    /// </summary>
+    public async ValueTask<List<string>> PauseJobGroupsWith(
+        GroupMatcher<JobKey> matcher,
+        PauseDetails details,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+        ArgumentNullException.ThrowIfNull(details);
+        ValidateState();
+
+        var pausedGroups = await resources.JobStore.PauseJobGroupsWith(matcher, details, cancellationToken).ConfigureAwait(false);
+        NotifySchedulerThread(null);
+        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedJobs(x, cancellationToken).AsTask())).ConfigureAwait(false);
+        return pausedGroups;
+    }
+
+    /// <summary>
+    /// <see cref="PauseAll" />, with the details handed to the store to record.
+    /// </summary>
+    public async ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+        ValidateState();
+
+        await resources.JobStore.PauseAllWith(details, cancellationToken).ConfigureAwait(false);
+        NotifySchedulerThread(null);
+        await NotifySchedulerListenersPausedTriggers(null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The pause the store recorded for the trigger.
+    /// </summary>
+    public ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        ValidateState();
+
+        return resources.JobStore.GetTriggerPause(triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// The pause the store recorded for the trigger group.
+    /// </summary>
+    public ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+        ValidateState();
+
+        return resources.JobStore.GetTriggerGroupPause(groupName, cancellationToken);
+    }
+
+    /// <summary>
+    /// The pause the store recorded for the job group.
+    /// </summary>
+    public ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+        ValidateState();
+
+        return resources.JobStore.GetJobGroupPause(groupName, cancellationToken);
+    }
+
+    /// <summary>
     /// Get all <see cref="ITrigger" /> s that are associated with the
     /// identified <see cref="IJobDetail" />.
     /// </summary>

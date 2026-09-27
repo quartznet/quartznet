@@ -127,13 +127,31 @@ internal sealed class DashboardActionLog
     /// </remarks>
     private string UserName()
     {
+        return RequesterName() ?? (authenticationStateProvider.GetAuthenticationStateAsync().IsCompletedSuccessfully ? "(anonymous)" : "(unknown)");
+    }
+
+    /// <summary>
+    /// A pause the circuit's user asks for, with the reason they typed.
+    /// </summary>
+    public PauseDetails PauseDetailsFor(string? reason) => new() { Reason = reason, RequestedBy = RequesterName() };
+
+    /// <summary>
+    /// Who the circuit belongs to, as a pause records its requester, or <see langword="null" /> when
+    /// nothing has said.
+    /// </summary>
+    /// <remarks>
+    /// The name <see cref="Record" /> logs, without the placeholders: a pause stores what it was told,
+    /// and "nobody said" is <see langword="null" /> there rather than a word that reads like a user.
+    /// </remarks>
+    public string? RequesterName()
+    {
         Task<AuthenticationState> state = authenticationStateProvider.GetAuthenticationStateAsync();
         if (!state.IsCompletedSuccessfully)
         {
-            return "(unknown)";
+            return null;
         }
 
         string? name = state.Result.User.Identity?.Name;
-        return string.IsNullOrWhiteSpace(name) ? "(anonymous)" : name;
+        return string.IsNullOrWhiteSpace(name) ? null : name;
     }
 }

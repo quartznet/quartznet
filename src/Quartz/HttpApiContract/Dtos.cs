@@ -128,4 +128,24 @@ internal record SchedulerContextDto(Dictionary<string, string?> Context)
     }
 }
 
-internal record TriggerStateDto(TriggerState State);
+/// <summary>
+/// A trigger's state, and why it is paused while it is.
+/// </summary>
+/// <remarks>
+/// <see cref="Pause" /> is optional so a 4.2 host's answer, which has none, still reads as a state
+/// with no pause record.
+/// </remarks>
+internal record TriggerStateDto(TriggerState State, PauseDto? Pause = null);
+
+/// <summary>
+/// What a pause recorded: <see cref="PauseInfo" /> on the wire.
+/// </summary>
+internal sealed record PauseDto(string? Reason, string? RequestedBy, DateTimeOffset PausedAtUtc)
+{
+    public static PauseDto? Create(PauseInfo? pause)
+    {
+        return pause is null ? null : new PauseDto(pause.Reason, pause.RequestedBy, pause.PausedAtUtc);
+    }
+
+    public PauseInfo AsPauseInfo() => new(Reason, RequestedBy, PausedAtUtc);
+}

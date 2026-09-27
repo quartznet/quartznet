@@ -119,13 +119,14 @@ public class WireFormatSnapshotTest : WebApiTest
     {
         // the trigger listing is where the wire's enums live: a header carries the trigger's state, and
         // it goes out as its name for the same reason the trigger body's repeatIntervalUnit does.
-        // Two shapes in one page: an ordinary trigger, whose continuation members are nulls rather than
-        // missing properties, and one waiting on another trigger's firing - whose condition goes out as
-        // the outcomes it names rather than as the integer the column holds.
+        // Two shapes in one page: a paused trigger, whose continuation members are nulls rather than
+        // missing properties and whose pause says why, and one waiting on another trigger's firing -
+        // whose condition goes out as the outcomes it names rather than as the integer the column holds,
+        // and whose pause is a null.
         A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<TriggerHeader>(
                 [
-                    TriggerHeaderFor(TestData.Wire.CronTrigger, TriggerState.Paused),
+                    TriggerHeaderFor(TestData.Wire.CronTrigger, TriggerState.Paused) with { Pause = WirePause },
                     TriggerHeaderFor(TestData.Wire.CronTrigger, TriggerState.Awaiting) with
                     {
                         Key = new TriggerKey("AwaitingTriggerKey", "CronTriggerGroup"),
@@ -172,6 +173,35 @@ public class WireFormatSnapshotTest : WebApiTest
             });
 
         string body = await Get($"{SchedulerUrl}/nodes");
+        await VerifyBody(body);
+    }
+
+    /// <summary>
+    /// A pause as the wire carries it: the two texts, and the instant in the round-trip form every other
+    /// instant on this wire takes.
+    /// </summary>
+    private static readonly PauseInfo WirePause = new(
+        "nightly load delayed", "ops@example.com", new DateTimeOffset(2031, 6, 17, 10, 0, 0, TimeSpan.Zero));
+
+    [Test]
+    public async Task PausedTriggerStateBody()
+    {
+        TriggerKey triggerKey = TestData.Wire.CronTrigger.Key;
+        A.CallTo(() => FakeScheduler.GetTriggerState(triggerKey, A<CancellationToken>._)).Returns(TriggerState.Paused);
+        A.CallTo(() => FakeScheduler.GetTriggerPause(triggerKey, A<CancellationToken>._)).Returns(WirePause);
+
+        string body = await Get($"{SchedulerUrl}/triggers/{triggerKey.Group}/{triggerKey.Name}/state");
+        await VerifyBody(body);
+    }
+
+    [Test]
+    public async Task PausedGroupBody()
+    {
+        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobGroup>([new JobGroup("reports", Paused: true)], HasMore: false));
+        A.CallTo(() => FakeScheduler.GetJobGroupPause("reports", A<CancellationToken>._)).Returns(WirePause);
+
+        string body = await Get($"{SchedulerUrl}/jobs/groups/reports/paused");
         await VerifyBody(body);
     }
 

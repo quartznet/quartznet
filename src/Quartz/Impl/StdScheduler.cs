@@ -405,6 +405,54 @@ internal sealed class StdScheduler : IScheduler
         return scheduler.PauseTriggerGroups(matcher, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseTriggerWith(triggerKey, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseJobWith(jobKey, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseTriggerGroupsWith(matcher, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseJobGroupsWith(matcher, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask PauseAllWith(PauseDetails details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseAllWith(details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetTriggerPause(triggerKey, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetTriggerGroupPause(groupName, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetJobGroupPause(groupName, cancellationToken);
+    }
+
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
