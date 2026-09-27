@@ -75,12 +75,19 @@ internal static class StoreCheck
     private static readonly TaskCompletionSource declaredFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
-    /// What the delegate job was handed, which is the half of phase A of #3867 that only a native
-    /// publish can prove: its parameters are read off <see cref="Delegate.Method" /> and the handler is
-    /// invoked through <see cref="System.Reflection.MethodBase.Invoke(object?, object?[])" />, and the job
-    /// comes back out of <c>JOB_CLASS_NAME</c> as <c>Quartz.Impl.DelegateJob</c>.
+    /// What the delegate job was handed, and how it was called: its handler is a lambda, so the source
+    /// generator intercepted the call and bound it at compile time (#3882). The job comes back out of
+    /// <c>JOB_CLASS_NAME</c> as <c>Quartz.Impl.DelegateJob</c>.
     /// </summary>
     private static readonly TaskCompletionSource<string> delegateFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// The same for a handler passed as a <see cref="Delegate" />, which the generator leaves alone: its
+    /// parameters are read off <see cref="Delegate.Method" /> and it is invoked through
+    /// <see cref="System.Reflection.MethodBase.Invoke(object?, object?[])" />, which is the half of phase A
+    /// of #3867 that only a native publish can prove.
+    /// </summary>
+    private static readonly TaskCompletionSource<string> reflectedDelegateFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// Runs the check, returning <see langword="null" /> when it passed and a message when it did not.
@@ -131,14 +138,25 @@ internal static class StoreCheck
                 q.AddDeclaredJobs();
 
                 // A job that is a lambda, its dependencies its parameters: a service, the firing and its
-                // token, each bound by reading the delegate's own parameters.
+                // token, bound by the code the source generator wrote for this call.
                 q.ScheduleJob("canary-delegate", static (ILogger<CanaryJob> log, IJobExecutionContext context, CancellationToken cancellationToken) =>
                 {
                     log.LogInformation("Delegate job {JobKey} fired", context.JobDetail.Key);
                     delegateFired.TrySetResult(
-                        $"{context.JobDetail.JobType.FullName} with a logger, the firing and {(cancellationToken.CanBeCanceled ? "its token" : "no token")}");
+                        $"{context.JobDetail.JobType.FullName} with a logger, the firing and {(cancellationToken.CanBeCanceled ? "its token" : "no token")}, {HowCalled()}");
                     return Task.CompletedTask;
                 }, trigger => trigger.WithIdentity("canary-delegate", "store").StartNow());
+
+                // The same handler as a Delegate, which the generator cannot see through, so it is bound by
+                // reading the delegate's own parameters and invoked through reflection.
+                Delegate reflected = static (ILogger<CanaryJob> log, IJobExecutionContext context, CancellationToken cancellationToken) =>
+                {
+                    log.LogInformation("Delegate job {JobKey} fired", context.JobDetail.Key);
+                    reflectedDelegateFired.TrySetResult(
+                        $"{context.JobDetail.JobType.FullName} with a logger, the firing and {(cancellationToken.CanBeCanceled ? "its token" : "no token")}, {HowCalled()}");
+                    return Task.CompletedTask;
+                };
+                q.ScheduleJob("canary-delegate-reflected", reflected, trigger => trigger.WithIdentity("canary-delegate-reflected", "store").StartNow());
             });
 
             ServiceProvider container = services.BuildServiceProvider();
@@ -204,9 +222,21 @@ internal static class StoreCheck
             }
 
             string delegateRun = await delegateFired.Task.ConfigureAwait(false);
-            if (!delegateRun.StartsWith("Quartz.Impl.DelegateJob, Quartz with a logger, the firing and its token", StringComparison.Ordinal))
+            if (delegateRun != "Quartz.Impl.DelegateJob, Quartz with a logger, the firing and its token, bound at compile time")
             {
                 return $"FAIL store: the delegate job ran as '{delegateRun}'.";
+            }
+
+            Task reflectedDelegated = await Task.WhenAny(reflectedDelegateFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            if (reflectedDelegated != reflectedDelegateFired.Task)
+            {
+                return "FAIL store: the delegate job passed as a Delegate never fired within a minute, so its handler could not be bound or invoked by reflection.";
+            }
+
+            string reflectedDelegateRun = await reflectedDelegateFired.Task.ConfigureAwait(false);
+            if (reflectedDelegateRun != "Quartz.Impl.DelegateJob, Quartz with a logger, the firing and its token, bound by reflection")
+            {
+                return $"FAIL store: the delegate job passed as a Delegate ran as '{reflectedDelegateRun}'.";
             }
 
             CanaryInput received = await typedInput.Task.ConfigureAwait(false);
@@ -241,7 +271,8 @@ internal static class StoreCheck
             await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
 
             Console.WriteLine($"PASS delegate: {delegateRun}");
-            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, a job declared with [QuartzJob] on a configured schedule and a delegate job included.");
+            Console.WriteLine($"PASS delegate: {reflectedDelegateRun}");
+            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, a job declared with [QuartzJob] on a configured schedule and two delegate jobs, one bound at compile time and one by reflection, included.");
             return null;
         }
         catch (Exception e)
@@ -278,6 +309,29 @@ internal static class StoreCheck
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText = schema;
         await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// How the running handler was called, read off the stack it is running on: through the interceptor
+    /// the source generator wrote into <c>Quartz.Generated</c>, or through a reflective invoke.
+    /// </summary>
+    /// <remarks>
+    /// The two paths are built to be indistinguishable from inside the handler in every other way, so the
+    /// frames are the only witness. The native binary keeps its stack trace data by default, which is
+    /// what makes the names readable there.
+    /// </remarks>
+    private static string HowCalled()
+    {
+        string stack = Environment.StackTrace;
+        bool generated = stack.Contains("Quartz.Generated.", StringComparison.Ordinal);
+        bool reflective = stack.Contains("System.Reflection.", StringComparison.Ordinal);
+
+        return (generated, reflective) switch
+        {
+            (true, false) => "bound at compile time",
+            (false, true) => "bound by reflection",
+            _ => $"called through a stack that says neither or both: {stack}",
+        };
     }
 
     private static void TryDelete(string databaseFile)
