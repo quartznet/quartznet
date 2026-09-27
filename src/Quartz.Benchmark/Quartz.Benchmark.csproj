@@ -46,6 +46,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
+    <!--
+      The analyzer as a package reference would bring it, with the targets file after it, so that
+      DelegateJobBenchmark measures the binding the source generator writes against the reflective one.
+    -->
+    <ProjectReference Include="..\Quartz.Analyzers\Quartz.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
 
   <ItemGroup>
@@ -66,5 +71,7 @@
     <Compile Remove="baseline-3x\**" />
     <None Include="baseline-3x\**" />
   </ItemGroup>
+
+  <Import Project="..\Quartz\buildTransitive\net10.0\Quartz.targets" />
 
 </Project>

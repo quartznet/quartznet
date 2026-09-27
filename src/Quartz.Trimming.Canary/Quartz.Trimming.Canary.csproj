@@ -61,4 +61,10 @@
     <ProjectReference Include="..\Quartz.Analyzers\Quartz.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
 
+  <!--
+    And what buildTransitive/net10.0 inside the package gives one, which is what lets the generator
+    intercept the canary's delegate job and bind it at compile time.
+  -->
+  <Import Project="..\Quartz\buildTransitive\net10.0\Quartz.targets" />
+
 </Project>
