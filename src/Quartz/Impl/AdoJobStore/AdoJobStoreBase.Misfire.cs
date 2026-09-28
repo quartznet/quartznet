@@ -236,12 +236,20 @@ internal abstract partial class AdoJobStoreBase
             {
                 try
                 {
-                    // Mirror ReleaseAcquiredTrigger: update from both ACQUIRED and BLOCKED,
-                    // because TriggersFired may have moved the trigger to BLOCKED state (for
-                    // DisallowConcurrentExecution jobs) while the fired record is still ACQUIRED.
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, firedTrigger.TriggerKey, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, firedTrigger.TriggerKey, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
-                    await Delegate.DeleteFiredTrigger(conn, firedTrigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                    // The same release the scheduler thread would have made, had it not lost track of the
+                    // reservation - including where the trigger goes back to. A reservation's fired row
+                    // names no job, so the trigger's own row is asked for the key; a row that is gone is a
+                    // trigger that was deleted, and the reservation is all that is left to clean up.
+                    StoredTriggerHeader? header = await Delegate.SelectTriggerHeader(conn, firedTrigger.TriggerKey, cancellationToken).ConfigureAwait(false);
+                    if (header is null)
+                    {
+                        await Delegate.DeleteFiredTrigger(conn, firedTrigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await ReleaseAcquiredTrigger(conn, firedTrigger.TriggerKey, header.JobKey, firedTrigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                    }
+
                     recoveredCount++;
                 }
                 catch (Exception e)
