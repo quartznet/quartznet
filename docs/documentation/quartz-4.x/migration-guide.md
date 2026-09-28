@@ -36,6 +36,7 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `QuartzBuilderExtensions.ScheduleJob(name, Delegate handler, trigger)` and its `(IServiceProvider, …)` twin | The same, with its one trigger; the job takes the trigger's identity |
 | `QuartzBuilderExtensions.WithCompiledBinding(handler, invoker)` | For generated code, hidden from IntelliSense: the generator's interceptors pass a lambda or method-group handler through it, bound at compile time. See [Bound at compile time](tutorial/delegate-jobs.md#bound-at-compile-time) |
 | `TriggerAcquireResult.ConcurrentExecutionDisallowed` | `bool?`, a non-positional `init` property: the job row's `IS_NONCONCURRENT`. Every shipped dialect reads it; `null` falls back to the job type's `[DisallowConcurrentExecution]` |
+| `TriggerAcquireResult.ExecutionGroupAtLimit` | `bool`, a non-positional `init` property: the row was read and refused because its execution group had no slot left. Every shipped dialect returns such a row flagged instead of leaving it out, and the store reads past it. A delegate of your own that leaves it out keeps working |
 | `TriggerConfiguratorExtensions.WithCronSchedule(Action<CronExpressionBuilder> expression, configure)` | The expression assembled inline: `t.WithCronSchedule(cron => cron.AtTime(new TimeOnly(3, 0)).OnWeekdays())`. See [Cron Triggers](tutorial/crontriggers.md#building-crontriggers) |
 | `CronExpressionBuilder.Every(TimeSpan)` | An interval counted on the clock. Whole seconds or minutes dividing 60, or hours dividing 24; otherwise `ArgumentOutOfRangeException`. Throws with `AtTime`. See [Building cron expressions programmatically](cron-expressions.md#building-cron-expressions-programmatically) |
 | `QuartzBuilderExtensions.AddJobLogScope()` | Opt-in middleware opening a log scope per firing: job, trigger and fire instance, under the span attribute names. A second call for one scheduler adds nothing. See [A log scope per firing](tutorial/job-execution-middleware.md#a-log-scope-per-firing) |
@@ -138,6 +139,11 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
   into a batch when the job disallowed concurrent execution only through `DisallowConcurrentExecution()`
   on its builder. The fire path declined the second, so the job never overlapped itself, but the batch
   lost a slot. A driver delegate of your own that overrides `SelectTriggersToAcquire` sets the property.
+* **`StdAdoDelegate.SelectTriggersToAcquire` returns a candidate refused for its execution group's limit,
+  flagged `ExecutionGroupAtLimit`,** instead of leaving it out. The store skips the row and reads past
+  it, so a node acquiring one trigger at a time no longer idles behind a group at its limit. A subclass
+  that inspects the list its base returns sees the refused rows among them; one that overrides the member
+  and leaves them out keeps working as it did.
 * **A brace in `WithExecutionGroup` is now a placeholder.** `WithExecutionGroup("a{b}")` used to store
   `a{b}`; it now reads `b` from the job data and throws `FormatException` at `Build()` if it is missing.
   Write `a{{b}}` for the literal name. Scheduling files, `TriggerDetailsUpdate`, the HTTP API and

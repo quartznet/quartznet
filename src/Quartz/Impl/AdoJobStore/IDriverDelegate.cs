@@ -1433,10 +1433,19 @@ public interface IDriverDelegate
     /// Selects the next triggers to fire, in ascending order of fire time and then descending by
     /// priority.
     /// </summary>
+    /// <remarks>
+    /// A candidate refused for its execution group's limit is best returned with
+    /// <see cref="TriggerAcquireResult.ExecutionGroupAtLimit" /> set rather than left out: the store
+    /// counts such a row as one it read and skipped, and reads past it to what is due behind it. A
+    /// delegate that leaves the row out instead still works, but a node reading one trigger at a time
+    /// cannot then see past a group at its limit (#3928). Every dialect Quartz ships flags the row.
+    /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="criteria">What to acquire, and how much of it.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>A (never null, possibly empty) list of the next triggers to be fired.</returns>
+    /// <returns>
+    /// A (never null, possibly empty) list of the next triggers to be fired, refused candidates flagged.
+    /// </returns>
     ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionCriteria criteria,

@@ -57,4 +57,26 @@ public readonly record struct TriggerAcquireResult(TriggerKey TriggerKey, string
     /// </para>
     /// </remarks>
     public bool? ConcurrentExecutionDisallowed { get; init; }
+
+    /// <summary>
+    /// Whether the row was read and then refused because its execution group had no slot left in the
+    /// <see cref="TriggerAcquisitionCriteria.ExecutionLimits" /> it was read under.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A candidate the delegate refuses for its limit is returned flagged rather than dropped, so that
+    /// the store can see it. The acquisition statement limits its rows to the count asked for, and a
+    /// row dropped after that limit is invisible to the store: it cannot tell a read that came back
+    /// short because nothing else is due from one that came back short because the rows it did not see
+    /// were refused. A node reading one trigger at a time then read the same refused row every round and
+    /// never reached the due rows behind it (#3928). A flagged row is counted as skipped, is never read
+    /// back or reserved, and is what the store reads past.
+    /// </para>
+    /// <para>
+    /// Every dialect Quartz ships sets it. A delegate of your own that drops the refused rows instead
+    /// keeps working as it did, and a <c>StdAdoDelegate</c> subclass that inspects what its base
+    /// returns now sees the refused rows among them, flagged.
+    /// </para>
+    /// </remarks>
+    public bool ExecutionGroupAtLimit { get; init; }
 }
