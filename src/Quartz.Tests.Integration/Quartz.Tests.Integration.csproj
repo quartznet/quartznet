@@ -87,6 +87,7 @@
     <PackageReference Include="Testcontainers.Redis" />
     <PackageReference Include="TimeZoneConverter" />
     <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="WolverineFx" />
     <PackageReference Include="WolverineFx.Postgresql" />
     <PackageReference Include="WolverineFx.SqlServer" />
   </ItemGroup>
