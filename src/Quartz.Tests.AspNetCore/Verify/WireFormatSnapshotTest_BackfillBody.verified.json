@@ -1,0 +1,17 @@
+﻿{
+  "slotsFound": 3,
+  "scheduled": 2,
+  "alreadyScheduled": 1,
+  "firstSlot": "2026-09-09T00:00:00+00:00",
+  "lastSlot": "2026-09-09T02:00:00+00:00",
+  "triggers": [
+    {
+      "name": "hourly@2026-09-09T00:00:00Z",
+      "group": "backfill:reports"
+    },
+    {
+      "name": "hourly@2026-09-09T02:00:00Z",
+      "group": "backfill:reports"
+    }
+  ]
+}

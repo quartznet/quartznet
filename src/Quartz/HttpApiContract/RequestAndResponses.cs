@@ -232,6 +232,65 @@ internal record UnscheduleJobsRequest(KeyDto[] Triggers) : IValidatable
 }
 
 /// <summary>
+/// The body of a backfill: the range, and <see cref="BackfillOptions" />' three members, each optional.
+/// </summary>
+/// <remarks>
+/// Only the presence of the range is checked here. Everything else — an empty range, one reaching past
+/// the scheduler's current time, the options' bounds — is <see cref="Backfilling.Run" />'s, so a request
+/// and an in-process call are refused by the same words.
+/// </remarks>
+internal sealed record BackfillRequest(DateTimeOffset? From, DateTimeOffset? To) : IValidatable
+{
+    public int? MaxSlots { get; init; }
+
+    public TimeSpan? Spacing { get; init; }
+
+    public string? ExecutionGroup { get; init; }
+
+    public BackfillOptions AsOptions()
+    {
+        BackfillOptions options = new() { Spacing = Spacing.GetValueOrDefault(), ExecutionGroup = ExecutionGroup };
+        return MaxSlots is { } maxSlots ? options with { MaxSlots = maxSlots } : options;
+    }
+
+    public IEnumerable<string> Validate()
+    {
+        if (From is null)
+        {
+            yield return "Missing from";
+        }
+
+        if (To is null)
+        {
+            yield return "Missing to";
+        }
+    }
+}
+
+/// <summary>
+/// What a backfill found and did: <see cref="BackfillResult" /> on the wire.
+/// </summary>
+internal sealed record BackfillResponse(
+    int SlotsFound,
+    int Scheduled,
+    int AlreadyScheduled,
+    DateTimeOffset? FirstSlot,
+    DateTimeOffset? LastSlot,
+    KeyDto[] Triggers)
+{
+    public static BackfillResponse Create(BackfillResult result)
+    {
+        return new BackfillResponse(
+            result.SlotsFound,
+            result.Scheduled,
+            result.AlreadyScheduled,
+            result.FirstSlot,
+            result.LastSlot,
+            [.. result.ScheduledTriggers.Select(KeyDto.Create)]);
+    }
+}
+
+/// <summary>
 /// One group's limit on the wire: the count, and what it is counted against.
 /// </summary>
 /// <remarks>

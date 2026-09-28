@@ -102,6 +102,10 @@ internal static class TriggerEndpoints
         yield return builder.MapPost(options.PatternFor(SchedulerRoutes.UpdateTriggerDetails), UpdateTriggerDetails)
             .WithQuartzDefaults(SchedulerRoutes.UpdateTriggerDetails, "Update trigger details without rescheduling")
             .WithQuartzMutation(options);
+
+        yield return builder.MapPost(options.PatternFor(SchedulerRoutes.BackfillTrigger), BackfillTrigger)
+            .WithQuartzDefaults(SchedulerRoutes.BackfillTrigger, "Backfill a trigger's schedule over a past range")
+            .WithQuartzMutation(options);
     }
 
     [ProducesResponseType(typeof(PagedResultDto<TriggerHeaderDto>), StatusCodes.Status200OK)]
@@ -512,5 +516,33 @@ internal static class TriggerEndpoints
         EndpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
             scheduler => SchedulerOperations.UpdateTriggerDetails(scheduler, new TriggerKey(triggerName, triggerGroup), request, cancellationToken));
+    }
+
+    /// <summary>
+    /// Schedules one firing of the trigger's job for each slot the trigger had in [<c>from</c>, <c>to</c>),
+    /// as <c>SchedulerBackfillExtensions.Backfill</c> does in process.
+    /// </summary>
+    /// <remarks>
+    /// <c>maxSlots</c>, <c>spacing</c> and <c>executionGroup</c> are optional. A range that is empty, ends
+    /// after the scheduler's current time or holds more slots than <c>maxSlots</c> is a <c>400</c> that
+    /// schedules nothing; a trigger the key does not resolve is a <c>404</c>.
+    /// </remarks>
+    [ProducesResponseType(typeof(BackfillResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> BackfillTrigger(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        string triggerGroup,
+        string triggerName,
+        BackfillRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            TriggerKey triggerKey = new(triggerName, triggerGroup);
+            return await SchedulerOperations.BackfillTrigger(scheduler, triggerKey, request, cancellationToken).ConfigureAwait(false)
+                   ?? throw NotFoundException.ForTrigger(triggerKey);
+        });
     }
 }

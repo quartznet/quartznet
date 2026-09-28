@@ -56,6 +56,7 @@ namespace Quartz.HttpApiContract;
 // Request bodies.
 [JsonSerializable(typeof(AddCalendarRequest))]
 [JsonSerializable(typeof(AddJobRequest))]
+[JsonSerializable(typeof(BackfillRequest))]
 [JsonSerializable(typeof(DeleteJobsRequest))]
 [JsonSerializable(typeof(JobKeySetRequest))]
 [JsonSerializable(typeof(KeyDto[]))]
@@ -73,6 +74,7 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(AffectedGroupsResponse))]
 [JsonSerializable(typeof(AppliedJobKeysResponse))]
 [JsonSerializable(typeof(AppliedTriggerKeysResponse))]
+[JsonSerializable(typeof(BackfillResponse))]
 [JsonSerializable(typeof(ClusterNodeDto[]))]
 [JsonSerializable(typeof(ExecutionHistoryEntryDto))]
 [JsonSerializable(typeof(ExecutionLimitsResponse))]
