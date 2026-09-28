@@ -96,6 +96,14 @@ public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
 
             results.Should().HaveCount(3, "one answer per trigger, in the order asked");
             results[0].TriggerFiredBundle.Should().NotBeNull("ordinary-1 fired before the failure");
+
+            // Read before the rest of the results are looked at, because it is the issue's PostgreSQL
+            // question: there the failure aborted the transaction and the commit became a rollback, so a
+            // fire reported to the scheduler had no row behind it by the time the job ran.
+            (await FiredState("ordinary-1")).Should().Be("EXECUTING",
+                "a result reported fired is a fire that committed; on PostgreSQL the failure used to abort the transaction, "
+                + "and the commit became a rollback underneath this reported fire");
+
             results[1].TriggerFiredBundle.Should().BeNull("the poison fire failed");
             results[1].Exception.Should().NotBeNull("and says so, which is what the scheduler releases the trigger on");
             results[1].IsDeclined.Should().BeFalse();
@@ -107,9 +115,6 @@ public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
                 "the poison fire's BLOCKED of its job-mates went with the fire; left BLOCKED, nothing executing would ever let go of it");
             (await TriggerState("poison")).Should().Be("ACQUIRED", "the reservation is the scheduler's to release, not the store's");
             (await FiredState("poison")).Should().Be("ACQUIRED", "its fired row is the reservation as acquisition wrote it, the fire's update undone");
-            (await FiredState("ordinary-1")).Should().Be("EXECUTING",
-                "a result reported fired is a fire that committed; on PostgreSQL the failure used to abort the transaction, "
-                + "and the commit became a rollback underneath this reported fire");
             (await FiredState("ordinary-2")).Should().Be("EXECUTING");
             FireFault.FireAttempts.Should().Equal(["ordinary-1", "poison", "ordinary-1", "ordinary-2"],
                 "the attempt that met the failure is rolled back whole, and the batch is fired again without the failed trigger");
@@ -130,12 +135,23 @@ public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
     }
 
     /// <summary>
-    /// A scheduler whose poison trigger fails once: the failure costs that one firing and nothing else.
-    /// Its job-mate keeps firing, the ordinary trigger beside it keeps firing, and nothing is left
-    /// <c>BLOCKED</c> once the scheduler is down.
+    /// A scheduler with a trigger whose every fire fails: the ordinary trigger in the same batch keeps
+    /// firing on schedule, the poison trigger never runs, and nothing is left <c>BLOCKED</c> once the
+    /// scheduler is down.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The poison trigger's fire time never advances, so it is first in the order every round and is in
+    /// every batch, and its job-mate — one trigger of a serial job per batch — is skipped behind it for
+    /// as long as it keeps failing. That is the scheduler's existing answer to a failed fire, releasing
+    /// the trigger to be acquired again, and not what this fixture is about; the job-mate is here for
+    /// what the failure did to <em>it</em>. Without the fix it was moved to <c>BLOCKED</c> by each failed
+    /// fire and left there, on SQL Server and MySQL; on PostgreSQL the ordinary trigger, refused by the
+    /// aborted transaction after the poison in every batch, never fired at all.
+    /// </para>
+    /// </remarks>
     [Test]
-    public async Task OneFailedFireDoesNotStopTheJobsOtherTriggerOrTheRestOfTheBatch()
+    public async Task ARunningSchedulerKeepsFiringTheRestOfTheBatchBesideATriggerWhoseFireKeepsFailing()
     {
         void ConfigureNode(NameValueCollection properties)
         {
@@ -147,7 +163,6 @@ public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
         }
 
         FireFault.FailFireOf = "poison";
-        FireFault.FailOnce = true;
 
         IScheduler node = await CreateScheduler(Node, configure: ConfigureNode);
         try
@@ -179,13 +194,14 @@ public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
         TestContext.Out.WriteLine("Firings: " + string.Join(", ", firings.GroupBy(x => x, StringComparer.Ordinal).Select(x => $"{x.Key}={x.Count()}")));
         TestContext.Out.WriteLine("Fires attempted: " + string.Join(", ", FireFault.FireAttempts));
 
-        firings.Count(x => x == "sibling").Should().BeGreaterThanOrEqualTo(4,
-            "the poison trigger's one failed fire moved its job-mate to BLOCKED inside the failed attempt; that went with the attempt, "
-            + "so the job-mate kept firing instead of sitting BLOCKED with nothing executing to let go of it");
-        firings.Count(x => x == "ordinary").Should().BeGreaterThanOrEqualTo(4, "the rest of the batch fires whatever one trigger of it does");
-        firings.Count(x => x == "poison").Should().BeGreaterThanOrEqualTo(1, "the trigger whose fire failed once fires on its next acquisition");
+        firings.Count(x => x == "ordinary").Should().BeGreaterThanOrEqualTo(5,
+            "the ordinary trigger is due every second and shares every batch with the poison; the rest of a batch fires whatever "
+            + "one trigger of it does, and on PostgreSQL it used to be refused by the aborted transaction, round after round");
+        firings.Should().NotContain("poison", "a fire that fails is not a fire");
         (await ExecuteScalar("SELECT COUNT(*) FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_STATE = 'BLOCKED'",
-            ("schedulerName", SchedulerName))).Should().Be(0, "nothing is executing after the shutdown, so nothing may be blocked");
+            ("schedulerName", SchedulerName))).Should().Be(0,
+            "nothing is executing after the shutdown, so nothing may be blocked; each failed fire used to move the poison's job-mate to "
+            + "BLOCKED and commit it, with nothing executing to let go of it");
     }
 
     private void UseFaultingDelegate(NameValueCollection properties)
