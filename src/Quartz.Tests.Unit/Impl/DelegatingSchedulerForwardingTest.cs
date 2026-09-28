@@ -90,4 +90,44 @@ public sealed class DelegatingSchedulerForwardingTest
 
         A.CallTo(() => inner.DeleteJobs(A<GroupMatcher<JobKey>>._, cancellation.Token)).MustHaveHappenedOnceExactly();
     }
+
+    /// <summary>
+    /// A backfill through decorators over a scheduler in this process is composed over the outermost one, so
+    /// every member a decorator overrides takes part, as before decorators forwarded backfills at all. Only a
+    /// scheduler that backfills in one request, at the bottom of the wrapping, is forwarded to.
+    /// </summary>
+    [Test]
+    public async Task ABackfillOverAnInProcessSchedulerIsComposedOverTheOutermostDecorator()
+    {
+        IScheduler inner = A.Fake<IScheduler>();
+        A.CallTo(() => inner.TimeProvider).Returns(TimeProvider.System);
+        A.CallTo(() => inner.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns((ITrigger?) null);
+
+        TriggerReadingScheduler decorator = new(new DelegatingScheduler(inner));
+        TriggerKey key = new("hourly", "reports");
+        DateTimeOffset until = TimeProvider.System.GetUtcNow().AddHours(-1);
+
+        Func<Task> act = () => decorator.Backfill(key, until.AddHours(-6), until).AsTask();
+
+        await act.Should().ThrowAsync<ObjectDoesNotExistException>("the scheduler at the bottom has no such trigger");
+        decorator.TriggersRead.Should().Equal([key], "the backfill read the trigger through the outermost decorator's own override");
+    }
+
+    /// <summary>
+    /// A decorator that watches which triggers are read.
+    /// </summary>
+    private sealed class TriggerReadingScheduler : DelegatingScheduler
+    {
+        public TriggerReadingScheduler(IScheduler scheduler) : base(scheduler)
+        {
+        }
+
+        public List<TriggerKey> TriggersRead { get; } = [];
+
+        public override ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        {
+            TriggersRead.Add(triggerKey);
+            return base.GetTrigger(triggerKey, cancellationToken);
+        }
+    }
 }

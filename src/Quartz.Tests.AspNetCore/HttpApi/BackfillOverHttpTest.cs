@@ -141,6 +141,25 @@ public sealed class BackfillOverHttpTest
     }
 
     /// <summary>
+    /// Decorators over an <see cref="HttpScheduler" /> forward the backfill to it, so it is still the one
+    /// request rather than a read and a write per slot.
+    /// </summary>
+    [Test]
+    public async Task DecoratorsOverHttpSchedulerBackfillInOneRequestToo()
+    {
+        Api api = await StartApi(StoreKind.InMemory);
+        RequestCounter counter = new();
+        await using HttpScheduler client = new(api.SchedulerName, api.Factory.CreateDefaultClient(counter));
+        IScheduler decorated = new DelegatingScheduler(new DelegatingScheduler(client));
+
+        BackfillResult result = await decorated.Backfill(triggerKey, hour.AddHours(-3), hour);
+
+        result.Scheduled.Should().Be(3, "an hourly trigger has three fire times in three hours");
+        counter.Requests.Should().Equal([$"POST /schedulers/{api.SchedulerName}/triggers/reports/hourly/backfill"],
+            "each decorator forwards the backfill, so the host still backfills in one request");
+    }
+
+    /// <summary>
     /// What the host refuses arrives as what an in-process call would have raised: the same exception type,
     /// the same words, and the argument they are about. The host's clock is the one that decides "now".
     /// </summary>

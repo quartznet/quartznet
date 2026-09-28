@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// Every member is <c>virtual</c>, and a member added to <see cref="IScheduler" /> lands here as one
 /// more forwarder — which is what keeps a decorator in somebody else's codebase compiling.
 /// </remarks>
-public class DelegatingScheduler : IScheduler
+public class DelegatingScheduler : IScheduler, IBackfillingScheduler
 {
     private readonly IScheduler scheduler;
 
@@ -492,5 +492,41 @@ public class DelegatingScheduler : IScheduler
     public virtual ValueTask Clear(CancellationToken cancellationToken = default)
     {
         return scheduler.Clear(cancellationToken);
+    }
+
+    /// <summary>
+    /// Backfills in one request where the scheduler is, when the scheduler this wrapping ends in can, and
+    /// otherwise composes the backfill over this decorator, as the extension would.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A wrapped <c>HttpScheduler</c> is the case forwarding exists for: without it the extension found no
+    /// <see cref="IBackfillingScheduler" /> on the decorator, and sent a read and a write per slot where one
+    /// request does. The host still authorizes and audits that one request.
+    /// </para>
+    /// <para>
+    /// Forwarding is decided by the innermost scheduler rather than the one wrapped here, because a
+    /// decorator is one too. Composed over this decorator, not the one it wraps, every override on the way
+    /// down takes part, as it did before anything was forwarded.
+    /// </para>
+    /// </remarks>
+    ValueTask<BackfillResult> IBackfillingScheduler.Backfill(
+        TriggerKey triggerKey,
+        DateTimeOffset from,
+        DateTimeOffset until,
+        BackfillOptions options,
+        CancellationToken cancellationToken)
+    {
+        IScheduler innermost = scheduler;
+        while (innermost is DelegatingScheduler delegating)
+        {
+            innermost = delegating.InnerScheduler;
+        }
+
+        // What the wrapped scheduler is, when the innermost one can backfill: that scheduler, or another
+        // decorator, which forwards the same way.
+        return innermost is IBackfillingScheduler
+            ? ((IBackfillingScheduler) scheduler).Backfill(triggerKey, from, until, options, cancellationToken)
+            : Backfilling.Compose(this, triggerKey, from, until, options, cancellationToken);
     }
 }
