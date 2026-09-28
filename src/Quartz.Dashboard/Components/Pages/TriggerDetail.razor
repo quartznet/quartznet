@@ -46,6 +46,11 @@
                         disabled="@(_editing || _editUnavailable is not null)"
                         title="@_editUnavailable"
                         @onclick="StartEditing">Edit details</button>
+                <button type="button"
+                        class="qz-button qz-trigger-backfill"
+                        disabled="@(_backfillUnavailable is not null)"
+                        title="@_backfillUnavailable"
+                        @onclick="PromptBackfill">Backfill…</button>
                 <button type="button" class="qz-button qz-button-danger" @onclick="PromptUnschedule">Unschedule</button>
             </div>
 
@@ -54,6 +59,11 @@
                 @* Said where the button is rather than in a toast that fades: the data source cannot edit
                    a trigger in place, which stays true for as long as the page is open. *@
                 <p class="qz-muted" data-testid="trigger-editor-unavailable">@editUnavailable</p>
+            }
+
+            @if (_backfillUnavailable is { } backfillUnavailable)
+            {
+                <p class="qz-muted" data-testid="trigger-backfill-unavailable">@backfillUnavailable</p>
             }
         }
 
@@ -139,6 +149,15 @@
              OnConfirm="PauseAsync"
              OnCancel="CancelPauseAsync" />
 
+@if (_trigger is not null && !IsReadOnly)
+{
+    <BackfillDialog Trigger="@_trigger"
+                    IsOpen="@_showBackfill"
+                    OnBackfilled="OnBackfilledAsync"
+                    OnUnavailable="OnBackfillUnavailable"
+                    OnCancel="CancelBackfill" />
+}
+
 @code {
     private bool _isLoading = true;
     private string? _error;
@@ -163,6 +182,14 @@
     /// editor is disabled with that reason from then on instead of failing the same way on every save.
     /// </remarks>
     private string? _editUnavailable;
+
+    private bool _showBackfill;
+
+    /// <summary>
+    /// Why this page's data source cannot backfill a trigger, once it has said so, or
+    /// <see langword="null" /> while nothing has — learned the way <see cref="_editUnavailable" /> is.
+    /// </summary>
+    private string? _backfillUnavailable;
 
     [Parameter]
     public string Group { get; set; } = string.Empty;
@@ -192,6 +219,8 @@
         // What one scheduler's source could not do says nothing about the next one's.
         _editUnavailable = null;
         _editing = false;
+        _backfillUnavailable = null;
+        _showBackfill = false;
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -381,6 +410,32 @@
     {
         _editUnavailable = reason;
         _editing = false;
+    }
+
+    /// <remarks>
+    /// The button is only rendered outside read-only mode for a trigger the page has read, and the dialog
+    /// and the client each refuse a read-only backfill again, so there is nothing to check here.
+    /// </remarks>
+    private void PromptBackfill()
+    {
+        _showBackfill = true;
+    }
+
+    private void CancelBackfill()
+    {
+        _showBackfill = false;
+    }
+
+    private async Task OnBackfilledAsync()
+    {
+        _showBackfill = false;
+        await LoadDataAsync();
+    }
+
+    private void OnBackfillUnavailable(string reason)
+    {
+        _backfillUnavailable = reason;
+        _showBackfill = false;
     }
 
     private void PromptUnschedule()

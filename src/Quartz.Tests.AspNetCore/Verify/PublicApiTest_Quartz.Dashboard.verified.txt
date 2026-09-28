@@ -297,6 +297,7 @@ namespace Quartz.Dashboard.Services
     {
         System.Threading.Tasks.ValueTask AddCalendar(string schedulerName, Quartz.Dashboard.Services.AddCalendarRequest request, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask AddJob(string schedulerName, Quartz.Dashboard.Services.AddJobRequest request, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.BackfillResult> Backfill(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.DateTimeOffset from, System.DateTimeOffset until, Quartz.BackfillOptions options = default, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<int> CountMisfires(string schedulerName, System.DateTimeOffset since, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> DeleteCalendar(string schedulerName, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> DeleteJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);

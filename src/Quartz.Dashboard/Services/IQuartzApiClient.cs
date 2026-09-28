@@ -555,6 +555,43 @@ public interface IQuartzApiClient
 
         return unscheduled;
     }
+
+    /// <summary>
+    /// Schedules one firing of the trigger's job for each slot the trigger had in
+    /// [<paramref name="from" />, <paramref name="until" />), as
+    /// <see cref="SchedulerBackfillExtensions.Backfill" /> does.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Trigger Detail page's <em>Backfill…</em> dialog submits. A refusal — a range that is empty or
+    /// ends after now, more slots than <see cref="BackfillOptions.MaxSlots" /> — arrives as the
+    /// <see cref="ArgumentException" /> the extension raised, and the dialog shows its message.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.3. The default reports the operation as unavailable with
+    /// <see cref="NotSupportedException" />, and the page disables the button with the reason.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the trigger.</param>
+    /// <param name="triggerKey">The trigger whose schedule to backfill.</param>
+    /// <param name="from">The start of the range, included.</param>
+    /// <param name="until">
+    /// The end of the range, excluded: the extension's <c>to</c>, named so that no .NET language reads it as a
+    /// keyword.
+    /// </param>
+    /// <param name="options">How many slots may be scheduled, their spacing and their execution group.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<BackfillResult> Backfill(
+        string schedulerName,
+        TriggerKeyDto triggerKey,
+        DateTimeOffset from,
+        DateTimeOffset until,
+        BackfillOptions options = default,
+        CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<BackfillResult>(new NotSupportedException(
+            "This dashboard's data source cannot backfill a trigger: its IQuartzApiClient does not implement Backfill."));
+    }
 }
 
 /// <summary>

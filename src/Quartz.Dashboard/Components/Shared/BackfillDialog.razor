@@ -1,0 +1,312 @@
+@using System.Globalization
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Services
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
+
+@* Backfills the trigger over a past range: one firing of its job per slot the trigger had there, through
+   SchedulerBackfillExtensions.Backfill. The range is read on the clock the dashboard shows. *@
+@if (IsOpen)
+{
+    <div class="qz-confirm-overlay">
+        <div class="qz-confirm-dialog qz-backfill-dialog" role="dialog" aria-labelledby="qz-backfill-dialog-title" data-testid="backfill-dialog">
+            <h3 id="qz-backfill-dialog-title">Backfill @Target</h3>
+            <p>One firing of the job for each time the trigger had from <em>From</em> up to, not including, <em>To</em>. Times are in @Scheduler.SelectedTimeZoneId.</p>
+
+            @if (_errors.Count > 0)
+            {
+                <div class="qz-form-errors" role="alert" data-testid="backfill-errors">
+                    <ul>
+                        @foreach (string error in _errors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="backfill-from">From</label>
+                <input id="backfill-from" class="qz-input" type="datetime-local" step="1" value="@_fromInput" @onchange="OnFromChanged" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="backfill-to">To</label>
+                <input id="backfill-to" class="qz-input" type="datetime-local" step="1" value="@_toInput" @onchange="OnToChanged" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="backfill-spacing">Spacing</label>
+                <input id="backfill-spacing"
+                       class="qz-input qz-input-mono"
+                       placeholder="00:00:00"
+                       title="hh:mm:ss between one firing's start and the next; zero starts them all now"
+                       value="@_spacingInput"
+                       @onchange="OnSpacingChanged" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="backfill-max-slots">Max slots</label>
+                <input id="backfill-max-slots" class="qz-input" inputmode="numeric" value="@_maxSlotsInput" @onchange="OnMaxSlotsChanged" />
+            </div>
+
+            @if (_preview is { } preview)
+            {
+                <p class="qz-muted" data-testid="backfill-preview">@preview</p>
+            }
+
+            <div class="qz-confirm-actions">
+                <button type="button" class="qz-button qz-button-primary qz-backfill-confirm" disabled="@_submitting" @onclick="SubmitAsync">Backfill</button>
+                <button type="button" class="qz-button qz-backfill-cancel" @onclick="CancelAsync">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string DisplayFormat = "yyyy-MM-ddTHH:mm";
+
+    private static readonly string[] InputFormats = ["yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss"];
+
+    private bool _wasOpen;
+    private string _fromInput = string.Empty;
+    private string _toInput = string.Empty;
+    private string _spacingInput = "00:00:00";
+    private string _maxSlotsInput = BackfillOptions.DefaultMaxSlots.ToString(CultureInfo.InvariantCulture);
+    private List<string> _errors = [];
+    private string? _preview;
+    private ICalendar? _calendar;
+    private string? _calendarUnreadable;
+    private bool _submitting;
+
+    /// <summary>
+    /// The trigger as the page last read it: its schedule and calendar are what the preview counts.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public ITrigger Trigger { get; set; } = null!;
+
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    /// <summary>
+    /// Raised once a backfill has been scheduled, so the page can close the dialog and read again.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnBackfilled { get; set; }
+
+    /// <summary>
+    /// Raised with the reason when the data source says it cannot backfill at all, which the page shows
+    /// beside a disabled button rather than as an error on every attempt.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnUnavailable { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private TriggerKeyDto TriggerKey => new(Trigger.Key.Group, Trigger.Key.Name);
+
+    private string Target => DisplayValueHelper.FormatKey(Trigger.Key.Group, Trigger.Key.Name);
+
+    /// <summary>
+    /// Starts every opening from the last day, ending now on the dashboard's clock, with nothing refused yet.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            DateTimeOffset now = Scheduler.ConvertToSelectedTimeZone(TimeProvider.System.GetUtcNow());
+            DateTime end = new(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, DateTimeKind.Unspecified);
+            _toInput = end.ToString(DisplayFormat, CultureInfo.InvariantCulture);
+            _fromInput = end.AddDays(-1).ToString(DisplayFormat, CultureInfo.InvariantCulture);
+            _errors = [];
+            await ReadCalendarAsync();
+            UpdatePreview();
+        }
+
+        _wasOpen = IsOpen;
+    }
+
+    /// <summary>
+    /// The calendar the preview needs to count what the scheduler will count. A calendar that cannot be
+    /// read leaves the preview saying so; the backfill itself reads the calendar again, where it is.
+    /// </summary>
+    private async Task ReadCalendarAsync()
+    {
+        _calendar = null;
+        _calendarUnreadable = null;
+
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (Trigger.CalendarName is not { } calendarName || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            _calendar = await Api.GetCalendar(schedulerName, calendarName);
+        }
+        catch (Exception ex)
+        {
+            _calendarUnreadable = ex.Message;
+        }
+    }
+
+    private void OnFromChanged(ChangeEventArgs args)
+    {
+        _fromInput = args.Value?.ToString() ?? string.Empty;
+        UpdatePreview();
+    }
+
+    private void OnToChanged(ChangeEventArgs args)
+    {
+        _toInput = args.Value?.ToString() ?? string.Empty;
+        UpdatePreview();
+    }
+
+    private void OnSpacingChanged(ChangeEventArgs args)
+    {
+        _spacingInput = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnMaxSlotsChanged(ChangeEventArgs args)
+    {
+        _maxSlotsInput = args.Value?.ToString() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// How many slots the range holds, counted here the way the backfill counts them: the trigger's fire
+    /// times in the range, less what its calendar excludes. Nothing is asked of the scheduler to count.
+    /// </summary>
+    private void UpdatePreview()
+    {
+        _preview = null;
+        if (!TryReadTime(_fromInput, out DateTimeOffset from) || !TryReadTime(_toInput, out DateTimeOffset to) || to <= from)
+        {
+            return;
+        }
+
+        if (_calendarUnreadable is { } reason)
+        {
+            _preview = "The slots cannot be counted here: calendar '" + Trigger.CalendarName + "' could not be read. " + reason;
+            return;
+        }
+
+        SlotCount found = Backfilling.Walk(Trigger, _calendar, from, to, keep: 0, countUpTo: Backfilling.CountCeiling + 1);
+        _preview = found.Capped
+            ? string.Create(CultureInfo.InvariantCulture, $"The range holds more than {Backfilling.CountCeiling} slots.")
+            : string.Create(CultureInfo.InvariantCulture, $"The range holds {found.Count} {(found.Count == 1 ? "slot" : "slots")}.");
+    }
+
+    /// <summary>
+    /// Backfills what the fields say, and records it — who, through the action log's logger and its user
+    /// column, and the range and the outcome in its message.
+    /// </summary>
+    /// <remarks>
+    /// What the fields cannot say is refused here; everything else — an empty range, one ending after now,
+    /// more slots than allowed — is the scheduler's to refuse, and its words are shown beside the fields
+    /// with the dialog still open.
+    /// </remarks>
+    private async Task SubmitAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (Options.Value.ReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        _errors = Read(out DateTimeOffset from, out DateTimeOffset to, out BackfillOptions options);
+        if (_errors.Count > 0)
+        {
+            return;
+        }
+
+        string range = Utc(from) + " to " + Utc(to);
+        _submitting = true;
+
+        try
+        {
+            BackfillResult result = await Api.Backfill(schedulerName, TriggerKey, from, to, options);
+
+            ActionLog.Record(schedulerName, "BackfillTrigger", Target, succeeded: true, string.Create(CultureInfo.InvariantCulture,
+                $"{range}: {result.SlotsFound} slots, {result.Scheduled} scheduled, {result.AlreadyScheduled} already scheduled"));
+            Toasts.Success(string.Create(CultureInfo.InvariantCulture,
+                $"Backfilled trigger {Target}: {result.Scheduled} scheduled, {result.AlreadyScheduled} already scheduled."));
+            await OnBackfilled.InvokeAsync();
+        }
+        catch (NotSupportedException ex)
+        {
+            ActionLog.Record(schedulerName, "BackfillTrigger", Target, succeeded: false, ex.Message);
+            await OnUnavailable.InvokeAsync(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _errors = [ex.Message];
+            ActionLog.Record(schedulerName, "BackfillTrigger", Target, succeeded: false, ex.Message + "; asked for " + range);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private List<string> Read(out DateTimeOffset from, out DateTimeOffset to, out BackfillOptions options)
+    {
+        List<string> errors = [];
+
+        if (!TryReadTime(_fromInput, out from))
+        {
+            errors.Add("From: '" + _fromInput + "' is not a date and time.");
+        }
+
+        if (!TryReadTime(_toInput, out to))
+        {
+            errors.Add("To: '" + _toInput + "' is not a date and time.");
+        }
+
+        TimeSpan spacing = TimeSpan.Zero;
+        string spacingText = _spacingInput.Trim();
+        if (spacingText.Length > 0 && !TimeSpan.TryParse(spacingText, CultureInfo.InvariantCulture, out spacing))
+        {
+            errors.Add("Spacing: '" + spacingText + "' is not a duration; write hh:mm:ss.");
+        }
+
+        int maxSlots = BackfillOptions.DefaultMaxSlots;
+        string maxSlotsText = _maxSlotsInput.Trim();
+        if (maxSlotsText.Length > 0 && !int.TryParse(maxSlotsText, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out maxSlots))
+        {
+            errors.Add("Max slots: '" + maxSlotsText + "' is not a whole number.");
+        }
+
+        options = new BackfillOptions { MaxSlots = maxSlots, Spacing = spacing };
+        return errors;
+    }
+
+    /// <summary>
+    /// The instant a <c>datetime-local</c> value names on the clock the dashboard shows, not the browser's.
+    /// </summary>
+    private bool TryReadTime(string text, out DateTimeOffset value)
+    {
+        if (DateTime.TryParseExact(text.Trim(), InputFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime wallClock))
+        {
+            value = Scheduler.FromSelectedTimeZone(wallClock);
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static string Utc(DateTimeOffset value)
+    {
+        return value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+    }
+
+    private async Task CancelAsync()
+    {
+        _errors = [];
+        await OnCancel.InvokeAsync();
+    }
+}

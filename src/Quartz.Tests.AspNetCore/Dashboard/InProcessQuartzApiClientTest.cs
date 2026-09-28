@@ -1506,6 +1506,40 @@ public class InProcessQuartzApiClientTest
             .MustNotHaveHappened();
     }
 
+    [Test]
+    public async Task ReadOnlyRefusesABackfillBeforeTheSchedulerIsAsked()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("acme");
+        InProcessQuartzApiClient client = CreateClient(
+            scheduler, TestData.Dashboard.HistoryStore(), new QuartzDashboardOptions { ReadOnly = true }, new TestSchedulerAuthorizationService());
+        DateTimeOffset until = new(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
+
+        Func<Task> backfill = async () => await client.Backfill("acme", new TriggerKeyDto("g", "t"), until.AddDays(-1), until);
+
+        await backfill.Should().ThrowAsync<InvalidOperationException>().WithMessage("*read-only*",
+            "a backfill schedules triggers, and the client is where ReadOnly is enforced");
+        A.CallTo(() => scheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// An <see cref="IQuartzApiClient" /> written against 4.2 says it cannot backfill rather than pretending
+    /// to, which is what the Trigger Detail page disables its button with.
+    /// </summary>
+    [Test]
+    public async Task ADataSourceOfAnEarlier4xCannotBackfill()
+    {
+        IQuartzApiClient client = A.Fake<IQuartzApiClient>();
+        A.CallTo(() => client.Backfill(A<string>._, A<TriggerKeyDto>._, A<DateTimeOffset>._, A<DateTimeOffset>._, A<BackfillOptions>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+        DateTimeOffset until = new(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
+
+        Func<Task> backfill = async () => await client.Backfill("acme", new TriggerKeyDto("g", "t"), until.AddDays(-1), until);
+
+        await backfill.Should().ThrowAsync<NotSupportedException>().WithMessage("*cannot backfill a trigger*",
+            "nothing else on the interface schedules a backfill's triggers, so the default reports the operation unavailable");
+    }
+
     /// <summary>
     /// A target that ignored the next-fire filter answers with triggers it excludes, and the client says
     /// the filter is unavailable rather than handing the page a filtered listing that is not filtered.
