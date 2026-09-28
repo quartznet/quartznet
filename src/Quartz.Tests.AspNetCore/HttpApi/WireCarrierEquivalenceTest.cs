@@ -290,6 +290,8 @@ public sealed class WireCarrierEquivalenceTest
         ["UnscheduleJobs(GroupMatcher<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.UnscheduleJobsByGroup], s => s.UnscheduleJobs(GroupMatcher<TriggerKey>.GroupEquals("group")).AsTask()),
         ["RescheduleJob(TriggerKey, ITrigger, CancellationToken)"] = new([SchedulerRoutes.RescheduleJob], s => s.RescheduleJob(Trigger, TestData.Wire.SimpleTrigger).AsTask()),
         ["UpdateTriggerDetails(TriggerKey, TriggerDetailsUpdate, CancellationToken)"] = new([SchedulerRoutes.UpdateTriggerDetails], s => s.UpdateTriggerDetails(Trigger, new TriggerDetailsUpdate().WithPriority(3)).AsTask()),
+        ["Backfill(TriggerKey, DateTimeOffset, DateTimeOffset, BackfillOptions, CancellationToken)"] = new([SchedulerRoutes.BackfillTrigger], s => ((IBackfillingScheduler) s).Backfill(
+            Trigger, TestData.Wire.StartTime.AddDays(-1), TestData.Wire.StartTime.AddDays(180), new BackfillOptions { Spacing = TimeSpan.FromSeconds(30) }).AsTask()),
 
         ["AddJob(IJobDetail, AddJobOptions, CancellationToken)"] = new([SchedulerRoutes.AddJob], s => s.AddJob(TestData.JobDetail).AsTask()),
         ["DeleteJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.DeleteJob], s => s.DeleteJob(Job).AsTask()),
@@ -368,7 +370,6 @@ public sealed class WireCarrierEquivalenceTest
         [SchedulerRoutes.GetExecution.Name] = "history, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.QueryMisfireHistory.Name] = "history, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.CountMisfires.Name] = "history, read by HttpExecutionHistoryStore",
-        [SchedulerRoutes.BackfillTrigger.Name] = "Backfill is an extension over GetTrigger, GetCalendar, GetTriggers and ScheduleJob; the route runs it on the host for a client that is not .NET",
     };
 
     private static Task Read<T>(T value)
@@ -377,10 +378,24 @@ public sealed class WireCarrierEquivalenceTest
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// The members <see cref="HttpScheduler" /> implements itself, named as the contract declares them: every
+    /// one of <see cref="IScheduler" />'s it does not leave to a default body, and
+    /// <see cref="IBackfillingScheduler.Backfill" />, the internal contract the backfill extension sends to it.
+    /// </summary>
     private static IEnumerable<MethodInfo> ImplementedMembers()
     {
-        InterfaceMapping map = typeof(HttpScheduler).GetInterfaceMap(typeof(IScheduler));
-        return map.TargetMethods.Where(method => method.DeclaringType == typeof(HttpScheduler));
+        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler)])
+        {
+            InterfaceMapping map = typeof(HttpScheduler).GetInterfaceMap(contract);
+            for (int i = 0; i < map.TargetMethods.Length; i++)
+            {
+                if (map.TargetMethods[i].DeclaringType == typeof(HttpScheduler))
+                {
+                    yield return map.InterfaceMethods[i];
+                }
+            }
+        }
     }
 
     private static string Signature(MethodInfo method)
@@ -418,6 +433,10 @@ public sealed class WireCarrierEquivalenceTest
         A.CallTo(() => fake.QueryTriggerGroups(A<TriggerGroupQuery>._, A<CancellationToken>._)).Returns(new PagedResult<TriggerGroup>([], HasMore: false));
         A.CallTo(() => fake.QueryCalendarNames(A<CalendarQuery>._, A<CancellationToken>._)).Returns(new PagedResult<string>([], HasMore: false));
         A.CallTo(() => fake.QueryFireInstances(A<FireInstanceQuery>._, A<CancellationToken>._)).Returns(new PagedResult<FireInstance>([], HasMore: false));
+
+        // The backfill the host runs reads its own clock, and finds none of the slots it schedules stored yet.
+        A.CallTo(() => fake.TimeProvider).Returns(TimeProvider.System);
+        A.CallTo(() => fake.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<ITrigger>());
         return fake;
     }
 

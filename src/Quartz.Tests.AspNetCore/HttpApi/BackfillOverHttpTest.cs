@@ -9,14 +9,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using Quartz.HttpApiContract;
+using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
 
 /// <summary>
 /// A backfill over HTTP, both ways a client can ask for one: the <c>backfill</c> route, which runs
-/// <see cref="SchedulerBackfillExtensions.Backfill" /> on the host, and the extension itself called on an
-/// <see cref="HttpScheduler" />, which composes the reads and writes every scheduler has.
+/// <see cref="SchedulerBackfillExtensions.Backfill" /> on the host, and the extension called on an
+/// <see cref="HttpScheduler" />, which sends that route — or, to a host that has none, composes the reads
+/// and writes every scheduler has.
 /// </summary>
 /// <remarks>
 /// A real scheduler behind the API, over the in-memory store and over a SQLite file, never started: what is
@@ -111,21 +113,89 @@ public sealed class BackfillOverHttpTest
     }
 
     /// <summary>
-    /// The extension on an <see cref="HttpScheduler" />: nothing about backfilling is specific to the
-    /// scheduler it runs on, so a remote one is backfilled by the reads and writes it already answers.
+    /// The extension on an <see cref="HttpScheduler" /> is one request, however many slots the range holds:
+    /// the host backfills, and its audit records the one thing the operator did.
     /// </summary>
     [Test]
-    public async Task HttpSchedulerBackfillsTheRemoteTriggerThroughTheExtension()
+    public async Task HttpSchedulerBackfillsInOneRequestThatIsAuditedOnce()
     {
         Api api = await StartApi(StoreKind.Sqlite);
+        RequestCounter counter = new();
+        await using HttpScheduler client = new(api.SchedulerName, api.Factory.CreateDefaultClient(counter));
+
+        BackfillResult result = await client.Backfill(triggerKey, hour.AddHours(-6), hour, new BackfillOptions { Spacing = TimeSpan.FromSeconds(30) });
+
+        result.Scheduled.Should().Be(6, "an hourly trigger has six fire times in six hours");
+        result.FirstSlot.Should().Be(hour.AddHours(-6));
+        result.ScheduledTriggers.Should().HaveCount(6).And.AllSatisfy(key => key.Group.Should().Be("backfill:reports"));
+        counter.Requests.Should().Equal([$"POST /schedulers/{api.SchedulerName}/triggers/reports/hourly/backfill"],
+            "a remote backfill is one request, not a read and a write per slot");
+        logs.WithEventId(AuditEventId).Select(entry => entry.Properties["Operation"]).Should().Equal(["BackfillTrigger"],
+            "the host audits one backfill, and no ScheduleJob of its own per slot");
+
+        BackfillResult again = await client.Backfill(triggerKey, hour.AddHours(-6), hour);
+
+        again.AlreadyScheduled.Should().Be(6, "the host finds what the first run stored");
+        again.Scheduled.Should().Be(0);
+        (await api.Scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("backfill:reports"))).Should().HaveCount(6);
+    }
+
+    /// <summary>
+    /// What the host refuses arrives as what an in-process call would have raised: the same exception type,
+    /// the same words, and the argument they are about. The host's clock is the one that decides "now".
+    /// </summary>
+    [TestCase("reversed", "to", "The range must end after it starts*")]
+    [TestCase("future", "to", "*after the scheduler's current time*")]
+    [TestCase("too many", "options", "The range holds 6 slots of trigger 'reports.hourly', more than BackfillOptions.MaxSlots (2) allows*")]
+    [TestCase("negative spacing", "options", "BackfillOptions.Spacing must not be negative*")]
+    public async Task HttpSchedulerRaisesTheHostsRefusalAsAnInProcessCallWould(string refused, string parameterName, string message)
+    {
+        Api api = await StartApi(StoreKind.InMemory);
+        RequestCounter counter = new();
+        await using HttpScheduler client = new(api.SchedulerName, api.Factory.CreateDefaultClient(counter));
+
+        Func<Task> act = refused switch
+        {
+            "reversed" => () => client.Backfill(triggerKey, hour.AddHours(-1), hour.AddHours(-2)).AsTask(),
+            "future" => () => client.Backfill(triggerKey, hour.AddHours(-6), hour.AddHours(2)).AsTask(),
+            "too many" => () => client.Backfill(triggerKey, hour.AddHours(-6), hour, new BackfillOptions { MaxSlots = 2 }).AsTask(),
+            _ => () => client.Backfill(triggerKey, hour.AddHours(-6), hour, new BackfillOptions { Spacing = TimeSpan.FromMinutes(-1) }).AsTask()
+        };
+
+        ArgumentException refusal = (await act.Should().ThrowExactlyAsync<ArgumentException>().WithMessage(message)).Which;
+        refusal.ParamName.Should().Be(parameterName, "the refusal is about the same argument it is about in process");
+        counter.Requests.Should().ContainSingle("the host decides, in the one request");
+        (await api.Scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("backfill:reports"))).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task HttpSchedulerRaisesAMissingTriggerAsAnObjectThatDoesNotExist()
+    {
+        Api api = await StartApi(StoreKind.InMemory);
         await using HttpScheduler client = new(api.SchedulerName, api.Client);
 
+        Func<Task> act = () => client.Backfill(new TriggerKey("ghost", "reports"), hour.AddHours(-2), hour).AsTask();
+
+        await act.Should().ThrowAsync<ObjectDoesNotExistException>().WithMessage("Trigger 'reports.ghost' does not exist*",
+            "the host's 404 is the in-process call's missing trigger");
+    }
+
+    /// <summary>
+    /// A host older than 4.3 has no <c>backfill</c> route and answers it with a bare <c>404</c>. It is
+    /// backfilled through the routes it has, as any scheduler is.
+    /// </summary>
+    [Test]
+    public async Task AHostWithoutTheRouteIsBackfilledThroughTheRoutesItHas()
+    {
+        Api api = await StartApi(StoreKind.InMemory);
+        WithoutBackfillRoute transport = new(new HttpWireTransport(api.Client));
+        await using HttpScheduler client = new(api.SchedulerName, transport, jsonSerializerOptions: null, serializerRegistry: null);
+
         BackfillResult result = await client.Backfill(triggerKey, hour.AddHours(-3), hour);
-        BackfillResult again = await client.Backfill(triggerKey, hour.AddHours(-3), hour);
 
         result.Scheduled.Should().Be(3);
-        again.AlreadyScheduled.Should().Be(3, "the existence check travels as the bulk fetch, and finds what the first run stored");
-        again.Scheduled.Should().Be(0);
+        transport.Routes.Should().StartWith(SchedulerRoutes.BackfillTrigger.Name)
+            .And.Contain(SchedulerRoutes.ScheduleJob.Name, "the slots are stored one schedule request each");
         (await api.Scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("backfill:reports"))).Should().HaveCount(3);
     }
 
@@ -245,15 +315,56 @@ public sealed class BackfillOverHttpTest
                 .Build());
 
         logs.Clear();
-        return new Api(schedulerName, scheduler, application.CreateClient());
+        return new Api(schedulerName, scheduler, application.CreateClient(), application);
     }
 
-    private sealed record Api(string SchedulerName, IScheduler Scheduler, HttpClient Client)
+    private sealed record Api(string SchedulerName, IScheduler Scheduler, HttpClient Client, WebApplicationFactory<Program> Factory)
     {
         public Task<HttpResponseMessage> Post(object body, string trigger = "reports/hourly")
         {
             StringContent content = new(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
             return Client.PostAsync($"schedulers/{SchedulerName}/triggers/{trigger}/backfill", content);
+        }
+    }
+
+    /// <summary>
+    /// Every request a client sends, as method and path, in the order it sent them.
+    /// </summary>
+    private sealed class RequestCounter : DelegatingHandler
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> requests = new();
+
+        public List<string> Requests => [.. requests];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            requests.Enqueue($"{request.Method} {request.RequestUri!.AbsolutePath}");
+            return base.SendAsync(request, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// A host as 4.2 is to a 4.3 client: every route but <c>backfill</c>, which answers a <c>404</c> with no
+    /// problem details, as ASP.NET Core does for a path nothing is mapped at.
+    /// </summary>
+    private sealed class WithoutBackfillRoute : IWireTransport
+    {
+        private readonly IWireTransport inner;
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> routes = new();
+
+        public WithoutBackfillRoute(IWireTransport inner)
+        {
+            this.inner = inner;
+        }
+
+        public List<string> Routes => [.. routes];
+
+        public ValueTask<WireResponse> Send(WireRequest request, CancellationToken cancellationToken = default)
+        {
+            routes.Enqueue(request.Route.Name);
+            return request.Route == SchedulerRoutes.BackfillTrigger
+                ? ValueTask.FromResult(new WireResponse(HttpStatusCode.NotFound, []))
+                : inner.Send(request, cancellationToken);
         }
     }
 }

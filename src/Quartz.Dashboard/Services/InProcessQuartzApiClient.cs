@@ -662,7 +662,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     /// <remarks>
     /// The extension over whichever scheduler the name resolves to, so a scheduler in another process is
-    /// backfilled through <c>HttpScheduler</c>'s own reads and writes. A write to the store, like
+    /// backfilled by one request to its host, which <c>HttpScheduler</c> sends. A write to the store, like
     /// pausing, so a window may make it: the nodes sharing the store fire the slots.
     /// </remarks>
     public async ValueTask<BackfillResult> Backfill(

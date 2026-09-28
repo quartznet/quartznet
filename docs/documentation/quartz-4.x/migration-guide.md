@@ -103,6 +103,7 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `SchedulerConstants.BackfillGroupPrefix`, `BackfillOriginalFireTime` | `"backfill:"`, and the job-data key holding the slot |
 | `IQuartzApiClient.Backfill(schedulerName, triggerKey, from, until, options)` | `Quartz.Dashboard`. Default throws `NotSupportedException`, and the page disables *Backfill…* with that reason |
 | HTTP: `POST …/triggers/{triggerGroup}/{triggerName}/backfill` | See [Backfilling a trigger](packages/http-api.md#backfilling-a-trigger) |
+| `HttpScheduler`: `Backfill` | One request to the `backfill` route, audited once on the host |
 
 `ScheduleTrigger`, `StoreTrigger` and the pause members are default interface members, so a scheduler or
 store written for 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare them all.
@@ -194,7 +195,8 @@ unchanged.
 * A 4.2 HTTP host ignores the reason body and answers no `pause`, so `HttpScheduler.GetTriggerPause` reads
   `null` there.
 * A 4.2 node fires a backfill's triggers: they are plain one-shot simple triggers, and only the slot key is new.
-  A 4.2 HTTP host has no `backfill` route; `Backfill` on an `HttpScheduler` still works against it.
+  A 4.2 HTTP host has no `backfill` route; `Backfill` on an `HttpScheduler` still works against it, with a request
+  per slot instead of one.
 
 ### `MaxBatchSize` is automatic
 

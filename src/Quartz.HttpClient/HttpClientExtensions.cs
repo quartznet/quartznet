@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -184,6 +185,47 @@ internal static class HttpClientExtensions
         }
 
         throw new HttpClientException($"Received response with status code {response.Status}, error details: {problemDetails.Detail}");
+    }
+
+    /// <summary>
+    /// Whether <paramref name="response" /> is a <c>400</c> refusing the request itself — its problem details
+    /// named <see cref="HttpApiConstants.RequestRefusedExceptionType" /> — and the refusal's detail when it is.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="EnsureSuccess" /> raises such a refusal as an opaque <see cref="HttpClientException" />,
+    /// because most of them say the client built a request wrong. A caller whose request carries a value the
+    /// host judges — a backfill's range against the host's clock — reads the refusal here first and raises
+    /// what an in-process call would have.
+    /// </remarks>
+    public static bool TryReadRequestRefusal(this WireResponse response, JsonSerializerOptions serializerOptions, [NotNullWhen(true)] out string? detail)
+    {
+        detail = null;
+        if (response.Status != HttpStatusCode.BadRequest)
+        {
+            return false;
+        }
+
+        ProblemDetailsDto? problemDetails;
+        try
+        {
+            problemDetails = JsonSerializer.Deserialize(response.Body, WireFormatOf<ProblemDetailsDto>(serializerOptions));
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        if (problemDetails?.Extensions is null
+            || string.IsNullOrWhiteSpace(problemDetails.Detail)
+            || !problemDetails.Extensions.TryGetValue(HttpApiConstants.ProblemDetailsExceptionType, out JsonElement exceptionType)
+            || exceptionType.ValueKind != JsonValueKind.String
+            || !string.Equals(exceptionType.GetString(), HttpApiConstants.RequestRefusedExceptionType, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        detail = problemDetails.Detail;
+        return true;
     }
 
     /// <summary>

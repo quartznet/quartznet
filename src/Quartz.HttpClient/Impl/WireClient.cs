@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 using Quartz.HttpApiContract;
@@ -92,6 +93,37 @@ internal sealed class WireClient
             return null;
         }
 
+        return response.ReadBody<TResponse>(serializerOptions);
+    }
+
+    /// <summary>
+    /// Sends <paramref name="body" /> with a request and hands back the answer as it came, for a caller
+    /// that reads an answer of its own out of a failure before <see cref="EnsureSuccess" /> reads the rest.
+    /// </summary>
+    public ValueTask<WireResponse> Exchange<TBody>(WireRequest request, TBody body, CancellationToken cancellationToken)
+    {
+        return transport.Send(WithBody(request, body), cancellationToken);
+    }
+
+    /// <inheritdoc cref="HttpClientExtensions.EnsureSuccess" />
+    public bool EnsureSuccess(WireResponse response, bool throwOnNotFound = true)
+    {
+        return response.EnsureSuccess(serializerOptions, throwOnNotFound);
+    }
+
+    /// <summary>
+    /// The detail of a <c>400</c> that refused the request itself, rather than one the scheduler raised.
+    /// </summary>
+    public bool TryReadRequestRefusal(WireResponse response, [NotNullWhen(true)] out string? detail)
+    {
+        return response.TryReadRequestRefusal(serializerOptions, out detail);
+    }
+
+    /// <summary>
+    /// Reads a success's body.
+    /// </summary>
+    public TResponse Read<TResponse>(WireResponse response)
+    {
         return response.ReadBody<TResponse>(serializerOptions);
     }
 

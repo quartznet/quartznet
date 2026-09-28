@@ -21,6 +21,8 @@
 
 using System.Globalization;
 
+using Quartz.Impl;
+
 namespace Quartz;
 
 /// <summary>
@@ -29,8 +31,8 @@ namespace Quartz;
 /// <remarks>
 /// <para>
 /// An extension rather than an <see cref="IScheduler" /> member: it reads the trigger and its calendar and
-/// schedules one-shot triggers, all through members every scheduler has, so it works unchanged through
-/// <c>HttpScheduler</c> and any forwarder.
+/// schedules one-shot triggers, all through members every scheduler has, so it works unchanged through any
+/// forwarder. <c>HttpScheduler</c> sends it to its host as one request instead, which backfills there.
 /// </para>
 /// <para>
 /// A misfire instruction decides what happens to the firings a scheduler missed while it was down. A
@@ -65,6 +67,11 @@ public static class SchedulerBackfillExtensions
     /// The slots are scheduled one call at a time. A failure or a cancellation part way leaves the ones already
     /// scheduled in place; running the same range again schedules the rest.
     /// </para>
+    /// <para>
+    /// On an <c>HttpScheduler</c> the whole backfill is one request to the host's <c>backfill</c> route: the
+    /// host's clock decides what "now" is, and its audit records one backfill. A host older than 4.3 has no
+    /// such route, and is backfilled through the reads and writes it has instead.
+    /// </para>
     /// </remarks>
     /// <param name="scheduler">The scheduler holding the trigger.</param>
     /// <param name="triggerKey">The trigger whose schedule to backfill.</param>
@@ -83,7 +90,7 @@ public static class SchedulerBackfillExtensions
     /// There is no trigger under <paramref name="triggerKey" />, or the calendar it names is gone. Nothing is
     /// scheduled.
     /// </exception>
-    public static async ValueTask<BackfillResult> Backfill(
+    public static ValueTask<BackfillResult> Backfill(
         this IScheduler scheduler,
         TriggerKey triggerKey,
         DateTimeOffset from,
@@ -94,14 +101,12 @@ public static class SchedulerBackfillExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
         ArgumentNullException.ThrowIfNull(triggerKey);
 
-        BackfillOutcome outcome = await Backfilling.Run(scheduler, triggerKey, from, to, options, cancellationToken).ConfigureAwait(false);
-        if (outcome.Refusal is { } refusal)
+        if (scheduler is IBackfillingScheduler backfilling)
         {
-            throw refusal.AsException();
+            return backfilling.Backfill(triggerKey, from, to, options, cancellationToken);
         }
 
-        return outcome.Result
-               ?? throw new ObjectDoesNotExistException($"Trigger '{triggerKey}' does not exist, so it has no schedule to backfill. Nothing was scheduled.");
+        return Backfilling.Compose(scheduler, triggerKey, from, to, options, cancellationToken);
     }
 }
 
@@ -127,6 +132,55 @@ internal static class Backfilling
     /// backfill through <c>HttpScheduler</c> asks in pages it accepts.
     /// </summary>
     private const int ExistenceCheckBatch = 1000;
+
+    // How the refusals that are about the options begin, so that one read back off the wire can name the
+    // argument it is about; every other refusal is about the range's end.
+    private const string OptionsRefusal = "BackfillOptions.";
+    private const string TooManySlotsRefusal = "The range holds ";
+
+    /// <summary>
+    /// The backfill composed from members every scheduler has, raising a refusal and a missing trigger
+    /// the way the extension documents.
+    /// </summary>
+    /// <remarks>
+    /// What the extension runs for a scheduler that does not backfill in one call of its own, and what
+    /// such a scheduler falls back to when the other end cannot.
+    /// </remarks>
+    public static async ValueTask<BackfillResult> Compose(
+        IScheduler scheduler,
+        TriggerKey triggerKey,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        BackfillOptions options,
+        CancellationToken cancellationToken)
+    {
+        BackfillOutcome outcome = await Run(scheduler, triggerKey, from, to, options, cancellationToken).ConfigureAwait(false);
+        if (outcome.Refusal is { } refusal)
+        {
+            throw refusal.AsException();
+        }
+
+        return outcome.Result ?? throw MissingTrigger(triggerKey);
+    }
+
+    /// <summary>
+    /// What a backfill of a trigger that does not exist raises.
+    /// </summary>
+    public static ObjectDoesNotExistException MissingTrigger(TriggerKey triggerKey)
+    {
+        return new ObjectDoesNotExistException($"Trigger '{triggerKey}' does not exist, so it has no schedule to backfill. Nothing was scheduled.");
+    }
+
+    /// <summary>
+    /// A refusal read back from where it was decided — a <c>400</c>'s detail — as the exception it would
+    /// have been in process: the same words, and the argument they are about.
+    /// </summary>
+    public static ArgumentException RefusalOf(string reason)
+    {
+        bool aboutOptions = reason.StartsWith(OptionsRefusal, StringComparison.Ordinal)
+                            || reason.StartsWith(TooManySlotsRefusal, StringComparison.Ordinal);
+        return new BackfillRefusal(reason, aboutOptions ? "options" : "to").AsException();
+    }
 
     /// <summary>
     /// Backfills the trigger under <paramref name="triggerKey" />, answering a refusal, or neither a refusal
@@ -276,7 +330,7 @@ internal static class Backfilling
                 ? string.Create(CultureInfo.InvariantCulture, $"more than {countUpTo - 1}")
                 : found.Count.ToString(CultureInfo.InvariantCulture);
 
-            return Refused(Refuse(nameof(options), $"The range holds {count} slots of trigger '{trigger.Key}', more than BackfillOptions.MaxSlots ({options.MaxSlots}) allows. Narrow the range or raise MaxSlots."));
+            return Refused(Refuse(nameof(options), $"{TooManySlotsRefusal}{count} slots of trigger '{trigger.Key}', more than BackfillOptions.MaxSlots ({options.MaxSlots}) allows. Narrow the range or raise MaxSlots."));
         }
 
         List<DateTimeOffset> slots = found.Slots;

@@ -20,6 +20,7 @@
 #endregion
 
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 
 using Quartz.HttpApiContract;
@@ -65,7 +66,7 @@ namespace Quartz;
 /// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
 /// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler, IProxyScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler
 {
     private readonly WireClient wire;
 
@@ -526,6 +527,56 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler
         ).ConfigureAwait(false);
 
         return result.Applied;
+    }
+
+    /// <summary>
+    /// A backfill in one request: the host's <c>backfill</c> route runs it, against the host's clock, and
+    /// audits it once.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The answers are an in-process call's: a refusal the host made comes back as the
+    /// <see cref="ArgumentException" /> it would have been, with the host's words, and a trigger the host does
+    /// not hold as <see cref="ObjectDoesNotExistException" />.
+    /// </para>
+    /// <para>
+    /// A host older than 4.3 has no such route and answers <c>404</c> without problem details. That host is
+    /// backfilled the way any scheduler is, through the reads and writes it has: a request per slot.
+    /// </para>
+    /// </remarks>
+    async ValueTask<BackfillResult> IBackfillingScheduler.Backfill(
+        TriggerKey triggerKey,
+        DateTimeOffset from,
+        DateTimeOffset until,
+        BackfillOptions options,
+        CancellationToken cancellationToken)
+    {
+        WireResponse response = await wire.Exchange(
+            At(SchedulerRoutes.BackfillTrigger, triggerKey),
+            BackfillRequest.Create(from, until, options),
+            cancellationToken).ConfigureAwait(false);
+
+        if (wire.TryReadRequestRefusal(response, out string? refusal))
+        {
+            throw Backfilling.RefusalOf(refusal);
+        }
+
+        bool found;
+        try
+        {
+            found = wire.EnsureSuccess(response, throwOnNotFound: false);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            return await Backfilling.Compose(this, triggerKey, from, until, options, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!found)
+        {
+            throw Backfilling.MissingTrigger(triggerKey);
+        }
+
+        return wire.Read<BackfillResponse>(response).AsResult();
     }
 
     /// <inheritdoc />

@@ -117,11 +117,11 @@ Each is raised before anything is scheduled.
 | Where | How |
 |---|---|
 | HTTP API | `POST …/triggers/{triggerGroup}/{triggerName}/backfill`; see [Backfilling a trigger](../packages/http-api.md#backfilling-a-trigger) |
-| `HttpScheduler` | The same extension, through the reads and writes it already makes: a request per slot |
+| `HttpScheduler` | One request to that route, whatever the slot count: the host's clock decides "now", and the host audits one `BackfillTrigger` |
 | Dashboard | *Backfill…* on a trigger's page; see [Backfilling a trigger](../packages/dashboard.md#backfilling-a-trigger) |
 
 ## A mixed 4.2 and 4.3 cluster
 
 The slots are plain one-shot simple triggers, so a 4.2 node fires them. Only the slot key is new: a job on a
-4.2 node reads it from `context.Trigger.JobDataMap` as a string. A 4.2 HTTP host has no `backfill` route, but
-an `HttpScheduler` backfills one, since the extension uses routes 4.2 has.
+4.2 node reads it from `context.Trigger.JobDataMap` as a string. A 4.2 HTTP host has no `backfill` route and
+answers it `404`; an `HttpScheduler` then backfills through the routes 4.2 has, a request per slot.
