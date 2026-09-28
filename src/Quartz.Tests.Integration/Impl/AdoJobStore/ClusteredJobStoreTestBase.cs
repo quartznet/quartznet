@@ -281,6 +281,19 @@ public abstract class ClusteredJobStoreTestBase
     }
 
     /// <summary>
+    /// Reads one value off the store's own tables — a trigger's state, a fired row's — or
+    /// <see langword="null" /> when no row matches.
+    /// </summary>
+    protected async Task<object> ExecuteScalar(string sql, params (string Name, object Value)[] parameters)
+    {
+        using DbConnection connection = Database.CreateConnection();
+        await connection.OpenAsync();
+        using DbCommand command = CreateCommand(connection, sql, parameters);
+        object result = await command.ExecuteScalarAsync();
+        return result is DBNull ? null : result;
+    }
+
+    /// <summary>
     /// Prepares a fixture's statement for this engine's driver, rewriting the <c>@name</c> placeholders
     /// every fixture writes into whatever the driver spells them with.
     /// </summary>

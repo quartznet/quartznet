@@ -449,76 +449,197 @@ internal abstract partial class AdoJobStoreBase
         return byKey;
     }
 
-    public ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Fires a batch of acquired triggers in one transaction under
+    /// <see cref="SchedulerLock.TriggerAccess" />, and says for each what became of it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A fire that fails for a reason a retry will not cure is not left half-written. A statement that
+    /// fails partway leaves the writes before it in the transaction — the fired row updated, the job's
+    /// other triggers <c>BLOCKED</c> — and a commit keeps them, with nothing executing to let go of
+    /// them; on PostgreSQL the failure also dooms every statement after it, so the rest of the batch
+    /// fails too and the fires reported before it are rolled back underneath the jobs about to run
+    /// (#3931). So the attempt throws, the transaction wrapper rolls it back and releases the lock, and
+    /// the batch runs again without that trigger — once per trigger that fails, so the attempts are
+    /// bounded by the batch. A batch in which every fire succeeds is one attempt, exactly as before, and
+    /// pays nothing for this.
+    /// </para>
+    /// <para>
+    /// A failure the store settles inside the transaction — a job that will not load, whose trigger is
+    /// stored <c>ERROR</c> so that it is not acquired again — is not one of those: <see cref="FireTrigger" />
+    /// answers it as a result, and the attempt goes on and commits it.
+    /// </para>
+    /// </remarks>
+    public async ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLocalTransactionLock(
-            SchedulerLock.TriggerAccess,
-            async conn =>
+        // The batch as the scheduler handed it over, fired whole on the first attempt. Only a failure
+        // copies it, to take the failed trigger out.
+        IReadOnlyList<IOperableTrigger> attempt = triggers as IReadOnlyList<IOperableTrigger> ?? [.. triggers];
+
+        // What has been settled outside an attempt, by the position the scheduler knows the trigger by,
+        // and which position each trigger still in the attempt has there. Neither exists until a fire
+        // has failed.
+        TriggerFiredResult?[]? settled = null;
+        List<int>? positions = null;
+
+        while (true)
+        {
+            List<TriggerFiredResult> fired;
+            try
             {
-                List<TriggerFiredResult> results = new(triggers.Count);
-
-                foreach (IOperableTrigger trigger in triggers)
+                fired = await ExecuteInLocalTransactionLock(
+                    SchedulerLock.TriggerAccess,
+                    conn => FireBatch(conn, attempt, cancellationToken),
+                    (conn, result) => ValidateFired(conn, result, cancellationToken),
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (TriggerFireFailedException failure)
+            {
+                Exception cause = failure.InnerException!;
+                if (cause is JobPersistenceException jpe)
                 {
-                    TriggerFiredResult result;
-                    try
-                    {
-                        // Clone so that trigger.Triggered() mutation doesn't affect retries
-                        var triggerCopy = (IOperableTrigger) trigger.Clone();
-                        result = await FireTrigger(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (JobPersistenceException jpe)
-                    {
-                        if (IsTransient(jpe))
-                        {
-                            throw; // Let ExecuteInLocalTransactionLock retry the whole transaction
-                        }
-                        Logger.JobPersistenceExceptionCaught(jpe.Message, jpe);
-                        result = TriggerFiredResult.Failed(jpe);
-                    }
-                    catch (Exception ex)
-                    {
-                        if (IsTransient(ex))
-                        {
-                            // Wrap as JobPersistenceException so outer retry mechanism can handle it
-                            throw new JobPersistenceException("Transient error firing trigger: " + ex.Message, ex);
-                        }
-                        Logger.ExceptionCaught(ex.Message, ex);
-                        result = TriggerFiredResult.Failed(ex);
-                    }
-
-                    results.Add(result);
+                    Logger.JobPersistenceExceptionCaught(jpe.Message, jpe);
+                }
+                else
+                {
+                    Logger.ExceptionCaught(cause.Message, cause);
                 }
 
-                return results;
-            },
-            (conn, result) => Guarded(
-                async () =>
+                settled ??= new TriggerFiredResult?[triggers.Count];
+                positions ??= [.. Enumerable.Range(0, triggers.Count)];
+                settled[positions[failure.Index]] = TriggerFiredResult.Failed(cause);
+                positions.RemoveAt(failure.Index);
+
+                List<IOperableTrigger> remaining = new(attempt.Count - 1);
+                for (int i = 0; i < attempt.Count; i++)
                 {
-                    var acquired = await Delegate
-                        .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
-                        .ConfigureAwait(false);
-                    var executingTriggers = new HashSet<string>();
-                    foreach (FiredTriggerRecord ft in acquired)
+                    if (i != failure.Index)
                     {
-                        if (ft.FireInstanceState == StoredTriggerState.Executing)
-                        {
-                            executingTriggers.Add(ft.FireInstanceId);
-                        }
+                        remaining.Add(attempt[i]);
                     }
+                }
 
-                    foreach (TriggerFiredResult tr in result)
+                attempt = remaining;
+                Logger.FireBatchRolledBack(failure.TriggerKey, triggers.Count, remaining.Count);
+
+                if (remaining.Count > 0)
+                {
+                    continue;
+                }
+
+                fired = [];
+            }
+
+            if (settled is null)
+            {
+                return fired;
+            }
+
+            // The attempt kept the scheduler's order for the triggers it still had, so its results slot
+            // into the gaps between the settled ones in order.
+            List<TriggerFiredResult> results = new(settled.Length);
+            int next = 0;
+            foreach (TriggerFiredResult? result in settled)
+            {
+                results.Add(result ?? fired[next++]);
+            }
+
+            return results;
+        }
+    }
+
+    /// <summary>
+    /// One attempt at a batch: every trigger fired in turn, in the attempt's transaction.
+    /// </summary>
+    /// <exception cref="TriggerFireFailedException">
+    /// A fire failed for a reason a retry will not cure. The transaction wrapper rolls the attempt back,
+    /// and <see cref="TriggersFired" /> runs the batch again without the trigger.
+    /// </exception>
+    /// <exception cref="JobPersistenceException">
+    /// A fire failed transiently. The transaction wrapper retries the whole attempt.
+    /// </exception>
+    private async ValueTask<List<TriggerFiredResult>> FireBatch(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<IOperableTrigger> triggers,
+        CancellationToken cancellationToken)
+    {
+        List<TriggerFiredResult> results = new(triggers.Count);
+
+        for (int i = 0; i < triggers.Count; i++)
+        {
+            IOperableTrigger trigger = triggers[i];
+            TriggerFiredResult result;
+            try
+            {
+                // Clone so that trigger.Triggered() mutation doesn't affect retries
+                var triggerCopy = (IOperableTrigger) trigger.Clone();
+                result = await FireTrigger(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
+            }
+            catch (JobPersistenceException jpe)
+            {
+                if (IsTransient(jpe))
+                {
+                    throw; // Let ExecuteInLocalTransactionLock retry the whole transaction
+                }
+
+                throw new TriggerFireFailedException(i, trigger.Key, jpe);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A cancellation is not caught: it is the caller asking to stop, which the transaction
+                // wrapper reports as itself rather than as a trigger that failed to fire.
+                if (IsTransient(ex))
+                {
+                    // Wrap as JobPersistenceException so outer retry mechanism can handle it
+                    throw new JobPersistenceException("Transient error firing trigger: " + ex.Message, ex);
+                }
+
+                throw new TriggerFireFailedException(i, trigger.Key, ex);
+            }
+
+            results.Add(result);
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Asked when an attempt's commit reported a failure: whether the fires landed anyway, which is the
+    /// case when any fired row this attempt reported fired is <c>EXECUTING</c>.
+    /// </summary>
+    private ValueTask<bool> ValidateFired(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerFiredResult> result,
+        CancellationToken cancellationToken)
+    {
+        return Guarded(
+            async () =>
+            {
+                var acquired = await Delegate
+                    .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
+                    .ConfigureAwait(false);
+                var executingTriggers = new HashSet<string>();
+                foreach (FiredTriggerRecord ft in acquired)
+                {
+                    if (ft.FireInstanceState == StoredTriggerState.Executing)
                     {
-                        if (tr.TriggerFiredBundle is not null &&
-                            executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId!))
-                        {
-                            return true;
-                        }
+                        executingTriggers.Add(ft.FireInstanceId);
                     }
+                }
 
-                    return false;
-                },
-                "validate trigger acquisition"),
-            cancellationToken: cancellationToken);
+                foreach (TriggerFiredResult tr in result)
+                {
+                    if (tr.TriggerFiredBundle is not null &&
+                        executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId!))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+            "validate trigger acquisition");
     }
 
     protected async ValueTask<TriggerFiredBundle?> TriggerFired(
@@ -566,19 +687,28 @@ internal abstract partial class AdoJobStoreBase
         }
         catch (JobPersistenceException jpe)
         {
+            // Settled here rather than by rolling the fire back: the trigger is stored ERROR so that it
+            // is not acquired again, and the batch goes on and commits that. Answered as a failed result
+            // rather than thrown, because a thrown failure is one the batch undoes (#3931); the
+            // scheduler releases the trigger on the result, which leaves an ERROR row alone.
+            Logger.JobRetrievalFailed(jpe);
             try
             {
-                Logger.JobRetrievalFailed(jpe);
                 await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
-
-                // Same as above: the trigger stops here and nothing else says so.
-                await signaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception sqle)
             {
+                // Nothing is settled then, and the transaction may be doomed: the batch treats the write
+                // failure as it treats any other failed fire, retrying a transient one.
                 Logger.TriggerErrorStateUpdateFailed(sqle);
+                throw;
             }
-            throw;
+
+            // Same as above: the trigger stops here and nothing else says so. Raised once the ERROR
+            // state has committed, not from inside the transaction that may yet roll it back.
+            TriggerKey key = trigger.Key;
+            conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersTriggerInError(key, token));
+            return TriggerFiredResult.Failed(jpe);
         }
 
         // Cluster-safe check: prevent concurrent execution across nodes for
