@@ -89,8 +89,18 @@ jobs:
               return;
             }
 
-            const result = await response.json();
-            const content = result.choices?.[0]?.message?.content?.trim();
+            // Triage is a convenience: an answer that cannot be read is a warning, never a failed run.
+            // Since 2026-09-19 the endpoint has answered 200 with the plain-text body "OK".
+            const raw = await response.text();
+            let result;
+            try {
+              result = JSON.parse(raw);
+            } catch (e) {
+              core.warning(`GitHub Models API returned a body that is not JSON: ${raw.substring(0, 200)}`);
+              return;
+            }
+
+            const content = result?.choices?.[0]?.message?.content?.trim();
 
             if (!content) {
               core.warning('No response from model');
@@ -103,12 +113,16 @@ jobs:
             } catch (e) {
               // Try to extract JSON array from the response
               const match = content.match(/\[.*\]/s);
-              if (match) {
-                labels = JSON.parse(match[0]);
-              } else {
-                core.warning(`Could not parse model response: ${content}`);
-                return;
+              try {
+                labels = match ? JSON.parse(match[0]) : undefined;
+              } catch (e2) {
+                labels = undefined;
               }
+            }
+
+            if (!Array.isArray(labels)) {
+              core.warning(`Could not parse model response: ${content.substring(0, 200)}`);
+              return;
             }
 
             const validLabelNames = availableLabels.map(l => l.name);
