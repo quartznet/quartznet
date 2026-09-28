@@ -25,6 +25,14 @@
     <EmbeddedResource Include="..\..\database\tables\tables_sqlite.sql" LogicalName="tables_sqlite.sql" />
 
     <!--
+      The SQLite schemas released Quartz versions created, which the Weasel tests migrate forward and
+      compare with a fresh install. Read from the integration project's baselines rather than copied, so
+      each is vendored once.
+    -->
+    <EmbeddedResource Include="..\Quartz.Tests.Integration\SchemaBaselines\3.20\tables_sqlite.sql" LogicalName="baseline_3.20_tables_sqlite.sql" />
+    <EmbeddedResource Include="..\Quartz.Tests.Integration\SchemaBaselines\4.2\tables_sqlite.sql" LogicalName="baseline_4.2_tables_sqlite.sql" />
+
+    <!--
       Blob columns dumped byte for byte from a released Quartz 3.20.0 run, which LegacyJsonPayloadTest
       reads. See TestData/Legacy/3.20/README.md for how they are regenerated.
     -->
@@ -82,6 +90,9 @@
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
     <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />
+    <ProjectReference Include="..\Quartz.Weasel\Quartz.Weasel.csproj" />
+    <ProjectReference Include="..\Quartz.Weasel.PostgreSQL\Quartz.Weasel.PostgreSQL.csproj" />
+    <ProjectReference Include="..\Quartz.Weasel.SQLite\Quartz.Weasel.SQLite.csproj" />
   </ItemGroup>
 
   <ItemGroup>

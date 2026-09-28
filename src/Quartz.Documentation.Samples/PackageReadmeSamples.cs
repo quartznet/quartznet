@@ -1,3 +1,5 @@
+using JasperFx;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -117,6 +119,54 @@ public static class PackageReadmeSamples
 
                 // job and trigger data stays in the database; only the locks move to Redis
                 store.UseRedisLockHandler(redis => redis.RedisConfiguration = "redis-server:6379");
+            }));
+
+            #endregion
+        }
+    }
+
+    public static class WeaselSchema
+    {
+        public static async Task<int> Registration(string[] args, string connectionString)
+        {
+            #region sample_readme_weasel
+
+            HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+            builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
+            {
+                store.UsePostgres(connectionString);
+                store.UseWeaselForPostgres(); // or UseWeaselForSqlite(), from Quartz.Weasel.SQLite
+            }));
+            builder.Services.AddQuartzHostedService();
+
+            // dotnet run -- db-apply | db-assert | db-patch <file> | resources setup
+            return await builder.Build().RunJasperFxCommands(args);
+
+            #endregion
+        }
+
+        public static void Postgres(IHostApplicationBuilder builder, string connectionString)
+        {
+            #region sample_readme_weasel_postgres
+
+            builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
+            {
+                store.UsePostgres(connectionString);
+                store.UseWeaselForPostgres(weasel => weasel.LockId = PostgresWeaselOptions.DefaultLockId);
+            }));
+
+            #endregion
+        }
+
+        public static void Sqlite(IHostApplicationBuilder builder, string connectionString)
+        {
+            #region sample_readme_weasel_sqlite
+
+            builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
+            {
+                store.UseSqlite(connectionString);
+                store.UseWeaselForSqlite();
             }));
 
             #endregion

@@ -1,0 +1,13 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public sealed class SqliteWeaselOptions
+    {
+        public SqliteWeaselOptions() { }
+        public JasperFx.AutoCreate? AutoCreate { get; set; }
+    }
+    public static class SqliteWeaselStoreBuilderExtensions
+    {
+        public static Quartz.IPersistentStoreBuilder UseWeaselForSqlite(this Quartz.IPersistentStoreBuilder store, System.Action<Quartz.SqliteWeaselOptions>? configure = null) { }
+    }
+}

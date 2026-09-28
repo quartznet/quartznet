@@ -98,6 +98,11 @@ updates:
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "TimeZoneConverter"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      # The Quartz.Weasel packages depend on Weasel by range, [9.35.1, 10.0.0): Weasel 10 is a new major
+      # the packages have to be built and tested against first. A single requirement with no comma in it,
+      # because the C# updater splits a requirement string on commas.
+      - dependency-name: "Weasel.*"
+        versions: [">= 10.0.0"]
     # Dependencies are matched against groups in the order they are declared here,
     # and each dependency ends up in the first group it matches.
     groups:
@@ -160,6 +165,14 @@ updates:
       wolverine:
         patterns:
           - "WolverineFx*"
+      # Weasel, which the Quartz.Weasel packages depend on, and the JasperFx and Marten packages the
+      # integration tests run it beside. Marten pins a Weasel and a JasperFx of its own, so the three move
+      # together or restore to a graph nobody tested.
+      weasel:
+        patterns:
+          - "Weasel.*"
+          - "JasperFx*"
+          - "Marten*"
       # Everything else shipped out of dotnet/runtime and dotnet/aspnetcore.
       microsoft:
         patterns:

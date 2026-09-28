@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Quartz</RootNamespace>
+    <Title>Quartz.NET Weasel Integration</Title>
+    <Description>Quartz.NET Weasel integration - shared glue that puts the ADO.NET job store's schema under Weasel's db-apply, db-assert, db-patch, resources setup and startup migration; install a dialect package beside it; $(Description)</Description>
+    <PackageTags>$(PackageTags);weasel;jasperfx;critter-stack;schema;migrations</PackageTags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Signed like every Quartz package; the whole JasperFx stack, Weasel included, is not (CS8002). -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+    <!--
+      Trimmable, and the analyzers that make that a checked statement rather than a claim (#3431), as on
+      the other satellite packages. Weasel and JasperFx describe themselves as AOT-compatible; the one
+      reflective member this package touches is JasperFx's ISystemPart.WriteToConsole, whose annotation
+      the implementation repeats rather than swallows.
+    -->
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <!--
+      Off for the reason Quartz.Extensions.Redis gives: transitive pinning writes every centrally
+      versioned id in the graph into the nuspec as a direct dependency at exactly its central version.
+      Weasel reaches Microsoft.Extensions.Hosting, Spectre.Console and, through the dialect packages,
+      the ADO.NET drivers, all of which Directory.Packages.props versions for the tests. Pinned, they
+      would become demands this package makes of every consumer at versions Weasel never asked for. Off,
+      the nuspec says Quartz and Weasel.Core, and each of those brings what it declares.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Weasel.Core" />
+  </ItemGroup>
+
+</Project>

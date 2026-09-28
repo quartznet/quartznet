@@ -190,6 +190,17 @@
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageVersion Include="StackExchange.Redis" Version="3.0.0" />
     <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
+    <!--
+      A range rather than a floor, and the only one in the file. 9.35.1 is the first release with
+      AddOnlyMigrations, without which an update would drop the columns, indexes and foreign keys an
+      application added to Quartz's tables; the ceiling is there because 9.33.0 broke binary
+      compatibility inside 9.x once already, and Weasel 10 is announced. The three Quartz.Weasel
+      packages turn transitive pinning off, so their nuspecs carry exactly this range and nothing of
+      Weasel's own graph.
+    -->
+    <PackageVersion Include="Weasel.Core" Version="[9.35.1, 10.0.0)" />
+    <PackageVersion Include="Weasel.Postgresql" Version="[9.35.1, 10.0.0)" />
+    <PackageVersion Include="Weasel.Sqlite" Version="[9.35.1, 10.0.0)" />
   </ItemGroup>
 
   <!--
