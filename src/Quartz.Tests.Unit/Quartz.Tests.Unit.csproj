@@ -93,6 +93,7 @@
     <ProjectReference Include="..\Quartz.Weasel\Quartz.Weasel.csproj" />
     <ProjectReference Include="..\Quartz.Weasel.PostgreSQL\Quartz.Weasel.PostgreSQL.csproj" />
     <ProjectReference Include="..\Quartz.Weasel.SQLite\Quartz.Weasel.SQLite.csproj" />
+    <ProjectReference Include="..\Quartz.Weasel.SqlServer\Quartz.Weasel.SqlServer.csproj" />
   </ItemGroup>
 
   <ItemGroup>
