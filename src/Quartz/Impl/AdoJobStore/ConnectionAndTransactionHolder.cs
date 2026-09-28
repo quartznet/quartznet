@@ -247,6 +247,13 @@ public class ConnectionAndTransactionHolder : IDisposable
     /// </summary>
     internal bool IsTransactionZombied => transaction != null && transaction.Connection == null;
 
+    /// <summary>
+    /// The trigger whose failed fire this unit of work has already settled by storing it <c>ERROR</c> —
+    /// its job would not load — so that the fire batch commits the failure instead of rolling the
+    /// attempt back as it does for any other failed fire (#3931).
+    /// </summary>
+    internal TriggerKey? SettledFireFailure { get; set; }
+
     private void CheckNotZombied()
     {
         if (IsTransactionZombied)
