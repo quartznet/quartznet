@@ -906,7 +906,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
 
         var result = await wire.SendAndRead<GroupPausedResponse>(
-            SchedulerRoutes.IsTriggerGroupPaused.For(SchedulerName, Uri.EscapeDataString(groupName)), cancellationToken).ConfigureAwait(false);
+            SchedulerRoutes.IsTriggerGroupPaused.For(SchedulerName, groupName), cancellationToken).ConfigureAwait(false);
         return result.Pause?.AsPauseInfo();
     }
 
@@ -919,7 +919,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
 
         var result = await wire.SendAndRead<GroupPausedResponse>(
-            SchedulerRoutes.IsJobGroupPaused.For(SchedulerName, Uri.EscapeDataString(groupName)), cancellationToken).ConfigureAwait(false);
+            SchedulerRoutes.IsJobGroupPaused.For(SchedulerName, groupName), cancellationToken).ConfigureAwait(false);
         return result.Pause?.AsPauseInfo();
     }
 

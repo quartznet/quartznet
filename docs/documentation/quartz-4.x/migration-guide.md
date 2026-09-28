@@ -191,6 +191,13 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 
   If your factory resolves a job from the container with `GetRequiredService`, register that job type
   yourself, for example `services.AddScoped<MyJob>()`.
+* **`HttpScheduler` escapes every value it puts in a path or a matcher query**
+  ([#3917](https://github.com/quartznet/quartznet/issues/3917)). A `?`, `#` or `%` in a name or group, and a
+  `&`, `#`, `+` or `%` in a matcher value, now reach the scheduler as written; before, the request named
+  another job or none. A name that contains `/`, or is `.` or `..`, throws `ArgumentException` instead of
+  reaching another name or route. For such a name, use a member that takes a set of keys. See
+  [Names in a path](packages/http-api.md#names-in-a-path). A 4.2 host reads the escaped values as a 4.3 host
+  does.
 
 **Interface members are default interface members**, so an implementation written for 4.2 compiles and
 behaves as it did. Properties added to records are non-positional `init` properties, so constructors are

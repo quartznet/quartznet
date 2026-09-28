@@ -70,6 +70,44 @@ public class SchedulerRoutesTest
         SchedulerRoutes.PauseJob.Parameters.Should().Equal(["schedulerName", "jobGroup", "jobName"]);
     }
 
+    /// <summary>
+    /// A value is escaped into its segment, so a character that means something in a URL arrives as written
+    /// once the server unescapes the path (#3917). A value that needs no escaping goes in unchanged.
+    /// </summary>
+    [Test]
+    public void AValueIsEscapedIntoItsSegment()
+    {
+        WireRequest request = SchedulerRoutes.PauseJob.For("reporting", "night shift?#", "100%&a+b");
+
+        request.Path.Should().Be("schedulers/reporting/jobs/night%20shift%3F%23/100%25%26a%2Bb/pause");
+        SchedulerRoutes.Match("POST", request.Path)!.Value.Values.Should().BeEquivalentTo(new Dictionary<string, string>
+        {
+            ["schedulerName"] = "reporting",
+            ["jobGroup"] = "night shift?#",
+            ["jobName"] = "100%&a+b"
+        }, "unescaping the path gives back what was written");
+
+        SchedulerRoutes.PauseJob.For("reporting", "v1.2~x", "a-b_c").Path.Should().Be("schedulers/reporting/jobs/v1.2~x/a-b_c/pause",
+            "letters, digits and -._~ need no escaping, so a path made of them is the one the client always sent");
+    }
+
+    /// <summary>
+    /// A value no escaping brings back is refused before anything is sent: an escaped <c>/</c> stays escaped
+    /// through ASP.NET Core's routing, and a dot segment is removed from the path before it.
+    /// </summary>
+    [TestCase("reports/2026", "*contains '/'*")]
+    [TestCase(".", "*a path segment of '.' is removed before routing*")]
+    [TestCase("..", "*a path segment of '..' is removed before routing*")]
+    public void AValueThePathCannotCarryIsRefused(string group, string reason)
+    {
+        Action act = () => SchedulerRoutes.PauseJob.For("reporting", group, "nightly");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage($"The jobGroup '{group}' cannot be sent in the path of PauseJob*")
+            .Which.ParamName.Should().Be("jobGroup", "the route's parameter says which part of the key it was");
+        act.Should().Throw<ArgumentException>().WithMessage(reason);
+    }
+
     [Test]
     public void ARouteRefusesTheWrongNumberOfValues()
     {

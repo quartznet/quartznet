@@ -205,6 +205,23 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 separate route with an empty body.
 :::
 
+## Names in a path
+
+Names, groups, the scheduler name and fire instance ids go into the path percent-encoded. ASP.NET Core decodes
+the path before routing, so every character arrives as written, with two exceptions:
+
+| Value | The server reads | `HttpScheduler` |
+|---|---|---|
+| contains `/`, such as `a/b` | `a%2Fb`: routing leaves `%2F` encoded | refuses it |
+| `.` or `..` | nothing: the segment is removed, and another route answers | refuses it |
+
+- A name spelled `a%2Fb` also arrives as `a%2Fb`, so the server cannot tell the two apart.
+- The refusal is an `ArgumentException` naming the value, its route parameter and the route. Nothing is sent.
+- Members that take a set of keys send them in the body, where any name works: `PauseJobs(keys)`,
+  `ResumeJobs(keys)`, `DeleteJobs(keys)`, `UnscheduleJobs(keys)`, `GetJobDetails(keys)`, `GetTriggers(keys)` and
+  the trigger forms. See [A whole set of keys in one call](#a-whole-set-of-keys-in-one-call).
+- Matcher values in the query string, such as `?groupEquals=`, are percent-encoded too, and any character works.
+
 ## The scheduler listing carries registrations
 
 `GET {ApiPath}/schedulers` lists every scheduler the container has *registered* or *built*, ordered by name. It is
