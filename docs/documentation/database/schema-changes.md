@@ -500,6 +500,9 @@ Five scripts; the first three are mandatory
   the writing node's own, so no lock is taken.
 - Oracle declares `PROGRESS_MESSAGE` as `VARCHAR2(1000)`: `VARCHAR2` counts bytes, and 250 characters of
   UTF-8 can take 1,000.
+- Firebird declares it `VARCHAR(250)`, which is 250 bytes in a database without a character set. The
+  store cuts the message to 250 bytes there; see
+  [text columns that count bytes](../quartz-4.x/db/index.md#text-columns-that-count-bytes-oracle-and-firebird).
 - Read by the fire-instance listing, which is what the dashboard's Currently Executing page shows
   cluster-wide.
 - No index: the write is by primary key.

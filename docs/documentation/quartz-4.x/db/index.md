@@ -70,6 +70,61 @@ to add whichever are missing, table included. Every statement is guarded, so it 
 that already has some of them. [Database Schema Changes](../../database/schema-changes.md#version-4-0)
 lists the whole 3.x → 4.x set.
 
+## Text columns that count bytes: Oracle and Firebird
+
+Oracle and Firebird can count a `VARCHAR` column's width in bytes rather than characters. A character
+outside ASCII is two to four bytes of UTF-8, so such a column holds fewer of them.
+
+| Database | Counts bytes | Counts characters |
+|---|---|---|
+| Oracle | `NLS_LENGTH_SEMANTICS` is `BYTE`, the default | the column was created under `CHAR` semantics |
+| Firebird | the database has no default character set (`NONE`) | the database was created with `DEFAULT CHARACTER SET UTF8` |
+
+Quartz cannot tell which one a database uses. On these two dialects it cuts four texts by bytes too,
+always at a whole character:
+
+| Column | Cut to (characters) | Oracle width (bytes) | Firebird width (bytes) |
+|---|---|---|---|
+| `PAUSE_REASON` | 250 | 1,000 | 1,000 |
+| `PAUSED_BY` | 200 | 800 | 800 |
+| `PROGRESS_MESSAGE` | 250 | 1,000 | 250 |
+| `ERROR_MESSAGE` (execution history) | 1,000 | 4,000 | 1,000 |
+
+* A width four times the length never shortens a text: UTF-8 is at most three bytes a UTF-16 code unit.
+  Oracle's are all four times.
+* Firebird's `PROGRESS_MESSAGE` and `ERROR_MESSAGE` are not. A message of `é` keeps 125 or 500
+  characters, one of `日` 83 or 333, whatever the database's character set.
+* No other text is cut. Names, groups, `DESCRIPTION` and `CALENDAR_NAME` are refused when they do not
+  fit. Counted in bytes, 250 characters of `é` are 500, so a `VARCHAR(250)` `DESCRIPTION` refuses them:
+  `ORA-12899` on Oracle, `string right truncation` on Firebird.
+* The widths are fixed for 4.x. A 4.x migration only adds columns.
+
+### Firebird
+
+Create the database with a character set, and connect with the same one:
+
+```sql
+CREATE DATABASE 'localhost:/data/quartz.fdb' USER 'SYSDBA' PASSWORD 'masterkey'
+  DEFAULT CHARACTER SET UTF8;
+```
+
+```text
+DataSource=localhost;Database=/data/quartz.fdb;User=SYSDBA;Password=masterkey;Charset=UTF8
+```
+
+* A database's character set is fixed by `CREATE DATABASE`, so `tables_firebird.sql` cannot set it.
+* Its columns take the database's default. On a `NONE` database, `VARCHAR(250)` holds 250 bytes.
+* `SELECT RDB$CHARACTER_SET_NAME FROM RDB$DATABASE` answers `UTF8` or `NONE`.
+
+### Oracle
+
+* `SELECT COLUMN_NAME, CHAR_USED FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'QRTZ_TRIGGERS'` answers `B`
+  for a column that counts bytes, `C` for characters.
+* To have names and descriptions hold their width in characters, run `tables_oracle.sql` after
+  `ALTER SESSION SET NLS_LENGTH_SEMANTICS = CHAR`. A `VARCHAR2` still holds at most 4,000 bytes while
+  `MAX_STRING_SIZE` is `STANDARD`.
+* Use an `AL32UTF8` database character set. A single-byte one replaces a character it cannot encode.
+
 ## The QRTZ_TRIGGERS table
 
 Holds the data shared by all trigger types. Type-specific data is in `QRTZ_CRON_TRIGGERS`,
