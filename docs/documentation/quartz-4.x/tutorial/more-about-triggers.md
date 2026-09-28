@@ -77,7 +77,8 @@ Every family has:
 | **Recurrence (RRULE)** | `RecurrenceTriggerMisfireInstruction.FireAndProceed` | the same |
 
 However many firings were missed, a resolved instruction fires **once** at most: the trigger moves
-forward and is not replayed. Only `IgnoreMisfires` replays them.
+forward and is not replayed. Only `IgnoreMisfires` replays them. To run a past range you choose, whatever
+the instruction did, see [Backfill](../how-tos/backfill.md).
 
 ## Retry Policies
 

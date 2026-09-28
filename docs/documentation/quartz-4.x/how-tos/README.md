@@ -11,6 +11,7 @@ Each page answers one question. New to Quartz.NET? Start with the [Tutorial](../
 
 * [One-Off Job](one-off-job.md) — fire a job once, now or at a given time
 * [Rescheduling Jobs](rescheduling-jobs.md) — change a live schedule, retry a firing, recover a failed trigger
+* [Backfill](backfill.md) — run a trigger's schedule over a past range you choose
 * [Retrying Failed Jobs](retrying-failed-jobs.md) — give a trigger a retry policy
 * [Pausing with a Reason](pausing-with-a-reason.md) — say why and who paused, and pause a trigger whose retries ran out
 * [Job Continuations](job-continuations.md) — run a trigger when another trigger's firing ends with an outcome you name

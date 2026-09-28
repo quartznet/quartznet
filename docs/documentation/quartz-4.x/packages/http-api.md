@@ -102,7 +102,7 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 
 ## Every endpoint
 
-Sixty-six routes in four groups.
+Sixty-seven routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
@@ -162,7 +162,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/groups` | paged job groups; the four `name*` filters, `paused` |
 | `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused, pause }` |
 
-### Triggers — 22
+### Triggers — 23
 
 | Method | Path | Answers |
 |---|---|---|
@@ -188,6 +188,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/unschedule-by-group` | `{ triggers }`; group matcher in the query string |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reschedule` | `{ firstFireTimeUtc }`; **`null`** when the trigger did not exist |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/update-details` | `{ applied }`; edits the trigger [as a patch](#editing-a-trigger-in-place) |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/backfill` | What it found and scheduled; [below](#backfilling-a-trigger). From 4.3 |
 
 ### Calendars — 5
 
@@ -807,6 +808,51 @@ applies at the next scheduling evaluation.
 
 A continuation cannot be edited here: what a trigger waits for is set when it is scheduled, and changing it is a
 reschedule.
+
+## Backfilling a trigger
+
+From 4.3. `POST …/triggers/{triggerGroup}/{triggerName}/backfill` schedules one firing per slot the trigger had
+in `[from, to)`. It runs [`Backfill`](../how-tos/backfill.md) on the host.
+
+```json
+{
+  "from": "2026-09-09T00:00:00+00:00",
+  "to": "2026-09-09T03:00:00+00:00",
+  "maxSlots": 10,
+  "spacing": "00:00:30",
+  "executionGroup": "backfills"
+}
+```
+
+`from` and `to` are required; the rest are optional, with `BackfillOptions`' defaults. The answer:
+
+```json
+{
+  "slotsFound": 3,
+  "scheduled": 2,
+  "alreadyScheduled": 1,
+  "firstSlot": "2026-09-09T00:00:00+00:00",
+  "lastSlot": "2026-09-09T02:00:00+00:00",
+  "triggers": [
+    { "name": "hourly@2026-09-09T00:00:00Z", "group": "backfill:reports" },
+    { "name": "hourly@2026-09-09T02:00:00Z", "group": "backfill:reports" }
+  ]
+}
+```
+
+| Case | Answer |
+|---|---|
+| No such trigger | `404` |
+| `from` or `to` missing | `400` |
+| `to` not after `from` | `400` |
+| `to` after now on the host's clock | `400` |
+| More slots than `maxSlots` | `400` |
+| An option out of range | `400` |
+| `ReadOnly` | `403` |
+
+A `400` schedules nothing and carries the refusal as `detail`, with `Quartz-ExceptionType: BadHttpRequestException`.
+A success is [audited](#production-hardening) as `BackfillTrigger`. `HttpScheduler` does not call this route:
+the extension on an `HttpScheduler` makes its own reads and writes, a request per slot.
 
 ## Overlap policies
 
