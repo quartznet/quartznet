@@ -93,7 +93,7 @@
       of the cron parser is missing. Source-only and PrivateAssets=all, so it reaches no nuspec — which
       is what lets Quartz.Analyzers ride inside Quartz.nupkg without adding a dependency to it.
     -->
-    <PackageVersion Include="PolySharp" Version="1.15.0" />
+    <PackageVersion Include="PolySharp" Version="1.16.0" />
     <PackageVersion Include="PublicApiGenerator" Version="11.5.4" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
