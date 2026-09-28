@@ -203,6 +203,9 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3048, Level = LogLevel.Information, Message = "Using configured lock handler {LockHandlerType} for data access locking (synchronization).")]
     public static partial void UsingConfiguredLockHandler(this ILogger logger, string lockHandlerType);
 
+    [LoggerMessage(EventId = 3049, Level = LogLevel.Warning, Message = "Fire of trigger {TriggerKey} failed; the batch of {BatchSize} trigger(s) is rolled back and fired again without it, {Remaining} trigger(s) left")]
+    public static partial void FireBatchRolledBack(this ILogger logger, TriggerKey triggerKey, int batchSize, int remaining);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 
