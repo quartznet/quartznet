@@ -78,6 +78,15 @@ internal sealed class ZoneOffsetTable
     /// <summary>How far outside the window transitions are looked for, so that one just past the edge still cuts it.</summary>
     private const long ScanMarginTicks = 8 * TimeSpan.TicksPerDay;
 
+    /// <summary>The window <see cref="TriggerConstants.EarliestYear" /> falls in: the first one a table is ever built for.</summary>
+    internal const int FirstWindowIndex = TriggerConstants.EarliestYear / WindowYears;
+
+    /// <summary>
+    /// How many windows a table can ever be built for: the years a cron expression can name, eight at
+    /// a time, which is about twenty.
+    /// </summary>
+    internal static readonly int WindowCount = TriggerConstants.YearToGiveUpSchedulingAt / WindowYears - FirstWindowIndex + 1;
+
     private readonly Segment[] segments;
 
     /// <summary>
@@ -125,8 +134,8 @@ internal sealed class ZoneOffsetTable
     /// the same decade ask for the same window. Instants outside the years a cron expression can name
     /// have none: the year field cannot go below <see cref="TriggerConstants.EarliestYear" /> or above
     /// <see cref="TriggerConstants.YearToGiveUpSchedulingAt" />, and refusing the rest is what keeps
-    /// <c>GetPreviousValidTimeBefore</c>, whose binary search opens in year 2, from spending one of a
-    /// zone's four windows on a century nothing will read again.
+    /// <c>GetPreviousValidTimeBefore</c>, whose binary search opens in year 2, from building tables
+    /// for centuries nothing will read again - and what bounds a zone to <see cref="WindowCount" />.
     /// </remarks>
     internal static int WindowIndexFor(long utcTicks)
     {
