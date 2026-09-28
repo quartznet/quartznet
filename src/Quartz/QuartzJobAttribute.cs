@@ -39,9 +39,9 @@ namespace Quartz;
 /// are <c>QZ1002</c>.
 /// </para>
 /// <para>
-/// A declared job's schedule is <see cref="CronTriggerAttribute" />, as many times as it has
-/// schedules. A job declaring none is registered durably, because a job with no trigger is the shape
-/// a store discards otherwise.
+/// A declared job's schedules are <see cref="CronTriggerAttribute" /> and
+/// <see cref="SimpleTriggerAttribute" />, one per schedule. A job declaring none is registered durably,
+/// because a job with no trigger is the shape a store discards otherwise.
 /// </para>
 /// </remarks>
 /// <example>
@@ -58,6 +58,7 @@ namespace Quartz;
 /// </code>
 /// </example>
 /// <seealso cref="CronTriggerAttribute" />
+/// <seealso cref="SimpleTriggerAttribute" />
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class QuartzJobAttribute : Attribute
 {
@@ -84,9 +85,9 @@ public sealed class QuartzJobAttribute : Attribute
     /// Whether the job stays in the store when no trigger points at it.
     /// </summary>
     /// <remarks>
-    /// Forced on for a job that declares no <see cref="CronTriggerAttribute" />: a non-durable job
-    /// with no trigger is deleted as soon as it is stored, so declaring one would be declaring
-    /// nothing.
+    /// Forced on for a job that declares no <see cref="CronTriggerAttribute" /> or
+    /// <see cref="SimpleTriggerAttribute" />: a non-durable job with no trigger is deleted as soon as it
+    /// is stored, so declaring one would be declaring nothing.
     /// </remarks>
     public bool Durable { get; init; }
 

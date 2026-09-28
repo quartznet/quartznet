@@ -65,3 +65,20 @@ public sealed class DailyReportJob : IJob
 }
 
 #endregion
+
+#region sample_declared_interval_job
+
+// Fires as the scheduler starts, then every ten minutes. Jobs:Inbox:Interval, when it is set, replaces
+// the ten minutes; the warm-up polls four times, five seconds apart, and stops.
+[QuartzJob(Name = "poll-inbox")]
+[SimpleTrigger("00:10:00", ConfigurationKey = "Jobs:Inbox:Interval")]
+[SimpleTrigger("00:00:05", Name = "poll-inbox-warm-up", RepeatCount = 3)]
+public sealed class PollInboxJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+}
+
+#endregion

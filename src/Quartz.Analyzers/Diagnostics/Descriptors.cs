@@ -106,6 +106,25 @@ internal static class Descriptors
         helpLinkUri: HelpLink + "#qz0004-cancellationtokennotobserved");
 
     /// <summary>
+    /// A <c>[SimpleTrigger]</c> whose interval is not a positive <see cref="TimeSpan" />, or whose
+    /// <c>RepeatCount</c> is below <c>-1</c>.
+    /// </summary>
+    /// <remarks>
+    /// Its own id rather than <see cref="InvalidJobTimeout" />'s, whose title and description are about a
+    /// job's timeout: the parse is the same, the thing parsed is not, and zero is a valid timeout and no
+    /// interval at all.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor InvalidSimpleTriggerSchedule = new DiagnosticDescriptor(
+        id: "QZ0005",
+        title: "Simple trigger schedule is invalid",
+        messageFormat: "{0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "The generator turns [SimpleTrigger] into a schedule at build time, and the attribute's constructor refuses the same values. An interval that is not a positive TimeSpan, or a RepeatCount below -1, is a schedule no trigger can have, so the generator writes none for it.",
+        helpLinkUri: HelpLink + "#qz0005-invalidsimpletriggerschedule");
+
+    /// <summary>
     /// A <c>[QuartzJob]</c> class the generated registration could not name, or could not schedule.
     /// </summary>
     /// <remarks>
@@ -143,14 +162,18 @@ internal static class Descriptors
     /// <summary>
     /// A schedule declared on a class that declares no job.
     /// </summary>
+    /// <remarks>
+    /// The name and the help link's anchor are the ones 4.2 shipped with, when <c>[CronTrigger]</c> was
+    /// the only schedule an attribute could declare.
+    /// </remarks>
     internal static readonly DiagnosticDescriptor CronTriggerWithoutQuartzJob = new DiagnosticDescriptor(
         id: "QZ1003",
         title: "Schedule declared on a class that is not a declared job",
-        messageFormat: "'{0}' carries [CronTrigger] without [QuartzJob], so the schedule declares a trigger for a job that is never registered",
+        messageFormat: "'{0}' carries [{1}] without [QuartzJob], so the schedule declares a trigger for a job that is never registered",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "[CronTrigger] is read as part of the job [QuartzJob] declares. On a class carrying no [QuartzJob] it registers nothing, and a schedule that silently registers nothing is worse than a build error.",
+        description: "[CronTrigger] and [SimpleTrigger] are read as part of the job [QuartzJob] declares. On a class carrying no [QuartzJob] they register nothing, and a schedule that silently registers nothing is worse than a build error.",
         helpLinkUri: DeclaredJobsHelpLink + "#qz1003-crontriggerwithoutquartzjob");
 
     /// <summary>
@@ -189,6 +212,6 @@ internal static class Descriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "ConfigurationKey on [CronTrigger] makes the generated registration read the expression from the container's IConfiguration, falling back to the attribute's own. The generated code names IConfiguration, so an assembly that does not reference it cannot compile that read, and ignoring the key would leave a configured schedule that is never used.",
+        description: "ConfigurationKey on [CronTrigger] or [SimpleTrigger] makes the generated registration read the expression or interval from the container's IConfiguration, falling back to the attribute's own. The generated code names IConfiguration, so an assembly that does not reference it cannot compile that read, and ignoring the key would leave a configured schedule that is never used.",
         helpLinkUri: DeclaredJobsHelpLink + "#qz1005-configurationkeywithoutconfiguration");
 }

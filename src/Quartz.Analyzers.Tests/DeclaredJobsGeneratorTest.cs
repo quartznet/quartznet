@@ -31,6 +31,7 @@ namespace Quartz.Analyzers.Tests;
 
 /// <summary>
 /// What <c>[QuartzJob]</c> and <c>[CronTrigger]</c> turn into, and what they are refused for.
+/// <c>[SimpleTrigger]</c> has <see cref="DeclaredJobsSimpleTriggerTest" /> of its own.
 /// </summary>
 /// <remarks>
 /// The generated registration is snapshotted rather than asserted on call by call: the file as a
@@ -268,6 +269,7 @@ public class DeclaredJobsGeneratorTest
                 [QuartzJob]
                 [CronTrigger("0 0 6 * * ?")]
                 [CronTrigger("0 0 18 * * ?")]
+                [SimpleTrigger("00:10:00")]
                 public sealed class ReportJob : IJob
                 {
                     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
@@ -291,7 +293,7 @@ public class DeclaredJobsGeneratorTest
             languageVersion: LanguageVersion.CSharp8);
 
         run.Diagnostics.Should().BeEmpty();
-        run.Generated.Should().Contain(".StoreDurably(true)").And.Contain("\"ReportJob-2\"");
+        run.Generated.Should().Contain(".StoreDurably(true)").And.Contain("\"ReportJob-2\"").And.Contain(".RepeatForever()");
         AssertParsedAt(run, LanguageVersion.CSharp8);
     }
 
@@ -329,6 +331,17 @@ public class DeclaredJobsGeneratorTest
                     ExecutionGroup = "reports",
                     ConfigurationKey = "Reports:Morning")]
                 [CronTrigger("0 0 18 * * ?", MisfireInstruction = (CronTriggerMisfireInstruction) 42)]
+                [SimpleTrigger(
+                    "00:00:30",
+                    Name = "poll",
+                    Group = "polls",
+                    RepeatCount = 4,
+                    MisfireInstruction = SimpleTriggerMisfireInstruction.FireNow,
+                    Priority = 3,
+                    Description = "five polls",
+                    ExecutionGroup = "reports",
+                    ConfigurationKey = "Reports:Poll")]
+                [SimpleTrigger("01:00:00", MisfireInstruction = (SimpleTriggerMisfireInstruction) 42)]
                 public sealed class ReportJob : IJob
                 {
                     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
@@ -357,6 +370,11 @@ public class DeclaredJobsGeneratorTest
             .And.Contain("global::Quartz.CronTriggerMisfireInstruction.DoNothing")
             .And.Contain("(global::Quartz.CronTriggerMisfireInstruction) 42")
             .And.Contain("ConfiguredCronExpression(services, \"Reports:Morning\"")
+            .And.Contain("ConfiguredInterval(services, \"Reports:Poll\"")
+            .And.Contain(".WithRepeatCount(4)")
+            .And.Contain(".RepeatForever()")
+            .And.Contain("global::Quartz.SimpleTriggerMisfireInstruction.FireNow")
+            .And.Contain("(global::Quartz.SimpleTriggerMisfireInstruction) 42")
             .And.Contain("AddDeclaredJobsFromSnippet(",
                 "the snippet has to reach every shape of call the generator writes, or this proves less than it says");
         AssertParsedAt(run, LanguageVersion.CSharp9);

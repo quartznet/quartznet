@@ -52,28 +52,30 @@ internal sealed record DeclaredJob(
     LocationInfo? Location);
 
 /// <summary>
-/// One <c>[CronTrigger]</c> on a declared job.
+/// One <c>[CronTrigger]</c> or <c>[SimpleTrigger]</c> on a declared job.
 /// </summary>
+/// <param name="Schedule">
+/// What the trigger fires on, which is the one thing the two attributes say differently.
+/// </param>
 /// <param name="Name">
 /// The trigger key's name, already defaulted from the job's name and the trigger's position.
 /// </param>
 /// <param name="MisfireInstruction">
-/// The misfire instruction's numeric value, so that <c>0</c> — <c>SmartPolicy</c>, the default —
-/// needs no call emitted for it.
+/// The misfire instruction's numeric value, so that <c>0</c> — <c>SmartPolicy</c> in both families,
+/// the default — needs no call emitted for it.
 /// </param>
 /// <param name="MisfireInstructionName">
 /// The enum member the value is, read off the enum rather than spelled here, or <see langword="null" />
 /// for a value cast from a number that names no member.
 /// </param>
 /// <param name="ConfigurationKey">
-/// The configuration key whose value replaces <paramref name="CronExpression" /> when it is set, or
+/// The configuration key whose value replaces the schedule's expression or interval when it is set, or
 /// <see langword="null" /> for a schedule that is the attribute's alone.
 /// </param>
 internal sealed record DeclaredTrigger(
-    string CronExpression,
+    DeclaredSchedule Schedule,
     string Name,
     string? Group,
-    string? TimeZone,
     int MisfireInstruction,
     string? MisfireInstructionName,
     int Priority,
@@ -83,9 +85,40 @@ internal sealed record DeclaredTrigger(
     LocationInfo? Location);
 
 /// <summary>
-/// A <c>[CronTrigger]</c> on a class that declares no job.
+/// What a declared trigger fires on.
 /// </summary>
-internal sealed record OrphanTrigger(string DisplayName, LocationInfo? Location);
+/// <remarks>
+/// A record, like everything else in the model, so that the generator's incremental steps compare a
+/// schedule by what it says.
+/// </remarks>
+internal abstract record DeclaredSchedule;
+
+/// <summary>
+/// A <c>[CronTrigger]</c>'s schedule.
+/// </summary>
+internal sealed record DeclaredCronSchedule(string CronExpression, string? TimeZone) : DeclaredSchedule;
+
+/// <summary>
+/// A <c>[SimpleTrigger]</c>'s schedule, its interval already parsed.
+/// </summary>
+/// <param name="IntervalTicks">
+/// The interval as ticks, which is what the registration is written with, so nothing parses it at run
+/// time.
+/// </param>
+/// <param name="IntervalText">
+/// The interval in <see cref="TimeSpan" />'s invariant constant format, <c>00:10:00</c>, which the
+/// generated file carries beside the ticks for its reader.
+/// </param>
+/// <param name="RepeatCount">
+/// How many times the trigger repeats after its first firing, or <c>-1</c> for forever.
+/// </param>
+internal sealed record DeclaredSimpleSchedule(long IntervalTicks, string IntervalText, int RepeatCount) : DeclaredSchedule;
+
+/// <summary>
+/// A <c>[CronTrigger]</c> or <c>[SimpleTrigger]</c> on a class that declares no job.
+/// </summary>
+/// <param name="AttributeName">The attribute as it is written, <c>CronTrigger</c> or <c>SimpleTrigger</c>.</param>
+internal sealed record OrphanTrigger(string DisplayName, string AttributeName, LocationInfo? Location);
 
 /// <summary>
 /// What the generated class and its methods are called in this assembly.

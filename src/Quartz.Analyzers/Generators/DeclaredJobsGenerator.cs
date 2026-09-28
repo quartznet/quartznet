@@ -32,8 +32,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Quartz.Analyzers;
 
 /// <summary>
-/// Turns the <c>[QuartzJob]</c> and <c>[CronTrigger]</c> attributes an assembly declares into the
-/// registration calls an application would otherwise have written by hand.
+/// Turns the <c>[QuartzJob]</c>, <c>[CronTrigger]</c> and <c>[SimpleTrigger]</c> attributes an
+/// assembly declares into the registration calls an application would otherwise have written by hand.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -57,6 +57,8 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     private const string QuartzJobAttributeTypeName = "Quartz.QuartzJobAttribute";
 
     private const string CronTriggerAttributeTypeName = "Quartz.CronTriggerAttribute";
+
+    private const string SimpleTriggerAttributeTypeName = "Quartz.SimpleTriggerAttribute";
 
     private const string JobInterfaceTypeName = "Quartz.IJob";
 
@@ -85,13 +87,27 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
                 predicate: static (node, _) => node is TypeDeclarationSyntax,
                 transform: static (attributeContext, _) => ReadJob(attributeContext));
 
-        IncrementalValuesProvider<OrphanTrigger> orphans = context.SyntaxProvider
+        IncrementalValuesProvider<OrphanTrigger> cronOrphans = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 CronTriggerAttributeTypeName,
                 predicate: static (node, _) => node is TypeDeclarationSyntax,
-                transform: static (attributeContext, _) => ReadOrphan(attributeContext))
+                transform: static (attributeContext, _) => ReadOrphan(attributeContext, "CronTrigger", alsoReportedFor: null))
             .Where(static x => x is not null)
             .Select(static (x, _) => x!);
+
+        // A class carrying both kinds is reported once, by the provider above: the fix is the one
+        // missing [QuartzJob] however many schedules of whichever kind were written under it.
+        IncrementalValuesProvider<OrphanTrigger> simpleOrphans = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                SimpleTriggerAttributeTypeName,
+                predicate: static (node, _) => node is TypeDeclarationSyntax,
+                transform: static (attributeContext, _) => ReadOrphan(attributeContext, "SimpleTrigger", alsoReportedFor: CronTriggerAttributeTypeName))
+            .Where(static x => x is not null)
+            .Select(static (x, _) => x!);
+
+        IncrementalValueProvider<ImmutableArray<OrphanTrigger>> orphans = cronOrphans.Collect()
+            .Combine(simpleOrphans.Collect())
+            .Select(static (x, _) => x.Left.AddRange(x.Right));
 
         // Read off the compilation, which is new on every edit, and reduced to strings at once, so that
         // an edit that changes nothing about what this assembly can see compares equal and re-emits nothing.
@@ -104,7 +120,7 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             .Select(static (compilation, _) => compilation.GetTypeByMetadataName(ConfigurationTypeName) is not null);
 
         context.RegisterSourceOutput(
-            jobs.Collect().Combine(orphans.Collect()).Combine(registration).Combine(configuration),
+            jobs.Collect().Combine(orphans).Combine(registration).Combine(configuration),
             static (production, source) => Execute(
                 production,
                 source.Left.Left.Left,
@@ -241,8 +257,12 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Every <c>[CronTrigger]</c> on the job, in the order they are written.
+    /// Every <c>[CronTrigger]</c> and <c>[SimpleTrigger]</c> on the job, in the order they are written.
     /// </summary>
+    /// <remarks>
+    /// The two kinds are counted together, so the default names say where a schedule is written
+    /// whichever kind it is.
+    /// </remarks>
     private static ImmutableArray<DeclaredTrigger> ReadTriggers(INamedTypeSymbol type, string jobName, string? jobGroup)
     {
         ImmutableArray<DeclaredTrigger>.Builder builder = ImmutableArray.CreateBuilder<DeclaredTrigger>();
@@ -250,20 +270,24 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
 
         foreach (AttributeData attribute in type.GetAttributes())
         {
-            if (attribute.AttributeClass?.ToDisplayString() != CronTriggerAttributeTypeName)
+            string? attributeName = attribute.AttributeClass?.ToDisplayString();
+            if (attributeName != CronTriggerAttributeTypeName && attributeName != SimpleTriggerAttributeTypeName)
             {
                 continue;
             }
 
             index++;
 
-            if (attribute.ConstructorArguments.Length == 0
-                || attribute.ConstructorArguments[0].Value is not string expression
-                || string.IsNullOrWhiteSpace(expression))
+            // A missing cron expression, and an interval or repeat count QZ0005 refuses, are not
+            // written: the registration would only throw the same thing while the host starts. The
+            // count above has already moved on, so the schedules after this one keep the names their
+            // position gives them.
+            DeclaredSchedule? schedule = attributeName == CronTriggerAttributeTypeName
+                ? ReadCronSchedule(attribute)
+                : ReadSimpleSchedule(attribute);
+
+            if (schedule is null)
             {
-                // QZ0001 reports a missing expression where it was written, and WithCronSchedule("")
-                // would only throw the same thing while the host starts. The count above has already
-                // moved on, so the schedules after this one keep the names their position gives them.
                 continue;
             }
 
@@ -275,13 +299,12 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             (int misfire, string? misfireName) = Misfire(attribute);
 
             builder.Add(new DeclaredTrigger(
-                expression,
+                schedule,
                 name,
                 Text(attribute, nameof(DeclaredTrigger.Group)) ?? jobGroup,
-                Text(attribute, nameof(DeclaredTrigger.TimeZone)),
                 misfire,
                 misfireName,
-                Number(attribute, nameof(DeclaredTrigger.Priority)),
+                Number(attribute, nameof(DeclaredTrigger.Priority), TriggerConstants.DefaultPriority),
                 Text(attribute, nameof(DeclaredTrigger.Description)),
                 Text(attribute, nameof(DeclaredTrigger.ExecutionGroup)),
                 Text(attribute, nameof(DeclaredTrigger.ConfigurationKey)),
@@ -292,16 +315,64 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// A <c>[CronTrigger]</c> on a class carrying no <c>[QuartzJob]</c>, which declares a schedule
-    /// for a job that does not exist.
+    /// A <c>[CronTrigger]</c>'s expression and time zone, or <see langword="null" /> when it has no
+    /// expression, which <c>QZ0001</c> reports where it was written.
     /// </summary>
-    private static OrphanTrigger? ReadOrphan(GeneratorAttributeSyntaxContext context)
+    private static DeclaredCronSchedule? ReadCronSchedule(AttributeData attribute)
+    {
+        if (attribute.ConstructorArguments.Length == 0
+            || attribute.ConstructorArguments[0].Value is not string expression
+            || string.IsNullOrWhiteSpace(expression))
+        {
+            return null;
+        }
+
+        return new DeclaredCronSchedule(expression, Text(attribute, nameof(DeclaredCronSchedule.TimeZone)));
+    }
+
+    /// <summary>
+    /// A <c>[SimpleTrigger]</c>'s interval and repeat count, or <see langword="null" /> when either is
+    /// one <c>QZ0005</c> reports.
+    /// </summary>
+    /// <remarks>
+    /// The interval is parsed here, with the parse the attribute's constructor runs, and carried as
+    /// ticks: the generated file then says exactly what this build read, and nothing parses it again.
+    /// </remarks>
+    private static DeclaredSimpleSchedule? ReadSimpleSchedule(AttributeData attribute)
+    {
+        if (attribute.ConstructorArguments.Length == 0
+            || SimpleTriggerLiteralAnalyzer.ValidateInterval(attribute.ConstructorArguments[0].Value as string, out TimeSpan interval) is not null)
+        {
+            return null;
+        }
+
+        int repeatCount = Number(attribute, SimpleTriggerLiteralAnalyzer.RepeatCountPropertyName, SimpleTriggerLiteralAnalyzer.RepeatIndefinitely);
+        if (SimpleTriggerLiteralAnalyzer.ValidateRepeatCount(repeatCount) is not null)
+        {
+            return null;
+        }
+
+        return new DeclaredSimpleSchedule(interval.Ticks, interval.ToString("c", CultureInfo.InvariantCulture), repeatCount);
+    }
+
+    /// <summary>
+    /// A schedule attribute on a class carrying no <c>[QuartzJob]</c>, which declares a schedule for a
+    /// job that does not exist.
+    /// </summary>
+    /// <param name="context">The class and the attributes of one kind it carries.</param>
+    /// <param name="attributeName">The attribute as the report names it.</param>
+    /// <param name="alsoReportedFor">
+    /// Another schedule attribute whose own provider reports the same class, which this one then leaves
+    /// to it; or <see langword="null" />.
+    /// </param>
+    private static OrphanTrigger? ReadOrphan(GeneratorAttributeSyntaxContext context, string attributeName, string? alsoReportedFor)
     {
         INamedTypeSymbol type = (INamedTypeSymbol) context.TargetSymbol;
 
         foreach (AttributeData attribute in type.GetAttributes())
         {
-            if (attribute.AttributeClass?.ToDisplayString() == QuartzJobAttributeTypeName)
+            string? name = attribute.AttributeClass?.ToDisplayString();
+            if (name == QuartzJobAttributeTypeName || (alsoReportedFor is not null && name == alsoReportedFor))
             {
                 return null;
             }
@@ -311,6 +382,7 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
         // is missing once however many schedules were written under it.
         return new OrphanTrigger(
             type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+            attributeName,
             LocationInfo.From(context.Attributes[0].ApplicationSyntaxReference));
     }
 
@@ -323,7 +395,7 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     {
         foreach (OrphanTrigger orphan in orphans.OrderBy(x => x.DisplayName, StringComparer.Ordinal))
         {
-            Report(context, Descriptors.CronTriggerWithoutQuartzJob, orphan.Location, orphan.DisplayName);
+            Report(context, Descriptors.CronTriggerWithoutQuartzJob, orphan.Location, orphan.DisplayName, orphan.AttributeName);
         }
 
         List<DeclaredJob> declared = [];
@@ -530,9 +602,10 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// A named <see cref="int" /> argument, or the priority every trigger has when none is written.
+    /// A named <see cref="int" /> argument, or what the attribute's property defaults to when none is
+    /// written.
     /// </summary>
-    private static int Number(AttributeData attribute, string name)
+    private static int Number(AttributeData attribute, string name, int defaultValue)
     {
         foreach (KeyValuePair<string, TypedConstant> argument in attribute.NamedArguments)
         {
@@ -542,7 +615,7 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             }
         }
 
-        return TriggerConstants.DefaultPriority;
+        return defaultValue;
     }
 
     /// <summary>
@@ -550,8 +623,9 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     /// </summary>
     /// <remarks>
     /// The member's name is read off the enum rather than spelled here, so the generated call says
-    /// what the application wrote and a member added to <c>CronTriggerMisfireInstruction</c> needs no
-    /// change in this file. A value that names no member is emitted as the cast it was written as.
+    /// what the application wrote and a member added to <c>CronTriggerMisfireInstruction</c> or
+    /// <c>SimpleTriggerMisfireInstruction</c> needs no change in this file. A value that names no member
+    /// is emitted as the cast it was written as.
     /// </remarks>
     private static (int Value, string? Name) Misfire(AttributeData attribute)
     {

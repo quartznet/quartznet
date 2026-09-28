@@ -6,7 +6,7 @@ title: 'Compile-Time Checks'
 
 <!-- The C# blocks on this page are hand-written rather than `snippet:` markers, and have to be. Most
      of them are the code the analyzer refuses: a sample project carrying them would fail `Compile`
-     with QZ0001 and QZ0002, which is the analyzer working rather than a sample rotting. -->
+     with QZ0001, QZ0002 and QZ0005, which is the analyzer working rather than a sample rotting. -->
 
 `Quartz` ships an analyzer that reports, at build time, mistakes that otherwise throw at run time:
 
@@ -15,6 +15,7 @@ title: 'Compile-Time Checks'
 | a cron expression that cannot parse, in `AddQuartz` | while the host starts |
 | the same, in `ScheduleJob` | when the scheduling code runs |
 | `[JobTimeout("5 minutes")]` | the first time the timeout middleware reflects over the job, after deployment |
+| `[SimpleTrigger("10 minutes")]` | never: the generator cannot write the schedule, so the job silently lacks it |
 
 The analyzer is inside the package, under `analyzers/dotnet/cs`, so referencing `Quartz` is enough:
 
@@ -34,6 +35,7 @@ exception would have carried.
 | [`QZ0002`](#qz0002-invalidjobtimeout) | Error | A `[JobTimeout]` argument that is not a `TimeSpan`, or is negative |
 | [`QZ0003`](#qz0003-persistjobdatawithoutdisallowconcurrent) | Warning | A job that persists its data map and allows concurrent firings |
 | [`QZ0004`](#qz0004-cancellationtokennotobserved) | Info | A job body that awaits or loops without reading its cancellation token |
+| [`QZ0005`](#qz0005-invalidsimpletriggerschedule) | Error | A `[SimpleTrigger]` interval that is not a positive `TimeSpan`, or a `RepeatCount` below `-1` |
 
 Only values the compiler already knows are checked: a string literal, a `const`, an interpolated string
 with nothing interpolated. A value built at run time, read from configuration or passed in a variable is
@@ -133,6 +135,30 @@ public async ValueTask Execute(IJobExecutionContext context, CancellationToken c
 **Fix** by reading the token: pass it to what the job awaits, or check it in the loop.
 **Suppress** with `dotnet_diagnostic.QZ0004.severity` in `.editorconfig`, as in the example below.
 
+### QZ0005 InvalidSimpleTriggerSchedule
+
+**Reports** a [`[SimpleTrigger]`](declaring-jobs-with-attributes.md#what-simpletrigger-says) (4.3) whose
+interval is not a positive invariant `TimeSpan` string, or whose `RepeatCount` is below `-1`. The
+generator writes the interval into the registration as ticks, so it cannot write a schedule it cannot
+read.
+
+```csharp
+[QuartzJob]
+[SimpleTrigger("10 minutes")] // error QZ0005: '10 minutes' is not a TimeSpan. Spell the trigger's
+public class PollJob : IJob   // interval the way TimeSpan does, invariantly: "00:10:00" for ten minutes.
+```
+
+| Written | Reported as |
+|---|---|
+| `"10 minutes"`, `""` | not a `TimeSpan` |
+| `"00:00:00"`, `"-00:10:00"` | not longer than zero |
+| `null` | missing |
+| `RepeatCount = -2` | below `-1`; `-1` repeats forever |
+
+**Fix** by spelling the interval as `TimeSpan` does: `"00:10:00"` for ten minutes. A reported schedule
+is not generated, so with the severity lowered the job builds without it.
+**Suppress** with `dotnet_diagnostic.QZ0005.severity` in `.editorconfig`.
+
 ## Changing a severity, or turning it off
 
 Each diagnostic is an ordinary compiler diagnostic, so `.editorconfig` sets its severity:
@@ -156,7 +182,7 @@ To remove the analyzer from the build entirely, set one property in the project 
 
 ::: tip
 The property removes the whole assembly, so the [source generator](declaring-jobs-with-attributes.md)
-and its `AddDeclaredJobs()` go with the four diagnostics, and [delegate jobs](delegate-jobs.md#bound-at-compile-time)
+and its `AddDeclaredJobs()` go with the five diagnostics, and [delegate jobs](delegate-jobs.md#bound-at-compile-time)
 are bound by reflection; nothing else Quartz does is affected. To quiet
 one rule, use `.editorconfig` instead. `ExcludeAssets="analyzers"` on the package reference does not
 work: the .NET 10 SDK still passes the assembly to the compiler.
@@ -176,4 +202,4 @@ work: the .NET 10 SDK still passes the assembly to the compiler.
 [Declaring Jobs with Attributes](declaring-jobs-with-attributes.md) covers the rest of the 4.2
 compile-time work: attributes that declare a job's schedule on the job class, and a source generator,
 in the same assembly, that registers them. Its diagnostics are `QZ1001` to `QZ1005`; the cron
-expression on an attribute is checked by `QZ0001` above.
+expression on an attribute is checked by `QZ0001` above, and the interval by `QZ0005`.

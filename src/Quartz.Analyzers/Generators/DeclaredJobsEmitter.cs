@@ -50,14 +50,25 @@ internal static class DeclaredJobsEmitter
 {
     private const string TimeZonesTypeName = "global::Quartz.TimeZones";
 
-    private const string MisfireInstructionTypeName = "global::Quartz.CronTriggerMisfireInstruction";
+    private const string CronMisfireInstructionTypeName = "global::Quartz.CronTriggerMisfireInstruction";
+
+    private const string SimpleMisfireInstructionTypeName = "global::Quartz.SimpleTriggerMisfireInstruction";
 
     private const string ConfigurationTypeName = "global::Microsoft.Extensions.Configuration.IConfiguration";
 
+    private const string TimeSpanTypeName = "global::System.TimeSpan";
+
     /// <summary>
-    /// The generated helper a trigger with a <c>ConfigurationKey</c> reads its expression through.
+    /// The generated helper a <c>[CronTrigger]</c> with a <c>ConfigurationKey</c> reads its expression
+    /// through.
     /// </summary>
     private const string ConfiguredCronExpressionName = "ConfiguredCronExpression";
+
+    /// <summary>
+    /// The generated helper a <c>[SimpleTrigger]</c> with a <c>ConfigurationKey</c> reads its interval
+    /// through.
+    /// </summary>
+    private const string ConfiguredIntervalName = "ConfiguredInterval";
 
     /// <summary>
     /// Where a statement in the method body starts: namespace, class and method each indent once.
@@ -129,9 +140,14 @@ internal static class DeclaredJobsEmitter
             AppendAssemblyMethod(source, registration.AssemblyMethodName);
         }
 
-        if (jobs.Any(x => x.Triggers.Any(y => y.ConfigurationKey is not null)))
+        if (jobs.Any(x => x.Triggers.Any(y => y.ConfigurationKey is not null && y.Schedule is DeclaredCronSchedule)))
         {
             AppendConfiguredCronExpression(source);
+        }
+
+        if (jobs.Any(x => x.Triggers.Any(y => y.ConfigurationKey is not null && y.Schedule is DeclaredSimpleSchedule)))
+        {
+            AppendConfiguredInterval(source);
         }
 
         source.AppendLine("    }");
@@ -188,6 +204,50 @@ internal static class DeclaredJobsEmitter
         source.Append(BodyIndent).AppendLine($"    services.GetService(typeof({ConfigurationTypeName})) as {ConfigurationTypeName};");
         source.AppendLine();
         source.Append(BodyIndent).AppendLine("return configuration?[key] ?? declared;");
+        source.AppendLine("        }");
+    }
+
+    /// <summary>
+    /// The read a <c>[SimpleTrigger]</c>'s <c>ConfigurationKey</c> turns into, written once and called by
+    /// every interval that has one.
+    /// </summary>
+    /// <remarks>
+    /// The configured string is parsed as the attribute's is, invariantly, and a value that is not a
+    /// positive interval throws while the scheduler is built, naming the key: the configured schedule is
+    /// then one the host refuses to start with rather than one that never fires.
+    /// </remarks>
+    private static void AppendConfiguredInterval(StringBuilder source)
+    {
+        source.AppendLine();
+        source.AppendLine("        /// <summary>");
+        source.AppendLine("        /// The interval configured at <paramref name=\"key\" />, or <paramref name=\"declared\" />, the");
+        source.AppendLine("        /// attribute's own, where the key is not set or no configuration is registered.");
+        source.AppendLine("        /// </summary>");
+        source.AppendLine("        /// <param name=\"services\">The scheduler's view of the container.</param>");
+        source.AppendLine("        /// <param name=\"key\">The attribute's <c>ConfigurationKey</c>.</param>");
+        source.AppendLine("        /// <param name=\"declared\">The attribute's interval.</param>");
+        source.AppendLine("        /// <returns>The interval the trigger fires on.</returns>");
+        source.AppendLine("        /// <exception cref=\"global::System.FormatException\">The configured value is not a positive invariant <c>TimeSpan</c>.</exception>");
+        source.AppendLine($"        private static {TimeSpanTypeName} {ConfiguredIntervalName}(global::System.IServiceProvider services, string key, {TimeSpanTypeName} declared)");
+        source.AppendLine("        {");
+        source.Append(BodyIndent).AppendLine($"{ConfigurationTypeName}? configuration =");
+        source.Append(BodyIndent).AppendLine($"    services.GetService(typeof({ConfigurationTypeName})) as {ConfigurationTypeName};");
+        source.AppendLine();
+        source.Append(BodyIndent).AppendLine("string? configured = configuration?[key];");
+        source.Append(BodyIndent).AppendLine("if (configured is null)");
+        source.Append(BodyIndent).AppendLine("{");
+        source.Append(BodyIndent).AppendLine("    return declared;");
+        source.Append(BodyIndent).AppendLine("}");
+        source.AppendLine();
+        source.Append(BodyIndent).AppendLine($"{TimeSpanTypeName} interval;");
+        source.Append(BodyIndent).AppendLine($"if (!{TimeSpanTypeName}.TryParse(configured, global::System.Globalization.CultureInfo.InvariantCulture, out interval) || interval <= {TimeSpanTypeName}.Zero)");
+        source.Append(BodyIndent).AppendLine("{");
+        source.Append(BodyIndent).AppendLine("    throw new global::System.FormatException(");
+        source.Append(BodyIndent).AppendLine("        \"The configuration key '\" + key + \"' holds '\" + configured + \"', which is not a positive TimeSpan. \"");
+        source.Append(BodyIndent).AppendLine("        + \"Spell the trigger's interval the way TimeSpan does, invariantly: \\\"00:10:00\\\" for ten minutes, \\\"1.00:00:00\\\" for a day.\");");
+        source.Append(BodyIndent).AppendLine("}");
+        source.AppendLine();
+        source.Append(BodyIndent).AppendLine("return interval;");
         source.AppendLine("        }");
     }
 
@@ -276,56 +336,112 @@ internal static class DeclaredJobsEmitter
             lines.Add($"    .WithExecutionGroup({Literal(trigger.ExecutionGroup)})");
         }
 
-        List<string> schedule = ScheduleLines(trigger);
-
-        string expression = trigger.ConfigurationKey is null
-            ? Literal(trigger.CronExpression)
-            : $"{ConfiguredCronExpressionName}(services, {Literal(trigger.ConfigurationKey)}, {Literal(trigger.CronExpression)})";
-
-        if (schedule.Count == 0)
+        switch (trigger.Schedule)
         {
-            lines.Add($"    .WithCronSchedule({expression})");
-        }
-        else
-        {
-            lines.Add($"    .WithCronSchedule({expression}, cron => cron");
-
-            foreach (string line in schedule)
-            {
-                lines.Add("        " + line);
-            }
-
-            Close(lines, ")");
+            case DeclaredCronSchedule cron:
+                AppendCronSchedule(lines, trigger, cron);
+                break;
+            case DeclaredSimpleSchedule simple:
+                AppendSimpleSchedule(lines, trigger, simple);
+                break;
         }
 
         Close(lines, ");");
         return lines;
     }
 
+    private static void AppendCronSchedule(List<string> lines, DeclaredTrigger trigger, DeclaredCronSchedule cron)
+    {
+        List<string> schedule = CronScheduleLines(trigger, cron);
+
+        string expression = trigger.ConfigurationKey is null
+            ? Literal(cron.CronExpression)
+            : $"{ConfiguredCronExpressionName}(services, {Literal(trigger.ConfigurationKey)}, {Literal(cron.CronExpression)})";
+
+        if (schedule.Count == 0)
+        {
+            lines.Add($"    .WithCronSchedule({expression})");
+            return;
+        }
+
+        lines.Add($"    .WithCronSchedule({expression}, cron => cron");
+
+        foreach (string line in schedule)
+        {
+            lines.Add("        " + line);
+        }
+
+        Close(lines, ")");
+    }
+
     /// <summary>
     /// What the cron schedule needs beyond its expression, or nothing when it needs nothing — in
     /// which case no callback is emitted at all.
     /// </summary>
-    private static List<string> ScheduleLines(DeclaredTrigger trigger)
+    private static List<string> CronScheduleLines(DeclaredTrigger trigger, DeclaredCronSchedule cron)
     {
         List<string> lines = [];
 
-        if (trigger.TimeZone is not null)
+        if (cron.TimeZone is not null)
         {
-            lines.Add($".InTimeZone({TimeZonesTypeName}.FindById({Literal(trigger.TimeZone)}))");
+            lines.Add($".InTimeZone({TimeZonesTypeName}.FindById({Literal(cron.TimeZone)}))");
         }
 
-        // Zero is SmartPolicy, which is what a trigger does when nothing says otherwise.
-        if (trigger.MisfireInstruction != 0)
-        {
-            string instruction = trigger.MisfireInstructionName is null
-                ? $"({MisfireInstructionTypeName}) {trigger.MisfireInstruction.ToString(CultureInfo.InvariantCulture)}"
-                : $"{MisfireInstructionTypeName}.{trigger.MisfireInstructionName}";
-
-            lines.Add($".WithMisfireInstruction({instruction})");
-        }
+        AddMisfireInstruction(lines, trigger, CronMisfireInstructionTypeName);
 
         return lines;
+    }
+
+    /// <summary>
+    /// The interval schedule, always as the callback: an interval and a repeat count are both said, so
+    /// there is no shorter call that says as much.
+    /// </summary>
+    /// <remarks>
+    /// The interval is written as the ticks this build read, with the attribute's value in its invariant
+    /// form beside it for whoever reads the file; <c>-1</c> is written as the <c>RepeatForever()</c> a
+    /// hand-written registration would call.
+    /// </remarks>
+    private static void AppendSimpleSchedule(List<string> lines, DeclaredTrigger trigger, DeclaredSimpleSchedule simple)
+    {
+        string declared = $"{TimeSpanTypeName}.FromTicks({simple.IntervalTicks.ToString(CultureInfo.InvariantCulture)})";
+
+        string interval = trigger.ConfigurationKey is null
+            ? declared
+            : $"{ConfiguredIntervalName}(services, {Literal(trigger.ConfigurationKey)}, {declared})";
+
+        List<string> schedule =
+        [
+            $".WithInterval({interval}) // {simple.IntervalText}",
+            simple.RepeatCount == SimpleTriggerLiteralAnalyzer.RepeatIndefinitely
+                ? ".RepeatForever()"
+                : $".WithRepeatCount({simple.RepeatCount.ToString(CultureInfo.InvariantCulture)})",
+        ];
+
+        AddMisfireInstruction(schedule, trigger, SimpleMisfireInstructionTypeName);
+
+        lines.Add("    .WithSimpleSchedule(simple => simple");
+
+        foreach (string line in schedule)
+        {
+            lines.Add("        " + line);
+        }
+
+        Close(lines, ")");
+    }
+
+    private static void AddMisfireInstruction(List<string> lines, DeclaredTrigger trigger, string enumTypeName)
+    {
+        // Zero is SmartPolicy in both families, which is what a trigger does when nothing says otherwise.
+        if (trigger.MisfireInstruction == 0)
+        {
+            return;
+        }
+
+        string instruction = trigger.MisfireInstructionName is null
+            ? $"({enumTypeName}) {trigger.MisfireInstruction.ToString(CultureInfo.InvariantCulture)}"
+            : $"{enumTypeName}.{trigger.MisfireInstructionName}";
+
+        lines.Add($".WithMisfireInstruction({instruction})");
     }
 
     private static string Identity(string name, string? group)
