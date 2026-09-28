@@ -19,11 +19,8 @@ internal static class FireFault
 {
     private static readonly List<string> fireAttempts = [];
 
-    /// <summary>The name of the trigger whose fire fails, or <see langword="null" /> for none.</summary>
+    /// <summary>The name of the trigger whose every fire fails, or <see langword="null" /> for none.</summary>
     public static string FailFireOf { get; set; }
-
-    /// <summary>Whether the fault clears itself after the first failure, so that the trigger fires on its next attempt.</summary>
-    public static bool FailOnce { get; set; }
 
     /// <summary>Every fire the delegate was asked to write, by trigger name, in order — a rolled-back attempt included.</summary>
     public static List<string> FireAttempts
@@ -45,7 +42,6 @@ internal static class FireFault
         }
 
         FailFireOf = null;
-        FailOnce = false;
     }
 
     /// <summary>
@@ -68,11 +64,6 @@ internal static class FireFault
         if (!string.Equals(triggerName, FailFireOf, StringComparison.Ordinal))
         {
             return;
-        }
-
-        if (FailOnce)
-        {
-            FailFireOf = null;
         }
 
         // A real exception from the driver, and one nothing classifies as transient — on PostgreSQL it
