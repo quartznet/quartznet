@@ -31,6 +31,15 @@ internal abstract partial class AdoJobStoreBase
     /// fire the given <see cref="ITrigger" />, that it had previously acquired
     /// (reserved).
     /// </summary>
+    /// <remarks>
+    /// The trigger goes back to <c>WAITING</c> — unless its job disallows concurrent execution and is
+    /// executing somewhere in the cluster, in which case it goes to, or stays, <c>BLOCKED</c>, and the
+    /// completion of that execution is what lets go of it. A reservation another node's fire found
+    /// <c>ACQUIRED</c> is one that fire has already moved to <c>BLOCKED</c>; releasing it to
+    /// <c>WAITING</c> undid that, and the row then sat first in the acquisition order while every node
+    /// skipped it as executing — a node acquiring one trigger at a time read nothing else and idled
+    /// for its whole idle wait behind it (#3926).
+    /// </remarks>
     public async ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
         await RetryExecuteInLocalTransactionLock(
@@ -44,12 +53,40 @@ internal abstract partial class AdoJobStoreBase
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
+        return ReleaseAcquiredTrigger(conn, trigger.Key, trigger.JobKey, trigger.FireInstanceId!, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lets go of one reservation: deletes its fired-trigger row and puts the trigger back where the
+    /// job's state says it belongs.
+    /// </summary>
+    /// <remarks>
+    /// The fired row goes first, so that the question asked next — is this job executing? — is about
+    /// other firings and never about the reservation being released. The row stays <c>BLOCKED</c>, or
+    /// becomes it, only while a fired row of a job that disallows concurrent execution says the job is
+    /// running: that execution's completion releases the job's triggers, and <c>ClusterRecover</c> does
+    /// when the node running it dies. A <c>BLOCKED</c> row with no such execution behind it is one
+    /// nothing else would ever let go of, so it goes back to <c>WAITING</c> as it always has.
+    /// </remarks>
+    private ValueTask ReleaseAcquiredTrigger(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        JobKey jobKey,
+        string fireInstanceId,
+        CancellationToken cancellationToken)
+    {
         return Guarded(
             async () =>
             {
-                await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
-                await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+                await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
+
+                StoredTriggerState released = await CheckBlockedState(conn, jobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, released, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
+
+                if (released == StoredTriggerState.Waiting)
+                {
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+                }
             },
             "release acquired trigger");
     }
