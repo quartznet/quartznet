@@ -389,10 +389,11 @@ internal abstract partial class AdoJobStoreBase
                         continue;
                     }
 
-                    // Rows left WAITING under this round, which is what losing them to another node looks
-                    // like; a read of the same length now finds whatever was due behind them. Bounded, as
-                    // a cluster under contention can lose every round. A round that only skipped is not
-                    // retried: the same read would return the same rows, and skip them for the same reasons.
+                    // Rows that stopped being WAITING while this round ran, which is what losing them to
+                    // another node looks like; a read of the same length now finds whatever was due behind
+                    // them. Bounded, as a cluster under contention can lose every round. A round that only
+                    // skipped is not retried: the same read would return the same rows, and skip them for
+                    // the same reasons.
                     if (raced > 0 && ++retries < MaxDoLoopRetry)
                     {
                         continue;
