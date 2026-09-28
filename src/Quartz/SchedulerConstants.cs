@@ -92,6 +92,30 @@ public static class SchedulerConstants
     public const string FailedJobOriginalTriggerScheduledFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
 
     /// <summary>
+    /// What the group of a trigger a backfill schedules starts with; the original trigger's group follows
+    /// it, so backfilling <c>reports.nightly</c> schedules into <c>backfill:reports</c>.
+    /// </summary>
+    /// <remarks>
+    /// Clients should not put triggers of their own in a group that starts with this. A backfill names its
+    /// triggers after the slot they fire for, and a trigger already stored under one of those names is
+    /// taken to be that slot, already scheduled.
+    /// </remarks>
+    /// <seealso cref="SchedulerBackfillExtensions" />
+    public const string BackfillGroupPrefix = "backfill:";
+
+    /// <summary>
+    /// The <see cref="JobDataMap" /> key under which a trigger a backfill scheduled carries the fire time of
+    /// the original trigger it stands in for, as a round-trip (<c>"O"</c>) string.
+    /// </summary>
+    /// <remarks>
+    /// A string, as the recovery keys above are, so it survives every store and wire format unchanged.
+    /// Read it with <see cref="JobExecutionContextBackfillExtensions.GetBackfillSlot" /> rather than by
+    /// spelling this key.
+    /// </remarks>
+    /// <seealso cref="SchedulerBackfillExtensions" />
+    public const string BackfillOriginalFireTime = "QRTZ_BACKFILL_ORIG_FIRETIME_AS_STRING";
+
+    /// <summary>
     /// A special date time to check against when signaling scheduling change when the signaled fire date suggestion is actually irrelevant.
     /// We only want to signal the change.
     /// </summary>

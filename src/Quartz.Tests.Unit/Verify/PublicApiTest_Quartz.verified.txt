@@ -57,6 +57,23 @@ namespace Quartz
         public override int GetHashCode() { }
         public bool IsMatch(TKey key) { }
     }
+    public readonly record struct BackfillOptions : System.IEquatable<Quartz.BackfillOptions>
+    {
+        public const int DefaultMaxSlots = 1000;
+        public string? ExecutionGroup { get; init; }
+        public int MaxSlots { get; init; }
+        public System.TimeSpan Spacing { get; init; }
+    }
+    public sealed record BackfillResult : System.IEquatable<Quartz.BackfillResult>
+    {
+        public BackfillResult() { }
+        public int AlreadyScheduled { get; init; }
+        public System.DateTimeOffset? FirstSlot { get; init; }
+        public System.DateTimeOffset? LastSlot { get; init; }
+        public int Scheduled { get; }
+        public System.Collections.Generic.List<Quartz.TriggerKey> ScheduledTriggers { get; init; }
+        public int SlotsFound { get; init; }
+    }
     public sealed class CalendarIntervalScheduleBuilder : Quartz.IScheduleBuilder
     {
         public Quartz.Extensibility.IMutableTrigger Build() { }
@@ -1032,6 +1049,10 @@ namespace Quartz
     {
         public static Quartz.JobBuilder<Quartz.IJob> GetJobBuilder(this Quartz.IJobDetail jobDetail) { }
     }
+    public static class JobExecutionContextBackfillExtensions
+    {
+        public static System.DateTimeOffset? GetBackfillSlot(this Quartz.IJobExecutionContext context) { }
+    }
     public static class JobExecutionContextInputExtensions
     {
         public static TInput? GetInput<TInput>(this Quartz.IJobExecutionContext context) { }
@@ -1649,6 +1670,10 @@ namespace Quartz
         public System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>>? Properties { get; init; }
         public static Quartz.SchedulerAddOptions WithoutStarting { get; }
     }
+    public static class SchedulerBackfillExtensions
+    {
+        public static System.Threading.Tasks.ValueTask<Quartz.BackfillResult> Backfill(this Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, System.DateTimeOffset from, System.DateTimeOffset to, Quartz.BackfillOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
+    }
     public sealed class SchedulerConfigException : Quartz.SchedulerException
     {
         public SchedulerConfigException(string message) { }
@@ -1656,6 +1681,8 @@ namespace Quartz
     }
     public static class SchedulerConstants
     {
+        public const string BackfillGroupPrefix = "backfill:";
+        public const string BackfillOriginalFireTime = "QRTZ_BACKFILL_ORIG_FIRETIME_AS_STRING";
         public const string DefaultFailOverGroup = "FAILED_OVER_JOBS";
         public const string DefaultRecoveryGroup = "RECOVERING_JOBS";
         public const string FailedJobOriginalTriggerFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_AS_STRING";
