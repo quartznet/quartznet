@@ -37,24 +37,29 @@ namespace Quartz;
 /// than keeping the old machine's.
 /// </para>
 /// <para>
-/// At most four windows are ever built, and an instant that falls in none of them once four exist is
-/// simply answered "no". That is the whole of the eviction policy, and it is deliberate: a cache that
-/// evicted could be made to rebuild the same window over and over by a caller that probes widely, and
-/// <c>GetPreviousValidTimeBefore</c> is exactly such a caller. Four windows is thirty-two years, far
-/// more than a running scheduler moves through, and the cost of being wrong is the search the slow
-/// path always did.
+/// There is a slot for every window a cron expression can reach - <see cref="ZoneOffsetTable.WindowCount" />,
+/// about twenty - and each is built at most once and then kept. Nothing is evicted, so a caller that
+/// probes widely, as <c>GetPreviousValidTimeBefore</c> does, cannot make a window be rebuilt; the most
+/// a zone can ever cost is twenty builds of about a fifth of a millisecond and a few kilobytes.
+/// </para>
+/// <para>
+/// A smaller cap is an order dependency. The clock is shared by every caller in the process, so the
+/// first windows anybody asks about - a calendar checked against last decade, a test dated 2005 - would
+/// fill it, and the window the scheduler runs in would be declined for the life of the process.
 /// </para>
 /// </remarks>
 internal sealed class ZoneClock
 {
-    private const int MaxWindows = 4;
-
     private static readonly ConditionalWeakTable<TimeZoneInfo, ZoneClock> clocks = new ConditionalWeakTable<TimeZoneInfo, ZoneClock>();
 
     private readonly TimeZoneInfo zone;
     private readonly Lock buildLock = new Lock();
 
-    private volatile ZoneOffsetTable[] tables = [];
+    /// <summary>
+    /// The table for each window, indexed from <see cref="ZoneOffsetTable.FirstWindowIndex" />. A slot
+    /// is written once, under <see cref="buildLock" />, and read without it.
+    /// </summary>
+    private readonly ZoneOffsetTable?[] tables = new ZoneOffsetTable?[ZoneOffsetTable.WindowCount];
 
     /// <summary>The window the last read landed in; validated before use, so a stale one costs nothing.</summary>
     private volatile ZoneOffsetTable? lastTable;
@@ -106,40 +111,26 @@ internal sealed class ZoneClock
 
     private ZoneOffsetTable? Find(long utcTicks)
     {
-        ZoneOffsetTable[] snapshot = tables;
-        foreach (ZoneOffsetTable candidate in snapshot)
-        {
-            if (candidate.Contains(utcTicks))
-            {
-                return candidate;
-            }
-        }
-
-        if (snapshot.Length >= MaxWindows)
-        {
-            return null;
-        }
-
         int windowIndex = ZoneOffsetTable.WindowIndexFor(utcTicks);
         if (windowIndex < 0)
         {
             return null;
         }
 
+        ref ZoneOffsetTable? slot = ref tables[windowIndex - ZoneOffsetTable.FirstWindowIndex];
+
+        ZoneOffsetTable? existing = Volatile.Read(ref slot);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
         lock (buildLock)
         {
-            snapshot = tables;
-            foreach (ZoneOffsetTable candidate in snapshot)
+            existing = slot;
+            if (existing is not null || unsupported)
             {
-                if (candidate.Contains(utcTicks))
-                {
-                    return candidate;
-                }
-            }
-
-            if (snapshot.Length >= MaxWindows)
-            {
-                return null;
+                return existing;
             }
 
             ZoneOffsetTable built = ZoneOffsetTable.Build(zone, windowIndex);
@@ -149,11 +140,7 @@ internal sealed class ZoneClock
                 return null;
             }
 
-            ZoneOffsetTable[] next = new ZoneOffsetTable[snapshot.Length + 1];
-            Array.Copy(snapshot, next, snapshot.Length);
-            next[snapshot.Length] = built;
-            tables = next;
-
+            Volatile.Write(ref slot, built);
             return built;
         }
     }
