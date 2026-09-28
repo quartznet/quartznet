@@ -851,8 +851,12 @@ in `[from, to)`. It runs [`Backfill`](../how-tos/backfill.md) on the host.
 | `ReadOnly` | `403` |
 
 A `400` schedules nothing and carries the refusal as `detail`, with `Quartz-ExceptionType: BadHttpRequestException`.
-A success is [audited](#production-hardening) as `BackfillTrigger`. `HttpScheduler` does not call this route:
-the extension on an `HttpScheduler` makes its own reads and writes, a request per slot.
+A success is [audited](#production-hardening) once, as `BackfillTrigger`, however many slots it stored.
+
+`Backfill` on an `HttpScheduler` is this one request. The host's refusals arrive as `ArgumentException`, with the
+same words, and a missing trigger as `ObjectDoesNotExistException`, as in process. A host older than 4.3 answers
+the route `404` without problem details; `HttpScheduler` then backfills through the routes that host has, a
+request per slot.
 
 ## Overlap policies
 

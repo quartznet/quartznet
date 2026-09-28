@@ -303,8 +303,8 @@ public sealed class QuartzApiClientContractTest
 
     /// <summary>
     /// The Trigger Detail page's backfill, through the client: the extension over the scheduler the name
-    /// resolves to, which for the HTTP carrier is <see cref="HttpScheduler" /> composing the reads and the
-    /// writes it already makes.
+    /// resolves to, which for the HTTP carrier is <see cref="HttpScheduler" /> sending the host's
+    /// <c>backfill</c> route.
     /// </summary>
     [Test]
     public async Task ATriggerIsBackfilledThroughTheClient()

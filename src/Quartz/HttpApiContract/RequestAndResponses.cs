@@ -247,6 +247,19 @@ internal sealed record BackfillRequest(DateTimeOffset? From, DateTimeOffset? To)
 
     public string? ExecutionGroup { get; init; }
 
+    /// <summary>
+    /// The body <c>HttpScheduler</c> sends: the range, and every option as the caller left it.
+    /// </summary>
+    public static BackfillRequest Create(DateTimeOffset from, DateTimeOffset to, BackfillOptions options)
+    {
+        return new BackfillRequest(from, to)
+        {
+            MaxSlots = options.MaxSlots,
+            Spacing = options.Spacing,
+            ExecutionGroup = options.ExecutionGroup
+        };
+    }
+
     public BackfillOptions AsOptions()
     {
         BackfillOptions options = new() { Spacing = Spacing.GetValueOrDefault(), ExecutionGroup = ExecutionGroup };
@@ -287,6 +300,18 @@ internal sealed record BackfillResponse(
             result.FirstSlot,
             result.LastSlot,
             [.. result.ScheduledTriggers.Select(KeyDto.Create)]);
+    }
+
+    public BackfillResult AsResult()
+    {
+        return new BackfillResult
+        {
+            SlotsFound = SlotsFound,
+            AlreadyScheduled = AlreadyScheduled,
+            FirstSlot = FirstSlot,
+            LastSlot = LastSlot,
+            ScheduledTriggers = [.. (Triggers ?? []).Select(key => key.AsTriggerKey())]
+        };
     }
 }
 
