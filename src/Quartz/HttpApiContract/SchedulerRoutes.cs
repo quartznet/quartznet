@@ -129,6 +129,7 @@ internal static class SchedulerRoutes
     public static readonly WireRoute UnscheduleJobsByGroup = Route(nameof(UnscheduleJobsByGroup), Post, Triggers + "/unschedule-by-group");
     public static readonly WireRoute RescheduleJob = Route(nameof(RescheduleJob), Post, Trigger + "/reschedule");
     public static readonly WireRoute UpdateTriggerDetails = Route(nameof(UpdateTriggerDetails), Post, Trigger + "/update-details");
+    public static readonly WireRoute BackfillTrigger = Route(nameof(BackfillTrigger), Post, Trigger + "/backfill");
 
     // --- Calendars -------------------------------------------------------------------------------------
 

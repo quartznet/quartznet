@@ -728,6 +728,40 @@ internal static class SchedulerOperations
         return new OperationAppliedResponse(applied);
     }
 
+    /// <summary>
+    /// Backfills the trigger over the request's range, as
+    /// <see cref="SchedulerBackfillExtensions.Backfill" /> does, or answers <see langword="null" /> when there
+    /// is no trigger under <paramref name="triggerKey" />.
+    /// </summary>
+    /// <remarks>
+    /// The extension's own run, which answers its refusals — an empty range, one reaching past the
+    /// scheduler's current time, more slots than the options allow, an option out of range — rather than
+    /// throwing them. Each is the request's, decided before anything is written, and is raised as
+    /// <see cref="InvalidRequestException" /> with the extension's words. The scheduler's own failures while
+    /// scheduling stay its own.
+    /// </remarks>
+    public static async ValueTask<BackfillResponse?> BackfillTrigger(
+        IScheduler scheduler,
+        TriggerKey triggerKey,
+        BackfillRequest request,
+        CancellationToken cancellationToken)
+    {
+        BackfillOutcome outcome = await Backfilling.Run(
+            scheduler,
+            triggerKey,
+            request.From.GetValueOrDefault(),
+            request.To.GetValueOrDefault(),
+            request.AsOptions(),
+            cancellationToken).ConfigureAwait(false);
+
+        if (outcome.Refusal is { } refusal)
+        {
+            throw new InvalidRequestException(refusal.Reason);
+        }
+
+        return outcome.Result is { } result ? BackfillResponse.Create(result) : null;
+    }
+
     // --- Calendars -------------------------------------------------------------------------------------
 
     public static async ValueTask<PagedResultDto<string>> QueryCalendarNames(IScheduler scheduler, ListingParameters listing, CancellationToken cancellationToken)

@@ -368,6 +368,7 @@ public sealed class WireCarrierEquivalenceTest
         [SchedulerRoutes.GetExecution.Name] = "history, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.QueryMisfireHistory.Name] = "history, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.CountMisfires.Name] = "history, read by HttpExecutionHistoryStore",
+        [SchedulerRoutes.BackfillTrigger.Name] = "Backfill is an extension over GetTrigger, GetCalendar, GetTriggers and ScheduleJob; the route runs it on the host for a client that is not .NET",
     };
 
     private static Task Read<T>(T value)

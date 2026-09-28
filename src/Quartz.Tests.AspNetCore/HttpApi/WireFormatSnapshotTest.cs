@@ -331,6 +331,38 @@ public class WireFormatSnapshotTest : WebApiTest
     /// at a trigger of another family, and the node pin travelling as the column pair the triggers table
     /// holds rather than as one string.
     /// </remarks>
+    /// <summary>
+    /// What a backfill answers: the counts, the first and last slot, and the keys it stored, earliest
+    /// slot first.
+    /// </summary>
+    [Test]
+    public async Task BackfillBody()
+    {
+        ITrigger hourly = TriggerBuilder.Create()
+            .WithIdentity("hourly", "reports")
+            .ForJob("export", "reports")
+            .StartAt(new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero))
+            .WithCronSchedule("0 0 * * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc))
+            .Build();
+        A.CallTo(() => FakeScheduler.TimeProvider).Returns(new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(2026, 9, 10, 12, 0, 0, TimeSpan.Zero)));
+        A.CallTo(() => FakeScheduler.GetTrigger(hourly.Key, A<CancellationToken>._)).Returns(hourly);
+        A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<ITrigger> { TriggerBuilder.Create().WithIdentity("hourly@2026-09-09T01:00:00Z", "backfill:reports").ForJob("export", "reports").Build() });
+
+        const string requestJson = """
+            {
+              "from": "2026-09-09T00:00:00+00:00",
+              "to": "2026-09-09T03:00:00+00:00",
+              "maxSlots": 10,
+              "spacing": "00:00:30",
+              "executionGroup": "backfills"
+            }
+            """;
+
+        string body = await Post($"{SchedulerUrl}/triggers/reports/hourly/backfill", requestJson);
+        await VerifyBody(body);
+    }
+
     [Test]
     public async Task UpdateTriggerDetailsRequestBody()
     {
