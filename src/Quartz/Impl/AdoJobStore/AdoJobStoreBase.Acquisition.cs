@@ -101,7 +101,10 @@ internal abstract partial class AdoJobStoreBase
     /// above the request's: the choice between lock-free and locked acquisition was already made from the
     /// request before this factory runs, so a raised count is only caught by post-acquisition validation
     /// and the surplus is released and retried — a performance hazard rather than corruption, but a
-    /// silent one.
+    /// silent one. The count this returns is the most a round acquires. The store reads <em>above</em>
+    /// it on its own when a round skipped every row it read — a trigger of a job executing on another
+    /// node, say — so that the rows due behind the skipped ones are seen, and still takes no more than
+    /// this count.
     /// </para>
     /// <para>
     /// One property is filled in after this returns:
@@ -159,13 +162,28 @@ internal abstract partial class AdoJobStoreBase
                 List<IOperableTrigger> acquiredTriggers = [];
                 HashSet<JobKey> acquiredJobKeysForNoConcurrentExec = [];
                 const int MaxDoLoopRetry = 3;
-                int currentLoopCount = 0;
+                int retries = 0;
+
+                // Rows the previous round read and could not use, and which the next read will return
+                // again ahead of everything else: still WAITING, and still first in the fire-time order.
+                // Zero on the first round and on every acquisition that skips nothing, so the ordinary
+                // acquisition reads exactly the count it was asked for.
+                int readAhead = 0;
 
                 do
                 {
-                    currentLoopCount++;
                     // Built inside the loop, so each retry asks again and sees the time it retried at.
                     TriggerAcquisitionCriteria criteria = CreateAcquisitionCriteria(request);
+
+                    // The most this round may acquire: the request's count, or what an override lowered
+                    // it to. A round reading past skipped rows reads more than this, and stops taking
+                    // triggers at it.
+                    int maxCount = criteria.MaxCount;
+                    if (readAhead > 0)
+                    {
+                        criteria = criteria with { MaxCount = maxCount + readAhead };
+                    }
+
                     // The backstop for a delegate that does not keep the excluded job types out itself.
                     // Not built at all for one that says it does — which is every dialect Quartz ships —
                     // so the shipped path pays nothing for it. It deliberately compares ordinally; SQL
@@ -195,13 +213,27 @@ internal abstract partial class AdoJobStoreBase
                         return acquiredTriggers;
                     }
 
+                    // Whether the read stopped at its own limit rather than at the end of what is due,
+                    // which is the only case in which rows this round skips can be hiding rows behind them.
+                    bool readWasLimited = results.Count >= criteria.MaxCount;
+
+                    // Candidates this round read, could not use, and left WAITING - so a read of the same
+                    // length would return the same rows again - against candidates that left WAITING while
+                    // this round ran, which a read of the same length will not see and may find something
+                    // behind.
+                    int skipped = 0;
+                    int raced = 0;
+                    bool reachedBatchEnd = false;
+
                     // The delegate was told which job types this node will not run, and did not say it
                     // enforces that itself. Dropping them here — on the name the acquisition read already
                     // returned — is what keeps the promise; doing it before the read below is what keeps
                     // it from costing a round trip and a type resolution per candidate (#3443).
                     if (excludedJobTypeNames is not null)
                     {
+                        int before = results.Count;
                         results = results.FindAll(candidate => !excludedJobTypeNames.Contains(candidate.JobTypeName));
+                        skipped += before - results.Count;
                     }
 
                     // One read for the whole round's candidates. The acquisition statement just named
@@ -218,11 +250,18 @@ internal abstract partial class AdoJobStoreBase
 
                     foreach (var result in results)
                     {
+                        // Only a round reading past skipped rows can have more rows than it may take.
+                        if (acquiredTriggers.Count >= maxCount)
+                        {
+                            break;
+                        }
+
                         TriggerKey triggerKey = result.TriggerKey;
 
                         // If our trigger is no longer available, try a new one.
                         if (!candidates.TryGetValue(triggerKey, out IOperableTrigger? nextTrigger))
                         {
+                            raced++;
                             continue; // next trigger
                         }
 
@@ -249,6 +288,10 @@ internal abstract partial class AdoJobStoreBase
                             {
                                 Logger.TriggerErrorStateUpdateFailed(ex);
                             }
+
+                            // The row is ERROR now, or about to be looked at again for the same reason;
+                            // either way the next read tells the difference, so it counts as a race.
+                            raced++;
                             continue;
                         }
 
@@ -261,12 +304,16 @@ internal abstract partial class AdoJobStoreBase
                         {
                             if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
                             {
+                                skipped++;
                                 continue; // next trigger
                             }
 
-                            // Cluster-safe check: skip if job is already executing on another node
+                            // Cluster-safe check: skip if job is already executing on another node. The
+                            // row stays WAITING, first in the order, and a read of the same length would
+                            // return it again ahead of everything due behind it (#3926).
                             if (await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
                             {
+                                skipped++;
                                 continue;
                             }
                         }
@@ -281,11 +328,15 @@ internal abstract partial class AdoJobStoreBase
                         if (nextFireTimeUtc is null)
                         {
                             Logger.TriggerHasNoNextFireTime(nextTrigger.Key);
+                            skipped++;
                             continue;
                         }
 
                         if (nextFireTimeUtc > batchEnd)
                         {
+                            // Everything behind this row is due later still, so there is nothing to
+                            // read past to.
+                            reachedBatchEnd = true;
                             break;
                         }
 
@@ -298,6 +349,7 @@ internal abstract partial class AdoJobStoreBase
                             // the race to another node looks like, and in a cluster that is the ordinary
                             // outcome of two nodes reaching for the same batch. Logging it would produce
                             // noise proportional to how well the cluster is sharing its work.
+                            raced++;
                             continue; // next trigger
                         }
                         nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
@@ -320,9 +372,28 @@ internal abstract partial class AdoJobStoreBase
                         await Delegate.InsertFiredTriggers(conn, firedTriggerRows, StoredTriggerState.Acquired, null, cancellationToken).ConfigureAwait(false);
                     }
 
-                    // if we didn't end up with any trigger to fire from that first
-                    // batch, try again for another batch. We allow with a max retry count.
-                    if (acquiredTriggers.Count == 0 && currentLoopCount < MaxDoLoopRetry)
+                    if (acquiredTriggers.Count > 0)
+                    {
+                        break;
+                    }
+
+                    // Every row this round read was one it could not use, and the read stopped at its
+                    // limit, so what is due behind them has not been looked at. Read past them: the next
+                    // round asks for at least twice as many rows beyond the count as this one skipped,
+                    // so the rounds are few however many such rows there are, and it ends as soon as a
+                    // read comes back short of its limit. Not a retry - nothing raced - so it is not
+                    // charged as one.
+                    if (skipped > 0 && readWasLimited && !reachedBatchEnd)
+                    {
+                        readAhead = 2 * Math.Max(skipped, readAhead);
+                        continue;
+                    }
+
+                    // Rows left WAITING under this round, which is what losing them to another node looks
+                    // like; a read of the same length now finds whatever was due behind them. Bounded, as
+                    // a cluster under contention can lose every round. A round that only skipped is not
+                    // retried: the same read would return the same rows, and skip them for the same reasons.
+                    if (raced > 0 && ++retries < MaxDoLoopRetry)
                     {
                         continue;
                     }
