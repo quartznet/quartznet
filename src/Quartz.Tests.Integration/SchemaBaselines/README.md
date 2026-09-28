@@ -27,6 +27,15 @@ on the released `Quartz` 3.20.0 package — fill it with rows, and then runs the
 rather than over an empty schema. The three SQL Server variants 3.20 shipped are not vendored: the
 rehearsal runs against `tables_sqlServer.sql`, which is the one the test environment creates.
 
+## `4.2/`
+
+Vendored verbatim from tag **`v4.2.0`**, path `database/tables/tables_postgres.sql`. PostgreSQL only:
+`MixedVersionClusterPostgresTest` is the one fixture that builds it, and it runs on PostgreSQL alone.
+4.2.1 and 4.2.2 changed no PostgreSQL DDL, so this is the schema every 4.2 deployment has.
+
+The fixture applies every `database/migrations/4.3/*_postgres.sql` over it, then runs a released 4.2
+node beside a working-tree node on the result: the rolling upgrade an operator performs.
+
 These are copies rather than something read out of git at run time on purpose: CI checks out shallow,
 so a `git show origin/3.x:...` in a test would fail on the very machines that run it. They are also
 deliberately never regenerated — the point of a baseline is that it does not track `main`. Changing a

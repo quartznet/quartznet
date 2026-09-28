@@ -1,0 +1,24 @@
+<Project>
+
+  <Import Project="..\..\Directory.Build.props" />
+
+  <PropertyGroup>
+    <!--
+      The artifacts layout roots itself beside the nearest Directory.Build.props, which is now this one.
+      Point it back at the repository's, where the test looks for both builds.
+    -->
+    <ArtifactsPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\artifacts'))</ArtifactsPath>
+  </PropertyGroup>
+
+  <!--
+    The project builds twice: against the working tree, and with ReleasedQuartzVersion set against that
+    Quartz package from nuget.org. The two builds restore different packages, so they cannot share an
+    obj directory, and the artifacts layout names that directory after ArtifactsProjectName before the
+    project file is read. Hence here rather than in the csproj: the released build is
+    artifacts/{bin,obj}/Quartz.Tests.Integration.MixedVersionNode.<version>/.
+  -->
+  <PropertyGroup Condition="'$(ReleasedQuartzVersion)' != ''">
+    <ArtifactsProjectName>$(MSBuildProjectName).$(ReleasedQuartzVersion)</ArtifactsProjectName>
+  </PropertyGroup>
+
+</Project>

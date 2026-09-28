@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
+    <AnalysisLevel>none</AnalysisLevel>
+    <RollForward>Major</RollForward>
+
+    <!--
+      Both builds below produce this one assembly name, so a job type stored by either process reads
+      back as the same JOB_CLASS_NAME in the other. It is not signed: a node is a scratch process, and
+      the released build must not carry a key the working tree's Quartz would have to agree with.
+    -->
+    <AssemblyName>Quartz.Tests.Integration.MixedVersionNode</AssemblyName>
+    <SignAssembly>false</SignAssembly>
+
+    <!-- The released Quartz the second build runs. MixedVersionClusterPostgresTest names the same version. -->
+    <MixedVersionReleasedQuartz>4.2.2</MixedVersionReleasedQuartz>
+  </PropertyGroup>
+
+  <!--
+    ReleasedQuartzVersion selects the Quartz a build compiles against: unset is the working tree, set is
+    that version from nuget.org. The job types cannot live in a shared assembly compiled once, because
+    a strong-named reference to the working tree's Quartz does not load in a process running an older one.
+  -->
+  <PropertyGroup Condition="'$(ReleasedQuartzVersion)' == ''">
+    <DefineConstants>$(DefineConstants);QUARTZ_WORKING_TREE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(ReleasedQuartzVersion)' == ''">
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(ReleasedQuartzVersion)' != ''">
+    <!-- A named released version, so the pin is literal: VersionOverride, as the seeder pins 3.20.0. -->
+    <PackageReference Include="Quartz" VersionOverride="$(ReleasedQuartzVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
+  <!--
+    Building the working-tree node builds the released one too, so that Compile - and any solution
+    build - leaves both where the test looks for them. The restore runs under a property of its own so
+    that the build after it evaluates the project afresh and imports what the restore wrote.
+  -->
+  <Target Name="BuildReleasedQuartzNode" AfterTargets="Build" Condition="'$(ReleasedQuartzVersion)' == ''">
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="Restore"
+             Properties="ReleasedQuartzVersion=$(MixedVersionReleasedQuartz);MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="Build"
+             Properties="ReleasedQuartzVersion=$(MixedVersionReleasedQuartz)" />
+  </Target>
+
+</Project>
