@@ -20,7 +20,10 @@
 #nullable enable
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+
+using Quartz.Tests.Unit.Plugin.History;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -67,6 +70,29 @@ public sealed class JobTimeoutMiddlewareTest
         recorder.Instruction.Should().Be(SchedulerInstruction.DeleteTrigger,
             "a timeout is an ordinary failure, so a one-shot trigger with no retry policy and nothing left to "
             + "fire is finalized exactly as it would be after any other one");
+    }
+
+    /// <summary>
+    /// The overrun is logged where the application's logging goes: the middleware is built by the
+    /// container, so it takes the container's logger factory and does not wait for
+    /// <c>LogProvider.SetLogProvider</c>, which an application under <c>AddQuartz</c> never calls.
+    /// </summary>
+    [Test]
+    public async Task AnOverrunIsLoggedThroughTheContainersLogging()
+    {
+        Recorder recorder = new(expectedFirings: 1);
+        RecordingLoggerProvider logs = new();
+
+        await RunScheduler(
+            recorder,
+            typeof(HangingJob),
+            quartz => quartz.AddJobTimeout(TimeSpan.FromMilliseconds(200)),
+            configureServices: services => services.AddLogging(logging => logging.AddProvider(logs)));
+
+        logs.Entries.Should().Contain(
+            entry => entry.EventId.Id == 1090 && entry.Level == LogLevel.Warning && entry.Message.Contains("00:00:00.2000000"),
+            "the timeout warning is the one line that says which job overran and by what budget, and a middleware "
+            + "the container built has no reason to log anywhere but where the container's logging goes");
     }
 
     /// <summary>
@@ -312,13 +338,15 @@ public sealed class JobTimeoutMiddlewareTest
         Recorder recorder,
         Type jobType,
         Action<IQuartzBuilder> configure,
-        Action<ITriggerConfigurator<IJob>>? trigger = null)
+        Action<ITriggerConfigurator<IJob>>? trigger = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         string id = Guid.NewGuid().ToString("N");
         JobKey jobKey = new($"job-{id}", $"group-{id}");
 
         ServiceCollection services = new();
         services.AddSingleton(recorder);
+        configureServices?.Invoke(services);
         services.AddQuartz(quartz =>
         {
             quartz.ConfigureScheduler(options =>

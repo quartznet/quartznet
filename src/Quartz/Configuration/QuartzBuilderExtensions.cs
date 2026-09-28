@@ -1009,7 +1009,8 @@ public static class QuartzBuilderExtensions
 
         return builder.AddJobMiddleware(provider => new JobTimeoutMiddleware(
             defaultTimeout ?? TimeSpan.Zero,
-            provider.GetService<TimeProvider>() ?? TimeProvider.System));
+            provider.GetService<TimeProvider>() ?? TimeProvider.System,
+            provider.GetSchedulerLoggerFactory()));
     }
 
     /// <inheritdoc cref="AddJobTimeout(IQuartzBuilder, TimeSpan?)" path="/summary" />
@@ -1054,7 +1055,8 @@ public static class QuartzBuilderExtensions
 
             return new JobTimeoutMiddleware(
                 resolved ?? TimeSpan.Zero,
-                provider.GetService<TimeProvider>() ?? TimeProvider.System);
+                provider.GetService<TimeProvider>() ?? TimeProvider.System,
+                provider.GetSchedulerLoggerFactory());
         });
     }
 

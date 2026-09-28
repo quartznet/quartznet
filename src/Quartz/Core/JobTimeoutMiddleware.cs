@@ -67,7 +67,7 @@ namespace Quartz.Core;
 /// </remarks>
 internal sealed class JobTimeoutMiddleware : IJobExecutionMiddleware
 {
-    private readonly ILogger<JobTimeoutMiddleware> logger = LogProvider.CreateLogger<JobTimeoutMiddleware>();
+    private readonly ILogger<JobTimeoutMiddleware> logger;
     private readonly TimeSpan defaultTimeout;
     private readonly TimeProvider timeProvider;
 
@@ -79,10 +79,15 @@ internal sealed class JobTimeoutMiddleware : IJobExecutionMiddleware
     /// <see cref="TimeSpan.Zero" /> when only the jobs that declare one are bounded.
     /// </param>
     /// <param name="timeProvider">The scheduler's clock, which is also what times the budget.</param>
-    public JobTimeoutMiddleware(TimeSpan defaultTimeout, TimeProvider timeProvider)
+    /// <param name="loggerFactory">
+    /// The scheduler's logger factory — the container's — so an overrun is logged where the
+    /// application's own logging goes without <see cref="LogProvider.SetLogProvider" />.
+    /// </param>
+    public JobTimeoutMiddleware(TimeSpan defaultTimeout, TimeProvider timeProvider, ILoggerFactory loggerFactory)
     {
         this.defaultTimeout = defaultTimeout;
         this.timeProvider = timeProvider;
+        logger = loggerFactory.CreateLogger<JobTimeoutMiddleware>();
     }
 
     public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
