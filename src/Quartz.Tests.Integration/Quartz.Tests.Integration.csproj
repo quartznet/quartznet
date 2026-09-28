@@ -53,6 +53,13 @@
     <PackageReference Include="AwesomeAssertions.Analyzers" />
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
+    <!--
+      Marten and Wolverine's PostgreSQL message store, beside Quartz on one database: the Weasel tests
+      join Quartz's tables to a Marten store and run Wolverine's own schema next to them. Both pin an
+      older Weasel than Quartz.Weasel's floor, which is the dependency graph an application beside them
+      restores.
+    -->
+    <PackageReference Include="Marten" />
     <PackageReference Include="MELT" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.SQLite" />
@@ -80,6 +87,7 @@
     <PackageReference Include="Testcontainers.Redis" />
     <PackageReference Include="TimeZoneConverter" />
     <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="WolverineFx.Postgresql" />
   </ItemGroup>
 
   <ItemGroup>
@@ -87,6 +95,7 @@
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
     <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />
+    <ProjectReference Include="..\Quartz.Weasel.PostgreSQL\Quartz.Weasel.PostgreSQL.csproj" />
     <!--
       Built, never referenced: MixedVersionClusterPostgresTest runs it out of process, twice - as it builds
       against the working tree and against a released Quartz - and the released build has this
