@@ -32,6 +32,7 @@ using Quartz.Weasel.PostgreSQL;
 
 using Weasel.Core;
 using Weasel.Core.Migrations;
+using Weasel.Postgresql;
 using Weasel.Postgresql.Tables;
 
 namespace Quartz.Tests.Unit.Weasel;
@@ -237,6 +238,44 @@ public sealed class PostgresWeaselModelTest
         Func<Task> build = async () => await provider.GetRequiredService<IDatabaseSource>().BuildDatabases();
         await build.Should().ThrowAsync<SchedulerConfigException>()
             .WithMessage("*UseWeaselForPostgres() was called for scheduler 'weasel-no-database'*UsePostgres(...)*");
+    }
+
+    /// <summary>
+    /// A retired index is dropped when the catalog still has it on its Quartz table, and otherwise left
+    /// out of the migration altogether; it is never created.
+    /// </summary>
+    [Test]
+    public async Task ARetiredIndexIsDroppedOnlyWhenItIsStillThere()
+    {
+        ISchemaObject retired = new QuartzPostgresFeatureSchema("jobs.QRTZ_").Objects
+            .Single(x => x is not Table && x.Identifier.Name == "idx_qrtz_t_next_fire_time");
+
+        retired.Identifier.Schema.Should().Be("jobs");
+
+        await using NpgsqlConnection unopened = new("Host=localhost");
+        global::Weasel.Core.DbCommandBuilder builder = new(unopened);
+        retired.ConfigureQueryCommand(builder);
+        builder.Compile().CommandText.Should().Contain("pg_indexes").And.Contain("tablename")
+            .And.EndWith(";", "every introspection query in a batch ends its statement");
+
+        (await retired.CreateDeltaAsync(CountReader(1))).Difference.Should().Be(SchemaPatchDifference.Update);
+        (await retired.CreateDeltaAsync(CountReader(0))).Difference.Should().Be(SchemaPatchDifference.None);
+
+        StringWriter drop = new();
+        retired.WriteDropStatement(new PostgresqlMigrator(), drop);
+        drop.ToString().Should().Contain("drop index if exists jobs.idx_qrtz_t_next_fire_time;");
+
+        StringWriter create = new();
+        retired.WriteCreateStatement(new PostgresqlMigrator(), create);
+        create.ToString().Should().BeEmpty("a retired index is never created");
+
+        static System.Data.Common.DbDataReader CountReader(long count)
+        {
+            System.Data.DataTable table = new();
+            table.Columns.Add("count", typeof(long));
+            table.Rows.Add(count);
+            return table.CreateDataReader();
+        }
     }
 
     [Test]
