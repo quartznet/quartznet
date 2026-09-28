@@ -123,6 +123,7 @@
     <PackageVersion Include="Verify.NUnit" Version="32.0.1" />
     <PackageVersion Include="WolverineFx" Version="6.40.0" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.40.0" />
+    <PackageVersion Include="WolverineFx.SqlServer" Version="6.40.0" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.40.0" />
   </ItemGroup>
 
