@@ -1655,12 +1655,20 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
                 try
                 {
-                    // Mirror ReleaseAcquiredTrigger: update from both ACQUIRED and BLOCKED,
-                    // because TriggersFired may have moved the trigger to BLOCKED state (for
-                    // DisallowConcurrentExecution jobs) while the fired record is still ACQUIRED.
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
-                    await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                    // The same release the scheduler thread would have made, had it not lost track of the
+                    // reservation - including where the trigger goes back to. A reservation's fired row
+                    // names no job, so the trigger's own row is asked for the key; a row that is gone is a
+                    // trigger that was deleted, and the reservation is all that is left to clean up.
+                    TriggerStatus? status = await Delegate.SelectTriggerStatus(conn, rec.TriggerKey, cancellationToken).ConfigureAwait(false);
+                    if (status is null)
+                    {
+                        await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await ReleaseAcquiredTrigger(conn, rec.TriggerKey, status.JobKey, rec.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                    }
+
                     recoveredCount++;
                 }
                 catch (Exception e)
@@ -4203,13 +4211,26 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         List<IOperableTrigger> acquiredTriggers = new List<IOperableTrigger>();
         HashSet<JobKey> acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
         const int MaxDoLoopRetry = 3;
-        int currentLoopCount = 0;
+        int retries = 0;
+
+        // The most a round may acquire. At least one, as the delegate's read has always returned at
+        // least one row whatever it was asked for.
+        int takeCount = Math.Max(maxCount, 1);
+
+        // Rows the previous round read and could not use, and which the next read will return
+        // again ahead of everything else: still WAITING, and still first in the fire-time order.
+        // Zero on the first round and on every acquisition that skips nothing, so the ordinary
+        // acquisition reads exactly the count it was asked for.
+        int readAhead = 0;
 
         do
         {
-            currentLoopCount++;
             try
             {
+                // A round reading past skipped rows reads more than it may take, and stops taking
+                // triggers at takeCount.
+                int readCount = maxCount + readAhead;
+
                 IReadOnlyCollection<TriggerAcquireResult> results;
                 // Only take the preferred-node acquisition path once a full probe pass has
                 // completed (optionalColumnsProbed): a pass deferred by a transient failure can
@@ -4235,17 +4256,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 if (hasPreferredNode && nextVersionDelegate != null)
                 {
                     // Preferred node requires the 7-arg overload with liveness parameters
-                    results = await nextVersionDelegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, prefNodeInstanceId, liveNodeCutoff, cancellationToken).ConfigureAwait(false);
+                    results = await nextVersionDelegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, readCount, executionLimits, prefNodeInstanceId, liveNodeCutoff, cancellationToken).ConfigureAwait(false);
                 }
                 else if (executionLimits != null && nextVersionDelegate != null)
                 {
                     // Execution limits only — use the 5-arg overload so custom delegate
                     // subclasses that override this virtual method are not bypassed.
-                    results = await nextVersionDelegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, cancellationToken).ConfigureAwait(false);
+                    results = await nextVersionDelegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, readCount, executionLimits, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, cancellationToken).ConfigureAwait(false);
+                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, readCount, cancellationToken).ConfigureAwait(false);
                 }
 
                 // No trigger is ready to fire yet.
@@ -4254,16 +4275,35 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     return acquiredTriggers;
                 }
 
+                // Whether the read stopped at its own limit rather than at the end of what is due,
+                // which is the only case in which rows this round skips can be hiding rows behind them.
+                bool readWasLimited = results.Count >= Math.Max(readCount, 1);
+
+                // Candidates this round read, could not use, and left WAITING - so a read of the same
+                // length would return the same rows again - against candidates that stopped being
+                // WAITING while this round ran, which a read of the same length will not return, and
+                // may find something behind.
+                int skipped = 0;
+                int raced = 0;
+                bool reachedBatchEnd = false;
+
                 DateTimeOffset batchEnd = noLaterThan;
 
                 foreach (var result in results)
                 {
+                    // Only a round reading past skipped rows can have more rows than it may take.
+                    if (acquiredTriggers.Count >= takeCount)
+                    {
+                        break;
+                    }
+
                     var triggerKey = new TriggerKey(result.TriggerName, result.TriggerGroup);
 
                     // If our trigger is no longer available, try a new one.
                     var nextTrigger = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
                     if (nextTrigger == null)
                     {
+                        raced++;
                         continue; // next trigger
                     }
 
@@ -4285,6 +4325,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                         {
                             Log.ErrorException("Unable to set trigger state to ERROR.", ex);
                         }
+
+                        // The row is ERROR now, or about to be looked at again for the same reason;
+                        // either way the next read tells the difference, so it counts as a race.
+                        raced++;
                         continue;
                     }
 
@@ -4292,12 +4336,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     {
                         if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
                         {
+                            skipped++;
                             continue; // next trigger
                         }
 
-                        // Cluster-safe check: skip if job is already executing on another node
+                        // Cluster-safe check: skip if job is already executing on another node. The
+                        // row stays WAITING, first in the order, and a read of the same length would
+                        // return it again ahead of everything due behind it (#3926).
                         if (await IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
                         {
+                            skipped++;
                             continue;
                         }
                     }
@@ -4312,11 +4360,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     if (nextFireTimeUtc == null)
                     {
                         Log.Warn($"Trigger {nextTrigger.Key} returned null on nextFireTime and yet still exists in DB!");
+                        skipped++;
                         continue;
                     }
 
                     if (nextFireTimeUtc > batchEnd)
                     {
+                        // Everything behind this row is due later still, so there is nothing to
+                        // read past to.
+                        reachedBatchEnd = true;
                         break;
                     }
 
@@ -4326,6 +4378,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     if (rowsUpdated <= 0)
                     {
                         // TODO: Hum... shouldn't we log a warning here?
+                        raced++;
                         continue; // next trigger
                     }
                     nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
@@ -4343,9 +4396,29 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     acquiredTriggers.Add(nextTrigger);
                 }
 
-                // if we didn't end up with any trigger to fire from that first
-                // batch, try again for another batch. We allow with a max retry count.
-                if (acquiredTriggers.Count == 0 && currentLoopCount < MaxDoLoopRetry)
+                if (acquiredTriggers.Count > 0)
+                {
+                    break;
+                }
+
+                // Every row this round read was one it could not use, and the read stopped at its
+                // limit, so what is due behind them has not been looked at. Read past them: the next
+                // round asks for at least twice as many rows beyond the count as this one skipped,
+                // so the rounds are few however many such rows there are, and it ends as soon as a
+                // read comes back short of its limit. Not a retry - nothing raced - so it is not
+                // charged as one.
+                if (skipped > 0 && readWasLimited && !reachedBatchEnd)
+                {
+                    readAhead = 2 * Math.Max(skipped, readAhead);
+                    continue;
+                }
+
+                // Rows that stopped being WAITING under this round, which is what losing them to
+                // another node looks like; a read of the same length now finds whatever was due behind
+                // them. Bounded, as a cluster under contention can lose every round. A round that only
+                // skipped is not retried: the same read would return the same rows, and skip them for
+                // the same reasons.
+                if (raced > 0 && ++retries < MaxDoLoopRetry)
                 {
                     continue;
                 }
@@ -4368,6 +4441,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// fire the given <see cref="ITrigger" />, that it had previously acquired
     /// (reserved).
     /// </summary>
+    /// <remarks>
+    /// The trigger goes back to <c>WAITING</c> — unless its job disallows concurrent execution and is
+    /// executing somewhere in the cluster, in which case it goes to, or stays, <c>BLOCKED</c>, and the
+    /// completion of that execution is what lets go of it. A reservation another node's fire found
+    /// <c>ACQUIRED</c> is one that fire has already moved to <c>BLOCKED</c>; releasing it to
+    /// <c>WAITING</c> undid that, and the row then sat first in the acquisition order while every node
+    /// skipped it as executing — a node acquiring one trigger at a time read nothing else and idled
+    /// for its whole idle wait behind it (#3926).
+    /// </remarks>
     public Task ReleaseAcquiredTrigger(
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
@@ -4397,11 +4479,39 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
+        await ReleaseAcquiredTrigger(conn, trigger.Key, trigger.JobKey, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lets go of one reservation: deletes its fired-trigger row and puts the trigger back where the
+    /// job's state says it belongs.
+    /// </summary>
+    /// <remarks>
+    /// The fired row goes first, so that the question asked next — is this job executing? — is about
+    /// other firings and never about the reservation being released. The row stays <c>BLOCKED</c>, or
+    /// becomes it, only while a fired row of a job that disallows concurrent execution says the job is
+    /// running: that execution's completion releases the job's triggers, and cluster recovery does
+    /// when the node running it dies. A <c>BLOCKED</c> row with no such execution behind it is one
+    /// nothing else would ever let go of, so it goes back to <c>WAITING</c> as it always has.
+    /// </remarks>
+    private async Task ReleaseAcquiredTrigger(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        JobKey jobKey,
+        string fireInstanceId,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
-            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
-            await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+            await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
+
+            string released = await CheckBlockedState(conn, jobKey, StateWaiting, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, released, StateAcquired, cancellationToken).ConfigureAwait(false);
+
+            if (StateWaiting.Equals(released))
+            {
+                await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (Exception e)
         {
