@@ -15,11 +15,11 @@ the scripts under `database/migrations/`.
 | Package | Database |
 |---|---|
 | `Quartz.Weasel.PostgreSQL` | PostgreSQL, standalone or inside a Marten store |
+| `Quartz.Weasel.SqlServer` | SQL Server 2016 or later, disk-based tables |
 | `Quartz.Weasel.SQLite` | SQLite, through Microsoft.Data.Sqlite |
-| `Quartz.Weasel` | the shared glue; installed by either of the above |
+| `Quartz.Weasel` | the shared glue; installed by any of the above |
 
-SQL Server comes next. MySQL and Oracle wait for fixes in Weasel itself. Firebird is not planned: Weasel has
-no Firebird provider.
+MySQL and Oracle wait for fixes in Weasel itself. Firebird is not planned: Weasel has no Firebird provider.
 
 ```shell
 dotnet add package Quartz.Weasel.PostgreSQL
@@ -48,6 +48,16 @@ return await host.RunJasperFxCommands(args);
 ```
 <!-- endSnippet -->
 
+<!-- snippet: sample_weasel_sqlserver -->
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseSqlServer(connectionString);
+    store.UseWeaselForSqlServer();
+}));
+```
+<!-- endSnippet -->
+
 <!-- snippet: sample_weasel_sqlite -->
 ```csharp
 services.AddQuartz(q => q.UsePersistentStore(store =>
@@ -58,11 +68,12 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-The dialect is in the method name, so an application with both packages never has an ambiguous call.
+The dialect is in the method name, so an application with several packages never has an ambiguous call.
 
 Checked at startup:
 
-* The store's driver matches the package: Npgsql for PostgreSQL, Microsoft.Data.Sqlite for SQLite.
+* The store's driver matches the package: Npgsql for PostgreSQL, Microsoft.Data.SqlClient for SQL Server,
+  Microsoft.Data.Sqlite for SQLite.
 * The store does not also call `ProvisionSchema()`. A schema has one owner.
 
 Each scheduler is one Weasel database. Its identifier is the scheduler name and its subject URI is
@@ -75,7 +86,7 @@ The schema is applied before any scheduler is built, so the store's validation s
 
 | `AutoCreate` | Source |
 |---|---|
-| the value you set | `UseWeaselForPostgres(w => w.AutoCreate = …)` |
+| the value you set | `UseWeaselForPostgres(w => w.AutoCreate = …)`, and the same on the other dialects |
 | the active JasperFx profile's `ResourceAutoCreate` | when JasperFx is registered, as Marten and Wolverine read it |
 | `CreateOrUpdate` | otherwise |
 
@@ -182,6 +193,45 @@ builder.Services.ConfigureMarten((services, opts) =>
 * `ForScheduler` refuses a scheduler that also calls `UseWeaselForPostgres()`. Constructing
   `new QuartzPostgresFeatureSchema(prefix)` directly is not checked.
 * One Quartz feature per Marten store: Marten keeps one feature per type.
+
+## SQL Server
+
+The schema is the table prefix's: `quartz.QRTZ_` or `[quartz].QRTZ_` puts the tables in schema `quartz`.
+Without one it is `dbo`. Every name is the script's: `PK_QRTZ_TRIGGERS`, `FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS`,
+`IDX_QRTZ_T_NFT_ST`.
+
+Every apply takes a session application lock (`sp_getapplock`) first, so nodes starting together, or a node
+starting during `db-apply`, take turns. The lock is scoped to the database.
+
+| Lock resource | Owner |
+|---|---|
+| `quartz:migrate` | Quartz, `SqlServerWeaselOptions.DefaultLockResource` |
+| `4006` | Wolverine's message store |
+| `polecat:migrate:<schema>` | Polecat |
+
+<!-- snippet: sample_weasel_sqlserver_options -->
+```csharp
+// tables quartz.QRTZ_JOB_DETAILS, quartz.QRTZ_TRIGGERS, ...
+store.ConfigureStore(options => options.TablePrefix = "quartz.QRTZ_");
+store.UseWeaselForSqlServer(weasel =>
+{
+    // unset: the active JasperFx profile's ResourceAutoCreate, else CreateOrUpdate
+    weasel.AutoCreate = AutoCreate.CreateOrUpdate;
+    weasel.LockResource = SqlServerWeaselOptions.DefaultLockResource;
+    weasel.LockTimeout = TimeSpan.FromMinutes(1);
+});
+```
+<!-- endSnippet -->
+
+`LockTimeout` bounds the wait, even past the connection's command timeout; an apply that times out fails like
+any other.
+
+| Case | Weasel |
+|---|---|
+| memory-optimized tables (`tables_sqlServerMOT.sql`) | refused before anything runs; keep that script |
+| SQL Server before 2016 (`tables_sqlServer_Below2016.sql`) | not supported |
+| `FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS` | not modelled: `tables_sqlServer.sql` never created it; `ProvisionSchema()`'s is kept |
+| a `numeric` column's precision | not compared |
 
 ## SQLite
 

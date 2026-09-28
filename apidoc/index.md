@@ -1,6 +1,6 @@
 # Quartz.NET 4.x API reference
 
-Generated from the XML documentation comments of the twelve shipped packages with a public API. It is the reference:
+Generated from the XML documentation comments of the thirteen shipped packages with a public API. It is the reference:
 what a type is, what every member takes and returns, and the remarks that say why. The prose - quick
 start, tutorial, configuration, how-tos - lives on the
 [documentation site](https://www.quartz-scheduler.net/documentation/), and the
@@ -35,6 +35,7 @@ This set rolls forward with every 4.x minor release. The 3.x reference stays at
 | [Quartz.Serialization.Newtonsoft](https://www.nuget.org/packages/Quartz.Serialization.Newtonsoft) - `Newtonsoft.Json` for what a job store persists | [Quartz.Serialization.Newtonsoft](xref:Quartz.Serialization.Newtonsoft) |
 | [Quartz.Weasel.PostgreSQL](https://www.nuget.org/packages/Quartz.Weasel.PostgreSQL) - the job store's PostgreSQL schema under Weasel, standalone or inside a Marten store | [PostgresWeaselStoreBuilderExtensions](xref:Quartz.PostgresWeaselStoreBuilderExtensions), [PostgresWeaselOptions](xref:Quartz.PostgresWeaselOptions), [QuartzPostgresFeatureSchema](xref:Quartz.QuartzPostgresFeatureSchema) |
 | [Quartz.Weasel.SQLite](https://www.nuget.org/packages/Quartz.Weasel.SQLite) - the job store's SQLite schema under Weasel | [SqliteWeaselStoreBuilderExtensions](xref:Quartz.SqliteWeaselStoreBuilderExtensions), [SqliteWeaselOptions](xref:Quartz.SqliteWeaselOptions) |
+| [Quartz.Weasel.SqlServer](https://www.nuget.org/packages/Quartz.Weasel.SqlServer) - the job store's SQL Server schema under Weasel | [SqlServerWeaselStoreBuilderExtensions](xref:Quartz.SqlServerWeaselStoreBuilderExtensions), [SqlServerWeaselOptions](xref:Quartz.SqlServerWeaselOptions) |
 
 The dashboard's Blazor components are left out: the Razor compiler emits a public class per `.razor`
 file, but they are the dashboard's UI rather than API anyone calls.
