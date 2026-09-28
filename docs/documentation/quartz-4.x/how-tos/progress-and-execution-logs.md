@@ -38,7 +38,7 @@ public sealed class ExportJob : IJob
 | Rule | Value |
 |---|---|
 | `percent` | `0` to `100`; anything else throws `ArgumentOutOfRangeException` |
-| `message` | Optional; cut to 250 characters (`FireInstanceProgress.MaxMessageLength`) |
+| `message` | Optional; cut to 250 characters (`FireInstanceProgress.MaxMessageLength`), and on Firebird to [250 bytes](../db/index.md#text-columns-that-count-bytes-oracle-and-firebird) |
 | Store writes | At most one per second per firing, only when the value changed |
 | The last report | Always written, however quickly the reports came |
 | The job's thread | Never waits: the write is queued off the job's flow and enlists in nothing |
