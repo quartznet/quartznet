@@ -23,6 +23,14 @@ using Quartz.Util;
 
 namespace Quartz;
 
+/// <summary>
+/// Writes a matcher as the query parameter the HTTP API reads it from.
+/// </summary>
+/// <remarks>
+/// The value is escaped with <see cref="Uri.EscapeDataString(string)" />, so a <c>&amp;</c>, <c>#</c>,
+/// <c>+</c>, <c>%</c> or space in it reaches the server as written rather than ending the parameter, the
+/// query or the value early. A value made only of letters, digits and <c>-._~</c> goes out unchanged.
+/// </remarks>
 internal static class MatcherUrlExtensions
 {
     public static string ToUrlParameters<T>(this GroupMatcher<T> matcher) where T : Key<T>
@@ -36,22 +44,22 @@ internal static class MatcherUrlExtensions
 
         if (matcher.CompareWithOperator.Equals(StringOperator.Equality))
         {
-            return $"groupEquals={matcher.CompareToValue}";
+            return $"groupEquals={Uri.EscapeDataString(matcher.CompareToValue)}";
         }
 
         if (matcher.CompareWithOperator.Equals(StringOperator.StartsWith))
         {
-            return $"groupStartsWith={matcher.CompareToValue}";
+            return $"groupStartsWith={Uri.EscapeDataString(matcher.CompareToValue)}";
         }
 
         if (matcher.CompareWithOperator.Equals(StringOperator.EndsWith))
         {
-            return $"groupEndsWith={matcher.CompareToValue}";
+            return $"groupEndsWith={Uri.EscapeDataString(matcher.CompareToValue)}";
         }
 
         if (matcher.CompareWithOperator.Equals(StringOperator.Contains))
         {
-            return $"groupContains={matcher.CompareToValue}";
+            return $"groupContains={Uri.EscapeDataString(matcher.CompareToValue)}";
         }
 
         return "";
@@ -80,22 +88,22 @@ internal static class MatcherUrlExtensions
 
         if (compareWith.Equals(StringOperator.Equality))
         {
-            return $"nameEquals={compareToValue}";
+            return $"nameEquals={Uri.EscapeDataString(compareToValue)}";
         }
 
         if (compareWith.Equals(StringOperator.StartsWith))
         {
-            return $"nameStartsWith={compareToValue}";
+            return $"nameStartsWith={Uri.EscapeDataString(compareToValue)}";
         }
 
         if (compareWith.Equals(StringOperator.EndsWith))
         {
-            return $"nameEndsWith={compareToValue}";
+            return $"nameEndsWith={Uri.EscapeDataString(compareToValue)}";
         }
 
         if (compareWith.Equals(StringOperator.Contains))
         {
-            return $"nameContains={compareToValue}";
+            return $"nameContains={Uri.EscapeDataString(compareToValue)}";
         }
 
         return "";

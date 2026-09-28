@@ -140,7 +140,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         try
         {
             result = await wire.SendAndReadOrNull<ExecutionHistoryEntryDto>(
-                SchedulerRoutes.GetExecution.For(this.schedulerName, Uri.EscapeDataString(entryId)), cancellationToken).ConfigureAwait(false);
+                SchedulerRoutes.GetExecution.For(this.schedulerName, entryId), cancellationToken).ConfigureAwait(false);
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {

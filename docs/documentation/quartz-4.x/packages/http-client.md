@@ -189,6 +189,9 @@ The wire carries data, not objects.
   not `false`, instead of failing.
 - **Enums are names.** `status`, `state`, `repeatIntervalUnit`, `daysOfWeek` and the rest travel as the C#
   member name; the names are the contract. Numeric forms are still accepted on input, for older clients.
+- **Names travel escaped.** Any character reaches the server as written, except in a path: a name containing `/`,
+  or one that is `.` or `..`, is refused with `ArgumentException`. See
+  [Names in a path](http-api.md#names-in-a-path).
 
 ## What is not supported remotely
 

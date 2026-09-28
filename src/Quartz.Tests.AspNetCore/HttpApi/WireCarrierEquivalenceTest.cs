@@ -42,8 +42,17 @@ namespace Quartz.Tests.AspNetCore.HttpApi;
 /// </remarks>
 public sealed class WireCarrierEquivalenceTest
 {
-    private static readonly JobKey Job = new("nightly export", "reports");
-    private static readonly TriggerKey Trigger = new("at midnight", "reports");
+    /// <summary>
+    /// The names the sweep puts in paths. They carry spaces, so the catalogue's reading of a path is held to
+    /// ASP.NET Core's on values that are not plain words.
+    /// </summary>
+    private static readonly Names Plain = new(
+        new JobKey("nightly export", "reports"),
+        new TriggerKey("at midnight", "reports"),
+        Calendar: "holidays",
+        Group: "night shift",
+        FireInstanceId: "fire-1");
+
     private static readonly PauseDetails Why = new() { Reason = "maintenance window", RequestedBy = "ops@example.com" };
 
     private WebApplicationFactory<Program> root = null!;
@@ -132,18 +141,20 @@ public sealed class WireCarrierEquivalenceTest
     [Test]
     public async Task EveryMemberHttpSchedulerImplementsSendsACatalogueRouteTheServerServesUnderItsName()
     {
+        Dictionary<string, Row> rows = OverTheWire(Plain);
+
         List<string> implemented = ImplementedMembers()
             .Select(Signature)
             .Where(signature => !NotOverTheWire.ContainsKey(signature))
             .ToList();
 
-        implemented.Should().BeEquivalentTo(OverTheWire.Keys,
+        implemented.Should().BeEquivalentTo(rows.Keys,
             "every IScheduler member HttpScheduler implements needs a row, so a member added without one fails here rather than going unchecked");
 
         HashSet<WireRoute> sent = [];
         using (new AssertionScope())
         {
-            foreach ((string signature, Row row) in OverTheWire)
+            foreach ((string signature, Row row) in rows)
             {
                 transport.Sent.Clear();
                 served.Clear();
@@ -184,6 +195,114 @@ public sealed class WireCarrierEquivalenceTest
 
         SchedulerRoutes.All.Except(sent).Select(route => route.Name).Should().BeEquivalentTo(ServedToOtherClients.Keys,
             "a route HttpScheduler never sends is one that another client reads, and says which");
+    }
+
+    /// <summary>
+    /// The same sweep with a character in every name and group that means something in a URL (#3917).
+    /// Escaped, each arrives as written. A <c>/</c> cannot: every member that would put it in a path refuses
+    /// before sending anything, and every member that carries its keys in the body still works.
+    /// </summary>
+    /// <remarks>
+    /// The <c>%</c> is followed by two hex digits, so it reads as an escape sequence unless it is escaped
+    /// itself. A <c>%</c> followed by anything else was already sent intact.
+    /// </remarks>
+    [TestCase("?")]
+    [TestCase("#")]
+    [TestCase("%41")]
+    [TestCase("&")]
+    [TestCase(" ")]
+    [TestCase("/")]
+    public async Task ANameWithACharacterThatMeansSomethingInAUrlReachesTheServerAsWritten(string character)
+    {
+        Names names = new(
+            new JobKey($"nightly{character}export", $"re{character}ports"),
+            new TriggerKey($"at{character}midnight", $"re{character}ports"),
+            Calendar: $"holi{character}days",
+            Group: $"re{character}ports",
+            FireInstanceId: $"fire{character}1");
+
+        Dictionary<string, string> written = names.InPaths();
+
+        using (new AssertionScope())
+        {
+            foreach ((string signature, Row row) in OverTheWire(names))
+            {
+                transport.Sent.Clear();
+                served.Clear();
+
+                Func<Task> call = () => row.Invoke(scheduler);
+
+                if (row.Routes.Any(route => route.Parameters.Any(parameter => written[parameter].Contains('/', StringComparison.Ordinal))))
+                {
+                    await call.Should().ThrowAsync<ArgumentException>().WithMessage("*cannot be sent in the path of*'/'*",
+                        $"{signature} would put a '/' in a path, which the server would read as another name");
+                    transport.Sent.Should().BeEmpty($"{signature} refuses before it sends anything");
+                    continue;
+                }
+
+                await call.Should().NotThrowAsync($"{signature} is answered with a success by the endpoint its route names");
+                served.Requests.Should().HaveSameCount(transport.Sent, $"every request {signature} sent reached the host");
+
+                for (int i = 0; i < Math.Min(transport.Sent.Count, served.Requests.Count); i++)
+                {
+                    WireRequest request = transport.Sent[i];
+                    Served answer = served.Requests[i];
+
+                    answer.EndpointName.Should().Be(request.Route.Name, $"{signature} reaches the endpoint the catalogue names");
+                    answer.Status.Should().BeInRange(200, 299, $"the endpoint {request.Route.Name} answers what {signature} sends");
+
+                    foreach (string parameter in request.Route.Parameters)
+                    {
+                        answer.RouteValues.Should().Contain(parameter, written[parameter],
+                            $"{signature} put {parameter} in the path escaped, and ASP.NET Core read it back as written");
+                    }
+
+                    SchedulerRoutes.Match(request.Route.Method, request.Path)?.Values.Should().BeEquivalentTo(answer.RouteValues,
+                        $"the catalogue reads the escaped values out of the path {signature} built exactly as ASP.NET Core does");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Why a <c>/</c> is refused rather than escaped: ASP.NET Core keeps <c>%2F</c> escaped and routing does
+    /// not unescape a value, so the endpoint reads a name that was never written.
+    /// </summary>
+    [Test]
+    public async Task AnEscapedSlashReachesTheEndpointStillEscaped()
+    {
+        using HttpResponseMessage response = await httpClient.GetAsync($"schedulers/{TestData.SchedulerName}/jobs/re%2Fports/nightly/exists");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        served.Requests.Should().ContainSingle().Which.RouteValues.Should().Contain("jobGroup", "re%2Fports",
+            "a name spelled 're%2Fports' arrives the same way, so the server cannot tell the two apart");
+    }
+
+    /// <summary>
+    /// A matcher's value travels in the query string, escaped, so a character that ends a parameter, a query
+    /// or a value there reaches the scheduler as written. A <c>+</c> would otherwise arrive as a space, and
+    /// a <c>%</c> before hex digits as the character they encode.
+    /// </summary>
+    [TestCase("&")]
+    [TestCase("#")]
+    [TestCase("+")]
+    [TestCase("%41")]
+    [TestCase(" ")]
+    [TestCase("=")]
+    public async Task AMatcherValueWithACharacterThatMeansSomethingInAQueryReachesTheSchedulerAsWritten(string character)
+    {
+        string value = $"night{character}shift";
+        IScheduler answering = host.Services.GetRequiredService<ISchedulerRepository>().Lookup(TestData.SchedulerName)!;
+
+        await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(value));
+        await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameStartsWith(value) });
+
+        A.CallTo(() => answering.PauseJobGroups(
+                A<GroupMatcher<JobKey>>.That.Matches(matcher => matcher.CompareToValue == value), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => answering.QueryTriggerGroups(
+                A<TriggerGroupQuery>.That.Matches(query => query.Name!.CompareToValue == value), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
     }
 
     /// <summary>
@@ -246,15 +365,38 @@ public sealed class WireCarrierEquivalenceTest
     private sealed record Row(WireRoute[] Routes, Func<IScheduler, Task> Invoke);
 
     /// <summary>
+    /// The names a row puts in paths: a job, a trigger, a calendar, the group the two group-paused reads
+    /// name, and a fire instance.
+    /// </summary>
+    private sealed record Names(JobKey Job, TriggerKey Trigger, string Calendar, string Group, string FireInstanceId)
+    {
+        /// <summary>
+        /// Each route parameter a row fills, with the name written into it. The group-paused reads fill a
+        /// group parameter with <see cref="Group" />, so this holds for them only when it is the job's and the
+        /// trigger's group as well.
+        /// </summary>
+        public Dictionary<string, string> InPaths() => new(StringComparer.Ordinal)
+        {
+            ["schedulerName"] = TestData.SchedulerName,
+            ["jobGroup"] = Job.Group,
+            ["jobName"] = Job.Name,
+            ["triggerGroup"] = Trigger.Group,
+            ["triggerName"] = Trigger.Name,
+            ["calendarName"] = Calendar,
+            ["fireInstanceId"] = FireInstanceId,
+        };
+    }
+
+    /// <summary>
     /// One row per <see cref="IScheduler" /> member <see cref="HttpScheduler" /> implements and answers over
     /// the wire, keyed by its signature. A row that has two ways to send — a body or none, a limit or its
     /// clearing — sends both.
     /// </summary>
     /// <remarks>
-    /// The keys carry spaces, which the client puts into a path unescaped and the one group read escapes,
-    /// so the catalogue's reading of a path is held to ASP.NET Core's on values that are not plain words.
+    /// Every name a row puts in a path comes from <paramref name="names" />, so the same rows can be sent
+    /// with names that are not plain words.
     /// </remarks>
-    private static readonly Dictionary<string, Row> OverTheWire = new(StringComparer.Ordinal)
+    private static Dictionary<string, Row> OverTheWire(Names names) => new(StringComparer.Ordinal)
     {
         ["get_SchedulerInstanceId()"] = new([SchedulerRoutes.GetSchedulerDetails], s => Read(s.SchedulerInstanceId)),
         ["GetSchedulerInstanceId(CancellationToken)"] = new([SchedulerRoutes.GetSchedulerDetails], s => s.GetSchedulerInstanceId().AsTask()),
@@ -285,65 +427,65 @@ public sealed class WireCarrierEquivalenceTest
         ["ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>, ScheduleJobOptions, CancellationToken)"] = new([SchedulerRoutes.ScheduleJobs], s => s.ScheduleJobs(
             new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> { [TestData.JobDetail] = [TestData.Wire.SimpleTrigger] }).AsTask()),
         ["ScheduleJob(IJobDetail, IReadOnlyCollection<ITrigger>, ScheduleJobOptions, CancellationToken)"] = new([SchedulerRoutes.ScheduleJobs], s => s.ScheduleJob(TestData.JobDetail, [TestData.Wire.SimpleTrigger]).AsTask()),
-        ["UnscheduleJob(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.UnscheduleJob], s => s.UnscheduleJob(Trigger).AsTask()),
-        ["UnscheduleJobs(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.UnscheduleJobs], s => s.UnscheduleJobs([Trigger]).AsTask()),
+        ["UnscheduleJob(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.UnscheduleJob], s => s.UnscheduleJob(names.Trigger).AsTask()),
+        ["UnscheduleJobs(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.UnscheduleJobs], s => s.UnscheduleJobs([names.Trigger]).AsTask()),
         ["UnscheduleJobs(GroupMatcher<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.UnscheduleJobsByGroup], s => s.UnscheduleJobs(GroupMatcher<TriggerKey>.GroupEquals("group")).AsTask()),
-        ["RescheduleJob(TriggerKey, ITrigger, CancellationToken)"] = new([SchedulerRoutes.RescheduleJob], s => s.RescheduleJob(Trigger, TestData.Wire.SimpleTrigger).AsTask()),
-        ["UpdateTriggerDetails(TriggerKey, TriggerDetailsUpdate, CancellationToken)"] = new([SchedulerRoutes.UpdateTriggerDetails], s => s.UpdateTriggerDetails(Trigger, new TriggerDetailsUpdate().WithPriority(3)).AsTask()),
+        ["RescheduleJob(TriggerKey, ITrigger, CancellationToken)"] = new([SchedulerRoutes.RescheduleJob], s => s.RescheduleJob(names.Trigger, TestData.Wire.SimpleTrigger).AsTask()),
+        ["UpdateTriggerDetails(TriggerKey, TriggerDetailsUpdate, CancellationToken)"] = new([SchedulerRoutes.UpdateTriggerDetails], s => s.UpdateTriggerDetails(names.Trigger, new TriggerDetailsUpdate().WithPriority(3)).AsTask()),
         ["Backfill(TriggerKey, DateTimeOffset, DateTimeOffset, BackfillOptions, CancellationToken)"] = new([SchedulerRoutes.BackfillTrigger], s => ((IBackfillingScheduler) s).Backfill(
-            Trigger, TestData.Wire.StartTime.AddDays(-1), TestData.Wire.StartTime.AddDays(180), new BackfillOptions { Spacing = TimeSpan.FromSeconds(30) }).AsTask()),
+            names.Trigger, TestData.Wire.StartTime.AddDays(-1), TestData.Wire.StartTime.AddDays(180), new BackfillOptions { Spacing = TimeSpan.FromSeconds(30) }).AsTask()),
 
         ["AddJob(IJobDetail, AddJobOptions, CancellationToken)"] = new([SchedulerRoutes.AddJob], s => s.AddJob(TestData.JobDetail).AsTask()),
-        ["DeleteJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.DeleteJob], s => s.DeleteJob(Job).AsTask()),
-        ["DeleteJobs(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.DeleteJobs], s => s.DeleteJobs([Job]).AsTask()),
+        ["DeleteJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.DeleteJob], s => s.DeleteJob(names.Job).AsTask()),
+        ["DeleteJobs(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.DeleteJobs], s => s.DeleteJobs([names.Job]).AsTask()),
         ["DeleteJobs(GroupMatcher<JobKey>, CancellationToken)"] = new([SchedulerRoutes.DeleteJobsByGroup], s => s.DeleteJobs(GroupMatcher<JobKey>.GroupEquals("group")).AsTask()),
         ["TriggerJob(JobKey, JobDataMap, CancellationToken)"] = new([SchedulerRoutes.TriggerJob, SchedulerRoutes.TriggerJob], async s =>
         {
-            await s.TriggerJob(Job);
-            await s.TriggerJob(Job, new JobDataMap { ["reason"] = "rerun" });
+            await s.TriggerJob(names.Job);
+            await s.TriggerJob(names.Job, new JobDataMap { ["reason"] = "rerun" });
         }),
-        ["Interrupt(JobKey, CancellationToken)"] = new([SchedulerRoutes.InterruptJob], s => s.Interrupt(Job).AsTask()),
-        ["InterruptFireInstance(String, CancellationToken)"] = new([SchedulerRoutes.InterruptJobInstance], s => s.InterruptFireInstance("fire-1").AsTask()),
+        ["Interrupt(JobKey, CancellationToken)"] = new([SchedulerRoutes.InterruptJob], s => s.Interrupt(names.Job).AsTask()),
+        ["InterruptFireInstance(String, CancellationToken)"] = new([SchedulerRoutes.InterruptJobInstance], s => s.InterruptFireInstance(names.FireInstanceId).AsTask()),
 
-        ["PauseJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.PauseJob], s => s.PauseJob(Job).AsTask()),
-        ["PauseJobWith(JobKey, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseJob], s => s.PauseJobWith(Job, Why).AsTask()),
-        ["PauseJobs(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.PauseJobKeys], s => s.PauseJobs([Job]).AsTask()),
+        ["PauseJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.PauseJob], s => s.PauseJob(names.Job).AsTask()),
+        ["PauseJobWith(JobKey, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseJob], s => s.PauseJobWith(names.Job, Why).AsTask()),
+        ["PauseJobs(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.PauseJobKeys], s => s.PauseJobs([names.Job]).AsTask()),
         ["PauseJobGroups(GroupMatcher<JobKey>, CancellationToken)"] = new([SchedulerRoutes.PauseJobs], s => s.PauseJobGroups(GroupMatcher<JobKey>.AnyGroup()).AsTask()),
         ["PauseJobGroupsWith(GroupMatcher<JobKey>, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseJobs], s => s.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupStartsWith("gr"), Why).AsTask()),
-        ["ResumeJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.ResumeJob], s => s.ResumeJob(Job).AsTask()),
-        ["ResumeJobs(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.ResumeJobKeys], s => s.ResumeJobs([Job]).AsTask()),
+        ["ResumeJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.ResumeJob], s => s.ResumeJob(names.Job).AsTask()),
+        ["ResumeJobs(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.ResumeJobKeys], s => s.ResumeJobs([names.Job]).AsTask()),
         ["ResumeJobGroups(GroupMatcher<JobKey>, CancellationToken)"] = new([SchedulerRoutes.ResumeJobs], s => s.ResumeJobGroups(GroupMatcher<JobKey>.GroupEndsWith("up")).AsTask()),
-        ["PauseTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.PauseTrigger], s => s.PauseTrigger(Trigger).AsTask()),
-        ["PauseTriggerWith(TriggerKey, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseTrigger], s => s.PauseTriggerWith(Trigger, Why).AsTask()),
-        ["PauseTriggers(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.PauseTriggerKeys], s => s.PauseTriggers([Trigger]).AsTask()),
+        ["PauseTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.PauseTrigger], s => s.PauseTrigger(names.Trigger).AsTask()),
+        ["PauseTriggerWith(TriggerKey, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseTrigger], s => s.PauseTriggerWith(names.Trigger, Why).AsTask()),
+        ["PauseTriggers(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.PauseTriggerKeys], s => s.PauseTriggers([names.Trigger]).AsTask()),
         ["PauseTriggerGroups(GroupMatcher<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.PauseTriggers], s => s.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupContains("ou")).AsTask()),
         ["PauseTriggerGroupsWith(GroupMatcher<TriggerKey>, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseTriggers], s => s.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals("group"), Why).AsTask()),
-        ["ResumeTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResumeTrigger], s => s.ResumeTrigger(Trigger).AsTask()),
-        ["ResumeTriggers(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResumeTriggerKeys], s => s.ResumeTriggers([Trigger]).AsTask()),
+        ["ResumeTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResumeTrigger], s => s.ResumeTrigger(names.Trigger).AsTask()),
+        ["ResumeTriggers(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResumeTriggerKeys], s => s.ResumeTriggers([names.Trigger]).AsTask()),
         ["ResumeTriggerGroups(GroupMatcher<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResumeTriggers], s => s.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("group")).AsTask()),
-        ["GetTriggerPause(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTriggerState], s => s.GetTriggerPause(Trigger).AsTask()),
-        ["GetTriggerGroupPause(String, CancellationToken)"] = new([SchedulerRoutes.IsTriggerGroupPaused], s => s.GetTriggerGroupPause("night shift").AsTask()),
-        ["GetJobGroupPause(String, CancellationToken)"] = new([SchedulerRoutes.IsJobGroupPaused], s => s.GetJobGroupPause("night shift").AsTask()),
+        ["GetTriggerPause(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTriggerState], s => s.GetTriggerPause(names.Trigger).AsTask()),
+        ["GetTriggerGroupPause(String, CancellationToken)"] = new([SchedulerRoutes.IsTriggerGroupPaused], s => s.GetTriggerGroupPause(names.Group).AsTask()),
+        ["GetJobGroupPause(String, CancellationToken)"] = new([SchedulerRoutes.IsJobGroupPaused], s => s.GetJobGroupPause(names.Group).AsTask()),
 
         ["QueryJobs(JobQuery, CancellationToken)"] = new([SchedulerRoutes.QueryJobs], s => s.QueryJobs(new JobQuery { Group = GroupMatcher<JobKey>.GroupEquals("group"), Skip = 1, Take = 5, IncludeTotalCount = true }).AsTask()),
-        ["QueryTriggers(TriggerQuery, CancellationToken)"] = new([SchedulerRoutes.QueryTriggers], s => s.QueryTriggers(new TriggerQuery { Job = Job, State = TriggerState.Paused }).AsTask()),
+        ["QueryTriggers(TriggerQuery, CancellationToken)"] = new([SchedulerRoutes.QueryTriggers], s => s.QueryTriggers(new TriggerQuery { Job = names.Job, State = TriggerState.Paused }).AsTask()),
         ["QueryJobGroups(JobGroupQuery, CancellationToken)"] = new([SchedulerRoutes.QueryJobGroups], s => s.QueryJobGroups(new JobGroupQuery { Paused = true }).AsTask()),
         ["QueryTriggerGroups(TriggerGroupQuery, CancellationToken)"] = new([SchedulerRoutes.QueryTriggerGroups], s => s.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameStartsWith("gr") }).AsTask()),
         ["QueryCalendarNames(CalendarQuery, CancellationToken)"] = new([SchedulerRoutes.QueryCalendarNames], s => s.QueryCalendarNames(new CalendarQuery { Take = PagedQuery.All }).AsTask()),
-        ["GetJobDetails(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.FetchJobs], s => s.GetJobDetails([Job]).AsTask()),
-        ["GetTriggers(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.FetchTriggers], s => s.GetTriggers([Trigger]).AsTask()),
-        ["GetJobDetail(JobKey, CancellationToken)"] = new([SchedulerRoutes.GetJobDetails], s => s.GetJobDetail(TestData.JobDetail.Key).AsTask()),
-        ["GetTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTrigger], s => s.GetTrigger(TestData.Wire.SimpleTrigger.Key).AsTask()),
-        ["GetTriggerState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTriggerState], s => s.GetTriggerState(Trigger).AsTask()),
-        ["ResetTriggerFromErrorState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerFromErrorState], s => s.ResetTriggerFromErrorState(Trigger).AsTask()),
-        ["ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerKeysFromErrorState], s => s.ResetTriggersFromErrorState([Trigger]).AsTask()),
-        ["Exists(JobKey, CancellationToken)"] = new([SchedulerRoutes.CheckJobExists], s => s.Exists(Job).AsTask()),
-        ["Exists(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.CheckTriggerExists], s => s.Exists(Trigger).AsTask()),
+        ["GetJobDetails(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.FetchJobs], s => s.GetJobDetails([names.Job]).AsTask()),
+        ["GetTriggers(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.FetchTriggers], s => s.GetTriggers([names.Trigger]).AsTask()),
+        ["GetJobDetail(JobKey, CancellationToken)"] = new([SchedulerRoutes.GetJobDetails], s => s.GetJobDetail(names.Job).AsTask()),
+        ["GetTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTrigger], s => s.GetTrigger(names.Trigger).AsTask()),
+        ["GetTriggerState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTriggerState], s => s.GetTriggerState(names.Trigger).AsTask()),
+        ["ResetTriggerFromErrorState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerFromErrorState], s => s.ResetTriggerFromErrorState(names.Trigger).AsTask()),
+        ["ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerKeysFromErrorState], s => s.ResetTriggersFromErrorState([names.Trigger]).AsTask()),
+        ["Exists(JobKey, CancellationToken)"] = new([SchedulerRoutes.CheckJobExists], s => s.Exists(names.Job).AsTask()),
+        ["Exists(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.CheckTriggerExists], s => s.Exists(names.Trigger).AsTask()),
 
-        ["AddCalendar(String, ICalendar, AddCalendarOptions, CancellationToken)"] = new([SchedulerRoutes.AddCalendar], s => s.AddCalendar("holidays", TestData.Wire.HolidayCalendar).AsTask()),
-        ["DeleteCalendar(String, CancellationToken)"] = new([SchedulerRoutes.DeleteCalendar], s => s.DeleteCalendar("holidays").AsTask()),
-        ["GetCalendar(String, CancellationToken)"] = new([SchedulerRoutes.GetCalendar], s => s.GetCalendar("holidays").AsTask()),
-        ["Exists(String, CancellationToken)"] = new([SchedulerRoutes.CheckCalendarExists], s => s.Exists("holidays").AsTask()),
+        ["AddCalendar(String, ICalendar, AddCalendarOptions, CancellationToken)"] = new([SchedulerRoutes.AddCalendar], s => s.AddCalendar(names.Calendar, TestData.Wire.HolidayCalendar).AsTask()),
+        ["DeleteCalendar(String, CancellationToken)"] = new([SchedulerRoutes.DeleteCalendar], s => s.DeleteCalendar(names.Calendar).AsTask()),
+        ["GetCalendar(String, CancellationToken)"] = new([SchedulerRoutes.GetCalendar], s => s.GetCalendar(names.Calendar).AsTask()),
+        ["Exists(String, CancellationToken)"] = new([SchedulerRoutes.CheckCalendarExists], s => s.Exists(names.Calendar).AsTask()),
     };
 
     /// <summary>

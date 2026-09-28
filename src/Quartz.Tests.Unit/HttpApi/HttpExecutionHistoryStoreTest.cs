@@ -257,20 +257,34 @@ public class HttpExecutionHistoryStoreTest
               "duration": "00:00:01.5000000",
               "succeeded": true,
               "exceptionMessage": null,
-              "entryId": "a/b",
+              "entryId": "a?b#c",
               "log": "first\nsecond"
             }
             """);
 
-        ExecutionHistoryEntry entry = await Store().GetExecution("Remote", "a/b");
+        ExecutionHistoryEntry entry = await Store().GetExecution("Remote", "a?b#c");
 
-        handler.LastRequestUri.Should().Be("http://localhost:8080/schedulers/Remote/history/executions/a%2Fb",
-            "the key is one path segment however it is spelled");
+        handler.LastRequestUri.Should().Be("http://localhost:8080/schedulers/Remote/history/executions/a%3Fb%23c",
+            "the key is one path segment, escaped, however it is spelled");
 
         entry.Should().NotBeNull();
         entry.SchedulerName.Should().Be("Remote");
-        entry.EntryId.Should().Be("a/b");
+        entry.EntryId.Should().Be("a?b#c");
         entry.Log.Should().Be("first\nsecond", "the single-entry route is the one read that carries the log");
+    }
+
+    /// <summary>
+    /// An id with a <c>/</c> cannot be one path segment: ASP.NET Core keeps <c>%2F</c> escaped, so the target
+    /// would look up <c>a%2Fb</c> and answer that there is no such row (#3917).
+    /// </summary>
+    [Test]
+    public async Task AnEntryIdWithASlashIsRefusedBeforeAnythingIsSent()
+    {
+        Func<Task> act = async () => await Store().GetExecution("Remote", "a/b");
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("The entryId 'a/b' cannot be sent in the path of GetExecution*");
+        handler.LastRequestUri.Should().BeNull("a request the target would answer for another id is not sent");
     }
 
     [Test]

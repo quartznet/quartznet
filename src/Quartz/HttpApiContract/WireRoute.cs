@@ -97,11 +97,23 @@ internal sealed class WireRoute
     /// A request to this route with the template's parameters filled in, in order.
     /// </summary>
     /// <remarks>
-    /// The values go into the path exactly as given, so escaping one is the caller's decision.
-    /// <c>HttpScheduler</c> escapes the values it always escaped and no others, which keeps every path it
-    /// sends what it was.
+    /// <para>
+    /// Each value is escaped with <see cref="Uri.EscapeDataString(string)" />, so a <c>?</c>, <c>#</c>,
+    /// <c>%</c>, <c>&amp;</c> or space in a name reaches the server as written: ASP.NET Core unescapes the
+    /// path before it routes. A value made only of letters, digits and <c>-._~</c> goes in unchanged.
+    /// </para>
+    /// <para>
+    /// A value no escaping brings back is refused. ASP.NET Core keeps an escaped <c>/</c> escaped and routing
+    /// does not unescape it, so <c>a/b</c> would arrive as <c>a%2Fb</c>, which is also what a name spelled
+    /// <c>a%2Fb</c> arrives as. A value of <c>.</c> or <c>..</c> is a dot segment, removed from the path
+    /// before routing, so the request would reach another route. Either would be answered for the wrong
+    /// name without a word.
+    /// </para>
     /// </remarks>
-    /// <exception cref="ArgumentException">The number of values is not the number of parameters.</exception>
+    /// <exception cref="ArgumentException">
+    /// The number of values is not the number of parameters, or a value contains <c>/</c> or is <c>.</c>
+    /// or <c>..</c>.
+    /// </exception>
     public WireRequest For(params ReadOnlySpan<string> values)
     {
         if (values.Length != Parameters.Count)
@@ -115,10 +127,36 @@ internal sealed class WireRoute
         int next = 0;
         for (int i = 0; i < segments.Length; i++)
         {
-            filled[i] = isParameter[i] ? values[next++] : segments[i];
+            filled[i] = isParameter[i] ? Escape(Parameters[next], values[next++]) : segments[i];
         }
 
         return new WireRequest(this, string.Join('/', filled));
+    }
+
+    /// <summary>
+    /// A value as it goes into a path segment, or a refusal when the server could not read it back.
+    /// </summary>
+    private string Escape(string parameter, string value)
+    {
+        if (value.Contains('/', StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"The {parameter} '{value}' cannot be sent in the path of {Name}: it contains '/', which ASP.NET Core "
+                + "keeps escaped and routing does not unescape, so the server would read a different name. Rename it "
+                + "without '/', or use a member that takes a set of keys, which sends them in the body.",
+                parameter);
+        }
+
+        if (value is "." or "..")
+        {
+            throw new ArgumentException(
+                $"The {parameter} '{value}' cannot be sent in the path of {Name}: a path segment of '{value}' is removed "
+                + "before routing, so the request would reach another route. Rename it, or use a member that takes a "
+                + "set of keys, which sends them in the body.",
+                parameter);
+        }
+
+        return Uri.EscapeDataString(value);
     }
 
     /// <summary>
