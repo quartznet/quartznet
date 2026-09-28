@@ -36,7 +36,17 @@ partial class Build : FalloutBuild
     AbsolutePath SourceDirectory => RootDirectory / "src";
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
 
-    string TagVersion => GitRepository?.Tags.SingleOrDefault(x => x.StartsWith("v"))?[1..];
+    // On GitHub Actions the ref itself is the authority: the host's RefName carries the tag name
+    // for both lightweight and annotated tags, where GitRepository.Tags only ever sees lightweight
+    // ones (it matches the ref's stored object id against the commit, and an annotated tag's ref
+    // points at the tag object). Locally GitRepository is the fallback -- and null in a git
+    // worktree, where the local build simply has no tag to version from.
+    string TagName =>
+        GitHubActions.Instance is { RefType: "tag" } actions
+            ? actions.RefName
+            : GitRepository?.Tags.FirstOrDefault(x => x.StartsWith('v'));
+
+    string TagVersion => TagName is { } name && name.StartsWith('v') ? name[1..] : null;
 
     bool IsTaggedBuild => !string.IsNullOrWhiteSpace(TagVersion);
 
