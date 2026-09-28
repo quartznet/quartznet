@@ -87,6 +87,12 @@
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
     <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />
+    <!--
+      Built, never referenced: MixedVersionClusterPostgresTest runs it out of process, twice - as it builds
+      against the working tree and against a released Quartz - and the released build has this
+      repository's Quartz assembly identity. Listed so that building the tests builds both nodes.
+    -->
+    <ProjectReference Include="..\Quartz.Tests.Integration.MixedVersionNode\Quartz.Tests.Integration.MixedVersionNode.csproj" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
 
   <ItemGroup>

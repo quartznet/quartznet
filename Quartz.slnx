@@ -33,6 +33,7 @@
     <Project Path="src/Quartz.Analyzers.Tests/Quartz.Analyzers.Tests.csproj" />
     <Project Path="src/Quartz.Tests.AspNetCore/Quartz.Tests.AspNetCore.csproj" />
     <Project Path="src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj" />
+    <Project Path="src/Quartz.Tests.Integration.MixedVersionNode/Quartz.Tests.Integration.MixedVersionNode.csproj" />
     <Project Path="src/Quartz.Tests.Integration.Seeder/Quartz.Tests.Integration.Seeder.csproj" />
     <Project Path="src/Quartz.Tests.Interceptors/Quartz.Tests.Interceptors.csproj" />
     <Project Path="src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj" />
