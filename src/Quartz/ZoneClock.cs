@@ -47,17 +47,26 @@ namespace Quartz;
 /// first windows anybody asks about - a calendar checked against last decade, a test dated 2005 - would
 /// fill it, and the window the scheduler runs in would be declined for the life of the process.
 /// </para>
+/// <para>
+/// A window whose table fails verification keeps that failed table in its slot. Its instants are
+/// declined, it is never built again, and no other window is affected: the fast path reads one
+/// window's table per call, and each table was verified on its own.
+/// </para>
 /// </remarks>
 internal sealed class ZoneClock
 {
     private static readonly ConditionalWeakTable<TimeZoneInfo, ZoneClock> clocks = new ConditionalWeakTable<TimeZoneInfo, ZoneClock>();
 
+    private static readonly Func<TimeZoneInfo, int, ZoneOffsetTable> buildTable = ZoneOffsetTable.Build;
+
     private readonly TimeZoneInfo zone;
+    private readonly Func<TimeZoneInfo, int, ZoneOffsetTable> build;
     private readonly Lock buildLock = new Lock();
 
     /// <summary>
-    /// The table for each window, indexed from <see cref="ZoneOffsetTable.FirstWindowIndex" />. A slot
-    /// is written once, under <see cref="buildLock" />, and read without it.
+    /// The table for each window, indexed from <see cref="ZoneOffsetTable.FirstWindowIndex" />, and
+    /// unsupported where verification failed. A slot is written once, under <see cref="buildLock" />,
+    /// and read without it.
     /// </summary>
     private readonly ZoneOffsetTable?[] tables = new ZoneOffsetTable?[ZoneOffsetTable.WindowCount];
 
@@ -65,19 +74,18 @@ internal sealed class ZoneClock
     private volatile ZoneOffsetTable? lastTable;
 
     /// <summary>
-    /// Set when a table failed to reproduce the zone's own answers. The zone is then left to the slow
-    /// path for good: a zone whose offsets cannot be tabulated once will not start being tabulatable.
+    /// A clock that builds its tables with <paramref name="build" /> rather than
+    /// <see cref="ZoneOffsetTable.Build" />, for the test that needs one window to fail.
     /// </summary>
-    private volatile bool unsupported;
-
-    private ZoneClock(TimeZoneInfo zone)
+    internal ZoneClock(TimeZoneInfo zone, Func<TimeZoneInfo, int, ZoneOffsetTable> build)
     {
         this.zone = zone;
+        this.build = build;
     }
 
     internal static ZoneClock For(TimeZoneInfo zone)
     {
-        return clocks.GetValue(zone, static key => new ZoneClock(key));
+        return clocks.GetValue(zone, static key => new ZoneClock(key, buildTable));
     }
 
     /// <summary>
@@ -87,11 +95,6 @@ internal sealed class ZoneClock
     internal bool TryGetTable(long utcTicks, [NotNullWhen(true)] out ZoneOffsetTable? table)
     {
         table = null;
-
-        if (unsupported)
-        {
-            return false;
-        }
 
         ZoneOffsetTable? candidate = lastTable;
         if (candidate is null || !candidate.Contains(utcTicks))
@@ -120,28 +123,21 @@ internal sealed class ZoneClock
         ref ZoneOffsetTable? slot = ref tables[windowIndex - ZoneOffsetTable.FirstWindowIndex];
 
         ZoneOffsetTable? existing = Volatile.Read(ref slot);
-        if (existing is not null)
+        if (existing is null)
         {
-            return existing;
+            lock (buildLock)
+            {
+                existing = slot;
+                if (existing is null)
+                {
+                    existing = build(zone, windowIndex);
+                    Volatile.Write(ref slot, existing);
+                }
+            }
         }
 
-        lock (buildLock)
-        {
-            existing = slot;
-            if (existing is not null || unsupported)
-            {
-                return existing;
-            }
-
-            ZoneOffsetTable built = ZoneOffsetTable.Build(zone, windowIndex);
-            if (!built.IsSupported)
-            {
-                unsupported = true;
-                return null;
-            }
-
-            Volatile.Write(ref slot, built);
-            return built;
-        }
+        // A failed table stays in its slot as the record that this window was tried, so it is built
+        // once like any other - and it is never handed out, so its instants are declined.
+        return existing.IsSupported ? existing : null;
     }
 }

@@ -45,8 +45,8 @@ namespace Quartz;
 /// adjustment rules add the ones a daily reading could step over: a rule's own start and end, and
 /// both of its transitions in every year of the window. The two are then <i>verified</i> against
 /// <see cref="TimeZoneInfo" /> - at every segment's ends and middle, in both the instant and the
-/// wall-clock direction, and at every daily reading inside a segment - and a zone that disagrees
-/// anywhere is marked unsupported rather than guessed at.
+/// wall-clock direction, and at every daily reading inside a segment - and a window in which the zone
+/// disagrees anywhere is marked unsupported rather than guessed at.
 /// </para>
 /// <para>
 /// Instances are immutable once built, apart from <see cref="hint" />, which is a cached segment
@@ -113,7 +113,7 @@ internal sealed class ZoneOffsetTable
 
     /// <summary>
     /// Whether the table agreed with <see cref="TimeZoneInfo" /> everywhere it was checked. A table
-    /// that did not is kept only so the zone can be remembered as one to leave alone.
+    /// that did not is kept only so its window can be remembered as one to leave alone.
     /// </summary>
     internal bool IsSupported { get; }
 
@@ -249,8 +249,8 @@ internal sealed class ZoneOffsetTable
     /// </summary>
     internal static ZoneOffsetTable Build(TimeZoneInfo zone, int windowIndex)
     {
-        long windowStart = new DateTime(windowIndex * WindowYears, 1, 1).Ticks;
-        long windowEnd = new DateTime((windowIndex + 1) * WindowYears, 1, 1).Ticks;
+        long windowStart = WindowStartTicks(windowIndex);
+        long windowEnd = WindowStartTicks(windowIndex + 1);
 
         long scanStart = windowStart - ScanMarginTicks;
         long scanEnd = windowEnd + ScanMarginTicks;
@@ -295,9 +295,23 @@ internal sealed class ZoneOffsetTable
         return new ZoneOffsetTable(windowStart, windowEnd, segments, isSupported: true);
     }
 
+    /// <summary>
+    /// The table a window gets when nothing about it can be proved, as <see cref="Build" /> returns
+    /// it - and as a test that needs one window to fail can make it.
+    /// </summary>
+    internal static ZoneOffsetTable Unsupported(int windowIndex)
+    {
+        return Unsupported(WindowStartTicks(windowIndex), WindowStartTicks(windowIndex + 1));
+    }
+
     private static ZoneOffsetTable Unsupported(long windowStart, long windowEnd)
     {
         return new ZoneOffsetTable(windowStart, windowEnd, [], isSupported: false);
+    }
+
+    private static long WindowStartTicks(int windowIndex)
+    {
+        return new DateTime(windowIndex * WindowYears, 1, 1).Ticks;
     }
 
     /// <summary>
