@@ -83,6 +83,33 @@ public class ZoneClockTest
     }
 
     /// <summary>
+    /// A window whose table fails verification declines its own instants and nobody else's, and is
+    /// tried once. macOS's data for Africa/Casablanca has such a window, and while one failure sent the
+    /// whole zone to the slow path, building it took every other window of the zone down with it.
+    /// </summary>
+    [Test]
+    public void AWindowThatFailsVerificationDeclinesOnlyItsOwnInstants()
+    {
+        int failingWindow = ZoneOffsetTable.WindowIndexFor(MidYear(2033));
+        Dictionary<int, int> builds = [];
+
+        ZoneClock clock = new ZoneClock(CreatePrivateZone(), (zone, windowIndex) =>
+        {
+            builds[windowIndex] = builds.GetValueOrDefault(windowIndex) + 1;
+            return windowIndex == failingWindow ? ZoneOffsetTable.Unsupported(windowIndex) : ZoneOffsetTable.Build(zone, windowIndex);
+        });
+
+        clock.TryGetTable(MidYear(2025), out _).Should().BeTrue("the window before the failing one was verified on its own");
+        clock.TryGetTable(MidYear(2033), out _).Should().BeFalse("nothing about this window could be proved");
+        clock.TryGetTable(MidYear(2041), out _).Should().BeTrue("the window after the failing one was verified on its own");
+        clock.TryGetTable(MidYear(2026), out _).Should().BeTrue("a failure found later does not reach back to a window already answering");
+        clock.TryGetTable(MidYear(2035), out _).Should().BeFalse();
+
+        builds.Should().ContainKey(failingWindow).WhoseValue.Should().Be(1, "a failed window is recorded, not re-attempted on every instant that lands in it");
+        builds.Values.Should().AllSatisfy(count => count.Should().Be(1));
+    }
+
+    /// <summary>
     /// A zone no other test can have touched, with a daylight-saving rule of its own so that its tables
     /// have transitions to cut around, and no dependence on this machine's time zone database.
     /// </summary>
