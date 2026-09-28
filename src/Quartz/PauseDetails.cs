@@ -19,6 +19,8 @@
 
 using System.Diagnostics.CodeAnalysis;
 
+using Quartz.Util;
+
 namespace Quartz;
 
 /// <summary>
@@ -105,17 +107,6 @@ public sealed class PauseDetails
     /// </summary>
     internal static string? Truncate(string? value, int maxLength)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        if (value.Length <= maxLength)
-        {
-            return value;
-        }
-
-        int length = char.IsHighSurrogate(value[maxLength - 1]) ? maxLength - 1 : maxLength;
-        return value[..length];
+        return string.IsNullOrWhiteSpace(value) ? null : TextCut.ToFit(value, maxLength);
     }
 }

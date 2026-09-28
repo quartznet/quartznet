@@ -35,6 +35,18 @@ public sealed class FirebirdJobStoreContractTest : AdoJobStoreContractTest
 
     protected override IDriverDelegate CreateDriverDelegate() => new FirebirdDelegate();
 
+    /// <summary>
+    /// The widths <c>tables_firebird.sql</c> declares. The fixture's database has no default character
+    /// set, where a <c>VARCHAR</c> counts bytes.
+    /// </summary>
+    protected override int? BytesHeldBy(string column) => column switch
+    {
+        "PAUSE_REASON" => 1000,
+        "PAUSED_BY" => 800,
+        "PROGRESS_MESSAGE" => 250,
+        _ => null,
+    };
+
     protected override ValueTask<string> PrepareDatabase()
     {
         // The container and its schema are the assembly's, started once by TestAssemblySetup.

@@ -19,6 +19,8 @@
 
 #endregion
 
+using Quartz.Util;
+
 namespace Quartz.Extensibility;
 
 /// <summary>
@@ -43,6 +45,11 @@ public sealed class FireInstanceProgress
     /// The longest <see cref="Message" /> the scheduler hands on, in UTF-16 code units. A longer one is
     /// cut to this, which is what the ADO.NET store's <c>PROGRESS_MESSAGE</c> column holds.
     /// </summary>
+    /// <remarks>
+    /// On Firebird, whose <c>PROGRESS_MESSAGE</c> is <c>VARCHAR(250)</c> and counts bytes in a database
+    /// created without a character set, the ADO.NET store also cuts it to 250 bytes of UTF-8, at a
+    /// whole character.
+    /// </remarks>
     public const int MaxMessageLength = 250;
 
     /// <summary>
@@ -61,12 +68,6 @@ public sealed class FireInstanceProgress
     /// </summary>
     internal static string? Truncate(string? message)
     {
-        if (message is null || message.Length <= MaxMessageLength)
-        {
-            return message;
-        }
-
-        int length = char.IsHighSurrogate(message[MaxMessageLength - 1]) ? MaxMessageLength - 1 : MaxMessageLength;
-        return message[..length];
+        return TextCut.ToFit(message, MaxMessageLength);
     }
 }

@@ -96,8 +96,9 @@ public partial class StdAdoDelegate
     /// </summary>
     /// <remarks>
     /// The column is declared 1,000 wide everywhere and 4,000 on Oracle, whose <c>VARCHAR2</c> counts
-    /// bytes: 1,000 characters is at most 4,000 bytes of UTF-8, so this length fits every dialect
-    /// whatever the message is written in.
+    /// bytes: 1,000 characters is at most 3,000 bytes of UTF-8. Firebird's is 1,000 bytes in a database
+    /// created without a character set, so there a message is also cut to that many bytes; see
+    /// <see cref="TextColumnByteWidth" />.
     /// </remarks>
     internal const int MaxErrorMessageLength = 1000;
 
@@ -124,7 +125,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.FiredTime, GetDbDateTimeValue(entry.FiredAtUtc));
         AddCommandParameter(cmd, SqlParameters.RunTime, entry.Duration.Ticks);
         AddCommandParameter(cmd, SqlParameters.Succeeded, GetDbBooleanValue(entry.Succeeded));
-        AddCommandParameter(cmd, SqlParameters.ErrorMessage, Truncate(entry.ExceptionMessage));
+        AddCommandParameter(cmd, SqlParameters.ErrorMessage, CutToColumn(entry.ExceptionMessage, AdoConstants.ColumnErrorMessage, MaxErrorMessageLength));
         AddCommandParameter(cmd, SqlParameters.HistoryRetryAttempt, entry.RetryAttempt);
         AddCommandParameter(cmd, SqlParameters.HistoryRetryScheduled, GetDbBooleanValue(entry.RetryScheduled));
 
@@ -576,19 +577,5 @@ public partial class StdAdoDelegate
         // Not GetInt32: Oracle hands back a decimal for a NUMBER column.
         MisfireReason reason = (MisfireReason) Convert.ToInt32(rs.GetValue(ordinal), CultureInfo.InvariantCulture);
         return Enum.IsDefined(reason) ? reason : MisfireReason.Missed;
-    }
-
-    /// <summary>
-    /// Cuts an exception message to what the column holds, so that a long one is recorded short rather
-    /// than not at all.
-    /// </summary>
-    private static string? Truncate(string? message)
-    {
-        if (message is null || message.Length <= MaxErrorMessageLength)
-        {
-            return message;
-        }
-
-        return message[..MaxErrorMessageLength];
     }
 }

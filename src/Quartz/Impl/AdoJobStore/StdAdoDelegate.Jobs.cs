@@ -606,6 +606,8 @@ public partial class StdAdoDelegate
         }
 
         object? pausedAt = GetDbDateTimeValue(pause.PausedAtUtc);
+        string? reason = CutToColumn(pause.Reason, AdoConstants.ColumnPauseReason, PauseDetails.MaxReasonLength);
+        string? requestedBy = CutToColumn(pause.RequestedBy, AdoConstants.ColumnPausedBy, PauseDetails.MaxRequestedByLength);
         List<SqlStatement> statements = new(groupNames.Count);
         foreach (string groupName in groupNames)
         {
@@ -613,8 +615,8 @@ public partial class StdAdoDelegate
             [
                 new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName),
                 new SqlStatementParameter(SqlParameters.JobGroup, groupName),
-                new SqlStatementParameter(SqlParameters.PauseReason, pause.Reason),
-                new SqlStatementParameter(SqlParameters.PausedBy, pause.RequestedBy),
+                new SqlStatementParameter(SqlParameters.PauseReason, reason),
+                new SqlStatementParameter(SqlParameters.PausedBy, requestedBy),
                 new SqlStatementParameter(SqlParameters.PausedAt, pausedAt)
             ]));
         }

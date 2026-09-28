@@ -1793,8 +1793,8 @@ public partial class StdAdoDelegate
     /// </summary>
     private void AddPauseParameters(DbCommand cmd, PauseInfo pause)
     {
-        AddCommandParameter(cmd, SqlParameters.PauseReason, pause.Reason);
-        AddCommandParameter(cmd, SqlParameters.PausedBy, pause.RequestedBy);
+        AddCommandParameter(cmd, SqlParameters.PauseReason, CutToColumn(pause.Reason, AdoConstants.ColumnPauseReason, PauseDetails.MaxReasonLength));
+        AddCommandParameter(cmd, SqlParameters.PausedBy, CutToColumn(pause.RequestedBy, AdoConstants.ColumnPausedBy, PauseDetails.MaxRequestedByLength));
         AddCommandParameter(cmd, SqlParameters.PausedAt, GetDbDateTimeValue(pause.PausedAtUtc));
     }
 

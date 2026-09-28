@@ -25,6 +25,7 @@ using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Tests.Integration.TestHelpers;
 
 namespace Quartz.Tests.Integration.Impl;
 
@@ -533,6 +534,98 @@ public abstract class JobStoreContractTest
         pause.Reason.Should().Be(new string('ü', PauseDetails.MaxReasonLength),
             "a reason is cut to what every dialect's column holds, and read back as it was written");
         pause.RequestedBy.Should().Be(new string('é', PauseDetails.MaxRequestedByLength));
+    }
+
+    /// <summary>
+    /// Where a text the store cuts to fit its column is written, and read back from.
+    /// </summary>
+    public enum CutTextPlace
+    {
+        /// <summary><c>PAUSE_REASON</c> and <c>PAUSED_BY</c> on a trigger.</summary>
+        TriggerPause,
+
+        /// <summary>The same two on a paused trigger group, and on the triggers the pause moved.</summary>
+        TriggerGroupPause,
+
+        /// <summary>The same two on a paused job group, and on the triggers the pause moved.</summary>
+        JobGroupPause,
+
+        /// <summary><c>PROGRESS_MESSAGE</c> on a firing.</summary>
+        ProgressMessage,
+    }
+
+    private static IEnumerable<TestCaseData> MultibyteTextCases()
+    {
+        foreach (CutTextPlace place in Enum.GetValues<CutTextPlace>())
+        {
+            foreach (MultibyteText kind in MultibyteTexts.Kinds)
+            {
+                yield return new TestCaseData(place, kind);
+            }
+        }
+    }
+
+    /// <summary>
+    /// How many bytes of UTF-8 <paramref name="column" /> holds in this store's database, where it counts
+    /// bytes rather than characters; <see langword="null" /> where it counts characters, as the in-memory
+    /// store does.
+    /// </summary>
+    /// <remarks>
+    /// Stated by each fixture from its own schema script rather than asked of the store, so the widths
+    /// the store cuts to are checked rather than repeated.
+    /// </remarks>
+    protected virtual int? BytesHeldBy(string column) => null;
+
+    [TestCaseSource(nameof(MultibyteTextCases))]
+    public async Task AMultibyteTextIsKeptToWhatItsColumnHolds(CutTextPlace place, MultibyteText kind)
+    {
+        if (place == CutTextPlace.ProgressMessage)
+        {
+            IOperableTrigger firing = await GivenAFiringInFlight("progress");
+            string message = MultibyteTexts.Of(kind, FireInstanceProgress.MaxMessageLength);
+
+            await Store.UpdateFireInstanceProgress(firing.FireInstanceId, new FireInstanceProgress { Percent = 50, Message = message });
+
+            FireInstance listed = (await Store.QueryFireInstances(new FireInstanceQuery())).Items.Should().ContainSingle().Subject;
+            listed.ProgressMessage.Should().Be(
+                MultibyteTexts.Kept(message, FireInstanceProgress.MaxMessageLength, BytesHeldBy("PROGRESS_MESSAGE")),
+                "a message is cut to what the column holds, in the unit it counts, and never inside a character");
+            return;
+        }
+
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("multibyte", JobGroupA, TriggerGroupA);
+        string reason = MultibyteTexts.Of(kind, PauseDetails.MaxReasonLength);
+        string requester = MultibyteTexts.Of(kind, PauseDetails.MaxRequestedByLength);
+        PauseDetails details = new() { Reason = reason, RequestedBy = requester };
+
+        PauseInfo pause;
+        switch (place)
+        {
+            case CutTextPlace.TriggerPause:
+                (await Store.PauseTriggerWith(trigger.Key, details)).Should().BeTrue();
+                pause = await Store.GetTriggerPause(trigger.Key);
+                break;
+            case CutTextPlace.TriggerGroupPause:
+                await Store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA), details);
+                pause = await Store.GetTriggerGroupPause(TriggerGroupA);
+                break;
+            default:
+                await Store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals(JobGroupA), details);
+                pause = await Store.GetJobGroupPause(JobGroupA);
+                break;
+        }
+
+        string keptReason = MultibyteTexts.Kept(reason, PauseDetails.MaxReasonLength, BytesHeldBy("PAUSE_REASON"));
+        string keptRequester = MultibyteTexts.Kept(requester, PauseDetails.MaxRequestedByLength, BytesHeldBy("PAUSED_BY"));
+
+        pause.Should().NotBeNull("a pause made with a reason is recorded");
+        pause.Reason.Should().Be(keptReason,
+            "a reason is cut to what the column holds, in the unit it counts, and never inside a character");
+        pause.RequestedBy.Should().Be(keptRequester);
+
+        PauseInfo onTrigger = await Store.GetTriggerPause(trigger.Key);
+        onTrigger.Reason.Should().Be(keptReason, "the trigger the pause moved carries the same record");
+        onTrigger.RequestedBy.Should().Be(keptRequester);
     }
 
     [Test]

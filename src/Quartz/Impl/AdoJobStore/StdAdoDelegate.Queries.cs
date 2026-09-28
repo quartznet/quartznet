@@ -851,7 +851,8 @@ public partial class StdAdoDelegate
         // In the order the statement names them: providers that adapt named parameters positionally
         // depend on it.
         AddCommandParameter(cmd, SqlParameters.Progress, progress.Percent);
-        AddCommandParameter(cmd, SqlParameters.ProgressMessage, FireInstanceProgress.Truncate(progress.Message));
+        AddCommandParameter(cmd, SqlParameters.ProgressMessage,
+            CutToColumn(progress.Message, AdoConstants.ColumnProgressMessage, FireInstanceProgress.MaxMessageLength));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.EntryId, fireInstanceId);
 

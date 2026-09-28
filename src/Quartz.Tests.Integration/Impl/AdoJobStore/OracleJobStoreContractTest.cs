@@ -35,6 +35,17 @@ public sealed class OracleJobStoreContractTest : AdoJobStoreContractTest
 
     protected override IDriverDelegate CreateDriverDelegate() => new OracleDelegate();
 
+    /// <summary>
+    /// The widths <c>tables_oracle.sql</c> declares, which its <c>VARCHAR2</c> counts in bytes.
+    /// </summary>
+    protected override int? BytesHeldBy(string column) => column switch
+    {
+        "PAUSE_REASON" => 1000,
+        "PAUSED_BY" => 800,
+        "PROGRESS_MESSAGE" => 1000,
+        _ => null,
+    };
+
     protected override ValueTask<string> PrepareDatabase()
     {
         // The container and its schema are the assembly's, started once by TestAssemblySetup.
