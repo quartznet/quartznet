@@ -7,7 +7,8 @@ An ADO.NET job store (usually `LocalTransactionJobStore`) needs a set of tables.
 * **Creating** them can be automatic: `ProvisionSchema()` makes the store run the DDL for its database at
   startup and create whatever is missing — see [Creating the schema](../tutorial/job-stores.md#creating-the-schema).
   It is opt-in, because creating tables needs a permission production databases often do not grant.
-* **Migrating** an existing schema is always a manual step; nothing in Quartz does it.
+* **Migrating** an existing schema is a manual step, unless [Weasel](../packages/weasel.md) manages it:
+  an application on Marten or Wolverine can hand the tables to the `db-apply` it already runs.
 
 | Table | Holds |
 | -- | -- |
@@ -37,7 +38,7 @@ Upgrading from 3.x to 4.x is **mandatory**, because 4.x no longer probes for the
 
 ## Creating it, and why migrating it is different
 
-A store can create a missing schema but never upgrades an existing one. Quartz's tables carry no version
+A store can create a missing schema but never upgrades an existing one; the Quartz.Weasel packages can. Quartz's tables carry no version
 marker, so a guarded `CREATE TABLE` skips a table that exists without checking which columns it should
 have by now, and adding a marker would itself be a migration. A deployment pipeline runs
 [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations), whose

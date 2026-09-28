@@ -1,6 +1,6 @@
 # Quartz.NET 4.x API reference
 
-Generated from the XML documentation comments of the ten shipped packages. It is the reference:
+Generated from the XML documentation comments of the twelve shipped packages with a public API. It is the reference:
 what a type is, what every member takes and returns, and the remarks that say why. The prose - quick
 start, tutorial, configuration, how-tos - lives on the
 [documentation site](https://www.quartz-scheduler.net/documentation/), and the
@@ -33,6 +33,8 @@ This set rolls forward with every 4.x minor release. The 3.x reference stays at
 | [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) - history logging, and jobs loaded from XML or JSON | [Quartz.Plugins.History](xref:Quartz.Plugins.History), [Quartz.Plugins.Json](xref:Quartz.Plugins.Json), [Quartz.Plugins.Xml](xref:Quartz.Plugins.Xml) |
 | [Quartz.Plugins.TimeZoneConverter](https://www.nuget.org/packages/Quartz.Plugins.TimeZoneConverter) - IANA and Windows time zone ids either way round | [TimeZonePluginConfigurationExtensions](xref:Quartz.TimeZonePluginConfigurationExtensions) |
 | [Quartz.Serialization.Newtonsoft](https://www.nuget.org/packages/Quartz.Serialization.Newtonsoft) - `Newtonsoft.Json` for what a job store persists | [Quartz.Serialization.Newtonsoft](xref:Quartz.Serialization.Newtonsoft) |
+| [Quartz.Weasel.PostgreSQL](https://www.nuget.org/packages/Quartz.Weasel.PostgreSQL) - the job store's PostgreSQL schema under Weasel, standalone or inside a Marten store | [PostgresWeaselStoreBuilderExtensions](xref:Quartz.PostgresWeaselStoreBuilderExtensions), [PostgresWeaselOptions](xref:Quartz.PostgresWeaselOptions), [QuartzPostgresFeatureSchema](xref:Quartz.QuartzPostgresFeatureSchema) |
+| [Quartz.Weasel.SQLite](https://www.nuget.org/packages/Quartz.Weasel.SQLite) - the job store's SQLite schema under Weasel | [SqliteWeaselStoreBuilderExtensions](xref:Quartz.SqliteWeaselStoreBuilderExtensions), [SqliteWeaselOptions](xref:Quartz.SqliteWeaselOptions) |
 
 The dashboard's Blazor components are left out: the Razor compiler emits a public class per `.razor`
 file, but they are the dashboard's UI rather than API anyone calls.

@@ -13,8 +13,9 @@
     {
       "src": [
         {
-          // The ten shipped packages. The four 3.x shim packages under `src` carry no assembly at
-          // all (see src/QuartzShimPackage.props), so there is nothing to document in them.
+          // The shipped packages with a public API. The four 3.x shim packages under `src` carry no
+          // assembly at all (see src/QuartzShimPackage.props), and Quartz.Weasel - the glue under the
+          // two Weasel dialect packages - exposes no public type, so there is nothing to document in them.
           "src": "../src",
           "files": [
             "Quartz/Quartz.csproj",
@@ -26,7 +27,9 @@
             "Quartz.Jobs/Quartz.Jobs.csproj",
             "Quartz.Plugins/Quartz.Plugins.csproj",
             "Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj",
-            "Quartz.Serialization.Newtonsoft/Quartz.Serialization.Newtonsoft.csproj"
+            "Quartz.Serialization.Newtonsoft/Quartz.Serialization.Newtonsoft.csproj",
+            "Quartz.Weasel.PostgreSQL/Quartz.Weasel.PostgreSQL.csproj",
+            "Quartz.Weasel.SQLite/Quartz.Weasel.SQLite.csproj"
           ]
         }
       ],

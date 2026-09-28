@@ -54,9 +54,9 @@ builder.Services.AddQuartz(q =>
             store.UsePostgres(options.PostgresConnectionString!);
             store.UseSystemTextJsonSerializer();
 
-            // Development convenience. A production account is usually right not to hold DDL rights;
-            // database/migrations/ is what moves a real schema forward.
-            store.ProvisionSchema();
+            // Weasel creates and migrates Quartz's tables with Wolverine's: at startup, and from
+            // db-apply and resources setup. Quartz.Weasel.PostgreSQL; ProvisionSchema() without it.
+            store.UseWeaselForPostgres();
 
             // Part 6 throws without this, rather than silently scheduling outside the caller's
             // transaction.

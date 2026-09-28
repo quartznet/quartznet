@@ -31,6 +31,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <!--
+      Quartz's tables join the schema Wolverine manages, through Weasel, in the durable half. Beside
+      WolverineFx.Postgresql, which asks for an older Weasel, this is also the dependency graph a Critter
+      Stack application restores: one Weasel, at Quartz.Weasel's floor.
+    -->
+    <ProjectReference Include="..\Quartz.Weasel.PostgreSQL\Quartz.Weasel.PostgreSQL.csproj" />
   </ItemGroup>
 
   <ItemGroup>
