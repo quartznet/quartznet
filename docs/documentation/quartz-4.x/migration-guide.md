@@ -96,6 +96,13 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | HTTP: optional `{ reason, requestedBy }` body on the pause routes; `pause` on the state, group-paused and listing answers | See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
 | Log events `3045`, `3046`, `3047` | A completion that found continuations and took the lock (debug); a lock-free completion that failed and ran again under the lock (warning); the misfire pass settled continuations whose parent no longer exists (information) |
 | Log event `3048` | The lock handler the store was handed, through `UseLockHandler` or `quartz.jobStore.lockHandler.type`, at startup (information); `3006` and `3007` name only a handler the store built itself |
+| `SchedulerBackfillExtensions.Backfill(triggerKey, from, to, options)` | One one-shot trigger per slot the trigger had in `[from, to)`. See [Backfill](how-tos/backfill.md) |
+| `BackfillOptions` | `MaxSlots` (`1000`), `Spacing`, `ExecutionGroup`, all `init` |
+| `BackfillResult` | `SlotsFound`, `Scheduled`, `AlreadyScheduled`, `FirstSlot`, `LastSlot`, `ScheduledTriggers` |
+| `JobExecutionContextBackfillExtensions.GetBackfillSlot()` | The slot a backfilled firing stands in for; `null` otherwise |
+| `SchedulerConstants.BackfillGroupPrefix`, `BackfillOriginalFireTime` | `"backfill:"`, and the job-data key holding the slot |
+| `IQuartzApiClient.Backfill(schedulerName, triggerKey, from, until, options)` | `Quartz.Dashboard`. Default throws `NotSupportedException`, and the page disables *Backfill…* with that reason |
+| HTTP: `POST …/triggers/{triggerGroup}/{triggerName}/backfill` | See [Backfilling a trigger](packages/http-api.md#backfilling-a-trigger) |
 
 `ScheduleTrigger`, `StoreTrigger` and the pause members are default interface members, so a scheduler or
 store written for 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare them all.
@@ -186,6 +193,8 @@ unchanged.
   [A mixed cluster](how-tos/pausing-with-a-reason.md#a-mixed-cluster).
 * A 4.2 HTTP host ignores the reason body and answers no `pause`, so `HttpScheduler.GetTriggerPause` reads
   `null` there.
+* A 4.2 node fires a backfill's triggers: they are plain one-shot simple triggers, and only the slot key is new.
+  A 4.2 HTTP host has no `backfill` route; `Backfill` on an `HttpScheduler` still works against it.
 
 ### `MaxBatchSize` is automatic
 

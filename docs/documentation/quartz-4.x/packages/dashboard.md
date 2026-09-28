@@ -21,7 +21,8 @@ Fourteen pages, listed under [The pages](#the-pages).
 - **Cluster-aware.** With a persistent job store, the executing view, fire counts and node listing cover the
   whole cluster, and the pages say which scope they show.
 - **A control panel**, from 4.3: [edit a trigger in place](#editing-a-trigger),
-  [filter the listings](#filtering-the-listings) and [act on a selection](#acting-on-a-selection).
+  [backfill it](#backfilling-a-trigger), [filter the listings](#filtering-the-listings) and
+  [act on a selection](#acting-on-a-selection).
 - **Execution history**, installed automatically and bounded by age and count. It is in-memory and per-process
   unless you [give it a store](#execution-history-and-misfires); for a scheduler in another process it is read
   from that process.
@@ -213,7 +214,7 @@ detail page.
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
 | **Jobs**: job details and keys | the `JobDataMap` and the triggers pointing at the job | trigger-now with overrides, pause, resume, delete |
-| **Triggers**: state, next and previous fire times, execution group | the trigger's `JobDataMap`, priority, calendar, misfire instruction, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
+| **Triggers**: state, next and previous fire times, execution group | the trigger's `JobDataMap`, priority, calendar, misfire instruction, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names | one calendar | create, replace or delete a cron calendar |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
@@ -246,6 +247,26 @@ times and state are kept; the cron editor is the one that reschedules.
 - **Every save is in the [Action Log](#action-log)** as `UpdateTriggerDetails`, with the user and what changed
   (`priority 5 → 7; calendar holidays → (none)`). Map values are not logged.
 - An `IQuartzApiClient` of your own that does not implement `UpdateTriggerDetails` answers its default,
+  `NotSupportedException`. The button is then disabled with that reason.
+
+### Backfilling a trigger
+
+From 4.3, *Backfill…* on a trigger's page runs its schedule over a past range: one firing per slot. See
+[Backfill](../how-tos/backfill.md).
+
+| Field | Takes |
+|---|---|
+| From, To | a date and time in the dashboard's time zone; From is included, To is not. The last day up to now by default |
+| Spacing | `hh:mm:ss` between the firings' starts; zero starts them together |
+| Max slots | the most the range may hold; `1000` by default |
+
+- **The dialog counts the slots** as the range changes, the trigger's calendar applied.
+- **A refusal is shown in the dialog**, which stays open: a range ending after now, more slots than allowed.
+- **Every backfill is in the [Action Log](#action-log)** as `BackfillTrigger`, with the user, the range and the
+  counts (`2026-09-01T00:00:00Z to 2026-09-02T00:00:00Z: 24 slots, 20 scheduled, 4 already scheduled`).
+- Read-only mode hides the button. A window onto an attached store may backfill: the slots are rows every node
+  sharing the store fires.
+- An `IQuartzApiClient` of your own that does not implement `Backfill` answers its default,
   `NotSupportedException`. The button is then disabled with that reason.
 
 ### Filtering the listings
@@ -598,7 +619,7 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 | Available | Not available |
 |---|---|
 | Jobs, triggers, calendars, groups, paused groups: read, added, edited and deleted | `Start`, `Standby`, `Shutdown` |
-| Pause, resume, reschedule, edit in place, unschedule, trigger now, bulk actions | Interrupting a running job or a firing |
+| Pause, resume, reschedule, edit in place, backfill, unschedule, trigger now, bulk actions | Interrupting a running job or a firing |
 | Currently Executing, from `QRTZ_FIRED_TRIGGERS` | Live Logs and the live event stream |
 | Cluster, from the nodes' check-ins | The node's own figures: instance id, running since, jobs executed |
 | Execution History and the misfire tile, when the cluster keeps history in the database | |
