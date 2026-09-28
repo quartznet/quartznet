@@ -660,6 +660,25 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return AsTriggerKeyDtos(await scheduler.UnscheduleJobs(keys, cancellationToken).ConfigureAwait(false));
     }
 
+    /// <remarks>
+    /// The extension over whichever scheduler the name resolves to, so a scheduler in another process is
+    /// backfilled through <c>HttpScheduler</c>'s own reads and writes. A write to the store, like
+    /// pausing, so a window may make it: the nodes sharing the store fire the slots.
+    /// </remarks>
+    public async ValueTask<BackfillResult> Backfill(
+        string schedulerName,
+        TriggerKeyDto triggerKey,
+        DateTimeOffset from,
+        DateTimeOffset until,
+        BackfillOptions options = default,
+        CancellationToken cancellationToken = default)
+    {
+        TriggerKey key = AsTriggerKey(triggerKey);
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.Backfill(key, from, until, options, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

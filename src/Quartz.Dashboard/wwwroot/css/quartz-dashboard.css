@@ -1210,6 +1210,11 @@ body{
     margin-bottom: var(--qz-space-md);
 }
 
+/* The backfill dialog's four fields, the same way. */
+.qz-backfill-dialog .qz-form-group {
+    margin-bottom: var(--qz-space-md);
+}
+
 /* What a pause recorded, beside the paused state it explains: the paused states' amber, as a note. */
 .qz-pause-note {
     display: inline-block;

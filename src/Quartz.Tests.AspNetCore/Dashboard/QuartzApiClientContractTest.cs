@@ -141,19 +141,21 @@ public sealed class QuartzApiClientContractTest
     {
         scope?.Dispose();
 
+        // Cleared while the container is still there: the in-memory store announces the jobs it deletes
+        // through a signaler that resolves the scheduler from it the first time it is used.
+        if (scheduler is not null)
+        {
+            await scheduler.Clear();
+        }
+
         if (provider is not null)
         {
             await provider.DisposeAsync();
         }
 
-        if (scheduler is not null)
+        if (scheduler is not null && carrier == Carrier.Local)
         {
-            await scheduler.Clear();
-
-            if (carrier == Carrier.Local)
-            {
-                await scheduler.Shutdown(waitForJobsToComplete: false);
-            }
+            await scheduler.Shutdown(waitForJobsToComplete: false);
         }
 
         if (host is not null)
@@ -297,6 +299,35 @@ public sealed class QuartzApiClientContractTest
         (await client.UnscheduleJobs(scheduler.SchedulerName, selection)).Should().BeEquivalentTo([soonKey, laterKey],
             "a key that names nothing is left out of the answer, over both carriers");
         (await scheduler.GetTriggersOfJob(jobKey)).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// The Trigger Detail page's backfill, through the client: the extension over the scheduler the name
+    /// resolves to, which for the HTTP carrier is <see cref="HttpScheduler" /> composing the reads and the
+    /// writes it already makes.
+    /// </summary>
+    [Test]
+    public async Task ATriggerIsBackfilledThroughTheClient()
+    {
+        JobKey jobKey = new("hourly-export", "backfill-contract");
+        TriggerKey triggerKey = new("hourly", "backfill-contract");
+        DateTimeOffset now = TimeProvider.System.GetUtcNow();
+        DateTimeOffset hour = new(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero);
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<DummyJob>().WithIdentity(jobKey).Build(),
+            TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(jobKey)
+                .StartAt(hour.AddDays(-1))
+                .WithCronSchedule("0 0 * * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc))
+                .Build());
+
+        BackfillResult result = await client.Backfill(
+            scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), hour.AddHours(-4), hour);
+
+        result.Scheduled.Should().Be(4, "an hourly trigger has four fire times in four hours");
+        (await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("backfill:backfill-contract")))
+            .Should().BeEquivalentTo(result.ScheduledTriggers, "the scheduler holds what the client says it scheduled, over both carriers");
     }
 
     /// <summary>
