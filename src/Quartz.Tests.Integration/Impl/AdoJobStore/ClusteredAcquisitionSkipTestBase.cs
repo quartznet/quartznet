@@ -43,8 +43,17 @@ public abstract class ClusteredAcquisitionSkipTestBase : ClusteredJobStoreTestBa
     /// <summary>How long both nodes run once everything is scheduled.</summary>
     private static readonly TimeSpan observation = TimeSpan.FromSeconds(15);
 
-    /// <summary>How late a pinned firing may be and still count as on time.</summary>
-    private static readonly TimeSpan lateAllowed = TimeSpan.FromSeconds(1);
+    /// <summary>How long a node sleeps when an acquisition comes back empty.</summary>
+    private static readonly TimeSpan idleWait = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// How late a pinned firing may be and still count as on time: half the idle wait. A node that idles
+    /// behind a skipped row is late by most of it (7.6-9.2 s with the fix reverted), while a shared CI
+    /// database under the busy triggers' load puts a single firing well over a second late now and then
+    /// (1.8 s on a SQL Server leg, with every firing made). The firing count below is the other half of
+    /// the check: an idling node also makes fewer of them.
+    /// </summary>
+    private static readonly TimeSpan lateAllowed = idleWait / 2;
 
     /// <summary>
     /// How many firings of a trigger due every second each node has to show for the observation: the
@@ -73,7 +82,7 @@ public abstract class ClusteredAcquisitionSkipTestBase : ClusteredJobStoreTestBa
             properties["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "1";
             // Long enough that idling behind a skipped row shows as seconds of lateness rather than
             // the base fixture's two, and short enough that the run is not.
-            properties["quartz.scheduler.idleWaitTime"] = "10000";
+            properties["quartz.scheduler.idleWaitTime"] = ((int) idleWait.TotalMilliseconds).ToString(CultureInfo.InvariantCulture);
             properties["quartz.threadPool.maxConcurrency"] = "4";
         }
 
