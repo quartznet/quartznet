@@ -30,14 +30,16 @@ tests also start from this schema, with rows in it, and let Weasel migrate it to
 
 ## `4.2/`
 
-Vendored verbatim from tag **`v4.2.0`**, paths `database/tables/tables_postgres.sql` and
-`database/tables/tables_sqlite.sql`. 4.2.1 and 4.2.2 changed no DDL in either, so these are the schemas
-every 4.2 deployment has.
+Vendored verbatim from tag **`v4.2.0`**, paths `database/tables/tables_postgres.sql`,
+`database/tables/tables_sqlServer.sql` and `database/tables/tables_sqlite.sql`. 4.2.1, 4.2.2 and 4.2.3
+changed no DDL in any of them, so these are the schemas every 4.2 deployment has.
+`git rev-parse v4.2.0:database/tables/tables_sqlServer.sql` is `a86f5acddca7532ef2c8f2acd78e76edf243b77c`,
+the blob committed here.
 
 `MixedVersionClusterPostgresTest` applies every `database/migrations/4.3/*_postgres.sql` over the
 PostgreSQL one, then runs a released 4.2 node beside a working-tree node on the result: the rolling
-upgrade an operator performs. The Weasel tests migrate both forward with Weasel instead and compare the
-result with a fresh install — the SQLite one from `Quartz.Tests.Unit`, which embeds it.
+upgrade an operator performs. The Weasel tests migrate all three forward with Weasel instead and compare
+the result with a fresh install — the SQLite one from `Quartz.Tests.Unit`, which embeds it.
 
 These are copies rather than something read out of git at run time on purpose: CI checks out shallow,
 so a `git show origin/3.x:...` in a test would fail on the very machines that run it. They are also
