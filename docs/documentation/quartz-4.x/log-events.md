@@ -27,6 +27,7 @@ never disagree about what an id means:
 | 8000–8999 | `Quartz.Extensions.Redis` | Redis |
 | 9000–9099 | `Quartz.AspNetCore` | the HTTP API |
 | 9100–9199 | `Quartz.Dashboard` | the dashboard |
+| 10000–10099 | `Quartz.Weasel` | Weasel schema management, for every dialect package |
 
 Quartz logs through `Microsoft.Extensions.Logging` and writes nothing above `Error`, so a
 `LogLevel.Critical` in your log is never Quartz's. Under a host it uses whatever the application already
@@ -362,6 +363,16 @@ matching on its text is not.
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
 | 9103 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} closed for user {User}"` |
 | 9104 | Warning | `Quartz.Dashboard` | `"Forwarding scheduler {SchedulerName} events to the dashboard hub stopped"` |
+| 10000 | Information | `Quartz.Weasel` | `"Applied the schema changes scheduler '{SchedulerName}' needs to {Database} ({Difference})"` |
+| 10001 | Debug | `Quartz.Weasel` | `"The schema of scheduler '{SchedulerName}' in {Database} already matches the model"` |
+| 10002 | Information | `Quartz.Weasel` | `"Not applying the schema of scheduler '{SchedulerName}' at startup, because AutoCreate is {AutoCreate}; the store still validates it"` |
+| 10003 | Error | `Quartz.Weasel` | `"Could not apply the schema of scheduler '{SchedulerName}' at startup; continuing because the active JasperFx profile's ResourceMigrationFailureMode is ContinueOnFailures"` |
+| 10004 | Information | `Quartz.Weasel` | `"Executing schema change for scheduler '{SchedulerName}': {Sql}"` |
+| 10005 | Warning | `Quartz.Weasel` | `"Destructive schema change for scheduler '{SchedulerName}': {Description}"` |
+| 10006 | Debug | `Quartz.Weasel` | `"Keeping objects the model of scheduler '{SchedulerName}' does not declare: {Description}"` |
+| 10007 | Error | `Quartz.Weasel` | `"Schema change for scheduler '{SchedulerName}' failed: {Sql}"` |
+| 10008 | Warning | `Quartz.Weasel` | `"Applying the schema of scheduler '{SchedulerName}' to {Database} failed on attempt {Attempt} of {Attempts}; reading the schema again in case another process was applying it at the same time"` |
+| 10009 | Information | `Quartz.Weasel` | `"Another process finished applying the schema of scheduler '{SchedulerName}' to {Database} first"` |
 
 <!-- endLogEvents -->
 

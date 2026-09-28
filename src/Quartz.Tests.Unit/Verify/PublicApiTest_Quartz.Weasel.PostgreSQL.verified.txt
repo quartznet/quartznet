@@ -1,0 +1,27 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public sealed class PostgresWeaselOptions
+    {
+        public const int DefaultLockId = 1364350042;
+        public PostgresWeaselOptions() { }
+        public JasperFx.AutoCreate? AutoCreate { get; set; }
+        public int LockId { get; set; }
+        public System.TimeSpan LockTimeout { get; set; }
+    }
+    public static class PostgresWeaselStoreBuilderExtensions
+    {
+        public static Quartz.IPersistentStoreBuilder UseWeaselForPostgres(this Quartz.IPersistentStoreBuilder store, System.Action<Quartz.PostgresWeaselOptions>? configure = null) { }
+    }
+    public sealed class QuartzPostgresFeatureSchema : Weasel.Core.Migrations.IFeatureSchema
+    {
+        public QuartzPostgresFeatureSchema(string tablePrefix = "QRTZ_") { }
+        public string Identifier { get; }
+        public Weasel.Core.Migrator Migrator { get; }
+        public Weasel.Core.ISchemaObject[] Objects { get; }
+        public System.Type StorageType { get; }
+        public System.Collections.Generic.IEnumerable<System.Type> DependentTypes() { }
+        public void WritePermissions(Weasel.Core.Migrator rules, System.IO.TextWriter writer) { }
+        public static Quartz.QuartzPostgresFeatureSchema ForScheduler(System.IServiceProvider services, string? schedulerName = null) { }
+    }
+}

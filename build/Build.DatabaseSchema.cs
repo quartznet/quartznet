@@ -28,6 +28,11 @@ using Serilog;
 /// the resulting catalog with the one the fresh-install script produced.
 /// </para>
 /// <para>
+/// The same model is also rendered as the Weasel tables the <c>Quartz.Weasel.*</c> dialect packages
+/// register — <c>Build.DatabaseSchema.Weasel.cs</c> — so the schema Weasel migrates towards is the one
+/// these scripts create.
+/// </para>
+/// <para>
 /// The output is checked in, so <c>dotnet fallout GenerateSchema</c> must leave the working tree clean
 /// unless this model changed. <c>VerifySchema</c> asserts exactly that, beside <c>VerifyMigrations</c>.
 /// </para>
@@ -45,45 +50,55 @@ partial class Build
     AbsolutePath SchemaDirectory => SourceDirectory / "Quartz" / "Impl" / "AdoJobStore" / "Schema";
 
     Target GenerateSchema => _ => _
-        .Description("Regenerates the embedded schema scripts from the model in build/Build.DatabaseSchema.cs")
+        .Description("Regenerates the embedded schema scripts and the Weasel table models from the model in build/Build.DatabaseSchema.cs")
         .Executes(() =>
         {
-            foreach ((string path, string content) in BuildSchemaScripts())
+            List<(AbsolutePath File, string Content)> generated = GeneratedSchemaFiles();
+
+            foreach ((AbsolutePath file, string content) in generated)
             {
-                AbsolutePath file = SchemaDirectory / path;
                 file.Parent.CreateDirectory();
                 file.WriteAllText(Normalize(content));
             }
 
-            Log.Information("Generated {Count} schema scripts under {Directory}",
-                BuildSchemaScripts().Count, SchemaDirectory);
+            Log.Information("Generated {Count} schema files: the scripts under {Directory} and the Weasel models",
+                generated.Count, SchemaDirectory);
         });
 
     Target VerifySchema => _ => _
-        .Description("Fails when the embedded schema scripts differ from what GenerateSchema produces")
+        .Description("Fails when the embedded schema scripts or the Weasel table models differ from what GenerateSchema produces")
         .Executes(() =>
         {
             List<string> stale = [];
 
-            foreach ((string path, string content) in BuildSchemaScripts())
+            foreach ((AbsolutePath file, string content) in GeneratedSchemaFiles())
             {
-                AbsolutePath file = SchemaDirectory / path;
                 if (!file.FileExists() || file.ReadAllText().Replace("\r\n", "\n") != Normalize(content))
                 {
-                    stale.Add(path);
+                    stale.Add(RootDirectory.GetRelativePathTo(file).ToString());
                 }
             }
 
             if (stale.Count > 0)
             {
                 throw new Exception(
-                    "These schema scripts are out of date with build/Build.DatabaseSchema.cs. "
+                    "These generated schema files are out of date with build/Build.DatabaseSchema.cs. "
                     + "Run 'dotnet fallout GenerateSchema' and commit the result:"
                     + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", stale));
             }
 
-            Log.Information("All generated schema scripts are up to date");
+            Log.Information("All generated schema files are up to date");
         });
+
+    /// <summary>
+    /// Every file <see cref="GenerateSchema" /> writes: the embedded scripts, and the Weasel table models
+    /// the dialect packages carry.
+    /// </summary>
+    List<(AbsolutePath File, string Content)> GeneratedSchemaFiles() =>
+    [
+        .. BuildSchemaScripts().Select(x => (SchemaDirectory / x.Path, x.Content)),
+        .. BuildWeaselModels().Select(x => (SourceDirectory / x.Path, x.Content)),
+    ];
 
     // ---------------------------------------------------------------------------------------
     // The model

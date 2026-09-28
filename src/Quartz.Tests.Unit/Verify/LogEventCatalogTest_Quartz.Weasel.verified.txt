@@ -1,0 +1,20 @@
+﻿10000  Information  QuartzWeaselLog.SchemaApplied
+    "Applied the schema changes scheduler '{SchedulerName}' needs to {Database} ({Difference})"
+10001  Debug  QuartzWeaselLog.SchemaUnchanged
+    "The schema of scheduler '{SchedulerName}' in {Database} already matches the model"
+10002  Information  QuartzWeaselLog.SchemaApplySkipped
+    "Not applying the schema of scheduler '{SchedulerName}' at startup, because AutoCreate is {AutoCreate}; the store still validates it"
+10003  Error  QuartzWeaselLog.SchemaApplyFailedContinuing
+    "Could not apply the schema of scheduler '{SchedulerName}' at startup; continuing because the active JasperFx profile's ResourceMigrationFailureMode is ContinueOnFailures"
+10004  Information  QuartzWeaselLog.SchemaChange
+    "Executing schema change for scheduler '{SchedulerName}': {Sql}"
+10005  Warning  QuartzWeaselLog.DestructiveChange
+    "Destructive schema change for scheduler '{SchedulerName}': {Description}"
+10006  Debug  QuartzWeaselLog.WithheldDrop
+    "Keeping objects the model of scheduler '{SchedulerName}' does not declare: {Description}"
+10007  Error  QuartzWeaselLog.SchemaChangeFailed
+    "Schema change for scheduler '{SchedulerName}' failed: {Sql}"
+10008  Warning  QuartzWeaselLog.SchemaApplyRetrying
+    "Applying the schema of scheduler '{SchedulerName}' to {Database} failed on attempt {Attempt} of {Attempts}; reading the schema again in case another process was applying it at the same time"
+10009  Information  QuartzWeaselLog.SchemaAppliedByAnotherProcess
+    "Another process finished applying the schema of scheduler '{SchedulerName}' to {Database} first"

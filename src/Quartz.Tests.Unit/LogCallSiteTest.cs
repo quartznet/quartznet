@@ -47,6 +47,9 @@ public class LogCallSiteTest
         "src/Quartz.Plugins",
         "src/Quartz.Plugins.TimeZoneConverter",
         "src/Quartz.Serialization.Newtonsoft",
+        "src/Quartz.Weasel",
+        "src/Quartz.Weasel.PostgreSQL",
+        "src/Quartz.Weasel.SQLite",
     ];
 
     /// <summary>

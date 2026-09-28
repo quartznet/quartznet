@@ -45,6 +45,7 @@ public class LogEventCatalogTest
         new("Quartz.Plugins", 6000, 6999, "plugins"),
         new("Quartz.Jobs", 7000, 7999, "jobs"),
         new("Quartz.Extensions.Redis", 8000, 8999, "Redis"),
+        new("Quartz.Weasel", 10000, 10099, "Weasel schema management, for every dialect package"),
     ];
 
     /// <summary>
@@ -57,6 +58,7 @@ public class LogEventCatalogTest
         typeof(global::Quartz.Plugins.History.LoggingJobHistoryPlugin).Assembly,
         typeof(global::Quartz.Jobs.DirectoryScanJob).Assembly,
         typeof(global::Quartz.RedisLockHandlerConfigurationExtensions).Assembly,
+        typeof(global::Quartz.Weasel.QuartzWeaselLog).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()

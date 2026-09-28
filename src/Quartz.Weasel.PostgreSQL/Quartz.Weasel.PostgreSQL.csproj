@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Quartz</RootNamespace>
+    <Title>Quartz.NET Weasel Integration for PostgreSQL</Title>
+    <Description>Quartz.NET Weasel integration for PostgreSQL - the ADO.NET job store's tables as a Weasel model, applied standalone under an advisory lock or joined to a Marten store as a feature schema; $(Description)</Description>
+    <PackageTags>$(PackageTags);weasel;jasperfx;critter-stack;schema;migrations;postgresql;marten</PackageTags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Signed like every Quartz package; Weasel.Postgresql and the rest of the JasperFx stack are not (CS8002). -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <!--
+      Off for the reason Quartz.Weasel.csproj gives. Here it also keeps the driver floor Weasel's: pinned,
+      Npgsql would enter this nuspec at the version the tests use rather than the 9.0.4 Weasel.Postgresql
+      declares.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Weasel\Quartz.Weasel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Weasel.Postgresql" />
+  </ItemGroup>
+
+</Project>
