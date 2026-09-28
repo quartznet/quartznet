@@ -65,6 +65,41 @@ public static class WeaselSamples
         #endregion
     }
 
+    public static void SqlServer(IServiceCollection services, string connectionString)
+    {
+        #region sample_weasel_sqlserver
+
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer(connectionString);
+            store.UseWeaselForSqlServer();
+        }));
+
+        #endregion
+    }
+
+    public static void SqlServerOptions(IServiceCollection services, string connectionString)
+    {
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer(connectionString);
+
+            #region sample_weasel_sqlserver_options
+
+            // tables quartz.QRTZ_JOB_DETAILS, quartz.QRTZ_TRIGGERS, ...
+            store.ConfigureStore(options => options.TablePrefix = "quartz.QRTZ_");
+            store.UseWeaselForSqlServer(weasel =>
+            {
+                // unset: the active JasperFx profile's ResourceAutoCreate, else CreateOrUpdate
+                weasel.AutoCreate = AutoCreate.CreateOrUpdate;
+                weasel.LockResource = SqlServerWeaselOptions.DefaultLockResource;
+                weasel.LockTimeout = TimeSpan.FromMinutes(1);
+            });
+
+            #endregion
+        }));
+    }
+
     public static void Profile(IServiceCollection services)
     {
         #region sample_weasel_jasperfx_profile
