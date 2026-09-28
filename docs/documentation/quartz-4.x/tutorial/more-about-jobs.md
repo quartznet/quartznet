@@ -289,6 +289,8 @@ proxied, or handed something that only exists at fire time.
 
 * Set it where the scheduler is configured: `q.UseJobFactory<MyJobFactory>()` or
   `q.UseJobFactory(new MyJobFactory())`.
+* That scheduler's job types are not registered with the container, so `ValidateOnBuild` does not check
+  them. A factory derived from `MicrosoftDependencyInjectionJobFactory` keeps both.
 * To keep the container factory and only add to the scope it opens, use
   `q.ConfigureJobScope((scope, bundle, scheduler) => …)` instead.
 * A factory returns a `JobScope`: the job, plus an optional opaque `State` that Quartz passes back to

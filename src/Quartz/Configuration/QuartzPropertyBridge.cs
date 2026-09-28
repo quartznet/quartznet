@@ -312,7 +312,13 @@ internal static class QuartzPropertyBridge
             });
         }
 
-        Register<IJobFactory>(services, schedulerName, parser.Type(LegacyPropertyKeys.SchedulerJobFactoryType));
+        // Registered carrying its type, as UseJobFactory<T>() registers it, because the type decides whether
+        // this scheduler's job types are registered with the container.
+        if (parser.Type(LegacyPropertyKeys.SchedulerJobFactoryType) is { } jobFactoryType)
+        {
+            JobFactoryDescriptor.TryAdd(services, schedulerName, jobFactoryType, (provider, key) =>
+                (IJobFactory) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobFactoryType));
+        }
 
         RegisterTimeProvider(services, schedulerName, parser.Type(LegacyPropertyKeys.TimeProviderType));
     }

@@ -570,13 +570,21 @@ public static class QuartzBuilderExtensions
     /// Registers what every delegate job needs and records that this scheduler carries one.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <see cref="DelegateJob" /> is registered like any job type, so the job factory builds it inside the
     /// firing's scope and container validation reads its constructor; the declaration is what
     /// <see cref="RegisteredJobConstructorValidator" /> checks the handler's parameters against.
+    /// </para>
+    /// <para>
+    /// It is registered whatever the scheduler's job factory, unlike an application's job type. It is
+    /// Quartz's type, its constructor takes nothing a container can lack, and a factory of the
+    /// application's own that does not know the type can still hand it to the container.
+    /// </para>
     /// </remarks>
     private static DelegateJobRegistry DeclareDelegateJob(IQuartzBuilder builder, string name, DelegateJobBinding binding)
     {
-        TryRegisterJobType(builder, typeof(DelegateJob));
+        builder.Services.TryAddScoped<DelegateJob>();
+        RegisteredJobTypes.For(builder.Services).Add(builder.SchedulerName, typeof(DelegateJob));
 
         DelegateJobRegistry registry = DelegateJobRegistry.For(builder.Services);
         registry.Declare(builder.SchedulerName, name, binding);
@@ -802,6 +810,14 @@ public static class QuartzBuilderExtensions
     /// factory or implementation type — is kept, and adding the same job twice is harmless.
     /// </para>
     /// <para>
+    /// It is made only for a scheduler whose job factory builds jobs from the container:
+    /// <c>MicrosoftDependencyInjectionJobFactory</c>, the default, or a factory derived from it. A
+    /// scheduler given a job factory of its own with <c>UseJobFactory</c> registers nothing, because its
+    /// factory builds the job its own way and container validation would fail the job on dependencies
+    /// only that factory supplies. The factory is read once the scheduler's registration is complete, so
+    /// <c>UseJobFactory</c> may come before or after this call.
+    /// </para>
+    /// <para>
     /// Being registered is also what makes the job the container's to build rather than the job
     /// factory's to activate, so the scheduler is recorded as having been given it and
     /// <see cref="RegisteredJobConstructorValidator"/> checks at startup that its constructor asks for
@@ -820,8 +836,17 @@ public static class QuartzBuilderExtensions
             return;
         }
 
-        builder.Services.TryAddScoped(jobType);
-        RegisteredJobTypes.For(builder.Services).Add(builder.SchedulerName, jobType);
+        RegisteredJobTypes jobTypes = RegisteredJobTypes.For(builder.Services);
+        jobTypes.Request(builder.SchedulerName, ServiceDescriptor.Scoped(jobType, jobType));
+
+        // A scheduler whose registration is already complete - one ConfigureAllQuartzSchedulers reaches
+        // after its AddQuartz call, or the default scheduler added to by a second AddQuartz() - keeps the
+        // job factory it has, so what it asked for is decided now. Otherwise the end of its registration
+        // decides it.
+        if (SchedulerNameRegistry.For(builder.Services).IsRegistered(builder.SchedulerName))
+        {
+            jobTypes.RegisterRequested(builder.SchedulerName);
+        }
     }
 
     /// <summary>

@@ -166,7 +166,7 @@ internal static class QuartzServiceRegistration
         // name, which is also their options name.
         object? key = schedulerName;
 
-        services.TryAddKeyed<IJobFactory>(key, static (provider, key) =>
+        JobFactoryDescriptor.TryAdd(services, key, typeof(MicrosoftDependencyInjectionJobFactory), static (provider, key) =>
             ActivatorUtilities.CreateInstance<MicrosoftDependencyInjectionJobFactory>(Scoped(provider, key)));
 
         services.TryAddKeyed<IJobRunShellFactory>(key, static (provider, key) =>
@@ -301,6 +301,10 @@ internal static class QuartzServiceRegistration
             provider.GetScheduler<ISchedulerFactory>(key),
             provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>(),
             new SchedulerKey(key)));
+
+        // Last: this scheduler's job factory is settled only now, and it decides whether the job types the
+        // scheduler was given are registered with the container.
+        RegisteredJobTypes.Find(services)?.RegisterRequested(schedulerName);
 
         return services;
     }

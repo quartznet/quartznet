@@ -128,6 +128,9 @@ a new application.
 Jobs are resolved from the container.
 
 - `AddJob<T>()`, `AddJob(type, …)` and `ScheduleJob<T>()` register the job type as a **scoped** service.
+- A scheduler with a job factory of your own registers none of its job types, whether `UseJobFactory` comes
+  before or after them: your factory builds them. A factory derived from `MicrosoftDependencyInjectionJobFactory`
+  resolves from the container, so its scheduler still registers them.
 - The job factory opens a scope per fire, resolves the job from it, and disposes the scope when the job
   returns, so a job can take scoped dependencies such as a database context.
 - A job type with no registration is built with `ActivatorUtilities`, so jobs from XML or JSON files work.
