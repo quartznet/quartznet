@@ -21,10 +21,13 @@
 
 using System.Reflection;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz.Tests.Unit;
 
 /// <summary>
-/// What <c>[QuartzJob]</c> and <c>[CronTrigger]</c> carry, and what they default to.
+/// What <c>[QuartzJob]</c>, <c>[CronTrigger]</c> and <c>[SimpleTrigger]</c> carry, and what they
+/// default to.
 /// </summary>
 /// <remarks>
 /// The attributes are read by the source generator in <c>Quartz.Analyzers</c>, which the tests in
@@ -64,6 +67,76 @@ public class DeclaredJobAttributesTest
     }
 
     [Test]
+    public void IntervalDefaultsToTheTriggerDefaults()
+    {
+        SimpleTriggerAttribute attribute = new SimpleTriggerAttribute("00:10:00");
+
+        attribute.Interval.Should().Be(TimeSpan.FromMinutes(10));
+        attribute.RepeatCount.Should().Be(SimpleTriggerImpl.RepeatIndefinitely, "an interval job repeats until something stops it unless it says otherwise");
+        attribute.Priority.Should().Be(TriggerConstants.DefaultPriority, "an unwritten priority has to mean what an unwritten WithPriority means");
+        attribute.MisfireInstruction.Should().Be(SimpleTriggerMisfireInstruction.SmartPolicy);
+        attribute.Name.Should().BeNull();
+        attribute.Group.Should().BeNull();
+        attribute.Description.Should().BeNull();
+        attribute.ExecutionGroup.Should().BeNull();
+        attribute.ConfigurationKey.Should().BeNull();
+    }
+
+    [TestCase("1.00:00:00", 864_000_000_000L)]
+    [TestCase("00:00:00.250", 2_500_000L)]
+    [TestCase("  00:00:30  ", 300_000_000L)]
+    public void IntervalIsReadInvariantly(string interval, long ticks)
+    {
+        new SimpleTriggerAttribute(interval).Interval.Should().Be(TimeSpan.FromTicks(ticks));
+    }
+
+    [Test]
+    public void IntervalThatIsNotATimeSpanIsRefused()
+    {
+        Action act = () => _ = new SimpleTriggerAttribute("ten minutes");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("'ten minutes' is not a TimeSpan. Spell the trigger's interval the way TimeSpan does, invariantly: *")
+            .Which.ParamName.Should().Be("interval");
+    }
+
+    [TestCase("00:00:00")]
+    [TestCase("-00:10:00")]
+    public void IntervalThatIsNotPositiveIsRefused(string interval)
+    {
+        Action act = () => _ = new SimpleTriggerAttribute(interval);
+
+        act.Should().Throw<ArgumentOutOfRangeException>("a repeating trigger with no time between firings is one Quartz refuses to schedule")
+            .WithMessage($"A trigger's interval has to be longer than zero, and '{interval}' is not.*");
+    }
+
+    [Test]
+    public void MissingIntervalIsRefused()
+    {
+        Action act = () => _ = new SimpleTriggerAttribute(null!);
+
+        act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("interval");
+    }
+
+    [TestCase(-1)]
+    [TestCase(0)]
+    [TestCase(24)]
+    public void RepeatCountOfMinusOneOrMoreIsKept(int repeatCount)
+    {
+        new SimpleTriggerAttribute("00:10:00") { RepeatCount = repeatCount }.RepeatCount.Should().Be(repeatCount);
+    }
+
+    [Test]
+    public void RepeatCountBelowMinusOneIsRefused()
+    {
+        Action act = () => _ = new SimpleTriggerAttribute("00:10:00") { RepeatCount = -2 };
+
+        act.Should().Throw<ArgumentOutOfRangeException>("SimpleTriggerImpl refuses the same count, later and further from where it was written")
+            .WithMessage("RepeatCount cannot be -2: it counts the firings after the first, so it is 0 or more, or -1 to repeat forever.*")
+            .Which.ParamName.Should().Be("RepeatCount");
+    }
+
+    [Test]
     public void EveryPropertyIsReadBackFromTheDeclaration()
     {
         QuartzJobAttribute job = typeof(DeclaredCleanupJob).GetCustomAttribute<QuartzJobAttribute>()!;
@@ -89,6 +162,17 @@ public class DeclaredJobAttributesTest
         noon.Description.Should().Be("every weekday at noon, Helsinki time");
         noon.ExecutionGroup.Should().Be("maintenance");
         noon.ConfigurationKey.Should().Be("Jobs:Cleanup:Noon");
+
+        SimpleTriggerAttribute interval = typeof(DeclaredCleanupJob).GetCustomAttributes<SimpleTriggerAttribute>().Should().ContainSingle().Subject;
+        interval.Interval.Should().Be(TimeSpan.FromMinutes(30));
+        interval.RepeatCount.Should().Be(11);
+        interval.Name.Should().Be("cleanup-half-hourly");
+        interval.Group.Should().Be("housekeeping");
+        interval.MisfireInstruction.Should().Be(SimpleTriggerMisfireInstruction.NextWithRemainingCount);
+        interval.Priority.Should().Be(4);
+        interval.Description.Should().Be("every half hour, twelve times");
+        interval.ExecutionGroup.Should().Be("maintenance");
+        interval.ConfigurationKey.Should().Be("Jobs:Cleanup:Interval");
     }
 
     /// <summary>
@@ -108,6 +192,12 @@ public class DeclaredJobAttributesTest
         schedule.ValidOn.Should().Be(AttributeTargets.Class);
         schedule.AllowMultiple.Should().BeTrue("a job may run on more than one schedule");
         schedule.Inherited.Should().BeFalse();
+
+        AttributeUsageAttribute interval = typeof(SimpleTriggerAttribute).GetCustomAttribute<AttributeUsageAttribute>()!;
+
+        interval.ValidOn.Should().Be(AttributeTargets.Class);
+        interval.AllowMultiple.Should().BeTrue("a job may run on more than one interval, beside its cron schedules");
+        interval.Inherited.Should().BeFalse();
     }
 
     [QuartzJob(
@@ -128,6 +218,16 @@ public class DeclaredJobAttributesTest
         Description = "every weekday at noon, Helsinki time",
         ExecutionGroup = "maintenance",
         ConfigurationKey = "Jobs:Cleanup:Noon")]
+    [SimpleTrigger(
+        "00:30:00",
+        RepeatCount = 11,
+        Name = "cleanup-half-hourly",
+        Group = "housekeeping",
+        MisfireInstruction = SimpleTriggerMisfireInstruction.NextWithRemainingCount,
+        Priority = 4,
+        Description = "every half hour, twelve times",
+        ExecutionGroup = "maintenance",
+        ConfigurationKey = "Jobs:Cleanup:Interval")]
     private sealed class DeclaredCleanupJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;

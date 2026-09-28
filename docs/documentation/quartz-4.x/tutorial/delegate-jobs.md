@@ -185,5 +185,5 @@ services.AddQuartz(q =>
 
 * [Using Quartz](using-quartz.md): `AddJob<T>`, `AddTrigger<T>` and `ScheduleJob<T>`
 * [Declaring Jobs with Attributes](declaring-jobs-with-attributes.md): a class declared with
-  `[QuartzJob]` and `[CronTrigger]`
+  `[QuartzJob]` and `[CronTrigger]` or `[SimpleTrigger]`
 * [One-Off Job](../how-tos/one-off-job.md): many short-lived firings of one job

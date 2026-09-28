@@ -32,8 +32,8 @@ All of this ships in Quartz's own packages; none of it needs a third-party packa
 * **Retry policies on the trigger.** `RetryPolicy.Fixed`, `Exponential` and `Explicit` are persisted,
   survive a restart and are visible to every node. A policy that runs out is reported to a listener, a
   counter and the history — [Retrying Failed Jobs](how-tos/retrying-failed-jobs.md).
-* **Jobs declared on the class, checked by the compiler.** `[QuartzJob]` and `[CronTrigger]` declare a
-  job and its schedules, and a source generator writes the registration. An analyzer in the package
+* **Jobs declared on the class, checked by the compiler.** `[QuartzJob]`, `[CronTrigger]` and
+  `[SimpleTrigger]` declare a job and its schedules, and a source generator writes the registration. An analyzer in the package
   fails the build on a cron expression or `[JobTimeout]` that does not parse —
   [Declaring Jobs with Attributes](tutorial/declaring-jobs-with-attributes.md),
   [Compile-Time Checks](tutorial/compile-time-checks.md).

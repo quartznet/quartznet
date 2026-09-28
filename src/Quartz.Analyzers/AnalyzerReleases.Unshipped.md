@@ -5,6 +5,7 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------------------------------------------------------------------
+QZ0005  | Quartz   | Error    | SimpleTriggerLiteralAnalyzer, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/compile-time-checks.html#qz0005-invalidsimpletriggerschedule)
 QZ1005  | Quartz   | Error    | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1005-configurationkeywithoutconfiguration)
 
 ### Changed Rules

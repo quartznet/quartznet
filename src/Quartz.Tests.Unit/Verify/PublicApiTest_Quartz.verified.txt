@@ -1879,6 +1879,20 @@ namespace Quartz
         public Quartz.SimpleScheduleBuilder WithRepeatCount(int repeatCount) { }
         public static Quartz.SimpleScheduleBuilder Create() { }
     }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public sealed class SimpleTriggerAttribute : System.Attribute
+    {
+        public SimpleTriggerAttribute(string interval) { }
+        public string? ConfigurationKey { get; init; }
+        public string? Description { get; init; }
+        public string? ExecutionGroup { get; init; }
+        public string? Group { get; init; }
+        public System.TimeSpan Interval { get; }
+        public Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; init; }
+        public string? Name { get; init; }
+        public int Priority { get; init; }
+        public int RepeatCount { get; init; }
+    }
     public enum SimpleTriggerMisfireInstruction
     {
         SmartPolicy = 0,

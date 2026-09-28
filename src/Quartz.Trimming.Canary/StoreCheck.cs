@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -75,6 +76,13 @@ internal static class StoreCheck
     private static readonly TaskCompletionSource declaredFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
+    /// The same for <see cref="DeclaredIntervalCanaryJob" />, declared with <c>[SimpleTrigger]</c>: its
+    /// registration carries the declared interval as ticks and parses the configured one, both in code
+    /// the source generator wrote.
+    /// </summary>
+    private static readonly TaskCompletionSource declaredIntervalFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
     /// What the delegate job was handed, and how it was called: its handler is a lambda, so the source
     /// generator intercepted the call and bound it at compile time (#3882). The job comes back out of
     /// <c>JOB_CLASS_NAME</c> as <c>Quartz.Impl.DelegateJob</c>.
@@ -113,8 +121,14 @@ internal static class StoreCheck
             // What DeclaredCanaryJob's ConfigurationKey reads. Its attribute's own expression fires in
             // 2099, so the job firing within the minute is the configured value having been read by the
             // generated registration, in a publish with no reflection left to read it with.
+            // DeclaredIntervalCanaryJob's key is read the same way; the trigger read back afterwards
+            // carrying this interval rather than the attribute's day is what says it was.
             services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
-                .AddInMemoryCollection([new KeyValuePair<string, string?>(DeclaredCronKey, "0/1 * * * * ?")])
+                .AddInMemoryCollection(
+                [
+                    new KeyValuePair<string, string?>(DeclaredCronKey, "0/1 * * * * ?"),
+                    new KeyValuePair<string, string?>(DeclaredIntervalKey, DeclaredInterval.ToString("c", CultureInfo.InvariantCulture)),
+                ])
                 .Build());
 
             services.AddQuartz(q =>
@@ -133,8 +147,9 @@ internal static class StoreCheck
                     store.ConfigureStore(options => options.SchemaProvisioning = SchemaProvisioning.Validate);
                 });
 
-                // Every job this assembly declares with [QuartzJob], which is one: the call is
-                // generated from the attributes and is the only registration DeclaredCanaryJob gets.
+                // Every job this assembly declares with [QuartzJob], which is two: the call is
+                // generated from the attributes and is the only registration DeclaredCanaryJob and
+                // DeclaredIntervalCanaryJob get.
                 q.AddDeclaredJobs();
 
                 // A job that is a lambda, its dependencies its parameters: a service, the firing and its
@@ -215,6 +230,18 @@ internal static class StoreCheck
                 return "FAIL store: the job declared with [QuartzJob] never fired within a minute, so the generated registration did not reach the scheduler or did not read its ConfigurationKey.";
             }
 
+            Task declaredInterval = await Task.WhenAny(declaredIntervalFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            if (declaredInterval != declaredIntervalFired.Task)
+            {
+                return "FAIL store: the job declared with [SimpleTrigger] never fired within a minute, so the generated registration did not reach the scheduler.";
+            }
+
+            if (await scheduler.GetTrigger(new TriggerKey("declared-interval", "store")).ConfigureAwait(false) is not ISimpleTrigger interval
+                || interval.RepeatInterval != DeclaredInterval)
+            {
+                return $"FAIL store: the trigger declared with [SimpleTrigger] did not come back on the configured interval of {DeclaredInterval}, so its ConfigurationKey was not read.";
+            }
+
             Task delegated = await Task.WhenAny(delegateFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
             if (delegated != delegateFired.Task)
             {
@@ -272,7 +299,7 @@ internal static class StoreCheck
 
             Console.WriteLine($"PASS delegate: {delegateRun}");
             Console.WriteLine($"PASS delegate: {reflectedDelegateRun}");
-            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, a job declared with [QuartzJob] on a configured schedule and two delegate jobs, one bound at compile time and one by reflection, included.");
+            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, jobs declared with [CronTrigger] and [SimpleTrigger] on configured schedules and two delegate jobs, one bound at compile time and one by reflection, included.");
             return null;
         }
         catch (Exception e)
@@ -392,6 +419,31 @@ internal static class StoreCheck
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             declaredFired.TrySetResult();
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// The configuration key <see cref="DeclaredIntervalCanaryJob" />'s interval is read from.
+    /// </summary>
+    private const string DeclaredIntervalKey = "Canary:DeclaredInterval";
+
+    /// <summary>
+    /// What <see cref="DeclaredIntervalKey" /> is set to, which the attribute's own day is not.
+    /// </summary>
+    private static readonly TimeSpan DeclaredInterval = TimeSpan.FromMinutes(7);
+
+    /// <summary>
+    /// A job declared on an interval. A simple trigger with no start time fires as the scheduler starts,
+    /// so the firing says the generated registration ran; the interval read back says it read the key.
+    /// </summary>
+    [QuartzJob(Name = "declared-interval", Group = "store")]
+    [SimpleTrigger("1.00:00:00", ConfigurationKey = DeclaredIntervalKey)]
+    public sealed class DeclaredIntervalCanaryJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            declaredIntervalFired.TrySetResult();
             return default;
         }
     }

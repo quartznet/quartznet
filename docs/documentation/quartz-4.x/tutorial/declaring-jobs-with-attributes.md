@@ -4,9 +4,9 @@ title: 'Declaring Jobs with Attributes'
 
 <ApplicableVersion version="4.2" />
 
-`[QuartzJob]` and `[CronTrigger]` declare a job and its schedule on the job class. The source generator
-inside `Quartz.nupkg` writes the registration: the same `AddJob<T>` and `AddTrigger<T>` calls you would
-have written, in a file you can open and read.
+`[QuartzJob]` declares a job on its class; `[CronTrigger]` and `[SimpleTrigger]` (4.3) declare its
+schedules. The source generator inside `Quartz.nupkg` writes the registration: the same `AddJob<T>` and
+`AddTrigger<T>` calls you would have written, in a file you can open and read.
 
 Nothing is read at run time: no scanning, no `Type.GetType`, no reflection. The compiler reads the
 attributes and the scheduler gets ordinary C#, so a declared job is as trimmable and native-AOT clean as a
@@ -124,7 +124,7 @@ To read the file your own build produced, set
 | `RequestRecovery` | `false` | whether a firing interrupted by a hard shutdown is re-fired on recovery |
 | `Scheduler` | every scheduler | the one scheduler this job belongs to — see [One scheduler out of several](#one-scheduler-out-of-several) |
 
-`Durable` is forced on for a job with no `[CronTrigger]`, because a non-durable job with no trigger is
+`Durable` is forced on for a job with no schedule, because a non-durable job with no trigger is
 deleted as soon as it is stored. Give such a job its trigger later, from code or a scheduling file.
 
 ## What `[CronTrigger]` says
@@ -145,11 +145,52 @@ Write one per schedule; a job with three gets three triggers.
 
 The first schedule is named after the job, as a single hand-written trigger would be. Later ones count
 up: `cleanup`, `cleanup-2`, `cleanup-3`. A `Name` of its own overrides one without renumbering the rest.
+`[CronTrigger]` and `[SimpleTrigger]` count together, in the order they are written.
+
+## What `[SimpleTrigger]` says
+
+`[SimpleTrigger]` (4.3) is a fixed interval: a [simple trigger](simpletriggers.md) with no start time.
+Write one per schedule, beside any `[CronTrigger]`:
+
+<!-- snippet: sample_declared_interval_job -->
+```csharp
+// Fires as the scheduler starts, then every ten minutes. Jobs:Inbox:Interval, when it is set, replaces
+// the ten minutes; the warm-up polls four times, five seconds apart, and stops.
+[QuartzJob(Name = "poll-inbox")]
+[SimpleTrigger("00:10:00", ConfigurationKey = "Jobs:Inbox:Interval")]
+[SimpleTrigger("00:00:05", Name = "poll-inbox-warm-up", RepeatCount = 3)]
+public sealed class PollInboxJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+}
+```
+<!-- endSnippet -->
+
+| Property | Default | What it sets |
+|---|---|---|
+| the constructor argument | — | the interval, as an invariant `TimeSpan` string: `"00:10:00"` is ten minutes, `"1.00:00:00"` a day |
+| `RepeatCount` | `-1`, forever | how many times it repeats after the first firing |
+| `Name` | the job's name, then `-2`, `-3` … | the trigger key's name |
+| `Group` | the job's group | the trigger key's group |
+| `MisfireInstruction` | `SmartPolicy` | a `SimpleTriggerMisfireInstruction`: what the trigger does about a firing it missed |
+| `Priority` | `5` | who wins when two triggers want the same moment and one worker is free |
+| `Description` | none | the description carried on the trigger |
+| `ExecutionGroup` | none | the [execution group](execution-groups.md) the firing counts against |
+| `ConfigurationKey` | none | a configuration key whose value replaces the interval — see [A schedule from configuration](#a-schedule-from-configuration) |
+
+* **It fires as the scheduler starts.** Like an `AddTrigger<T>` without `StartAt`, the trigger starts
+  when the scheduler is built. `RepeatCount = 0` is that one firing.
+* The interval is parsed at build time and written into the registration as ticks, so nothing parses it
+  at run time. One that is not a positive `TimeSpan`, and a `RepeatCount` below `-1`, are
+  [`QZ0005`](compile-time-checks.md#qz0005-invalidsimpletriggerschedule).
 
 ## A schedule from configuration
 
-`ConfigurationKey` (4.3) reads the expression from the container's `IConfiguration` as the scheduler is
-built. The constructor's expression is the fallback:
+`ConfigurationKey` (4.3) reads the expression, or on `[SimpleTrigger]` the interval, from the container's
+`IConfiguration` as the scheduler is built. The constructor's value is the fallback:
 
 <!-- snippet: sample_declared_job_configuration_key -->
 ```csharp
@@ -180,12 +221,15 @@ public sealed class DailyReportJob : IJob
 | Key | Schedule |
 |---|---|
 | set | the configured value |
-| not set, or no `IConfiguration` registered | the attribute's expression |
+| not set, or no `IConfiguration` registered | the attribute's expression or interval |
 | set to a value the parser refuses, empty included | none: building the scheduler throws `FormatException`, so the host does not start |
 
-* The attribute's expression is still required and still checked by `QZ0001`.
+* A configured interval is an invariant `TimeSpan` string, as the attribute's is: `"00:05:00"`. One that
+  does not parse, or is not positive, throws a `FormatException` naming the key.
+* The attribute's own value is still required and still checked, by `QZ0001` or `QZ0005`.
 * A configured value is checked only at run time, when the scheduler is built.
-* Only the expression comes from configuration; `Name`, `TimeZone` and the rest stay the attribute's.
+* Only the expression or interval comes from configuration; `Name`, `TimeZone`, `RepeatCount` and the
+  rest stay the attribute's.
 * The generated registration reads it through `(services, trigger) => …`, the same lookup a
   hand-written one makes. Nothing is reflected, so it stays trimming- and AOT-safe.
 * An assembly that does not reference `Microsoft.Extensions.Configuration.Abstractions` cannot read the
@@ -242,6 +286,10 @@ public sealed class CleanupJob : IJob { /* … */ }
 * `H` is accepted, because the schedule is built with `WithCronSchedule`, which resolves `H` against the
   trigger's key.
 
+`[SimpleTrigger]`'s interval and `RepeatCount` are checked the same way, by
+[`QZ0005`](compile-time-checks.md#qz0005-invalidsimpletriggerschedule), and a schedule it reports is not
+generated either.
+
 [Compile-Time Checks](compile-time-checks.md) has the rest of what the analyzer checks.
 
 ## What the generator reports
@@ -268,8 +316,9 @@ naming different `Scheduler`s is two jobs, not a clash.
 
 ### QZ1003 CronTriggerWithoutQuartzJob
 
-**Reports** `[CronTrigger]` on a class with no `[QuartzJob]`. The schedule is read as part of the job
-`[QuartzJob]` declares, so on its own it would silently register nothing.
+**Reports** `[CronTrigger]` or `[SimpleTrigger]` on a class with no `[QuartzJob]`, once per class. The
+schedule is read as part of the job `[QuartzJob]` declares, so on its own it would silently register
+nothing.
 
 **Fix** by adding `[QuartzJob]` to the class.
 
@@ -306,10 +355,10 @@ An assembly no `InternalsVisibleTo` names sees no other registration and keeps
 
 ### QZ1005 ConfigurationKeyWithoutConfiguration
 
-**Reports** a `[CronTrigger]` with a `ConfigurationKey` in an assembly that does not reference
-`Microsoft.Extensions.Configuration.Abstractions`. The generated registration reads the key through
-`IConfiguration`, so without the type the key could never be read, and the schedule would silently be the
-attribute's.
+**Reports** a `[CronTrigger]` or `[SimpleTrigger]` with a `ConfigurationKey` in an assembly that does
+not reference `Microsoft.Extensions.Configuration.Abstractions`. The generated registration reads the key
+through `IConfiguration`, so without the type the key could never be read, and the schedule would
+silently be the attribute's.
 
 **Fix** by referencing the package (the `Quartz` package brings it, unless its assets are excluded), or by
 removing `ConfigurationKey`.
@@ -320,10 +369,10 @@ Write these as registrations beside `AddDeclaredJobs()`:
 
 * **A start or end time, a calendar, job data, a retry policy, a preferred node.** Use `AddTrigger<T>`.
   To give a declared job more triggers, use `ForJob` with the key the attribute declared.
-* **A schedule that is not cron.** There is no `[SimpleTrigger]` or attribute for another trigger
-  family: cron is the only schedule an attribute can carry without becoming a builder.
-* **Anything but the expression from configuration.** `ConfigurationKey` replaces the expression only.
-  Put a whole schedule a deployment changes in
+* **A calendar-interval, daily-time-interval or recurrence schedule.** Cron and a fixed interval are
+  the schedules an attribute can carry without becoming a builder.
+* **Anything but the expression or interval from configuration.** `ConfigurationKey` replaces that
+  alone. Put a whole schedule a deployment changes in
   [a scheduling file or the `Quartz:Schedule` section](../configuration/json.md).
 * **Jobs from another assembly.** `AddDeclaredJobs()` is generated per assembly, registers that
   assembly's jobs, and is `internal`. Without `InternalsVisibleTo`, an application cannot see a
@@ -333,8 +382,9 @@ Write these as registrations beside `AddDeclaredJobs()`:
 
 ## Related
 
-* [Compile-Time Checks](compile-time-checks.md) — the four diagnostics the analyzer reports, `QZ0001`
-  among them
+* [Compile-Time Checks](compile-time-checks.md) — the five diagnostics the analyzer reports, `QZ0001`
+  and `QZ0005` among them
 * [Cron Triggers](crontriggers.md) and [Cron Expressions](../cron-expressions.md) — what the expression
   on `[CronTrigger]` may say
+* [Simple Triggers](simpletriggers.md) — the trigger `[SimpleTrigger]` declares
 * [Using Quartz](using-quartz.md) — the registration calls the generated file is written in terms of

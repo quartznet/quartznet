@@ -20,7 +20,6 @@
 #endregion
 
 using System.Collections.Immutable;
-using System.Globalization;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -63,7 +62,8 @@ public sealed class JobTimeoutLiteralAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        AttributeArgumentSyntax? argument = FindTimeoutArgument(attribute);
+        // The attribute's single argument. JobTimeoutAttribute has no settable property to be a named one.
+        AttributeArgumentSyntax? argument = AttributeLiterals.FindPositionalArgument(attribute);
         if (argument is null)
         {
             return;
@@ -88,7 +88,7 @@ public sealed class JobTimeoutLiteralAnalyzer : DiagnosticAnalyzer
     /// </summary>
     private static string? Validate(string timeout)
     {
-        if (!TimeSpan.TryParse(timeout, CultureInfo.InvariantCulture, out TimeSpan parsed))
+        if (!AttributeLiterals.TryParseTimeSpan(timeout, out TimeSpan parsed))
         {
             return $"'{timeout}' is not a TimeSpan. Spell the job's timeout the way TimeSpan does, invariantly: \"00:05:00\" for five minutes, \"1.00:00:00\" for a day.";
         }
@@ -96,28 +96,6 @@ public sealed class JobTimeoutLiteralAnalyzer : DiagnosticAnalyzer
         if (parsed < TimeSpan.Zero)
         {
             return $"A job's timeout cannot be negative, and '{timeout}' is. Use \"00:00:00\" to say the job has no timeout.";
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The attribute's single positional argument. A named one is a property initialiser, and
-    /// <c>JobTimeoutAttribute</c> has no settable property to be one of.
-    /// </summary>
-    private static AttributeArgumentSyntax? FindTimeoutArgument(AttributeSyntax attribute)
-    {
-        if (attribute.ArgumentList is null)
-        {
-            return null;
-        }
-
-        foreach (AttributeArgumentSyntax argument in attribute.ArgumentList.Arguments)
-        {
-            if (argument.NameEquals is null)
-            {
-                return argument;
-            }
         }
 
         return null;

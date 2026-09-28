@@ -324,7 +324,7 @@ ITrigger trigger = TriggerBuilder.Create<TenantReportJob>()
 
 | Trigger built by | `[ExecutionGroup]` |
 |---|---|
-| `TriggerBuilder.Create<TJob>()`, `q.AddTrigger<TJob>`, `q.ScheduleJob<TJob>`, `[CronTrigger]` | applied; placeholders read the trigger's `JobDataMap` |
+| `TriggerBuilder.Create<TJob>()`, `q.AddTrigger<TJob>`, `q.ScheduleJob<TJob>`, `[CronTrigger]`, `[SimpleTrigger]` | applied; placeholders read the trigger's `JobDataMap` |
 | `ScheduleJob<TJob, TInput>(input, …)` | applied when it has no placeholders; with placeholders, the call throws `FormatException` unless `OneOffJobOptions.ExecutionGroup` is set |
 | `TriggerBuilder.Create()`, for `IJob` | not read |
 
