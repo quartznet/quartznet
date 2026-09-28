@@ -60,26 +60,15 @@ internal static class Throw
     }
 
 
+    // A thrower the cron parser also needs forwards to CronThrow, which the analyzer links on its own.
     [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void ArgumentOutOfRangeException(string? paramName = null)
-    {
-        throw new ArgumentOutOfRangeException(paramName);
-    }
+    internal static void ArgumentOutOfRangeException(string? paramName = null) => CronThrow.ArgumentOutOfRangeException(paramName);
 
     [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void ArgumentOutOfRangeException(string paramName, string message)
-    {
-        throw new ArgumentOutOfRangeException(paramName, message);
-    }
+    internal static void ArgumentOutOfRangeException(string paramName, string message) => CronThrow.ArgumentOutOfRangeException(paramName, message);
 
     [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void NotSupportedException(string? message = null)
-    {
-        throw new NotSupportedException(message);
-    }
+    internal static void NotSupportedException(string? message = null) => CronThrow.NotSupportedException(message);
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -103,11 +92,7 @@ internal static class Throw
     }
 
     [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void FormatException(string message, Exception? innerException = null)
-    {
-        throw new FormatException(message, innerException);
-    }
+    internal static void FormatException(string message, Exception? innerException = null) => CronThrow.FormatException(message, innerException);
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
