@@ -186,6 +186,8 @@
     "Schema creation under table prefix '{TablePrefix}' failed on attempt {Attempt} of {Attempts} and the schema does not validate yet, retrying"
 3042  Warning  AdoJobStoreLog.LockHandlerShutdownFailed
     "Lock handler {LockHandlerType} failed to shut down, so whatever it opened is still open."
+3049  Warning  AdoJobStoreLog.FireBatchRolledBack
+    "Fire of trigger {TriggerKey} failed; the batch of {BatchSize} trigger(s) is rolled back and fired again without it, {Remaining} trigger(s) left"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed
