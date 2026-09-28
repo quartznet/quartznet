@@ -119,6 +119,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-4.x/packages/opentelemetry-integration",
           "/documentation/quartz-4.x/packages/redis",
           "/documentation/quartz-4.x/packages/timezoneconverter-integration",
+          "/documentation/quartz-4.x/packages/weasel",
         ],
       },
       "/documentation/quartz-4.x/packages/quartz-3rd-party-plugins",

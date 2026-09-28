@@ -107,9 +107,9 @@ builder.Services.AddQuartz(q =>
             store.UsePostgres(options.PostgresConnectionString!);
             store.UseSystemTextJsonSerializer();
 
-            // Development convenience. A production account is usually right not to hold DDL rights;
-            // database/migrations/ is what moves a real schema forward.
-            store.ProvisionSchema();
+            // Weasel creates and migrates Quartz's tables with Wolverine's: at startup, and from
+            // db-apply and resources setup. Quartz.Weasel.PostgreSQL; ProvisionSchema() without it.
+            store.UseWeaselForPostgres();
 
             // Part 6 throws without this, rather than silently scheduling outside the caller's
             // transaction.
@@ -121,6 +121,11 @@ builder.Services.AddQuartz(q =>
     // only restate the default.
 });
 ```
+
+`UseWeaselForPostgres()` hands Quartz's tables to [Weasel](../packages/weasel.md), the tool Wolverine migrates
+its own tables with, so `db-apply`, `db-assert` and `resources setup` cover both. It needs the
+`Quartz.Weasel.PostgreSQL` package. Without it, use `ProvisionSchema()` and the scripts under
+`database/migrations/`.
 
 ## Wolverine's own schedules
 
@@ -582,8 +587,9 @@ the trigger then waits for the next sweep.
 
 ## What this recipe does not do
 
-* **It is not a package.** Install `Quartz` and `WolverineFx`. Nothing here is covered by Quartz.NET's API
-  compatibility promises; prefer a first-party JasperFx integration if one ships.
+* **It is not a package.** Install `Quartz` and `WolverineFx`, and `Quartz.Weasel.PostgreSQL` for the schema.
+  The wiring here is not covered by Quartz.NET's API compatibility promises; prefer a first-party JasperFx
+  integration if one ships.
 * **It does not put Quartz under Wolverine's leader election.** A persistent store with `UseClustering()`
   owns triggers; the agent in [Letting Wolverine start the scheduler](#letting-wolverine-start-the-scheduler)
   only decides which node *runs a scheduler*.
