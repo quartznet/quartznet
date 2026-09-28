@@ -50,6 +50,7 @@ public class LogCallSiteTest
         "src/Quartz.Weasel",
         "src/Quartz.Weasel.PostgreSQL",
         "src/Quartz.Weasel.SQLite",
+        "src/Quartz.Weasel.SqlServer",
     ];
 
     /// <summary>

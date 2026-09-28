@@ -16,8 +16,10 @@ using System.Text;
 /// (<c>&lt;table&gt;_pkey</c>, <c>&lt;table&gt;_&lt;columns&gt;_fkey</c>, truncated to 63 bytes), so the
 /// model says those names. SQLite reports the columns in lower case to Weasel and has no names for the
 /// script's unnamed foreign keys, which Weasel reads back as <c>fk_&lt;table&gt;_&lt;referenced&gt;_&lt;n&gt;</c>.
-/// The names that depend on the table prefix are computed at run time by the naming class beside the
-/// generated file, which is hand-written because it is the one part that is a rule rather than data.
+/// SQL Server keeps the script's upper-case names and its <c>PK_</c> / <c>FK_</c> constraint names, and
+/// reads a column's direction back per index column. The names that depend on the table prefix are
+/// computed at run time by the naming class beside the generated file, which is hand-written because it
+/// is the one part that is a rule rather than data.
 /// </para>
 /// <para>
 /// What is rendered: every table in <see cref="SchemaTables" /> with its columns, primary key, foreign
@@ -33,8 +35,33 @@ partial class Build
     static readonly (string Dialect, string Project)[] WeaselModels =
     [
         ("postgres", "Quartz.Weasel.PostgreSQL"),
+        ("sqlServer", "Quartz.Weasel.SqlServer"),
         ("sqlite", "Quartz.Weasel.SQLite"),
     ];
+
+    /// <summary>
+    /// The foreign keys a dialect's fresh-install script does not create although the model has them,
+    /// which that dialect's Weasel model therefore leaves out.
+    /// </summary>
+    /// <remarks>
+    /// <c>tables_sqlServer.sql</c> has never created <c>FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS</c> — nor did
+    /// 3.x's — while <c>create_sqlServer.sql</c> does. Modelled, every SQL Server database a script
+    /// created would read as changed, and the first apply would add a checked foreign key to a table
+    /// that may hold rows it rejects. Left out, both read as unchanged: the tables are add-only, so the
+    /// key a provisioned schema carries is kept. Quartz deletes blob rows itself, so nothing relies on it.
+    /// </remarks>
+    static readonly HashSet<(string Dialect, string Table)> WeaselForeignKeysLeftOut =
+    [
+        ("sqlServer", "BLOB_TRIGGERS"),
+    ];
+
+    static string WeaselTablesNamespace(string dialect) => dialect switch
+    {
+        "postgres" => "Weasel.Postgresql.Tables",
+        "sqlServer" => "Weasel.SqlServer.Tables",
+        "sqlite" => "Weasel.Sqlite.Tables",
+        _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "no Weasel package for this dialect"),
+    };
 
     /// <summary>Every generated model, as a path under <c>src/</c> and its content.</summary>
     static List<(string Path, string Content)> BuildWeaselModels() =>
@@ -61,7 +88,7 @@ partial class Build
             #nullable enable
 
             using Weasel.Core;
-            using Weasel.{{(dialect == "postgres" ? "Postgresql" : "Sqlite")}}.Tables;
+            using {{WeaselTablesNamespace(dialect)}};
 
             namespace {{project}};
 
@@ -95,7 +122,7 @@ partial class Build
             foreach (SchemaColumn column in table.Columns)
             {
                 WeaselColumn parsed = ParseWeaselColumn(dialect, column.Definition[dialect]);
-                StringBuilder line = new($"        {variable}.AddColumn(\"{column.Name.ToLowerInvariant()}\", \"{parsed.Type}\")");
+                StringBuilder line = new($"        {variable}.AddColumn(\"{WeaselColumnName(dialect, column.Name)}\", \"{parsed.Type}\")");
 
                 if (parsed.NotNull)
                 {
@@ -117,7 +144,11 @@ partial class Build
 
             o.AppendLine($"        naming.PrimaryKey({variable});");
 
-            if (table.ForeignKey is { } foreignKey)
+            if (table.ForeignKey is not null && WeaselForeignKeysLeftOut.Contains((dialect, table.Name)))
+            {
+                o.AppendLine($"        // No foreign key: tables_{dialect}.sql creates none on this table. See WeaselForeignKeysLeftOut.");
+            }
+            else if (table.ForeignKey is { } foreignKey)
             {
                 bool cascade = foreignKey.Cascade && dialect is "sqlServer" or "postgres" or "sqlite";
                 o.AppendLine(
@@ -173,9 +204,13 @@ partial class Build
     /// Splits a column definition from the model into its type, its nullability and its default.
     /// </summary>
     /// <remarks>
-    /// The PostgreSQL and SQLite definitions are all <c>TYPE [NOT NULL | NULL] [DEFAULT value]</c>, with
-    /// no space inside a type. PostgreSQL types are lower-cased because that is how Weasel writes and
-    /// folds them; SQLite keeps the declared text, which is what its catalog reports back.
+    /// The PostgreSQL, SQL Server and SQLite definitions are all
+    /// <c>TYPE [NOT NULL | NULL] [DEFAULT value]</c>, with no space inside a type. PostgreSQL types are
+    /// lower-cased because that is how Weasel writes and folds them; SQLite keeps the declared text, which
+    /// is what its catalog reports back; SQL Server's are already written in the catalog's spelling
+    /// (<c>nvarchar(120)</c>, <c>varbinary(max)</c>, <c>numeric(13,4)</c>). Weasel compares a SQL Server
+    /// type by its name and, for a character type, its length, so a <c>numeric</c> precision is not
+    /// compared.
     /// </remarks>
     static WeaselColumn ParseWeaselColumn(string dialect, string definition)
     {
@@ -207,24 +242,42 @@ partial class Build
             : new WeaselColumn(type, notNull, defaultValue);
     }
 
+    /// <summary>A column as Weasel reads it back: lower case on PostgreSQL and SQLite, the script's case on SQL Server.</summary>
+    static string WeaselColumnName(string dialect, string column) =>
+        dialect == "sqlServer" ? column : column.ToLowerInvariant();
+
     /// <summary>A key column as the dialect's catalog spells it in a foreign key.</summary>
     static string WeaselKeyColumn(string dialect, string column) =>
         dialect == "postgres" ? column.ToLowerInvariant() : column;
 
     /// <summary>
     /// An index's columns as the argument list of the naming class's <c>Index</c>: an array of column
-    /// names, or on SQLite the column text itself when a column carries a direction.
+    /// names, with the descending ones named again on SQL Server, or on SQLite the column text itself
+    /// when a column carries a direction.
     /// </summary>
     /// <remarks>
     /// PostgreSQL's <c>IndexDefinition</c> has one sort order for the whole index, so a descending column
     /// is written as the column text <c>priority DESC</c>, which Weasel emits as is and which reads back
     /// the same; <c>ASC</c> is the default and the catalog does not report it. SQLite's has no per-column
     /// direction either, and takes the whole list as an expression instead, in the tight form the script
-    /// writes it.
+    /// writes it. SQL Server's reads each column's direction back into <c>DescendingColumns</c>, so the
+    /// model names the descending columns there.
     /// </remarks>
     static string WeaselIndexColumns(string dialect, IndexDef index)
     {
         string[] columns = index.Columns.Split(',').Select(c => c.Trim()).ToArray();
+
+        if (dialect == "sqlServer")
+        {
+            string[][] parts = columns.Select(c => c.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToArray();
+            string[] descending = parts
+                .Where(p => p.Length > 1 && p[1].Equals("DESC", StringComparison.OrdinalIgnoreCase))
+                .Select(p => p[0])
+                .ToArray();
+
+            string names = StringArray(parts.Select(p => p[0]));
+            return descending.Length == 0 ? names : $"{names}, descending: {StringArray(descending)}";
+        }
 
         if (dialect == "postgres")
         {

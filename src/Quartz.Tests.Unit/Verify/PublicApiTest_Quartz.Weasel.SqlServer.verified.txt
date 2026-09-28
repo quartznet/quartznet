@@ -1,0 +1,16 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public sealed class SqlServerWeaselOptions
+    {
+        public const string DefaultLockResource = "quartz:migrate";
+        public SqlServerWeaselOptions() { }
+        public JasperFx.AutoCreate? AutoCreate { get; set; }
+        public string LockResource { get; set; }
+        public System.TimeSpan LockTimeout { get; set; }
+    }
+    public static class SqlServerWeaselStoreBuilderExtensions
+    {
+        public static Quartz.IPersistentStoreBuilder UseWeaselForSqlServer(this Quartz.IPersistentStoreBuilder store, System.Action<Quartz.SqlServerWeaselOptions>? configure = null) { }
+    }
+}

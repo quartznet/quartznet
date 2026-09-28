@@ -42,6 +42,7 @@ public class PublicApiTest
         typeof(global::Quartz.Weasel.QuartzWeaselRegistration).Assembly,
         typeof(global::Quartz.PostgresWeaselStoreBuilderExtensions).Assembly,
         typeof(global::Quartz.SqliteWeaselStoreBuilderExtensions).Assembly,
+        typeof(global::Quartz.SqlServerWeaselStoreBuilderExtensions).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()
