@@ -14,10 +14,11 @@ seconds.
 | start time | a `DateTimeOffset` |
 | end time (`EndTimeUtc`) | a `DateTimeOffset`; overrides the repeat count |
 | repeat count | zero, a positive integer, or `SimpleTriggerImpl.RepeatIndefinitely` (`-1`), which `RepeatForever()` sets |
-| repeat interval | `TimeSpan.Zero` or a positive `TimeSpan` |
+| repeat interval | a positive `TimeSpan`; `TimeSpan.Zero` only with a repeat count of zero |
 
-* A repeat interval of zero makes the repeat-count firings happen concurrently, or as close to it as the
-  scheduler can manage.
+* A trigger that repeats needs a positive interval: scheduling one with a zero interval throws
+  `SchedulerException` ("Repeat Interval cannot be zero."). To run several firings at once, schedule several
+  one-shot triggers.
 * Start and end times carry an offset, so they are unambiguous. Compute one from `DateTimeOffset.UtcNow`;
   in code that has a `TimeProvider` (a job, a test), read the clock from it, as
   `DateBuilder.Create(timeProvider)` does.
