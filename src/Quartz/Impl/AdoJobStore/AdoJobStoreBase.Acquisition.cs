@@ -236,6 +236,14 @@ internal abstract partial class AdoJobStoreBase
                         skipped += before - results.Count;
                     }
 
+                    // Rows the delegate read and refused for their execution group's limit, returned
+                    // flagged rather than dropped so that this round knows it read them. They stay
+                    // WAITING, first in the order, and hide what is due behind them from a read of the same
+                    // length exactly as a row of an executing job does (#3928) - so they are skipped rows,
+                    // and never read back.
+                    int atLimit = results.RemoveAll(static candidate => candidate.ExecutionGroupAtLimit);
+                    skipped += atLimit;
+
                     // One read for the whole round's candidates. The acquisition statement just named
                     // them; going back per candidate cost a round trip each before a single one was
                     // marked acquired (#3424).

@@ -1970,10 +1970,11 @@ public partial class StdAdoDelegate
                 rs.GetString(triggerNameOrdinal),
                 rs.GetString(triggerGroupOrdinal));
 
-            if (executionSlots is not null && !executionSlots.TryTake(executionGroup, triggerKey.Group))
-            {
-                continue; // skip this trigger, its group is at limit
-            }
+            // A row whose group has no slot left is returned flagged rather than dropped: the statement
+            // above already limited the rows to the count asked for, so a row dropped here would be one
+            // the store never learns it read, and could not read past (#3928). It counts toward the row
+            // cap above for the same reason - it is a row this read returned.
+            bool executionGroupAtLimit = executionSlots is not null && !executionSlots.TryTake(executionGroup, triggerKey.Group);
 
             nextTriggers.Add(new TriggerAcquireResult(
                 triggerKey,
@@ -1983,6 +1984,7 @@ public partial class StdAdoDelegate
                 ConcurrentExecutionDisallowed = nonConcurrentOrdinal < 0
                     ? null
                     : GetBooleanFromDbValue(rs.GetValue(nonConcurrentOrdinal)),
+                ExecutionGroupAtLimit = executionGroupAtLimit,
             });
         }
 
