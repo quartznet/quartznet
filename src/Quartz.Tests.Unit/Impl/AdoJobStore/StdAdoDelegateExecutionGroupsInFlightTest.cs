@@ -154,11 +154,12 @@ public class StdAdoDelegateExecutionGroupsInFlightTest
     }
 
     /// <summary>
-    /// The other half of the round trip: what the aggregate returned has to reach the filter that skips
-    /// candidates, or the count would be read and then ignored.
+    /// The other half of the round trip: what the aggregate returned has to reach the ledger that refuses
+    /// candidates, or the count would be read and then ignored. A refused candidate comes back flagged
+    /// rather than left out, so that the store knows it read the row and reads past it (#3928).
     /// </summary>
     [Test]
-    public async Task SelectTriggersToAcquire_SkipsACandidateWhoseGroupIsAtItsClusterCeiling()
+    public async Task SelectTriggersToAcquire_FlagsACandidateWhoseGroupIsAtItsClusterCeiling()
     {
         InstallAcquisitionRows([("t1", "nightly", "acme"), ("t2", "nightly", "batch")]);
 
@@ -174,8 +175,12 @@ public class StdAdoDelegateExecutionGroupsInFlightTest
             ClusterInFlight = [new ExecutionGroupInFlight("acme", "nightly", 1)],
         });
 
-        results.Should().ContainSingle("acme's one cluster-wide slot is already held, so only the other candidate may be taken")
-            .Which.ExecutionGroup.Should().Be("batch");
+        results.Should().HaveCount(2, "every row the read returned is answered, the refused one included");
+        results[0].ExecutionGroup.Should().Be("acme");
+        results[0].ExecutionGroupAtLimit.Should().BeTrue(
+            "acme's one cluster-wide slot is already held, so its candidate is refused - and said to be, rather than dropped");
+        results[1].ExecutionGroup.Should().Be("batch");
+        results[1].ExecutionGroupAtLimit.Should().BeFalse("batch has no limit, so its candidate may be taken");
     }
 
     /// <summary>
