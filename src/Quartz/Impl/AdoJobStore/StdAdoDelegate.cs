@@ -183,6 +183,38 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// </remarks>
     protected virtual bool CanUseProperties => useProperties;
 
+    /// <summary>
+    /// How many bytes of UTF-8 <paramref name="column" /> holds in this dialect's schema, where it may
+    /// count bytes rather than characters; <see langword="null" /> where it holds its length in
+    /// characters whatever they encode to.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Asked only for the text columns the store cuts to fit rather than refusing a long value for:
+    /// <c>PAUSE_REASON</c>, <c>PAUSED_BY</c>, <c>PROGRESS_MESSAGE</c> and <c>ERROR_MESSAGE</c>.
+    /// </para>
+    /// <para>
+    /// The dialect's own knowledge rather than something read from the database. The store's startup
+    /// check probes names and never reads the catalog, and can be switched off. So a dialect whose
+    /// columns can count bytes answers as if they do: Oracle's <c>VARCHAR2</c> under the default
+    /// <c>BYTE</c> semantics, and Firebird's <c>VARCHAR</c> in a database created without a character
+    /// set. Where the column counts characters after all, a text of multibyte characters keeps fewer of
+    /// them than it could, and never more than fit.
+    /// </para>
+    /// </remarks>
+    /// <param name="column">The column's name, as <see cref="AdoConstants" /> spells it.</param>
+    internal virtual int? TextColumnByteWidth(string column) => null;
+
+    /// <summary>
+    /// Cuts <paramref name="value" /> to what <paramref name="column" /> holds on this dialect:
+    /// <paramref name="maxLength" /> characters and, where the column counts bytes, its
+    /// <see cref="TextColumnByteWidth">width in bytes</see>, never inside a character.
+    /// </summary>
+    internal string? CutToColumn(string? value, string column, int maxLength)
+    {
+        return TextCut.ToFit(value, maxLength, TextColumnByteWidth(column) ?? int.MaxValue);
+    }
+
     //---------------------------------------------------------------------------
     // startup / recovery
     //---------------------------------------------------------------------------

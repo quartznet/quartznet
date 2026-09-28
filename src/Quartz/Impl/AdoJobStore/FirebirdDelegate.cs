@@ -12,4 +12,17 @@ public class FirebirdDelegate : StdAdoDelegate
     /// Firebird limits rows with a trailing <c>ROWS n</c>.
     /// </summary>
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.AtStatementEnd("ROWS", count);
+
+    /// <summary>
+    /// The widths <c>create_firebird.sql</c> declares. A <c>VARCHAR</c> counts bytes in a database
+    /// created without a default character set, and the store cannot tell which kind it is talking to.
+    /// </summary>
+    internal override int? TextColumnByteWidth(string column) => column switch
+    {
+        AdoConstants.ColumnPauseReason => 1000,
+        AdoConstants.ColumnPausedBy => 800,
+        AdoConstants.ColumnProgressMessage => 250,
+        AdoConstants.ColumnErrorMessage => 1000,
+        _ => null,
+    };
 }

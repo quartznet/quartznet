@@ -36,6 +36,20 @@ public class OracleDelegate : StdAdoDelegate
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.InEnclosingSelect("rownum", count);
 
     /// <summary>
+    /// The widths <c>create_oracle.sql</c> declares, which <c>VARCHAR2</c> counts in bytes under the
+    /// default <c>BYTE</c> length semantics. Each is four times the column's length in characters, and
+    /// UTF-8 takes at most three bytes per UTF-16 code unit, so on this schema the byte cut never binds.
+    /// </summary>
+    internal override int? TextColumnByteWidth(string column) => column switch
+    {
+        AdoConstants.ColumnPauseReason => 1000,
+        AdoConstants.ColumnPausedBy => 800,
+        AdoConstants.ColumnProgressMessage => 1000,
+        AdoConstants.ColumnErrorMessage => 4000,
+        _ => null,
+    };
+
+    /// <summary>
     /// Gets the db presentation for boolean value. For Oracle we use true/false of "1"/"0".
     /// </summary>
     /// <param name="booleanValue">Value to map to database.</param>

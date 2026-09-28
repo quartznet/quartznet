@@ -27,6 +27,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Tests.Integration.TestHelpers;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
@@ -111,6 +112,45 @@ public abstract class ExecutionLogRoundTripTest
         ExecutionHistoryEntry listed = page.Items.Should().ContainSingle().Subject;
         listed.EntryId.Should().Be(entryId, "the listing hands out the key the single read finds the row by");
         listed.Log.Should().BeNull("EXECUTION_LOG is not in the listing's SELECT, so a page never carries a log");
+    }
+
+    /// <summary>
+    /// How many bytes of UTF-8 <c>ERROR_MESSAGE</c> holds in this database, where it counts bytes rather
+    /// than characters; <see langword="null" /> where it counts characters. Stated from the dialect's
+    /// schema script rather than asked of the store.
+    /// </summary>
+    protected virtual int? ErrorMessageBytes => null;
+
+    [TestCaseSource(typeof(MultibyteTexts), nameof(MultibyteTexts.Kinds))]
+    public async Task AMultibyteErrorMessageIsKeptToWhatItsColumnHolds(MultibyteText kind)
+    {
+        string message = MultibyteTexts.Of(kind, StdAdoDelegate.MaxErrorMessageLength);
+
+        using AdoExecutionHistoryStore store = await CreateStore();
+
+        string entryId = Guid.NewGuid().ToString("N");
+        await store.AddExecution(new ExecutionHistoryEntry(
+            SchedulerName: schedulerName,
+            SchedulerInstanceId: "node-a",
+            JobGroup: "capture",
+            JobName: "failing",
+            TriggerGroup: "capture",
+            TriggerName: "once",
+            FiredAtUtc: DateTimeOffset.UtcNow,
+            Duration: TimeSpan.FromSeconds(1),
+            Succeeded: false,
+            ExceptionMessage: message)
+        {
+            EntryId = entryId
+        });
+
+        ExecutionHistoryEntry read = await store.GetExecution(schedulerName, entryId);
+
+        read.Should().NotBeNull(
+            "the history store drops a row whose insert fails, so a missing row is the database refusing the message");
+        read.ExceptionMessage.Should().Be(
+            MultibyteTexts.Kept(message, StdAdoDelegate.MaxErrorMessageLength, ErrorMessageBytes),
+            "a message is cut to what the column holds, in the unit it counts, and never inside a character");
     }
 
     private static string CapturedLog()
@@ -210,6 +250,9 @@ public sealed class OracleExecutionLogRoundTripTest : ExecutionLogRoundTripTest
 
     protected override StdAdoDelegate CreateDriverDelegate() => new OracleDelegate();
 
+    /// <summary>The width <c>tables_oracle.sql</c> declares, which its <c>VARCHAR2</c> counts in bytes.</summary>
+    protected override int? ErrorMessageBytes => 4000;
+
     protected override ValueTask<string> PrepareDatabase() => new(ContainerConnectionString("ORACLE_CONNECTION_STRING"));
 }
 
@@ -221,6 +264,12 @@ public sealed class FirebirdExecutionLogRoundTripTest : ExecutionLogRoundTripTes
     protected override string DbProviderName => DataSourceOptions.Providers.Firebird;
 
     protected override StdAdoDelegate CreateDriverDelegate() => new FirebirdDelegate();
+
+    /// <summary>
+    /// The width <c>tables_firebird.sql</c> declares. The fixture's database has no default character set,
+    /// where a <c>VARCHAR</c> counts bytes.
+    /// </summary>
+    protected override int? ErrorMessageBytes => 1000;
 
     protected override ValueTask<string> PrepareDatabase() => new(ContainerConnectionString("FIREBIRD_CONNECTION_STRING"));
 }
