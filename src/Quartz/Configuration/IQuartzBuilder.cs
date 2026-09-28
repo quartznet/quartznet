@@ -180,12 +180,24 @@ public interface IQuartzBuilder
     /// <summary>
     /// Uses a specific job factory, which decides how job instances are produced.
     /// </summary>
+    /// <remarks>
+    /// Unless <typeparamref name="T" /> derives from <c>MicrosoftDependencyInjectionJobFactory</c>, the
+    /// factory builds jobs its own way, so the job types this scheduler is given with <c>AddJob</c> and
+    /// <c>ScheduleJob</c> are not registered with the container, and container validation does not check
+    /// their dependencies. The order of this call and those does not matter.
+    /// </remarks>
     IQuartzBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, IJobFactory;
 
     /// <summary>
     /// Uses a job factory the caller has already built.
     /// </summary>
+    /// <remarks>
+    /// The factory was built before the container, so it builds jobs its own way: the job types this
+    /// scheduler is given with <c>AddJob</c> and <c>ScheduleJob</c> are not registered with the container,
+    /// and container validation does not check their dependencies. The order of this call and those does
+    /// not matter.
+    /// </remarks>
     IQuartzBuilder UseJobFactory(IJobFactory jobFactory);
 
     /// <summary>

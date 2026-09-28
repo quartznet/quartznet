@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
+using Quartz.Extensibility;
+
 namespace Quartz.Configuration;
 
 /// <summary>
@@ -24,6 +26,12 @@ namespace Quartz.Configuration;
 /// documentation recommends for a job that must be constructed with something of its scheduler's. Read
 /// at registration time, each of those three would be read wrong.
 /// </para>
+/// <para>
+/// Whether <c>AddJob</c> registers the job type at all is settled late for the same reason. Only a
+/// scheduler whose job factory builds jobs from the container gets the registration, and
+/// <c>UseJobFactory</c> may be written after <c>AddJob</c> in the same callback, so the registration
+/// waits in <see cref="Request" /> until the scheduler's registration is complete.
+/// </para>
 /// </remarks>
 internal sealed class RegisteredJobTypes
 {
@@ -35,6 +43,12 @@ internal sealed class RegisteredJobTypes
     /// reaches every scheduler — and saying it twice is not two jobs.
     /// </summary>
     private readonly HashSet<(string SchedulerName, Type JobType)> registered = [];
+
+    /// <summary>
+    /// The registrations <c>AddJob</c> and <c>ScheduleJob</c> asked for, waiting for the job factory of
+    /// the scheduler they were asked for to be known.
+    /// </summary>
+    private readonly List<(string SchedulerName, ServiceDescriptor Registration)> requested = [];
 
     private RegisteredJobTypes(IServiceCollection services)
     {
@@ -53,13 +67,9 @@ internal sealed class RegisteredJobTypes
     /// </remarks>
     public static RegisteredJobTypes For(IServiceCollection services)
     {
-        foreach (ServiceDescriptor descriptor in services)
+        if (Find(services) is { } existing)
         {
-            if (descriptor.ServiceType == typeof(RegisteredJobTypes)
-                && descriptor.ImplementationInstance is RegisteredJobTypes existing)
-            {
-                return existing;
-            }
+            return existing;
         }
 
         RegisteredJobTypes registrations = new(services);
@@ -72,6 +82,24 @@ internal sealed class RegisteredJobTypes
     }
 
     /// <summary>
+    /// Returns the record belonging to a service collection, or <see langword="null"/> when nothing has
+    /// given it a job yet.
+    /// </summary>
+    public static RegisteredJobTypes? Find(IServiceCollection services)
+    {
+        foreach (ServiceDescriptor descriptor in services)
+        {
+            if (descriptor.ServiceType == typeof(RegisteredJobTypes)
+                && descriptor.ImplementationInstance is RegisteredJobTypes existing)
+            {
+                return existing;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Records that a scheduler was given a job of this type.
     /// </summary>
     /// <param name="schedulerName">
@@ -81,6 +109,60 @@ internal sealed class RegisteredJobTypes
     public void Add(string? schedulerName, Type jobType)
     {
         registered.Add((schedulerName ?? Options.DefaultName, jobType));
+    }
+
+    /// <summary>
+    /// Asks for a job type to be registered with the container for a scheduler, once that scheduler's job
+    /// factory is known.
+    /// </summary>
+    /// <param name="schedulerName">
+    /// The scheduler the job was added to, empty or <see langword="null"/> for the default one.
+    /// </param>
+    /// <param name="registration">
+    /// The registration to add, built where the job type's constructors are known to be kept.
+    /// </param>
+    public void Request(string? schedulerName, ServiceDescriptor registration)
+    {
+        requested.Add((schedulerName ?? Options.DefaultName, registration));
+    }
+
+    /// <summary>
+    /// Registers what a scheduler asked for, if its job factory builds jobs from the container, and
+    /// records the job types for <see cref="RegisteredJobConstructorValidator"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Called once the scheduler's registration is complete, which is when its job factory can be read:
+    /// Quartz registers its default factory last and first-wins, so nothing Quartz registers afterwards
+    /// replaces it. A factory of the application's own gets neither the registration nor the check. It
+    /// builds its jobs its own way, so the container never constructs them for this scheduler.
+    /// </para>
+    /// <para>
+    /// A registration is only ever withheld, never removed. The <c>TryAdd</c> keeps a registration the
+    /// application made itself, and a job type that a scheduler on a container-backed factory asked for
+    /// stays registered whatever another scheduler's factory is.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler, <see langword="null"/> or empty for the default one.</param>
+    public void RegisterRequested(string? schedulerName)
+    {
+        string name = schedulerName ?? Options.DefaultName;
+        object? key = string.IsNullOrEmpty(name) ? null : name;
+
+        // The registration the container resolves, which is the last one.
+        if (Last(typeof(IJobFactory), key) is { } jobFactory && JobFactoryDescriptor.BuildsJobsFromContainer(jobFactory))
+        {
+            foreach ((string requestedFor, ServiceDescriptor registration) in requested)
+            {
+                if (string.Equals(requestedFor, name, StringComparison.Ordinal))
+                {
+                    services.TryAdd(registration);
+                    registered.Add((name, registration.ServiceType));
+                }
+            }
+        }
+
+        requested.RemoveAll(request => string.Equals(request.SchedulerName, name, StringComparison.Ordinal));
     }
 
     /// <summary>

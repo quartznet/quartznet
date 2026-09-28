@@ -185,6 +185,16 @@ internal sealed class SchedulerNameRegistry
     }
 
     /// <summary>
+    /// Whether a scheduler's registration is complete in this collection: its <c>AddQuartz</c> call has
+    /// registered its parts, so what is added to it now is added to a scheduler whose parts are settled.
+    /// </summary>
+    /// <param name="schedulerName">The scheduler, <see langword="null"/> or empty for the default one.</param>
+    public bool IsRegistered(string? schedulerName)
+    {
+        return string.IsNullOrEmpty(schedulerName) ? HasDefaultScheduler : Find(schedulerName) is not null;
+    }
+
+    /// <summary>
     /// Returns the registered name matching <paramref name="name"/>, as it was spelled at its
     /// registration, or <see langword="null"/> when no scheduler was registered under it.
     /// </summary>

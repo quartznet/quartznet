@@ -199,10 +199,16 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return store;
     }
 
+    /// <remarks>
+    /// Registered as a <see cref="JobFactoryDescriptor" />, which carries <typeparamref name="T" />, because
+    /// the factory's type decides whether this scheduler's job types are registered with the container.
+    /// </remarks>
     public IQuartzBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, IJobFactory
     {
-        Register<IJobFactory, T>();
+        JobFactoryDescriptor.TryAdd(Services, schedulerKey, typeof(T), static (provider, key) =>
+            ActivatorUtilities.CreateInstance<T>(SchedulerScopedServiceProvider.For(provider, key)));
+
         return this;
     }
 

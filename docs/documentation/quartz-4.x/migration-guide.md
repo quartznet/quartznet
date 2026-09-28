@@ -172,6 +172,25 @@ it reports is advice. A `NoWarn` or `.editorconfig` entry for it can stay or go.
 * **`IListenerManager`'s `GetJobListeners()`, `GetTriggerListeners()` and `GetSchedulerListeners()`
   return one read-only list per registration change**, not a new array per call. Casting the result to an
   array, or writing to it through `IList<T>`, throws.
+* **A scheduler with a job factory of your own registers no job types with the container.** `AddJob` and
+  `ScheduleJob` registered each job type as a scoped service whatever the factory, so `ValidateOnBuild`
+  failed a job on dependencies only your factory supplies
+  ([#3930](https://github.com/quartznet/quartznet/issues/3930)). Now the job type is registered only when the
+  factory is `MicrosoftDependencyInjectionJobFactory` or derives from it. The order of `UseJobFactory` and
+  `AddJob` does not matter, and a registration of your own is kept. Delete a `RemoveAll` written to get past
+  validation:
+
+  ```diff
+    services.AddQuartz(q =>
+    {
+        q.UseJobFactory<MyJobFactory>();
+        q.ScheduleJob<MyJob>(t => t.StartNow());
+    });
+  - services.RemoveAll<MyJob>();
+  ```
+
+  If your factory resolves a job from the container with `GetRequiredService`, register that job type
+  yourself, for example `services.AddScoped<MyJob>()`.
 
 **Interface members are default interface members**, so an implementation written for 4.2 compiles and
 behaves as it did. Properties added to records are non-positional `init` properties, so constructors are
@@ -2284,7 +2303,9 @@ capture scoped dependencies.
 Not registered, and so still failing at fire time on a missing dependency:
 
 * a job type that is an interface or an abstract class;
-* a job named only in an XML or JSON schedule.
+* a job named only in an XML or JSON schedule;
+* since 4.3, a job of a scheduler whose job factory is your own, not derived from
+  `MicrosoftDependencyInjectionJobFactory`: your factory builds it.
 
 **A registered job may not take a scheduler's own parts by constructor:** `IScheduler`,
 `ISchedulerFactory`, `IJobStore`, `IThreadPool` or `IOptions<QuartzSchedulerOptions>`. Resolved from the
