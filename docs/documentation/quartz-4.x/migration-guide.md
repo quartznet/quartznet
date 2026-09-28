@@ -106,6 +106,7 @@ An application on 4.2 compiles on 4.3 unchanged. **The database schema changed**
 | `IQuartzApiClient.Backfill(schedulerName, triggerKey, from, until, options)` | `Quartz.Dashboard`. Default throws `NotSupportedException`, and the page disables *Backfill…* with that reason |
 | HTTP: `POST …/triggers/{triggerGroup}/{triggerName}/backfill` | See [Backfilling a trigger](packages/http-api.md#backfilling-a-trigger) |
 | `HttpScheduler`: `Backfill` | One request to the `backfill` route, audited once on the host |
+| `DelegatingScheduler`: explicit `IBackfillingScheduler.Backfill` | The interface is internal. A decorator over an `HttpScheduler` still backfills in one request; over anything else, it composes as before |
 
 `ScheduleTrigger`, `StoreTrigger` and the pause members are default interface members, so a scheduler or
 store written for 4.2 compiles and works. `DelegatingScheduler` and `DelegatingJobStore` declare them all.

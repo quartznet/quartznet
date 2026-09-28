@@ -3616,6 +3616,7 @@ namespace Quartz.Impl
     }
     public class DelegatingScheduler : Quartz.IScheduler, System.IAsyncDisposable
     {
+        // explicit interface implementation: Quartz.Impl.IBackfillingScheduler.Backfill(Quartz.TriggerKey, System.DateTimeOffset, System.DateTimeOffset, Quartz.BackfillOptions, System.Threading.CancellationToken)
         public DelegatingScheduler(Quartz.IScheduler scheduler) { }
         public virtual Quartz.SchedulerContext Context { get; }
         protected Quartz.IScheduler InnerScheduler { get; }
