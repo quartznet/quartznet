@@ -241,6 +241,30 @@ public class CronExpressionFastPathDifferentialTest
     }
 
     /// <summary>
+    /// A zone that has been asked about four other decades still takes the fast path in a fifth. The
+    /// offset tables are shared by every caller in the process, and the rest of the cron suite asks
+    /// about 2005 and 2010 in the machine's own zone before <see cref="FastPathAgreesWithSlowPath" />
+    /// measures it.
+    /// </summary>
+    [Test]
+    public void FastPathAnswersInAZoneAlreadyAskedAboutOtherDecades()
+    {
+        TimeZoneInfo zone = ZoneClockTest.CreatePrivateZone();
+        CronExpression cron = new CronExpression("0 0/5 * * * ?", zone);
+
+        foreach (int year in new[] { 2001, 2009, 2017, 2041 })
+        {
+            cron.GetNextValidTimeAfter(new DateTimeOffset(year, 6, 15, 12, 0, 0, TimeSpan.Zero)).Should().NotBeNull();
+        }
+
+        DateTimeOffset after = new DateTimeOffset(2033, 6, 15, 12, 0, 0, TimeSpan.Zero);
+
+        cron.TryGetTimeAfterFast(after, out DateTimeOffset fast).Should().BeTrue(
+            "which decades somebody else asked about first must not decide whether this one is answered fast");
+        fast.EqualsExact(cron.GetTimeAfterSlow(after)!.Value).Should().BeTrue();
+    }
+
+    /// <summary>
     /// Sub-second input must not move the answer: the search floors to the whole second before it
     /// starts, and the fast path has to floor it the same way the slow path does.
     /// </summary>
