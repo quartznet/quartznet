@@ -17,7 +17,7 @@ dotnet add package Quartz.Weasel.PostgreSQL
 builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 {
     store.UsePostgres(connectionString);
-    store.UseWeaselForPostgres(weasel => weasel.LockId = PostgresWeaselOptions.DefaultLockId);
+    store.UseWeaselForPostgres();
 }));
 ```
 <!-- endSnippet -->
@@ -26,6 +26,9 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 * Every apply takes a PostgreSQL advisory lock first, `0x5152545A` unless you set another.
 * To let a Marten store own the tables instead, add `QuartzPostgresFeatureSchema.ForScheduler(services)` to
   `opts.Storage` and leave `UseWeaselForPostgres()` out.
+
+[Weasel.Quartz.Postgres](https://github.com/Hawxy/Weasel.Quartz) was the first Weasel integration for
+Quartz.NET — thanks to Jaedyn for building it.
 
 ## Documentation
 

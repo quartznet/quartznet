@@ -176,7 +176,9 @@ builder.Services.ConfigureMarten((services, opts) =>
   migrator and lock (4004) apply; `PostgresWeaselOptions` does not.
 * `CompletelyRemoveAllAsync` leaves them alone. `Storage.ExtendedSchemaObjects` would drop them with
   `CASCADE`.
-* Register Marten before `AddQuartzHostedService()`, so its startup apply runs before the store validates.
+* `ApplyAllDatabaseChangesOnStartup()` is required, or `db-apply` / `resources setup` before the first start.
+  Without either, Marten creates nothing at startup and the store's schema validation fails on the missing
+  tables.
 * `ForScheduler` refuses a scheduler that also calls `UseWeaselForPostgres()`. Constructing
   `new QuartzPostgresFeatureSchema(prefix)` directly is not checked.
 * One Quartz feature per Marten store: Marten keeps one feature per type.
@@ -192,14 +194,23 @@ builder.Services.ConfigureMarten((services, opts) =>
 
 ## Moving off Weasel.Quartz.Postgres
 
-[Weasel.Quartz.Postgres](https://github.com/Hawxy/Weasel.Quartz), by Jaedyn, was the first Weasel
-integration for Quartz.NET. Its table and constraint names are PostgreSQL's defaults, as here, so switching
-renames and recreates nothing; the 4.x additions are applied like any 3.x upgrade.
+[Weasel.Quartz.Postgres](https://github.com/Hawxy/Weasel.Quartz) was the first Weasel integration for
+Quartz.NET — thanks to Jaedyn for building it. The Quartz.Weasel packages need Quartz 4.3; an application
+still on Quartz 3.x keeps Weasel.Quartz.Postgres until it upgrades.
+
+Its table and constraint names are PostgreSQL's defaults, as here, so switching renames nothing and rebuilds
+no table. The first apply is a 3.x-to-4.x upgrade: `idx_qrtz_t_nft_st` is dropped and recreated in its 4.x
+shape, the 4.x columns and tables are added, and any retired 3.x index names are dropped.
 
 1. Remove the `Weasel.Quartz.Postgres` package.
 2. Replace `QuartzSchema.Create(...)` with `UseWeaselForPostgres()` on the store.
 3. With Marten, replace `options.Storage.ExtendedSchemaObjects.AddRange(QuartzSchema.AllTables())` with the
    feature schema above.
+
+::: warning Every node in one deployment
+Remove Weasel.Quartz.Postgres from every node at once. Its tables are not add-only and it applies with
+`CreateOrUpdate`, so a node still running it drops the 4.x columns its model does not know.
+:::
 
 ## See also
 

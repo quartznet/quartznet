@@ -153,7 +153,7 @@ public static class PackageReadmeSamples
             builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
             {
                 store.UsePostgres(connectionString);
-                store.UseWeaselForPostgres(weasel => weasel.LockId = PostgresWeaselOptions.DefaultLockId);
+                store.UseWeaselForPostgres();
             }));
 
             #endregion
