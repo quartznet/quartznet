@@ -64,6 +64,12 @@ public sealed class TriggerFireFailureSqliteTest
 {
     private const string SchedulerName = "trigger-fire-failure";
     private const string Group = "fire-failure";
+
+    /// <summary>
+    /// <c>JobStoreSupport.MaxConsecutiveFireFailures</c> as it ships: the failures in a row after which a
+    /// trigger is stored <c>ERROR</c>.
+    /// </summary>
+    private const int DefaultMaxConsecutiveFireFailures = 5;
     private static readonly JobKey SerialJobKey = new JobKey("serial", Group);
     private static readonly JobKey OrdinaryJobKey = new JobKey("ordinary", Group);
     private static readonly JobKey BrokenJobKey = new JobKey("broken", Group);
@@ -288,6 +294,258 @@ public sealed class TriggerFireFailureSqliteTest
         (await TriggerState("cancelled")).Should().Be("ACQUIRED");
     }
 
+    /// <summary>
+    /// Driven as the scheduler thread drives it: one failure short of the limit leaves the trigger
+    /// <c>WAITING</c> for the next round, and the failure that reaches it stores the trigger <c>ERROR</c>,
+    /// so that its <c>[DisallowConcurrentExecution]</c> job-mate is first in the order (#3963).
+    /// </summary>
+    [Test]
+    public async Task TheFailureThatReachesTheLimitStoresTheTriggerError()
+    {
+        await StoreJobs();
+        await Schedule("poison", SerialJobKey, due);
+        await Schedule("sibling", SerialJobKey, due.AddMilliseconds(10));
+
+        FaultingSqliteDelegate.FailFireOf = "poison";
+
+        for (int failure = 1; failure < DefaultMaxConsecutiveFireFailures; failure++)
+        {
+            (await FireOnce("poison")).Exception.Should().NotBeNull();
+            (await TriggerState("poison")).Should().Be("WAITING", $"{failure} failure(s) in a row is short of the limit");
+        }
+
+        TriggerFiredResult last = await FireOnce("poison");
+
+        last.TriggerFiredBundle.Should().BeNull();
+        last.Exception.Should().NotBeNull("the result is the failed fire's, whatever the store did about it afterwards");
+        (await TriggerState("poison")).Should().Be("ERROR",
+            "the limit's failure stores the trigger ERROR, and the scheduler thread's release of the failed result leaves an ERROR row alone");
+        (await FiredRowCount("poison")).Should().Be(0, "the release still lets go of the reservation");
+
+        List<IOperableTrigger> next = await Acquire(maxCount: 2);
+        next.Select(x => x.Key.Name).Should().Equal(new[] { "sibling" }, "the job-mate the poison kept out of every batch is first now");
+    }
+
+    /// <summary>
+    /// The limit counts failures in a row: a fire that succeeds starts the count again.
+    /// </summary>
+    [Test]
+    public async Task AFireThatSucceedsStartsTheCountAgain()
+    {
+        await StoreJobs();
+        await ScheduleRepeating("flaky", OrdinaryJobKey, due);
+
+        FaultingSqliteDelegate.FailFireOf = "flaky";
+        await FailInARow("flaky", DefaultMaxConsecutiveFireFailures - 1);
+
+        FaultingSqliteDelegate.FailFireOf = null;
+        TriggerFiredResult success = await FireOnce("flaky");
+        success.TriggerFiredBundle.Should().NotBeNull();
+        await store.TriggeredJobComplete(success.TriggerFiredBundle.Trigger, success.TriggerFiredBundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        FaultingSqliteDelegate.FailFireOf = "flaky";
+        await FailInARow("flaky", DefaultMaxConsecutiveFireFailures - 1);
+        (await TriggerState("flaky")).Should().Be("WAITING",
+            "the failures either side of the success are one short of the limit each, and the success started the count again");
+
+        await FireOnce("flaky");
+        (await TriggerState("flaky")).Should().Be("ERROR", "the count went on from where the success left it");
+    }
+
+    /// <summary>
+    /// A fire another node committed since the last failure starts the count again as well. The node
+    /// counting never saw it; the trigger's previous fire time, which only a committed fire moves, says so.
+    /// </summary>
+    [Test]
+    public async Task AFireCommittedElsewhereStartsTheCountAgain()
+    {
+        await StoreJobs();
+        await ScheduleRepeating("flaky", OrdinaryJobKey, due);
+
+        FaultingSqliteDelegate.FailFireOf = "flaky";
+        await FailInARow("flaky", DefaultMaxConsecutiveFireFailures - 1);
+
+        // What another node's successful fire leaves behind on the row this node reads.
+        await SetPreviousFireTime("flaky", due);
+
+        await FailInARow("flaky", DefaultMaxConsecutiveFireFailures - 1);
+        (await TriggerState("flaky")).Should().Be("WAITING", "the fire in between was not a failure, wherever it ran");
+
+        await FireOnce("flaky");
+        (await TriggerState("flaky")).Should().Be("ERROR");
+    }
+
+    /// <summary>
+    /// Zero is 3.22.3's behaviour: a trigger whose every fire fails is released and acquired again however
+    /// many times it fails.
+    /// </summary>
+    [Test]
+    public async Task ALimitOfZeroNeverStoresAFailingTriggerError()
+    {
+        store.MaxConsecutiveFireFailures = 0;
+        await StoreJobs();
+        await Schedule("poison", SerialJobKey, due);
+
+        FaultingSqliteDelegate.FailFireOf = "poison";
+        await FailInARow("poison", 2 * DefaultMaxConsecutiveFireFailures);
+
+        (await TriggerState("poison")).Should().Be("WAITING", "zero turns the limit off");
+    }
+
+    /// <summary>
+    /// A lower limit parks sooner, which is the property reaching the store.
+    /// </summary>
+    [Test]
+    public async Task ALimitOfOneParksOnTheFirstFailure()
+    {
+        store.MaxConsecutiveFireFailures = 1;
+        await StoreJobs();
+        await Schedule("poison", SerialJobKey, due);
+
+        FaultingSqliteDelegate.FailFireOf = "poison";
+        await FireOnce("poison");
+
+        (await TriggerState("poison")).Should().Be("ERROR");
+    }
+
+    /// <summary>
+    /// A failure that throws the whole batch out of <c>TriggersFired</c> is the database's, not the
+    /// trigger's, and is not counted against it: a transient failure the store has run out of retries for.
+    /// </summary>
+    [Test]
+    public async Task AFailureOfTheWholeBatchIsNotCountedAgainstItsTriggers()
+    {
+        store.MaxTransientRetries = 0;
+        await StoreJobs();
+        await Schedule("busy", OrdinaryJobKey, due);
+
+        for (int round = 0; round < 2 * DefaultMaxConsecutiveFireFailures; round++)
+        {
+            List<IOperableTrigger> acquired = await Acquire(maxCount: 1);
+            FaultingSqliteDelegate.FailFireOfTransientlyOnce = "busy";
+
+            Func<Task> fire = () => store.TriggersFired(acquired);
+            await fire.Should().ThrowAsync<JobPersistenceException>("with no retries left, a transient failure fails the batch");
+
+            // What the scheduler thread does with a batch that failed whole.
+            await store.ReleaseAcquiredTrigger(acquired[0]);
+        }
+
+        (await TriggerState("busy")).Should().Be("WAITING");
+    }
+
+    /// <summary>
+    /// A park that fails is logged, and the batch's results are returned all the same: the fires beside
+    /// the failed one committed, and the scheduler has jobs to run. The count is kept, so the next
+    /// failure parks the trigger.
+    /// </summary>
+    [Test]
+    public async Task AParkThatFailsKeepsTheCountAndTheNextFailureParks()
+    {
+        await StoreJobs();
+        await Schedule("poison", SerialJobKey, due);
+        await Schedule("ordinary-1", OrdinaryJobKey, due.AddMilliseconds(1));
+
+        FaultingSqliteDelegate.FailFireOf = "poison";
+        await FailInARow("poison", DefaultMaxConsecutiveFireFailures - 1);
+
+        List<IOperableTrigger> acquired = await Acquire(maxCount: 2);
+        acquired.Select(x => x.Key.Name).Should().Equal(new[] { "poison", "ordinary-1" });
+        FaultingSqliteDelegate.FailParkOf = "poison";
+
+        List<TriggerFiredResult> results = (await store.TriggersFired(acquired)).ToList();
+
+        results.Should().HaveCount(2);
+        results[0].Exception.Should().NotBeNull();
+        results[1].TriggerFiredBundle.Should().NotBeNull("the fire beside the failed one committed, and its job is the scheduler's to run");
+        (await TriggerState("poison")).Should().Be("ACQUIRED", "the park rolled back, and the reservation is the scheduler's to release");
+
+        await store.ReleaseAcquiredTrigger(acquired[0]);
+        (await TriggerState("poison")).Should().Be("WAITING");
+
+        FaultingSqliteDelegate.FailParkOf = null;
+        await FireOnce("poison");
+        (await TriggerState("poison")).Should().Be("ERROR", "the count was kept, so the next failure is past the limit");
+    }
+
+    /// <summary>
+    /// <c>ResetTriggerFromErrorState</c> brings a parked trigger back, with its count started again, and
+    /// it fires once whatever failed it is fixed.
+    /// </summary>
+    [Test]
+    public async Task AParkedTriggerIsResetFromErrorAndFiresOnceTheFaultIsGone()
+    {
+        await StoreJobs();
+        await Schedule("poison", SerialJobKey, due);
+        TriggerKey poison = new TriggerKey("poison", Group);
+
+        FaultingSqliteDelegate.FailFireOf = "poison";
+        await FailInARow("poison", DefaultMaxConsecutiveFireFailures);
+        (await store.GetTriggerState(poison)).Should().Be(Quartz.TriggerState.Error);
+
+        await store.ResetTriggerFromErrorState(poison);
+        (await TriggerState("poison")).Should().Be("WAITING");
+
+        await FireOnce("poison");
+        (await TriggerState("poison")).Should().Be("WAITING", "parking cleared the count, so one failure after the reset is one, not one more than the limit");
+
+        FaultingSqliteDelegate.FailFireOf = null;
+        TriggerFiredResult fired = await FireOnce("poison");
+
+        fired.TriggerFiredBundle.Should().NotBeNull("the cause is fixed");
+        (await FiredState("poison")).Should().Be("EXECUTING");
+    }
+
+    /// <summary>
+    /// Fires the one trigger due next, as the scheduler thread does: acquired, fired, and released if the
+    /// fire did not produce a job to run.
+    /// </summary>
+    private async Task<TriggerFiredResult> FireOnce(string expected)
+    {
+        List<IOperableTrigger> acquired = await Acquire(maxCount: 1);
+        acquired.Should().ContainSingle().Which.Key.Name.Should().Be(expected);
+
+        List<TriggerFiredResult> results = (await store.TriggersFired(acquired)).ToList();
+        TriggerFiredResult result = results.Should().ContainSingle().Subject;
+        if (result.TriggerFiredBundle == null)
+        {
+            await store.ReleaseAcquiredTrigger(acquired[0]);
+        }
+
+        return result;
+    }
+
+    private async Task FailInARow(string triggerName, int failures)
+    {
+        for (int failure = 0; failure < failures; failure++)
+        {
+            (await FireOnce(triggerName)).Exception.Should().NotBeNull("the fault is on");
+        }
+    }
+
+    private async Task ScheduleRepeating(string name, JobKey job, DateTimeOffset at)
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(name, Group)
+            .ForJob(job)
+            .StartAt(at)
+            .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromSeconds(1)).RepeatForever())
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        await store.StoreTrigger(trigger, replaceExisting: false);
+    }
+
+    private async Task SetPreviousFireTime(string triggerName, DateTimeOffset previousFireTimeUtc)
+    {
+        using SqliteConnection connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "UPDATE QRTZ_TRIGGERS SET PREV_FIRE_TIME = @previous WHERE TRIGGER_NAME = @name";
+        command.Parameters.AddWithValue("@previous", previousFireTimeUtc.UtcTicks);
+        command.Parameters.AddWithValue("@name", triggerName);
+        (await command.ExecuteNonQueryAsync()).Should().Be(1);
+    }
+
     private async Task<List<IOperableTrigger>> Acquire(int maxCount)
     {
         // Wide enough that triggers due milliseconds apart make one batch; a batch ends at the first
@@ -431,6 +689,9 @@ public sealed class TriggerFireFailureSqliteTest
         /// <summary>The trigger whose next fire fails as a busy database would make it fail, once.</summary>
         public static string FailFireOfTransientlyOnce { get; set; }
 
+        /// <summary>The trigger the store cannot store <c>ERROR</c> after its failed fires, or <see langword="null" /> for none.</summary>
+        public static string FailParkOf { get; set; }
+
         /// <summary>Every fire the delegate was asked to write, by trigger name, in order — a rolled-back attempt included.</summary>
         public static List<string> FireAttempts
         {
@@ -452,6 +713,25 @@ public sealed class TriggerFireFailureSqliteTest
 
             FailFireOf = null;
             FailFireOfTransientlyOnce = null;
+            FailParkOf = null;
+        }
+
+        public override async Task<int> UpdateTriggerStateFromOtherState(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            string newState,
+            string oldState,
+            CancellationToken cancellationToken = default)
+        {
+            if (newState == AdoConstants.StateError && string.Equals(triggerKey.Name, FailParkOf, StringComparison.Ordinal))
+            {
+                using DbCommand command = conn.Connection.CreateCommand();
+                conn.Attach(command);
+                command.CommandText = "UPDATE QRTZ_NO_SUCH_TABLE SET TRIGGER_STATE = 'ERROR'";
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            return await base.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, oldState, cancellationToken);
         }
 
         public override Task<int> UpdateFiredTrigger(

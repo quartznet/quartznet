@@ -173,17 +173,23 @@ public abstract class TriggerFireFailureTestBase
 
     /// <summary>
     /// A scheduler with a trigger whose every fire fails: the ordinary trigger in the same batch keeps
-    /// firing on schedule, the poison trigger never runs, and nothing is left <c>BLOCKED</c> once the
+    /// firing on schedule, the poison trigger never runs and is stored <c>ERROR</c> after the failures in
+    /// a row the store allows, its job-mate fires after that, and nothing is left <c>BLOCKED</c> once the
     /// scheduler is down.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The poison trigger's fire time never advances, so it is first in the order every round and is in
     /// every batch, and its job-mate — one trigger of a serial job per batch — is skipped behind it for
-    /// as long as it keeps failing. That is the scheduler's existing answer to a failed fire, releasing
-    /// the trigger to be acquired again, and not what this fixture is about; the job-mate is here for
-    /// what the failure did to <em>it</em>. Without the fix it was moved to <c>BLOCKED</c> by each failed
-    /// fire and left there, on SQL Server; on PostgreSQL the ordinary trigger, refused by the aborted
-    /// transaction after the poison in every batch, never fired at all.
+    /// as long as it is acquired. Before #3963 that was for good: the scheduler released the failed
+    /// trigger to be acquired again, however often it failed. Now it is stored <c>ERROR</c> on its fifth
+    /// failure in a row, and the job-mate is first in the order.
+    /// </para>
+    /// <para>
+    /// Before #3931 the job-mate was also moved to <c>BLOCKED</c> by each failed fire and left there, on
+    /// SQL Server; on PostgreSQL the ordinary trigger, refused by the aborted transaction after the poison
+    /// in every batch, never fired at all.
+    /// </para>
     /// </remarks>
     [Test]
     public async Task ARunningSchedulerKeepsFiringTheRestOfTheBatchBesideATriggerWhoseFireKeepsFailing()
@@ -224,6 +230,11 @@ public abstract class TriggerFireFailureTestBase
             "the ordinary trigger is due every second and shares every batch with the poison; the rest of a batch fires whatever "
             + "one trigger of it does, and on PostgreSQL it used to be refused by the aborted transaction, round after round");
         firings.Should().NotContain("poison", "a fire that fails is not a fire");
+        (await TriggerState("poison")).Should().Be("ERROR",
+            "its every fire failed, five times in a row, which is what JobStoreSupport.MaxConsecutiveFireFailures allows by default");
+        FireFault.FireAttempts.Count(x => x == "poison").Should().Be(5, "stored ERROR on its fifth failure, it is not acquired again");
+        firings.Should().Contain("sibling",
+            "the poison's job-mate is behind it in the order and one trigger of a serial job per batch; it fires once the poison is stored ERROR");
         (await CountRows("SELECT COUNT(*) FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_STATE = 'BLOCKED'"))
             .Should().Be(0, "nothing is executing after the shutdown, so nothing may be blocked");
     }
