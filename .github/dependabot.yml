@@ -102,11 +102,13 @@ updates:
       # the packages have to be built and tested against first. A single requirement with no comma in it,
       # because the C# updater splits a requirement string on commas.
       #
-      # A minor or patch is offered, in the weasel group below. The range's lower end is a floor every
-      # consumer inherits, so merge one only when Quartz, Marten or Wolverine needs it, and only when it
-      # moves all four rows: a Marten bump once raised three and left Weasel.SqlServer behind (#3946).
+      # The range's lower end is a floor every consumer inherits, so a minor or patch is not offered either:
+      # the floor moves by hand, all four rows in one change, when Quartz needs a Weasel fix (as 9.36.0 did,
+      # #3956). Dependabot still raises a Weasel row that a Marten or Wolverine update requires; move the
+      # other three with it, or hold that update, rather than let the rows split (#3946).
       - dependency-name: "Weasel.*"
         versions: [">= 10.0.0"]
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
     # Dependencies are matched against groups in the order they are declared here,
     # and each dependency ends up in the first group it matches.
     groups:

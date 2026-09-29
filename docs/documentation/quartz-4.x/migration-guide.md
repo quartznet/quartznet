@@ -96,6 +96,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   ```http
   GET /quartz-api/schedulers/QuartzScheduler/history/misfires?reasons=Missed,Overlap,Vetoed
   ```
+
 * **`Quartz.Weasel.SQLite` rebuilds a table that carries your own columns, indexes or foreign keys.** 4.3
   refused the apply with a `SchedulerException` ("Weasel would rebuild table …") and changed nothing. The
   rebuild now keeps those objects and their rows. Drop any workaround that removed them before an apply.

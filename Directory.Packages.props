@@ -212,9 +212,8 @@
       2.76.0, so an application beside Marten or Wolverine resolves at least that.
 
       The four Quartz.Weasel packages turn transitive pinning off, so their nuspecs carry exactly this range
-      and nothing of Weasel's own graph. The four move together. .github/dependabot.yml offers a Weasel
-      minor or patch in its weasel group; each raises every consumer's floor, so merge one only when
-      Quartz needs its fix, or Marten or Wolverine its version.
+      and nothing of Weasel's own graph. The four move together, by hand, when Quartz needs a Weasel fix;
+      .github/dependabot.yml offers no Weasel minor or patch, because each would raise every consumer's floor.
     -->
     <PackageVersion Include="Weasel.Core" Version="[9.36.0, 10.0.0)" />
     <PackageVersion Include="Weasel.Postgresql" Version="[9.36.0, 10.0.0)" />
