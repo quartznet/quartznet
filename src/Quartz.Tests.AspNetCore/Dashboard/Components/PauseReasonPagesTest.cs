@@ -158,6 +158,8 @@ public sealed class PauseReasonPagesTest
 
         page.WaitForAssertion(() => page.TextOfAll(".qz-pause-note").Should().Equal([RenderedRecord],
             "the record travels with the listing, and a trigger whose pause recorded nothing shows its state alone"));
+        page.Find(".qz-pause-note").GetAttribute("title").Should().Be(RenderedRecord,
+            "the listing's state column cuts a long note to fit, so its title holds the whole of it");
     }
 
     [Test]
