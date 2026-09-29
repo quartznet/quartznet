@@ -117,13 +117,13 @@ public sealed class SqliteWeaselHostingTest
     [Test]
     public async Task AFailedApplyFailsTheStartup()
     {
-        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString, extraColumn: "USER_NOTE TEXT NULL");
+        await CreateSchemaWhoseRebuildFailsAsync();
 
         using IHost host = BuildHost("weasel-fail-fast", store => store.UseWeaselForSqlite());
 
         Func<Task> start = () => host.StartAsync();
 
-        await start.Should().ThrowAsync<SchedulerException>().WithMessage("*would rebuild table QRTZ_TRIGGERS*");
+        await start.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Rebuilding table QRTZ_TRIGGERS*rolled back*");
     }
 
     /// <summary>
@@ -133,7 +133,7 @@ public sealed class SqliteWeaselHostingTest
     [Test]
     public async Task AFailedApplyIsLoggedAndStartupContinuesWhenTheProfileSaysSo()
     {
-        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString, extraColumn: "USER_NOTE TEXT NULL");
+        await CreateSchemaWhoseRebuildFailsAsync();
 
         using IHost host = BuildHost(
             "weasel-continue",
@@ -146,8 +146,8 @@ public sealed class SqliteWeaselHostingTest
         await host.StartAsync();
         await host.StopAsync();
 
-        (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT count(*) FROM pragma_table_info('QRTZ_TRIGGERS') WHERE name = 'USER_NOTE'"))
-            .Should().Be(1L, "the refused rebuild changed nothing, and the store started on the schema that was there");
+        (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT count(*) FROM pragma_foreign_key_list('QRTZ_TRIGGERS')"))
+            .Should().Be(0L, "the failed rebuild rolled back, and the store started on the schema that was there");
     }
 
     [Test]
@@ -177,6 +177,19 @@ public sealed class SqliteWeaselHostingTest
 
         await start.Should().ThrowAsync<SchedulerConfigException>()
             .WithMessage("*UseWeaselForSqlite() manages a SQLite schema*NpgsqlConnection*UseSqlite*");
+    }
+
+    /// <summary>
+    /// <c>QRTZ_TRIGGERS</c> without its foreign key, holding a trigger whose job does not exist: the rebuild
+    /// that puts the key back fails its check and rolls back.
+    /// </summary>
+    private async Task CreateSchemaWhoseRebuildFailsAsync()
+    {
+        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString, extraDefinitions: null);
+        await SqliteSchema.ExecuteAsync(database.ConnectionString, """
+            INSERT INTO QRTZ_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP, JOB_NAME, JOB_GROUP, TRIGGER_STATE, TRIGGER_TYPE, START_TIME)
+              VALUES ('elsewhere', 'orphan', 'group', 'no-such-job', 'group', 'WAITING', 'SIMPLE', 1);
+            """);
     }
 
     private IHost BuildHost(

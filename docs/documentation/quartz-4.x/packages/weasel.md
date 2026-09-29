@@ -135,6 +135,7 @@ can be rebuilt.
 | an index name 3.x created and 4.x retired | drops it, as `database/migrations/4.0/` does |
 | a column, index or foreign key you added to a Quartz table | keeps it (tables are add-only) |
 | your own tables, and other Weasel models' | never looks at them |
+| a change SQLite makes only by rebuilding the table | rebuilds it, keeping your objects and the rows |
 | a change only possible by dropping a table | refuses, even under `AutoCreate.All` |
 
 The model is generated from the same source as the store's own scripts, and names every object the way the
@@ -143,8 +144,7 @@ migrations therefore reads as unchanged. The execution history tables and `QRTZ_
 it, as they are of a fresh install.
 
 On a 4.3 database an apply only adds: five nullable columns and `IDX_QRTZ_EH_JOB_TIME` on
-`QRTZ_EXECUTION_HISTORY`, and the `QRTZ_JOB_STATUS` table. Nothing is rebuilt, so your own columns and indexes
-on the history table stay.
+`QRTZ_EXECUTION_HISTORY`, and the `QRTZ_JOB_STATUS` table. Nothing is rebuilt.
 
 ## PostgreSQL
 
@@ -249,9 +249,10 @@ any other.
 * The store must use `UseSqlite`: Weasel speaks Microsoft.Data.Sqlite only.
 * No lock is taken. The file serializes writers, every `CREATE` is guarded, and an `ADD COLUMN` that loses a
   race is re-read and found done.
-* SQLite makes some changes by rebuilding the table, and the rebuild keeps only what the model declares. A
-  rebuild of a Quartz table that carries your own columns, indexes or keys is refused before anything runs,
-  naming them.
+* SQLite makes some changes by rebuilding the table. The rebuild keeps your own columns, indexes and foreign
+  keys, with their rows, and so does rolling it back with `db-patch`'s `.drop.sql`.
+* A rebuild that fails rolls back and changes nothing. The usual cause is a row that the restored foreign key
+  rejects, such as a trigger whose job is gone.
 
 ## Moving off Weasel.Quartz.Postgres
 

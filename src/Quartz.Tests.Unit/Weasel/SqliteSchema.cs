@@ -127,9 +127,12 @@ internal sealed record SqliteSchema(
 
     /// <summary>
     /// The provisioned schema, except that <c>QRTZ_TRIGGERS</c> has been rebuilt by hand without its
-    /// foreign key — and, if asked, with a column of the application's own.
+    /// foreign key — and, if asked, with columns and constraints of the application's own.
     /// </summary>
-    public static async Task CreateWithTriggersTableMissingItsForeignKeyAsync(string connectionString, string? extraColumn)
+    /// <remarks>
+    /// Weasel can put the key back only by rebuilding the table, so an apply on this schema is a rebuild.
+    /// </remarks>
+    public static async Task CreateWithTriggersTableMissingItsForeignKeyAsync(string connectionString, string? extraDefinitions)
     {
         foreach (string statement in ProvisioningStatements("QRTZ_"))
         {
@@ -141,9 +144,10 @@ internal sealed record SqliteSchema(
                 foreignKey.Should().BeGreaterThan(primaryKey,
                     "the premise: the provisioning script declares QRTZ_TRIGGERS' key, then its foreign key");
 
-                // Columns before table constraints, which is the only order SQLite accepts.
+                // After the last column and before the key: SQLite takes columns before table constraints,
+                // so the extra definitions can end with constraints of their own.
                 sql = sql[..primaryKey]
-                      + (extraColumn is null ? "" : ",\n  " + extraColumn)
+                      + (extraDefinitions is null ? "" : ",\n  " + extraDefinitions)
                       + sql[primaryKey..foreignKey]
                       + "\n);";
             }
