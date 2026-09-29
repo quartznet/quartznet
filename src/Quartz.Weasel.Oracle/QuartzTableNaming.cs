@@ -19,13 +19,10 @@
 
 #endregion
 
-using System.Data.Common;
-
 using Weasel.Core;
 using Weasel.Oracle;
 using Weasel.Oracle.Tables;
 
-using CascadeAction = Weasel.Core.CascadeAction;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Quartz.Weasel.Oracle;
@@ -79,78 +76,37 @@ internal sealed class QuartzTableNaming
     public void PrimaryKey(Table table, string stem) => table.PrimaryKeyName = $"{Prefix}{stem}_PK";
 
     /// <summary><c>{1}SIMPLE_TRIG_TO_TRIG_FK</c> in the script.</summary>
-    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade, string name)
-    {
-        table.ForeignKeys.Add(new ForeignKey(Prefix + name)
-        {
-            LinkedTable = Name(referencedTable),
-            ColumnNames = columns,
-            LinkedNames = referencedColumns,
-            DeleteAction = cascade ? CascadeAction.Cascade : CascadeAction.NoAction,
-        });
-    }
+    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade, string name) =>
+        table.ForeignKeys.Add(new ForeignKey(Prefix + name).Links(Name(referencedTable), columns, referencedColumns, cascade));
 
     public void Index(Table table, string suffix, string[] columns, string[]? descending = null)
     {
-        IndexDefinition index = new(IndexName(suffix))
-        {
-            Columns = columns,
-        };
-
-        foreach (string column in descending ?? [])
-        {
-            index.DescendingColumns.Add(column);
-        }
-
-        table.Indexes.Add(index);
+        IndexDefinition index = new(QuartzNaming.IndexName(Prefix, suffix));
+        table.Indexes.AddIndex(index, columns, index.DescendingColumns, descending);
     }
 
     public ISchemaObject RetiredIndex(string table, string suffix) =>
-        new RetiredOracleIndex(new OracleObjectName(Schema, IndexName(suffix)), Prefix + table);
-
-    /// <summary><c>IDX_{1}T_NFT_ST</c> in the script.</summary>
-    private string IndexName(string suffix) => $"IDX_{Prefix}{suffix}";
+        new RetiredOracleIndex(new OracleObjectName(Schema, QuartzNaming.IndexName(Prefix, suffix)), Prefix + table);
 }
 
 /// <summary>
-/// An index name Quartz no longer creates, dropped when it is still on the table it was created on.
+/// A retired index on Oracle, asked after in <c>ALL_INDEXES</c>.
 /// </summary>
-/// <remarks>
-/// The tables are add-only, so Weasel keeps anything the model does not declare — right for an
-/// application's own index and wrong for the ones 3.x created and 4.x retired. This names them, the same
-/// set <c>database/migrations/4.0/schema_30_to_40_indexes_oracle.sql</c> drops.
-/// </remarks>
-internal sealed class RetiredOracleIndex : SchemaObjectBase
+internal sealed class RetiredOracleIndex : RetiredQuartzIndex
 {
-    private readonly string table;
-
-    public RetiredOracleIndex(OracleObjectName identifier, string table) : base(identifier)
+    public RetiredOracleIndex(OracleObjectName identifier, string table) : base(identifier, table)
     {
-        this.table = table;
     }
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         string schema = builder.AddParameter(Identifier.Schema).ParameterName;
         string name = builder.AddParameter(Identifier.Name).ParameterName;
-        string tableName = builder.AddParameter(table).ParameterName;
+        string tableName = builder.AddParameter(Table).ParameterName;
 
         builder.Append(
             "SELECT count(*) FROM all_indexes"
             + $" WHERE owner = :{schema} AND index_name = :{name} AND table_owner = :{schema} AND table_name = :{tableName}");
-    }
-
-    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
-    {
-        bool present = await reader.ReadAsync(ct).ConfigureAwait(false)
-                       && await ReadExistsCountAsync(reader, ct).ConfigureAwait(false) > 0;
-
-        return new SchemaObjectDelta(this, present ? SchemaPatchDifference.Update : SchemaPatchDifference.None);
-    }
-
-    /// <summary>Nothing: a retired index is never created.</summary>
-    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
-    {
     }
 
     /// <summary>One statement, ended the way Weasel's Oracle scripts end theirs, with a lone <c>/</c>.</summary>

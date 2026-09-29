@@ -19,7 +19,6 @@
 
 #endregion
 
-using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
@@ -75,26 +74,18 @@ internal sealed class QuartzTableNaming
     {
     }
 
-    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade)
-    {
-        table.ForeignKeys.Add(new ForeignKey($"fk_{table.Identifier.Name}_{Prefix}{referencedTable}_0")
-        {
-            LinkedTable = Name(referencedTable),
-            ColumnNames = columns,
-            LinkedNames = referencedColumns,
-            DeleteAction = cascade ? CascadeAction.Cascade : CascadeAction.NoAction,
-        });
-    }
+    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade) =>
+        table.ForeignKeys.Add(new ForeignKey($"fk_{table.Identifier.Name}_{Prefix}{referencedTable}_0").Links(Name(referencedTable), columns, referencedColumns, cascade));
 
     public void Index(Table table, string suffix, string[] columns) =>
-        table.Indexes.Add(new IndexDefinition(IndexName(suffix)) { Columns = columns });
+        table.Indexes.Add(new IndexDefinition(QuartzNaming.IndexName(Prefix, suffix)) { Columns = columns });
 
     /// <summary>
     /// An index whose columns carry directions, which SQLite's <c>IndexDefinition</c> takes only as an
     /// expression — the column list exactly as the script writes it.
     /// </summary>
     public void Index(Table table, string suffix, string expression) =>
-        table.Indexes.Add(new IndexDefinition(IndexName(suffix)) { Expression = expression });
+        table.Indexes.Add(new IndexDefinition(QuartzNaming.IndexName(Prefix, suffix)) { Expression = expression });
 
     public ISchemaObject Trigger(string name, string createStatement) =>
         new QuartzDeleteTrigger(
@@ -102,10 +93,7 @@ internal sealed class QuartzTableNaming
             string.Format(CultureInfo.InvariantCulture, createStatement, Prefix));
 
     public ISchemaObject RetiredIndex(string table, string suffix) =>
-        new RetiredSqliteIndex(new SqliteObjectName(Schema, IndexName(suffix)), Prefix + table);
-
-    /// <summary><c>IDX_{1}J_G_N</c> in the script.</summary>
-    private string IndexName(string suffix) => $"IDX_{Prefix}{suffix}";
+        new RetiredSqliteIndex(new SqliteObjectName(Schema, QuartzNaming.IndexName(Prefix, suffix)), Prefix + table);
 }
 
 /// <summary>
@@ -149,43 +137,22 @@ internal sealed class QuartzDeleteTrigger : SchemaObjectBase
 }
 
 /// <summary>
-/// An index name Quartz no longer creates, dropped when it is still on the table it was created on.
+/// A retired index on SQLite, asked after in <c>sqlite_master</c>.
 /// </summary>
-/// <remarks>
-/// The tables are add-only, so Weasel keeps anything the model does not declare — right for an
-/// application's own index and wrong for the ones 3.x created and 4.x retired. This names them, the same
-/// set <c>database/migrations/4.0/schema_30_to_40_indexes_sqlite.sql</c> drops.
-/// </remarks>
-internal sealed class RetiredSqliteIndex : SchemaObjectBase
+internal sealed class RetiredSqliteIndex : RetiredQuartzIndex
 {
-    private readonly string table;
-
-    public RetiredSqliteIndex(SqliteObjectName identifier, string table) : base(identifier)
+    public RetiredSqliteIndex(SqliteObjectName identifier, string table) : base(identifier, table)
     {
-        this.table = table;
     }
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         string name = builder.AddParameter(Identifier.Name).ParameterName;
-        string tableName = builder.AddParameter(table).ParameterName;
+        string tableName = builder.AddParameter(Table).ParameterName;
 
         builder.Append(
             $"SELECT count(*) FROM {SchemaUtils.QuoteName(Identifier.Schema)}.sqlite_master WHERE type = 'index'"
             + $" AND name = @{name} COLLATE NOCASE AND tbl_name = @{tableName} COLLATE NOCASE;");
-    }
-
-    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
-    {
-        bool present = await reader.ReadAsync(ct).ConfigureAwait(false)
-                       && await ReadExistsCountAsync(reader, ct).ConfigureAwait(false) > 0;
-
-        return new SchemaObjectDelta(this, present ? SchemaPatchDifference.Update : SchemaPatchDifference.None);
-    }
-
-    /// <summary>Nothing: a retired index is never created.</summary>
-    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
-    {
     }
 
     public override void WriteDropStatement(Migrator rules, TextWriter writer) =>

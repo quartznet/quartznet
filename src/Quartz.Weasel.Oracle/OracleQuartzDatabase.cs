@@ -171,34 +171,14 @@ internal sealed class OracleQuartzDatabase : DatabaseBase<OracleConnection>, IQu
     Task<SchemaPatchDifference> IDatabase.ApplyAllConfiguredChangesToDatabaseAsync(
         AutoCreate? @override,
         ReconnectionOptions? reconnectionOptions,
-        CancellationToken ct) => ApplyWithRetryAsync(@override, reconnectionOptions, ct);
-
-    private async Task<SchemaPatchDifference> ApplyWithRetryAsync(
-        AutoCreate? @override,
-        ReconnectionOptions? reconnectionOptions,
-        CancellationToken ct)
-    {
-        for (int attempt = 1; ; attempt++)
-        {
-            try
-            {
-                return await ApplyAllConfiguredChangesToDatabaseAsync(@override, reconnectionOptions, ct).ConfigureAwait(false);
-            }
-            catch (Exception e) when (attempt < ApplyAttempts && !ct.IsCancellationRequested)
-            {
-                Context.Logger.SchemaApplyRetrying(Context.SchedulerName, Describe().DatabaseUri(), attempt, ApplyAttempts, e);
-            }
-
-            SchemaMigration after = await CreateMigrationAsync(ct).ConfigureAwait(false);
-            if (after.Difference == SchemaPatchDifference.None)
-            {
-                Context.Logger.SchemaAppliedByAnotherProcess(Context.SchedulerName, Describe().DatabaseUri());
-                return SchemaPatchDifference.None;
-            }
-
-            await Task.Delay(RetryDelay, timeProvider, ct).ConfigureAwait(false);
-        }
-    }
+        CancellationToken ct) =>
+        LockFreeApply.ApplyAsync(
+            this,
+            cancellationToken => ApplyAllConfiguredChangesToDatabaseAsync(@override, reconnectionOptions, cancellationToken),
+            ApplyAttempts,
+            RetryDelay,
+            timeProvider,
+            ct);
 
     /// <summary>
     /// The session's current schema, which is where the store's unqualified SQL resolves a table: the
