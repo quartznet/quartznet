@@ -19,6 +19,13 @@ the scripts under `database/migrations/`.
 | `Quartz.Weasel.SQLite` | SQLite, through Microsoft.Data.Sqlite |
 | `Quartz.Weasel` | the shared glue; installed by any of the above |
 
+| Dependency | Version |
+|---|---|
+| Weasel | `[9.36.0, 10.0.0)` from Quartz 4.4; `[9.35.1, 10.0.0)` in 4.3 |
+| JasperFx | 2.76.0 or later, through Weasel 9.36.0 |
+
+An application beside Marten or Wolverine resolves both at least that high.
+
 MySQL and Oracle wait for fixes in Weasel itself. Firebird is not planned: Weasel has no Firebird provider.
 
 ```shell

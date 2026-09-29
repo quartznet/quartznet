@@ -13,6 +13,8 @@ This package is the shared glue. Install the one for your database, which brings
 | [Quartz.Weasel.SqlServer](https://www.nuget.org/packages/Quartz.Weasel.SqlServer) | SQL Server 2016 or later, disk-based tables |
 | [Quartz.Weasel.SQLite](https://www.nuget.org/packages/Quartz.Weasel.SQLite) | SQLite |
 
+The packages depend on Weasel `[9.36.0, 10.0.0)`, and through it on JasperFx 2.76.0 or later.
+
 An application not using Weasel keeps `ProvisionSchema()` and the scripts under `database/migrations/`.
 
 ## Usage
