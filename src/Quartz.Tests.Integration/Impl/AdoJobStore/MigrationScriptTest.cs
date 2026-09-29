@@ -99,11 +99,11 @@ public class MigrationScriptTest
     /// comparison with a fresh install then catches.
     /// </para>
     /// <para>
-    /// Every later version's migration is appended here as it lands, because what this fixture
-    /// compares against is a fresh install of the <em>current</em> schema — a chain that stops short
-    /// of the newest migration is a chain missing its columns, which is the failure rather than the
-    /// point. <c>MigratedColumnTest</c> is the unit-level guard that the constants and the scripts
-    /// name the same columns; this is the one that runs them.
+    /// Every later version's migration comes from the folder, because what this fixture compares
+    /// against is a fresh install of the <em>current</em> schema — a chain that stops short of the
+    /// newest migration is a chain missing its columns, which is the failure rather than the point.
+    /// <c>MigratedColumnTest</c> is the unit-level guard that the constants and the scripts name the
+    /// same columns; this is the one that runs them.
     /// </para>
     /// </remarks>
     private static readonly (string Version, string Name)[] SteppedChain =
@@ -112,16 +112,8 @@ public class MigrationScriptTest
         ("3.18", "add_execution_group"),
         ("3.19", "add_preferred_node"),
         ("3.20", "index_alignment"),
-        ("4.0", "schema_30_to_40_upgrade"),
-        ("4.0", "schema_30_to_40_indexes"),
-        ("4.2", "add_continuations"),
-        ("4.2", "add_execution_history"),
-        ("4.3", "add_fire_progress"),
-        ("4.3", "add_execution_log"),
-        ("4.3", "add_overlap_policy"),
-        ("4.3", "add_misfire_reason"),
-        ("4.3", "add_pause_reason"),
-        ("4.4", "add_execution_outcome")
+        .. MigrationChains.Upgrade40,
+        .. MigrationChains.Since("4.0")
     ];
 
     /// <summary>
@@ -131,16 +123,8 @@ public class MigrationScriptTest
     /// </summary>
     private static readonly (string Version, string Name)[] DirectChain =
     [
-        ("4.0", "schema_30_to_40_upgrade"),
-        ("4.0", "schema_30_to_40_indexes"),
-        ("4.2", "add_continuations"),
-        ("4.2", "add_execution_history"),
-        ("4.3", "add_fire_progress"),
-        ("4.3", "add_execution_log"),
-        ("4.3", "add_overlap_policy"),
-        ("4.3", "add_misfire_reason"),
-        ("4.3", "add_pause_reason"),
-        ("4.4", "add_execution_outcome")
+        .. MigrationChains.Upgrade40,
+        .. MigrationChains.Since("4.0")
     ];
 
     [Test]
@@ -517,6 +501,11 @@ public class MigrationScriptTest
         migrated.Tables.Should().BeEquivalentTo(fresh.Tables, "the migrated schema should have the same tables as a fresh install");
         migrated.Columns.Should().BeEquivalentTo(fresh.Columns, "the migrated schema should have the same columns as a fresh install");
         migrated.Indexes.Should().BeEquivalentTo(fresh.Indexes, "the migrated schema should have the same indexes as a fresh install");
+
+        fresh.PrimaryKeys.Should().HaveCount(fresh.Tables.Count, "every Quartz table has a primary key, so the comparison below is over all of them");
+        migrated.PrimaryKeys.Should().BeEquivalentTo(fresh.PrimaryKeys, "the migrated schema should key each table as a fresh install does");
+        migrated.ForeignKeys.Should().BeEquivalentTo(fresh.ForeignKeys,
+            "the migrated schema should have the foreign keys a fresh install has, joining the same columns with the same delete rule");
     }
 
     /// <summary>

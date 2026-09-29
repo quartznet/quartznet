@@ -18,6 +18,7 @@
 #endregion
 
 using System.Data.Common;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -26,24 +27,35 @@ using Oracle.ManagedDataAccess.Client;
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
-/// Table, column and index inventory for one table prefix, with the prefix normalized away so two
+/// Table, column, index and key inventory for one table prefix, with the prefix normalized away so two
 /// schemas built different ways in one database compare directly.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Shared by the two tests that ask the same question of different routes to a schema:
 /// <see cref="MigrationScriptTest" /> compares a migrated schema with a fresh one, and
 /// <see cref="SchemaProvisioningTest" /> compares a provisioned one with a fresh one. Both are
 /// really asking whether the route matters, and neither answer means much unless the two use the
 /// same introspection.
+/// </para>
+/// <para>
+/// A key is read by what it is, never by its name: a primary key as its table and columns in key
+/// order, a foreign key as its table and columns, the table and columns it references, and its delete
+/// rule. The dialects that leave a key unnamed let the database name it, so the same key is named one
+/// way by a fresh install and another by a migration.
+/// </para>
 /// </remarks>
 internal sealed record SchemaSnapshot(
     IReadOnlyCollection<string> Tables,
     IReadOnlyCollection<string> Columns,
-    IReadOnlyCollection<string> Indexes)
+    IReadOnlyCollection<string> Indexes,
+    IReadOnlyCollection<string> PrimaryKeys,
+    IReadOnlyCollection<string> ForeignKeys)
 {
     public static async Task<SchemaSnapshot> ReadAsync(DbConnection connection, string dialect, string prefix)
     {
         (string tableSql, string columnSql, string indexSql) = Queries(dialect, prefix);
+        (string primaryKeySql, string foreignKeySql) = KeyQueries(dialect, prefix);
 
         List<string> tables = await QueryAsync(connection, tableSql, prefix);
         List<string> columns = await QueryAsync(connection, columnSql, prefix);
@@ -51,7 +63,42 @@ internal sealed record SchemaSnapshot(
             ? await ReadOracleIndexesAsync(connection, indexSql, prefix)
             : await QueryAsync(connection, indexSql, prefix);
 
-        return new SchemaSnapshot(tables, columns, indexes);
+        return new SchemaSnapshot(
+            tables,
+            columns,
+            indexes,
+            await ReadKeysAsync(connection, primaryKeySql, prefix, foreign: false),
+            await ReadKeysAsync(connection, foreignKeySql, prefix, foreign: true));
+    }
+
+    /// <summary>
+    /// Keys, one string each, from rows a key query returns one column at a time.
+    /// </summary>
+    /// <remarks>
+    /// A primary-key row is table, column and position; a foreign-key row is table, constraint,
+    /// position, column, referenced table, referenced column and delete rule. The constraint's name only
+    /// groups a key's rows, and is not part of what is compared.
+    /// </remarks>
+    private static async Task<List<string>> ReadKeysAsync(DbConnection connection, string sql, string prefix, bool foreign)
+    {
+        List<string> keys = [];
+
+        foreach (IGrouping<string, string[]> key in (await QueryRowsAsync(connection, sql))
+                     .GroupBy(cells => foreign ? cells[0] + "|" + cells[1] : cells[0], StringComparer.Ordinal))
+        {
+            // The position is the third cell of either kind of row.
+            List<string[]> ordered = [.. key.OrderBy(cells => long.Parse(cells[2], CultureInfo.InvariantCulture))];
+            string[] first = ordered[0];
+
+            string composed = foreign
+                ? $"{first[0]}({string.Join(",", ordered.Select(cells => cells[3]))})>{first[4]}({string.Join(",", ordered.Select(cells => cells[5]))}):{first[6]}"
+                : $"{first[0]}({string.Join(",", ordered.Select(cells => cells[1]))})";
+
+            keys.Add(composed.Replace(prefix.ToUpperInvariant(), "", StringComparison.Ordinal));
+        }
+
+        keys.Sort(StringComparer.Ordinal);
+        return keys;
     }
 
     private static async Task<List<string>> QueryAsync(DbConnection connection, string sql, string prefix)
@@ -292,6 +339,108 @@ internal sealed record SchemaSnapshot(
                  """),
 
             _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "no introspection queries for this dialect")
+        };
+    }
+
+    /// <summary>
+    /// Per-dialect key introspection, one row per key column: table, column and position for a primary
+    /// key; table, constraint, position, column, referenced table, referenced column and delete rule for a
+    /// foreign key. <see cref="ReadKeysAsync" /> puts each key's rows together.
+    /// </summary>
+    private static (string PrimaryKeys, string ForeignKeys) KeyQueries(string dialect, string prefix)
+    {
+        string p = prefix.ToUpperInvariant().Replace("_", "!_", StringComparison.Ordinal);
+
+        return dialect switch
+        {
+            "sqlite" => (
+                $"SELECT UPPER(m.name), UPPER(c.name), c.pk FROM sqlite_master m JOIN pragma_table_info(m.name) c WHERE m.type = 'table' AND c.pk > 0 AND UPPER(m.name) LIKE '{p}%' ESCAPE '!'",
+                $"SELECT UPPER(m.name), f.id, f.seq, UPPER(f.\"from\"), UPPER(f.\"table\"), UPPER(f.\"to\"), f.on_delete FROM sqlite_master m JOIN pragma_foreign_key_list(m.name) f WHERE m.type = 'table' AND UPPER(m.name) LIKE '{p}%' ESCAPE '!'"),
+
+            "sqlServer" => (
+                $"""
+                 SELECT UPPER(t.name), UPPER(c.name), ic.key_ordinal
+                 FROM sys.indexes i
+                 JOIN sys.tables t ON t.object_id = i.object_id
+                 JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+                 JOIN sys.columns c ON c.object_id = i.object_id AND c.column_id = ic.column_id
+                 WHERE i.is_primary_key = 1 AND UPPER(t.name) LIKE '{p}%' ESCAPE '!'
+                 """,
+                $"""
+                 SELECT UPPER(t.name), fk.name, fkc.constraint_column_id, UPPER(pc.name), UPPER(rt.name), UPPER(rc.name), fk.delete_referential_action_desc
+                 FROM sys.foreign_keys fk
+                 JOIN sys.tables t ON t.object_id = fk.parent_object_id
+                 JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+                 JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+                 JOIN sys.columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+                 JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+                 WHERE UPPER(t.name) LIKE '{p}%' ESCAPE '!'
+                 """),
+
+            "postgres" => (
+                $"""
+                 SELECT UPPER(t.relname), UPPER(a.attname), k.ord
+                 FROM pg_constraint con
+                 JOIN pg_class t ON t.oid = con.conrelid
+                 JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord) ON TRUE
+                 JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+                 WHERE con.contype = 'p' AND t.relnamespace = 'public'::regnamespace AND UPPER(t.relname) LIKE '{p}%' ESCAPE '!'
+                 """,
+                $"""
+                 SELECT UPPER(t.relname), con.conname, k.ord, UPPER(a.attname), UPPER(rt.relname), UPPER(ra.attname), con.confdeltype::text
+                 FROM pg_constraint con
+                 JOIN pg_class t ON t.oid = con.conrelid
+                 JOIN pg_class rt ON rt.oid = con.confrelid
+                 JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS k(attnum, refattnum, ord) ON TRUE
+                 JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+                 JOIN pg_attribute ra ON ra.attrelid = rt.oid AND ra.attnum = k.refattnum
+                 WHERE con.contype = 'f' AND t.relnamespace = 'public'::regnamespace AND UPPER(t.relname) LIKE '{p}%' ESCAPE '!'
+                 """),
+
+            "mysql_innodb" => (
+                $"SELECT UPPER(TABLE_NAME), UPPER(COLUMN_NAME), SEQ_IN_INDEX FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND INDEX_NAME = 'PRIMARY' AND UPPER(TABLE_NAME) LIKE '{p}%' ESCAPE '!'",
+                $"""
+                 SELECT UPPER(k.TABLE_NAME), k.CONSTRAINT_NAME, k.ORDINAL_POSITION, UPPER(k.COLUMN_NAME), UPPER(k.REFERENCED_TABLE_NAME), UPPER(k.REFERENCED_COLUMN_NAME), r.DELETE_RULE
+                 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
+                 JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME
+                 WHERE k.TABLE_SCHEMA = DATABASE() AND k.REFERENCED_TABLE_NAME IS NOT NULL AND UPPER(k.TABLE_NAME) LIKE '{p}%' ESCAPE '!'
+                 """),
+
+            "oracle" => (
+                $"""
+                 SELECT UPPER(cc.table_name), UPPER(cc.column_name), cc.position
+                 FROM user_constraints c
+                 JOIN user_cons_columns cc ON cc.constraint_name = c.constraint_name
+                 WHERE c.constraint_type = 'P' AND UPPER(c.table_name) LIKE '{p}%' ESCAPE '!'
+                 """,
+                $"""
+                 SELECT UPPER(c.table_name), c.constraint_name, cc.position, UPPER(cc.column_name), UPPER(rc.table_name), UPPER(rcc.column_name), c.delete_rule
+                 FROM user_constraints c
+                 JOIN user_cons_columns cc ON cc.constraint_name = c.constraint_name
+                 JOIN user_constraints rc ON rc.constraint_name = c.r_constraint_name
+                 JOIN user_cons_columns rcc ON rcc.constraint_name = rc.constraint_name AND rcc.position = cc.position
+                 WHERE c.constraint_type = 'R' AND UPPER(c.table_name) LIKE '{p}%' ESCAPE '!'
+                 """),
+
+            "firebird" => (
+                $"""
+                 SELECT TRIM(UPPER(rc.rdb$relation_name)), TRIM(UPPER(s.rdb$field_name)), s.rdb$field_position
+                 FROM rdb$relation_constraints rc
+                 JOIN rdb$index_segments s ON s.rdb$index_name = rc.rdb$index_name
+                 WHERE rc.rdb$constraint_type = 'PRIMARY KEY' AND TRIM(UPPER(rc.rdb$relation_name)) LIKE '{p}%' ESCAPE '!'
+                 """,
+                $"""
+                 SELECT TRIM(UPPER(rc.rdb$relation_name)), TRIM(rc.rdb$constraint_name), s.rdb$field_position, TRIM(UPPER(s.rdb$field_name)),
+                        TRIM(UPPER(prc.rdb$relation_name)), TRIM(UPPER(ps.rdb$field_name)), TRIM(r.rdb$delete_rule)
+                 FROM rdb$relation_constraints rc
+                 JOIN rdb$ref_constraints r ON r.rdb$constraint_name = rc.rdb$constraint_name
+                 JOIN rdb$relation_constraints prc ON prc.rdb$constraint_name = r.rdb$const_name_uq
+                 JOIN rdb$index_segments s ON s.rdb$index_name = rc.rdb$index_name
+                 JOIN rdb$index_segments ps ON ps.rdb$index_name = prc.rdb$index_name AND ps.rdb$field_position = s.rdb$field_position
+                 WHERE rc.rdb$constraint_type = 'FOREIGN KEY' AND TRIM(UPPER(rc.rdb$relation_name)) LIKE '{p}%' ESCAPE '!'
+                 """),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "no key introspection queries for this dialect")
         };
     }
 }
