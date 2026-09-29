@@ -169,7 +169,7 @@ public sealed class SqlServerWeaselModelTest
 
         Func<Task> build = async () => await provider.GetRequiredService<IDatabaseSource>().BuildDatabases();
         await build.Should().ThrowAsync<SchedulerConfigException>()
-            .WithMessage("*UseWeaselForSqlServer() manages a SQL Server schema*SqliteConnection*UseSqlServer*");
+            .WithMessage("*UseWeaselForSqlServer() manages a schema on SQL Server*SqliteConnection*UseSqlServer*");
     }
 
     /// <summary>

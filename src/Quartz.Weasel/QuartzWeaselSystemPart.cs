@@ -171,7 +171,7 @@ internal sealed class QuartzWeaselSystemPart : ISystemPart, IDatabaseSource
             if (!dialect.AcceptsConnection(probe))
             {
                 throw new SchedulerConfigException(
-                    $"{dialect.RegistrationMethod}() manages a {dialect.DatabaseName} schema, but scheduler '{schedulerName}'"
+                    $"{dialect.RegistrationMethod}() manages a schema on {dialect.DatabaseName}, but scheduler '{schedulerName}'"
                     + $" stores its schedule through {probe.GetType().FullName}. Use {dialect.StoreMethod}(...) for the store,"
                     + " or the Quartz.Weasel package for the database it is on.");
             }

@@ -216,7 +216,7 @@ public sealed class PostgresWeaselModelTest
 
         Func<Task> build = async () => await provider.GetRequiredService<IDatabaseSource>().BuildDatabases();
         await build.Should().ThrowAsync<SchedulerConfigException>()
-            .WithMessage("*UseWeaselForPostgres() manages a PostgreSQL schema*SqliteConnection*UsePostgres*");
+            .WithMessage("*UseWeaselForPostgres() manages a schema on PostgreSQL*SqliteConnection*UsePostgres*");
     }
 
     [Test]

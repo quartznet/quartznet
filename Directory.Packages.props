@@ -208,10 +208,10 @@
       drops the columns, indexes and foreign keys an application added to Quartz's tables. 9.36.0 is the
       floor because its SQLite rebuild keeps them too, with their rows (JasperFx/weasel#639), and rolling
       a rebuild back keeps them as well (#648); Quartz.Weasel.SQLite refused such a rebuild before (#3956).
-      The others follow Weasel.Sqlite so that all of them stay one range; Weasel.MySql needs 9.36.0 in its
-      own right, for the type, index-direction and CREATE DATABASE fixes that make Quartz's MySQL script
-      read back unchanged. 9.36.0 floors JasperFx at 2.76.0, so an application beside Marten or Wolverine
-      resolves at least that.
+      The others follow Weasel.Sqlite so that all of them stay one range; Weasel.MySql and Weasel.Oracle
+      need 9.36.0 in their own right, for the type, index-direction and CREATE fixes that make Quartz's
+      MySQL and Oracle scripts read back unchanged. 9.36.0 floors JasperFx at 2.76.0, so an application
+      beside Marten or Wolverine resolves at least that.
 
       The Quartz.Weasel packages turn transitive pinning off, so their nuspecs carry exactly this range and
       nothing of Weasel's own graph. They move together, by hand, when Quartz needs a Weasel fix;
@@ -219,6 +219,7 @@
     -->
     <PackageVersion Include="Weasel.Core" Version="[9.36.0, 10.0.0)" />
     <PackageVersion Include="Weasel.MySql" Version="[9.36.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.Oracle" Version="[9.36.0, 10.0.0)" />
     <PackageVersion Include="Weasel.Postgresql" Version="[9.36.0, 10.0.0)" />
     <PackageVersion Include="Weasel.Sqlite" Version="[9.36.0, 10.0.0)" />
     <PackageVersion Include="Weasel.SqlServer" Version="[9.36.0, 10.0.0)" />

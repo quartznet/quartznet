@@ -47,7 +47,7 @@ internal sealed class QuartzWeaselDialect
 
     /// <summary>
     /// The schema the tables are in when the table prefix names none, or empty when the dialect's database
-    /// reads it from the connection, as MySQL's reads the connection's database.
+    /// reads it from the connection: MySQL's connection database, Oracle's current schema.
     /// </summary>
     public required string DefaultSchema { get; init; }
 

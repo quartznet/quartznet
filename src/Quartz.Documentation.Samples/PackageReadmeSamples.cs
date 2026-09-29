@@ -185,6 +185,19 @@ public static class PackageReadmeSamples
             #endregion
         }
 
+        public static void Oracle(IHostApplicationBuilder builder, string connectionString)
+        {
+            #region sample_readme_weasel_oracle
+
+            builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
+            {
+                store.UseOracle(connectionString);
+                store.UseWeaselForOracle();
+            }));
+
+            #endregion
+        }
+
         public static void Sqlite(IHostApplicationBuilder builder, string connectionString)
         {
             #region sample_readme_weasel_sqlite

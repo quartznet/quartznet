@@ -176,7 +176,7 @@ public sealed class SqliteWeaselHostingTest
         Func<Task> start = () => host.StartAsync();
 
         await start.Should().ThrowAsync<SchedulerConfigException>()
-            .WithMessage("*UseWeaselForSqlite() manages a SQLite schema*NpgsqlConnection*UseSqlite*");
+            .WithMessage("*UseWeaselForSqlite() manages a schema on SQLite*NpgsqlConnection*UseSqlite*");
     }
 
     /// <summary>

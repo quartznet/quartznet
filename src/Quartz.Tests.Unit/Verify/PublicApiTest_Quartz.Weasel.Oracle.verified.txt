@@ -1,0 +1,13 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public sealed class OracleWeaselOptions
+    {
+        public OracleWeaselOptions() { }
+        public JasperFx.AutoCreate? AutoCreate { get; set; }
+    }
+    public static class OracleWeaselStoreBuilderExtensions
+    {
+        public static Quartz.IPersistentStoreBuilder UseWeaselForOracle(this Quartz.IPersistentStoreBuilder store, System.Action<Quartz.OracleWeaselOptions>? configure = null) { }
+    }
+}

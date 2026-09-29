@@ -41,6 +41,7 @@ public class PublicApiTest
         typeof(global::Quartz.RedisLockHandlerConfigurationExtensions).Assembly,
         typeof(global::Quartz.Weasel.QuartzWeaselRegistration).Assembly,
         typeof(global::Quartz.MySqlWeaselStoreBuilderExtensions).Assembly,
+        typeof(global::Quartz.OracleWeaselStoreBuilderExtensions).Assembly,
         typeof(global::Quartz.PostgresWeaselStoreBuilderExtensions).Assembly,
         typeof(global::Quartz.SqliteWeaselStoreBuilderExtensions).Assembly,
         typeof(global::Quartz.SqlServerWeaselStoreBuilderExtensions).Assembly,

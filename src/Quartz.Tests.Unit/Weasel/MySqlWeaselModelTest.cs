@@ -189,7 +189,7 @@ public sealed class MySqlWeaselModelTest
 
         Func<Task> build = async () => await provider.GetRequiredService<IDatabaseSource>().BuildDatabases();
         await build.Should().ThrowAsync<SchedulerConfigException>()
-            .WithMessage("*UseWeaselForMySql() manages a MySQL schema*SqliteConnection*UseMySqlConnector*");
+            .WithMessage("*UseWeaselForMySql() manages a schema on MySQL*SqliteConnection*UseMySqlConnector*");
     }
 
     /// <summary>
