@@ -19,6 +19,7 @@
 
 using System.Text;
 
+using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 
 using Microsoft.Data.SqlClient;
@@ -39,7 +40,8 @@ internal static class TestcontainersDatabaseEnvironment
     private static PostgreSqlContainer postgreSqlContainer;
     private static MsSqlContainer sqlServerContainer;
     private static MySqlContainer mySqlContainer;
-    private static FirebirdSqlContainer firebirdSqlContainer;
+    private static IContainer firebirdContainer;
+    private static FirebirdServerLayout firebirdLayout;
     private static OracleContainer oracleContainer;
 
     public static async Task InitializeAsync()
@@ -267,28 +269,98 @@ internal static class TestcontainersDatabaseEnvironment
         Environment.SetEnvironmentVariable("MYSQL_CONNECTION_STRING", mySqlContainer.GetConnectionString());
     }
 
-    private const string FirebirdCreateDatabaseScript = "CREATE DATABASE '/firebird/data/quartz.fdb' USER 'SYSDBA' PASSWORD 'masterkey';";
+    private const string FirebirdPassword = "masterkey";
 
+    /// <summary>The image the Firebird tests run against unless <c>QUARTZ_FIREBIRD_IMAGE</c> names another.</summary>
+    private const string DefaultFirebirdImage = "jacobalberty/firebird:v4.0";
+
+    /// <summary>
+    /// Starts the Firebird server — <see cref="DefaultFirebirdImage" />, or the image
+    /// <c>QUARTZ_FIREBIRD_IMAGE</c> names — and installs the fresh schema into its <c>quartz.fdb</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The override is what runs the Firebird tests on Firebird 3, 4 and 5: the official
+    /// <c>firebirdsql/firebird:3</c>, <c>:4</c> and <c>:5</c> images. They lay the server out
+    /// differently from the default image — the binaries under <c>/opt/firebird/bin</c>, the data under
+    /// <c>/var/lib/firebird/data</c>, SYSDBA's password from <c>FIREBIRD_ROOT_PASSWORD</c>, and no health
+    /// check of their own — which Testcontainers' Firebird module assumes, so they are started as a plain
+    /// container that is ready when the service manager answers.
+    /// </para>
+    /// <para>
+    /// The database is created by isql with no character set, which is <c>NONE</c> at the default page
+    /// size on every image, as it always has been here.
+    /// </para>
+    /// </remarks>
     private static async Task StartFirebirdSqlContainerAsync(string script)
     {
-        firebirdSqlContainer = new FirebirdSqlBuilder("jacobalberty/firebird:v4.0")
-            .WithDatabase("/firebird/data/quartz.fdb")
-            .WithUsername("SYSDBA")
-            .WithPassword("masterkey")
-            .WithEnvironment("FIREBIRD_DATABASE", string.Empty)
-            .Build();
+        string image = Environment.GetEnvironmentVariable("QUARTZ_FIREBIRD_IMAGE") is { Length: > 0 } configured
+            ? configured
+            : DefaultFirebirdImage;
 
-        await firebirdSqlContainer.StartAsync();
+        firebirdLayout = FirebirdServerLayout.For(image);
+        string database = firebirdLayout.DataDirectory + "quartz.fdb";
 
-        ExecResult createDatabaseResult = await ExecFirebirdAdminScriptAsync(FirebirdCreateDatabaseScript);
+        firebirdContainer = firebirdLayout.Official
+            ? new ContainerBuilder(image)
+                .WithPortBinding(FirebirdSqlBuilder.FirebirdSqlPort, true)
+                .WithEnvironment("FIREBIRD_ROOT_PASSWORD", FirebirdPassword)
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted(
+                    firebirdLayout.BinDirectory + "fbsvcmgr", "localhost:service_mgr", "user", "SYSDBA", "password", FirebirdPassword, "info_server_version"))
+                .Build()
+            : new FirebirdSqlBuilder(image)
+                .WithDatabase(database)
+                .WithUsername("SYSDBA")
+                .WithPassword(FirebirdPassword)
+                .WithEnvironment("FIREBIRD_DATABASE", string.Empty)
+                .Build();
+
+        await firebirdContainer.StartAsync();
+
+        ExecResult createDatabaseResult = await ExecFirebirdAdminScriptAsync($"CREATE DATABASE '{database}' USER 'SYSDBA' PASSWORD '{FirebirdPassword}';");
         EnsureScriptSucceeded("Firebird database creation", createDatabaseResult);
 
         // The script runs as it ships: its drops check RDB$RELATIONS first, so a fresh database is
         // no obstacle. Nothing is stripped out of it here, which is the point.
-        ExecResult result = await firebirdSqlContainer.ExecScriptAsync(script);
+        ExecResult result = await ExecFirebirdScriptAsync(database, script);
         EnsureScriptSucceeded("Firebird", result);
 
-        Environment.SetEnvironmentVariable("FIREBIRD_CONNECTION_STRING", firebirdSqlContainer.GetConnectionString());
+        Environment.SetEnvironmentVariable(
+            "FIREBIRD_CONNECTION_STRING",
+            $"DataSource={firebirdContainer.Hostname};Port={firebirdContainer.GetMappedPublicPort(FirebirdSqlBuilder.FirebirdSqlPort)};"
+            + $"Database={database};User=SYSDBA;Password={FirebirdPassword}");
+    }
+
+    /// <summary>
+    /// Runs a script through the Firebird container's own isql, against a database file on it — the
+    /// shared <c>quartz.fdb</c>, or one a test created beside it.
+    /// </summary>
+    public static async Task ExecuteFirebirdScriptAsync(string database, string script)
+    {
+        if (firebirdContainer is null)
+        {
+            throw new InvalidOperationException("The firebird container is not running.");
+        }
+
+        EnsureScriptSucceeded("firebird", await ExecFirebirdScriptAsync(database, script));
+    }
+
+    private static async Task<ExecResult> ExecFirebirdScriptAsync(string database, string script)
+    {
+        string scriptFilePath = string.Join("/", string.Empty, "tmp", Guid.NewGuid().ToString("D"), Path.GetRandomFileName());
+        await firebirdContainer.CopyAsync(Encoding.Default.GetBytes(script), scriptFilePath);
+
+        return await firebirdContainer.ExecAsync(
+            [firebirdLayout.BinDirectory + "isql", "-q", "-i", scriptFilePath, "-user", "SYSDBA", "-pass", FirebirdPassword, database]);
+    }
+
+    /// <summary>Where a Firebird image keeps its binaries and its databases.</summary>
+    private sealed record FirebirdServerLayout(bool Official, string BinDirectory, string DataDirectory)
+    {
+        public static FirebirdServerLayout For(string image) =>
+            image.StartsWith("firebirdsql/firebird:", StringComparison.OrdinalIgnoreCase)
+                ? new FirebirdServerLayout(true, "/opt/firebird/bin/", "/var/lib/firebird/data/")
+                : new FirebirdServerLayout(false, "/usr/local/firebird/bin/", "/firebird/data/");
     }
 
     private static async Task StartOracleContainerAsync(string script)
@@ -319,7 +391,7 @@ internal static class TestcontainersDatabaseEnvironment
             "sqlServer" => sqlServerContainer is not null,
             "mysql_innodb" => mySqlContainer is not null,
             "oracle" => oracleContainer is not null,
-            "firebird" => firebirdSqlContainer is not null,
+            "firebird" => firebirdContainer is not null,
             _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "no container for this dialect")
         };
 
@@ -350,7 +422,7 @@ internal static class TestcontainersDatabaseEnvironment
             "sqlServer" => await sqlServerContainer.ExecScriptAsync(script),
             "mysql_innodb" => await mySqlContainer.ExecScriptAsync(script),
             "oracle" => await oracleContainer.ExecScriptAsync(script),
-            "firebird" => await firebirdSqlContainer.ExecScriptAsync(script),
+            "firebird" => await ExecFirebirdScriptAsync(firebirdLayout.DataDirectory + "quartz.fdb", script),
             _ => throw new ArgumentOutOfRangeException(nameof(dialect))
         };
 
@@ -441,16 +513,16 @@ internal static class TestcontainersDatabaseEnvironment
     {
         string scriptFilePath = string.Join("/", string.Empty, "tmp", Guid.NewGuid().ToString("D"), Path.GetRandomFileName());
 
-        await firebirdSqlContainer.CopyAsync(Encoding.Default.GetBytes(scriptContent), scriptFilePath);
+        await firebirdContainer.CopyAsync(Encoding.Default.GetBytes(scriptContent), scriptFilePath);
 
-        return await firebirdSqlContainer.ExecAsync(
+        return await firebirdContainer.ExecAsync(
             [
-                "/usr/local/firebird/bin/isql",
+                firebirdLayout.BinDirectory + "isql",
                 "-q",
                 "-u",
                 "SYSDBA",
                 "-p",
-                "masterkey",
+                FirebirdPassword,
                 "-i",
                 scriptFilePath
             ]);
@@ -463,13 +535,14 @@ internal static class TestcontainersDatabaseEnvironment
             : null;
 
         await DisposeContainerAsync(oracleContainer, exceptions);
-        await DisposeContainerAsync(firebirdSqlContainer, exceptions);
+        await DisposeContainerAsync(firebirdContainer, exceptions);
         await DisposeContainerAsync(mySqlContainer, exceptions);
         await DisposeContainerAsync(sqlServerContainer, exceptions);
         await DisposeContainerAsync(postgreSqlContainer, exceptions);
 
         oracleContainer = null;
-        firebirdSqlContainer = null;
+        firebirdContainer = null;
+        firebirdLayout = null;
         mySqlContainer = null;
         sqlServerContainer = null;
         postgreSqlContainer = null;
