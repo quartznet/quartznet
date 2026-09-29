@@ -909,9 +909,8 @@
     /// Pauses the selection, with the one reason the prompt asked for once.
     /// </summary>
     /// <remarks>
-    /// A pause that says nothing is the key-set pause, one call — over HTTP the <c>…/triggers/keys/pause</c>
-    /// route. That route takes no reason, so a pause that says something is made a key at a time through
-    /// the member that records it: the record is the point of having typed one.
+    /// One call whatever the prompt was told — over HTTP one <c>…/triggers/keys/pause</c> request, carrying
+    /// the reason when there is one. A pause that says nothing is the reasonless key-set pause.
     /// </remarks>
     private Task PauseSelectionAsync(string? reason)
     {
@@ -920,9 +919,7 @@
             "PauseTrigger",
             "Paused",
             "not paused - it no longer exists or was already paused",
-            (schedulerName, keys) => PauseDetails.SaysNothing(details)
-                ? Api.PauseTriggers(schedulerName, keys)
-                : KeyAtATimeAsync(keys, key => Api.PauseTriggerWith(schedulerName, key, details)));
+            (schedulerName, keys) => Api.PauseTriggersWith(schedulerName, keys, details));
     }
 
     private Task ResumeSelectionAsync()
@@ -956,36 +953,6 @@
     }
 
     /// <summary>
-    /// Makes a per-key call for each key, answering with the keys it applied to, as the key-set members
-    /// do. A key whose call throws is left out and the rest still go.
-    /// </summary>
-    private async ValueTask<List<TriggerKeyDto>> KeyAtATimeAsync(List<TriggerKeyDto> keys, Func<TriggerKeyDto, ValueTask<bool>> operation)
-    {
-        List<TriggerKeyDto> applied = [];
-        foreach (TriggerKeyDto key in keys)
-        {
-            try
-            {
-                if (await operation(key))
-                {
-                    applied.Add(key);
-                }
-            }
-            catch (Exception ex)
-            {
-                _keyFailures[key] = ex.Message;
-            }
-        }
-
-        return applied;
-    }
-
-    /// <summary>
-    /// The keys whose own call failed during the batch in progress, with what each failure said.
-    /// </summary>
-    private readonly Dictionary<TriggerKeyDto, string> _keyFailures = [];
-
-    /// <summary>
     /// Runs one bulk action over the selection and reports it: a toast for the count, a panel for the keys
     /// it did not reach and why, and an action-log entry per key in the shape the single-row action
     /// records — so "who paused this trigger" finds a bulk pause under the trigger's own key.
@@ -1004,9 +971,9 @@
         }
 
         string batch = "one of " + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected";
-        _keyFailures.Clear();
 
         HashSet<TriggerKeyDto> applied;
+        string? failure = null;
         try
         {
             applied = [.. await operation(schedulerName, keys)];
@@ -1016,10 +983,7 @@
             // The key-set call is one request and one store transaction, so a refusal is the whole
             // batch's: nothing it names was applied.
             applied = [];
-            foreach (TriggerKeyDto key in keys)
-            {
-                _keyFailures[key] = ex.Message;
-            }
+            failure = ex.Message;
         }
 
         List<(TriggerKeyDto Key, string Reason)> misses = [];
@@ -1030,7 +994,7 @@
             {
                 ActionLog.Record(schedulerName, actionName, target, succeeded: true, batch);
             }
-            else if (_keyFailures.TryGetValue(key, out string? failure))
+            else if (failure is not null)
             {
                 misses.Add((key, failure));
                 ActionLog.Record(schedulerName, actionName, target, succeeded: false, batch + "; " + failure);
@@ -1053,9 +1017,9 @@
         else
         {
             _bulkResult = new BulkResult(summary, misses);
-            if (_keyFailures.Count > 0)
+            if (failure is not null)
             {
-                Toasts.Error(summary + " " + _keyFailures.Count.ToString(CultureInfo.InvariantCulture) + " failed.");
+                Toasts.Error(summary + " " + keys.Count.ToString(CultureInfo.InvariantCulture) + " failed.");
             }
             else
             {
@@ -1063,7 +1027,6 @@
             }
         }
 
-        _keyFailures.Clear();
         _selected.Clear();
         await LoadDataAsync();
     }

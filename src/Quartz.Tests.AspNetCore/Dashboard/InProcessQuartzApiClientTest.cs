@@ -148,6 +148,89 @@ public class InProcessQuartzApiClientTest
     }
 
     [Test]
+    public async Task ASetPausedWithAReasonIsOneSchedulerCallAndItsRecordComesBack()
+    {
+        IScheduler scheduler = await CreateScheduler("KeySetPauseReasonTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build();
+            await scheduler.ScheduleJob(job, TriggerBuilder.Create().WithIdentity("first", "group1").ForJob(jobKey).WithCronSchedule("0 0 1 * * ?").Build());
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("second", "group1").ForJob(jobKey).WithCronSchedule("0 0 2 * * ?").Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            string name = scheduler.SchedulerName;
+            PauseDetails details = new() { Reason = "vendor outage", RequestedBy = "alice" };
+            TriggerKeyDto first = new("group1", "first");
+            TriggerKeyDto second = new("group1", "second");
+
+            (await client.PauseTriggersWith(name, [second, new TriggerKeyDto("group1", "gone"), first], details)).Should().Equal([second, first],
+                "a key that names nothing is left out, and the rest keep the order they were given in");
+            (await client.GetTriggerPause(name, first))!.Reason.Should().Be("vendor outage");
+            (await client.GetTriggerPause(name, second))!.RequestedBy.Should().Be("alice");
+
+            await scheduler.ResumeAll();
+            (await client.PauseJobsWith(name, [new JobKeyDto("group1", "job1"), new JobKeyDto("group1", "gone")], details))
+                .Should().Equal([new JobKeyDto("group1", "job1")]);
+            (await client.GetTriggerPause(name, second))!.Reason.Should().Be("vendor outage");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task ASetPauseThatSaysNothingIsTheSchedulersReasonlessSetPause()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("acme");
+        A.CallTo(() => scheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<TriggerKey> { new("t", "g") });
+        A.CallTo(() => scheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(new List<JobKey> { new("j", "g") });
+        InProcessQuartzApiClient client = CreateClient(scheduler);
+
+        (await client.PauseTriggersWith("acme", [new TriggerKeyDto("g", "t")], new PauseDetails())).Should().Equal([new TriggerKeyDto("g", "t")]);
+        (await client.PauseJobsWith("acme", [new JobKeyDto("g", "j")], null)).Should().Equal([new JobKeyDto("g", "j")]);
+
+        A.CallTo(() => scheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => scheduler.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A data source written against 4.3 has <see cref="IQuartzApiClient.PauseTriggerWith" /> and
+    /// <see cref="IQuartzApiClient.PauseJobWith" /> of its own; the key-set defaults walk the set through them,
+    /// so the reason still reaches it.
+    /// </summary>
+    [Test]
+    public async Task ADataSourceOf43KeepsTheReasonThroughTheKeySetDefaults()
+    {
+        IQuartzApiClient client = A.Fake<IQuartzApiClient>();
+        A.CallTo(() => client.PauseTriggersWith(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => client.PauseJobsWith(A<string>._, A<IReadOnlyCollection<JobKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => client.PauseTriggerWith("acme", new TriggerKeyDto("g", "t"), A<PauseDetails>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => client.PauseJobWith("acme", new JobKeyDto("g", "j"), A<PauseDetails>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => client.PauseJob("acme", new JobKeyDto("g", "j"), A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => client.PauseTriggers("acme", A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKeyDto> { new("g", "t") });
+        PauseDetails details = new() { Reason = "kept" };
+
+        (await client.PauseTriggersWith("acme", [new TriggerKeyDto("g", "t"), new TriggerKeyDto("g", "gone")], details))
+            .Should().Equal([new TriggerKeyDto("g", "t")]);
+        (await client.PauseJobsWith("acme", [new JobKeyDto("g", "j")], details)).Should().Equal([new JobKeyDto("g", "j")]);
+
+        A.CallTo(() => client.PauseTriggerWith("acme", A<TriggerKeyDto>._, details, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+        A.CallTo(() => client.PauseJobWith("acme", A<JobKeyDto>._, details, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+
+        (await client.PauseTriggersWith("acme", [new TriggerKeyDto("g", "t")], null)).Should().Equal([new TriggerKeyDto("g", "t")],
+            "details that say nothing are the key-set pause the data source already has");
+        (await client.PauseJobsWith("acme", [new JobKeyDto("g", "j")], new PauseDetails())).Should().Equal([new JobKeyDto("g", "j")]);
+        A.CallTo(() => client.PauseTriggers("acme", A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => client.PauseJob("acme", new JobKeyDto("g", "j"), A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
     public async Task RescheduleFromTriggerDetailPayloadChangesNothingButTheSchedule()
     {
         // regression test for #3294 - the detail page rebuilt the trigger from its display strings,
