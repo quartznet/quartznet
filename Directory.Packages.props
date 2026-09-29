@@ -79,7 +79,7 @@
     <PackageVersion Include="NCrontab" Version="3.4.0" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="6.2.1" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.7.1" />
-    <PackageVersion Include="NUnit" Version="4.6.1" />
+    <PackageVersion Include="NUnit" Version="5.0.0" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.15.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="6.3.0" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
