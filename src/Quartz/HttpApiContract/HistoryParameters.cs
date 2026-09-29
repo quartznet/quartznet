@@ -28,8 +28,8 @@ namespace Quartz.HttpApiContract;
 /// <remarks>
 /// <para>
 /// A set is sent either as the parameter repeated or as one comma-separated value, and both spellings read
-/// the same. Names match case-insensitively, and only names: a number or a combination of flags is refused,
-/// so the value a client meant is never read as another.
+/// the same. Each member is a name, matched case-insensitively, or the number of a defined member, as every
+/// enum on the wire is read.
 /// </para>
 /// <para>
 /// Read where an operation applies them, after the scheduler is looked up, as the matchers of
@@ -110,11 +110,14 @@ internal sealed record HistoryParameters
                 continue;
             }
 
+            // Split before parsing: Enum.TryParse reads "Failed,Skipped" as the two ORed together.
             foreach (string token in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                TEnum member = Named<TEnum>(token)
-                               ?? throw new InvalidRequestException(
-                                   $"Unknown {parameter} value '{token}'. Expected one of: {string.Join(", ", Enum.GetNames<TEnum>())}");
+                if (!Enum.TryParse(token, ignoreCase: true, out TEnum member) || !Enum.IsDefined(member))
+                {
+                    throw new InvalidRequestException(
+                        $"Unknown {parameter} value '{token}'. Expected one of: {string.Join(", ", Enum.GetNames<TEnum>())}");
+                }
 
                 if (!set.Contains(member))
                 {
@@ -124,18 +127,5 @@ internal sealed record HistoryParameters
         }
 
         return set.Count == 0 ? null : set;
-    }
-
-    private static TEnum? Named<TEnum>(string token) where TEnum : struct, Enum
-    {
-        foreach (TEnum member in Enum.GetValues<TEnum>())
-        {
-            if (string.Equals(Enum.GetName(member), token, StringComparison.OrdinalIgnoreCase))
-            {
-                return member;
-            }
-        }
-
-        return null;
     }
 }
