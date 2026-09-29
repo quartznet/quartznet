@@ -103,9 +103,9 @@ updates:
       # because the C# updater splits a requirement string on commas.
       #
       # The range's lower end is a floor every consumer inherits, so a minor or patch is not offered either:
-      # the floor moves by hand, all four rows in one change, when Quartz needs a Weasel fix (as 9.36.0 did,
+      # the floor moves by hand, every Weasel row in one change, when Quartz needs a Weasel fix (as 9.36.0 did,
       # #3956). Dependabot still raises a Weasel row that a Marten or Wolverine update requires; move the
-      # other three with it, or hold that update, rather than let the rows split (#3946).
+      # other rows with it, or hold that update, rather than let the rows split (#3946).
       - dependency-name: "Weasel.*"
         versions: [">= 10.0.0"]
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]

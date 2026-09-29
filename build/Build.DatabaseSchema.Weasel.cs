@@ -17,9 +17,11 @@ using System.Text;
 /// model says those names. SQLite reports the columns in lower case to Weasel and has no names for the
 /// script's unnamed foreign keys, which Weasel reads back as <c>fk_&lt;table&gt;_&lt;referenced&gt;_&lt;n&gt;</c>.
 /// SQL Server keeps the script's upper-case names and its <c>PK_</c> / <c>FK_</c> constraint names, and
-/// reads a column's direction back per index column. The names that depend on the table prefix are
-/// computed at run time by the naming class beside the generated file, which is hand-written because it
-/// is the one part that is a rule rather than data.
+/// reads a column's direction back per index column. MySQL rewrites a type as it stores it
+/// (<c>BOOLEAN</c> is <c>TINYINT(1)</c>, <c>NUMERIC</c> is <c>DECIMAL</c>) and names an unnamed foreign key
+/// <c>&lt;table&gt;_ibfk_1</c>. The names that depend on the table prefix are computed at run time by the
+/// naming class beside the generated file, which is hand-written because it is the one part that is a
+/// rule rather than data.
 /// </para>
 /// <para>
 /// What is rendered: every table in <see cref="SchemaTables" /> with its columns, primary key, foreign
@@ -74,6 +76,9 @@ partial class Build
             Type: AsDeclared, Default: AsDeclared, ColumnName: Lower, KeyColumn: AsDeclared, Cascades: true,
             IndexColumns: ColumnNamesOrExpression, PrimaryKeyArguments: NoArguments, ForeignKeyArguments: NoArguments,
             DeleteTriggers: true),
+        new("mysql_innodb", "Quartz.Weasel.MySQL", "Weasel.MySql.Tables",
+            Type: MySqlCatalogType, Default: MySqlCatalogDefault, ColumnName: AsDeclared, KeyColumn: AsDeclared, Cascades: false,
+            IndexColumns: ColumnNamesAndDescending, PrimaryKeyArguments: NoArguments, ForeignKeyArguments: NoArguments),
     ];
 
     /// <summary>Every generated model, as a path under <c>src/</c> and its content.</summary>
@@ -264,8 +269,40 @@ partial class Build
     static string NoArguments<T>(T _) => "";
 
     /// <summary>
+    /// A MySQL type as <c>information_schema.COLUMNS.COLUMN_TYPE</c> reports it, upper-cased as Weasel
+    /// reads it: <c>BOOLEAN</c> is <c>TINYINT(1)</c>, <c>INTEGER</c> is <c>INT</c>, <c>NUMERIC</c> is
+    /// <c>DECIMAL</c>, and 8.0 reports an integer without its display width.
+    /// </summary>
+    /// <remarks>
+    /// A type the model does not use yet is refused rather than guessed at, so that adding one is a
+    /// decision checked against a real catalog.
+    /// </remarks>
+    static string MySqlCatalogType(string type)
+    {
+        string upper = type.ToUpperInvariant();
+
+        return upper switch
+        {
+            "BOOLEAN" => "TINYINT(1)",
+            "INTEGER" or "INT" => "INT",
+            "BIGINT" or "SMALLINT" or "BLOB" or "LONGTEXT" => upper,
+            _ when upper.StartsWith("VARCHAR(", StringComparison.Ordinal) => upper,
+            _ when upper.StartsWith("NUMERIC(", StringComparison.Ordinal) => "DECIMAL" + upper["NUMERIC".Length..],
+            _ => throw new InvalidOperationException($"MySQL type '{type}' has no catalog spelling in the Weasel rendering yet"),
+        };
+    }
+
+    /// <summary>A MySQL default as <c>COLUMN_DEFAULT</c> reports it: <c>FALSE</c> is stored as <c>0</c>.</summary>
+    static string MySqlCatalogDefault(string value) => value.ToUpperInvariant() switch
+    {
+        "FALSE" => "0",
+        "TRUE" => "1",
+        _ => value,
+    };
+
+    /// <summary>
     /// An index's columns as an array of names, with the descending ones named again: the catalogs that
-    /// read each column's direction back into <c>DescendingColumns</c>, as SQL Server's does.
+    /// read each column's direction back into <c>DescendingColumns</c> — SQL Server and MySQL.
     /// </summary>
     static string ColumnNamesAndDescending(IndexDef index)
     {

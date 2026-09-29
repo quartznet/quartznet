@@ -1,0 +1,16 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public sealed class MySqlWeaselOptions
+    {
+        public const string DefaultLockName = "quartz:migrate";
+        public MySqlWeaselOptions() { }
+        public JasperFx.AutoCreate? AutoCreate { get; set; }
+        public string LockName { get; set; }
+        public System.TimeSpan LockTimeout { get; set; }
+    }
+    public static class MySqlWeaselStoreBuilderExtensions
+    {
+        public static Quartz.IPersistentStoreBuilder UseWeaselForMySql(this Quartz.IPersistentStoreBuilder store, System.Action<Quartz.MySqlWeaselOptions>? configure = null) { }
+    }
+}

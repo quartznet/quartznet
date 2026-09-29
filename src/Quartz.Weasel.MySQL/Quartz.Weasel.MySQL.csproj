@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Quartz</RootNamespace>
+    <Title>Quartz.NET Weasel Integration for MySQL</Title>
+    <Description>Quartz.NET Weasel integration for MySQL - the ADO.NET job store's tables as a Weasel model, applied under a named user lock by db-apply, resources setup or at startup; $(Description)</Description>
+    <PackageTags>$(PackageTags);weasel;jasperfx;critter-stack;schema;migrations;mysql</PackageTags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Signed like every Quartz package; Weasel.MySql and the rest of the JasperFx stack are not (CS8002). -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <!--
+      Off for the reason Quartz.Weasel.csproj gives. Here it also keeps the driver floor Weasel's: pinned,
+      MySqlConnector would enter this nuspec at the version the tests use rather than the one
+      Weasel.MySql declares.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Weasel\Quartz.Weasel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Weasel.MySql" />
+  </ItemGroup>
+
+</Project>

@@ -45,7 +45,10 @@ internal sealed class QuartzWeaselDialect
     /// <summary>The store method that chooses the matching driver, for messages: <c>UsePostgres</c>.</summary>
     public required string StoreMethod { get; init; }
 
-    /// <summary>The schema the tables are in when the table prefix names none.</summary>
+    /// <summary>
+    /// The schema the tables are in when the table prefix names none, or empty when the dialect's database
+    /// reads it from the connection, as MySQL's reads the connection's database.
+    /// </summary>
     public required string DefaultSchema { get; init; }
 
     /// <summary>Whether a connection the store's provider creates is one this dialect can migrate.</summary>
@@ -77,7 +80,10 @@ internal sealed class QuartzWeaselDatabaseContext
     /// <summary>The scheduler's name, which is also the database's Weasel identifier.</summary>
     public required string SchedulerName { get; init; }
 
-    /// <summary>The schema the tables are in: the table prefix's, or the dialect's default.</summary>
+    /// <summary>
+    /// The schema the tables are in: the table prefix's, or the dialect's default — empty when the
+    /// dialect's database reads it from the connection.
+    /// </summary>
     public required string Schema { get; init; }
 
     /// <summary>The table prefix without its schema, spelled as the store's options spell it.</summary>

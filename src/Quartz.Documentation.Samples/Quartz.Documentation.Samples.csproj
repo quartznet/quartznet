@@ -60,6 +60,7 @@
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
+    <ProjectReference Include="..\Quartz.Weasel.MySQL\Quartz.Weasel.MySQL.csproj" />
     <ProjectReference Include="..\Quartz.Weasel.PostgreSQL\Quartz.Weasel.PostgreSQL.csproj" />
     <ProjectReference Include="..\Quartz.Weasel.SQLite\Quartz.Weasel.SQLite.csproj" />
     <ProjectReference Include="..\Quartz.Weasel.SqlServer\Quartz.Weasel.SqlServer.csproj" />
