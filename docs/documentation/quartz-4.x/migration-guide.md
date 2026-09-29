@@ -39,6 +39,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `ExecutionHistoryEntry.EffectiveResult` | `Result`, or `Succeeded`/`Failed` from `Succeeded` on an older row |
 | `ExecutionHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`: one job exactly, a fire-time window (from inclusive, before exclusive), results matched on `EffectiveResult` |
 | `MisfireHistoryQuery.Job` | `init`: one job exactly |
+| `MisfireHistoryQuery.Reasons` | `init`: `MisfireReason`s to list; `null` lists every one, an empty set none. The in-memory history applies it |
 | `MisfireReason.Vetoed` | `2`: a trigger listener vetoed the firing |
 | `SchedulerConstants.ManualTrigger` | `"QRTZ_MANUAL_TRIGGER"`, on the trigger `TriggerJob` fires |
 | `JobRunStatus` | A job's last run, last success and failure, consecutive failures and counts. See [Read a job's status](how-tos/job-outcomes.md#read-a-job-s-status) |
@@ -51,6 +52,14 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `AdoConstants.ColumnFirstFiredTime`, `ColumnLastFiredTime`, `ColumnLastResult`, `ColumnLastRunTime`, `ColumnLastInstanceName`, `ColumnLastEntryId`, `ColumnLastSummary`, `ColumnLastSuccessTime`, `ColumnLastFailureTime`, `ColumnLastFailureMessage`, `ColumnConsecutiveFailures`, `ColumnRunCount`, `ColumnFailureCount` | The columns of `QRTZ_JOB_STATUS` |
 | `AdoJobStoreOptions.MaxConsecutiveFireFailures` | `int`, default `5`; `0` never parks. Flat key `quartz.jobStore.maxConsecutiveFireFailures`. See [A trigger that fails to fire](operations.md#a-trigger-that-fails-to-fire) |
 | Log event `3050` | Error: a trigger stored `ERROR` after that many failed fires in a row |
+| `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
+| `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
+| `DashboardHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`, as on `ExecutionHistoryQuery`. `Job` is a `JobKeyDto` |
+| `DashboardMisfireQuery.Job`, `Reasons` | `init`, as on `MisfireHistoryQuery` |
+| HTTP: `jobGroup`, `jobName`, `firedFrom`, `firedBefore`, `results` on `…/history/executions`; `jobGroup`, `jobName`, `reasons` on `…/history/misfires` | See [Filtering by job, time and result](packages/http-api.md#filtering-by-job-time-and-result) |
+| HTTP: `GET …/history/job-status`, `GET …/history/job-status/{jobGroup}/{jobName}`, `POST …/history/job-status/fetch` | See [Job run status](packages/http-api.md#job-run-status). `501` when the store keeps no status |
+| HTTP: `result`, `summary`, `metrics`, `manual`, `fireInstanceId` on an execution row | `metrics` is a JSON object |
+| Log event `9008` | Debug: a status route answered `501` |
 
 **Behaviour changes:**
 
@@ -78,12 +87,24 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
     }));
   ```
 
+* **The dashboard's History page labels a success *Succeeded*, not *Complete***, in a column named *Result*.
+  The Job Detail page's *View execution history* opens that job's rows only, where it used to filter by a
+  fragment of the key.
+* **The HTTP API's misfire listing leaves out `Vetoed` rows unless `reasons` names them.** A client of your
+  own that reads them asks:
+
+  ```http
+  GET /quartz-api/schedulers/QuartzScheduler/history/misfires?reasons=Missed,Overlap,Vetoed
+  ```
+
 **Mixed 4.3 and 4.4 versions:**
 
 * A 4.3 node reads a `Vetoed` row in a shared misfire table as `Missed`, and its `CountMisfires` does not
   count it.
-* A 4.3 dashboard or HTTP client that lists a 4.4 host's misfires fails on a `Vetoed` row: its
-  `MisfireReason` has no such name. Upgrade the readers before the hosts they read.
+* A 4.3 dashboard or HTTP client reads a 4.4 host's misfire listing: the host leaves `Vetoed` out for it.
+* A 4.4 dashboard or HTTP client reading a 4.3 host: the new history filters throw `NotSupportedException`
+  rather than return unfiltered rows, and there is no run status. The dashboard says so and leaves the status
+  out. Upgrade the hosts to use them.
 * A 4.3 node never parks a failing trigger. Each 4.4 node counts its own failures, so a trigger may be
   tried five times on each 4.4 node before one parks it.
 

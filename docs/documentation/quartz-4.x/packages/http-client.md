@@ -280,6 +280,20 @@ PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(new Exec
   `404`), so a caller can show "this target serves no history".
 - A `404` naming an unknown scheduler still arrives as `HttpClientException`.
 
+From 4.4:
+
+| Read | Over the wire |
+|---|---|
+| `ExecutionHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results`; `MisfireHistoryQuery.Job`, `Reasons` | [Query parameters](http-api.md#filtering-by-job-time-and-result); `NotSupportedException` against a host before 4.4 |
+| `QueryMisfires` | Names every `MisfireReason`, so `Vetoed` rows are [listed](http-api.md#vetoes-are-listed-when-asked-for) |
+| `QueryJobRunStatuses`, `GetJobRunStatus` | The [`…/history/job-status` routes](http-api.md#job-run-status); `NotSupportedException` when the host keeps no status |
+| `ExecutionHistoryEntry.MetricsJson` | A JSON object, handed back as the text the recorder wrote |
+
+- A host before 4.4 ignores the filters and would answer every row. The store reads the host's version before
+  the first filtered read and throws instead of sending them.
+- A host seen at 4.4 is not asked again. An older one is asked on each filtered read, so an upgrade is noticed.
+- An empty `Results` or `Reasons` set answers an empty page without asking.
+
 ## Events
 
 `AddQuartzHttpClient` also registers a reader of the target's [event stream](http-api.md#the-event-stream),

@@ -162,6 +162,8 @@ An implementation must follow the interface's two promises to render like the sh
 
 **Members added during 4.x arrive as default interface members**, so your implementation keeps compiling. The
 default body reports the datum as unavailable, like `CannotReport`; override it when your source can answer.
+`GetJobRunStatus` and `GetJobRunStatuses` (4.4) throw `NotSupportedException` by default, and the pages leave
+out what they would show.
 
 ## The pages
 
@@ -213,7 +215,7 @@ detail page.
 
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
-| **Jobs**: job details and keys | the `JobDataMap` and the triggers pointing at the job | trigger-now with overrides, pause, resume, delete |
+| **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
 | **Triggers**: state, next and previous fire times, execution group | the trigger's `JobDataMap`, priority, calendar, misfire instruction, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names | one calendar | create, replace or delete a cron calendar |
 
@@ -380,7 +382,8 @@ name their scope, and a misfires section. Details under
 [Execution history and misfires](#execution-history-and-misfires).
 
 Each row's fire time links to `/quartz/history/{EntryId}`, the execution's own page: job, trigger, node, fire
-time, duration, status, attempt, what it threw, and the lines it logged when the scheduler
+time, duration, result, summary, whether it was run by hand, attempt, what it threw, the fire instance id, a
+table of its metrics, and the lines it logged when the scheduler
 [captures them](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines). It only reads, so read-only
 mode leaves it unchanged.
 
@@ -525,7 +528,9 @@ A target whose HTTP API is older than 4.1 has no history routes. The History pag
 another process and its Quartz HTTP API does not serve execution history", and the Overview's misfire tile shows
 a dash, not zero. Such a target has no `update-details` route either: *Save details* shows its refusal beside
 the fields. One older than 4.2 ignores the *next fire before* filter, which is then
-[disabled with the reason](#filtering-the-listings).
+[disabled with the reason](#filtering-the-listings). One older than 4.4 keeps no [run status](#job-run-status),
+so the Jobs columns and the Job Detail panel are left out, and the History page's results and one-job filters
+say the host cannot answer them.
 
 ## Store-attached targets
 
@@ -714,23 +719,54 @@ exception. There is no `MapQuartzDashboard(blazor, pattern)` overload.
 ## Execution history and misfires
 
 `AddQuartzDashboard()` calls `AddQuartzExecutionHistory()`, so the **History** page at `/quartz/history` fills
-without further setup. Each row: job, trigger, node, fire time, duration, success, and the error if any.
+without further setup. Each row: job, trigger, node, fire time, duration, result, the job's summary and metrics,
+and the error if any.
 
+- **Result**: *Succeeded*, *Skipped*, *Failed*, *Failed (retrying)* or *Cancelled*; a *Manual* badge on a run
+  asked for with *Trigger now*. A row written before 4.4 shows *Succeeded* or *Failed*. See
+  [Job Outcomes](../how-tos/job-outcomes.md).
 - **Stat cards** over the page in view: success rate, failures, average duration, P95 duration.
-- **Filters**: job, trigger, node, outcome.
+- **Filters**: job, trigger, node, outcome and, from 4.4, results and one job exactly.
 - **The node filter** narrows to one machine, and the stat card titles then say so, so one node's success rate
   is not read as the fleet's.
 - **The outcome filter** handles retries. A job with a retry policy of three writes four failed rows for one bad
   night. A failure followed by another attempt shows *Failed (retrying)*; **Failed after retries** shows only
   occurrences that gave up.
+- **The results filter** lists the ticked results; none ticked lists every result. A scheduler in another
+  process whose host is older than 4.4 cannot filter by result or by one job, and the page says so.
 - **Run again**, on those failed rows, fires the job through `IScheduler.TriggerJob`. It is logged in the
   [action log](#action-log) and hidden in [read-only](#read-only-mode) mode. It uses the job's and trigger's
   stored data maps, not the merged map of the failed run, which history does not record. A row that will be
   retried has no button.
 
+Every filter is a query parameter, so a narrowed view is a link:
+
+| Filter | Parameter |
+|---|---|
+| Job, a fragment | `job` |
+| Trigger, a fragment | `trigger` |
+| Node | `node` |
+| Failed after retries | `outcome=failed` |
+| Results | `result=failed,cancelled` |
+| One job exactly | `jobGroup` and `jobName`, which the Job Detail page's *View execution history* link writes |
+
 Below, **misfires** lists firings that did not happen, which never appear as executions: trigger, its job, the
-node that noticed, the missed firing, when it was noticed, and the reason — `Misfire`, or `Overlap` for one a
-trigger's [overlap policy](../how-tos/overlap-policy.md) skipped. The overview's tile counts misfires only.
+node that noticed, the missed firing, when it was noticed, and the reason — `Misfire`, `Overlap` for one a
+trigger's [overlap policy](../how-tos/overlap-policy.md) skipped, or `Vetoed` for one a trigger listener
+refused. The overview's tile counts misfires only. With one job selected, the section lists that job's.
+
+### Job run status
+
+From 4.4, the history keeps a status per job: its last run, last success, last failure and how many
+occurrences in a row failed for good. See [Read a job's status](../how-tos/job-outcomes.md#read-a-job-s-status).
+
+| Page | Shows |
+|---|---|
+| Jobs | *Last run*, *Last success* and a *failing ×N* badge linking to that job's final failures; one read per page |
+| Job Detail | A *Runs* panel: the last run linking to its execution, its summary, the last success and failure, the counts |
+
+A source that keeps no status (an `IDashboardHistoryStore` of your own, a scheduler in another process whose host
+is older than 4.4) leaves the columns and the panel out.
 
 The history belongs to Quartz: `AddQuartzExecutionHistory()`'s recorder writes it, the container's
 `IExecutionHistoryStore` holds it, and the [HTTP API](http-api.md#execution-history) serves the same rows. The

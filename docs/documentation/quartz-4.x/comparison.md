@@ -167,7 +167,9 @@ discarded. See [Job Continuations](how-tos/job-continuations.md).
 
 Hangfire's per-state lists are better for browsing failures by kind. Quartz's History page has a
 **Failed after retries** filter and a **Run again** button on each occurrence that gave up — see
-[When the policy gives up](how-tos/retrying-failed-jobs.md#when-the-policy-gives-up).
+[When the policy gives up](how-tos/retrying-failed-jobs.md#when-the-policy-gives-up). From 4.4 it also filters by
+result (*Succeeded*, *Skipped*, *Failed*, *Cancelled*) and by one job, and the Jobs page shows each job's last
+run, last success and a *failing ×N* count from its [run status](how-tos/job-outcomes.md#read-a-job-s-status).
 
 ## Observability
 
