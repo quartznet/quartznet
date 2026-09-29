@@ -18,17 +18,18 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4) |
+| From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4). Its database migration is optional |
 | From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3). It has a database migration. Then 4.3 to 4.4 |
-| From 4.1 | [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2). It has the first database migration since 4.0. Then 4.2 to 4.3 |
-| From 4.0 | [Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1), then 4.1 to 4.2 and 4.2 to 4.3 |
+| From 4.1 | [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2). It has the first database migration since 4.0. Then 4.2 to 4.3 and 4.3 to 4.4 |
+| From 4.0 | [Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1), then 4.1 to 4.2, 4.2 to 4.3 and 4.3 to 4.4 |
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
 
 The compiler finds most of the 3.x → 4.0 work.
 
 ## Upgrading from 4.3 to 4.4
 
-An application on 4.3 compiles on 4.4 unchanged.
+An application on 4.3 compiles on 4.4 unchanged. **The database schema changed** for a store that keeps
+its execution history in the database: run [the 4.4 schema migration](#the-4-4-schema-migration).
 
 | Added | What it is |
 |---|---|
@@ -45,6 +46,9 @@ An application on 4.3 compiles on 4.4 unchanged.
 | `IExecutionHistoryStore.QueryJobRunStatuses`, `GetJobRunStatus` | Default interface members. The first throws `NotSupportedException`; the second asks the first for one job |
 | `ExecutionHistoryOptions.RetentionByResult`, `MisfireRetention`, `MaxEntriesPerJob` | Age per result (get-only), age of the misfire feed, rows per job with failures exempt. See [Keep history by result](how-tos/job-outcomes.md#keep-history-by-result) |
 | Log events `1059`, `1060` | Warnings: a job's metrics were not recorded, because they came to more than 4,000 characters of JSON, or because writing one of them threw. The run is recorded either way |
+| `AdoConstants.TableJobStatus` | `JOB_STATUS`: one row per job, rolled up from the execution history |
+| `AdoConstants.ColumnResult`, `ColumnSummary`, `ColumnMetrics`, `ColumnManual`, `ColumnFireInstanceId` | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY` |
+| `AdoConstants.ColumnFirstFiredTime`, `ColumnLastFiredTime`, `ColumnLastResult`, `ColumnLastRunTime`, `ColumnLastInstanceName`, `ColumnLastEntryId`, `ColumnLastSummary`, `ColumnLastSuccessTime`, `ColumnLastFailureTime`, `ColumnLastFailureMessage`, `ColumnConsecutiveFailures`, `ColumnRunCount`, `ColumnFailureCount` | The columns of `QRTZ_JOB_STATUS` |
 
 **Behaviour changes:**
 
@@ -65,6 +69,15 @@ An application on 4.3 compiles on 4.4 unchanged.
   count it.
 * A 4.3 dashboard or HTTP client that lists a 4.4 host's misfires fails on a `Vetoed` row: its
   `MisfireReason` has no such name. Upgrade the readers before the hosts they read.
+
+### The 4.4 schema migration
+
+| Script | Status |
+|---|---|
+| `database/migrations/4.4/add_execution_outcome_<db>.sql` | Optional. Needed only with `UseExecutionHistory()`, which refuses to start without it. Run it after `4.2/add_execution_history_<db>.sql` |
+
+Run it while 4.3 nodes are still running. The columns are nullable with no default, and a 4.3 node never
+names them or touches `QRTZ_JOB_STATUS`. See [Database Schema Changes](../database/schema-changes.md#version-4-4).
 
 ## Upgrading from 4.2 to 4.3
 

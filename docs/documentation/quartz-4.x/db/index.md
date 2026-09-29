@@ -81,7 +81,7 @@ outside ASCII is two to four bytes of UTF-8, so such a column holds fewer of the
 | Oracle | `NLS_LENGTH_SEMANTICS` is `BYTE`, the default | the column was created under `CHAR` semantics |
 | Firebird | the database has no default character set (`NONE`) | the database was created with `DEFAULT CHARACTER SET UTF8` |
 
-Quartz cannot tell which one a database uses. On these two dialects it cuts four texts by bytes too,
+Quartz cannot tell which one a database uses. On these two dialects it cuts these texts by bytes too,
 always at a whole character:
 
 | Column | Cut to (characters) | Oracle width (bytes) | Firebird width (bytes) |
@@ -90,10 +90,12 @@ always at a whole character:
 | `PAUSED_BY` | 200 | 800 | 800 |
 | `PROGRESS_MESSAGE` | 250 | 1,000 | 250 |
 | `ERROR_MESSAGE` (execution history) | 1,000 | 4,000 | 1,000 |
+| `SUMMARY` (execution history) | 1,000 | 4,000 | 1,000 |
+| `LAST_SUMMARY`, `LAST_FAILURE_MESSAGE` (job status) | 1,000 | 4,000 | 1,000 |
 
 * A width four times the length never shortens a text: UTF-8 is at most three bytes a UTF-16 code unit.
   Oracle's are all four times.
-* Firebird's `PROGRESS_MESSAGE` and `ERROR_MESSAGE` are not. A message of `é` keeps 125 or 500
+* Firebird's `PROGRESS_MESSAGE` and its 1,000-character texts are not. A message of `é` keeps 125 or 500
   characters, one of `日` 83 or 333, whatever the database's character set.
 * No other text is cut. Names, groups, `DESCRIPTION` and `CALENDAR_NAME` are refused when they do not
   fit. Counted in bytes, 250 characters of `é` are 500, so a `VARCHAR(250)` `DESCRIPTION` refuses them:
