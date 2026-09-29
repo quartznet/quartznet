@@ -10,14 +10,14 @@ updates:
   # hand-written docs workflows sat three majors behind on actions/checkout while the generated ones
   # moved on.
   #
-  # Eleven of the fifteen workflows are generated from build/Build.CI.GitHubActions.cs and carry the
+  # Eleven of the fourteen workflows are generated from build/Build.CI.GitHubActions.cs and carry the
   # action versions Fallout writes, so a bump Dependabot proposes for one of those is not a bump to
   # keep: the next 'fallout --generate-configuration' run puts the old version straight back. Move
-  # Fallout instead, and let the generator write the new versions. The four hand-written workflows -
-  # docs.yml, docs-pr.yml, sonar.yml and issue-triage.yml - are the ones this ecosystem is for.
+  # Fallout instead, and let the generator write the new versions. The three hand-written workflows -
+  # docs.yml, docs-pr.yml and sonar.yml - are the ones this ecosystem is for.
   #
-  # One group, because an action bump is a one-line change and fifteen separate pull requests for the
-  # same major would be fifteen reviews of the same decision.
+  # One group, because an action bump is a one-line change and fourteen separate pull requests for the
+  # same major would be fourteen reviews of the same decision.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
