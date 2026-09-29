@@ -62,6 +62,23 @@ public sealed class DashboardHistorySeamTest
     }
 
     /// <summary>
+    /// The dashboard's 4.0 seam keeps rows and nothing else, so Quartz's seam over it says it has no
+    /// per-job status rather than making one up.
+    /// </summary>
+    [Test]
+    public async Task AStoreTheApplicationRegisteredHasNoRunStatus()
+    {
+        IExecutionHistoryStore quartzStore = new ExecutionHistoryStoreOverDashboardStore(TestData.Dashboard.HistoryStore());
+
+        Func<Task> query = async () => await quartzStore.QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = "acme" });
+        Func<Task> single = async () => await quartzStore.GetJobRunStatus("acme", new JobKey("nightly", "reports"));
+
+        await query.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*no per-job run status*");
+        await single.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*",
+            "the adapter declares the single read itself rather than leaving it to the interface's default");
+    }
+
+    /// <summary>
     /// A store registered against Quartz's own seam is what the application said it wanted, and is not
     /// replaced by anything the dashboard does.
     /// </summary>

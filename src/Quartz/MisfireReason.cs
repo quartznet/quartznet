@@ -40,4 +40,10 @@ public enum MisfireReason
     /// of the same trigger was still running.
     /// </summary>
     Overlap = 1,
+
+    /// <summary>
+    /// A trigger listener's <see cref="ITriggerListener.VetoJobExecution" /> answered
+    /// <see langword="true" />, so the job did not run.
+    /// </summary>
+    Vetoed = 2,
 }

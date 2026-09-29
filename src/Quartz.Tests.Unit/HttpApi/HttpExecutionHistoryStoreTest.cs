@@ -334,6 +334,18 @@ public class HttpExecutionHistoryStoreTest
         await writeMisfire.Should().ThrowAsync<NotSupportedException>();
     }
 
+    [Test]
+    public async Task NoRunStatusIsReadThroughTheWire()
+    {
+        Func<Task> query = async () => await Store().QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = "Remote" });
+        Func<Task> single = async () => await Store().GetJobRunStatus("Remote", new JobKey("nightly", "DummyGroup"));
+
+        await query.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*HTTP API serves no per-job run status*");
+        await single.Should().ThrowAsync<NotSupportedException>().WithMessage("*HTTP API serves no per-job run status*",
+            "the store declares the read itself, so it does not ask the listing the default would ask");
+        handler.LastRequestUri.Should().BeNull("nothing was sent");
+    }
+
     private HttpExecutionHistoryStore Store() => new("Remote", httpClient);
 
     private sealed class StubHandler : HttpMessageHandler

@@ -116,6 +116,17 @@ public static class SchedulerConstants
     public const string BackfillOriginalFireTime = "QRTZ_BACKFILL_ORIG_FIRETIME_AS_STRING";
 
     /// <summary>
+    /// The <see cref="JobDataMap" /> key, set to <c>"true"</c>, marking the trigger
+    /// <see cref="IScheduler.TriggerJob" /> creates, so the run is recorded as manual.
+    /// </summary>
+    /// <remarks>
+    /// Written onto the trigger's map, so it persists in every store and reads through
+    /// <see cref="IJobExecutionContext.MergedJobDataMap" />. The execution history reads it into
+    /// <see cref="ExecutionHistoryEntry.Manual" />.
+    /// </remarks>
+    public const string ManualTrigger = "QRTZ_MANUAL_TRIGGER";
+
+    /// <summary>
     /// A special date time to check against when signaling scheduling change when the signaled fire date suggestion is actually irrelevant.
     /// We only want to signal the change.
     /// </summary>

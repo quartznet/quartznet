@@ -162,6 +162,9 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1058, Level = LogLevel.Warning, Message = "Could not record the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on")]
     public static partial void FireProgressWriteFailed(this ILogger logger, string fireInstanceId, JobKey jobKey, Exception exception);
 
+    [LoggerMessage(EventId = 1059, Level = LogLevel.Warning, Message = "The metrics job {JobKey} reported were not recorded: as JSON they come to more than {MaxLength} characters")]
+    public static partial void JobRunMetricsDropped(this ILogger logger, JobKey jobKey, int maxLength);
+
     [LoggerMessage(EventId = 1070, Level = LogLevel.Information, Message = "Initialized Scheduler Signaller of type: {Type}")]
     public static partial void SchedulerSignalerInitialized(this ILogger logger, Type type);
 

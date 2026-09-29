@@ -37,8 +37,12 @@ namespace Quartz;
 /// <param name="TriggerName">The name of the trigger that fired it.</param>
 /// <param name="FiredAtUtc">When the execution fired.</param>
 /// <param name="Duration">How long the job took.</param>
-/// <param name="Succeeded">Whether the job completed without throwing.</param>
-/// <param name="ExceptionMessage">What it threw, or <see langword="null" /> when it succeeded.</param>
+/// <param name="Succeeded">
+/// Whether the run counts as a success: <see cref="Result" /> is <see cref="JobRunResult.Succeeded" /> or
+/// <see cref="JobRunResult.Skipped" />. On a row written before 4.4, whether the job completed without
+/// throwing.
+/// </param>
+/// <param name="ExceptionMessage">What it threw, or <see langword="null" /> when it did not throw.</param>
 public sealed record ExecutionHistoryEntry(
     string SchedulerName,
     string SchedulerInstanceId,
@@ -97,4 +101,54 @@ public sealed record ExecutionHistoryEntry(
     /// <see cref="Extensibility.IExecutionHistoryStore.GetExecution" /> always carries it.
     /// </remarks>
     public string? Log { get; init; }
+
+    /// <summary>
+    /// What the run achieved, or <see langword="null" /> on a row written before 4.4.
+    /// </summary>
+    /// <remarks>
+    /// Read <see cref="EffectiveResult" />, which answers for the older rows too.
+    /// </remarks>
+    public JobRunResult? Result { get; init; }
+
+    /// <summary>
+    /// <see cref="Result" />, or on a row written before 4.4 what <see cref="Succeeded" /> implies:
+    /// <see cref="JobRunResult.Succeeded" /> or <see cref="JobRunResult.Failed" />.
+    /// </summary>
+    /// <remarks>
+    /// What every result filter, retention tier and status is decided by.
+    /// </remarks>
+    public JobRunResult EffectiveResult => Result ?? (Succeeded ? JobRunResult.Succeeded : JobRunResult.Failed);
+
+    /// <summary>
+    /// The job's own one line about the run, from <see cref="IJobRunReport.Summary" />, or
+    /// <see langword="null" />. At most <see cref="JobRunReport.MaxSummaryLength" /> characters.
+    /// </summary>
+    public string? Summary { get; init; }
+
+    /// <summary>
+    /// What the run measured, from <see cref="IJobRunReport.Metrics" />, as one JSON object; or
+    /// <see langword="null" /> when the job reported none, or more than
+    /// <see cref="JobRunReport.MaxMetricsLength" /> characters of it.
+    /// </summary>
+    public string? MetricsJson { get; init; }
+
+    /// <summary>
+    /// Whether the run was asked for with <see cref="IScheduler.TriggerJob" /> rather than fired by a
+    /// schedule.
+    /// </summary>
+    /// <remarks>
+    /// Read from <see cref="SchedulerConstants.ManualTrigger" /> on the firing trigger's
+    /// <see cref="JobDataMap" />. <see langword="false" /> on a row written before 4.4.
+    /// </remarks>
+    public bool Manual { get; init; }
+
+    /// <summary>
+    /// The firing's <see cref="IJobExecutionContext.FireInstanceId" />, which links the row to the
+    /// firing's span and log scope; or <see langword="null" /> on a row written before 4.4.
+    /// </summary>
+    /// <remarks>
+    /// Not a key: a fire instance id is unique among the firings in flight, and may repeat after a
+    /// restart.
+    /// </remarks>
+    public string? FireInstanceId { get; init; }
 }

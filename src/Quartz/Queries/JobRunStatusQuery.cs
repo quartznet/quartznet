@@ -20,31 +20,27 @@
 namespace Quartz;
 
 /// <summary>
-/// One page of the misfires of a scheduler, optionally narrowed by node, trigger and job.
+/// One page of the per-job run statuses of a scheduler, optionally narrowed to some jobs or to the
+/// failing ones.
 /// </summary>
 /// <remarks>
-/// <inheritdoc cref="ExecutionHistoryQuery" path="/remarks" />
+/// Results are ordered by job group and then name (ordinal), as every <see cref="PagedQuery" /> is.
 /// </remarks>
-public sealed record MisfireHistoryQuery : PagedQuery
+public sealed record JobRunStatusQuery : PagedQuery
 {
     /// <summary>
-    /// The scheduler whose misfires to list. Required: a store keeps every scheduler's rows together.
+    /// The scheduler whose statuses to list. Required: a store keeps every scheduler's together.
     /// </summary>
     public required string SchedulerName { get; init; }
 
     /// <summary>
-    /// The node whose misfires to list, or <see langword="null" /> for every node's.
+    /// Lists only these jobs' statuses, or every job's when null. An empty set lists nothing.
     /// </summary>
-    public string? SchedulerInstanceId { get; init; }
+    public IReadOnlyCollection<JobKey>? Jobs { get; init; }
 
     /// <summary>
-    /// Lists only the misfires whose trigger key matches this, or every trigger's when null.
+    /// <see langword="true" /> lists the jobs whose <see cref="JobRunStatus.ConsecutiveFailures" /> is above
+    /// zero, <see langword="false" /> the rest, and <see langword="null" />, the default, all of them.
     /// </summary>
-    public string? TriggerContains { get; init; }
-
-    /// <summary>
-    /// Lists only the misfires of triggers pointing at this job, matched exactly, or every job's when
-    /// null. A row whose <see cref="MisfireHistoryEntry.JobKey" /> is null never matches.
-    /// </summary>
-    public JobKey? Job { get; init; }
+    public bool? Failing { get; init; }
 }

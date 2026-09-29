@@ -29,14 +29,21 @@ namespace Quartz.Impl;
 /// The per-process execution history Quartz keeps when nothing else is registered.
 /// </summary>
 /// <remarks>
-/// Bounded twice: by <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" />, so a busy scheduler
-/// cannot grow it without limit, and by <see cref="ExecutionHistoryOptions.Retention" />, so a quiet one
-/// stops showing executions from an arbitrary distance in the past. In memory and per process, so every
-/// node of a cluster holds its own — which is why every row carries the node that produced it.
+/// <para>
+/// Bounded by <see cref="ExecutionHistoryOptions" />: an age per result, a cap per job, and
+/// <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> as the backstop, so a busy scheduler
+/// cannot grow it without limit and a quiet one stops showing executions from an arbitrary distance in
+/// the past. In memory and per process, so every node of a cluster holds its own — which is why every
+/// row carries the node that produced it.
+/// </para>
+/// <para>
+/// Beside the rows it keeps a <see cref="JobRunStatus" /> per job, folded from every execution it
+/// records and kept however the rows are trimmed.
+/// </para>
 /// </remarks>
 internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
 {
-    private readonly ConcurrentDictionary<string, List<ExecutionHistoryEntry>> executionsByScheduler = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ExecutionFeed> executionsByScheduler = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, List<MisfireHistoryEntry>> misfiresByScheduler = new(StringComparer.OrdinalIgnoreCase);
     private readonly TimeProvider timeProvider;
     private readonly IOptions<ExecutionHistoryOptions> options;
@@ -63,7 +70,17 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
             ? entry with { EntryId = ExecutionHistoryPlugin.NewEntryId() }
             : entry;
 
-        Record(executionsByScheduler, named.SchedulerName, named, FiredAt);
+        ExecutionHistoryOptions bounds = options.Value;
+        ExecutionFeed feed = executionsByScheduler.GetOrAdd(named.SchedulerName, static _ => new ExecutionFeed());
+
+        lock (feed)
+        {
+            feed.Entries.Add(named);
+            feed.Fold(named, bounds.MaxEntriesPerScheduler);
+            CapJob(feed.Entries, named, bounds.MaxEntriesPerJob);
+            TrimExecutions(feed.Entries, bounds);
+        }
+
         return default;
     }
 
@@ -76,7 +93,7 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
         ArgumentException.ThrowIfNullOrWhiteSpace(entryId);
 
-        foreach (ExecutionHistoryEntry entry in Snapshot(executionsByScheduler, schedulerName, FiredAt))
+        foreach (ExecutionHistoryEntry entry in ExecutionSnapshot(schedulerName))
         {
             if (string.Equals(entry.EntryId, entryId, StringComparison.Ordinal))
             {
@@ -91,7 +108,13 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        Record(misfiresByScheduler, entry.SchedulerName, entry, MisfiredAt);
+        List<MisfireHistoryEntry> list = misfiresByScheduler.GetOrAdd(entry.SchedulerName, static _ => []);
+        lock (list)
+        {
+            list.Add(entry);
+            TrimMisfires(list, options.Value);
+        }
+
         return default;
     }
 
@@ -100,7 +123,7 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         ArgumentNullException.ThrowIfNull(query);
 
         IEnumerable<ExecutionHistoryEntry> filtered = OnNode(
-            Snapshot(executionsByScheduler, query.SchedulerName, FiredAt),
+            ExecutionSnapshot(query.SchedulerName),
             query.SchedulerInstanceId,
             static entry => entry.SchedulerInstanceId);
 
@@ -125,6 +148,27 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
             filtered = filtered.Where(x => (!x.Succeeded && !x.RetryScheduled) == failedFinally);
         }
 
+        if (query.Job is { } job)
+        {
+            filtered = filtered.Where(x => IsJob(x, job));
+        }
+
+        if (query.FiredFrom is { } firedFrom)
+        {
+            filtered = filtered.Where(x => x.FiredAtUtc >= firedFrom);
+        }
+
+        if (query.FiredBefore is { } firedBefore)
+        {
+            filtered = filtered.Where(x => x.FiredAtUtc < firedBefore);
+        }
+
+        if (query.Results is { } results)
+        {
+            HashSet<JobRunResult> wanted = [.. results];
+            filtered = filtered.Where(x => wanted.Contains(x.EffectiveResult));
+        }
+
         return new ValueTask<PagedResult<ExecutionHistoryEntry>>(
             Page(filtered.OrderByDescending(static entry => entry.FiredAtUtc).ToList(), query));
     }
@@ -134,7 +178,7 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         ArgumentNullException.ThrowIfNull(query);
 
         IEnumerable<MisfireHistoryEntry> filtered = OnNode(
-            Snapshot(misfiresByScheduler, query.SchedulerName, MisfiredAt),
+            MisfireSnapshot(query.SchedulerName),
             query.SchedulerInstanceId,
             static entry => entry.SchedulerInstanceId);
 
@@ -143,6 +187,11 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
             string normalizedTriggerFilter = query.TriggerContains.Trim();
             filtered = filtered.Where(x =>
                 MatchesFilter(x.TriggerGroup, x.TriggerName, normalizedTriggerFilter));
+        }
+
+        if (query.Job is { } job)
+        {
+            filtered = filtered.Where(x => job.Equals(x.JobKey));
         }
 
         return new ValueTask<PagedResult<MisfireHistoryEntry>>(
@@ -154,9 +203,10 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
 
         int count = 0;
-        foreach (MisfireHistoryEntry entry in Snapshot(misfiresByScheduler, schedulerName, MisfiredAt))
+        foreach (MisfireHistoryEntry entry in MisfireSnapshot(schedulerName))
         {
-            // A firing the overlap policy skipped is recorded beside the misfires, and is not one.
+            // A firing the overlap policy skipped, or a listener vetoed, is recorded beside the misfires,
+            // and is not one.
             if (entry.MisfiredAtUtc >= since && entry.Reason == MisfireReason.Missed)
             {
                 count++;
@@ -166,9 +216,71 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         return new ValueTask<int>(count);
     }
 
-    private static DateTimeOffset FiredAt(ExecutionHistoryEntry entry) => entry.FiredAtUtc;
+    public ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
 
-    private static DateTimeOffset MisfiredAt(MisfireHistoryEntry entry) => entry.MisfiredAtUtc;
+        List<JobRunStatus> statuses = [];
+        if (executionsByScheduler.TryGetValue(query.SchedulerName, out ExecutionFeed? feed))
+        {
+            lock (feed)
+            {
+                if (query.Jobs is null)
+                {
+                    statuses.AddRange(feed.Statuses.Values);
+                }
+                else
+                {
+                    // Looked up rather than scanned, and each named once however often the caller named it.
+                    foreach (JobKey job in new HashSet<JobKey>(query.Jobs))
+                    {
+                        if (feed.Statuses.TryGetValue(job, out JobRunStatus? status))
+                        {
+                            statuses.Add(status);
+                        }
+                    }
+                }
+            }
+        }
+
+        IEnumerable<JobRunStatus> filtered = statuses;
+        if (query.Failing is { } failing)
+        {
+            filtered = filtered.Where(status => (status.ConsecutiveFailures > 0) == failing);
+        }
+
+        List<JobRunStatus> ordered = filtered
+            .OrderBy(static status => status.Job.Group, StringComparer.Ordinal)
+            .ThenBy(static status => status.Job.Name, StringComparer.Ordinal)
+            .ToList();
+
+        return new ValueTask<PagedResult<JobRunStatus>>(Page(ordered, query));
+    }
+
+    public ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKey jobKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        if (executionsByScheduler.TryGetValue(schedulerName, out ExecutionFeed? feed))
+        {
+            lock (feed)
+            {
+                if (feed.Statuses.TryGetValue(jobKey, out JobRunStatus? status))
+                {
+                    return new ValueTask<JobRunStatus?>(status);
+                }
+            }
+        }
+
+        return new ValueTask<JobRunStatus?>((JobRunStatus?) null);
+    }
+
+    private static bool IsJob(ExecutionHistoryEntry entry, JobKey job)
+    {
+        return string.Equals(entry.JobName, job.Name, StringComparison.Ordinal)
+               && string.Equals(entry.JobGroup, job.Group, StringComparison.Ordinal);
+    }
 
     private static IEnumerable<T> OnNode<T>(List<T> entries, string? schedulerInstanceId, Func<T, string> nodeOf)
     {
@@ -190,16 +302,6 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         return new PagedResult<T>(pageItems, hasMore, ordered.Count);
     }
 
-    private void Record<T>(ConcurrentDictionary<string, List<T>> byScheduler, string schedulerName, T entry, Func<T, DateTimeOffset> timeOf)
-    {
-        List<T> list = byScheduler.GetOrAdd(schedulerName, static _ => []);
-        lock (list)
-        {
-            list.Add(entry);
-            Trim(list, timeOf);
-        }
-    }
-
     /// <summary>
     /// Takes a copy of what a scheduler holds, forgetting whatever has fallen out of bounds first.
     /// </summary>
@@ -208,15 +310,32 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     /// again — and it is exactly that scheduler whose page would otherwise keep showing executions from
     /// an arbitrary distance in the past.
     /// </remarks>
-    private List<T> Snapshot<T>(ConcurrentDictionary<string, List<T>> byScheduler, string schedulerName, Func<T, DateTimeOffset> timeOf)
+    private List<ExecutionHistoryEntry> ExecutionSnapshot(string schedulerName)
     {
-        List<T> snapshot = [];
+        List<ExecutionHistoryEntry> snapshot = [];
 
-        if (byScheduler.TryGetValue(schedulerName, out List<T>? list))
+        if (executionsByScheduler.TryGetValue(schedulerName, out ExecutionFeed? feed))
+        {
+            lock (feed)
+            {
+                TrimExecutions(feed.Entries, options.Value);
+                snapshot.AddRange(feed.Entries);
+            }
+        }
+
+        return snapshot;
+    }
+
+    /// <inheritdoc cref="ExecutionSnapshot" />
+    private List<MisfireHistoryEntry> MisfireSnapshot(string schedulerName)
+    {
+        List<MisfireHistoryEntry> snapshot = [];
+
+        if (misfiresByScheduler.TryGetValue(schedulerName, out List<MisfireHistoryEntry>? list))
         {
             lock (list)
             {
-                Trim(list, timeOf);
+                TrimMisfires(list, options.Value);
                 snapshot.AddRange(list);
             }
         }
@@ -225,7 +344,7 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <summary>
-    /// Applies both bounds, age before count.
+    /// Applies the age bound for each row's result, then the scheduler-wide count.
     /// </summary>
     /// <remarks>
     /// The age pass is a full scan rather than a walk in from the oldest end: entries are appended in
@@ -237,14 +356,34 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     /// whatever they were when the container was built.
     /// </para>
     /// </remarks>
-    private void Trim<T>(List<T> list, Func<T, DateTimeOffset> timeOf)
+    private void TrimExecutions(List<ExecutionHistoryEntry> list, ExecutionHistoryOptions bounds)
     {
-        ExecutionHistoryOptions bounds = options.Value;
+        DateTimeOffset now = timeProvider.GetUtcNow();
+        DateTimeOffset? defaultCutoff = Cutoff(now, bounds.Retention);
 
-        if (bounds.Retention > TimeSpan.Zero)
+        if (bounds.RetentionByResult.Count == 0)
         {
-            DateTimeOffset cutoff = timeProvider.GetUtcNow() - bounds.Retention;
-            list.RemoveAll(entry => timeOf(entry) < cutoff);
+            if (defaultCutoff is { } cutoff)
+            {
+                list.RemoveAll(entry => entry.FiredAtUtc < cutoff);
+            }
+        }
+        else
+        {
+            Dictionary<JobRunResult, DateTimeOffset?> cutoffs = new(bounds.RetentionByResult.Count);
+            foreach (KeyValuePair<JobRunResult, TimeSpan> tier in bounds.RetentionByResult)
+            {
+                cutoffs[tier.Key] = Cutoff(now, tier.Value);
+            }
+
+            list.RemoveAll(entry =>
+            {
+                DateTimeOffset? cutoff = cutoffs.TryGetValue(entry.EffectiveResult, out DateTimeOffset? tierCutoff)
+                    ? tierCutoff
+                    : defaultCutoff;
+
+                return entry.FiredAtUtc < cutoff;
+            });
         }
 
         if (list.Count > bounds.MaxEntriesPerScheduler)
@@ -253,11 +392,133 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         }
     }
 
+    /// <summary>
+    /// Applies the misfire feed's age bound, then its count.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="TrimExecutions" path="/remarks" />
+    /// </remarks>
+    private void TrimMisfires(List<MisfireHistoryEntry> list, ExecutionHistoryOptions bounds)
+    {
+        if (Cutoff(timeProvider.GetUtcNow(), bounds.MisfireRetention ?? bounds.Retention) is { } cutoff)
+        {
+            list.RemoveAll(entry => entry.MisfiredAtUtc < cutoff);
+        }
+
+        if (list.Count > bounds.MaxEntriesPerScheduler)
+        {
+            list.RemoveRange(0, list.Count - bounds.MaxEntriesPerScheduler);
+        }
+    }
+
+    /// <summary>
+    /// The oldest instant an age keeps, or <see langword="null" /> for an age that bounds nothing.
+    /// </summary>
+    /// <remarks>
+    /// An age reaching past <see cref="DateTimeOffset.MinValue" /> — <see cref="TimeSpan.MaxValue" />, to
+    /// keep failures for good — keeps everything rather than overflowing.
+    /// </remarks>
+    private static DateTimeOffset? Cutoff(DateTimeOffset now, TimeSpan age)
+    {
+        if (age <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        return age >= now - DateTimeOffset.MinValue ? DateTimeOffset.MinValue : now - age;
+    }
+
+    /// <summary>
+    /// Keeps at most <paramref name="maxPerJob" /> rows of the job <paramref name="added" /> belongs to,
+    /// its failures not counted, dropping the earliest-fired first.
+    /// </summary>
+    /// <remarks>
+    /// Only the job just written to can have gone over, so only it is counted: a write costs a scan of
+    /// the feed, not a sort of it.
+    /// </remarks>
+    private static void CapJob(List<ExecutionHistoryEntry> list, ExecutionHistoryEntry added, int maxPerJob)
+    {
+        if (maxPerJob <= 0 || added.EffectiveResult == JobRunResult.Failed)
+        {
+            return;
+        }
+
+        int counted = 0;
+        foreach (ExecutionHistoryEntry entry in list)
+        {
+            if (CountsTowardsCap(entry, added))
+            {
+                counted++;
+            }
+        }
+
+        while (counted > maxPerJob)
+        {
+            int oldest = -1;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (CountsTowardsCap(list[i], added) && (oldest < 0 || list[i].FiredAtUtc < list[oldest].FiredAtUtc))
+                {
+                    oldest = i;
+                }
+            }
+
+            list.RemoveAt(oldest);
+            counted--;
+        }
+    }
+
+    private static bool CountsTowardsCap(ExecutionHistoryEntry entry, ExecutionHistoryEntry added)
+    {
+        return entry.EffectiveResult != JobRunResult.Failed
+               && string.Equals(entry.JobName, added.JobName, StringComparison.Ordinal)
+               && string.Equals(entry.JobGroup, added.JobGroup, StringComparison.Ordinal);
+    }
+
     private static bool MatchesFilter(string group, string name, string filter)
     {
         string key = group + "." + name;
         return key.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                group.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                name.Contains(filter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// One scheduler's executions and the per-job statuses folded from them, locked as one.
+    /// </summary>
+    /// <remarks>
+    /// One lock for both, so a status never counts a row the feed has not received yet, and a reader of
+    /// either sees the same moment.
+    /// </remarks>
+    private sealed class ExecutionFeed
+    {
+        public List<ExecutionHistoryEntry> Entries { get; } = [];
+
+        public Dictionary<JobKey, JobRunStatus> Statuses { get; } = [];
+
+        /// <summary>
+        /// Folds one row into its job's status, then drops the statuses of the jobs that ran longest ago
+        /// until at most <paramref name="maxStatuses" /> remain.
+        /// </summary>
+        public void Fold(ExecutionHistoryEntry entry, int maxStatuses)
+        {
+            JobKey job = new(entry.JobName, entry.JobGroup);
+            Statuses.TryGetValue(job, out JobRunStatus? current);
+            Statuses[job] = JobRunStatusFold.Apply(current, entry);
+
+            while (Statuses.Count > Math.Max(maxStatuses, 0))
+            {
+                JobRunStatus? stalest = null;
+                foreach (JobRunStatus status in Statuses.Values)
+                {
+                    if (stalest is null || status.LastFiredAtUtc < stalest.LastFiredAtUtc)
+                    {
+                        stalest = status;
+                    }
+                }
+
+                Statuses.Remove(stalest!.Job);
+            }
+        }
     }
 }

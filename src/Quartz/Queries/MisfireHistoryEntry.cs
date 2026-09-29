@@ -49,8 +49,9 @@ public sealed record MisfireHistoryEntry(
     DateTimeOffset? ScheduledFireTimeUtc)
 {
     /// <summary>
-    /// Why the firing did not happen: a misfire, or a firing the trigger's
-    /// <see cref="OverlapPolicy.Skip" /> dropped because the previous one was still running.
+    /// Why the firing did not happen: a misfire, a firing the trigger's
+    /// <see cref="OverlapPolicy.Skip" /> dropped because the previous one was still running, or a firing
+    /// a trigger listener vetoed.
     /// </summary>
     /// <remarks>
     /// <see cref="MisfireReason.Missed" /> for a row written before 4.3, which had no other reason to
