@@ -100,6 +100,53 @@ public static class WeaselSamples
         }));
     }
 
+    public static void MySql(IServiceCollection services, string connectionString)
+    {
+        #region sample_weasel_mysql
+
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseMySqlConnector(connectionString);
+            store.UseWeaselForMySql();
+        }));
+
+        #endregion
+    }
+
+    public static void MySqlOptions(IServiceCollection services, string connectionString)
+    {
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseMySqlConnector(connectionString);
+
+            #region sample_weasel_mysql_options
+
+            store.UseWeaselForMySql(weasel =>
+            {
+                // unset: the active JasperFx profile's ResourceAutoCreate, else CreateOrUpdate
+                weasel.AutoCreate = AutoCreate.CreateOrUpdate;
+                // server-wide: give each database its own name to keep their applies apart
+                weasel.LockName = MySqlWeaselOptions.DefaultLockName;
+                weasel.LockTimeout = TimeSpan.FromMinutes(1);
+            });
+
+            #endregion
+        }));
+    }
+
+    public static void Oracle(IServiceCollection services, string connectionString)
+    {
+        #region sample_weasel_oracle
+
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseOracle(connectionString);
+            store.UseWeaselForOracle();
+        }));
+
+        #endregion
+    }
+
     public static void Profile(IServiceCollection services)
     {
         #region sample_weasel_jasperfx_profile

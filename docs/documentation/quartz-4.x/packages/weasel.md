@@ -5,7 +5,7 @@ title: Weasel Schema Management
 The Quartz.Weasel packages put the ADO.NET job store's tables under [Weasel](https://weasel.jasperfx.net/),
 the schema tool behind Marten and Wolverine. An application already on that stack then creates and migrates
 Quartz's tables with the workflow it runs for its own: `db-apply`, `db-assert`, `db-patch`,
-`resources setup`, and AutoCreate at startup. Requires Quartz 4.3 or later.
+`resources setup`, and AutoCreate at startup. Requires Quartz 4.3 or later; 4.4 for MySQL and Oracle.
 
 An application not using Weasel keeps [`ProvisionSchema()`](../tutorial/job-stores.md#creating-the-schema) and
 the scripts under `database/migrations/`.
@@ -16,6 +16,8 @@ the scripts under `database/migrations/`.
 |---|---|
 | `Quartz.Weasel.PostgreSQL` | PostgreSQL, standalone or inside a Marten store |
 | `Quartz.Weasel.SqlServer` | SQL Server 2016 or later, disk-based tables |
+| `Quartz.Weasel.MySQL` | MySQL 8.0 or later, through MySqlConnector |
+| `Quartz.Weasel.Oracle` | Oracle, in the session's current schema |
 | `Quartz.Weasel.SQLite` | SQLite, through Microsoft.Data.Sqlite |
 | `Quartz.Weasel` | the shared glue; installed by any of the above |
 
@@ -26,7 +28,7 @@ the scripts under `database/migrations/`.
 
 An application beside Marten or Wolverine resolves both at least that high.
 
-MySQL and Oracle wait for fixes in Weasel itself. Firebird is not planned: Weasel has no Firebird provider.
+Firebird is not planned: Weasel has no Firebird provider.
 
 ```shell
 dotnet add package Quartz.Weasel.PostgreSQL
@@ -65,6 +67,26 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
+<!-- snippet: sample_weasel_mysql -->
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseMySqlConnector(connectionString);
+    store.UseWeaselForMySql();
+}));
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_weasel_oracle -->
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseOracle(connectionString);
+    store.UseWeaselForOracle();
+}));
+```
+<!-- endSnippet -->
+
 <!-- snippet: sample_weasel_sqlite -->
 ```csharp
 services.AddQuartz(q => q.UsePersistentStore(store =>
@@ -80,6 +102,7 @@ The dialect is in the method name, so an application with several packages never
 Checked at startup:
 
 * The store's driver matches the package: Npgsql for PostgreSQL, Microsoft.Data.SqlClient for SQL Server,
+  MySqlConnector for MySQL (`UseMySqlConnector`, not `UseMySql`), Oracle.ManagedDataAccess for Oracle,
   Microsoft.Data.Sqlite for SQLite.
 * The store does not also call `ProvisionSchema()`. A schema has one owner.
 
@@ -243,6 +266,60 @@ any other.
 | SQL Server before 2016 (`tables_sqlServer_Below2016.sql`) | not supported |
 | `FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS` | not modelled: `tables_sqlServer.sql` never created it, nor does `ProvisionSchema()` since 4.4; an older provisioned one is kept |
 | a `numeric` column's precision | not compared |
+
+## MySQL
+
+The database is the table prefix's: `quartz.QRTZ_` puts the tables in database `quartz`. Without one it is the
+connection string's `Database`; a connection that names none is refused. Weasel's own default, `public`, is
+never used. Every name is the script's, and the foreign keys are the ones InnoDB names: `QRTZ_TRIGGERS_ibfk_1`.
+
+Every apply takes a user lock (`GET_LOCK`) first, on a connection of its own, so nodes starting together, or a
+node starting during `db-apply`, take turns. It needs no privilege. The lock is scoped to the server, not the
+database: schedulers on other databases of one server take turns too, unless each has its own `LockName`.
+
+<!-- snippet: sample_weasel_mysql_options -->
+```csharp
+store.UseWeaselForMySql(weasel =>
+{
+    // unset: the active JasperFx profile's ResourceAutoCreate, else CreateOrUpdate
+    weasel.AutoCreate = AutoCreate.CreateOrUpdate;
+    // server-wide: give each database its own name to keep their applies apart
+    weasel.LockName = MySqlWeaselOptions.DefaultLockName;
+    weasel.LockTimeout = TimeSpan.FromMinutes(1);
+});
+```
+<!-- endSnippet -->
+
+`LockTimeout` bounds the wait, even past the connection's command timeout; an apply that times out fails like
+any other.
+
+| Case | Weasel |
+|---|---|
+| MySQL 5.7 | not supported: it ignores `PRIORITY DESC`, so `IDX_QRTZ_T_NFT_ST` reads as changed on every apply |
+| MySql.Data (`UseMySql`) | refused at startup: Weasel speaks MySqlConnector only |
+| a prefix naming a database that does not exist | created, which needs the `CREATE` privilege |
+| a `DECIMAL`'s precision, a column default | not compared |
+
+## Oracle
+
+The schema is the table prefix's: `quartz.QRTZ_` puts the tables in schema `QUARTZ`. Without one it is the
+session's current schema, `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')`: the login's own, or the schema a logon
+trigger moves the session to. Weasel's own default, `WEASEL`, is never used. Every name is the script's:
+`QRTZ_TRIGGERS_PK`, `QRTZ_TRIGGER_TO_JOBS_FK`, `IDX_QRTZ_T_NFT_ST`.
+
+No lock is taken, because `DBMS_LOCK` needs an `EXECUTE` grant the store never needs. Appliers race instead, as
+`ProvisionSchema()` does: an apply that fails reads the schema again, and stops when another process has
+finished it (event 10009). It gives up after 10 attempts.
+
+| Privilege | Needed for |
+|---|---|
+| `CREATE SESSION`, `CREATE TABLE`, quota on the tablespace | the tables in the login's own schema |
+| `CREATE ANY TABLE`, `ALTER ANY TABLE`, `CREATE ANY INDEX`, `SELECT ANY TABLE`, `SELECT ANY DICTIONARY`; quota for that schema | the tables in another schema |
+
+| Case | Weasel |
+|---|---|
+| an index's tablespace | kept; not compared |
+| a `NUMBER`'s precision, a column default | not compared |
 
 ## SQLite
 
