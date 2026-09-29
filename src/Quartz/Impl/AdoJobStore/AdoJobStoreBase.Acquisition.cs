@@ -478,6 +478,12 @@ internal abstract partial class AdoJobStoreBase
     /// stored <c>ERROR</c> so that it is not acquired again — is not one of those: <see cref="FireTrigger" />
     /// answers it as a result, and the attempt goes on and commits it.
     /// </para>
+    /// <para>
+    /// A trigger whose fire fails is released by the scheduler and acquired again, and its fire time has
+    /// not moved, so one that fails every time would be first in every round for good. Each such failure
+    /// is counted against it, and once it has failed <see cref="MaxConsecutiveFireFailures" /> times in a
+    /// row it is stored <c>ERROR</c> after the batch has settled (#3963).
+    /// </para>
     /// </remarks>
     public async ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
@@ -490,6 +496,10 @@ internal abstract partial class AdoJobStoreBase
         // has failed.
         TriggerFiredResult?[]? settled = null;
         List<int>? positions = null;
+
+        // The triggers whose failure in this batch was the last one in a row the store allows, with how
+        // many that was. Stored ERROR once the batch has settled.
+        List<(TriggerKey TriggerKey, int Failures)>? failing = null;
 
         while (true)
         {
@@ -519,6 +529,17 @@ internal abstract partial class AdoJobStoreBase
                 settled[positions[failure.Index]] = TriggerFiredResult.Failed(cause);
                 positions.RemoveAt(failure.Index);
 
+                // Counted with the previous fire time it was acquired with, which only a fire that
+                // committed moves.
+                if (MaxConsecutiveFireFailures > 0)
+                {
+                    int failures = fireFailures.RecordFailure(failure.TriggerKey, attempt[failure.Index].PreviousFireTimeUtc);
+                    if (failures >= MaxConsecutiveFireFailures)
+                    {
+                        (failing ??= []).Add((failure.TriggerKey, failures));
+                    }
+                }
+
                 List<IOperableTrigger> remaining = new(attempt.Count - 1);
                 for (int i = 0; i < attempt.Count; i++)
                 {
@@ -539,6 +560,8 @@ internal abstract partial class AdoJobStoreBase
                 fired = [];
             }
 
+            ForgetFireFailures(attempt, fired);
+
             if (settled is null)
             {
                 return fired;
@@ -553,7 +576,97 @@ internal abstract partial class AdoJobStoreBase
                 results.Add(result ?? fired[next++]);
             }
 
+            if (failing is not null)
+            {
+                await ParkFailingTriggers(failing, cancellationToken).ConfigureAwait(false);
+            }
+
             return results;
+        }
+    }
+
+    /// <summary>
+    /// Ends the run of failed fires of each trigger the committed attempt settled: fired, declined by its
+    /// overlap policy, or stored <c>ERROR</c> because its job would not load.
+    /// </summary>
+    /// <remarks>
+    /// A trigger the attempt did not fire at all — paused, deleted, held back — keeps its count, since
+    /// nothing about it was written. Nothing to do while no trigger has a failure counted, which is the
+    /// ordinary batch.
+    /// </remarks>
+    private void ForgetFireFailures(IReadOnlyList<IOperableTrigger> attempt, List<TriggerFiredResult> fired)
+    {
+        if (fireFailures.IsEmpty)
+        {
+            return;
+        }
+
+        for (int i = 0; i < fired.Count; i++)
+        {
+            TriggerFiredResult result = fired[i];
+            if (result.TriggerFiredBundle is not null || result.IsDeclined || result.Exception is not null)
+            {
+                fireFailures.Clear(attempt[i].Key);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stores <c>ERROR</c> each trigger whose fire has failed as many times in a row as
+    /// <see cref="MaxConsecutiveFireFailures" /> allows, so that it is not acquired again (#3963).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One short transaction per trigger under <see cref="SchedulerLock.TriggerAccess" />, once the batch
+    /// has settled: the attempt the failure happened in was rolled back, so the park cannot be part of it.
+    /// The row moves only from <c>ACQUIRED</c>, the reservation this batch still holds, so a trigger
+    /// paused or deleted in the meantime is left as it is. The scheduler thread then releases the failed
+    /// result as it releases any other, which deletes the reservation's fired row and leaves an
+    /// <c>ERROR</c> row alone.
+    /// </para>
+    /// <para>
+    /// A park that fails is logged, and the batch's results are returned all the same: the fires beside
+    /// the failed one have committed, and their jobs are the scheduler's to run. The count is kept, so the
+    /// trigger's next failure tries again.
+    /// </para>
+    /// </remarks>
+    private async ValueTask ParkFailingTriggers(List<(TriggerKey TriggerKey, int Failures)> failing, CancellationToken cancellationToken)
+    {
+        foreach ((TriggerKey triggerKey, int failures) in failing)
+        {
+            bool parked;
+            try
+            {
+                parked = await ExecuteInLocalTransactionLock(
+                    SchedulerLock.TriggerAccess,
+                    async conn =>
+                    {
+                        int updated = await Guarded(
+                            () => Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StoredTriggerState.Error, StoredTriggerState.Acquired, cancellationToken),
+                            $"store trigger '{triggerKey}' ERROR").ConfigureAwait(false);
+
+                        if (updated == 0)
+                        {
+                            return false;
+                        }
+
+                        // As for a job that will not load: raised once the ERROR has committed.
+                        conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersTriggerInError(triggerKey, token));
+                        return true;
+                    },
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Logger.TriggerErrorStateUpdateFailed(e);
+                continue;
+            }
+
+            fireFailures.Clear(triggerKey);
+            if (parked)
+            {
+                Logger.FailingTriggerParkedInError(triggerKey, failures);
+            }
         }
     }
 

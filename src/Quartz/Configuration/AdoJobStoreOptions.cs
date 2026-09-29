@@ -164,6 +164,34 @@ public sealed class AdoJobStoreOptions
     public Func<Exception, bool>? IsTransient { get; set; }
 
     /// <summary>
+    /// How many fires of one trigger in a row may fail before the trigger is stored <c>ERROR</c>, or
+    /// <c>0</c> to never store it <c>ERROR</c> for this. Defaults to 5.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A fire that fails for a reason a retry will not cure — a constraint violation, a column the
+    /// database no longer has — is rolled back alone, and the trigger is released and acquired again.
+    /// One that fails every time was acquired again forever: each round cost a rolled-back transaction,
+    /// and a <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers never fired behind
+    /// it. After this many failures in a row the trigger is stored <c>ERROR</c>, the scheduler listeners
+    /// hear <see cref="ISchedulerListener.TriggerInError" />, and event 3050 is logged.
+    /// <see cref="IScheduler.ResetTriggerFromErrorState" /> brings it back once the cause is fixed.
+    /// </para>
+    /// <para>
+    /// Only such failures count. A transient one is retried, a failure of the whole batch fails every
+    /// trigger in it alike, and a database that is down fails acquisition before any fire — none of those
+    /// is counted, so an outage parks nothing. A fire that commits, on this node or another, starts the
+    /// count again. The count is each node's own, so in a cluster a trigger may fail this many times on
+    /// every node before one of them stores it <c>ERROR</c>.
+    /// </para>
+    /// <para>
+    /// A failure your driver reports that is really transient belongs in <see cref="IsTransient" />, which
+    /// retries it instead of counting it.
+    /// </para>
+    /// </remarks>
+    public int MaxConsecutiveFireFailures { get; set; } = 5;
+
+    /// <summary>
     /// Whether database row locks are used for synchronization. Required for clustering.
     /// </summary>
     public bool UseDbLocks { get; set; }

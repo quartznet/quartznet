@@ -572,6 +572,12 @@ internal sealed class AdoJobStoreOptionsValidator : IValidateOptions<AdoJobStore
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MaxMisfiresToHandleAtATime)} must be at least 1.");
         }
 
+        // Zero is "never store a failing trigger ERROR", which is how 4.3 behaved; below it means nothing.
+        if (options.MaxConsecutiveFireFailures < 0)
+        {
+            (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MaxConsecutiveFireFailures)} must not be negative; 0 never stores a failing trigger ERROR.");
+        }
+
         return QuartzSchedulerOptionsValidator.Result(failures);
     }
 }

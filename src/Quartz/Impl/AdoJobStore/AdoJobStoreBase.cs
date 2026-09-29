@@ -42,6 +42,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
     private readonly IDriverDelegate driverDelegate;
     private readonly Func<Exception, bool>? configuredIsTransient;
+    private readonly FireFailureLedger fireFailures = new();
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
     private readonly TimeSpan? misfirehandlerFrequence;
 
@@ -118,6 +119,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         TransientRetryInterval = options.TransientRetryInterval;
         RetryableActionErrorLogThreshold = options.RetryableActionErrorLogThreshold;
         configuredIsTransient = options.IsTransient;
+        MaxConsecutiveFireFailures = options.MaxConsecutiveFireFailures;
         UseDbLocks = options.UseDbLocks;
         LockOnInsert = options.LockOnInsert;
         AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;
@@ -273,6 +275,16 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// near-immediate. <see cref="TimeSpan.Zero"/> means no delay between retries.
     /// </remarks>
     internal TimeSpan TransientRetryInterval { get; }
+
+    /// <summary>
+    /// How many fires of one trigger in a row may fail before it is stored <c>ERROR</c>; <c>0</c> never
+    /// stores it <c>ERROR</c> for this.
+    /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.MaxConsecutiveFireFailures" />, and counted in a
+    /// <see cref="FireFailureLedger" /> of this store's own.
+    /// </remarks>
+    internal int MaxConsecutiveFireFailures { get; }
 
     /// <summary>
     /// Whether this instance uses database-based thread synchronization.

@@ -214,6 +214,8 @@
     "Using configured lock handler {LockHandlerType} for data access locking (synchronization)."
 3049  Warning  AdoJobStoreLog.FireBatchRolledBack
     "Fire of trigger {TriggerKey} failed; the batch of {BatchSize} trigger(s) is rolled back and fired again without it, {Remaining} trigger(s) left"
+3050  Error  AdoJobStoreLog.FailingTriggerParkedInError
+    "Trigger {TriggerKey} failed to fire {Failures} times in a row and is stored ERROR; ResetTriggerFromErrorState returns it once the cause is fixed"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed
