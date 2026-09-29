@@ -174,6 +174,60 @@ public sealed class ByteCountedTextColumnSqliteTest
         read!.ExceptionMessage.Should().Be(new string('é', 49), "49 two-byte characters are 98 bytes, and a 50th would be 100");
     }
 
+    [Test]
+    public async Task ASummaryAndTheStatusTextsAreCutToTheWidthInBytes()
+    {
+        IDbProvider dbProvider = new DbProvider("SQLite-Microsoft", database.ConnectionString);
+        ByteCountingSqliteDelegate driverDelegate = new();
+        driverDelegate.Initialize(new DriverDelegateContext
+        {
+            TablePrefix = AdoConstants.DefaultTablePrefix,
+            SchedulerName = SchedulerName,
+            InstanceId = "node-a",
+            DbProvider = dbProvider,
+            TypeLoader = new SimpleTypeLoader(),
+        });
+
+        using AdoExecutionHistoryStore history = new(
+            dbProvider,
+            driverDelegate,
+            Options.Create(new ExecutionHistoryOptions()),
+            Options.Create(new QuartzSchedulerOptions { InstanceName = SchedulerName }));
+
+        JobKey job = new("reporting", "jobs");
+        string cut = new('é', 49);
+
+        // The first run inserts the job's status, the second updates it: both statements cut.
+        foreach ((string entryId, int seconds) in new[] { ("first", 0), ("second", 1) })
+        {
+            await history.AddExecution(new ExecutionHistoryEntry(
+                SchedulerName: SchedulerName,
+                SchedulerInstanceId: "node-a",
+                JobGroup: job.Group,
+                JobName: job.Name,
+                TriggerGroup: Group,
+                TriggerName: "once",
+                FiredAtUtc: DateTimeOffset.UtcNow.AddSeconds(seconds),
+                Duration: TimeSpan.FromSeconds(1),
+                Succeeded: false,
+                ExceptionMessage: new string('é', StdAdoDelegate.MaxErrorMessageLength))
+            {
+                EntryId = entryId,
+                Result = JobRunResult.Failed,
+                Summary = new string('é', JobRunReport.MaxSummaryLength)
+            });
+
+            ExecutionHistoryEntry? read = await history.GetExecution(SchedulerName, entryId);
+            read.Should().NotBeNull("the history store drops a row whose insert fails");
+            read!.Summary.Should().Be(cut, "49 two-byte characters are 98 bytes, and a 50th would be 100");
+
+            JobRunStatus? status = await history.GetJobRunStatus(SchedulerName, job);
+            status.Should().NotBeNull();
+            status!.LastSummary.Should().Be(cut, "LAST_SUMMARY is cut as SUMMARY is, on the {0} run", entryId);
+            status.LastFailureMessage.Should().Be(cut, "LAST_FAILURE_MESSAGE is cut as ERROR_MESSAGE is, on the {0} run", entryId);
+        }
+    }
+
     private static void ShouldHold(PauseInfo? pause, string reason, string requestedBy, string where)
     {
         pause.Should().NotBeNull("{0} records the pause", where);

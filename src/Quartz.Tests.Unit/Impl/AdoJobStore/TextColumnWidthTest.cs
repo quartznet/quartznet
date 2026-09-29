@@ -46,6 +46,9 @@ public class TextColumnWidthTest
         (AdoConstants.ColumnPausedBy, PauseDetails.MaxRequestedByLength),
         (AdoConstants.ColumnProgressMessage, FireInstanceProgress.MaxMessageLength),
         (AdoConstants.ColumnErrorMessage, StdAdoDelegate.MaxErrorMessageLength),
+        (AdoConstants.ColumnSummary, JobRunReport.MaxSummaryLength),
+        (AdoConstants.ColumnLastSummary, JobRunReport.MaxSummaryLength),
+        (AdoConstants.ColumnLastFailureMessage, StdAdoDelegate.MaxErrorMessageLength),
     ];
 
     private static IEnumerable<TestCaseData> Dialects()

@@ -184,6 +184,7 @@ matching on its text is not.
 | 3160 | Warning | `Quartz` | `"Could not record execution history for scheduler '{SchedulerName}'. The firing itself is unaffected; only the history row is lost."` |
 | 3161 | Warning | `Quartz` | `"The execution history retention sweep failed. Rows past their bounds stay until the next sweep."` |
 | 3162 | Debug | `Quartz` | `"Execution history sweep removed {RowCount} row(s) for scheduler '{SchedulerName}'"` |
+| 3163 | Debug | `Quartz` | `"Execution history sweep for scheduler '{SchedulerName}' is left to node '{InstanceId}', the live node with the lowest instance id"` |
 | 3500 | Warning | `Quartz` | `"Transient exception on attempt {Attempt} of {TotalAttempts} of the cluster check-in, will retry after {RetryInterval}"` |
 | 3501 | Warning | `Quartz` | `"This scheduler instance ({InstanceId}) is still active but was recovered by another instance in the cluster.  This may cause inconsistent behavior."` |
 | 3502 | Warning | `Quartz` | `"Found orphaned fired triggers for instance: {SchedulerInstanceId}"` |

@@ -30,12 +30,11 @@ namespace Quartz.Tests.Unit.Impl;
 /// and the per-job status.
 /// </summary>
 /// <remarks>
-/// Written against <see cref="ExecutionHistoryStoreContractTest" />'s seams only — <c>CreateStore(configure)</c>,
-/// <c>ApplyBounds</c>, <c>Clock</c> and the row builders — and run against the in-memory store alone until the
-/// database history answers them too. That store joins by changing this declaration to
-/// <c>public abstract partial class ExecutionHistoryStoreContractTest</c>.
+/// Written against the contract's seams only — <c>CreateStore(configure)</c>, <c>ApplyBounds</c>,
+/// <c>KeepJob</c>, <c>Clock</c> and the row builders — so it runs against the in-memory store and the
+/// database-backed one alike.
 /// </remarks>
-public sealed partial class InMemoryExecutionHistoryStoreContractTest
+public abstract partial class ExecutionHistoryStoreContractTest
 {
     private static readonly JobKey nightly = new("nightly-report", JobGroup);
     private static readonly JobKey hourly = new("hourly-report", JobGroup);
@@ -375,6 +374,7 @@ public sealed partial class InMemoryExecutionHistoryStoreContractTest
     public async Task AStatusOutlivesItsRows()
     {
         IExecutionHistoryStore store = await CreateStore(options => options.Retention = TimeSpan.FromHours(1));
+        await KeepJob(nightly);
 
         await store.AddExecution(Run(Start, nightly.Name, JobRunResult.Failed));
         Clock.Advance(TimeSpan.FromDays(1));
@@ -431,6 +431,40 @@ public sealed partial class InMemoryExecutionHistoryStoreContractTest
     }
 
     [Test]
+    public async Task StatusesOfNamedJobsArePagedInOrderAndCounted()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+
+        await store.AddExecution(Execution(Start, "b") with { JobGroup = "g2" });
+        await store.AddExecution(Execution(Start, "a") with { JobGroup = "g2" });
+        await store.AddExecution(Execution(Start, "z") with { JobGroup = "g1" });
+
+        PagedResult<JobRunStatus> named = await store.QueryJobRunStatuses(new JobRunStatusQuery
+        {
+            SchedulerName = SchedulerName,
+            Jobs = [new JobKey("b", "g2"), new JobKey("z", "g1"), new JobKey("a", "g2")],
+            Take = 2,
+            IncludeTotalCount = true
+        });
+
+        named.Items.Select(status => status.Job.ToString()).Should().Equal(["g1.z", "g2.a"],
+            "named jobs are listed by group and then name, whatever order they were named in");
+        named.HasMore.Should().BeTrue();
+        named.TotalCount.Should().Be(3);
+
+        PagedResult<JobRunStatus> count = await store.QueryJobRunStatuses(new JobRunStatusQuery
+        {
+            SchedulerName = SchedulerName,
+            Take = 0,
+            IncludeTotalCount = true
+        });
+
+        count.Items.Should().BeEmpty("the count idiom reads no page");
+        count.TotalCount.Should().Be(3);
+        count.HasMore.Should().BeTrue();
+    }
+
+    [Test]
     public async Task StatusesCanBeReadForSomeJobsOrForTheFailingOnes()
     {
         IExecutionHistoryStore store = await CreateStore(_ => { });
@@ -451,21 +485,51 @@ public sealed partial class InMemoryExecutionHistoryStoreContractTest
     }
 
     [Test]
-    public async Task TheStatusOfTheJobThatRanLongestAgoIsDroppedFirst()
+    public async Task AVetoedFiringIsReadBackFromTheMisfireFeed()
     {
-        IExecutionHistoryStore store = await CreateStore(options => options.MaxEntriesPerScheduler = 2);
+        IExecutionHistoryStore store = await CreateStore(_ => { });
 
-        await store.AddExecution(Execution(Start.AddMinutes(-1), "b"));
-        await store.AddExecution(Execution(Start.AddMinutes(-5), "a"));
-        await store.AddExecution(Execution(Start, "c"));
+        await store.AddMisfire(Misfire(Start, "vetoed") with { Reason = MisfireReason.Vetoed });
 
-        (await StatusNames(store)).Should().Equal(["b", "c"],
-            "a scheduler keeps at most MaxEntriesPerScheduler statuses, and the one to go is the job that ran longest ago");
+        (await Misfires(store)).Items.Should().ContainSingle().Which.Reason.Should().Be(MisfireReason.Vetoed,
+            "a veto is recorded in the misfire feed, and a reader asking why a firing did not run has to see that it was vetoed");
+        (await store.CountMisfires(SchedulerName, Start.AddHours(-1))).Should().Be(0, "a veto is not a misfire");
+    }
+
+    [Test]
+    public async Task OutOfOrderCompletionsAreCountedAndLeaveTheLatestRunAlone()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+
+        await store.AddExecution(Run(Start, nightly.Name, JobRunResult.Succeeded) with { EntryId = "latest", Summary = "on time" });
+        await store.AddExecution(Run(Start.AddMinutes(-5), nightly.Name, JobRunResult.Failed) with
+        {
+            EntryId = "late",
+            ExceptionMessage = "finished after the later run"
+        });
+
+        JobRunStatus status = (await store.GetJobRunStatus(SchedulerName, nightly))!;
+
+        status.RunCount.Should().Be(2, "a run that completes late is still a run");
+        status.FailureCount.Should().Be(1);
+        status.LastEntryId.Should().Be("latest", "the latest-fired run is still the last run");
+        status.LastResult.Should().Be(JobRunResult.Succeeded);
+        status.LastSummary.Should().Be("on time");
+        status.ConsecutiveFailures.Should().Be(0, "a failure older than the last success does not make the job failing");
+        status.LastFailedAtUtc.Should().Be(Start.AddMinutes(-5));
+        status.LastFailureMessage.Should().Be("finished after the later run");
+        status.FirstFiredAtUtc.Should().Be(Start.AddMinutes(-5), "the earliest fire time is a minimum, whichever order the runs completed in");
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    private static ExecutionHistoryEntry Run(DateTimeOffset firedAt, string jobName, JobRunResult result) =>
+    /// <summary>
+    /// Makes <paramref name="job" /> one the scheduler still has, for a store that forgets the status of a
+    /// job that is gone.
+    /// </summary>
+    protected virtual ValueTask KeepJob(JobKey job) => default;
+
+    protected static ExecutionHistoryEntry Run(DateTimeOffset firedAt, string jobName, JobRunResult result) =>
         Execution(firedAt, jobName) with
         {
             Result = result,
@@ -483,7 +547,7 @@ public sealed partial class InMemoryExecutionHistoryStoreContractTest
         return page.Items.Select(row => row.JobName).ToList();
     }
 
-    private static async Task<List<string>> StatusNames(
+    protected static async Task<List<string>> StatusNames(
         IExecutionHistoryStore store,
         bool? failing = null,
         IReadOnlyCollection<JobKey>? jobs = null)

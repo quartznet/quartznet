@@ -22,6 +22,7 @@
 using System.Collections.Frozen;
 using System.Data.Common;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -39,6 +40,10 @@ namespace Quartz.Impl.AdoJobStore;
 // and cannot be failed by.
 public partial class StdAdoDelegate
 {
+    /// <summary>Every result this version writes, in the order a result predicate names them.</summary>
+    private static readonly JobRunResult[] knownResults =
+        [JobRunResult.Succeeded, JobRunResult.Failed, JobRunResult.Cancelled, JobRunResult.Skipped];
+
     /// <summary>
     /// A delegate of the same dialect for the execution history to initialize and use on its own.
     /// </summary>
@@ -135,7 +140,240 @@ public partial class StdAdoDelegate
         // as Varchar2, and more than 4,000 bytes of that into a CLOB fails the whole row.
         AddCommandParameter(cmd, SqlParameters.ExecutionLog, entry.Log, DbProvider.Metadata.LargeTextParameterType);
 
+        // The 4.4 outcome. RESULT is written as reported, null included, so a reader tells a row that
+        // said nothing from one that said Succeeded. The summary is cut as ERROR_MESSAGE is; the metrics
+        // are a large object like the log, already bounded by the recorder.
+        AddCommandParameter(cmd, SqlParameters.HistoryResult, entry.Result is { } result ? (int) result : null);
+        AddCommandParameter(cmd, SqlParameters.HistorySummary, CutToColumn(entry.Summary, AdoConstants.ColumnSummary, JobRunReport.MaxSummaryLength));
+        AddCommandParameter(cmd, SqlParameters.HistoryMetrics, entry.MetricsJson, DbProvider.Metadata.LargeTextParameterType);
+        AddCommandParameter(cmd, SqlParameters.HistoryManual, GetDbBooleanValue(entry.Manual));
+        AddCommandParameter(cmd, SqlParameters.HistoryFireInstanceId, entry.FireInstanceId);
+
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Folds one recorded execution into its job's <c>QRTZ_JOB_STATUS</c> row, if the job has one.
+    /// </summary>
+    /// <remarks>
+    /// The update is chosen by what the execution achieved; see <see cref="JobStatusStatement" />. Run in
+    /// the transaction that inserted the execution, so the row and the status commit together.
+    /// </remarks>
+    /// <returns>The rows updated: <c>0</c> on the job's first recorded run.</returns>
+    /// <param name="conn">The unit of work, which is the history store's own connection and transaction.</param>
+    /// <param name="entry">The execution just recorded, its <see cref="ExecutionHistoryEntry.EntryId" /> set.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<int> UpdateJobRunStatus(
+        ConnectionAndTransactionHolder conn,
+        ExecutionHistoryEntry entry,
+        CancellationToken cancellationToken = default)
+    {
+        JobStatusStatement statement = JobStatusStatement.For(entry) switch
+        {
+            JobStatusUpdate.Succeeded => StdAdoConstants.SqlUpdateJobStatusSucceeded,
+            JobStatusUpdate.FailedFinally => StdAdoConstants.SqlUpdateJobStatusFailedFinally,
+            JobStatusUpdate.FailedRetried => StdAdoConstants.SqlUpdateJobStatusFailedRetried,
+            _ => StdAdoConstants.SqlUpdateJobStatusOther
+        };
+
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(statement.Sql));
+
+        // In the order the statement names them: each placeholder is a parameter of its own.
+        foreach ((string name, JobStatusValue value) in statement.Parameters)
+        {
+            AddCommandParameter(cmd, name, JobStatusParameter(entry, value));
+        }
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Creates a job's <c>QRTZ_JOB_STATUS</c> row from its first recorded run.
+    /// </summary>
+    /// <remarks>
+    /// The values are <see cref="JobRunStatusFold" /> of that one run, so the first row is what the fold
+    /// says it is. Two nodes recording a job's first run at once both find no row, and the second insert
+    /// fails on the key; the store rolls that transaction back and records the run again.
+    /// </remarks>
+    /// <param name="conn">The unit of work, which is the history store's own connection and transaction.</param>
+    /// <param name="entry">The execution just recorded, its <see cref="ExecutionHistoryEntry.EntryId" /> set.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<int> InsertJobRunStatus(
+        ConnectionAndTransactionHolder conn,
+        ExecutionHistoryEntry entry,
+        CancellationToken cancellationToken = default)
+    {
+        JobRunStatus first = JobRunStatusFold.Apply(current: null, entry);
+
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertJobStatus));
+
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, entry.SchedulerName);
+        AddCommandParameter(cmd, SqlParameters.JobGroup, entry.JobGroup);
+        AddCommandParameter(cmd, SqlParameters.JobName, entry.JobName);
+        AddCommandParameter(cmd, SqlParameters.StatusFirstFiredTime, GetDbDateTimeValue(first.FirstFiredAtUtc));
+        AddCommandParameter(cmd, SqlParameters.StatusLastFiredTime, GetDbDateTimeValue(first.LastFiredAtUtc));
+        AddCommandParameter(cmd, SqlParameters.StatusLastResult, (int) first.LastResult);
+        AddCommandParameter(cmd, SqlParameters.StatusLastRunTime, first.LastDuration.Ticks);
+        AddCommandParameter(cmd, SqlParameters.StatusLastInstanceName, first.LastSchedulerInstanceId);
+        AddCommandParameter(cmd, SqlParameters.StatusLastEntryId, first.LastEntryId);
+        AddCommandParameter(cmd, SqlParameters.StatusLastSummary, CutToColumn(first.LastSummary, AdoConstants.ColumnLastSummary, JobRunReport.MaxSummaryLength));
+        AddCommandParameter(cmd, SqlParameters.StatusLastSuccessTime, GetDbDateTimeValue(first.LastSucceededAtUtc));
+        AddCommandParameter(cmd, SqlParameters.StatusLastFailureTime, GetDbDateTimeValue(first.LastFailedAtUtc));
+        AddCommandParameter(cmd, SqlParameters.StatusLastFailureMessage, CutToColumn(first.LastFailureMessage, AdoConstants.ColumnLastFailureMessage, MaxErrorMessageLength));
+        AddCommandParameter(cmd, SqlParameters.StatusConsecutiveFailures, first.ConsecutiveFailures);
+        AddCommandParameter(cmd, SqlParameters.StatusRunCount, first.RunCount);
+        AddCommandParameter(cmd, SqlParameters.StatusFailureCount, first.FailureCount);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>What one placeholder of a <c>QRTZ_JOB_STATUS</c> update is bound to.</summary>
+    private object? JobStatusParameter(ExecutionHistoryEntry entry, JobStatusValue value)
+    {
+        return value switch
+        {
+            JobStatusValue.SchedulerName => entry.SchedulerName,
+            JobStatusValue.JobGroup => entry.JobGroup,
+            JobStatusValue.JobName => entry.JobName,
+            JobStatusValue.FiredTime => GetDbDateTimeValue(entry.FiredAtUtc),
+            JobStatusValue.Result => (int) entry.EffectiveResult,
+            JobStatusValue.RunTime => entry.Duration.Ticks,
+            JobStatusValue.InstanceName => entry.SchedulerInstanceId,
+            JobStatusValue.EntryId => entry.EntryId,
+            JobStatusValue.Summary => CutToColumn(entry.Summary, AdoConstants.ColumnLastSummary, JobRunReport.MaxSummaryLength),
+            JobStatusValue.FailureMessage => CutToColumn(
+                entry.ExceptionMessage ?? entry.Summary, AdoConstants.ColumnLastFailureMessage, MaxErrorMessageLength),
+            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Not a value a job status update binds.")
+        };
+    }
+
+    /// <summary>Reads one job's run status, or <see langword="null" /> when no run of it is recorded.</summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="schedulerName">The scheduler the job belongs to.</param>
+    /// <param name="jobKey">The job.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<JobRunStatus?> SelectJobRunStatus(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectJobStatus));
+
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.JobGroup, jobKey.Group);
+        AddCommandParameter(cmd, SqlParameters.JobName, jobKey.Name);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await rs.ReadAsync(cancellationToken).ConfigureAwait(false)
+            ? ReadJobRunStatus(rs, schedulerName)
+            : null;
+    }
+
+    /// <summary>Reads one page of a scheduler's run statuses, by job group and then name.</summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="query">Which statuses to return, and how many.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<PagedResult<JobRunStatus>> SelectJobRunStatuses(
+        ConnectionAndTransactionHolder conn,
+        JobRunStatusQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        string failing = query.Failing switch
+        {
+            true => StdAdoConstants.SqlJobStatusFailing,
+            false => StdAdoConstants.SqlJobStatusNotFailing,
+            null => ""
+        };
+
+        if (query.Jobs is { } jobs)
+        {
+            return await SelectJobRunStatusesOf(conn, query, jobs, failing, cancellationToken).ConfigureAwait(false);
+        }
+
+        string schedulerName = query.SchedulerName;
+
+        if (IsCountOnly(query))
+        {
+            return CountOnlyResult<JobRunStatus>(query, await CountHistory(
+                conn, StdAdoConstants.SqlCountJobStatuses + failing, schedulerName, [], cancellationToken).ConfigureAwait(false));
+        }
+
+        List<JobRunStatus> items;
+        bool hasMore;
+
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(
+                   StdAdoConstants.SqlSelectJobStatuses + failing + StdAdoConstants.SqlOrderByJobStatus, query))))
+        {
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+            BindPaging(cmd, query);
+
+            (items, hasMore) = await ReadPage(
+                cmd, query, reader => ReadJobRunStatus(reader, schedulerName), cancellationToken).ConfigureAwait(false);
+        }
+
+        int? totalCount = null;
+        if (query.IncludeTotalCount)
+        {
+            totalCount = await CountHistory(
+                conn, StdAdoConstants.SqlCountJobStatuses + failing, schedulerName, [], cancellationToken).ConfigureAwait(false);
+        }
+
+        return new PagedResult<JobRunStatus>(items, hasMore, totalCount);
+    }
+
+    /// <summary>
+    /// The statuses of the jobs a query names, read by key and paged here.
+    /// </summary>
+    /// <remarks>
+    /// A key-set predicate, chunked as every batch read by key is, so the page cannot be the database's:
+    /// the rows are at most one per key asked for, and they are ordered and paged once all are read.
+    /// </remarks>
+    private async ValueTask<PagedResult<JobRunStatus>> SelectJobRunStatusesOf(
+        ConnectionAndTransactionHolder conn,
+        JobRunStatusQuery query,
+        IReadOnlyCollection<JobKey> jobs,
+        string failing,
+        CancellationToken cancellationToken)
+    {
+        List<JobKey> requested = Deduplicate(jobs);
+        List<JobRunStatus> found = [];
+
+        for (int offset = 0; offset < requested.Count; offset += AdoUtil.MaxJobKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxJobKeysPerPredicate, requested.Count - offset);
+            int paddedCount = AdoUtil.RoundUpJobKeyCount(length);
+
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
+                StdAdoConstants.SqlSelectJobStatuses + failing + " AND " + AdoUtil.BuildJobKeyPredicate(paddedCount)));
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, query.SchedulerName);
+
+            for (int i = 0; i < paddedCount; i++)
+            {
+                // Padded by repeating the chunk's last key: the predicate is a disjunction.
+                JobKey key = requested[offset + Math.Min(i, length - 1)];
+                AddCommandParameter(cmd, AdoUtil.JobKeyNameParameter(i), key.Name);
+                AddCommandParameter(cmd, AdoUtil.JobKeyGroupParameter(i), key.Group);
+            }
+
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                found.Add(ReadJobRunStatus(rs, query.SchedulerName));
+            }
+        }
+
+        found.Sort(static (left, right) =>
+        {
+            int byGroup = string.CompareOrdinal(left.Job.Group, right.Job.Group);
+            return byGroup != 0 ? byGroup : string.CompareOrdinal(left.Job.Name, right.Job.Name);
+        });
+
+        int skip = Math.Min(query.Skip, found.Count);
+        int take = Math.Min(query.Take, found.Count - skip);
+        List<JobRunStatus> page = found.GetRange(skip, take);
+
+        return new PagedResult<JobRunStatus>(page, skip + page.Count < found.Count, query.IncludeTotalCount ? found.Count : null);
     }
 
     /// <summary>Reads one recorded execution by its key, its captured log included.</summary>
@@ -164,9 +402,10 @@ public partial class StdAdoDelegate
             return null;
         }
 
-        return ReadExecutionHistoryEntry(rs, schedulerName) with
+        // Found by name, as the outcome columns are: its position moved when they were added.
+        return ReadExecutionHistoryEntry(rs, schedulerName, ExecutionHistoryOrdinals.Of(rs)) with
         {
-            Log = rs.IsDBNull(12) ? null : rs.GetString(12)
+            Log = ReadOptionalString(rs, OptionalOrdinal(rs, AdoConstants.ColumnExecutionLog))
         };
     }
 
@@ -228,6 +467,14 @@ public partial class StdAdoDelegate
             HistoryKeyExpression(AdoConstants.ColumnTriggerGroup, AdoConstants.ColumnTriggerName),
             query.TriggerContains);
         AppendFailedFinallyPredicate(predicateBuilder, parameters, query.FailedFinally);
+        AppendJobPredicate(predicateBuilder, parameters, query.Job);
+        AppendInstantPredicate(predicateBuilder, parameters, StdAdoConstants.SqlExecutionHistoryFiredFrom, SqlParameters.HistoryFiredFrom, query.FiredFrom);
+        AppendInstantPredicate(predicateBuilder, parameters, StdAdoConstants.SqlExecutionHistoryFiredBefore, SqlParameters.HistoryFiredBefore, query.FiredBefore);
+
+        if (query.Results is { } results)
+        {
+            AppendResultsPredicate(predicateBuilder, parameters, results);
+        }
 
         string predicate = predicateBuilder.ToString();
         string schedulerName = query.SchedulerName;
@@ -247,8 +494,13 @@ public partial class StdAdoDelegate
             BindHistoryParameters(cmd, schedulerName, parameters);
             BindPaging(cmd, query);
 
+            // The outcome columns are found once per page, by name, rather than once per row.
+            ExecutionHistoryOrdinals? ordinals = null;
             (items, hasMore) = await ReadPage(
-                cmd, query, reader => ReadExecutionHistoryEntry(reader, schedulerName), cancellationToken).ConfigureAwait(false);
+                cmd,
+                query,
+                reader => ReadExecutionHistoryEntry(reader, schedulerName, ordinals ??= ExecutionHistoryOrdinals.Of(reader)),
+                cancellationToken).ConfigureAwait(false);
         }
 
         int? totalCount = null;
@@ -285,6 +537,7 @@ public partial class StdAdoDelegate
             SqlParameters.HistoryTriggerContains,
             HistoryKeyExpression(AdoConstants.ColumnTriggerGroup, AdoConstants.ColumnTriggerName),
             query.TriggerContains);
+        AppendJobPredicate(predicateBuilder, parameters, query.Job);
 
         string predicate = predicateBuilder.ToString();
         string schedulerName = query.SchedulerName;
@@ -410,8 +663,138 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// The instant one sweep batch of a slice's expired executions ends at, or <see langword="null" />
+    /// when fewer than a batch have expired.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="schedulerName">The scheduler whose rows to bound.</param>
+    /// <param name="slice">A retention tier's results, or the capped job.</param>
+    /// <param name="cutoff">The instant the slice's rows expire below.</param>
+    /// <param name="batchSize">How many rows one statement should delete.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual ValueTask<DateTimeOffset?> SelectExecutionHistorySliceBoundary(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        ExecutionHistorySlice slice,
+        DateTimeOffset cutoff,
+        int batchSize,
+        CancellationToken cancellationToken = default)
+    {
+        StringBuilder sql = new(StdAdoConstants.SqlSelectExecutionHistoryFiredTimeBefore);
+        List<KeyValuePair<string, object?>> parameters = [new(SqlParameters.HistoryCutoff, GetDbDateTimeValue(cutoff))];
+
+        AppendSlicePredicate(sql, parameters, slice);
+        sql.Append(StdAdoConstants.SqlOrderByFiredTime);
+
+        return SelectHistoryBoundary(conn, sql.ToString(), schedulerName, parameters, skip: batchSize, cancellationToken);
+    }
+
+    /// <summary>Deletes a slice's executions that fall below an instant.</summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="schedulerName">The scheduler whose rows to delete.</param>
+    /// <param name="slice">A retention tier's results, or the capped job.</param>
+    /// <param name="cutoff">The instant to delete below, which the caller has bounded.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<int> DeleteExecutionHistorySlice(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        ExecutionHistorySlice slice,
+        DateTimeOffset cutoff,
+        CancellationToken cancellationToken = default)
+    {
+        StringBuilder sql = new(StdAdoConstants.SqlDeleteExecutionHistoryBefore);
+        List<KeyValuePair<string, object?>> parameters = [new(SqlParameters.HistoryCutoff, GetDbDateTimeValue(cutoff))];
+
+        AppendSlicePredicate(sql, parameters, slice);
+
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(sql.ToString()));
+        BindHistoryParameters(cmd, schedulerName, parameters);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The jobs with more executions that did not fail than <paramref name="cap" />, by group and then
+    /// name, at most <paramref name="take" /> of them.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="schedulerName">The scheduler whose jobs to count.</param>
+    /// <param name="cap">How many rows of a job the cap keeps.</param>
+    /// <param name="take">How many jobs to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<List<JobKey>> SelectJobsOverHistoryCap(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        int cap,
+        int take,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(ApplyPaging(StdAdoConstants.SqlSelectJobsOverHistoryCap, takeLimited: true)));
+
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.HistoryNotFailedSucceeded, GetDbBooleanValue(true));
+        AddCommandParameter(cmd, SqlParameters.HistoryJobCap, cap);
+        AddPagingParameters(cmd, skip: 0, take, takeLimited: true);
+
+        List<JobKey> jobs = [];
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            jobs.Add(new JobKey(rs.GetString(1), rs.GetString(0)));
+        }
+
+        return jobs;
+    }
+
+    /// <summary>
+    /// The fire time of the newest execution of a job the per-job cap removes, or <see langword="null" />
+    /// when the job is within the cap. Its failures are neither counted nor removed.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="schedulerName">The scheduler the job belongs to.</param>
+    /// <param name="job">The job.</param>
+    /// <param name="keep">How many rows the cap keeps.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual ValueTask<DateTimeOffset?> SelectJobHistoryCapBoundary(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        JobKey job,
+        int keep,
+        CancellationToken cancellationToken = default)
+    {
+        StringBuilder sql = new(StdAdoConstants.SqlSelectExecutionHistoryFiredTime);
+        List<KeyValuePair<string, object?>> parameters = [];
+
+        AppendSlicePredicate(sql, parameters, new ExecutionHistorySlice { CappedJob = job });
+        sql.Append(StdAdoConstants.SqlOrderByFiredTimeDescending);
+
+        return SelectHistoryBoundary(conn, sql.ToString(), schedulerName, parameters, skip: keep, cancellationToken);
+    }
+
+    /// <summary>
+    /// Deletes the run statuses of jobs that no longer exist and last fired before an instant.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="schedulerName">The scheduler whose statuses to delete.</param>
+    /// <param name="cutoff">The longest retention window's cutoff.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<int> DeleteOrphanedJobRunStatuses(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        DateTimeOffset cutoff,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteOrphanedJobStatuses));
+
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.HistoryCutoff, GetDbDateTimeValue(cutoff));
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     // ---------------------------------------------------------------------------------------------
-    // Building the two reads
+    // Building the reads
     // ---------------------------------------------------------------------------------------------
 
     private async ValueTask<DateTimeOffset?> SelectHistoryBoundary(
@@ -434,6 +817,128 @@ public partial class StdAdoDelegate
 
         object? boundary = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return boundary is null ? null : GetDateTimeFromDbValue(boundary);
+    }
+
+    /// <summary>
+    /// <see cref="SelectHistoryBoundary(ConnectionAndTransactionHolder, string, string, DateTimeOffset?, int, CancellationToken)" />
+    /// for a statement whose predicates the caller composed: the scheduler, then
+    /// <paramref name="parameters" /> in the order the statement names them, then the page.
+    /// </summary>
+    private async ValueTask<DateTimeOffset?> SelectHistoryBoundary(
+        ConnectionAndTransactionHolder conn,
+        string sql,
+        string schedulerName,
+        List<KeyValuePair<string, object?>> parameters,
+        int skip,
+        CancellationToken cancellationToken)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(ApplyPaging(sql, takeLimited: true)));
+
+        BindHistoryParameters(cmd, schedulerName, parameters);
+        AddPagingParameters(cmd, skip, take: 1, takeLimited: true);
+
+        object? boundary = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return boundary is null ? null : GetDateTimeFromDbValue(boundary);
+    }
+
+    /// <summary>
+    /// Narrows a sweep statement to a slice: a capped job's rows that did not fail, then a tier's results.
+    /// </summary>
+    private void AppendSlicePredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        ExecutionHistorySlice slice)
+    {
+        if (slice.CappedJob is { } job)
+        {
+            AppendJobPredicate(predicate, parameters, job);
+            predicate.Append(StdAdoConstants.SqlExecutionHistoryNotFailed);
+            parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryNotFailedSucceeded, GetDbBooleanValue(true)));
+        }
+
+        if (slice.Results is { } results)
+        {
+            AppendResultsPredicate(predicate, parameters, results);
+        }
+    }
+
+    /// <summary>Narrows a history read to one job, matched exactly.</summary>
+    private static void AppendJobPredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        JobKey? job)
+    {
+        if (job is null)
+        {
+            return;
+        }
+
+        predicate.Append(StdAdoConstants.SqlHistoryJobPredicate);
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.JobGroup, job.Group));
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.JobName, job.Name));
+    }
+
+    /// <summary>Narrows a history read to the rows on one side of an instant.</summary>
+    private void AppendInstantPredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        string fragment,
+        string parameterName,
+        DateTimeOffset? instant)
+    {
+        if (instant is not { } value)
+        {
+            return;
+        }
+
+        predicate.Append(fragment);
+        parameters.Add(new KeyValuePair<string, object?>(parameterName, GetDbDateTimeValue(value)));
+    }
+
+    /// <summary>
+    /// Narrows a history statement to the rows whose effective result is one of <paramref name="results" />.
+    /// </summary>
+    /// <remarks>
+    /// One fragment per result, in the enumeration's order and each once, whatever order and repeats the
+    /// caller used, so the statement texts stay few. A set that names no result this version knows —
+    /// the empty one included — matches nothing, rather than being read as no filter.
+    /// </remarks>
+    private void AppendResultsPredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        IReadOnlyCollection<JobRunResult> results)
+    {
+        bool any = false;
+        foreach (JobRunResult result in knownResults)
+        {
+            if (!results.Contains(result))
+            {
+                continue;
+            }
+
+            predicate.Append(any ? " OR " : " AND (");
+            any = true;
+
+            switch (result)
+            {
+                case JobRunResult.Succeeded:
+                    predicate.Append(StdAdoConstants.SqlExecutionHistoryResultSucceeded);
+                    parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryLegacySucceeded, GetDbBooleanValue(true)));
+                    break;
+                case JobRunResult.Failed:
+                    predicate.Append(StdAdoConstants.SqlExecutionHistoryResultFailed);
+                    parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryLegacyFailed, GetDbBooleanValue(false)));
+                    break;
+                case JobRunResult.Cancelled:
+                    predicate.Append(StdAdoConstants.SqlExecutionHistoryResultCancelled);
+                    break;
+                default:
+                    predicate.Append(StdAdoConstants.SqlExecutionHistoryResultSkipped);
+                    break;
+            }
+        }
+
+        predicate.Append(any ? ")" : StdAdoConstants.SqlMatchesNothing);
     }
 
     private static void AppendNodePredicate(
@@ -524,7 +1029,7 @@ public partial class StdAdoDelegate
         }
     }
 
-    private ExecutionHistoryEntry ReadExecutionHistoryEntry(DbDataReader rs, string schedulerName)
+    private ExecutionHistoryEntry ReadExecutionHistoryEntry(DbDataReader rs, string schedulerName, ExecutionHistoryOrdinals outcome)
     {
         return new ExecutionHistoryEntry(
             SchedulerName: schedulerName,
@@ -540,8 +1045,76 @@ public partial class StdAdoDelegate
         {
             RetryAttempt = Convert.ToInt32(rs.GetValue(9), CultureInfo.InvariantCulture),
             RetryScheduled = GetBooleanFromDbValue(rs.GetValue(10)),
-            EntryId = rs.GetString(11)
+            EntryId = rs.GetString(11),
+            Result = ReadResult(rs, outcome.Result),
+            Summary = ReadOptionalString(rs, outcome.Summary),
+            MetricsJson = ReadOptionalString(rs, outcome.Metrics),
+            Manual = outcome.Manual >= 0 && !rs.IsDBNull(outcome.Manual) && GetBooleanFromDbValue(rs.GetValue(outcome.Manual)),
+            FireInstanceId = ReadOptionalString(rs, outcome.FireInstanceId)
         };
+    }
+
+    private JobRunStatus ReadJobRunStatus(DbDataReader rs, string schedulerName)
+    {
+        return new JobRunStatus(
+            SchedulerName: schedulerName,
+            Job: new JobKey(rs.GetString(1), rs.GetString(0)),
+            LastFiredAtUtc: GetDateTimeFromDbValue(rs.GetValue(3)) ?? DateTimeOffset.MinValue,
+            // Not GetInt32: Oracle hands back a decimal for a NUMBER column.
+            LastResult: (JobRunResult) Convert.ToInt32(rs.GetValue(4), CultureInfo.InvariantCulture))
+        {
+            FirstFiredAtUtc = GetDateTimeFromDbValue(rs.GetValue(2)) ?? DateTimeOffset.MinValue,
+            LastDuration = TimeSpan.FromTicks(Convert.ToInt64(rs.GetValue(5), CultureInfo.InvariantCulture)),
+            LastSchedulerInstanceId = rs.GetString(6),
+            LastEntryId = ReadOptionalString(rs, 7),
+            LastSummary = ReadOptionalString(rs, 8),
+            LastSucceededAtUtc = GetDateTimeFromDbValue(rs.GetValue(9)),
+            LastFailedAtUtc = GetDateTimeFromDbValue(rs.GetValue(10)),
+            LastFailureMessage = ReadOptionalString(rs, 11),
+            ConsecutiveFailures = Convert.ToInt32(rs.GetValue(12), CultureInfo.InvariantCulture),
+            RunCount = Convert.ToInt64(rs.GetValue(13), CultureInfo.InvariantCulture),
+            FailureCount = Convert.ToInt64(rs.GetValue(14), CultureInfo.InvariantCulture)
+        };
+    }
+
+    /// <summary>A text column's value, or <see langword="null" /> when it is null or not in the result set.</summary>
+    private static string? ReadOptionalString(DbDataReader rs, int ordinal)
+    {
+        return ordinal < 0 || rs.IsDBNull(ordinal) ? null : rs.GetString(ordinal);
+    }
+
+    /// <summary>
+    /// A row's <c>RESULT</c>: <see langword="null" /> on a row a 4.3 node wrote, and for a value a newer
+    /// node wrote that this one does not know, so that <see cref="ExecutionHistoryEntry.EffectiveResult" />
+    /// reads it from <c>SUCCEEDED</c>.
+    /// </summary>
+    private static JobRunResult? ReadResult(DbDataReader rs, int ordinal)
+    {
+        if (ordinal < 0 || rs.IsDBNull(ordinal))
+        {
+            return null;
+        }
+
+        JobRunResult result = (JobRunResult) Convert.ToInt32(rs.GetValue(ordinal), CultureInfo.InvariantCulture);
+        return Enum.IsDefined(result) ? result : null;
+    }
+
+    /// <summary>
+    /// Where the 4.4 outcome columns stand in a history read, or <c>-1</c> for one it does not carry.
+    /// </summary>
+    /// <remarks>
+    /// Found by name, once per read, as the acquisition's non-concurrency flag is: a statement written
+    /// before 4.4 does not project them, and its rows still read, with no outcome.
+    /// </remarks>
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct ExecutionHistoryOrdinals(int Result, int Summary, int Metrics, int Manual, int FireInstanceId)
+    {
+        public static ExecutionHistoryOrdinals Of(DbDataReader rs) => new(
+            OptionalOrdinal(rs, AdoConstants.ColumnResult),
+            OptionalOrdinal(rs, AdoConstants.ColumnSummary),
+            OptionalOrdinal(rs, AdoConstants.ColumnMetrics),
+            OptionalOrdinal(rs, AdoConstants.ColumnManual),
+            OptionalOrdinal(rs, AdoConstants.ColumnFireInstanceId));
     }
 
     private MisfireHistoryEntry ReadMisfireHistoryEntry(DbDataReader rs, string schedulerName)

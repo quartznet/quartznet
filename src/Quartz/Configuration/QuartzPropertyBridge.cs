@@ -105,7 +105,8 @@ internal static class QuartzPropertyBridge
     /// </para>
     /// <para>
     /// The typed option is still set in <see cref="MapAdoJobStore" /> with the rest of them: this says
-    /// which store reads the history, that says whether the schema check covers its two tables.
+    /// which store reads the history, that says whether the schema check covers its three tables and
+    /// their columns.
     /// </para>
     /// </remarks>
     private static void RegisterExecutionHistory(IServiceCollection services, PropertyReader parser, string? schedulerName)
@@ -722,8 +723,8 @@ internal static class QuartzPropertyBridge
             "quartz.jobStore.performSchemaValidation",
             value => options.SchemaProvisioning = value ? SchemaProvisioning.Validate : SchemaProvisioning.None);
         parser.Enum<SchemaProvisioning>("quartz.jobStore.schemaProvisioning", value => options.SchemaProvisioning = value);
-        // Says the schema has to carry the two execution-history tables. What reads and writes them is
-        // registered by RegisterExecutionHistory, from the same key.
+        // Says the schema has to carry the three execution-history tables and their 4.3 and 4.4 columns.
+        // What reads and writes them is registered by RegisterExecutionHistory, from the same key.
         parser.Bool("quartz.jobStore.executionHistory", value => options.ExecutionHistory = value);
         parser.String("quartz.jobStore.selectWithLockSQL", value => options.SelectWithLockSql = value);
 

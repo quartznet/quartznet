@@ -1327,7 +1327,7 @@ internal static class StdAdoConstants
     // -----------------------------------------------------------------------------------------
 
     public static readonly string SqlInsertExecutionHistory =
-        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnExecutionLog}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage}, @{SqlParameters.HistoryRetryAttempt}, @{SqlParameters.HistoryRetryScheduled}, @{SqlParameters.ExecutionLog})");
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnExecutionLog}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage}, @{SqlParameters.HistoryRetryAttempt}, @{SqlParameters.HistoryRetryScheduled}, @{SqlParameters.ExecutionLog}, @{SqlParameters.HistoryResult}, @{SqlParameters.HistorySummary}, @{SqlParameters.HistoryMetrics}, @{SqlParameters.HistoryManual}, @{SqlParameters.HistoryFireInstanceId})");
 
     public static readonly string SqlInsertMisfireHistory =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableMisfireHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnMisfireTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnMisfireReason}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.MisfireTime}, @{SqlParameters.ScheduledTime}, @{SqlParameters.MisfireReason})");
@@ -1347,14 +1347,15 @@ internal static class StdAdoConstants
         Invariant($"SELECT {ExecutionHistoryColumns}, {AdoConstants.ColumnExecutionLog} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId} AND {AdoConstants.ColumnFiredTime} >= @{SqlParameters.HistoryCutoff}");
 
     /// <summary>
-    /// The columns both history reads select, in the order <c>ReadExecutionHistoryEntry</c> reads them.
+    /// The columns both history reads select. The first twelve are read by position, in this order; the
+    /// 4.4 outcome columns after them are found by name, so a statement that leaves them out still reads.
     /// </summary>
     /// <remarks>
     /// A constant rather than a static field, because the two statements above are initialized before
     /// a field declared here would be.
     /// </remarks>
     private const string ExecutionHistoryColumns =
-        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnEntryId}";
+        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}";
 
     public static readonly string SqlCountExecutionHistory =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
@@ -1450,4 +1451,153 @@ internal static class StdAdoConstants
     /// <inheritdoc cref="SqlSelectExecutionHistoryBatchBoundary" />
     public static readonly string SqlSelectMisfireHistoryBatchBoundary =
         Invariant($"SELECT {AdoConstants.ColumnMisfireTime} FROM {TablePrefixSubst}{AdoConstants.TableMisfireHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireTime} < @{SqlParameters.HistoryCutoff} ORDER BY {AdoConstants.ColumnMisfireTime}");
+
+    // -----------------------------------------------------------------------------------------
+    // The 4.4 filters, retention tiers and per-job cap
+    //
+    // A result is matched on the row's effective result: RESULT, or on a row a 4.3 node wrote, which
+    // has none, what SUCCEEDED implies. RESULT is compared with a literal, which every dialect takes;
+    // SUCCEEDED with a parameter, because a boolean is spelled differently everywhere and Firebird
+    // refuses a parameter compared with a literal. Each fragment names its own parameter, so a dialect
+    // that binds by position gets one per placeholder however they are combined.
+    // -----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// One job's rows, matched exactly: on the execution feed, the read <c>IDX_QRTZ_EH_JOB_TIME</c> answers.
+    /// The misfire feed names its job with the same two columns.
+    /// </summary>
+    public static readonly string SqlHistoryJobPredicate =
+        Invariant($" AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName}");
+
+    /// <summary>The rows that fired at or after an instant.</summary>
+    public static readonly string SqlExecutionHistoryFiredFrom =
+        Invariant($" AND {AdoConstants.ColumnFiredTime} >= @{SqlParameters.HistoryFiredFrom}");
+
+    /// <summary>The rows that fired before an instant.</summary>
+    public static readonly string SqlExecutionHistoryFiredBefore =
+        Invariant($" AND {AdoConstants.ColumnFiredTime} < @{SqlParameters.HistoryFiredBefore}");
+
+    /// <summary>The rows whose effective result is <see cref="JobRunResult.Succeeded" />.</summary>
+    public static readonly string SqlExecutionHistoryResultSucceeded =
+        Invariant($"({AdoConstants.ColumnResult} = {(int) JobRunResult.Succeeded} OR ({AdoConstants.ColumnResult} IS NULL AND {AdoConstants.ColumnSucceeded} = @{SqlParameters.HistoryLegacySucceeded}))");
+
+    /// <summary>The rows whose effective result is <see cref="JobRunResult.Failed" />.</summary>
+    public static readonly string SqlExecutionHistoryResultFailed =
+        Invariant($"({AdoConstants.ColumnResult} = {(int) JobRunResult.Failed} OR ({AdoConstants.ColumnResult} IS NULL AND {AdoConstants.ColumnSucceeded} = @{SqlParameters.HistoryLegacyFailed}))");
+
+    /// <summary>
+    /// The rows whose result is <see cref="JobRunResult.Cancelled" />. A row without a result is never one.
+    /// </summary>
+    public static readonly string SqlExecutionHistoryResultCancelled =
+        Invariant($"{AdoConstants.ColumnResult} = {(int) JobRunResult.Cancelled}");
+
+    /// <summary>
+    /// The rows whose result is <see cref="JobRunResult.Skipped" />. A row without a result is never one.
+    /// </summary>
+    public static readonly string SqlExecutionHistoryResultSkipped =
+        Invariant($"{AdoConstants.ColumnResult} = {(int) JobRunResult.Skipped}");
+
+    /// <summary>
+    /// The rows whose effective result is anything but <see cref="JobRunResult.Failed" />: what the per-job
+    /// cap counts and trims.
+    /// </summary>
+    /// <remarks>
+    /// Spelled positively rather than as <c>NOT (…failed…)</c>: a row without a result makes
+    /// <c>RESULT = 1</c> unknown, and <c>NOT</c> of unknown would leave a 4.3 node's successes out.
+    /// </remarks>
+    public static readonly string SqlExecutionHistoryNotFailed =
+        Invariant($" AND ({AdoConstants.ColumnResult} <> {(int) JobRunResult.Failed} OR ({AdoConstants.ColumnResult} IS NULL AND {AdoConstants.ColumnSucceeded} = @{SqlParameters.HistoryNotFailedSucceeded}))");
+
+    /// <summary>
+    /// A predicate no row satisfies: a <c>Results</c> filter that names no result this version knows, an
+    /// empty set included. Two literals, which every dialect compares.
+    /// </summary>
+    public static readonly string SqlMatchesNothing = " AND 1 = 0";
+
+    /// <summary>
+    /// The fire times of a feed's rows below the cutoff; the caller appends a slice's predicates and
+    /// <see cref="SqlOrderByFiredTime" />, and pages to the batch boundary.
+    /// </summary>
+    public static readonly string SqlSelectExecutionHistoryFiredTimeBefore =
+        Invariant($"SELECT {AdoConstants.ColumnFiredTime} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnFiredTime} < @{SqlParameters.HistoryCutoff}");
+
+    /// <summary>
+    /// The fire times of a scheduler's rows; the caller appends one job's predicates and
+    /// <see cref="SqlOrderByFiredTimeDescending" />, and skips the rows the per-job cap keeps.
+    /// </summary>
+    public static readonly string SqlSelectExecutionHistoryFiredTime =
+        Invariant($"SELECT {AdoConstants.ColumnFiredTime} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    public static readonly string SqlOrderByFiredTime =
+        Invariant($" ORDER BY {AdoConstants.ColumnFiredTime}");
+
+    public static readonly string SqlOrderByFiredTimeDescending =
+        Invariant($" ORDER BY {AdoConstants.ColumnFiredTime} DESC");
+
+    /// <summary>
+    /// The jobs holding more rows that did not fail than the per-job cap keeps, ordered so that it can be
+    /// paged.
+    /// </summary>
+    /// <remarks>
+    /// A <c>GROUP BY</c> rather than a window function, which six dialects spell differently or not at
+    /// all; the caller then finds each job's boundary on <c>IDX_QRTZ_EH_JOB_TIME</c>.
+    /// </remarks>
+    public static readonly string SqlSelectJobsOverHistoryCap =
+        Invariant($"SELECT {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}{SqlExecutionHistoryNotFailed} GROUP BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName} HAVING COUNT(*) > @{SqlParameters.HistoryJobCap} ORDER BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}");
+
+    // -----------------------------------------------------------------------------------------
+    // JOB_STATUS
+    //
+    // One row per job, written by AdoExecutionHistoryStore in the transaction that records the
+    // execution, on the history's own connection. The updates are JobStatusStatement's, generated
+    // per kind of execution; the insert is the first run's fold, bound whole.
+    // -----------------------------------------------------------------------------------------
+
+    public static readonly JobStatusStatement SqlUpdateJobStatusSucceeded = JobStatusStatement.Update(JobStatusUpdate.Succeeded);
+
+    public static readonly JobStatusStatement SqlUpdateJobStatusFailedFinally = JobStatusStatement.Update(JobStatusUpdate.FailedFinally);
+
+    public static readonly JobStatusStatement SqlUpdateJobStatusFailedRetried = JobStatusStatement.Update(JobStatusUpdate.FailedRetried);
+
+    public static readonly JobStatusStatement SqlUpdateJobStatusOther = JobStatusStatement.Update(JobStatusUpdate.Other);
+
+    public static readonly string SqlInsertJobStatus =
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableJobStatus} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnFirstFiredTime}, {AdoConstants.ColumnLastFiredTime}, {AdoConstants.ColumnLastResult}, {AdoConstants.ColumnLastRunTime}, {AdoConstants.ColumnLastInstanceName}, {AdoConstants.ColumnLastEntryId}, {AdoConstants.ColumnLastSummary}, {AdoConstants.ColumnLastSuccessTime}, {AdoConstants.ColumnLastFailureTime}, {AdoConstants.ColumnLastFailureMessage}, {AdoConstants.ColumnConsecutiveFailures}, {AdoConstants.ColumnRunCount}, {AdoConstants.ColumnFailureCount}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.JobGroup}, @{SqlParameters.JobName}, @{SqlParameters.StatusFirstFiredTime}, @{SqlParameters.StatusLastFiredTime}, @{SqlParameters.StatusLastResult}, @{SqlParameters.StatusLastRunTime}, @{SqlParameters.StatusLastInstanceName}, @{SqlParameters.StatusLastEntryId}, @{SqlParameters.StatusLastSummary}, @{SqlParameters.StatusLastSuccessTime}, @{SqlParameters.StatusLastFailureTime}, @{SqlParameters.StatusLastFailureMessage}, @{SqlParameters.StatusConsecutiveFailures}, @{SqlParameters.StatusRunCount}, @{SqlParameters.StatusFailureCount})");
+
+    /// <summary>The columns every status read selects, in the order <c>ReadJobRunStatus</c> reads them.</summary>
+    private const string JobStatusColumns =
+        $"{AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnFirstFiredTime}, {AdoConstants.ColumnLastFiredTime}, {AdoConstants.ColumnLastResult}, {AdoConstants.ColumnLastRunTime}, {AdoConstants.ColumnLastInstanceName}, {AdoConstants.ColumnLastEntryId}, {AdoConstants.ColumnLastSummary}, {AdoConstants.ColumnLastSuccessTime}, {AdoConstants.ColumnLastFailureTime}, {AdoConstants.ColumnLastFailureMessage}, {AdoConstants.ColumnConsecutiveFailures}, {AdoConstants.ColumnRunCount}, {AdoConstants.ColumnFailureCount}";
+
+    /// <summary>A scheduler's statuses; the caller appends the query's predicates and the ordering.</summary>
+    public static readonly string SqlSelectJobStatuses =
+        Invariant($"SELECT {JobStatusColumns} FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    public static readonly string SqlCountJobStatuses =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    /// <summary>One job's status, by the table's key.</summary>
+    public static readonly string SqlSelectJobStatus =
+        Invariant($"SELECT {JobStatusColumns} FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName}");
+
+    /// <summary>The jobs whose last occurrence failed for good: <c>JobRunStatusQuery.Failing = true</c>.</summary>
+    public static readonly string SqlJobStatusFailing =
+        Invariant($" AND {AdoConstants.ColumnConsecutiveFailures} > 0");
+
+    /// <summary>Their complement: <c>JobRunStatusQuery.Failing = false</c>.</summary>
+    public static readonly string SqlJobStatusNotFailing =
+        Invariant($" AND {AdoConstants.ColumnConsecutiveFailures} = 0");
+
+    /// <summary>Group, then name, as every paged query is ordered.</summary>
+    public static readonly string SqlOrderByJobStatus =
+        Invariant($" ORDER BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}");
+
+    /// <summary>
+    /// The statuses of jobs that no longer exist and have not run within the longest retention window.
+    /// </summary>
+    /// <remarks>
+    /// A correlated <c>NOT EXISTS</c> on <c>QRTZ_JOB_DETAILS</c>'s key. The outer table is named rather than
+    /// aliased: a <c>DELETE</c> target takes an alias in some dialects only.
+    /// </remarks>
+    public static readonly string SqlDeleteOrphanedJobStatuses =
+        Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnLastFiredTime} < @{SqlParameters.HistoryCutoff} AND NOT EXISTS (SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} j WHERE j.{AdoConstants.ColumnSchedulerName} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnSchedulerName} AND j.{AdoConstants.ColumnJobGroup} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnJobGroup} AND j.{AdoConstants.ColumnJobName} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnJobName})");
 }

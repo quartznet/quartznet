@@ -262,4 +262,7 @@ internal static partial class AdoJobStoreLog
 
     [LoggerMessage(EventId = 3162, Level = LogLevel.Debug, Message = "Execution history sweep removed {RowCount} row(s) for scheduler '{SchedulerName}'")]
     public static partial void ExecutionHistorySwept(this ILogger logger, string schedulerName, int rowCount);
+
+    [LoggerMessage(EventId = 3163, Level = LogLevel.Debug, Message = "Execution history sweep for scheduler '{SchedulerName}' is left to node '{InstanceId}', the live node with the lowest instance id")]
+    public static partial void ExecutionHistorySweepDeferred(this ILogger logger, string schedulerName, string instanceId);
 }

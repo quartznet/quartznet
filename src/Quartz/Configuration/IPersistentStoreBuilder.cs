@@ -213,24 +213,26 @@ public interface IPersistentStoreBuilder
     /// The history Quartz keeps without this is per process and in memory, which is why a dashboard
     /// attached to a cluster through a shared store sees nothing: no node wrote what it is reading.
     /// This puts both feeds — executions and misfires — in <c>QRTZ_EXECUTION_HISTORY</c> and
-    /// <c>QRTZ_MISFIRE_HISTORY</c>, where every node writes and any of them can read the lot.
+    /// <c>QRTZ_MISFIRE_HISTORY</c>, and a <see cref="JobRunStatus" /> per job in <c>QRTZ_JOB_STATUS</c>,
+    /// where every node writes and any of them can read the lot.
     /// </para>
     /// <para>
-    /// <strong>The two tables have to be there.</strong> A fresh 4.2 install creates them and
-    /// <see cref="ProvisionSchema" /> creates them; a database created by 4.0 or 4.1 needs
-    /// <c>database/migrations/4.2/add_execution_history_&lt;dialect&gt;.sql</c>, and this store refuses
-    /// to start without them, naming that script. The migration is needed by nothing else, so a
-    /// deployment that leaves this uncalled never has to run it.
+    /// <strong>The three tables and their columns have to be there.</strong> A fresh install creates
+    /// them and <see cref="ProvisionSchema" /> creates them. An older database needs the optional
+    /// scripts after its own version: <c>database/migrations/4.2/add_execution_history_&lt;dialect&gt;.sql</c>,
+    /// <c>4.3/add_execution_log</c> and <c>add_misfire_reason</c>, and <c>4.4/add_execution_outcome</c>.
+    /// This store refuses to start without them, naming the oldest script missing. The migrations are
+    /// needed by nothing else, so a deployment that leaves this uncalled never has to run them.
     /// </para>
     /// <para>
-    /// The store keeps itself trimmed to <see cref="ExecutionHistoryOptions" /> — 24 hours and 2,000
-    /// rows per scheduler by default — sweeping on a timer of its own and never inside a job's
-    /// transaction or under the trigger lock. A pass deletes a bounded number of rows and gives its
+    /// The store keeps itself trimmed to <see cref="ExecutionHistoryOptions" /> — an age per result, a cap
+    /// per job, and 2,000 rows per scheduler by default — sweeping on a timer of its own and never inside
+    /// a job's transaction or under the trigger lock. A pass deletes a bounded number of rows and gives its
     /// connection back; one that stops on that bound brings the next pass forward to a minute later, so
     /// the sweep keeps up with a busy scheduler rather than falling further behind every interval. A
     /// history write that fails is logged and dropped: the execution it describes has already happened,
-    /// and losing the record of it must not fail the firing. Every node sweeps independently, which is
-    /// safe because the deletes are idempotent.
+    /// and losing the record of it must not fail the firing. In a cluster one node sweeps: the live node
+    /// with the lowest instance id in <c>QRTZ_SCHEDULER_STATE</c>.
     /// </para>
     /// <para>
     /// It also calls <c>AddQuartzExecutionHistory()</c> if nothing has, so the recorder and the bounds
@@ -253,8 +255,9 @@ public interface IPersistentStoreBuilder
     /// </remarks>
     IPersistentStoreBuilder UseExecutionHistory()
     {
-        // The schema check covers the two tables now, and only now: they are optional, so probing for
-        // them unconditionally would make 4.2's migration mandatory for every existing database.
+        // The schema check covers the history's three tables and their columns now, and only now: they
+        // are optional, so probing for them unconditionally would make their migrations mandatory for
+        // every existing database.
         ConfigureStore(static options => options.ExecutionHistory = true);
 
         Configuration.ExecutionHistoryRegistration.Apply(

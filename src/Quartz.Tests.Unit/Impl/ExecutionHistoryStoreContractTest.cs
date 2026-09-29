@@ -55,8 +55,11 @@ namespace Quartz.Tests.Unit.Impl;
 /// whole cluster's feed is not a property of one page; <see cref="ApplyBounds" /> is where a store
 /// that sweeps gets to.
 /// </para>
+/// <para>
+/// Partial: <c>ExecutionHistoryRunResultContractTest.cs</c> holds the 4.4 cases, which both stores answer.
+/// </para>
 /// </remarks>
-public abstract class ExecutionHistoryStoreContractTest
+public abstract partial class ExecutionHistoryStoreContractTest
 {
     protected const string SchedulerName = "ContractScheduler";
     protected const string JobGroup = "reports";
@@ -667,11 +670,7 @@ public abstract class ExecutionHistoryStoreContractTest
 }
 
 /// <summary>The contract, against the store Quartz keeps when nothing else is registered.</summary>
-/// <remarks>
-/// Partial: <c>ExecutionHistoryRunResultContractTest.cs</c> holds the 4.4 cases, which only this store
-/// answers until the database history does.
-/// </remarks>
-public sealed partial class InMemoryExecutionHistoryStoreContractTest : ExecutionHistoryStoreContractTest
+public sealed class InMemoryExecutionHistoryStoreContractTest : ExecutionHistoryStoreContractTest
 {
     protected override ValueTask<IExecutionHistoryStore> CreateStore(Action<ExecutionHistoryOptions> configure)
     {
@@ -680,6 +679,23 @@ public sealed partial class InMemoryExecutionHistoryStoreContractTest : Executio
 
         return new ValueTask<IExecutionHistoryStore>(
             new InMemoryExecutionHistoryStore(Options.Create(options), Clock));
+    }
+
+    /// <summary>
+    /// The in-memory history bounds its statuses by count, where the database history keeps one per job
+    /// until the job is gone.
+    /// </summary>
+    [Test]
+    public async Task TheStatusOfTheJobThatRanLongestAgoIsDroppedFirst()
+    {
+        IExecutionHistoryStore store = await CreateStore(options => options.MaxEntriesPerScheduler = 2);
+
+        await store.AddExecution(Execution(Start.AddMinutes(-1), "b"));
+        await store.AddExecution(Execution(Start.AddMinutes(-5), "a"));
+        await store.AddExecution(Execution(Start, "c"));
+
+        (await StatusNames(store)).Should().Equal(["b", "c"],
+            "a scheduler keeps at most MaxEntriesPerScheduler statuses, and the one to go is the job that ran longest ago");
     }
 }
 
@@ -692,15 +708,24 @@ public sealed partial class InMemoryExecutionHistoryStoreContractTest : Executio
 /// store is the one <c>UseExecutionHistory()</c> registers. The other five dialects are the
 /// integration legs' business; what is here is everything that does not need a container.
 /// </remarks>
-public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStoreContractTest
+public sealed partial class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStoreContractTest
 {
     private SqliteTestDatabase database = null!;
     private ServiceProvider? container;
+    private IScheduler scheduler = null!;
+
+    /// <summary>
+    /// Whether the store's sweep timer runs on <see cref="ExecutionHistoryStoreContractTest.Clock" />. Off
+    /// unless a case is about the timer: the contract sweeps where it says <c>ApplyBounds</c>, and a clock
+    /// moved ten years would otherwise run a pass for every interval in between.
+    /// </summary>
+    private bool sweepOnTheClock;
 
     [SetUp]
     public void CreateEmptyDatabase()
     {
         database = new SqliteTestDatabase("history-contract");
+        sweepOnTheClock = false;
     }
 
     [TearDown]
@@ -719,7 +744,7 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
     {
         ServiceCollection services = new();
 
-        services.AddSingleton<TimeProvider>(Clock);
+        services.AddSingleton<TimeProvider>(sweepOnTheClock ? Clock : new ClockWithoutHistorySweeps(Clock));
         services.AddQuartzExecutionHistory(configure);
 
         services.AddQuartz(quartz =>
@@ -742,7 +767,7 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
 
         // The scheduler is what initializes the job store, which is what tells the driver delegate its
         // table prefix. Built and not started: nothing here fires a trigger.
-        await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
 
         return container.GetRequiredService<IExecutionHistoryStore>();
     }
@@ -750,6 +775,60 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
     protected override ValueTask ApplyBounds(IExecutionHistoryStore store)
     {
         return ((AdoExecutionHistoryStore) store).Sweep();
+    }
+
+    /// <remarks>
+    /// Stored durably in <c>QRTZ_JOB_DETAILS</c>: the database history forgets the status of a job that is
+    /// gone once it is past the longest window, and keeps the status of one that is not.
+    /// </remarks>
+    protected override ValueTask KeepJob(JobKey job)
+    {
+        return scheduler.AddJob(
+            JobBuilder.Create<NoOpJob>().WithIdentity(job).StoreDurably().Build(),
+            new AddJobOptions { Replace = true });
+    }
+
+    /// <summary>A job that is stored and never run.</summary>
+    public sealed class NoOpJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// The contract's clock, but for the history store's own sweep timer, which it never starts.
+    /// </summary>
+    /// <remarks>
+    /// Everything else the container builds on it — the scheduler, the job store — gets
+    /// <see cref="ExecutionHistoryStoreContractTest.Clock" />'s timers as before. The history store is
+    /// recognised by the state it hands its timer, which is itself.
+    /// </remarks>
+    private sealed class ClockWithoutHistorySweeps(FakeTimeProvider inner) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => inner.GetUtcNow();
+
+        public override long GetTimestamp() => inner.GetTimestamp();
+
+        public override long TimestampFrequency => inner.TimestampFrequency;
+
+        public override TimeZoneInfo LocalTimeZone => inner.LocalTimeZone;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            return state is AdoExecutionHistoryStore
+                ? new NeverFiringTimer()
+                : inner.CreateTimer(callback, state, dueTime, period);
+        }
+
+        private sealed class NeverFiringTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+            public void Dispose()
+            {
+            }
+
+            public ValueTask DisposeAsync() => default;
+        }
     }
 
     /// <summary>
@@ -911,6 +990,7 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
     [Test]
     public async Task ASweepThatRunsOutOfBatchesComesBackAMinuteLater()
     {
+        sweepOnTheClock = true;
         IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(24), maxEntriesPerScheduler: 5);
         AdoExecutionHistoryStore history = (AdoExecutionHistoryStore) store;
 
@@ -921,7 +1001,7 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
         await history.WaitForSweep();
 
         (await RowCount()).Should().BeGreaterThan(5,
-            "one pass deletes at most SweepBatchesPerPass x SweepBatchSize rows a bound, and gives its "
+            "one pass deletes at most SweepBatchesPerPass x SweepBatchSize rows, and gives its "
             + "connection back rather than holding it until a backlog of any size is gone");
 
         Clock.Advance(AdoExecutionHistoryStore.MinimumSweepInterval);
