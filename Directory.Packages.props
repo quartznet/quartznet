@@ -65,7 +65,7 @@
       has the highest floor (2.76.0), so the graph under test is the one an application beside Quartz.Weasel
       resolves.
     -->
-    <PackageVersion Include="Marten" Version="9.40.0" />
+    <PackageVersion Include="Marten" Version="9.41.0" />
     <PackageVersion Include="MELT" Version="1.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
