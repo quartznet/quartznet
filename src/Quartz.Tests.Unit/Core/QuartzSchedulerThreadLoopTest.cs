@@ -158,6 +158,28 @@ public sealed class QuartzSchedulerThreadLoopTest
             "nothing was dispatched, so no run shell should have been built");
     }
 
+    /// <summary>
+    /// A store that fails the batch with something other than a <see cref="SchedulerException" /> is
+    /// caught by the loop's outermost arm, which used to log it and release nothing, so the batch stayed
+    /// reserved for a firing that never came (#3974).
+    /// </summary>
+    [Test]
+    public async Task AFiringFailureOfAnyOtherKindAlsoReleasesEveryTriggerTheBatchAcquired()
+    {
+        IReadOnlyList<TriggerKey> scheduled = await GivenScheduledJobs(3);
+
+        store.OnTriggersFired = (_, _, _) => throw new InvalidOperationException("the store is confused");
+
+        StartLoop();
+
+        await ShouldObserve(store.Releases.Reaches(3),
+            "an unexpected exception must not leave the batch reserved, or no round ever acquires those triggers again");
+
+        store.Releases.Entries.Take(3).Should().BeEquivalentTo(scheduled,
+            "every trigger of the batch is released, exactly as for a failure the loop expects");
+        shellFactory.Created.Count.Should().Be(0, "nothing was fired, so nothing was dispatched");
+    }
+
     [Test]
     public async Task APerTriggerFiringFailureReleasesThatTriggerAndDispatchesTheRest()
     {
