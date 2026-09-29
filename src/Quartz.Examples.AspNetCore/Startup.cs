@@ -344,7 +344,6 @@ public class Startup
             app.UseHsts();
         }
 
-        app.UseStaticFiles();
         app.UseRouting();
 
         app.UseAuthentication();
@@ -353,6 +352,11 @@ public class Startup
 
         app.UseEndpoints(endpoints =>
         {
+            // The site's files, the dashboard's stylesheet and scripts, and on .NET 10 the framework's own
+            // _framework/blazor.web.js, which UseStaticFiles does not serve: without it the dashboard's
+            // pages render and never start their circuit.
+            endpoints.MapStaticAssets();
+
             endpoints.MapRazorPages();
             endpoints.MapHealthChecks("healthz", new HealthCheckOptions
             {
