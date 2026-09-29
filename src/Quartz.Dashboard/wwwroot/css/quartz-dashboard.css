@@ -1215,7 +1215,8 @@ body{
     margin-bottom: var(--qz-space-md);
 }
 
-/* What a pause recorded, beside the paused state it explains: the paused states' amber, as a note. */
+/* What a pause recorded, beside the paused state it explains: the paused states' amber, as a note. It wraps
+   between words whatever its container says, and inside a word only when one alone is wider than it. */
 .qz-pause-note {
     display: inline-block;
     max-width: 100%;
@@ -1224,7 +1225,18 @@ body{
     background-color: var(--qz-color-warning-bg);
     color: var(--qz-color-warning);
     font-size: var(--qz-font-size-sm);
-    overflow-wrap: anywhere;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+/* In a listing's fixed-width state column the note takes a line of its own under the state, cut to the
+   column with an ellipsis rather than running over the next one. Its title holds the whole text. */
+.qz-entity-table td .qz-pause-note {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* A run asked for by hand, beside its result: a note, not a state. */

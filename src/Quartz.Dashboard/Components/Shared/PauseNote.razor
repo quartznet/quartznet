@@ -3,10 +3,11 @@
 @inject SchedulerState Scheduler
 
 @* What a pause recorded, beside the state it explains: "Paused: reason (by who, when)". Renders nothing
-   for a pause that recorded nothing, so a 4.2 node's pause shows only its state. *@
+   for a pause that recorded nothing, so a 4.2 node's pause shows only its state. The title repeats the
+   whole text, because a listing's column cuts the note to fit. *@
 @if (Pause is not null)
 {
-    <span class="qz-pause-note" title="@Tooltip">@Text</span>
+    <span class="qz-pause-note" title="@Text">@Text</span>
 }
 
 @code {
@@ -30,6 +31,4 @@
             return Pause.RequestedBy is { Length: > 0 } requester ? "by " + requester + ", " + when : when;
         }
     }
-
-    private string Tooltip => Pause!.Reason ?? "No reason was given.";
 }
