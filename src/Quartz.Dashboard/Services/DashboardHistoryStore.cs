@@ -94,41 +94,27 @@ public sealed record DashboardHistoryEntry(
     /// </summary>
     public string? Log { get; init; }
 
-    /// <summary>
-    /// What the run achieved, or <see langword="null" /> on a row written before 4.4.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="ExecutionHistoryEntry.Result" />, carried over, as the four below are: non-positional
-    /// <c>init</c> properties, added in 4.4. Read <see cref="EffectiveResult" />, which answers for the
-    /// older rows too.
-    /// </remarks>
-    public JobRunResult? Result { get; init; }
+    // The six members added in 4.4 are ExecutionHistoryEntry's, carried over, and read the same: each
+    // inherits its documentation from there. Non-positional init properties, so the record's
+    // constructor is unchanged. Where the run came from first, then what it reported, then its result.
 
-    /// <summary>
-    /// <see cref="Result" />, or on a row written before 4.4 what <see cref="Succeeded" /> implies.
-    /// </summary>
-    public JobRunResult EffectiveResult => Result ?? (Succeeded ? JobRunResult.Succeeded : JobRunResult.Failed);
+    /// <inheritdoc cref="ExecutionHistoryEntry.FireInstanceId" />
+    public string? FireInstanceId { get; init; }
 
-    /// <summary>
-    /// The job's own one line about the run, or <see langword="null" />.
-    /// </summary>
-    public string? Summary { get; init; }
-
-    /// <summary>
-    /// What the run measured, as one JSON object, or <see langword="null" />.
-    /// </summary>
-    public string? MetricsJson { get; init; }
-
-    /// <summary>
-    /// Whether the run was asked for with <c>TriggerJob</c> rather than fired by a schedule.
-    /// </summary>
+    /// <inheritdoc cref="ExecutionHistoryEntry.Manual" />
     public bool Manual { get; init; }
 
-    /// <summary>
-    /// The firing's fire instance id, which links the row to the firing's span and log scope; or
-    /// <see langword="null" /> on a row written before 4.4.
-    /// </summary>
-    public string? FireInstanceId { get; init; }
+    /// <inheritdoc cref="ExecutionHistoryEntry.MetricsJson" />
+    public string? MetricsJson { get; init; }
+
+    /// <inheritdoc cref="ExecutionHistoryEntry.Summary" />
+    public string? Summary { get; init; }
+
+    /// <inheritdoc cref="ExecutionHistoryEntry.Result" />
+    public JobRunResult? Result { get; init; }
+
+    /// <inheritdoc cref="ExecutionHistoryEntry.EffectiveResult" />
+    public JobRunResult EffectiveResult => Result ?? (Succeeded ? JobRunResult.Succeeded : JobRunResult.Failed);
 }
 
 /// <summary>

@@ -245,54 +245,51 @@ internal sealed record MisfireHistoryEntryDto(
 /// route says.
 /// </summary>
 /// <remarks>
-/// The three positional members are the ones every status has; the rest are <c>init</c>, as on the
-/// record it carries, so a member added later is one a reader that predates it skips.
+/// <para>
+/// Positional throughout: the type is internal, so its constructor is no public signature to keep
+/// additive, and the parameters are the JSON members in the order they are written. A body that lacks
+/// one — a member added after the reader was built, read by a reader that predates it — binds its
+/// default, and a member the reader does not know is skipped.
+/// </para>
+/// <para>
+/// Each member is <see cref="JobRunStatus" />'s of the same name.
+/// </para>
 /// </remarks>
 internal sealed record JobRunStatusDto(
     KeyDto Job,
     DateTimeOffset LastFiredAtUtc,
-    JobRunResult LastResult)
+    JobRunResult LastResult,
+    TimeSpan LastDuration,
+    string? LastSchedulerInstanceId,
+    string? LastEntryId,
+    string? LastSummary,
+    DateTimeOffset? LastSucceededAtUtc,
+    DateTimeOffset? LastFailedAtUtc,
+    string? LastFailureMessage,
+    int ConsecutiveFailures,
+    long RunCount,
+    long FailureCount,
+    DateTimeOffset FirstFiredAtUtc)
 {
-    public TimeSpan LastDuration { get; init; }
-
-    public string? LastSchedulerInstanceId { get; init; }
-
-    public string? LastEntryId { get; init; }
-
-    public string? LastSummary { get; init; }
-
-    public DateTimeOffset? LastSucceededAtUtc { get; init; }
-
-    public DateTimeOffset? LastFailedAtUtc { get; init; }
-
-    public string? LastFailureMessage { get; init; }
-
-    public int ConsecutiveFailures { get; init; }
-
-    public long RunCount { get; init; }
-
-    public long FailureCount { get; init; }
-
-    public DateTimeOffset FirstFiredAtUtc { get; init; }
-
     public static JobRunStatusDto Create(JobRunStatus status)
     {
         ArgumentNullException.ThrowIfNull(status);
 
-        return new JobRunStatusDto(KeyDto.Create(status.Job), status.LastFiredAtUtc, status.LastResult)
-        {
-            LastDuration = status.LastDuration,
-            LastSchedulerInstanceId = status.LastSchedulerInstanceId,
-            LastEntryId = status.LastEntryId,
-            LastSummary = status.LastSummary,
-            LastSucceededAtUtc = status.LastSucceededAtUtc,
-            LastFailedAtUtc = status.LastFailedAtUtc,
-            LastFailureMessage = status.LastFailureMessage,
-            ConsecutiveFailures = status.ConsecutiveFailures,
-            RunCount = status.RunCount,
-            FailureCount = status.FailureCount,
-            FirstFiredAtUtc = status.FirstFiredAtUtc
-        };
+        return new JobRunStatusDto(
+            KeyDto.Create(status.Job),
+            status.LastFiredAtUtc,
+            status.LastResult,
+            status.LastDuration,
+            status.LastSchedulerInstanceId,
+            status.LastEntryId,
+            status.LastSummary,
+            status.LastSucceededAtUtc,
+            status.LastFailedAtUtc,
+            status.LastFailureMessage,
+            status.ConsecutiveFailures,
+            status.RunCount,
+            status.FailureCount,
+            status.FirstFiredAtUtc);
     }
 
     /// <inheritdoc cref="ExecutionHistoryEntryDto.AsExecutionHistoryEntry" />
