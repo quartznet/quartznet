@@ -60,6 +60,7 @@
       checks that Marten's own cleanup leaves them alone. 9.39.1 is the release that sits on the JasperFx
       2.74.0 the pinned Wolverine does, so the graph under test is one an application beside Wolverine
       6.41.0 would resolve. Nothing ships it: Quartz.Weasel.PostgreSQL takes no Marten dependency.
+      9.40.0 needs Weasel 9.35.2, so .github/dependabot.yml holds it until the Weasel rows below move (#3956).
     -->
     <PackageVersion Include="Marten" Version="9.39.1" />
     <PackageVersion Include="MELT" Version="1.1.0" />
@@ -204,7 +205,7 @@
       application added to Quartz's tables; the ceiling is there because 9.33.0 broke binary
       compatibility inside 9.x once already, and Weasel 10 is announced. The four Quartz.Weasel
       packages turn transitive pinning off, so their nuspecs carry exactly this range and nothing of
-      Weasel's own graph.
+      Weasel's own graph. The four move together, by hand; .github/dependabot.yml offers no minor or patch.
     -->
     <PackageVersion Include="Weasel.Core" Version="[9.35.1, 10.0.0)" />
     <PackageVersion Include="Weasel.Postgresql" Version="[9.35.1, 10.0.0)" />
