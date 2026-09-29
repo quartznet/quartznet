@@ -26,7 +26,6 @@ using Weasel.Core;
 using Weasel.SqlServer;
 using Weasel.SqlServer.Tables;
 
-using CascadeAction = Weasel.Core.CascadeAction;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Quartz.Weasel.SqlServer;
@@ -80,63 +79,34 @@ internal sealed class QuartzTableNaming
     public void PrimaryKey(Table table) => table.PrimaryKeyName = $"PK_{table.Identifier.Name}";
 
     /// <summary><c>FK_{1}TRIGGERS_{1}JOB_DETAILS</c> in the script.</summary>
-    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade)
-    {
-        table.ForeignKeys.Add(new ForeignKey($"FK_{table.Identifier.Name}_{Prefix}{referencedTable}")
-        {
-            LinkedTable = Name(referencedTable),
-            ColumnNames = columns,
-            LinkedNames = referencedColumns,
-            DeleteAction = cascade ? CascadeAction.Cascade : CascadeAction.NoAction,
-        });
-    }
+    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade) =>
+        table.ForeignKeys.Add(new ForeignKey($"FK_{table.Identifier.Name}_{Prefix}{referencedTable}").Links(Name(referencedTable), columns, referencedColumns, cascade));
 
     public void Index(Table table, string suffix, string[] columns, string[]? descending = null)
     {
-        IndexDefinition index = new(IndexName(suffix))
-        {
-            Columns = columns,
-            CompareColumnDirection = true,
-        };
-
-        foreach (string column in descending ?? [])
-        {
-            index.DescendingColumns.Add(column);
-        }
-
-        table.Indexes.Add(index);
+        IndexDefinition index = new(QuartzNaming.IndexName(Prefix, suffix)) { CompareColumnDirection = true };
+        table.Indexes.AddIndex(index, columns, index.DescendingColumns, descending);
     }
 
     public ISchemaObject RetiredIndex(string table, string suffix) =>
-        new RetiredSqlServerIndex(new SqlServerObjectName(Schema, IndexName(suffix)), Prefix + table);
-
-    /// <summary><c>IDX_{1}T_NFT_ST</c> in the script.</summary>
-    private string IndexName(string suffix) => $"IDX_{Prefix}{suffix}";
+        new RetiredSqlServerIndex(new SqlServerObjectName(Schema, QuartzNaming.IndexName(Prefix, suffix)), Prefix + table);
 }
 
 /// <summary>
-/// An index name Quartz no longer creates, dropped when it is still on the table it was created on.
+/// A retired index on SQL Server, asked after in <c>sys.indexes</c>: <c>IDX_QRTZ_T_G_J</c> and the two
+/// <c>IDX_QRTZ_T_NFT_ST_MISFIRE*</c> among them.
 /// </summary>
-/// <remarks>
-/// The tables are add-only, so Weasel keeps anything the model does not declare — right for an
-/// application's own index and wrong for the ones 3.x created and 4.x retired. This names them, the same
-/// set <c>database/migrations/4.0/schema_30_to_40_indexes_sqlServer.sql</c> drops, <c>IDX_QRTZ_T_G_J</c>
-/// and the two <c>IDX_QRTZ_T_NFT_ST_MISFIRE*</c> among them.
-/// </remarks>
-internal sealed class RetiredSqlServerIndex : SchemaObjectBase
+internal sealed class RetiredSqlServerIndex : RetiredQuartzIndex
 {
-    private readonly string table;
-
-    public RetiredSqlServerIndex(SqlServerObjectName identifier, string table) : base(identifier)
+    public RetiredSqlServerIndex(SqlServerObjectName identifier, string table) : base(identifier, table)
     {
-        this.table = table;
     }
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         string schema = builder.AddParameter(Identifier.Schema).ParameterName;
         string name = builder.AddParameter(Identifier.Name).ParameterName;
-        string tableName = builder.AddParameter(table).ParameterName;
+        string tableName = builder.AddParameter(Table).ParameterName;
 
         builder.Append(
             "select count(*) from sys.indexes i"
@@ -145,21 +115,8 @@ internal sealed class RetiredSqlServerIndex : SchemaObjectBase
             + $" where s.name = @{schema} and i.name = @{name} and t.name = @{tableName};");
     }
 
-    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
-    {
-        bool present = await reader.ReadAsync(ct).ConfigureAwait(false)
-                       && await ReadExistsCountAsync(reader, ct).ConfigureAwait(false) > 0;
-
-        return new SchemaObjectDelta(this, present ? SchemaPatchDifference.Update : SchemaPatchDifference.None);
-    }
-
-    /// <summary>Nothing: a retired index is never created.</summary>
-    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
-    {
-    }
-
     public override void WriteDropStatement(Migrator rules, TextWriter writer) =>
-        writer.WriteLine($"drop index if exists {SchemaUtils.QuoteName(Identifier.Name)} on {new SqlServerObjectName(Identifier.Schema, table)};");
+        writer.WriteLine($"drop index if exists {SchemaUtils.QuoteName(Identifier.Name)} on {new SqlServerObjectName(Identifier.Schema, Table)};");
 }
 
 /// <summary>

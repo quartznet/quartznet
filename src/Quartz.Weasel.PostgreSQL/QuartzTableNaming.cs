@@ -19,14 +19,12 @@
 
 #endregion
 
-using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 
 using Weasel.Core;
 using Weasel.Postgresql;
 using Weasel.Postgresql.Tables;
 
-using CascadeAction = Weasel.Core.CascadeAction;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Quartz.Weasel.PostgreSQL;
@@ -75,16 +73,9 @@ internal sealed class QuartzTableNaming
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Called on the naming instance by the generated model, which is written the same way for every dialect.")]
     public void PrimaryKey(Table table) => table.PrimaryKeyName = DefaultConstraintName(table.Identifier.Name, null, "pkey");
 
-    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade)
-    {
+    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade) =>
         table.ForeignKeys.Add(new ForeignKey(DefaultConstraintName(table.Identifier.Name, string.Join('_', columns), "fkey"))
-        {
-            LinkedTable = Name(referencedTable),
-            ColumnNames = columns,
-            LinkedNames = referencedColumns,
-            DeleteAction = cascade ? CascadeAction.Cascade : CascadeAction.NoAction,
-        });
-    }
+            .Links(Name(referencedTable), columns, referencedColumns, cascade));
 
     public void Index(Table table, string suffix, string[] columns) =>
         table.Indexes.Add(new IndexDefinition(IndexName(suffix)) { Columns = columns });
@@ -130,44 +121,22 @@ internal sealed class QuartzTableNaming
 }
 
 /// <summary>
-/// An index name Quartz no longer creates, dropped when it is still on the table it was created on.
+/// A retired index on PostgreSQL, asked after in <c>pg_indexes</c>.
 /// </summary>
-/// <remarks>
-/// The tables are add-only, so Weasel keeps anything the model does not declare — which is right for an
-/// application's own index and wrong for the ones 3.x created and 4.x retired. This names them, the same
-/// set <c>database/migrations/4.0/schema_30_to_40_indexes_postgres.sql</c> drops, and only when the
-/// index is on the Quartz table it belonged to.
-/// </remarks>
-internal sealed class RetiredPostgresIndex : SchemaObjectBase
+internal sealed class RetiredPostgresIndex : RetiredQuartzIndex
 {
-    private readonly string table;
-
-    public RetiredPostgresIndex(PostgresqlObjectName identifier, string table) : base(identifier)
+    public RetiredPostgresIndex(PostgresqlObjectName identifier, string table) : base(identifier, table)
     {
-        this.table = table;
     }
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         string schema = builder.AddParameter(Identifier.Schema).ParameterName;
         string name = builder.AddParameter(Identifier.Name).ParameterName;
-        string tableName = builder.AddParameter(table).ParameterName;
+        string tableName = builder.AddParameter(Table).ParameterName;
 
         builder.Append(
             $"select count(*) from pg_indexes where schemaname = :{schema} and indexname = :{name} and tablename = :{tableName};");
-    }
-
-    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
-    {
-        bool present = await reader.ReadAsync(ct).ConfigureAwait(false)
-                       && await ReadExistsCountAsync(reader, ct).ConfigureAwait(false) > 0;
-
-        return new SchemaObjectDelta(this, present ? SchemaPatchDifference.Update : SchemaPatchDifference.None);
-    }
-
-    /// <summary>Nothing: a retired index is never created.</summary>
-    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
-    {
     }
 
     public override void WriteDropStatement(Migrator rules, TextWriter writer) =>

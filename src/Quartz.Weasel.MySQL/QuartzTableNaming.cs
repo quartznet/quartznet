@@ -19,14 +19,12 @@
 
 #endregion
 
-using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 
 using Weasel.Core;
 using Weasel.MySql;
 using Weasel.MySql.Tables;
 
-using CascadeAction = Weasel.Core.CascadeAction;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Quartz.Weasel.MySQL;
@@ -82,82 +80,43 @@ internal sealed class QuartzTableNaming
     }
 
     /// <summary><c>&lt;table&gt;_ibfk_1</c>, which InnoDB gives the script's unnamed foreign key.</summary>
-    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade)
-    {
-        table.ForeignKeys.Add(new ForeignKey($"{table.Identifier.Name}_ibfk_1")
-        {
-            LinkedTable = Name(referencedTable),
-            ColumnNames = columns,
-            LinkedNames = referencedColumns,
-            DeleteAction = cascade ? CascadeAction.Cascade : CascadeAction.NoAction,
-        });
-    }
+    public void ForeignKey(Table table, string referencedTable, string[] columns, string[] referencedColumns, bool cascade) =>
+        table.ForeignKeys.Add(new ForeignKey($"{table.Identifier.Name}_ibfk_1").Links(Name(referencedTable), columns, referencedColumns, cascade));
 
     public void Index(Table table, string suffix, string[] columns, string[]? descending = null)
     {
-        IndexDefinition index = new(IndexName(suffix))
-        {
-            Columns = columns,
-        };
-
-        foreach (string column in descending ?? [])
-        {
-            index.DescendingColumns.Add(column);
-        }
-
-        table.Indexes.Add(index);
+        IndexDefinition index = new(QuartzNaming.IndexName(Prefix, suffix));
+        table.Indexes.AddIndex(index, columns, index.DescendingColumns, descending);
     }
 
     public ISchemaObject RetiredIndex(string table, string suffix) =>
-        new RetiredMySqlIndex(new MySqlObjectName(Schema, IndexName(suffix)), Prefix + table);
-
-    /// <summary><c>IDX_{1}T_NFT_ST</c> in the script.</summary>
-    private string IndexName(string suffix) => $"IDX_{Prefix}{suffix}";
+        new RetiredMySqlIndex(new MySqlObjectName(Schema, QuartzNaming.IndexName(Prefix, suffix)), Prefix + table);
 }
 
 /// <summary>
-/// An index name Quartz no longer creates, dropped when it is still on the table it was created on.
+/// A retired index on MySQL, asked after in <c>information_schema.STATISTICS</c>.
 /// </summary>
 /// <remarks>
-/// The tables are add-only, so Weasel keeps anything the model does not declare — right for an
-/// application's own index and wrong for the ones 3.x created and 4.x retired. This names them, the same
-/// set <c>database/migrations/4.0/schema_30_to_40_indexes_mysql_innodb.sql</c> drops. MySQL has no
-/// <c>DROP INDEX IF EXISTS</c>; the drop is only written when the catalog has just reported the index,
-/// and the apply holds the migration lock.
+/// MySQL has no <c>DROP INDEX IF EXISTS</c>; the drop is only written when the catalog has just reported the
+/// index, and the apply holds the migration lock.
 /// </remarks>
-internal sealed class RetiredMySqlIndex : SchemaObjectBase
+internal sealed class RetiredMySqlIndex : RetiredQuartzIndex
 {
-    private readonly string table;
-
-    public RetiredMySqlIndex(MySqlObjectName identifier, string table) : base(identifier)
+    public RetiredMySqlIndex(MySqlObjectName identifier, string table) : base(identifier, table)
     {
-        this.table = table;
     }
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         string schema = builder.AddParameter(Identifier.Schema).ParameterName;
         string name = builder.AddParameter(Identifier.Name).ParameterName;
-        string tableName = builder.AddParameter(table).ParameterName;
+        string tableName = builder.AddParameter(Table).ParameterName;
 
         builder.Append(
             "SELECT count(*) FROM information_schema.STATISTICS"
             + $" WHERE TABLE_SCHEMA = @{schema} AND INDEX_NAME = @{name} AND TABLE_NAME = @{tableName};");
     }
 
-    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
-    {
-        bool present = await reader.ReadAsync(ct).ConfigureAwait(false)
-                       && await ReadExistsCountAsync(reader, ct).ConfigureAwait(false) > 0;
-
-        return new SchemaObjectDelta(this, present ? SchemaPatchDifference.Update : SchemaPatchDifference.None);
-    }
-
-    /// <summary>Nothing: a retired index is never created.</summary>
-    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
-    {
-    }
-
     public override void WriteDropStatement(Migrator rules, TextWriter writer) =>
-        writer.WriteLine($"DROP INDEX {SchemaUtils.QuoteName(Identifier.Name)} ON {new MySqlObjectName(Identifier.Schema, table).QualifiedName};");
+        writer.WriteLine($"DROP INDEX {SchemaUtils.QuoteName(Identifier.Name)} ON {new MySqlObjectName(Identifier.Schema, Table).QualifiedName};");
 }
