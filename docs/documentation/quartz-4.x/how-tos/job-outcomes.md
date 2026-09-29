@@ -172,7 +172,8 @@ PagedResult<JobRunStatus> failing = await history.QueryJobRunStatuses(
 | Store | Statuses |
 |---|---|
 | In-memory history | Yes |
-| Database history, the one [`AddQuartzHttpClient`](../packages/http-client.md) registers, an `IDashboardHistoryStore` of your own | `NotSupportedException` |
+| The one [`AddQuartzHttpClient`](../packages/http-client.md) registers | The host's, when it is 4.4 or later and its store keeps them; otherwise `NotSupportedException` |
+| Database history, an `IDashboardHistoryStore` of your own | `NotSupportedException` |
 
 ## Filter the history
 
@@ -201,14 +202,35 @@ foreach (ExecutionHistoryEntry row in page.Items)
 | `FiredBefore` | Fired before, exclusive |
 | `Results` | `EffectiveResult` in the set. An empty set matches nothing |
 
-* `MisfireHistoryQuery.Job` narrows the misfire feed the same way.
+* `MisfireHistoryQuery.Job` narrows the misfire feed the same way, and `MisfireHistoryQuery.Reasons` to some
+  `MisfireReason`s. An empty set matches nothing.
 * A cancelled run matches `FailedFinally = true`.
+
+## See it in the dashboard and over HTTP
+
+| Where | What |
+|---|---|
+| History page | The result, the summary, a chip per metric and a *Manual* badge on each row. Filters for results and for one job. See [Execution history and misfires](../packages/dashboard.md#execution-history-and-misfires) |
+| Jobs page | *Last run*, *Last success* and *failing ×N* per job. See [Job run status](../packages/dashboard.md#job-run-status) |
+| Job Detail page | A *Runs* panel. *View execution history* opens that job's rows only |
+| Execution page | The result, the summary, a table of metrics, *Manual* and the fire instance id |
+| HTTP API | The five members on each row, the four filters, and the `…/history/job-status` routes. See [Execution history](../packages/http-api.md#execution-history) |
+
+```http
+GET /quartz-api/schedulers/QuartzScheduler/history/executions?jobGroup=billing&jobName=release-stale&results=Failed,Cancelled
+GET /quartz-api/schedulers/QuartzScheduler/history/job-status?failing=true
+```
+
+* A vetoed firing is listed only when `reasons` names `Vetoed`, so a 4.3 client can read the default listing.
+  The dashboard and `AddQuartzHttpClient` ask for it.
+* A scheduler in another process whose host is older than 4.4 has no statuses and cannot filter. The dashboard
+  leaves the columns out and says so on the History page.
 
 ## A history store of your own
 
 * Keep `Result`, `Summary`, `MetricsJson`, `Manual` and `FireInstanceId` on the rows you store. The
   recorder sets them.
-* Apply the four filters above, and `MisfireHistoryQuery.Job`.
+* Apply the four filters above, `MisfireHistoryQuery.Job` and `MisfireHistoryQuery.Reasons`.
 * Count only `MisfireReason.Missed` rows in `CountMisfires`.
 * `QueryJobRunStatuses` and `GetJobRunStatus` are default interface members. The first throws
   `NotSupportedException`; the second asks the first for one job. Implement `QueryJobRunStatuses` to keep

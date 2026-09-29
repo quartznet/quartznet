@@ -102,7 +102,7 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 
 ## Every endpoint
 
-Sixty-seven routes in four groups.
+Seventy routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
@@ -111,7 +111,7 @@ Sixty-seven routes in four groups.
   `{ applied }` is the one-flag form; `{ groups }` / `{ jobs }` / `{ triggers }` are the group-matcher and
   key-set forms; *paged* is the [paged envelope](#listing-endpoints-are-paged).
 
-### Schedulers — 18
+### Schedulers — 21
 
 | Method | Path | Answers |
 |---|---|---|
@@ -130,6 +130,9 @@ Sixty-seven routes in four groups.
 | `GET` | `{ApiPath}/schedulers/{name}/history/executions/{entryId}` | One execution with its captured `log`; `404` when there is no such row |
 | `GET` | `{ApiPath}/schedulers/{name}/history/misfires` | A page of missed firings |
 | `GET` | `{ApiPath}/schedulers/{name}/history/misfires/count` | `{ count }` since `?since=` |
+| `GET` | `{ApiPath}/schedulers/{name}/history/job-status` | *paged* [job run statuses](#job-run-status) |
+| `GET` | `{ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | One job's run status; `404` when no run is recorded |
+| `POST` | `{ApiPath}/schedulers/{name}/history/job-status/fetch` | The run statuses of up to 1000 jobs; a read |
 | `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited. Keys are configuration's: a group, `_`, `*`, or a [prefix](../tutorial/execution-groups.md#per-tenant-limits) such as `tenant:*` |
 | `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; replaces the whole set |
 | `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; same as posting an empty set |
@@ -373,6 +376,9 @@ A client maps Quartz exception names (`SchedulerException`, `JobPersistenceExcep
 `ObjectAlreadyExistsException`, …) back to typed exceptions and treats other values as opaque; `HttpScheduler`
 does this. `Quartz-ExceptionStackTrace` is added only when `IncludeStackTraceInProblemDetails` is on.
 
+A `501` carries the same members, naming `NotSupportedException`: the history store keeps no
+[run status](#job-run-status).
+
 A **`500` carries neither `Quartz-ExceptionType` nor the exception's message**, because a driver's message can
 name the server, database, login or constraint. `detail` is a fixed sentence; the real message is logged:
 
@@ -597,33 +603,41 @@ From .NET, `AddQuartzHttpClient` registers a reader for this route that reconnec
 
 ## Execution history
 
-A job store holds what is *scheduled*. What *happened* (what ran, for how long, whether it threw, what was
-missed) is in the container's `IExecutionHistoryStore`, served by four routes:
+A job store holds what is *scheduled*. What *happened* (what ran, for how long, what it achieved, what was
+missed) is in the container's `IExecutionHistoryStore`, served by seven routes:
 
 | Path | Query | Answers |
 |---|---|---|
-| `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains` | A page of executions, newest first |
+| `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, and the [4.4 filters](#filtering-by-job-time-and-result) | A page of executions, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/executions/{entryId}` | none | One execution, `log` included |
-| `GET {ApiPath}/schedulers/{name}/history/misfires` | the same, minus `jobContains` | A page of misfires, newest first |
-| `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since`: a `DateTimeOffset`, required | `{ "count": 3 }` |
+| `GET {ApiPath}/schedulers/{name}/history/misfires` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `triggerContains`, `jobGroup` + `jobName`, [`reasons`](#vetoes-are-listed-when-asked-for) | A page of misfires, newest first |
+| `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since`: a `DateTimeOffset`, required | `{ "count": 3 }`, `Missed` rows only |
+| `GET {ApiPath}/schedulers/{name}/history/job-status` | `skip`, `take`, `includeTotalCount`, `failing` | A page of [run statuses](#job-run-status) |
+| `GET {ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | none | One job's run status |
+| `POST {ApiPath}/schedulers/{name}/history/job-status/fetch` | body: `{ "jobs": [ { "name", "group" } ] }` | The statuses of those jobs |
 
 ```json
 {
   "items": [
     {
       "schedulerInstanceId": "web-01",
-      "jobGroup": "reports",
-      "jobName": "nightly",
-      "triggerGroup": "reports",
-      "triggerName": "at-midnight",
+      "jobGroup": "billing",
+      "jobName": "release-stale",
+      "triggerGroup": "billing",
+      "triggerName": "hourly",
       "firedAtUtc": "2026-08-26T00:00:00+00:00",
-      "duration": "00:00:01.5000000",
-      "succeeded": false,
-      "exceptionMessage": "the job threw",
+      "duration": "00:00:00.2500000",
+      "succeeded": true,
+      "exceptionMessage": null,
       "retryAttempt": 0,
       "retryScheduled": false,
       "entryId": "8c3f2a0e5b7d4f1a9e6c2d4b8a0f3e71",
-      "log": null
+      "log": null,
+      "result": "Skipped",
+      "summary": "no stale reservations",
+      "metrics": { "scanned": 1200, "released": 0 },
+      "manual": false,
+      "fireInstanceId": "web-01-17"
     }
   ],
   "hasMore": false,
@@ -636,7 +650,87 @@ missed) is in the container's `IExecutionHistoryStore`, served by four routes:
 - `entryId` names the row for `…/history/executions/{entryId}`. `log` is `null` on every listing row; that
   route carries it, when the scheduler [captures its jobs' logs](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines).
 - `jobContains` and `triggerContains` match a key's group, name, or `group.name`, case-insensitively.
+- `failedFinally=true` lists the failures that were not retried; `false`, everything else.
 - Paging uses the usual envelope, bounded by [`MaxPageSize`](#listing-endpoints-are-paged).
+
+**What a run reported**, from 4.4. See [Job Outcomes](../how-tos/job-outcomes.md).
+
+| Member | What |
+|---|---|
+| `result` | `Succeeded`, `Failed`, `Cancelled` or `Skipped`; `null` on a row written before 4.4 |
+| `summary` | The job's one line, or `null` |
+| `metrics` | A JSON object, or `null`. `HttpExecutionHistoryStore` hands it back as the text the recorder wrote |
+| `manual` | `true` for a run `TriggerJob` asked for |
+| `fireInstanceId` | The firing's id, as on its span and log scope |
+
+A 4.3 client ignores the five members.
+
+### Filtering by job, time and result
+
+From 4.4, on `…/history/executions`:
+
+| Parameter | Matches |
+|---|---|
+| `jobGroup` and `jobName` | One job exactly. Both or neither; one alone is `400` |
+| `firedFrom` | Fired at or after, a `DateTimeOffset` |
+| `firedBefore` | Fired before, exclusive |
+| `results` | A result in the set: `?results=Failed,Cancelled` or `?results=Failed&results=Cancelled`. A row before 4.4 matches `Succeeded` or `Failed` |
+
+- A name that is no result is `400`, naming the ones that are.
+- `jobGroup` and `jobName` narrow `…/history/misfires` too.
+- **A host before 4.4 ignores these parameters** and answers every row. `HttpExecutionHistoryStore` reads the
+  host's version from `GET {ApiPath}/schedulers/{name}` before its first filtered read, and throws
+  `NotSupportedException` for an older host instead of sending the filter.
+
+### Vetoes are listed when asked for
+
+`…/history/misfires` lists `Missed` and `Overlap` rows unless `reasons` names others:
+
+```http
+GET /quartz-api/schedulers/QuartzScheduler/history/misfires?reasons=Missed,Overlap,Vetoed
+```
+
+- A 4.3 client reads `reason` through an enum with no `Vetoed`, and one such row fails its whole listing. The
+  default keeps that client working against a 4.4 host.
+- A 4.4 client names every reason it can read. `HttpExecutionHistoryStore` and the dashboard do.
+- `…/history/misfires/count` counts `Missed` rows only, as before.
+
+### Job run status
+
+From 4.4. A status per job, folded from every execution the store records, so it outlives the rows. See
+[Read a job's status](../how-tos/job-outcomes.md#read-a-job-s-status).
+
+```json
+{
+  "job": { "name": "release-stale", "group": "billing" },
+  "lastFiredAtUtc": "2026-08-26T12:00:00+00:00",
+  "lastResult": "Failed",
+  "lastDuration": "00:00:00.2500000",
+  "lastSchedulerInstanceId": "web-01",
+  "lastEntryId": "3f2a0e5b7d4f1a9e",
+  "lastSummary": null,
+  "lastSucceededAtUtc": "2026-08-26T11:00:00+00:00",
+  "lastFailedAtUtc": "2026-08-26T12:00:00+00:00",
+  "lastFailureMessage": "the job threw",
+  "consecutiveFailures": 1,
+  "runCount": 2,
+  "failureCount": 1,
+  "firstFiredAtUtc": "2026-08-26T11:00:00+00:00"
+}
+```
+
+| Route | Answers |
+|---|---|
+| `GET …/history/job-status` | A page by job group, then name. `?failing=true` lists `consecutiveFailures > 0`; `false`, the rest |
+| `GET …/history/job-status/{jobGroup}/{jobName}` | One status; `404` with problem details when no run is recorded |
+| `POST …/history/job-status/fetch` | The statuses of the jobs named, at most 1000; a job with no recorded run is absent. A read, served when `ReadOnly` |
+
+| Case | Answer |
+|---|---|
+| The store keeps no status (an `IDashboardHistoryStore` of your own) | `501`, `Quartz-ExceptionType: NotSupportedException`, the store's reason as `detail` |
+| A host before 4.4 | `404` without problem details: no such route |
+
+`HttpExecutionHistoryStore` raises `NotSupportedException` for both.
 
 **`AddQuartzHttpApi()` records the history.** It calls `AddQuartzExecutionHistory()`, which installs one recorder
 into every scheduler in the container and keeps history in an in-memory store bounded by age and count, as the
@@ -884,7 +978,7 @@ From 4.3. A trigger's [overlap policy](../how-tos/overlap-policy.md) travels by 
 | Trigger body | `"overlapPolicy": "Skip"`, beside `continuationCondition`; absent for `Default` |
 | Listing header | `"overlapPolicy"`, always present |
 | `update-details` | `overlapPolicy`, [above](#editing-a-trigger-in-place) |
-| Misfire history | `"reason"`: `Missed`, or `Overlap` for a firing `Skip` dropped |
+| Misfire history | `"reason"`: `Missed`, or `Overlap` for a firing `Skip` dropped; from 4.4, `Vetoed` [when asked for](#vetoes-are-listed-when-asked-for) |
 
 A 4.2 client ignores the members, and a 4.2 host ignores `overlapPolicy` in a trigger body it is sent.
 
@@ -962,9 +1056,9 @@ services.AddQuartzHttpApi(options => options.ReadOnly = true);
   schedulers exist. It carries no `Quartz-ExceptionType`.
 - Use it where the API only feeds a dashboard, a monitoring tool or a report. Route-level authorization would have
   to name thirty-odd routes.
-- **Mutation is decided per route, not per verb.** The bulk fetches, `POST {ApiPath}/schedulers/{name}/jobs/fetch`
-  and `POST …/triggers/fetch`, are reads and are served. Every other non-`GET` is refused, including pause,
-  resume, interrupt and reset-from-error-state.
+- **Mutation is decided per route, not per verb.** The fetches, `POST {ApiPath}/schedulers/{name}/jobs/fetch`,
+  `POST …/triggers/fetch` and `POST …/history/job-status/fetch`, are reads and are served. Every other non-`GET`
+  is refused, including pause, resume, interrupt and reset-from-error-state.
 - It binds only this API. The scheduler keeps firing, and a dashboard mapped beside it has its own
   [`QuartzDashboardOptions.ReadOnly`](dashboard.md#read-only-mode). A dashboard *fronting* this API from another
   process is bound by this setting and reports its refusal.
