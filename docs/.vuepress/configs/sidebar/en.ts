@@ -77,6 +77,7 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/quartz-4.x/how-tos/job-continuations",
       "/documentation/quartz-4.x/how-tos/overlap-policy",
       "/documentation/quartz-4.x/how-tos/progress-and-execution-logs",
+      "/documentation/quartz-4.x/how-tos/job-outcomes",
       "/documentation/quartz-4.x/how-tos/multiple-triggers",
       "/documentation/quartz-4.x/how-tos/job-template",
       "/documentation/quartz-4.x/how-tos/aspire",

@@ -18,12 +18,53 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3). It has a database migration |
+| From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4) |
+| From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3). It has a database migration. Then 4.3 to 4.4 |
 | From 4.1 | [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2). It has the first database migration since 4.0. Then 4.2 to 4.3 |
 | From 4.0 | [Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1), then 4.1 to 4.2 and 4.2 to 4.3 |
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
 
 The compiler finds most of the 3.x → 4.0 work.
+
+## Upgrading from 4.3 to 4.4
+
+An application on 4.3 compiles on 4.4 unchanged.
+
+| Added | What it is |
+|---|---|
+| `JobRunResult` | `Succeeded = 0`, `Failed = 1`, `Cancelled = 2`, `Skipped = 3`: what a run achieved. Stored as the integer. See [Job Outcomes](how-tos/job-outcomes.md) |
+| `IJobRunReport`, `JobRunReport` | A job's result, summary and metrics, set as `context.Result`. `JobRunReport.Succeeded`, `Skipped` and `Failed(summary)`, `With(name, value)`, `MaxSummaryLength` (`1000`), `MaxMetricsLength` (`4000`) |
+| `ExecutionHistoryEntry.Result`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`. `Result` is `null` on a row written before 4.4 |
+| `ExecutionHistoryEntry.EffectiveResult` | `Result`, or `Succeeded`/`Failed` from `Succeeded` on an older row |
+| `ExecutionHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`: one job exactly, a fire-time window (from inclusive, before exclusive), results matched on `EffectiveResult` |
+| `MisfireHistoryQuery.Job` | `init`: one job exactly |
+| `MisfireReason.Vetoed` | `2`: a trigger listener vetoed the firing |
+| `SchedulerConstants.ManualTrigger` | `"QRTZ_MANUAL_TRIGGER"`, on the trigger `TriggerJob` fires |
+| `JobRunStatus` | A job's last run, last success and failure, consecutive failures and counts. See [Read a job's status](how-tos/job-outcomes.md#read-a-job-s-status) |
+| `JobRunStatusQuery` | `PagedQuery` by job group, then name: `required SchedulerName`, `Jobs`, `Failing` |
+| `IExecutionHistoryStore.QueryJobRunStatuses`, `GetJobRunStatus` | Default interface members. The first throws `NotSupportedException`; the second asks the first for one job |
+| `ExecutionHistoryOptions.RetentionByResult`, `MisfireRetention`, `MaxEntriesPerJob` | Age per result (get-only), age of the misfire feed, rows per job with failures exempt. See [Keep history by result](how-tos/job-outcomes.md#keep-history-by-result) |
+| Log event `1059` | Warning: a job's metrics came to more than 4,000 characters of JSON and were not recorded |
+
+**Behaviour changes:**
+
+* **A cancelled run is recorded as `Cancelled`, with `Succeeded` false.** 4.3 recorded it as a success.
+  It now matches `ExecutionHistoryQuery.FailedFinally = true`, and the dashboard lists it as failed.
+* **`context.Outcome` reads `ExecutionOutcome.Vetoed` inside `IJobListener.JobExecutionVetoed`.** It read
+  `Succeeded`.
+* **A vetoed firing is recorded in the misfire feed**, with `MisfireReason.Vetoed`. `CountMisfires` does
+  not count it. An `IExecutionHistoryStore` of your own receives it through `AddMisfire`; count only
+  `MisfireReason.Missed` rows.
+* **A `TriggerJob` firing carries `QRTZ_MANUAL_TRIGGER = "true"` in its trigger's `JobDataMap`**, so the
+  job sees it in `MergedJobDataMap`. A `JobDataMap` you pass to `TriggerJob` gains the key.
+  `JobChainingJobListener` fires its follow-up jobs with `TriggerJob`, so they are recorded as manual too.
+
+**Mixed 4.3 and 4.4 versions:**
+
+* A 4.3 node reads a `Vetoed` row in a shared misfire table as `Missed`, and its `CountMisfires` does not
+  count it.
+* A 4.3 dashboard or HTTP client that lists a 4.4 host's misfires fails on a `Vetoed` row: its
+  `MisfireReason` has no such name. Upgrade the readers before the hosts they read.
 
 ## Upgrading from 4.2 to 4.3
 
