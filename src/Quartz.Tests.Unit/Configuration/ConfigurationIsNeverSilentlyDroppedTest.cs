@@ -794,6 +794,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             ["quartz.jobStore.misfireHandlerFrequency"] = "5000",
             ["quartz.jobStore.maxTransientRetries"] = "10",
             ["quartz.jobStore.makeThreadsDaemons"] = "true",
+            ["quartz.jobStore.maxConsecutiveFireFailures"] = "0",
         });
 
         using var provider = services.BuildServiceProvider();
@@ -802,6 +803,27 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         options.MisfireHandlerFrequency.Should().Be(TimeSpan.FromSeconds(5));
         options.MaxTransientRetries.Should().Be(10);
         options.UseBackgroundThreads.Should().BeTrue();
+        options.MaxConsecutiveFireFailures.Should().Be(0, "zero is how a flat configuration keeps 4.3's behaviour, so it must not read as unset");
+    }
+
+    /// <summary>
+    /// The typed spelling of the same setting, from a <c>JobStore</c> section.
+    /// </summary>
+    [Test]
+    public void MaxConsecutiveFireFailuresBindsFromTheJobStoreSection()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            Section(new Dictionary<string, string?>
+            {
+                ["JobStore:DataSource"] = "test",
+                ["JobStore:MaxConsecutiveFireFailures"] = "3",
+            }),
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.MaxConsecutiveFireFailures.Should().Be(3);
     }
 
     /// <summary>
@@ -1040,6 +1062,41 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         provider.GetRequiredService<IOptions<InMemoryJobStoreOptions>>().Value.MisfireThreshold
             .Should().Be(TimeSpan.FromSeconds(30));
         provider.GetRequiredService<IJobStore>().Should().BeOfType<RAMJobStore>();
+    }
+
+    /// <summary>
+    /// The in-memory store reads <c>maxConsecutiveFireFailures</c> as the persistent store does (#3974),
+    /// by each of the three registrations that build it.
+    /// </summary>
+    [Test]
+    public void AnInMemoryStoreReadsMaxConsecutiveFireFailuresByEveryRouteThatBuildsIt()
+    {
+        StoreBuiltBy(services => services.AddQuartz(
+                new NameValueCollection { ["quartz.jobStore.maxConsecutiveFireFailures"] = "0" },
+                q => q.UseInMemoryStore()))
+            .MaxConsecutiveFireFailures.Should().Be(0,
+                "UseInMemoryStore: zero is how a flat configuration turns parking off, so it must not read as unset");
+
+        StoreBuiltBy(services => services.AddQuartz(Section(new Dictionary<string, string?>
+            {
+                ["JobStore:MaxConsecutiveFireFailures"] = "3",
+            })))
+            .MaxConsecutiveFireFailures.Should().Be(3, "the default store, with nothing chosen, reads the JobStore section");
+
+        StoreBuiltBy(services => services.AddQuartz(new NameValueCollection
+            {
+                ["quartz.jobStore.type"] = typeof(RAMJobStore).AssemblyQualifiedName,
+                ["quartz.jobStore.maxConsecutiveFireFailures"] = "2",
+            }))
+            .MaxConsecutiveFireFailures.Should().Be(2, "a store named by quartz.jobStore.type is configured by the bridge");
+
+        static RAMJobStore StoreBuiltBy(Action<IServiceCollection> configure)
+        {
+            var services = new ServiceCollection();
+            configure(services);
+            using var provider = services.BuildServiceProvider();
+            return (RAMJobStore) JobStores.Unwrap(provider.GetRequiredService<IJobStore>());
+        }
     }
 
     [Test]

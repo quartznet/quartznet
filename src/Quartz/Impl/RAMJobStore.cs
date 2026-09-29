@@ -151,6 +151,12 @@ public sealed class RAMJobStore : IJobStore
     private readonly Stack<Dictionary<string, FireInstanceEntry>> spareFireInstanceMaps = new();
 
     /// <summary>
+    /// The fires of each trigger that have failed in a row, so that one whose every fire fails is set to
+    /// ERROR rather than released and acquired again ahead of everything else for good (#3974).
+    /// </summary>
+    private readonly FireFailureLedger fireFailures = new();
+
+    /// <summary>
     /// What one running execution is, beyond its id. The in-memory counterpart of an EXECUTING row of
     /// the ADO store's FIRED_TRIGGERS table, and the source of the <see cref="FireInstance" />s
     /// <see cref="QueryFireInstances" /> reports.
@@ -215,6 +221,24 @@ public sealed class RAMJobStore : IJobStore
             }
             misfireThreshold = value;
         }
+    }
+
+    /// <summary>
+    /// How many fires of one trigger in a row may fail before it is set to ERROR, or <c>0</c> never to.
+    /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="InMemoryJobStoreOptions.MaxConsecutiveFireFailures" />, as the
+    /// persistent store's is through <see cref="AdoJobStoreOptions.MaxConsecutiveFireFailures" />.
+    /// </remarks>
+    internal int MaxConsecutiveFireFailures { get; set; } = 5;
+
+    /// <summary>
+    /// Applies the in-memory store's options, which every registration that builds this store reads.
+    /// </summary>
+    internal void Apply(InMemoryJobStoreOptions options)
+    {
+        MisfireThreshold = options.MisfireThreshold;
+        MaxConsecutiveFireFailures = options.MaxConsecutiveFireFailures;
     }
 
     private static long ftrCtr = TimeProvider.System.GetTimestamp();
@@ -3327,6 +3351,7 @@ public sealed class RAMJobStore : IJobStore
                 // occurrence rather than starting one. Default and AllowAll never look.
                 OverlapPolicy overlapPolicy = tw.Trigger.OverlapPolicy;
                 List<string>? superseded = null;
+                bool skip = false;
                 if (overlapPolicy is OverlapPolicy.Skip or OverlapPolicy.CancelPrevious
                     && trigger.RetryAttempt == 0
                     && !jobWrapper.JobDetail.ConcurrentExecutionDisallowed
@@ -3334,53 +3359,79 @@ public sealed class RAMJobStore : IJobStore
                 {
                     if (overlapPolicy == OverlapPolicy.Skip)
                     {
+                        skip = true;
+                    }
+                    else
+                    {
+                        // CancelPrevious. Every firing this store knows of runs in this process, so every
+                        // one of them can be interrupted and none is ever waited for.
+                        superseded = [.. running.Keys];
+                    }
+                }
+
+                // The stored trigger as it was acquired, kept only while application code is about to
+                // advance it: a calendar, or a trigger type Quartz did not write. Either can throw
+                // part-way, and a fire that failed must leave the trigger as it found it (#3974).
+                IOperableTrigger? unfired = calendar is not null || !IsQuartzTrigger(tw.Trigger)
+                    ? (IOperableTrigger) tw.Trigger.Clone()
+                    : null;
+
+                DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
+                DateTimeOffset? scheduledFireTime = null;
+                DateTimeOffset? firingScheduledTime;
+                try
+                {
+                    if (skip)
+                    {
                         SkipOverlappingFiringNoLock(tw, calendar, ref pending);
+                        fireFailures.Clear(tw.TriggerKey);
                         results.Add(TriggerFiredResult.Declined);
                         continue;
                     }
 
-                    // CancelPrevious. Every firing this store knows of runs in this process, so every
-                    // one of them can be interrupted and none is ever waited for.
-                    superseded = [.. running.Keys];
+                    // Read saved original fire time (set during ApplyMisfireNoLock if a misfire occurred)
+                    if (trigger is TriggerBase at)
+                    {
+                        scheduledFireTime = at.MisfiredFromFireTimeUtc;
+                        at.MisfiredFromFireTimeUtc = null;
+                    }
+                    if (tw.Trigger is TriggerBase twAt)
+                    {
+                        twAt.MisfiredFromFireTimeUtc = null;
+                    }
+
+                    // in case trigger was replaced between acquiring and firing
+                    timeTriggers.Remove(tw);
+
+                    // The fire time this firing is for, read while it is still the trigger's next one —
+                    // the execution listing reports it, and Triggered() is about to move it on.
+                    firingScheduledTime = trigger.NextFireTimeUtc;
+
+                    // call triggered on our copy, and the scheduler's copy. A trigger carrying a retry
+                    // attempt is being fired for a retry rather than for a scheduled occurrence, so it
+                    // advances past the retry instant without burning a count or moving its previous fire
+                    // time - the same dispatch on TriggerBase the misfire original fire time uses above.
+                    bool firingRetry = trigger.RetryAttempt > 0 && tw.Trigger is TriggerBase && trigger is TriggerBase;
+                    if (firingRetry)
+                    {
+                        ((TriggerBase) tw.Trigger).RetryFired(calendar);
+                        ((TriggerBase) trigger).RetryFired(calendar);
+                    }
+                    else
+                    {
+                        // The next fire time is computed once where the copy would provably compute the
+                        // same one, and on each instance otherwise; TriggerCopyFiring says which is which.
+                        TriggerCopyFiring.Triggered(tw.Trigger, trigger, calendar);
+                    }
                 }
-
-                DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
-
-                // Read saved original fire time (set during ApplyMisfireNoLock if a misfire occurred)
-                DateTimeOffset? scheduledFireTime = null;
-                if (trigger is TriggerBase at)
+                catch (Exception e)
                 {
-                    scheduledFireTime = at.MisfiredFromFireTimeUtc;
-                    at.MisfiredFromFireTimeUtc = null;
-                }
-                if (tw.Trigger is TriggerBase twAt)
-                {
-                    twAt.MisfiredFromFireTimeUtc = null;
+                    // Nothing above has been recorded yet, so the fire fails alone and the rest of the
+                    // batch goes on, as the persistent store rolls back only the fire that failed.
+                    results.Add(FailFireNoLock(tw, unfired, e, ref pending));
+                    continue;
                 }
 
-                // in case trigger was replaced between acquiring and firing
-                timeTriggers.Remove(tw);
-
-                // The fire time this firing is for, read while it is still the trigger's next one — the
-                // execution listing reports it, and Triggered() is about to move it on.
-                DateTimeOffset? firingScheduledTime = trigger.NextFireTimeUtc;
-
-                // call triggered on our copy, and the scheduler's copy. A trigger carrying a retry
-                // attempt is being fired for a retry rather than for a scheduled occurrence, so it
-                // advances past the retry instant without burning a count or moving its previous fire
-                // time - the same dispatch on TriggerBase the misfire original fire time uses above.
-                bool firingRetry = trigger.RetryAttempt > 0 && tw.Trigger is TriggerBase && trigger is TriggerBase;
-                if (firingRetry)
-                {
-                    ((TriggerBase) tw.Trigger).RetryFired(calendar);
-                    ((TriggerBase) trigger).RetryFired(calendar);
-                }
-                else
-                {
-                    // The next fire time is computed once where the copy would provably compute the
-                    // same one, and on each instance otherwise; TriggerCopyFiring says which is which.
-                    TriggerCopyFiring.Triggered(tw.Trigger, trigger, calendar);
-                }
                 // Deliberately not an "executing" state: this field decides whether the trigger can be
                 // acquired and fired again, and TriggersFired/ReleaseAcquiredTrigger/the blocking fan-out
                 // below all depend on it being Waiting or Blocked here. Executions are tracked separately,
@@ -3456,11 +3507,71 @@ public sealed class RAMJobStore : IJobStore
                     firingScheduledTime,
                     trigger.ExecutionGroup);
 
+                // A fire ends the trigger's run of failures. One volatile read while nothing has failed.
+                fireFailures.Clear(tw.TriggerKey);
                 results.Add(TriggerFiredResult.Fired(bndle));
             }
 
             return results;
         }
+    }
+
+    /// <summary>
+    /// Answers a fire that application code threw out of as <see cref="TriggerFiredResult.Failed" />,
+    /// with the stored trigger as it was acquired (#3974).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The trigger stays reserved and out of <see cref="timeTriggers" />: the scheduler releases a failed
+    /// result, and the release puts it back to fire in the next round. Its fire time has not moved, so a
+    /// trigger whose every fire fails would lead every round — and keep a
+    /// <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers out of every batch — for
+    /// good. After <see cref="MaxConsecutiveFireFailures" /> failures in a row it is set to ERROR
+    /// instead, which the release leaves alone, as the persistent store does since #3963.
+    /// </para>
+    /// <para>
+    /// Without a copy to put back — a trigger type of Quartz's own with no calendar, which does not
+    /// throw — whatever the trigger had advanced stays advanced; the fire still fails alone.
+    /// </para>
+    /// </remarks>
+    private TriggerFiredResult FailFireNoLock(TriggerWrapper tw, IOperableTrigger? unfired, Exception exception, ref PendingSignals pending)
+    {
+        if (unfired is not null)
+        {
+            tw.Trigger = unfired;
+        }
+
+        logger.TriggerFireFailed(tw.TriggerKey, exception);
+
+        if (MaxConsecutiveFireFailures > 0)
+        {
+            // Counted with the previous fire time it was acquired with, which only a fire moves.
+            int failures = fireFailures.RecordFailure(tw.TriggerKey, tw.Trigger.PreviousFireTimeUtc);
+            if (failures >= MaxConsecutiveFireFailures)
+            {
+                fireFailures.Clear(tw.TriggerKey);
+                tw.state = StoredTriggerState.Error;
+                logger.FailingTriggerSetToError(tw.TriggerKey, failures);
+                pending.RecordTriggerInError(tw.TriggerKey);
+            }
+        }
+
+        return TriggerFiredResult.Failed(exception);
+    }
+
+    /// <summary>
+    /// Whether the trigger is exactly one of the types Quartz ships, whose firing runs nothing but
+    /// Quartz's own code when it has no calendar. A derived type may override <c>Triggered</c> and do
+    /// anything in it, as <see cref="TriggerCopyFiring" /> says.
+    /// </summary>
+    private static bool IsQuartzTrigger(IOperableTrigger trigger)
+    {
+        Type type = trigger.GetType();
+        return type == typeof(CronTriggerImpl)
+            || type == typeof(SimpleTriggerImpl)
+            || type == typeof(CalendarIntervalTriggerImpl)
+            || type == typeof(DailyTimeIntervalTriggerImpl)
+            || type == typeof(RecurrenceTriggerImpl);
     }
 
     /// <inheritdoc />
@@ -3755,13 +3866,14 @@ public sealed class RAMJobStore : IJobStore
     /// The occurrence is advanced past as a firing would advance past it, so it is not a misfire and
     /// nothing will ever treat it as one. A trigger left with nothing to fire is stored complete; the
     /// running firing's completion removes it, as it removes any trigger it finds with no fire time.
+    /// Nothing is logged or recorded until the trigger has moved on, because advancing it consults its
+    /// calendar, and a calendar that throws fails the fire rather than skipping it.
     /// </remarks>
     private void SkipOverlappingFiringNoLock(TriggerWrapper tw, ICalendar? calendar, ref PendingSignals pending)
     {
-        logger.OverlappingFiringSkipped(tw.TriggerKey, tw.Trigger.NextFireTimeUtc);
-
         // As it is now, with the firing that will not happen still its next one.
-        pending.RecordSkipped(tw.Trigger.Clone());
+        ITrigger skippedAsItWas = tw.Trigger.Clone();
+        DateTimeOffset? skippedFireTime = tw.Trigger.NextFireTimeUtc;
 
         timeTriggers.Remove(tw);
         if (tw.Trigger is TriggerBase skipped)
@@ -3770,6 +3882,9 @@ public sealed class RAMJobStore : IJobStore
         }
 
         tw.Trigger.Triggered(calendar);
+
+        logger.OverlappingFiringSkipped(tw.TriggerKey, skippedFireTime);
+        pending.RecordSkipped(skippedAsItWas);
 
         if (tw.Trigger.NextFireTimeUtc is null)
         {

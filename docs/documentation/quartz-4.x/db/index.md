@@ -169,7 +169,7 @@ in `Quartz.Extensibility` — not the enum an application sees.
 | `BLOCKED` | Its job is `[DisallowConcurrentExecution]` and another firing of it is running. |
 | `PAUSED` | Paused until resumed. |
 | `PAUSED_BLOCKED` | Paused, and blocked by a running firing of the same job. |
-| `ERROR` | The trigger could not fire, usually because its job type could not be built. `IScheduler.ResetTriggerFromErrorState` clears it. |
+| `ERROR` | The trigger could not fire: its job type could not be built, or its fire failed `MaxConsecutiveFireFailures` times in a row. `IScheduler.ResetTriggerFromErrorState` clears it. |
 | `DELETED` | A transient marker while a trigger is being removed. |
 
 `IScheduler.GetTriggerState` returns

@@ -112,6 +112,8 @@ matching on its text is not.
 | 2005 | Information | `Quartz` | `"Trigger {TriggerKey} set to ERROR state."` |
 | 2006 | Information | `Quartz` | `"All triggers of Job {JobKey} set to ERROR state."` |
 | 2007 | Information | `Quartz` | `"Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"` |
+| 2008 | Error | `Quartz` | `"Fire of trigger {TriggerKey} failed; the rest of the batch fires without it"` |
+| 2009 | Error | `Quartz` | `"Trigger {TriggerKey} failed to fire {Failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed"` |
 | 3000 | Information | `Quartz` | `"Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking"` |
 | 3001 | Information | `Quartz` | `"With SQLite we need to set AcquireTriggersWithinLock to true, changing"` |
 | 3002 | Information | `Quartz` | `"Detected usage of SQLiteDelegate - forcing transaction isolation level to 'Serializable'"` |
@@ -162,6 +164,7 @@ matching on its text is not.
 | 3047 | Information | `Quartz` | `"Settled {Count} continuation(s) awaiting a trigger that no longer exists: {Released} released, {Parked} parked in ERROR"` |
 | 3048 | Information | `Quartz` | `"Using configured lock handler {LockHandlerType} for data access locking (synchronization)."` |
 | 3049 | Warning | `Quartz` | `"Fire of trigger {TriggerKey} failed; the batch of {BatchSize} trigger(s) is rolled back and fired again without it, {Remaining} trigger(s) left"` |
+| 3050 | Error | `Quartz` | `"Trigger {TriggerKey} failed to fire {Failures} times in a row and is stored ERROR; ResetTriggerFromErrorState returns it once the cause is fixed"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |

@@ -312,6 +312,7 @@ internal static class LegacyPropertyKeys
         JobStorePrefix + ".maxTransientRetries",
         JobStorePrefix + ".transientRetryInterval",
         JobStorePrefix + ".retryableActionErrorLogThreshold",
+        JobStorePrefix + ".maxConsecutiveFireFailures",
         JobStorePrefix + ".makeThreadsDaemons",
         JobStorePrefix + ".useDBLocks",
         JobStorePrefix + ".lockOnInsert",

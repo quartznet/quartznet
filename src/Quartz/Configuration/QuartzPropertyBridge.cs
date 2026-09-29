@@ -608,7 +608,7 @@ internal static class QuartzPropertyBridge
             IJobStore inner = JobStores.Unwrap(jobStore);
             if (inner is RAMJobStore ramJobStore)
             {
-                ramJobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;
+                ramJobStore.Apply(provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key));
             }
             else if (inner is not AdoJobStoreBase)
             {
@@ -665,6 +665,7 @@ internal static class QuartzPropertyBridge
     private static void MapInMemoryJobStore(InMemoryJobStoreOptions options, PropertyReader parser)
     {
         parser.Milliseconds("quartz.jobStore.misfireThreshold", value => options.MisfireThreshold = value);
+        parser.Int("quartz.jobStore.maxConsecutiveFireFailures", value => options.MaxConsecutiveFireFailures = value);
     }
 
     private static void MapAdoJobStore(AdoJobStoreOptions options, PropertyReader parser)
@@ -678,6 +679,7 @@ internal static class QuartzPropertyBridge
         parser.Int("quartz.jobStore.maxTransientRetries", value => options.MaxTransientRetries = value);
         parser.Milliseconds("quartz.jobStore.transientRetryInterval", value => options.TransientRetryInterval = value);
         parser.Int("quartz.jobStore.retryableActionErrorLogThreshold", value => options.RetryableActionErrorLogThreshold = value);
+        parser.Int("quartz.jobStore.maxConsecutiveFireFailures", value => options.MaxConsecutiveFireFailures = value);
         parser.Bool("quartz.jobStore.makeThreadsDaemons", value => options.UseBackgroundThreads = value);
         // Clustering has always implied database locking; the legacy format never made it a separate
         // decision, so keep it implied. Whether the scheduler is clustered at all is ClusteringOptions'

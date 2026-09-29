@@ -128,7 +128,7 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         RegisterConfigured<IJobStore>((provider, key) =>
         {
             var jobStore = ActivatorUtilities.CreateInstance<RAMJobStore>(SchedulerScopedServiceProvider.For(provider, key));
-            jobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;
+            jobStore.Apply(provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key));
             return jobStore;
         });
 

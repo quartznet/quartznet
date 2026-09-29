@@ -451,13 +451,19 @@ internal sealed class InMemoryJobStoreOptionsValidator : IValidateOptions<InMemo
 {
     public ValidateOptionsResult Validate(string? name, InMemoryJobStoreOptions options)
     {
+        List<string>? failures = null;
+
         if (options.MisfireThreshold < TimeSpan.FromMilliseconds(1))
         {
-            return ValidateOptionsResult.Fail(
-                $"{nameof(InMemoryJobStoreOptions.MisfireThreshold)} must be at least 1ms.");
+            (failures ??= []).Add($"{nameof(InMemoryJobStoreOptions.MisfireThreshold)} must be at least 1ms.");
         }
 
-        return ValidateOptionsResult.Success;
+        if (options.MaxConsecutiveFireFailures < 0)
+        {
+            (failures ??= []).Add($"{nameof(InMemoryJobStoreOptions.MaxConsecutiveFireFailures)} must not be negative; 0 never sets a failing trigger ERROR.");
+        }
+
+        return QuartzSchedulerOptionsValidator.Result(failures);
     }
 }
 
@@ -570,6 +576,12 @@ internal sealed class AdoJobStoreOptionsValidator : IValidateOptions<AdoJobStore
         if (options.MaxMisfiresToHandleAtATime < 1)
         {
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MaxMisfiresToHandleAtATime)} must be at least 1.");
+        }
+
+        // Zero is "never store a failing trigger ERROR", which is how 4.3 behaved; below it means nothing.
+        if (options.MaxConsecutiveFireFailures < 0)
+        {
+            (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MaxConsecutiveFireFailures)} must not be negative; 0 never stores a failing trigger ERROR.");
         }
 
         return QuartzSchedulerOptionsValidator.Result(failures);
