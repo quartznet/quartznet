@@ -49,6 +49,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `AdoConstants.TableJobStatus` | `JOB_STATUS`: one row per job, rolled up from the execution history |
 | `AdoConstants.ColumnResult`, `ColumnSummary`, `ColumnMetrics`, `ColumnManual`, `ColumnFireInstanceId` | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY` |
 | `AdoConstants.ColumnFirstFiredTime`, `ColumnLastFiredTime`, `ColumnLastResult`, `ColumnLastRunTime`, `ColumnLastInstanceName`, `ColumnLastEntryId`, `ColumnLastSummary`, `ColumnLastSuccessTime`, `ColumnLastFailureTime`, `ColumnLastFailureMessage`, `ColumnConsecutiveFailures`, `ColumnRunCount`, `ColumnFailureCount` | The columns of `QRTZ_JOB_STATUS` |
+| `AdoJobStoreOptions.MaxConsecutiveFireFailures` | `int`, default `5`; `0` never parks. Flat key `quartz.jobStore.maxConsecutiveFireFailures`. See [A trigger that fails to fire](operations.md#a-trigger-that-fails-to-fire) |
+| Log event `3050` | Error: a trigger stored `ERROR` after that many failed fires in a row |
 
 **Behaviour changes:**
 
@@ -62,6 +64,19 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * **A `TriggerJob` firing carries `QRTZ_MANUAL_TRIGGER = "true"` in its trigger's `JobDataMap`**, so the
   job sees it in `MergedJobDataMap`. A `JobDataMap` you pass to `TriggerJob` gains the key.
   `JobChainingJobListener` fires its follow-up jobs with `TriggerJob`, so they are recorded as manual too.
+* **A trigger that fails to fire five times in a row is stored `ERROR`.** A persistent store used to
+  release it and acquire it again forever, first in every round, so a `[DisallowConcurrentExecution]`
+  job's other triggers never fired. Now the scheduler listeners hear `TriggerInError` and event `3050` is
+  logged. Only a fire that fails for a reason a retry will not cure counts; a transient failure or an
+  outage does not. Fix the cause, then call `ResetTriggerFromErrorState`. To keep 4.3's behaviour:
+
+  ```diff
+    services.AddQuartz(q => q.UsePersistentStore(store =>
+    {
+        store.UsePostgres(connectionString);
+  +     store.ConfigureStore(options => options.MaxConsecutiveFireFailures = 0);
+    }));
+  ```
 
 **Mixed 4.3 and 4.4 versions:**
 
@@ -69,6 +84,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   count it.
 * A 4.3 dashboard or HTTP client that lists a 4.4 host's misfires fails on a `Vetoed` row: its
   `MisfireReason` has no such name. Upgrade the readers before the hosts they read.
+* A 4.3 node never parks a failing trigger. Each 4.4 node counts its own failures, so a trigger may be
+  tried five times on each 4.4 node before one parks it.
 
 ### The 4.4 schema migration
 

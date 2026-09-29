@@ -152,6 +152,59 @@ public class OptionsValidationTest
     }
 
     /// <summary>
+    /// Zero turns parking a failing trigger off, which is 4.3's behaviour; a negative limit says nothing.
+    /// </summary>
+    [Test]
+    public void ANegativeMaxConsecutiveFireFailuresIsAConfigurationError()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.MaxConsecutiveFireFailures = -1;
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*MaxConsecutiveFireFailures*");
+    }
+
+    [TestCase(0)]
+    [TestCase(1)]
+    public void AMaxConsecutiveFireFailuresOfZeroOrMoreIsFine(int limit)
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.MaxConsecutiveFireFailures = limit;
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow("zero never parks a failing trigger, and any positive count is a limit");
+    }
+
+    /// <summary>
+    /// A trigger whose every fire fails is parked without being asked for, because the alternative is one
+    /// acquired again ahead of its job-mates forever.
+    /// </summary>
+    [Test]
+    public void AFailingTriggerIsParkedAfterFiveFailuresWithoutBeingAskedFor()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options => options.DataSource = "test")));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.MaxConsecutiveFireFailures.Should().Be(5);
+    }
+
+    /// <summary>
     /// Zero would be a warning on every lock the store takes — the same as no signal at all — and a
     /// negative threshold is a timer that refuses to be created. "Report nothing" is spelled by leaving
     /// it unset.

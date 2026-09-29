@@ -104,6 +104,7 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.jobStore.lockHandler.type",
         "quartz.jobStore.lockOnInsert",
         "quartz.jobStore.makeThreadsDaemons",
+        "quartz.jobStore.maxConsecutiveFireFailures",
         "quartz.jobStore.maxMisfiresToHandleAtATime",
         "quartz.jobStore.maxTransientRetries",
         "quartz.jobStore.misfireHandlerFrequency",
