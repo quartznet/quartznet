@@ -92,6 +92,26 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         }
     }
 
+    /// <summary>
+    /// How many fires of one trigger in a row may fail before the trigger is set to <c>ERROR</c>, or
+    /// <c>0</c> to never set it <c>ERROR</c> for this. Defaults to 5.
+    /// </summary>
+    /// <remarks>
+    /// A fire fails when the trigger's <see cref="ICalendar" />, or a trigger type of your own, throws
+    /// while the store moves the trigger on. That trigger is left as it was and released, and the rest of
+    /// its batch fires. One that fails every time is acquired again at once, ahead of its
+    /// <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers, so after this many
+    /// failures in a row it is set to <c>ERROR</c> and an error is logged.
+    /// <see cref="IScheduler.ResetTriggerFromErrorState" /> brings it back once the cause is fixed. Set
+    /// through <c>quartz.jobStore.maxConsecutiveFireFailures</c>, as for the database job store.
+    /// </remarks>
+    public virtual int MaxConsecutiveFireFailures { get; set; } = 5;
+
+    /// <summary>
+    /// The fires of each trigger that have failed in a row (#3974).
+    /// </summary>
+    private readonly Quartz.Impl.AdoJobStore.FireFailureLedger fireFailures = new();
+
     private static long ftrCtr = SystemTime.UtcNow().Ticks;
 
     /// <summary>
@@ -1908,23 +1928,42 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                 }
                 DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
 
-                // Read saved original fire time (set during ApplyMisfire if a misfire occurred)
+                // The stored trigger as it was acquired, kept only while application code is about to
+                // advance it: a calendar, or a trigger type Quartz did not write. Either can throw
+                // part-way, and a fire that failed must leave the trigger as it found it (#3974).
+                IOperableTrigger? unfired = cal != null || !IsQuartzTrigger(tw.Trigger)
+                    ? (IOperableTrigger) tw.Trigger.Clone()
+                    : null;
+
                 DateTimeOffset? scheduledFireTime = null;
-                if (trigger is AbstractTrigger at)
+                try
                 {
-                    scheduledFireTime = at.MisfiredFromFireTimeUtc;
-                    at.MisfiredFromFireTimeUtc = null;
+                    // Read saved original fire time (set during ApplyMisfire if a misfire occurred)
+                    if (trigger is AbstractTrigger at)
+                    {
+                        scheduledFireTime = at.MisfiredFromFireTimeUtc;
+                        at.MisfiredFromFireTimeUtc = null;
+                    }
+                    if (tw.Trigger is AbstractTrigger twAt)
+                    {
+                        twAt.MisfiredFromFireTimeUtc = null;
+                    }
+
+                    // in case trigger was replaced between acquiring and firing
+                    timeTriggers.Remove(tw);
+                    // call triggered on our copy, and the scheduler's copy
+                    tw.Trigger.Triggered(cal);
+                    trigger.Triggered(cal);
                 }
-                if (tw.Trigger is AbstractTrigger twAt)
+                catch (Exception e)
                 {
-                    twAt.MisfiredFromFireTimeUtc = null;
+                    // Nothing above has been recorded yet, so the fire fails alone and the rest of the
+                    // batch goes on, as the database job store rolls back only the fire that failed.
+                    results.Add(FailFire(tw, unfired, e));
+                    continue;
                 }
 
-                // in case trigger was replaced between acquiring and firing
-                timeTriggers.Remove(tw);
-                // call triggered on our copy, and the scheduler's copy
-                tw.Trigger.Triggered(cal);
-                trigger.Triggered(cal);
+                fireFailures.Clear(tw.TriggerKey);
                 //tw.state = TriggerWrapper.STATE_EXECUTING;
                 tw.state = InternalTriggerState.Waiting;
 
@@ -1969,6 +2008,63 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             }
             return Task.FromResult<IReadOnlyCollection<TriggerFiredResult>>(results);
         }
+    }
+
+    /// <summary>
+    /// Answers a fire that application code threw out of as a failed result, with the stored trigger as
+    /// it was acquired (#3974).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The trigger stays reserved and out of the schedule: the scheduler releases a failed result, and
+    /// the release puts it back to fire in the next round. Its fire time has not moved, so a trigger whose
+    /// every fire fails would lead every round — and keep a
+    /// <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers out of every batch — for
+    /// good. After <see cref="MaxConsecutiveFireFailures" /> failures in a row it is set to ERROR instead,
+    /// which the release leaves alone, as the database job store does (#3963).
+    /// </para>
+    /// <para>
+    /// Without a copy to put back — a trigger type of Quartz's own with no calendar, which does not
+    /// throw — whatever the trigger had advanced stays advanced; the fire still fails alone.
+    /// </para>
+    /// </remarks>
+    private TriggerFiredResult FailFire(TriggerWrapper tw, IOperableTrigger? unfired, Exception exception)
+    {
+        if (unfired != null)
+        {
+            tw.Trigger = unfired;
+        }
+
+        Log.ErrorException($"Fire of trigger {tw.TriggerKey} failed; the rest of the batch fires without it", exception);
+
+        if (MaxConsecutiveFireFailures > 0)
+        {
+            // Counted with the previous fire time it was acquired with, which only a fire moves.
+            int failures = fireFailures.RecordFailure(tw.TriggerKey, tw.Trigger.GetPreviousFireTimeUtc());
+            if (failures >= MaxConsecutiveFireFailures)
+            {
+                fireFailures.Clear(tw.TriggerKey);
+                tw.state = InternalTriggerState.Error;
+                Log.Error($"Trigger {tw.TriggerKey} failed to fire {failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed");
+            }
+        }
+
+        return new TriggerFiredResult(exception);
+    }
+
+    /// <summary>
+    /// Whether the trigger is exactly one of the types Quartz ships, whose firing runs nothing but
+    /// Quartz's own code when it has no calendar. A derived type may override <c>Triggered</c> and do
+    /// anything in it.
+    /// </summary>
+    private static bool IsQuartzTrigger(IOperableTrigger trigger)
+    {
+        Type type = trigger.GetType();
+        return type == typeof(CronTriggerImpl)
+            || type == typeof(SimpleTriggerImpl)
+            || type == typeof(CalendarIntervalTriggerImpl)
+            || type == typeof(DailyTimeIntervalTriggerImpl)
+            || type == typeof(RecurrenceTriggerImpl);
     }
 
     /// <summary>
