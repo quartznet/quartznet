@@ -79,6 +79,112 @@ public sealed class DashboardHistorySeamTest
     }
 
     /// <summary>
+    /// What a 4.4 row adds, and what a 4.4 query asks, survive the adapters in both directions: through
+    /// the dashboard's seam and back into Quartz's.
+    /// </summary>
+    [Test]
+    public async Task TheRunsOutcomeAndThe44FiltersSurviveBothAdapters()
+    {
+        ExecutionHistoryStoreOverDashboardStore quartzStore = new(TestData.Dashboard.HistoryStore());
+        DateTimeOffset firedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+
+        ExecutionHistoryEntry reported = Execution("acme") with
+        {
+            FiredAtUtc = firedAt,
+            EntryId = "entry-1",
+            Result = JobRunResult.Skipped,
+            Summary = "no stale reservations",
+            MetricsJson = """{"scanned":1200}""",
+            Manual = true,
+            FireInstanceId = "node-a-17"
+        };
+        await quartzStore.AddExecution(reported);
+        await quartzStore.AddExecution(Execution("acme") with { FiredAtUtc = firedAt, JobName = "other", EntryId = "entry-2" });
+        await quartzStore.AddExecution(Execution("acme") with { FiredAtUtc = firedAt, EntryId = "entry-3", Result = JobRunResult.Succeeded });
+
+        PagedResult<ExecutionHistoryEntry> page = await quartzStore.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = "acme",
+            Job = new JobKey("nightly", "DummyGroup"),
+            Results = [JobRunResult.Skipped],
+            FiredFrom = firedAt,
+            FiredBefore = firedAt.AddSeconds(1)
+        });
+
+        page.Items.Should().ContainSingle("the job and the results reached the store, or the other two rows would be here")
+            .Which.Should().Be(reported, "the result, summary, metrics, manual flag and fire instance id are carried both ways");
+
+        (await quartzStore.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "acme", FiredBefore = firedAt }))
+            .Items.Should().BeEmpty("the window reached the store");
+    }
+
+    [Test]
+    public async Task TheMisfireJobAndReasonsSurviveBothAdapters()
+    {
+        ExecutionHistoryStoreOverDashboardStore quartzStore = new(TestData.Dashboard.HistoryStore());
+        MisfireHistoryEntry missed = new("acme", "node-a", "DummyTriggerGroup", "missed", new JobKey("nightly", "DummyGroup"), DateTimeOffset.UtcNow, null);
+
+        await quartzStore.AddMisfire(missed);
+        await quartzStore.AddMisfire(missed with { TriggerName = "vetoed", Reason = MisfireReason.Vetoed });
+        await quartzStore.AddMisfire(missed with { TriggerName = "elsewhere", JobKey = new JobKey("other", "DummyGroup") });
+
+        (await quartzStore.QueryMisfires(new MisfireHistoryQuery { SchedulerName = "acme", Reasons = [MisfireReason.Vetoed] }))
+            .Items.Should().ContainSingle().Which.TriggerName.Should().Be("vetoed");
+        (await quartzStore.QueryMisfires(new MisfireHistoryQuery { SchedulerName = "acme", Job = new JobKey("other", "DummyGroup") }))
+            .Items.Should().ContainSingle().Which.TriggerName.Should().Be("elsewhere");
+    }
+
+    /// <summary>
+    /// The dashboard reads a job's status from the same store it reads the history from, so an
+    /// application's 4.0 store answers the pages' status reads the way it answers Quartz's: it keeps none.
+    /// </summary>
+    [Test]
+    public async Task TheDashboardReadsNoRunStatusFromAStoreTheApplicationRegistered()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton(TestData.Dashboard.HistoryStore());
+        services.AddQuartzDashboard();
+        services.AddQuartz();
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        using IServiceScope scope = provider.CreateScope();
+        IQuartzApiClient client = Client(scope.ServiceProvider);
+
+        Func<Task> one = async () => await client.GetJobRunStatus("QuartzScheduler", new JobKeyDto("reports", "nightly"));
+        Func<Task> many = async () => await client.GetJobRunStatuses("QuartzScheduler", [new JobKeyDto("reports", "nightly")]);
+
+        await one.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*",
+            "the pages leave the panel out on this, rather than saying the job never ran");
+        await many.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*");
+    }
+
+    [Test]
+    public async Task TheDashboardReadsRunStatusesFromTheHistoryQuartzKeeps()
+    {
+        ServiceCollection services = new();
+        services.AddQuartzDashboard();
+        services.AddQuartz();
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        using IServiceScope scope = provider.CreateScope();
+        IQuartzApiClient client = Client(scope.ServiceProvider);
+
+        await provider.GetRequiredService<IExecutionHistoryStore>().AddExecution(Execution("QuartzScheduler") with
+        {
+            JobGroup = "reports",
+            Succeeded = false,
+            ExceptionMessage = "boom",
+            Result = JobRunResult.Failed
+        });
+
+        (await client.GetJobRunStatus("QuartzScheduler", new JobKeyDto("reports", "nightly")))!.ConsecutiveFailures.Should().Be(1);
+        (await client.GetJobRunStatus("QuartzScheduler", new JobKeyDto("reports", "never-ran"))).Should().BeNull();
+        (await client.GetJobRunStatuses("QuartzScheduler", [new JobKeyDto("reports", "nightly"), new JobKeyDto("reports", "never-ran")]))
+            .Should().ContainSingle("a job with no recorded run is absent").Which.Job.Name.Should().Be("nightly");
+        (await client.GetJobRunStatuses("QuartzScheduler", [])).Should().BeEmpty("no keys name no job");
+    }
+
+    /// <summary>
     /// A store registered against Quartz's own seam is what the application said it wanted, and is not
     /// replaced by anything the dashboard does.
     /// </summary>

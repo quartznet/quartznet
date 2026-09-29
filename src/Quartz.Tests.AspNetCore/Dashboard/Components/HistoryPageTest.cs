@@ -351,7 +351,7 @@ public class HistoryPageTest
 
         IRenderedComponent<History> page = context.Render<History>();
 
-        page.TextOfAll(".qz-state-label").Should().Equal(["Failed (retrying)", "Failed", "Complete"],
+        page.TextOfAll(".qz-state-label").Should().Equal(["Failed (retrying)", "Failed", "Succeeded"],
             "a page that called both failures the same thing made a job under a retry policy look "
             + "several times as broken as it was");
     }
@@ -467,6 +467,185 @@ public class HistoryPageTest
             .MustHaveHappened();
 
         page.Markup.Should().Contain("Any outcome");
+    }
+
+    [Test]
+    public void EachRowSaysWhatItsRunAchieved()
+    {
+        GivenHistory(
+            Run(JobRunResult.Succeeded),
+            Run(JobRunResult.Skipped),
+            Run(JobRunResult.Failed) with { RetryScheduled = true },
+            Run(JobRunResult.Failed),
+            Run(JobRunResult.Cancelled),
+            Entry(100, succeeded: false, exceptionMessage: "a 4.3 row"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.TextOfAll(".qz-state-label").Should().Equal(
+            ["Succeeded", "Skipped", "Failed (retrying)", "Failed", "Cancelled", "Failed"],
+            "a run that found nothing to do and one that was stopped are neither a success nor a fault, and a row written "
+            + "before 4.4 still says what its success implies");
+        page.FindAll(".qz-state-indicator").Single(indicator => indicator.TextContent.Contains("Cancelled", StringComparison.Ordinal))
+            .ClassList.Should().Contain("qz-state-paused", "a stopped run wears the amber a paused thing does, not a fault's red");
+    }
+
+    [Test]
+    public void ARowShowsItsSummaryItsMetricsAndWhetherItWasAskedForByHand()
+    {
+        GivenHistory(Run(JobRunResult.Skipped) with
+        {
+            Summary = "no stale reservations",
+            MetricsJson = """{"scanned":1200,"note":"café","ok":true}""",
+            Manual = true
+        });
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.Find(".qz-history-summary-text").TextContent.Should().Be("no stale reservations");
+        page.TextOfAll(".qz-metric-chip").Should().Equal(["scanned: 1200", "note: café", "ok: true"],
+            "each metric reads as its name and its value, a string without its quotes");
+        page.FindAll("[data-testid=history-manual]").Should().ContainSingle("the run was asked for, not fired by a schedule");
+    }
+
+    [Test]
+    public void TheResultFilterAsksForTheResultsTheUrlNames()
+    {
+        GivenHistory(Run(JobRunResult.Failed));
+
+        context.Navigate("/quartz/history?result=failed,CANCELLED,sideways");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query =>
+                    query.Results != null && query.Results.SequenceEqual(new[] { JobRunResult.Failed, JobRunResult.Cancelled })),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Find("#history-result-failed").HasAttribute("checked").Should().BeTrue();
+        page.Find("#history-result-succeeded").HasAttribute("checked").Should().BeFalse();
+        page.Markup.Should().Contain("Results: Failed, Cancelled",
+            "a result nobody recognises is dropped, as an unknown outcome is, rather than emptying the page");
+    }
+
+    [Test]
+    public void TickingAResultPutsItInTheUrlSoTheViewCanBeShared()
+    {
+        GivenHistory(Run(JobRunResult.Skipped));
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("#history-result-skipped").Change(true);
+
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("/quartz/history?result=skipped",
+            "the filters are query parameters so a narrowed listing is a link someone can send"));
+    }
+
+    [Test]
+    public void TheResultsAreWrittenInTheOrderThePageOffersThem()
+    {
+        GivenHistory(Run(JobRunResult.Failed));
+        context.Navigate("/quartz/history?result=failed");
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("#history-result-skipped").Change(true);
+
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("/quartz/history?result=skipped,failed",
+            "one set has one spelling, whatever order it was ticked in, so two links to the same view are the same link"));
+    }
+
+    [Test]
+    public void UntickingTheLastResultListsEveryResultAgain()
+    {
+        GivenHistory(Run(JobRunResult.Failed));
+        context.Navigate("/quartz/history?result=failed");
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("#history-result-failed").Change(false);
+
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("/quartz/history",
+            "no box ticked is every result, and not a page that matches nothing"));
+    }
+
+    [Test]
+    public void TheExactJobFilterAsksForOneJobAndItsMisfires()
+    {
+        GivenHistory(Run(JobRunResult.Succeeded));
+
+        context.Navigate("/quartz/history?jobGroup=billing&jobName=release-stale");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.Job == new JobKeyDto("billing", "release-stale")),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+        A.CallTo(() => context.Api.QueryMisfires(
+                A<DashboardMisfireQuery>.That.Matches(query => query.Job == new JobKeyDto("billing", "release-stale")),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Find("[data-testid=history-exact-job]").TextContent.Should().Contain("billing.release-stale");
+        page.Markup.Should().Contain("Job: billing.release-stale only");
+    }
+
+    [Test]
+    public void TheExactJobFilterIsClearedFromTheUrl()
+    {
+        GivenHistory(Run(JobRunResult.Succeeded));
+        context.Navigate("/quartz/history?outcome=failed&jobGroup=billing&jobName=release-stale");
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-exact-job-clear]").Click();
+
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("/quartz/history?outcome=failed",
+            "clearing the job keeps every other filter the reader chose"));
+    }
+
+    [Test]
+    public void AVetoIsToldApartFromAMisfireAndAnOverlap()
+    {
+        GivenHistory(Entry(100));
+        GivenMisfires(
+            TestData.Dashboard.MisfireEntry("vetoed") with { Reason = MisfireReason.Vetoed },
+            TestData.Dashboard.MisfireEntry("skipped") with { Reason = MisfireReason.Overlap },
+            TestData.Dashboard.MisfireEntry("missed"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.TextOfAll(".qz-misfire-reason").Should().Equal(["Vetoed", "Overlap", "Misfire"],
+            "a listener that refused a firing is a decision someone wrote, not a scheduler that fell behind");
+        A.CallTo(() => context.Api.QueryMisfires(
+                A<DashboardMisfireQuery>.That.Matches(query => query.Reasons == null),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+    }
+
+    /// <summary>
+    /// A scheduler in another process whose host is older than 4.4 serves its history but not the 4.4
+    /// filters, and the page says that rather than that it serves no history.
+    /// </summary>
+    [Test]
+    public void ATargetThatCannotFilterSaysSoRatherThanThatItHasNoHistory()
+    {
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.Results != null),
+                A<CancellationToken>._))
+            .Throws(new NotSupportedException("its host runs Quartz 4.3.0.0, whose history routes ignore the result filter"));
+
+        context.Navigate("/quartz/history?result=failed");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.Find("[data-testid=history-filter-unsupported]").TextContent.Should().Contain("4.3.0.0");
+        page.FindAll("[data-testid=history-unavailable]").Should().BeEmpty(
+            "the target serves history; what it cannot do is filter it, and clearing the filter shows it");
+        page.Find("#history-result-failed").Should().NotBeNull("the filter stays there to be cleared");
+    }
+
+    private static DashboardHistoryEntry Run(JobRunResult result)
+    {
+        return Entry(100, succeeded: result is JobRunResult.Succeeded or JobRunResult.Skipped) with { Result = result };
     }
 
     private static DashboardHistoryEntry Entry(

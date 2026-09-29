@@ -821,6 +821,46 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await HistoryFor(schedulerName).CountMisfires(schedulerName, since, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// Read from the store the history is read from, so a scheduler in another process answers from its
+    /// host. A store that keeps no status raises <see cref="NotSupportedException" />, as the interface's
+    /// default does.
+    /// </remarks>
+    public async ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await HistoryFor(schedulerName)
+            .GetJobRunStatus(schedulerName, AsJobKey(jobKey), cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc cref="GetJobRunStatus" />
+    public async ValueTask<List<JobRunStatus>> GetJobRunStatuses(string schedulerName, IReadOnlyCollection<JobKeyDto> jobKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+
+        await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
+        if (jobKeys.Count == 0)
+        {
+            return [];
+        }
+
+        JobKey[] keys = new JobKey[jobKeys.Count];
+        int index = 0;
+        foreach (JobKeyDto jobKey in jobKeys)
+        {
+            keys[index++] = AsJobKey(jobKey);
+        }
+
+        PagedResult<JobRunStatus> page = await HistoryFor(schedulerName)
+            .QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = schedulerName, Jobs = keys, Take = PagedQuery.All }, cancellationToken)
+            .ConfigureAwait(false);
+
+        return [.. page.Items];
+    }
+
     /// <summary>
     /// The store that holds one scheduler's history: its own process's.
     /// </summary>

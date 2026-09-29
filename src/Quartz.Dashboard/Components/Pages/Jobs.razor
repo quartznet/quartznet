@@ -54,6 +54,12 @@
                         <tr>
                             <th class="qz-col-key">Job</th>
                             <th class="qz-col-details">Details</th>
+                            @if (_statusesShown)
+                            {
+                                <th class="qz-col-run">Last run</th>
+                                <th class="qz-col-run">Last success</th>
+                                <th class="qz-col-failing">Failing</th>
+                            }
                             @if (!IsReadOnly)
                             {
                                 <th class="qz-col-actions">Actions</th>
@@ -76,6 +82,40 @@
                                 <td class="qz-col-details">
                                     <a class="qz-details-link" href="@GetJobDetailPath(jobGroup, jobName)" @onclick:stopPropagation="true">View details</a>
                                 </td>
+                                @if (_statusesShown)
+                                {
+                                    JobRunStatus? status = _statuses.GetValueOrDefault(job);
+                                    <td class="qz-col-run qz-job-last-run">
+                                        @if (status is not null)
+                                        {
+                                            <StateIndicator State="@RunResultDisplay.Label(status.LastResult)" />
+                                            <span class="qz-muted">@Scheduler.FormatInSelectedTimeZone(status.LastFiredAtUtc)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="qz-muted" title="No run of this job has been recorded">&#8212;</span>
+                                        }
+                                    </td>
+                                    <td class="qz-col-run qz-job-last-success">
+                                        @if (status?.LastSucceededAtUtc is { } lastSuccess)
+                                        {
+                                            @Scheduler.FormatInSelectedTimeZone(lastSuccess)
+                                        }
+                                        else
+                                        {
+                                            <span class="qz-muted">&#8212;</span>
+                                        }
+                                    </td>
+                                    <td class="qz-col-failing qz-job-failing">
+                                        @if (status is { ConsecutiveFailures: > 0 })
+                                        {
+                                            <a class="qz-failing-badge"
+                                               href="@GetFailuresPath(jobGroup, jobName)"
+                                               title="@status.LastFailureMessage"
+                                               @onclick:stopPropagation="true">@FailingLabel(status.ConsecutiveFailures)</a>
+                                        }
+                                    </td>
+                                }
                                 @if (!IsReadOnly)
                                 {
                                     <td class="qz-col-actions">
@@ -132,6 +172,17 @@
     private string? _pendingDeleteGroup;
     private string? _pendingDeleteName;
     private string _pendingDeleteKey = string.Empty;
+
+    /// <summary>
+    /// The run status of each job on the page that has one, from one read per page.
+    /// </summary>
+    private readonly Dictionary<JobKeyDto, JobRunStatus> _statuses = [];
+
+    /// <summary>
+    /// Whether the data source keeps per-job run statuses. When it does not, the three columns are left
+    /// out rather than shown empty, since a dash would say the job never ran.
+    /// </summary>
+    private bool _statusesShown;
 
     /// <summary>
     /// The group fragment to open on. Both filters are query parameters, so a narrowed listing is a link
@@ -207,6 +258,8 @@
             _jobs.Clear();
             _groupStates.Clear();
             _groupPauses.Clear();
+            _statuses.Clear();
+            _statusesShown = false;
             _totalJobs = 0;
 
             string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -229,6 +282,8 @@
 
             _jobs.AddRange(page.Items);
             _totalJobs = totalCount;
+
+            await LoadStatusesAsync(schedulerName);
 
             // Every group, because the page labels each of the ones its current page shows, and it
             // cannot know which those are before it has them. Read a page at a time rather than with one
@@ -266,11 +321,43 @@
             _jobs.Clear();
             _groupStates.Clear();
             _groupPauses.Clear();
+            _statuses.Clear();
+            _statusesShown = false;
             _totalJobs = 0;
         }
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Reads the run status of every job on the page in one call.
+    /// </summary>
+    /// <remarks>
+    /// A data source that keeps no per-job status — a history store of the application's own, or a
+    /// scheduler in another process whose host is older than 4.4 — raises
+    /// <see cref="NotSupportedException" />, and the columns are left out.
+    /// </remarks>
+    private async Task LoadStatusesAsync(string schedulerName)
+    {
+        if (_jobs.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (JobRunStatus status in await Api.GetJobRunStatuses(schedulerName, _jobs))
+            {
+                _statuses[new JobKeyDto(status.Job.Group, status.Job.Name)] = status;
+            }
+
+            _statusesShown = true;
+        }
+        catch (NotSupportedException)
+        {
+            _statuses.Clear();
         }
     }
 
@@ -322,6 +409,22 @@
     private string GetJobDetailPath(string group, string name)
     {
         return DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
+    }
+
+    private static string FailingLabel(int consecutiveFailures)
+    {
+        return "failing ×" + consecutiveFailures.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// The job's final failures on the History page: that job only, failed results only, the ones that
+    /// gave up.
+    /// </summary>
+    private string GetFailuresPath(string group, string name)
+    {
+        return DashboardLink.To(
+            Options.Value,
+            "history?outcome=failed&jobGroup=" + Uri.EscapeDataString(group) + "&jobName=" + Uri.EscapeDataString(name) + "&result=failed");
     }
 
     private string GetGroupState(string group)

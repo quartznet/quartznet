@@ -54,6 +54,70 @@
             </tbody>
         </table>
 
+        @if (_statusKept)
+        {
+            <h2>Runs</h2>
+            @if (_status is null)
+            {
+                <p class="qz-muted" data-testid="job-run-status-none">No run of this job has been recorded.</p>
+            }
+            else
+            {
+                <table class="qz-table" data-testid="job-run-status">
+                    <tbody>
+                        <tr>
+                            <th>Last run</th>
+                            <td class="qz-job-status-last-run">
+                                <StateIndicator State="@RunResultDisplay.Label(_status.LastResult)" />
+                                @if (_status.LastEntryId is { Length: > 0 } entryId)
+                                {
+                                    <a class="qz-details-link" href="@GetExecutionPath(entryId)">@Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)</a>
+                                }
+                                else
+                                {
+                                    @Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)
+                                }
+                                <span class="qz-muted">on @(_status.LastSchedulerInstanceId ?? "—")</span>
+                            </td>
+                        </tr>
+                        <tr><th>Last summary</th><td>@(string.IsNullOrEmpty(_status.LastSummary) ? "—" : _status.LastSummary)</td></tr>
+                        <tr><th>Last success</th><td class="qz-job-status-last-success">@(_status.LastSucceededAtUtc is { } succeeded ? Scheduler.FormatInSelectedTimeZone(succeeded) : "never")</td></tr>
+                        <tr>
+                            <th>Last failure</th>
+                            <td class="qz-job-status-last-failure">
+                                @if (_status.LastFailedAtUtc is { } failed)
+                                {
+                                    @Scheduler.FormatInSelectedTimeZone(failed)
+                                    <span class="qz-muted">@_status.LastFailureMessage</span>
+                                }
+                                else
+                                {
+                                    @("never")
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Failing</th>
+                            <td class="qz-job-status-failing">
+                                @if (_status.ConsecutiveFailures > 0)
+                                {
+                                    <span class="qz-failing-badge">@("failing ×" + _status.ConsecutiveFailures.ToString(System.Globalization.CultureInfo.InvariantCulture))</span>
+                                }
+                                else
+                                {
+                                    @("no")
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Recorded</th>
+                            <td class="qz-job-status-counts">@_status.RunCount run(s), @_status.FailureCount failed for good, since @Scheduler.FormatInSelectedTimeZone(_status.FirstFiredAtUtc)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            }
+        }
+
         <h2>JobDataMap</h2>
         <JobDataMapEditor DataMap="@JobDataMap" ReadOnly="true" />
         @if (!IsReadOnly)
@@ -133,6 +197,17 @@
     private PauseInfo? _groupPause;
     private JobDataMap _triggerDataMap = new();
 
+    /// <summary>
+    /// How the job's runs have gone, or <see langword="null" /> when none has been recorded.
+    /// </summary>
+    private JobRunStatus? _status;
+
+    /// <summary>
+    /// Whether the data source keeps per-job run statuses at all. When it does not, the panel is left out
+    /// rather than saying the job has never run.
+    /// </summary>
+    private bool _statusKept;
+
     [Parameter]
     public string Group { get; set; } = string.Empty;
 
@@ -171,6 +246,8 @@
         {
             _job = null;
             _groupPause = null;
+            _status = null;
+            _statusKept = false;
             _triggers.Clear();
 
             string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -186,6 +263,8 @@
             // A job is paused through its triggers, each of which says why; its group's pause says it for
             // the triggers the group paused and for the ones added to it later.
             _groupPause = await Api.GetJobGroupPause(schedulerName, Group);
+
+            await LoadStatusAsync(schedulerName);
         }
         catch (Exception ex)
         {
@@ -202,10 +281,38 @@
         return DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
     }
 
+    /// <summary>
+    /// Reads the job's run status for the panel.
+    /// </summary>
+    /// <remarks>
+    /// A data source that keeps no per-job status raises <see cref="NotSupportedException" />, and the panel
+    /// is left out; the rest of the page does not depend on it.
+    /// </remarks>
+    private async Task LoadStatusAsync(string schedulerName)
+    {
+        try
+        {
+            _status = await Api.GetJobRunStatus(schedulerName, JobKey);
+            _statusKept = true;
+        }
+        catch (NotSupportedException)
+        {
+            _status = null;
+        }
+    }
+
+    /// <summary>
+    /// The History page narrowed to this job exactly: a text filter would also list <c>nightly-2</c> for
+    /// <c>nightly</c>.
+    /// </summary>
     private string GetHistoryPathForJob(string group, string name)
     {
-        string filterValue = Uri.EscapeDataString(DisplayValueHelper.FormatKey(group, name));
-        return DashboardLink.To(Options.Value, "history?job=" + filterValue);
+        return DashboardLink.To(Options.Value, "history?jobGroup=" + Uri.EscapeDataString(group) + "&jobName=" + Uri.EscapeDataString(name));
+    }
+
+    private string GetExecutionPath(string entryId)
+    {
+        return DashboardLink.To(Options.Value, "history/" + Uri.EscapeDataString(entryId));
     }
 
     private void PromptPause()
