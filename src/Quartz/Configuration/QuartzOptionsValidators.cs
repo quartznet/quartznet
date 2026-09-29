@@ -452,13 +452,19 @@ internal sealed class InMemoryJobStoreOptionsValidator : IValidateOptions<InMemo
 {
     public ValidateOptionsResult Validate(string? name, InMemoryJobStoreOptions options)
     {
+        List<string>? failures = null;
+
         if (options.MisfireThreshold < TimeSpan.FromMilliseconds(1))
         {
-            return ValidateOptionsResult.Fail(
-                $"{nameof(InMemoryJobStoreOptions.MisfireThreshold)} must be at least 1ms.");
+            (failures ??= []).Add($"{nameof(InMemoryJobStoreOptions.MisfireThreshold)} must be at least 1ms.");
         }
 
-        return ValidateOptionsResult.Success;
+        if (options.MaxConsecutiveFireFailures < 0)
+        {
+            (failures ??= []).Add($"{nameof(InMemoryJobStoreOptions.MaxConsecutiveFireFailures)} must not be negative; 0 never sets a failing trigger ERROR.");
+        }
+
+        return QuartzSchedulerOptionsValidator.Result(failures);
     }
 }
 

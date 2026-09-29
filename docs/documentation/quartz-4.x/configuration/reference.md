@@ -148,6 +148,7 @@ process restart.
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `MisfireThreshold` | TimeSpan | `00:00:05` | How late a trigger may fire before it counts as misfired. |
+| `MaxConsecutiveFireFailures` | int | `5` | Failed fires in a row after which a trigger is set `ERROR`. `0`: never. See [A trigger that fails to fire](../operations.md#a-trigger-that-fails-to-fire). |
 
 <!-- snippet: sample_reference_in_memory_store -->
 ```csharp

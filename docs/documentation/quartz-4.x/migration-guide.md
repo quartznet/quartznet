@@ -54,6 +54,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Log event `3050` | Error: a trigger stored `ERROR` after that many failed fires in a row |
 | Log event `3163` | Debug: this node leaves the database history's sweep to a live node with a lower instance id. Logged once |
 | `QuartzHealthCheckOptions.RequiredJobs`, `RequireSuccessWithin(job, within, status)`, `RequiredJobOptions` | Opt-in: the health check reports a job that has not succeeded within its window. See [Alert when a job stops succeeding](how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding) |
+| `InMemoryJobStoreOptions.MaxConsecutiveFireFailures` | The same setting for the in-memory store: `int`, default `5`, same flat key |
+| Log events `2008`, `2009` | Errors from the in-memory store: a fire failed; a trigger set `ERROR` after that many in a row |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
 | `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
 | `DashboardHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`, as on `ExecutionHistoryQuery`. `Job` is a `JobKeyDto` |
@@ -93,6 +95,19 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   +     store.ConfigureStore(options => options.MaxConsecutiveFireFailures = 0);
     }));
   ```
+
+* **A calendar that throws fails its own trigger's fire, not the in-memory store's whole batch.** 4.3 left
+  the batch stranded: fires before the throw read `Executing` for good, their serial job-mates `Blocked`,
+  and the trigger stayed reserved. Now the other triggers fire, the failing one is left as it was, and
+  error `2008` is logged. After five failures in a row it is set `ERROR`, as above. To keep releasing it:
+
+  ```diff
+  - services.AddQuartz(q => q.UseInMemoryStore());
+  + services.AddQuartz(q => q.UseInMemoryStore(options => options.MaxConsecutiveFireFailures = 0));
+  ```
+
+* **The scheduler releases what it acquired when a store throws something other than a
+  `SchedulerException`** while firing. It used to log event `1035` and leave the batch reserved.
 
 * **The dashboard's History page labels a success *Succeeded*, not *Complete***, in a column named *Result*.
   The Job Detail page's *View execution history* opens that job's rows only, where it used to filter by a
