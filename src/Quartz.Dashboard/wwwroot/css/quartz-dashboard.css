@@ -1507,6 +1507,68 @@ body{
     white-space: nowrap;
 }
 
+/* The Jobs listing carries three run-status columns beside four actions, which the widths above - sized
+   for the Triggers listing - cannot hold at 1280px: the key took what was left, which was nothing, and
+   the actions ran off the edge. Here the status columns are narrower and wrap, the actions take two rows
+   until there is room for one, and the key keeps the rest. */
+.qz-jobs-table th.qz-col-details,
+.qz-jobs-table td.qz-col-details {
+    width: 116px;
+}
+
+.qz-jobs-table th.qz-col-run,
+.qz-jobs-table td.qz-col-run {
+    width: 168px;
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+    font-size: var(--qz-font-size-sm);
+    white-space: normal;
+}
+
+.qz-jobs-table th.qz-col-failing,
+.qz-jobs-table td.qz-col-failing {
+    width: 96px;
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+}
+
+.qz-jobs-table th.qz-col-actions,
+.qz-jobs-table td.qz-col-actions {
+    width: 220px;
+    white-space: normal;
+}
+
+@media (min-width: 1440px) {
+    .qz-jobs-table th.qz-col-actions,
+    .qz-jobs-table td.qz-col-actions {
+        width: 400px;
+    }
+}
+
+/* Narrower than that, the last success gives its width to the key; the job's own page shows it. */
+@media (max-width: 1279px) {
+    .qz-jobs-table .qz-col-last-success {
+        display: none;
+    }
+}
+
+/* A run's result beside its time, and where it ran: kept apart, each piece moving to a line of its own
+   before any of them wraps, and wrapping only between words - so a narrow column never runs one into the
+   next. */
+.qz-run-summary {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    max-width: 100%;
+    column-gap: var(--qz-space-sm);
+    row-gap: 2px;
+}
+
+.qz-run-summary > * {
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
 /* ==========================================================================
    15. TOASTS
    ========================================================================== */

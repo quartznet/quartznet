@@ -68,16 +68,18 @@
                         <tr>
                             <th>Last run</th>
                             <td class="qz-job-status-last-run">
-                                <StateIndicator State="@RunResultDisplay.Label(_status.LastResult)" />
-                                @if (_status.LastEntryId is { Length: > 0 } entryId)
-                                {
-                                    <a class="qz-details-link" href="@GetExecutionPath(entryId)">@Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)</a>
-                                }
-                                else
-                                {
-                                    @Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)
-                                }
-                                <span class="qz-muted">on @(_status.LastSchedulerInstanceId ?? "—")</span>
+                                <span class="qz-run-summary">
+                                    <StateIndicator State="@RunResultDisplay.Label(_status.LastResult)" />
+                                    @if (_status.LastEntryId is { Length: > 0 } entryId)
+                                    {
+                                        <a class="qz-details-link" href="@GetExecutionPath(entryId)">@Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)</a>
+                                    }
+                                    else
+                                    {
+                                        <span>@Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)</span>
+                                    }
+                                    <span class="qz-muted">on @(_status.LastSchedulerInstanceId ?? "—")</span>
+                                </span>
                             </td>
                         </tr>
                         <tr><th>Last summary</th><td>@(string.IsNullOrEmpty(_status.LastSummary) ? "—" : _status.LastSummary)</td></tr>
@@ -87,8 +89,10 @@
                             <td class="qz-job-status-last-failure">
                                 @if (_status.LastFailedAtUtc is { } failed)
                                 {
-                                    @Scheduler.FormatInSelectedTimeZone(failed)
-                                    <span class="qz-muted">@_status.LastFailureMessage</span>
+                                    <span class="qz-run-summary">
+                                        <span>@Scheduler.FormatInSelectedTimeZone(failed)</span>
+                                        <span class="qz-muted">@_status.LastFailureMessage</span>
+                                    </span>
                                 }
                                 else
                                 {
