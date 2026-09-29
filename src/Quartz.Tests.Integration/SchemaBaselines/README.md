@@ -31,19 +31,20 @@ tests also start from this schema, with rows in it, and let Weasel migrate it to
 ## `4.2/`
 
 Vendored verbatim from tag **`v4.2.0`**, paths `database/tables/tables_postgres.sql`,
-`database/tables/tables_sqlServer.sql` and `database/tables/tables_sqlite.sql`. 4.2.1, 4.2.2 and 4.2.3
-changed no DDL in any of them, so these are the schemas every 4.2 deployment has.
-`git rev-parse v4.2.0:database/tables/tables_sqlServer.sql` is `a86f5acddca7532ef2c8f2acd78e76edf243b77c`,
-the blob committed here.
+`database/tables/tables_sqlServer.sql`, `database/tables/tables_sqlite.sql` and
+`database/tables/tables_mysql_innodb.sql`. 4.2.1 through 4.2.4 changed no DDL in any of them, so these
+are the schemas every 4.2 deployment has.
+`git rev-parse v4.2.0:database/tables/tables_sqlServer.sql` is `a86f5acddca7532ef2c8f2acd78e76edf243b77c`
+and `tables_mysql_innodb.sql` is `56475a54b17aafbed72f4489607f569bbcf33730`, the blobs committed here.
 
-The Weasel tests migrate all three forward with Weasel and compare the result with a fresh install — the
+The Weasel tests migrate each of them forward with Weasel and compare the result with a fresh install — the
 SQLite one from `Quartz.Tests.Unit`, which embeds it.
 
 ## `4.3/`
 
-Vendored verbatim from tag **`v4.3.0`**, the same three files as `4.2/`.
-`git rev-parse v4.3.0:database/tables/tables_sqlServer.sql` is `b0314ea437a3fb7db408e13b245dd2a292cc5773`,
-the blob committed here.
+Vendored verbatim from tag **`v4.3.0`**, the same files as `4.2/`.
+`git rev-parse v4.3.0:database/tables/tables_sqlServer.sql` is `b0314ea437a3fb7db408e13b245dd2a292cc5773`
+and `tables_mysql_innodb.sql` is `7ee2b4ce3354530e86ec30e0a03dce7c1b69701c`, the blobs committed here.
 
 The Weasel tests migrate them to 4.4 and check that the apply only adds: five columns and an index on
 `QRTZ_EXECUTION_HISTORY`, and `QRTZ_JOB_STATUS`. The SQLite one is embedded by `Quartz.Tests.Unit`.

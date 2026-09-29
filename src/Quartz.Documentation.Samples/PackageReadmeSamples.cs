@@ -172,6 +172,19 @@ public static class PackageReadmeSamples
             #endregion
         }
 
+        public static void MySql(IHostApplicationBuilder builder, string connectionString)
+        {
+            #region sample_readme_weasel_mysql
+
+            builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
+            {
+                store.UseMySqlConnector(connectionString);
+                store.UseWeaselForMySql();
+            }));
+
+            #endregion
+        }
+
         public static void Sqlite(IHostApplicationBuilder builder, string connectionString)
         {
             #region sample_readme_weasel_sqlite
