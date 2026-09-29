@@ -49,7 +49,7 @@
                         <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerGroup(group.Key)">Trigger group</button>
                     </div>
                 }
-                <table class="qz-table qz-entity-table">
+                <table class="qz-table qz-entity-table qz-jobs-table">
                     <thead>
                         <tr>
                             <th class="qz-col-key">Job</th>
@@ -57,7 +57,7 @@
                             @if (_statusesShown)
                             {
                                 <th class="qz-col-run">Last run</th>
-                                <th class="qz-col-run">Last success</th>
+                                <th class="qz-col-run qz-col-last-success">Last success</th>
                                 <th class="qz-col-failing">Failing</th>
                             }
                             @if (!IsReadOnly)
@@ -88,15 +88,17 @@
                                     <td class="qz-col-run qz-job-last-run">
                                         @if (status is not null)
                                         {
-                                            <StateIndicator State="@RunResultDisplay.Label(status.LastResult)" />
-                                            <span class="qz-muted">@Scheduler.FormatInSelectedTimeZone(status.LastFiredAtUtc)</span>
+                                            <span class="qz-run-summary">
+                                                <StateIndicator State="@RunResultDisplay.Label(status.LastResult)" />
+                                                <span class="qz-muted">@Scheduler.FormatInSelectedTimeZone(status.LastFiredAtUtc)</span>
+                                            </span>
                                         }
                                         else
                                         {
                                             <span class="qz-muted" title="No run of this job has been recorded">&#8212;</span>
                                         }
                                     </td>
-                                    <td class="qz-col-run qz-job-last-success">
+                                    <td class="qz-col-run qz-col-last-success qz-job-last-success">
                                         @if (status?.LastSucceededAtUtc is { } lastSuccess)
                                         {
                                             @Scheduler.FormatInSelectedTimeZone(lastSuccess)
