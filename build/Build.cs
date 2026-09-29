@@ -161,8 +161,23 @@ partial class Build : FalloutBuild, ICompile, IPack
         .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild);
 
     /// <summary>
-    /// Publishes the example applications, one of which is a trim canary, and runs the trim canary that
-    /// is not an example.
+    /// The trim canaries <see cref="PublishTrimmed" /> and <see cref="PublishAot" /> publish and run, each
+    /// with the Quartz projects whose <c>ILLink.Suppressions.xml</c> its publish is checked against.
+    /// </summary>
+    /// <remarks>
+    /// <c>Quartz.Trimming.Canary</c> references Quartz alone. <c>Quartz.Trimming.Canary.Wire</c> (#3965)
+    /// serves the HTTP API with <c>Quartz.AspNetCore</c> and drives it with <c>Quartz.HttpClient</c> in the
+    /// same process, so the baselines of both packages apply to it as well as Quartz's.
+    /// </remarks>
+    static readonly (string Project, string[] Baselines)[] TrimCanaries =
+    [
+        ("Quartz.Trimming.Canary", ["Quartz"]),
+        ("Quartz.Trimming.Canary.Wire", ["Quartz", "Quartz.AspNetCore", "Quartz.HttpClient"]),
+    ];
+
+    /// <summary>
+    /// Publishes the example applications, one of which is a trim canary, and runs the trim canaries that
+    /// are not examples.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -183,6 +198,11 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// a job store writes through the ordinary serializer. Publishing it for the runner's RID is what
     /// makes it runnable — a trimmed publish is a self-contained one — and it is why this leg gets a
     /// clean output directory rather than reusing an earlier run's.
+    /// </para>
+    /// <para>
+    /// <c>Quartz.Trimming.Canary.Wire</c> is published and started the same way. It serves the HTTP API
+    /// and calls it over a loopback socket, and its first run found every error the API answered going
+    /// out as an empty <c>500</c>, because nothing could write a <c>ProblemDetails</c> with reflection off.
     /// </para>
     /// <para>
     /// The canary's own publish does not stop at the first recorded warning, and this leg checks the
@@ -209,22 +229,14 @@ partial class Build : FalloutBuild, ICompile, IPack
                 .SetConfiguration(configuration)
             );
 
-            AbsolutePath canaryDirectory = ArtifactsDirectory / "trim-canary";
-            canaryDirectory.CreateOrCleanDirectory();
-
-            var output = DotNetPublish(s => s
-                .SetProject(solution.AllProjects.First(x => x.Name == "Quartz.Trimming.Canary"))
-                .SetConfiguration(configuration)
-                .SetRuntime(RuntimeInformation.RuntimeIdentifier)
-                .SetOutput(canaryDirectory)
-            );
-
-            AssertOnlyRecordedTrimWarnings(output, "the trimmed canary publish");
-            RunCanary(canaryDirectory, "trim canary");
+            foreach ((string project, string[] baselines) in TrimCanaries)
+            {
+                PublishAndRunCanary(project, baselines, "trim-canary", "trimmed", s => s);
+            }
         });
 
     /// <summary>
-    /// Publishes the canary as a native executable for the runner's own architecture and runs it.
+    /// Publishes the canaries as native executables for the runner's own architecture and runs them.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -247,35 +259,41 @@ partial class Build : FalloutBuild, ICompile, IPack
         .After<ICompile>()
         .Executes(() =>
         {
-            var solution = ((IHasSolution) this).Solution;
-            var configuration = ((ICompile) this).Configuration;
-
-            AbsolutePath canaryDirectory = ArtifactsDirectory / "aot-canary";
-            canaryDirectory.CreateOrCleanDirectory();
-
-            var output = DotNetPublish(s => s
-                .SetProject(solution.AllProjects.First(x => x.Name == "Quartz.Trimming.Canary"))
-                .SetConfiguration(configuration)
-                .SetRuntime(RuntimeInformation.RuntimeIdentifier)
-                .SetProperty("PublishAot", true)
-                .SetOutput(canaryDirectory)
-            );
-
-            AssertOnlyRecordedTrimWarnings(output, "the native AOT canary publish");
-            RunCanary(canaryDirectory, "native AOT canary");
+            foreach ((string project, string[] baselines) in TrimCanaries)
+            {
+                PublishAndRunCanary(project, baselines, "aot-canary", "native AOT", s => s.SetProperty("PublishAot", true));
+            }
         });
 
-    void RunCanary(AbsolutePath canaryDirectory, string what)
+    /// <summary>
+    /// Publishes one canary for the runner's own RID into a clean directory, checks the warnings the
+    /// publish reported against the baselines it names, and starts it. A non-zero exit fails the leg.
+    /// </summary>
+    void PublishAndRunCanary(string project, string[] baselines, string directory, string kind, Configure<DotNetPublishSettings> configure)
     {
-        AbsolutePath canary = canaryDirectory / (IsRunningOnWindows ? "Quartz.Trimming.Canary.exe" : "Quartz.Trimming.Canary");
-        Log.Information("Running the {What}: {Canary}", what, canary);
+        var solution = ((IHasSolution) this).Solution;
+        var configuration = ((ICompile) this).Configuration;
+
+        AbsolutePath canaryDirectory = ArtifactsDirectory / directory / project;
+        canaryDirectory.CreateOrCleanDirectory();
+
+        var output = DotNetPublish(s => configure(s
+            .SetProject(solution.AllProjects.First(x => x.Name == project))
+            .SetConfiguration(configuration)
+            .SetRuntime(RuntimeInformation.RuntimeIdentifier)
+            .SetOutput(canaryDirectory)));
+
+        AssertOnlyRecordedTrimWarnings(output, $"the {kind} {project} publish", baselines);
+
+        AbsolutePath canary = canaryDirectory / (IsRunningOnWindows ? $"{project}.exe" : project);
+        Log.Information("Running the {Kind} {Project}: {Canary}", kind, project, canary);
 
         ProcessTasks.StartProcess(canary, logOutput: true).AssertZeroExitCode();
     }
 
     /// <summary>
-    /// Fails when a publish reported a trim or AOT warning against a Quartz type that
-    /// <c>src/Quartz/ILLink.Suppressions.xml</c> does not record.
+    /// Fails when a publish reported a trim or AOT warning against a Quartz type that the
+    /// <c>ILLink.Suppressions.xml</c> of the named projects does not record.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -291,9 +309,9 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// on purpose.
     /// </para>
     /// </remarks>
-    void AssertOnlyRecordedTrimWarnings(IReadOnlyCollection<Output> output, string what)
+    void AssertOnlyRecordedTrimWarnings(IReadOnlyCollection<Output> output, string what, string[] baselines)
     {
-        var recorded = ReadTrimBaseline();
+        var recorded = baselines.SelectMany(ReadTrimBaseline).ToList();
         var unrecorded = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -311,9 +329,9 @@ partial class Build : FalloutBuild, ICompile, IPack
             // "Assembly 'Quartz' produced trim warnings" - the one warning that names no member,
             // reported when a whole assembly's warnings are collapsed into a single line. Nothing below
             // could check what it stands for, so it fails here rather than passing as somebody else's.
-            if (code == "IL2104" && line.Contains("'Quartz'", StringComparison.Ordinal))
+            if (code == "IL2104" && baselines.FirstOrDefault(assembly => line.Contains($"'{assembly}'", StringComparison.Ordinal)) is { } collapsed)
             {
-                unrecorded.Add($"{code}: Quartz's warnings were collapsed into one line, so none of them was checked");
+                unrecorded.Add($"{code}: {collapsed}'s warnings were collapsed into one line, so none of them was checked");
                 continue;
             }
 
@@ -335,7 +353,7 @@ partial class Build : FalloutBuild, ICompile, IPack
         if (unrecorded.Count > 0)
         {
             Assert.Fail(
-                $"{what} reported {unrecorded.Count} trim warning(s) that src/Quartz/ILLink.Suppressions.xml does not record:"
+                $"{what} reported {unrecorded.Count} trim warning(s) that the ILLink.Suppressions.xml of {string.Join(", ", baselines)} do not record:"
                 + Environment.NewLine + string.Join(Environment.NewLine, unrecorded.Order(StringComparer.Ordinal))
                 + Environment.NewLine
                 + "Fix the reflection, or make the case for a new entry - see the header of src/Quartz/TrimAnalysisBaseline.cs.");
@@ -345,12 +363,12 @@ partial class Build : FalloutBuild, ICompile, IPack
     }
 
     /// <summary>
-    /// The (type, warning code) pairs recorded in the ILLink baseline, with the trailing <c>*</c> each
-    /// entry carries for compiler-generated companions stripped.
+    /// The (type, warning code) pairs recorded in a project's ILLink baseline, with the trailing <c>*</c>
+    /// each entry carries for compiler-generated companions stripped.
     /// </summary>
-    IReadOnlyList<(string Type, string Code)> ReadTrimBaseline()
+    IReadOnlyList<(string Type, string Code)> ReadTrimBaseline(string project)
     {
-        AbsolutePath baseline = SourceDirectory / "Quartz" / "ILLink.Suppressions.xml";
+        AbsolutePath baseline = SourceDirectory / project / "ILLink.Suppressions.xml";
         var recorded = XDocument.Load(baseline)
             .Descendants("type")
             .SelectMany(type => type.Descendants("attribute")
