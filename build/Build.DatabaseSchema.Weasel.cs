@@ -19,7 +19,8 @@ using System.Text;
 /// SQL Server keeps the script's upper-case names and its <c>PK_</c> / <c>FK_</c> constraint names, and
 /// reads a column's direction back per index column. MySQL rewrites a type as it stores it
 /// (<c>BOOLEAN</c> is <c>TINYINT(1)</c>, <c>NUMERIC</c> is <c>DECIMAL</c>) and names an unnamed foreign key
-/// <c>&lt;table&gt;_ibfk_1</c>. The names that depend on the table prefix are computed at run time by the
+/// <c>&lt;table&gt;_ibfk_1</c>; Oracle stores <c>NUMERIC</c> as <c>NUMBER</c> and keeps the constraint
+/// names its script gives. The names that depend on the table prefix are computed at run time by the
 /// naming class beside the generated file, which is hand-written because it is the one part that is a
 /// rule rather than data.
 /// </para>
@@ -79,6 +80,11 @@ partial class Build
         new("mysql_innodb", "Quartz.Weasel.MySQL", "Weasel.MySql.Tables",
             Type: MySqlCatalogType, Default: MySqlCatalogDefault, ColumnName: AsDeclared, KeyColumn: AsDeclared, Cascades: false,
             IndexColumns: ColumnNamesAndDescending, PrimaryKeyArguments: NoArguments, ForeignKeyArguments: NoArguments),
+        new("oracle", "Quartz.Weasel.Oracle", "Weasel.Oracle.Tables",
+            Type: OracleCatalogType, Default: AsDeclared, ColumnName: AsDeclared, KeyColumn: AsDeclared, Cascades: false,
+            IndexColumns: ColumnNamesAndDescending,
+            PrimaryKeyArguments: table => $", \"{table.OracleStem ?? table.Name}\"",
+            ForeignKeyArguments: foreignKey => $", \"{foreignKey.OracleName}\""),
     ];
 
     /// <summary>Every generated model, as a path under <c>src/</c> and its content.</summary>
@@ -301,8 +307,28 @@ partial class Build
     };
 
     /// <summary>
+    /// An Oracle type as <c>ALL_TAB_COLUMNS</c> reports it: <c>NUMERIC(13,4)</c> is stored as
+    /// <c>NUMBER(13,4)</c>, and the others are written the way they are stored.
+    /// </summary>
+    /// <remarks>
+    /// A type the model does not use yet is refused rather than guessed at, as on MySQL.
+    /// </remarks>
+    static string OracleCatalogType(string type)
+    {
+        string upper = type.ToUpperInvariant();
+
+        return upper switch
+        {
+            "BLOB" or "CLOB" => upper,
+            _ when upper.StartsWith("VARCHAR2(", StringComparison.Ordinal) || upper.StartsWith("NUMBER(", StringComparison.Ordinal) => upper,
+            _ when upper.StartsWith("NUMERIC(", StringComparison.Ordinal) => "NUMBER" + upper["NUMERIC".Length..],
+            _ => throw new InvalidOperationException($"Oracle type '{type}' has no catalog spelling in the Weasel rendering yet"),
+        };
+    }
+
+    /// <summary>
     /// An index's columns as an array of names, with the descending ones named again: the catalogs that
-    /// read each column's direction back into <c>DescendingColumns</c> — SQL Server and MySQL.
+    /// read each column's direction back into <c>DescendingColumns</c> — SQL Server, MySQL and Oracle.
     /// </summary>
     static string ColumnNamesAndDescending(IndexDef index)
     {

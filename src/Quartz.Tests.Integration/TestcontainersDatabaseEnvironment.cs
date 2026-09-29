@@ -357,6 +357,39 @@ internal static class TestcontainersDatabaseEnvironment
         EnsureScriptSucceeded(dialect, result);
     }
 
+    /// <summary>
+    /// Runs a script with the Oracle container's <c>sqlplus</c>, logged in as a user of the caller's rather
+    /// than the container's own, so that it creates what it creates in that user's schema.
+    /// </summary>
+    /// <remarks>
+    /// Stops at the first statement that fails, which the container's own script runner does not. The bare
+    /// <c>DELETE</c> and <c>DROP TABLE</c> statements a 3.x baseline opens with, to empty an existing install,
+    /// are taken out first, because the schema a test runs one in is empty.
+    /// </remarks>
+    public static async Task ExecuteOracleScriptAsync(string userName, string password, string script)
+    {
+        if (oracleContainer is null)
+        {
+            throw new InvalidOperationException("The oracle container is not running.");
+        }
+
+        IEnumerable<string> lines = StripDropStatements(script.Replace("\r\n", "\n")).Split('\n')
+            .Where(line => !line.TrimStart().StartsWith("DELETE FROM ", StringComparison.OrdinalIgnoreCase));
+
+        string scriptFilePath = string.Join("/", string.Empty, "tmp", Guid.NewGuid().ToString("D"), Path.GetRandomFileName());
+        string content = "WHENEVER SQLERROR EXIT FAILURE\n" + string.Join('\n', lines) + "\nEXIT\n";
+
+        await oracleContainer.CopyAsync(Encoding.UTF8.GetBytes(content), scriptFilePath);
+
+        ExecResult result = await oracleContainer.ExecAsync(
+            ["/bin/sh", "-c", $"sqlplus -LOGON -SILENT {userName}/{password}@localhost:1521/XEPDB1 @{scriptFilePath}"]);
+
+        if (result.ExitCode is not 0)
+        {
+            throw new InvalidOperationException($"sqlplus as {userName} failed. Exit code: {result.ExitCode}. Output: {result.Stdout}{result.Stderr}");
+        }
+    }
+
     private static async Task<string> ReadScriptAsync(params string[] pathSegments)
     {
         string scriptPath = ResolveRepositoryFile(pathSegments);
