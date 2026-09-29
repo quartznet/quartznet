@@ -159,8 +159,6 @@ updates:
       telemetry:
         patterns:
           - "OpenTelemetry*"
-          - "OpenTracing"
-          - "System.Diagnostics.DiagnosticSource"
       # Aspire's AppHost SDK and hosting packages, used by the Aspire example. They ship as one
       # version on Aspire's own release cadence rather than the .NET runtime's, so they move
       # together. Declared ahead of `microsoft` because Aspire also publishes under
@@ -191,6 +189,4 @@ updates:
       # Web/API packages used by the samples and the server host.
       web:
         patterns:
-          - "AspNetCore.HealthChecks*"
           - "NSwag*"
-          - "Swashbuckle*"
