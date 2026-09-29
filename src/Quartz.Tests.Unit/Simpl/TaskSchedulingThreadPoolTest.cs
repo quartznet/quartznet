@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Reflection;
+
 using Quartz.Extensibility;
 using Quartz.Impl;
 
@@ -555,11 +558,33 @@ public class TaskSchedulingThreadPoolTest
             (await threadPool.TryRun(action)).Should().BeTrue();
         }
 
+        // Every warm-up slot comes back before the measured dispatch, which must not wait for one. A
+        // warm-up work item frees its slot when it finishes on the thread pool, often after TryRun
+        // returned; a dispatch that waits resumes on another thread, and a count read on two threads
+        // measures nothing. This test used to pass that way, reading about minus 17,000 bytes (#3970).
+        Stopwatch waited = Stopwatch.StartNew();
+        while (await threadPool.WaitForAvailableThreads() < threadPool.MaxConcurrency)
+        {
+            waited.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(30),
+                "sixteen work items that return at once cannot hold the pool's slots for long");
+            await Task.Delay(TimeSpan.FromMilliseconds(1));
+        }
+
+        // Nothing but the dispatch between the two reads: an assertion there costs 688 bytes, more than
+        // the dispatch itself, which is what failed a coverage run at 864 (#3969).
         long before = GC.GetAllocatedBytesForCurrentThread();
-        (await threadPool.TryRun(action)).Should().BeTrue();
+        ValueTask<bool> dispatched = threadPool.TryRun(action);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-        allocated.Should().BeLessThan(200,
+        dispatched.IsCompletedSuccessfully.Should().BeTrue(
+            "a free slot is taken without waiting, so both reads above were on this thread");
+        (await dispatched).Should().BeTrue();
+
+        // An unoptimized build compiles TryRunWithState's state machine as a class, which costs 104
+        // bytes even when the method never waits; an optimized build keeps it on the stack.
+        bool optimized = typeof(TaskSchedulingThreadPool).Assembly.GetCustomAttribute<DebuggableAttribute>()
+            is not { IsJITOptimizerDisabled: true };
+        allocated.Should().BeLessThan(optimized ? 200 : 300,
             "a dispatch hands the task scheduler one task and the cached delegate beside it; it used to "
             + "build a Task<Task>, an Unwrap promise over that and a ContinueWith to do the accounting, "
             + "which is over four hundred bytes on this thread and two more thread hand-offs (#3802)");
