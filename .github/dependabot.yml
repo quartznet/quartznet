@@ -101,8 +101,17 @@ updates:
       # The Quartz.Weasel packages depend on Weasel by range, [9.35.1, 10.0.0): Weasel 10 is a new major
       # the packages have to be built and tested against first. A single requirement with no comma in it,
       # because the C# updater splits a requirement string on commas.
+      #
+      # The range's lower end is a shipped floor, so a minor or patch is not offered either. Lift the
+      # update-types line when one PR raises all four Weasel rows (#3956).
       - dependency-name: "Weasel.*"
         versions: [">= 10.0.0"]
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      # Test-only, but 9.40.0 needs Weasel.Postgresql 9.35.2 and JasperFx 2.75.2, and Dependabot raises a
+      # required dependency whatever the Weasel entry says: #3946 moved three of the four Weasel rows to
+      # 9.35.2 and left Weasel.SqlServer on 9.35.1. Lift when one PR raises all four Weasel rows (#3956).
+      - dependency-name: "Marten"
+        versions: [">= 9.40.0"]
     # Dependencies are matched against groups in the order they are declared here,
     # and each dependency ends up in the first group it matches.
     groups:
