@@ -368,21 +368,35 @@ The flat key is `quartz.jobStore.executionHistory`.
 * A store configured this way refuses to start without them and names the scripts to run.
 * Nothing else needs this migration; skip it if you do not call `UseExecutionHistory()`.
 
+**Each execution is one transaction** on the history's own connection: its row, then its job's
+`QRTZ_JOB_STATUS` row, then one commit.
+
+* The status row is updated, or inserted on the job's first recorded run: one statement more than the row
+  alone, two on a first run. The commit count is unchanged.
+* Two nodes recording a job's first run at once: the second insert fails on the key, rolls back with its
+  row, and records again as an update. Nothing is counted twice.
+* Runs of one job that complete at the same moment take turns on its status row, each holding it until
+  its commit. The write runs before the trigger completes, so a job run many times at once completes
+  more slowly with the history on; see
+  [The execution history's status row](../operations.md#the-execution-history-s-status-row).
+* A history write never runs inside the job's transaction or under the trigger lock. A failed write is
+  logged and dropped with its status change; it never fails the firing.
+
 **The store trims the history itself**, with a sweep on its own timer:
 
 | Sweep property | Value |
 |---|---|
-| interval | every `Retention / 10`, never more often than once a minute |
-| batch | at most 20 batches of 1,000 rows per bound and per feed per pass, then the connection is returned |
+| order | the longest age; each shorter age, for its results; `MaxEntriesPerJob`; the misfire feed; statuses of deleted jobs; `MaxEntriesPerScheduler` |
+| interval | a tenth of the shortest age, at least a minute and at most a day |
+| batch | at most 20 batches of 1,000 rows per pass, then the connection is returned |
 | backlog | a pass that stopped on its budget brings the next pass forward to a minute later; the first pass that finishes restores the long interval |
 | throughput | keeps up with anything short of 20,000 executions a minute (over 300 a second) |
-| nodes | every node sweeps independently; deletes are idempotent, so two nodes at once do the work twice at worst |
+| nodes | one per cluster: the live node with the lowest instance id; see [Who sweeps the execution history](../operations.md#who-sweeps-the-execution-history) |
 
 * Bounded batches mean a store that was down for a week does not lock the table while catching up.
-* Between passes the tables can hold more than `MaxEntriesPerScheduler` rows. Reads apply the age bound
-  themselves; the count bound is the sweep's.
-* A history write never runs inside the job's transaction or under the trigger lock. A failed write is
-  logged and dropped; it never fails the firing.
+* `MaxEntriesPerJob` trims at most 50 jobs a pass; more bring the next pass forward.
+* A job's status is deleted once the job is gone from `QRTZ_JOB_DETAILS` and its last run is older than the
+  longest age.
 
 **It is one scheduler's choice.** In a container with several schedulers, a
 [named scheduler](../packages/multiple-schedulers.md) that does not call `UseExecutionHistory()` records
@@ -395,17 +409,20 @@ scheduler whose history belongs in its own database.
 A mixed cluster needs no coordination. A 4.1 node cannot see these tables, and a 4.2 node that does not
 call `UseExecutionHistory()` neither writes nor reads them; it keeps its in-memory history. Nodes that do
 call it share one history. Every row carries the instance id that produced it, which the dashboard's node
-filter reads.
+filter reads. A 4.3 node sweeps with its own `Retention`; see
+[Rolling 4.3 to 4.4](../operations.md#rolling-4-3-to-4-4).
 :::
 
 Differences from the in-memory history:
 
 * A node filter compares as the database compares strings, not case-insensitively. An instance id is
   generated, not typed, and comparing it as written lets the node index answer the filter with a seek.
-* The count bound is applied by the sweep, not on every read, because "the newest 2,000 rows" of a whole
-  cluster's feed is not a property of one page.
-* The age bound *is* applied on read, as in memory. Otherwise a scheduler that stopped running jobs, and
+* The shorter ages, `MaxEntriesPerJob` and `MaxEntriesPerScheduler` are applied by the sweep, not on
+  every read, because "the newest 2,000 rows" of a whole cluster's feed is not a property of one page.
+  Between passes the tables can hold more.
+* The longest age *is* applied on read, as in memory. Otherwise a scheduler that stopped running jobs, and
   so never writes again, would keep showing days-old executions.
+* Statuses are not capped by `MaxEntriesPerScheduler`; there is one per job.
 
 ### Joining an existing transaction
 

@@ -52,6 +52,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `AdoConstants.ColumnFirstFiredTime`, `ColumnLastFiredTime`, `ColumnLastResult`, `ColumnLastRunTime`, `ColumnLastInstanceName`, `ColumnLastEntryId`, `ColumnLastSummary`, `ColumnLastSuccessTime`, `ColumnLastFailureTime`, `ColumnLastFailureMessage`, `ColumnConsecutiveFailures`, `ColumnRunCount`, `ColumnFailureCount` | The columns of `QRTZ_JOB_STATUS` |
 | `AdoJobStoreOptions.MaxConsecutiveFireFailures` | `int`, default `5`; `0` never parks. Flat key `quartz.jobStore.maxConsecutiveFireFailures`. See [A trigger that fails to fire](operations.md#a-trigger-that-fails-to-fire) |
 | Log event `3050` | Error: a trigger stored `ERROR` after that many failed fires in a row |
+| Log event `3163` | Debug: this node leaves the database history's sweep to a live node with a lower instance id. Logged once |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
 | `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
 | `DashboardHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`, as on `ExecutionHistoryQuery`. `Job` is a `JobKeyDto` |
@@ -73,6 +74,11 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * **A `TriggerJob` firing carries `QRTZ_MANUAL_TRIGGER = "true"` in its trigger's `JobDataMap`**, so the
   job sees it in `MergedJobDataMap`. A `JobDataMap` you pass to `TriggerJob` gains the key.
   `JobChainingJobListener` fires its follow-up jobs with `TriggerJob`, so they are recorded as manual too.
+* **The database history (`UseExecutionHistory()`) keeps the outcome and a status per job.** Each row and
+  its job's `QRTZ_JOB_STATUS` row commit in one transaction. It applies `RetentionByResult`,
+  `MisfireRetention` and `MaxEntriesPerJob`, and answers `QueryJobRunStatuses` and `GetJobRunStatus`.
+* **One node per cluster sweeps the database history**: the live node with the lowest instance id. 4.3
+  nodes all swept. See [Who sweeps the execution history](operations.md#who-sweeps-the-execution-history).
 * **A trigger that fails to fire five times in a row is stored `ERROR`.** A persistent store used to
   release it and acquire it again forever, first in every round, so a `[DisallowConcurrentExecution]`
   job's other triggers never fired. Now the scheduler listeners hear `TriggerInError` and event `3050` is
@@ -114,6 +120,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 
 **Mixed 4.3 and 4.4 versions:**
 
+* With the database history, raise `Retention` on the 4.3 nodes to the longest age the 4.4 nodes keep
+  before rolling, and read the status counts as starting at the roll. See
+  [Rolling 4.3 to 4.4](operations.md#rolling-4-3-to-4-4).
 * A 4.3 node reads a `Vetoed` row in a shared misfire table as `Missed`, and its `CountMisfires` does not
   count it.
 * A 4.3 dashboard or HTTP client reads a 4.4 host's misfire listing: the host leaves `Vetoed` out for it.

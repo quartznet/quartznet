@@ -754,8 +754,9 @@ probe and what the check does not assert.
 | `MaxEntriesPerJob` | int | `0`: no cap | Rows kept per job, earliest-fired out first. `Failed` rows are exempt. |
 | `MaxEntriesPerScheduler` | int | `2000` | Rows kept per scheduler in each feed, oldest out first. `0` records nothing. |
 
-A zero or negative age, or a negative count, fails at startup. The database history applies `Retention`
-and `MaxEntriesPerScheduler`. See [Keep history by result](../how-tos/job-outcomes.md#keep-history-by-result).
+A zero or negative age, or a negative count, fails at startup. The database history applies all five by a
+sweep, from one node per cluster; see [Execution history in the database](../tutorial/job-stores.md#execution-history-in-the-database)
+and [Keep history by result](../how-tos/job-outcomes.md#keep-history-by-result).
 
 ## Listeners, calendars and plugins
 

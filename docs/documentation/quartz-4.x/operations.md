@@ -73,6 +73,19 @@ Once the schema is ahead of every node, replace them one at a time. As each goes
   `INSTANCE_NAME` on fired-trigger rows and in a `PREFERRED_NODE` pin does not survive the deployment —
   see [Naming a node in a container](#naming-a-node-in-a-container).
 
+### Rolling 4.3 to 4.4
+
+Only a store with [`UseExecutionHistory()`](tutorial/job-stores.md#execution-history-in-the-database) has
+anything to do. Run [`4.4/add_execution_outcome_<db>.sql`](../database/schema-changes.md#version-4-4) first;
+4.3 nodes ignore its columns and table.
+
+| During the roll | What happens | Do |
+|---|---|---|
+| 4.3 nodes sweep | Every 4.3 node deletes rows older than its single `Retention`, whatever their result | Before rolling, raise `Retention` on the 4.3 nodes to the longest age the 4.4 nodes keep |
+| A 4.3 node is elected | Its check-in row counts. While it has the lowest live id, 4.4 nodes skip their passes: no shorter ages, no `MaxEntriesPerJob` | Nothing; the 4.4 sweep resumes when that node is replaced |
+| The status per job | Counts only runs 4.4 nodes recorded. A 4.3 node writes no status row | Read `RunCount` and `FailureCount` as starting at the roll |
+| 4.3 rows | No `RESULT`: they read, filter and age as their `SUCCEEDED` flag says | Nothing |
+
 ### A mixed 3.x and 4.0 window
 
 Upgrading from 3.x means the [mandatory 4.0 migration](../database/schema-changes.md#version-4-0), then
@@ -290,8 +303,9 @@ node's first check-in after a restart recovers firings another node is still exe
 ### What a check-in is
 
 Each node writes a row to `QRTZ_SCHEDULER_STATE` and updates its timestamp every `CheckinInterval`
-(7.5 seconds by default). There is no heartbeat between nodes, no leader and no election: one node judges
-another by reading the timestamp it wrote and comparing it with its own clock.
+(7.5 seconds by default). There is no heartbeat between nodes and no leader: one node judges another by
+reading the timestamp it wrote and comparing it with its own clock. The one thing these rows elect is
+[who sweeps the execution history](#who-sweeps-the-execution-history).
 
 - **The first check-in** happens during `Start()`, before firing begins. It treats the node's *own*
   previous row as a failed instance, so whatever the last run left behind is recovered then.
@@ -390,6 +404,24 @@ recovery sweep uses, so the two cannot disagree:
   [dashboard](packages/dashboard.md), which adds each node's `Acquired` and `Executing` counts.
 - `GET {ApiPath}/schedulers` lists every scheduler the process knows, including registrations nothing has
   built, so a scheduler that never started can be told from one that does not exist.
+
+### Who sweeps the execution history
+
+With [`UseExecutionHistory()`](tutorial/job-stores.md#execution-history-in-the-database), one node trims
+the cluster's history. Before each pass a node reads `QRTZ_SCHEDULER_STATE` and skips the pass if a live
+row has an instance id ordinally lower than its own.
+
+| Question | Answer |
+|---|---|
+| Live | `LAST_CHECKIN_TIME + 2 × max(CHECKIN_INTERVAL, 7.5 s)` is not in the past |
+| Who sweeps | The live node with the lowest instance id, compared ordinally |
+| No rows (not clustered, SQLite) | Every node sweeps |
+| The sweeper stops | Two check-in intervals later the next node in order sweeps |
+| Skipping | Logged once at Debug, event [`3163`](log-events.md) |
+
+- There is no lock row and no try-lock. Two nodes that each think they are lowest delete the same rows;
+  the deletes are idempotent.
+- A node elects itself only after it has written a history row, which is how it learns its instance id.
 
 ## What the tables are telling you
 
@@ -702,6 +734,23 @@ lock: `TRIGGER_ACCESS` on a persistent store, the store's own monitor in memory.
 job allows concurrent execution completes without that lock, so completions commit in parallel; acquisition
 and the fire still take it. `MaxConcurrency` buys more *jobs* running at once — see
 [Sizing a cluster](#sizing-a-cluster).
+
+### The execution history's status row
+
+With [`UseExecutionHistory()`](tutorial/job-stores.md#execution-history-in-the-database), a completion writes
+its history row and its job's `QRTZ_JOB_STATUS` row in one transaction, before the trigger completes. Runs of
+one job that complete at the same moment take turns on that row, each holding it through its commit.
+
+Measured with `--one-off-census`: PostgreSQL 15.1, one job fired by 500 one-off triggers, `MaxConcurrency` 10,
+history on, over six arms:
+
+| History write | Firings/s | Statements per firing | Transactions per firing |
+|---|---|---|---|
+| Row alone (4.3) | 113–248 | 1 | 1 |
+| Row and status (4.4) | 77–189 | 2; 3 on the job's first run | 1 |
+
+- With the history off, or with runs spread over many jobs, nothing waits: no other write takes that row.
+- The wait is in the status update: 3.3–20.7 s per 500 firings, 7–41 ms a firing.
 
 ### Scheduling and cron
 
