@@ -37,11 +37,11 @@ see the [complete old → new table](../migration-guide.md#old-and-new-telemetry
 | `Quartz.Job.Veto` | `Internal` | A trigger listener vetoed the fire; the job did not run |
 | `Quartz.JobStore.<operation>` | `Client` | One per store operation; names are the members of `Quartz.Diagnostics.OperationName.JobStore` |
 
-The thirty-three store operations are those that change something or hand work to the scheduler:
+The thirty-four store operations are those that change something or hand work to the scheduler:
 
 `AcquireNextTriggers`, `TriggersFired`, `TriggeredJobComplete`, `ReleaseAcquiredTrigger`, `ScheduleJob`,
-`ScheduleJobs`, `AddJob`, `AddTrigger`, `AddCalendar`, `DeleteJob`, `DeleteJobs`, `DeleteTrigger`,
-`DeleteTriggers`, `DeleteCalendar`, `ReplaceTrigger`, `UpdateTriggerDetails`, `PauseTrigger`,
+`ScheduleJobs`, `AddJob`, `AddTrigger`, `StoreTrigger`, `AddCalendar`, `DeleteJob`, `DeleteJobs`,
+`DeleteTrigger`, `DeleteTriggers`, `DeleteCalendar`, `ReplaceTrigger`, `UpdateTriggerDetails`, `PauseTrigger`,
 `PauseTriggers`, `PauseTriggerGroups`, `PauseJob`, `PauseJobs`, `PauseJobGroups`, `ResumeTrigger`,
 `ResumeTriggers`, `ResumeTriggerGroups`, `ResumeJob`, `ResumeJobs`, `ResumeJobGroups`,
 `PauseAll`, `ResumeAll`, `ResetTriggerFromErrorState`, `ResetTriggersFromErrorState`, `Clear`.
@@ -147,7 +147,7 @@ one), so the two are separate series.
   attributes as `quartz.trigger.retry`, so the two divide.
 - `quartz.cluster.checkin.duration` records each attempt: a retried check-in is two measurements.
 - `quartz.jobstore.lock.wait.duration` does not record a re-entrant acquisition, which waited for nothing.
-- `quartz.jobstore.operation` is one of the thirty-three `Quartz.JobStore.*` names above, so one string finds
+- `quartz.jobstore.operation` is one of the thirty-four `Quartz.JobStore.*` names above, so one string finds
   a slow operation in traces and metrics. The histogram count is the number of each operation; the
   `error.type`-tagged part is the failures.
 - `quartz.jobstore.lock` is the `LOCK_NAME` value: `TRIGGER_ACCESS` (taken by every scheduling operation) or
