@@ -1449,6 +1449,18 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Marks a trigger either <c>TriggerJob</c> overload fires, so its run is recorded as manual.
+    /// </summary>
+    /// <remarks>
+    /// On the trigger's map, the store-neutral place a firing reads back: the key persists wherever the
+    /// trigger does, as <see cref="SchedulerConstants.TraceParent" /> does.
+    /// </remarks>
+    private static void MarkManual(IMutableTrigger trigger)
+    {
+        trigger.JobDataMap[SchedulerConstants.ManualTrigger] = "true";
+    }
+
+    /// <summary>
     /// Makes a trigger's data map ready to be stored: everything <see cref="PrepareJobData" /> does, plus
     /// the trace context of whoever is scheduling it.
     /// </summary>
@@ -1612,6 +1624,8 @@ internal sealed class QuartzScheduler
             trig.JobDataMap = data;
         }
 
+        MarkManual(trig);
+
         // After the map has been attached, and unconditionally: a fire-now with no data of its own is
         // still a firing worth linking back to whoever asked for it.
         PrepareTriggerData(trig);
@@ -1645,6 +1659,7 @@ internal sealed class QuartzScheduler
 
         trigger.ComputeFirstFireTimeUtc(null);
 
+        MarkManual(trigger);
         PrepareTriggerData(trigger);
 
         bool collision = true;

@@ -18,15 +18,17 @@
 #endregion
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Impl;
 
 /// <summary>
-/// Records what a scheduler has run and what it has missed into the container's
+/// Records what a scheduler has run, and what it has missed, skipped or had vetoed, into the container's
 /// <see cref="IExecutionHistoryStore" />.
 /// </summary>
 /// <remarks>
@@ -44,6 +46,7 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
 
     private readonly IServiceProvider serviceProvider;
     private readonly TimeProvider timeProvider;
+    private ILogger? logger;
 
     /// <summary>
     /// Takes the container the history store is resolved from, and the clock a misfire is stamped with.
@@ -80,10 +83,50 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// <inheritdoc />
     public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 
-    /// <inheritdoc />
-    public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    /// <summary>
+    /// Records a firing a trigger listener vetoed, in the misfire feed with
+    /// <see cref="MisfireReason.Vetoed" />.
+    /// </summary>
+    /// <remarks>
+    /// Beside the misfires rather than among the executions, because nothing ran: a vetoed row there
+    /// would read as a failure, and a 4.3 node sharing the table would count it as a final one.
+    /// </remarks>
+    public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IExecutionHistoryStore? store = Store();
+            if (store is null)
+            {
+                return default;
+            }
+
+            MisfireHistoryEntry entry = new(
+                SchedulerName: context.Scheduler.SchedulerName,
+                SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
+                TriggerGroup: context.Trigger.Key.Group,
+                TriggerName: context.Trigger.Key.Name,
+                JobKey: context.JobDetail.Key,
+                MisfiredAtUtc: timeProvider.GetUtcNow(),
+                ScheduledFireTimeUtc: context.ScheduledFireTimeUtc)
+            {
+                Reason = MisfireReason.Vetoed
+            };
+
+            return store.AddMisfire(entry, cancellationToken);
+        }
+        catch (ObjectDisposedException)
+        {
+            return default;
+        }
+    }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The row's <see cref="ExecutionHistoryEntry.Result" /> is decided by
+    /// <see cref="JobRunClassifier.Classify" />, and its summary and metrics come from the job's
+    /// <see cref="IJobRunReport" />, if it set one.
+    /// </remarks>
     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
         try
@@ -94,6 +137,8 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 return default;
             }
 
+            JobRunClassification run = JobRunClassifier.Classify(context, jobException);
+
             ExecutionHistoryEntry entry = new(
                 SchedulerName: context.Scheduler.SchedulerName,
                 SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
@@ -103,9 +148,15 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 TriggerName: context.Trigger.Key.Name,
                 FiredAtUtc: context.FireTimeUtc,
                 Duration: context.JobRunTime,
-                Succeeded: jobException is null,
+                Succeeded: JobRunClassifier.IsSuccess(run.Result),
                 ExceptionMessage: jobException?.Message)
             {
+                Result = run.Result,
+                Summary = TextCut.ToFit(run.Summary, JobRunReport.MaxSummaryLength),
+                MetricsJson = ExecutionMetricsWriter.Write(run.Metrics, Logger, context.JobDetail.Key),
+                Manual = IsManual(context.Trigger),
+                FireInstanceId = context.FireInstanceId,
+
                 // Both are the scheduler's own reading of the firing that has just ended, published on
                 // the context before this notification went out. Together they are what lets a reader
                 // tell one attempt of an occurrence from its last one.
@@ -220,6 +271,37 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
         CancellationToken cancellationToken = default) => default;
 
     /// <summary>
+    /// The key of one history row: unique without coordination, and nothing a reader parses.
+    /// </summary>
+    internal static string NewEntryId() => Guid.NewGuid().ToString("N");
+
+    /// <summary>
+    /// Whether the firing trigger carries <see cref="SchedulerConstants.ManualTrigger" />, which
+    /// <c>TriggerJob</c> writes as <c>"true"</c>.
+    /// </summary>
+    internal static bool IsManual(ITrigger trigger)
+    {
+        if (!trigger.JobDataMap.TryGetValue(SchedulerConstants.ManualTrigger, out object? value))
+        {
+            return false;
+        }
+
+        return value switch
+        {
+            bool flag => flag,
+            string text => bool.TryParse(text, out bool parsed) && parsed,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Where a dropped metrics object is reported: the container's logging, or the static fallback when
+    /// the container has none.
+    /// </summary>
+    private ILogger Logger => logger ??= serviceProvider.GetService<ILoggerFactory>()?.CreateLogger<ExecutionHistoryPlugin>()
+                                         ?? LogProvider.CreateLogger<ExecutionHistoryPlugin>();
+
+    /// <summary>
     /// The store to record into, or <see langword="null" /> when there is none to record into and when
     /// the bounds say to record nothing.
     /// </summary>
@@ -235,11 +317,6 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// off and on again while the process runs.
     /// </para>
     /// </remarks>
-    /// <summary>
-    /// The key of one history row: unique without coordination, and nothing a reader parses.
-    /// </summary>
-    internal static string NewEntryId() => Guid.NewGuid().ToString("N");
-
     private IExecutionHistoryStore? Store()
     {
         IOptions<ExecutionHistoryOptions>? options = serviceProvider.GetService<IOptions<ExecutionHistoryOptions>>();

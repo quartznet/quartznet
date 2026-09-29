@@ -186,6 +186,27 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <summary>
+    /// Not supported yet: the HTTP API serves no per-job run status.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
+    public ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        throw NoJobRunStatus();
+    }
+
+    /// <inheritdoc cref="QueryJobRunStatuses" />
+    public ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKey jobKey, CancellationToken cancellationToken = default)
+    {
+        throw NoJobRunStatus();
+    }
+
+    private NotSupportedException NoJobRunStatus()
+    {
+        return new NotSupportedException(
+            $"The scheduler '{schedulerName}' is reached over HTTP, and the HTTP API serves no per-job run status.");
+    }
+
+    /// <summary>
     /// A request to one of the history routes for this client's scheduler.
     /// </summary>
     /// <remarks>

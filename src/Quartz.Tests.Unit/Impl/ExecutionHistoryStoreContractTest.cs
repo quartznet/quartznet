@@ -72,8 +72,18 @@ public abstract class ExecutionHistoryStoreContractTest
         Clock = new FakeTimeProvider(Start);
     }
 
-    /// <summary>Builds the store under test, bounded as the case asks.</summary>
-    protected abstract ValueTask<IExecutionHistoryStore> CreateStore(TimeSpan retention, int maxEntriesPerScheduler);
+    /// <summary>Builds the store under test, bounded as the case configures.</summary>
+    protected abstract ValueTask<IExecutionHistoryStore> CreateStore(Action<ExecutionHistoryOptions> configure);
+
+    /// <summary>Builds the store under test with the two bounds every case before 4.4 set.</summary>
+    protected ValueTask<IExecutionHistoryStore> CreateStore(TimeSpan retention, int maxEntriesPerScheduler)
+    {
+        return CreateStore(options =>
+        {
+            options.Retention = retention;
+            options.MaxEntriesPerScheduler = maxEntriesPerScheduler;
+        });
+    }
 
     /// <summary>
     /// Lets a store that keeps its bounds by sweeping do so, so that a count-bound case asserts the
@@ -657,15 +667,16 @@ public abstract class ExecutionHistoryStoreContractTest
 }
 
 /// <summary>The contract, against the store Quartz keeps when nothing else is registered.</summary>
-public sealed class InMemoryExecutionHistoryStoreContractTest : ExecutionHistoryStoreContractTest
+/// <remarks>
+/// Partial: <c>ExecutionHistoryRunResultContractTest.cs</c> holds the 4.4 cases, which only this store
+/// answers until the database history does.
+/// </remarks>
+public sealed partial class InMemoryExecutionHistoryStoreContractTest : ExecutionHistoryStoreContractTest
 {
-    protected override ValueTask<IExecutionHistoryStore> CreateStore(TimeSpan retention, int maxEntriesPerScheduler)
+    protected override ValueTask<IExecutionHistoryStore> CreateStore(Action<ExecutionHistoryOptions> configure)
     {
-        ExecutionHistoryOptions options = new()
-        {
-            Retention = retention,
-            MaxEntriesPerScheduler = maxEntriesPerScheduler
-        };
+        ExecutionHistoryOptions options = new();
+        configure(options);
 
         return new ValueTask<IExecutionHistoryStore>(
             new InMemoryExecutionHistoryStore(Options.Create(options), Clock));
@@ -704,16 +715,12 @@ public sealed class AdoExecutionHistoryStoreContractTest : ExecutionHistoryStore
         database.Dispose();
     }
 
-    protected override async ValueTask<IExecutionHistoryStore> CreateStore(TimeSpan retention, int maxEntriesPerScheduler)
+    protected override async ValueTask<IExecutionHistoryStore> CreateStore(Action<ExecutionHistoryOptions> configure)
     {
         ServiceCollection services = new();
 
         services.AddSingleton<TimeProvider>(Clock);
-        services.AddQuartzExecutionHistory(options =>
-        {
-            options.Retention = retention;
-            options.MaxEntriesPerScheduler = maxEntriesPerScheduler;
-        });
+        services.AddQuartzExecutionHistory(configure);
 
         services.AddQuartz(quartz =>
         {
@@ -1229,6 +1236,42 @@ public sealed class ExecutionHistoryStoreDefaultsTest
                 A<ExecutionHistoryQuery>.That.Matches(q => q.SchedulerName == "Scheduler" && q.Take == PagedQuery.All),
                 A<CancellationToken>._))
             .MustHaveHappened();
+    }
+
+    [Test]
+    public async Task AStoreWithoutStatusesSaysSo()
+    {
+        IExecutionHistoryStore store = A.Fake<IExecutionHistoryStore>(options => options.CallsBaseMethods());
+
+        Func<Task> query = async () => await store.QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = "Scheduler" });
+        Func<Task> single = async () => await store.GetJobRunStatus("Scheduler", new JobKey("job", "group"));
+
+        await query.Should().ThrowAsync<NotSupportedException>(
+                "counts rebuilt from rows the store has trimmed would be wrong, so a store that keeps no status says so")
+            .WithMessage("*QueryJobRunStatuses*");
+        await single.Should().ThrowAsync<NotSupportedException>("the single read is answered by the listing");
+    }
+
+    [Test]
+    public async Task TheDefaultSingleStatusReadAsksTheListingForThatOneJob()
+    {
+        IExecutionHistoryStore store = A.Fake<IExecutionHistoryStore>(options => options.CallsBaseMethods());
+        JobKey job = new("job", "group");
+        JobRunStatus status = new("Scheduler", job, DateTimeOffset.UtcNow, JobRunResult.Succeeded);
+
+        A.CallTo(() => store.QueryJobRunStatuses(A<JobRunStatusQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobRunStatus>([status], HasMore: false)).Once()
+            .Then.Returns(new PagedResult<JobRunStatus>([], HasMore: false));
+
+        (await store.GetJobRunStatus("Scheduler", job)).Should().BeSameAs(status);
+        (await store.GetJobRunStatus("Scheduler", new JobKey("other", "group"))).Should().BeNull(
+            "an empty page is a job the store has recorded no run of");
+
+        A.CallTo(() => store.QueryJobRunStatuses(
+                A<JobRunStatusQuery>.That.Matches(q =>
+                    q.SchedulerName == "Scheduler" && q.Take == 1 && q.Jobs != null && q.Jobs.Single().Equals(job)),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
     }
 
     private static ExecutionHistoryEntry Row(string jobName) => new(

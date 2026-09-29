@@ -405,31 +405,44 @@ namespace Quartz
     {
         public ExecutionHistoryEntry(string SchedulerName, string SchedulerInstanceId, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
         public System.TimeSpan Duration { get; init; }
+        public Quartz.JobRunResult EffectiveResult { get; }
         public string? EntryId { get; init; }
         public string? ExceptionMessage { get; init; }
+        public string? FireInstanceId { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string JobGroup { get; init; }
         public string JobName { get; init; }
         public string? Log { get; init; }
+        public bool Manual { get; init; }
+        public string? MetricsJson { get; init; }
+        public Quartz.JobRunResult? Result { get; init; }
         public int RetryAttempt { get; init; }
         public bool RetryScheduled { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
         public bool Succeeded { get; init; }
+        public string? Summary { get; init; }
         public string TriggerGroup { get; init; }
         public string TriggerName { get; init; }
     }
     public sealed class ExecutionHistoryOptions
     {
         public ExecutionHistoryOptions() { }
+        public int MaxEntriesPerJob { get; set; }
         public int MaxEntriesPerScheduler { get; set; }
+        public System.TimeSpan? MisfireRetention { get; set; }
         public System.TimeSpan Retention { get; set; }
+        public System.Collections.Generic.Dictionary<Quartz.JobRunResult, System.TimeSpan> RetentionByResult { get; }
     }
     public sealed record ExecutionHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.ExecutionHistoryQuery>
     {
         public ExecutionHistoryQuery() { }
         public bool? FailedFinally { get; init; }
+        public System.DateTimeOffset? FiredBefore { get; init; }
+        public System.DateTimeOffset? FiredFrom { get; init; }
+        public Quartz.JobKey? Job { get; init; }
         public string? JobContains { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.JobRunResult>? Results { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public string? TriggerContains { get; init; }
@@ -623,6 +636,12 @@ namespace Quartz
         System.Threading.Tasks.ValueTask JobExecutionVetoed(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask JobToBeExecuted(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default); // default implementation
+    }
+    public interface IJobRunReport
+    {
+        System.Collections.Generic.IReadOnlyDictionary<string, object?>? Metrics { get; }
+        Quartz.JobRunResult Result { get; }
+        string? Summary { get; }
     }
     public interface IJob<TInput> : Quartz.IJob
     {
@@ -1143,6 +1162,52 @@ namespace Quartz
         public Quartz.GroupMatcher<Quartz.JobKey>? Group { get; init; }
         public Quartz.NameMatcher<Quartz.JobKey>? Name { get; init; }
     }
+    public sealed record JobRunReport : Quartz.IJobRunReport, System.IEquatable<Quartz.JobRunReport>
+    {
+        public const int MaxMetricsLength = 4000;
+        public const int MaxSummaryLength = 1000;
+        public JobRunReport() { }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object?>? Metrics { get; init; }
+        public Quartz.JobRunResult Result { get; init; }
+        public string? Summary { get; init; }
+        public Quartz.JobRunReport With(string name, object? value) { }
+        public static Quartz.JobRunReport Failed(string? summary = null) { }
+        public static Quartz.JobRunReport Skipped(string? summary = null) { }
+        public static Quartz.JobRunReport Succeeded(string? summary = null) { }
+    }
+    public enum JobRunResult
+    {
+        Succeeded = 0,
+        Failed = 1,
+        Cancelled = 2,
+        Skipped = 3,
+    }
+    public sealed record JobRunStatus : System.IEquatable<Quartz.JobRunStatus>
+    {
+        public JobRunStatus(string SchedulerName, Quartz.JobKey Job, System.DateTimeOffset LastFiredAtUtc, Quartz.JobRunResult LastResult) { }
+        public int ConsecutiveFailures { get; init; }
+        public long FailureCount { get; init; }
+        public System.DateTimeOffset FirstFiredAtUtc { get; init; }
+        public Quartz.JobKey Job { get; init; }
+        public System.TimeSpan LastDuration { get; init; }
+        public string? LastEntryId { get; init; }
+        public System.DateTimeOffset? LastFailedAtUtc { get; init; }
+        public string? LastFailureMessage { get; init; }
+        public System.DateTimeOffset LastFiredAtUtc { get; init; }
+        public Quartz.JobRunResult LastResult { get; init; }
+        public string? LastSchedulerInstanceId { get; init; }
+        public System.DateTimeOffset? LastSucceededAtUtc { get; init; }
+        public string? LastSummary { get; init; }
+        public long RunCount { get; init; }
+        public string SchedulerName { get; init; }
+    }
+    public sealed record JobRunStatusQuery : Quartz.PagedQuery, System.IEquatable<Quartz.JobRunStatusQuery>
+    {
+        public JobRunStatusQuery() { }
+        public bool? Failing { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey>? Jobs { get; init; }
+        public required string SchedulerName { get; init; }
+    }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Interface)]
     public sealed class JobTimeoutAttribute : System.Attribute
     {
@@ -1237,6 +1302,7 @@ namespace Quartz
     public sealed record MisfireHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.MisfireHistoryQuery>
     {
         public MisfireHistoryQuery() { }
+        public Quartz.JobKey? Job { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public string? TriggerContains { get; init; }
@@ -1245,6 +1311,7 @@ namespace Quartz
     {
         Missed = 0,
         Overlap = 1,
+        Vetoed = 2,
     }
     public readonly record struct MonthDay : System.IComparable<Quartz.MonthDay>, System.IEquatable<Quartz.MonthDay>, System.IFormattable, System.IParsable<Quartz.MonthDay>, System.ISpanFormattable, System.ISpanParsable<Quartz.MonthDay>, System.IUtf8SpanFormattable
     {
@@ -1691,6 +1758,7 @@ namespace Quartz
         public const string FailedJobOriginalTriggerScheduledFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
         public const string ForceJobDataMapDirty = "QRTZ_FORCE_JOB_DATAMAP_DIRTY";
         public const string JobInput = "QRTZ_JOB_INPUT";
+        public const string ManualTrigger = "QRTZ_MANUAL_TRIGGER";
         public const string ScheduledJobGroup = "QRTZ_SCHEDULED";
         public const string TraceParent = "QRTZ_TRACEPARENT";
         public const string TraceState = "QRTZ_TRACESTATE";
@@ -2273,7 +2341,9 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask AddMisfire(Quartz.MisfireHistoryEntry entry, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> CountMisfires(string schedulerName, System.DateTimeOffset since, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask<Quartz.JobRunStatus?> GetJobRunStatus(string schedulerName, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.ExecutionHistoryEntry>> QueryExecutions(Quartz.ExecutionHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobRunStatus>> QueryJobRunStatuses(Quartz.JobRunStatusQuery query, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.MisfireHistoryEntry>> QueryMisfires(Quartz.MisfireHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
     }
     public interface IInstanceIdGenerator

@@ -31,8 +31,8 @@ using Quartz.Impl;
 namespace Quartz.Tests.Unit.Impl;
 
 /// <summary>
-/// Every member of <see cref="IJobStore" /> and <see cref="IScheduler" /> is declared by the types
-/// whose whole job is to hand it on.
+/// Every member of <see cref="IJobStore" />, <see cref="IScheduler" /> and <see cref="IExecutionHistoryStore" />
+/// is declared by the types whose whole job is to hand it on.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -64,6 +64,13 @@ public sealed class DelegatingForwardingTest
         // it leaves to the interface default is one every injected scheduler answers by decomposition.
         yield return new TestCaseData(typeof(DeferredScheduler), typeof(IScheduler))
             .SetArgDisplayNames(nameof(DeferredScheduler), nameof(IScheduler));
+
+        // The history of a scheduler in another process: a default it left undeclared would answer a
+        // single read with a full listing over the wire, or a status read with a listing it cannot make.
+        // The dashboard's adapter over IDashboardHistoryStore is not here: its inner store has no single
+        // read, so GetExecution's default is the only answer it has.
+        yield return new TestCaseData(typeof(HttpExecutionHistoryStore), typeof(IExecutionHistoryStore))
+            .SetArgDisplayNames(nameof(HttpExecutionHistoryStore), nameof(IExecutionHistoryStore));
     }
 
     [TestCaseSource(nameof(Forwarders))]

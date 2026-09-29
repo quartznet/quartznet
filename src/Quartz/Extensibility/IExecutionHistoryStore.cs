@@ -41,6 +41,10 @@ namespace Quartz.Extensibility;
 /// that records nowhere — one fronting a scheduler in another process, where the history is kept — is
 /// entitled to raise <see cref="NotSupportedException" /> from the two writers.
 /// </para>
+/// <para>
+/// Beside the feeds, a store may keep a <see cref="JobRunStatus" /> per job, read with
+/// <see cref="QueryJobRunStatuses" /> and <see cref="GetJobRunStatus" />.
+/// </para>
 /// </remarks>
 public interface IExecutionHistoryStore
 {
@@ -79,7 +83,7 @@ public interface IExecutionHistoryStore
     /// A count rather than a page, because a summary asks "how bad is it right now" and a store that
     /// keeps history in a database can answer that with one <c>COUNT(*)</c> instead of loading rows it
     /// would throw away. Only <see cref="MisfireReason.Missed" /> rows count: a firing the overlap
-    /// policy skipped is recorded beside the misfires, and is not one.
+    /// policy skipped, or a listener vetoed, is recorded beside the misfires, and is not one.
     /// </remarks>
     /// <param name="schedulerName">The scheduler whose misfires to count.</param>
     /// <param name="since">The instant to count from.</param>
@@ -124,5 +128,53 @@ public interface IExecutionHistoryStore
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Returns one page of the per-job run statuses the store keeps, ordered by job group and then name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A status is folded from every execution the store records, as it records it, so it outlives the
+    /// rows. The shipped in-memory store keeps one per job, up to
+    /// <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> per scheduler.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a store written against an earlier 4.x keeps compiling. The default
+    /// throws <see cref="NotSupportedException" />: the rows it could read are trimmed, so counts built
+    /// from them would be wrong.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which statuses to return, and how many.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="NotSupportedException">The store keeps no per-job status.</exception>
+    ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            $"{GetType().Name} keeps no per-job run status. Implement {nameof(IExecutionHistoryStore)}."
+            + $"{nameof(QueryJobRunStatuses)} to keep one beside the rows it records.");
+    }
+
+    /// <summary>
+    /// Returns one job's run status, or <see langword="null" /> when the store has recorded no run of it.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member. The default asks <see cref="QueryJobRunStatuses" /> for that one job,
+    /// so it answers wherever that does and throws <see cref="NotSupportedException" /> where it throws.
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler the job belongs to.</param>
+    /// <param name="jobKey">The job.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="NotSupportedException">The store keeps no per-job status.</exception>
+    async ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKey jobKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        PagedResult<JobRunStatus> page = await QueryJobRunStatuses(
+            new JobRunStatusQuery { SchedulerName = schedulerName, Jobs = [jobKey], Take = 1 },
+            cancellationToken).ConfigureAwait(false);
+
+        return page.Items.Count > 0 ? page.Items[0] : null;
     }
 }

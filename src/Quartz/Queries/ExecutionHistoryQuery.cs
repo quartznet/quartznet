@@ -20,7 +20,8 @@
 namespace Quartz;
 
 /// <summary>
-/// One page of the execution history of a scheduler, optionally narrowed by node, job and trigger.
+/// One page of the execution history of a scheduler, optionally narrowed by node, job, trigger, fire
+/// time and result.
 /// </summary>
 /// <remarks>
 /// A <c>Contains</c> filter matches a key's group, its name, or the two joined as <c>group.name</c>,
@@ -66,4 +67,32 @@ public sealed record ExecutionHistoryQuery : PagedQuery
     /// </para>
     /// </remarks>
     public bool? FailedFinally { get; init; }
+
+    /// <summary>
+    /// Lists only the executions of this job, matched exactly, or every job's when null.
+    /// </summary>
+    public JobKey? Job { get; init; }
+
+    /// <summary>
+    /// Lists only the executions that fired at or after this instant, or from the start when null.
+    /// </summary>
+    public DateTimeOffset? FiredFrom { get; init; }
+
+    /// <summary>
+    /// Lists only the executions that fired before this instant, or up to now when null.
+    /// </summary>
+    /// <remarks>
+    /// Exclusive, so two windows that meet at an instant list each execution once.
+    /// </remarks>
+    public DateTimeOffset? FiredBefore { get; init; }
+
+    /// <summary>
+    /// Lists only the executions whose <see cref="ExecutionHistoryEntry.EffectiveResult" /> is one of
+    /// these, or every result when null. An empty set lists nothing.
+    /// </summary>
+    /// <remarks>
+    /// Matched against the effective result, so a row written before 4.4 is found by
+    /// <see cref="JobRunResult.Succeeded" /> or <see cref="JobRunResult.Failed" />.
+    /// </remarks>
+    public IReadOnlyCollection<JobRunResult>? Results { get; init; }
 }

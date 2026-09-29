@@ -289,4 +289,26 @@ internal sealed class ExecutionHistoryStoreOverDashboardStore : IExecutionHistor
     {
         return inner.CountMisfires(schedulerName, since, cancellationToken);
     }
+
+    /// <summary>
+    /// Not supported: an <see cref="IDashboardHistoryStore" /> keeps no per-job status.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
+    public ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        throw NoJobRunStatus();
+    }
+
+    /// <inheritdoc cref="QueryJobRunStatuses" />
+    public ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKey jobKey, CancellationToken cancellationToken = default)
+    {
+        throw NoJobRunStatus();
+    }
+
+    private NotSupportedException NoJobRunStatus()
+    {
+        return new NotSupportedException(
+            $"The execution history is kept by the application's {nameof(IDashboardHistoryStore)}, {inner.GetType().Name}, "
+            + $"which keeps no per-job run status. Register an {nameof(IExecutionHistoryStore)} instead to read one.");
+    }
 }
