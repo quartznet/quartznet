@@ -1029,6 +1029,39 @@ public interface IJobStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Acquires the next triggers to be fired, as <see cref="AcquireNextTriggers" /> does, and fires the
+    /// ones already due in the same operation. This is the member the scheduler calls.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A trigger is due when its <see cref="ITrigger.NextFireTimeUtc" /> is at or before the store's clock
+    /// when it acquires it. The store fires those as <see cref="TriggersFired" /> would and answers them in
+    /// <see cref="TriggerAcquisitionResult.Due" /> and <see cref="TriggerAcquisitionResult.Fired" />; the
+    /// rest, due later within the batch window, are <see cref="TriggerAcquisitionResult.Pending" />, which
+    /// the scheduler waits for and fires with <see cref="TriggersFired" />. A persistent store saves the
+    /// second transaction a round of already-due triggers used to cost.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a store written against an earlier 4.x keeps working. The default
+    /// fires nothing: it calls <see cref="AcquireNextTriggers" /> and answers everything as pending, which
+    /// is exactly what the scheduler did with that answer before. A new name rather than an overload,
+    /// because <c>PublicApiGenerator</c> marks default implementations per method name.
+    /// </para>
+    /// </remarks>
+    /// <param name="request">What to acquire, as for <see cref="AcquireNextTriggers" />.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What was acquired, and what became of the triggers fired as they were.</returns>
+    async ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return new TriggerAcquisitionResult
+        {
+            Pending = await AcquireNextTriggers(request, cancellationToken).ConfigureAwait(false),
+        };
+    }
+
+    /// <summary>
     /// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
     /// fire the given <see cref="ITrigger" />, that it had previously acquired
     /// (reserved).

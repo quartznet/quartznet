@@ -1,0 +1,446 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
+using Quartz.Extensibility;
+
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// Acquiring the next triggers and firing the ones already due in one transaction (#3864).
+/// </summary>
+/// <remarks>
+/// <para>
+/// A round of already-due triggers used to be two transactions under <c>TRIGGER_ACCESS</c>: the
+/// acquisition, which reserved each trigger with an <c>ACQUIRED</c> fired-trigger row, and the fire, which
+/// read each trigger's header and job again and updated the reservation to <c>EXECUTING</c>. Here the
+/// round is one: the triggers are claimed as acquisition claims them, their headers and jobs are read once
+/// for the round, and each fire inserts its row as <c>EXECUTING</c>. On PostgreSQL that is a lock, a commit
+/// and two reads per trigger off the path every firing waits on.
+/// </para>
+/// <para>
+/// The lock is the one acquisition takes. A round that acquires without it — one trigger at a time,
+/// without <see cref="AcquireTriggersWithinLock" /> — stays two transactions, so an idle or pending-only
+/// round still never waits for the lock.
+/// </para>
+/// </remarks>
+internal abstract partial class AdoJobStoreBase
+{
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// A fire that fails for a reason a retry will not cure rolls the round back, acquisition and all, and
+    /// the round runs again, as a <see cref="TriggersFired" /> batch does (#3931). In the runs after it the
+    /// failed trigger is claimed and reserved as acquisition reserves any trigger, but not fired: it is
+    /// answered <see cref="TriggerFiredResult.Failed" />, which the scheduler releases, and it is counted
+    /// against <see cref="MaxConsecutiveFireFailures" /> and stored <c>ERROR</c> at the limit exactly as a
+    /// failed fire of an acquired trigger is (#3963). Nothing the round claimed is left <c>ACQUIRED</c>
+    /// without a fired-trigger row: a due trigger that does not fire after all is reserved like the rest.
+    /// </para>
+    /// </remarks>
+    public async ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!AcquireTriggersWithinLock && request.MaxCount <= 1)
+        {
+            // Acquired without the lock, as it always was; the fire takes the lock in a transaction of its
+            // own, which is the scheduler's TriggersFired.
+            return new TriggerAcquisitionResult
+            {
+                Pending = await AcquireNextTriggers(request, cancellationToken).ConfigureAwait(false),
+            };
+        }
+
+        // The triggers whose fire failed in an attempt of this call, with why. Each is claimed but not
+        // fired by the attempts after it. Nothing is allocated until a fire fails.
+        Dictionary<TriggerKey, Exception>? failed = null;
+
+        // The failed triggers whose failure was the last one in a row the store allows, with how many.
+        List<(TriggerKey TriggerKey, int Failures)>? failing = null;
+
+        while (true)
+        {
+            FireOnAcquireAttempt attempt;
+            try
+            {
+                attempt = await ExecuteInLocalTransactionLock(
+                    SchedulerLock.TriggerAccess,
+                    conn => AcquireAndFireDue(conn, request, failed, cancellationToken),
+                    (conn, result) => ValidateAcquiredAndFired(conn, result, cancellationToken),
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (TriggerFireFailedException failure)
+            {
+                Exception cause = failure.InnerException!;
+                if (cause is JobPersistenceException jpe)
+                {
+                    Logger.JobPersistenceExceptionCaught(jpe.Message, jpe);
+                }
+                else
+                {
+                    Logger.ExceptionCaught(cause.Message, cause);
+                }
+
+                (failed ??= [])[failure.TriggerKey] = cause;
+
+                // Counted with the previous fire time it was acquired with, which only a fire that
+                // committed moves.
+                if (MaxConsecutiveFireFailures > 0)
+                {
+                    int failures = fireFailures.RecordFailure(failure.TriggerKey, failure.PreviousFireTimeUtc);
+                    if (failures >= MaxConsecutiveFireFailures)
+                    {
+                        (failing ??= []).Add((failure.TriggerKey, failures));
+                    }
+                }
+
+                Logger.FireBatchRolledBack(failure.TriggerKey, failure.BatchSize, failure.BatchSize - 1);
+                continue;
+            }
+
+            List<TriggerFiredResult> fired = new(attempt.Due.Count);
+            for (int i = 0; i < attempt.Due.Count; i++)
+            {
+                fired.Add(attempt.Fired[i] ?? TriggerFiredResult.Failed(failed![attempt.Due[i].Key]));
+            }
+
+            ForgetFireFailures(attempt.Due, attempt.Fired);
+
+            if (failing is not null)
+            {
+                // Only a trigger the committed attempt holds ACQUIRED can be stored ERROR from it. One that
+                // attempt did not take again — another node claimed it meanwhile — keeps its count, and its
+                // next failure here parks it.
+                failing.RemoveAll(entry => !attempt.Due.Exists(trigger => trigger.Key.Equals(entry.TriggerKey)));
+                if (failing.Count > 0)
+                {
+                    await ParkFailingTriggers(failing, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            return new TriggerAcquisitionResult
+            {
+                Due = attempt.Due,
+                Fired = fired,
+                Pending = attempt.Pending,
+            };
+        }
+    }
+
+    /// <summary>
+    /// One attempt at a round: the acquisition, then the fire of every due trigger it claimed that has not
+    /// failed in an earlier attempt, in the attempt's transaction.
+    /// </summary>
+    /// <exception cref="TriggerFireFailedException">
+    /// A fire failed for a reason a retry will not cure. The transaction wrapper rolls the attempt back,
+    /// and <see cref="AcquireNextTriggersAndFireDue" /> runs the round again with the trigger claimed but
+    /// not fired.
+    /// </exception>
+    private async ValueTask<FireOnAcquireAttempt> AcquireAndFireDue(
+        ConnectionAndTransactionHolder conn,
+        TriggerAcquisitionRequest request,
+        Dictionary<TriggerKey, Exception>? failed,
+        CancellationToken cancellationToken)
+    {
+        FireOnAcquireRound round = new(failed);
+        List<IOperableTrigger> acquired = await AcquireNextTrigger(conn, request, round, cancellationToken).ConfigureAwait(false);
+
+        List<IOperableTrigger> due = [];
+        List<IOperableTrigger> pending = [];
+        foreach (IOperableTrigger trigger in acquired)
+        {
+            // Acquisition read the clock when it claimed the first of them, so every one was claimed with
+            // the same answer to "is it due".
+            if (round.IsDue(trigger.NextFireTimeUtc!.Value))
+            {
+                due.Add(trigger);
+            }
+            else
+            {
+                pending.Add(trigger);
+            }
+        }
+
+        TriggerFiredResult?[] fired = due.Count > 0
+            ? await FireDue(conn, due, failed, cancellationToken).ConfigureAwait(false)
+            : [];
+
+        return new FireOnAcquireAttempt(due, fired, pending);
+    }
+
+    /// <summary>
+    /// Fires the due triggers of a round in its transaction, having read their headers and jobs once for
+    /// all of them.
+    /// </summary>
+    /// <returns>
+    /// A result for each trigger, index-aligned with <paramref name="due" />; <see langword="null" /> for
+    /// one that failed in an earlier attempt, which acquisition reserved and this does not fire.
+    /// </returns>
+    private async ValueTask<TriggerFiredResult?[]> FireDue(
+        ConnectionAndTransactionHolder conn,
+        List<IOperableTrigger> due,
+        Dictionary<TriggerKey, Exception>? failed,
+        CancellationToken cancellationToken)
+    {
+        List<TriggerKey> triggerKeys = new(due.Count);
+        List<JobKey> jobKeys = new(due.Count);
+        foreach (IOperableTrigger trigger in due)
+        {
+            if (failed is null || !failed.ContainsKey(trigger.Key))
+            {
+                triggerKeys.Add(trigger.Key);
+                jobKeys.Add(trigger.JobKey);
+            }
+        }
+
+        TriggerFiredResult?[] results = new TriggerFiredResult?[due.Count];
+        if (triggerKeys.Count == 0)
+        {
+            return results;
+        }
+
+        // The state and type discriminator of each, read in one statement rather than one per trigger. The
+        // state is ACQUIRED — this transaction has just claimed them under the lock — and the discriminator
+        // is what the fire's write compares the trigger's current type with.
+        List<StoredTriggerHeader> headers = await Guarded(
+            () => Delegate.SelectStoredTriggerHeaders(conn, triggerKeys, cancellationToken),
+            "select trigger states").ConfigureAwait(false);
+
+        FireOnAcquirePrefetch prefetch = new(headers, await ReadJobsToFire(conn, jobKeys, cancellationToken).ConfigureAwait(false));
+
+        // The due triggers that did not fire after all, left ACQUIRED: reserved below, as acquisition
+        // reserves the triggers it does not fire, for the scheduler to release.
+        List<IOperableTrigger>? unfired = null;
+
+        for (int i = 0; i < due.Count; i++)
+        {
+            IOperableTrigger trigger = due[i];
+            if (failed is not null && failed.ContainsKey(trigger.Key))
+            {
+                continue;
+            }
+
+            TriggerFiredResult result;
+            try
+            {
+                // A copy, so that Triggered() does not move the acquired trigger on: a rolled-back attempt
+                // leaves it as it was, and the scheduler releases the acquired instance.
+                IOperableTrigger triggerCopy = (IOperableTrigger) trigger.Clone();
+                result = await FireTrigger(conn, triggerCopy, prefetch, cancellationToken).ConfigureAwait(false);
+            }
+            catch (JobPersistenceException jpe)
+            {
+                if (IsTransient(jpe))
+                {
+                    throw; // the transaction wrapper retries the whole attempt
+                }
+
+                throw FireFailed(i, trigger, triggerKeys.Count, jpe);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A cancellation is not caught: it is the caller asking to stop, which the transaction
+                // wrapper reports as itself rather than as a trigger that failed to fire.
+                if (IsTransient(ex))
+                {
+                    throw new JobPersistenceException("Transient error firing trigger: " + ex.Message, ex);
+                }
+
+                throw FireFailed(i, trigger, triggerKeys.Count, ex);
+            }
+
+            if (result.TriggerFiredBundle is null && !result.IsDeclined && result.Exception is null)
+            {
+                (unfired ??= []).Add(trigger);
+            }
+
+            results[i] = result;
+        }
+
+        if (unfired is not null)
+        {
+            await Guarded(
+                () => Delegate.InsertFiredTriggers(conn, unfired, StoredTriggerState.Acquired, null, cancellationToken),
+                "reserve the triggers that did not fire").ConfigureAwait(false);
+        }
+
+        return results;
+
+        static TriggerFireFailedException FireFailed(int index, IOperableTrigger trigger, int batchSize, Exception failure)
+        {
+            return new TriggerFireFailedException(index, trigger.Key, failure)
+            {
+                PreviousFireTimeUtc = trigger.PreviousFireTimeUtc,
+                BatchSize = batchSize,
+            };
+        }
+    }
+
+    /// <summary>
+    /// Reads the jobs a round's triggers fire in one statement, or answers <see langword="null" /> for
+    /// each fire to read its own when the batch did not read.
+    /// </summary>
+    /// <remarks>
+    /// A job whose stored data will not read fails the read of every job beside it. Read on its own, as the
+    /// fire of an acquired trigger reads it, it fails that trigger alone, which is stored <c>ERROR</c> as it
+    /// always has been — so a failure here falls back to that rather than failing the round. A transient
+    /// failure is the transaction wrapper's to retry, and a cancellation is the caller's.
+    /// </remarks>
+    private async ValueTask<Dictionary<JobKey, IJobDetail>?> ReadJobsToFire(
+        ConnectionAndTransactionHolder conn,
+        List<JobKey> jobKeys,
+        CancellationToken cancellationToken)
+    {
+        List<IJobDetail> jobs;
+        try
+        {
+            jobs = await Delegate.SelectJobDetails(conn, jobKeys, TypeLoader, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException && !IsTransient(e))
+        {
+            return null;
+        }
+
+        Dictionary<JobKey, IJobDetail> byKey = new(jobs.Count);
+        foreach (IJobDetail job in jobs)
+        {
+            byKey[job.Key] = job;
+        }
+
+        return byKey;
+    }
+
+    /// <summary>
+    /// Asked when an attempt's commit reported a failure: whether the attempt landed anyway, which it did
+    /// when any row it wrote for the triggers it acquired is there.
+    /// </summary>
+    private ValueTask<bool> ValidateAcquiredAndFired(
+        ConnectionAndTransactionHolder conn,
+        FireOnAcquireAttempt attempt,
+        CancellationToken cancellationToken)
+    {
+        return Guarded(
+            async () =>
+            {
+                List<FiredTriggerRecord> records = await Delegate
+                    .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
+                    .ConfigureAwait(false);
+
+                HashSet<string> written = new(StringComparer.Ordinal);
+                foreach (FiredTriggerRecord record in records)
+                {
+                    written.Add(record.FireInstanceId);
+                }
+
+                return attempt.Due.Exists(trigger => written.Contains(trigger.FireInstanceId!))
+                       || attempt.Pending.Exists(trigger => written.Contains(trigger.FireInstanceId!));
+            },
+            "validate trigger acquisition");
+    }
+
+    /// <summary>
+    /// What one attempt at a fire-on-acquire round decides its triggers by.
+    /// </summary>
+    private sealed class FireOnAcquireRound(Dictionary<TriggerKey, Exception>? failed)
+    {
+        /// <summary>
+        /// The store's clock when the attempt claimed its first trigger. A trigger due at or before it is
+        /// due in this attempt.
+        /// </summary>
+        private DateTimeOffset? now;
+
+        /// <summary>
+        /// Whether the trigger just claimed is fired in this attempt, and so gets no reservation row: it is
+        /// due, and its fire has not failed in an earlier attempt.
+        /// </summary>
+        public bool FiresOnAcquire(TriggerKey triggerKey, DateTimeOffset nextFireTimeUtc, TimeProvider clock)
+        {
+            // Read once, when there is a trigger to decide about: a reading taken before the candidates were
+            // read would leave the triggers that came due while they were read waiting for a second
+            // transaction.
+            now ??= clock.GetUtcNow();
+            return nextFireTimeUtc <= now.Value && (failed is null || !failed.ContainsKey(triggerKey));
+        }
+
+        /// <summary>
+        /// Whether a trigger this attempt claimed is due in it.
+        /// </summary>
+        public bool IsDue(DateTimeOffset nextFireTimeUtc) => now is { } reading && nextFireTimeUtc <= reading;
+    }
+
+    /// <summary>
+    /// The headers and jobs a fire-on-acquire round read for all of its due triggers.
+    /// </summary>
+    private sealed class FireOnAcquirePrefetch
+    {
+        private readonly Dictionary<TriggerKey, StoredTriggerHeader> headers;
+
+        /// <summary>
+        /// The job keys already handed to a fire in this round, whose next fire gets a copy.
+        /// </summary>
+        private HashSet<JobKey>? handedOut;
+
+        public FireOnAcquirePrefetch(List<StoredTriggerHeader> headers, Dictionary<JobKey, IJobDetail>? jobs)
+        {
+            this.headers = new Dictionary<TriggerKey, StoredTriggerHeader>(headers.Count);
+            foreach (StoredTriggerHeader header in headers)
+            {
+                this.headers[header.Key] = header;
+            }
+
+            Jobs = jobs;
+        }
+
+        /// <summary>
+        /// The round's jobs by key, or <see langword="null" /> when each fire reads its own.
+        /// </summary>
+        public Dictionary<JobKey, IJobDetail>? Jobs { get; }
+
+        public StoredTriggerHeader? Header(TriggerKey triggerKey) => headers.GetValueOrDefault(triggerKey);
+
+        /// <summary>
+        /// The job a fire runs, or <see langword="null" /> when there is none. Two fires of one job in a
+        /// round each get an instance of their own, as reading it once per fire gave them: the job's data
+        /// map belongs to the firing that runs it.
+        /// </summary>
+        public IJobDetail? TakeJob(JobKey jobKey)
+        {
+            if (Jobs is null || !Jobs.TryGetValue(jobKey, out IJobDetail? job))
+            {
+                return null;
+            }
+
+            handedOut ??= [];
+            return handedOut.Add(jobKey) ? job : job.Clone();
+        }
+    }
+
+    /// <summary>
+    /// What one attempt at a fire-on-acquire round did: the due triggers with a result for each —
+    /// <see langword="null" /> for one reserved but not fired — and the triggers left pending.
+    /// </summary>
+    private sealed record FireOnAcquireAttempt(
+        List<IOperableTrigger> Due,
+        TriggerFiredResult?[] Fired,
+        List<IOperableTrigger> Pending);
+}

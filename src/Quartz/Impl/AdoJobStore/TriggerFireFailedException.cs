@@ -55,4 +55,17 @@ internal sealed class TriggerFireFailedException : JobPersistenceException
     /// The trigger whose fire failed.
     /// </summary>
     public TriggerKey TriggerKey { get; }
+
+    /// <summary>
+    /// The failed trigger's previous fire time as it was acquired, which the failure is counted against.
+    /// Set by a round that acquires and fires in one transaction, whose rollback takes the acquired
+    /// trigger with it; <c>TriggersFired</c> still holds the trigger it was handed.
+    /// </summary>
+    public DateTimeOffset? PreviousFireTimeUtc { get; init; }
+
+    /// <summary>
+    /// How many triggers the rolled-back attempt was firing, for the log line. Set by a round that
+    /// acquires and fires in one transaction, as <see cref="PreviousFireTimeUtc" /> is.
+    /// </summary>
+    public int BatchSize { get; init; }
 }

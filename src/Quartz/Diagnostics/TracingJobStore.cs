@@ -645,6 +645,22 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.AcquireNextTriggers(s.request, s.cancellationToken));
     }
 
+    // Forwarded to the inner store rather than answered through AcquireNextTriggers as the base class
+    // answers it: this decorator adds a span and nothing else, so the store it wraps fires what is due as
+    // it acquires it, or does not, exactly as it would unwrapped.
+    public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.AcquireNextTriggersAndFireDue);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.AcquireNextTriggersAndFireDue(request, cancellationToken);
+        }
+
+        operation.Tag(ActivityTags.BatchSize, request.MaxCount);
+        return CompleteAcquisitionAndFire(operation, (InnerJobStore, request, cancellationToken),
+            static s => s.InnerJobStore.AcquireNextTriggersAndFireDue(s.request, s.cancellationToken));
+    }
+
     public override ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.TriggersFired);
@@ -777,6 +793,35 @@ internal sealed class TracingJobStore : DelegatingJobStore
             // How many of the batch size the store could actually fill, which is the number that says
             // whether a scheduler is idle or starved.
             operation.Tag(ActivityTags.TriggerCount, acquired.Count);
+            return acquired;
+        }
+        catch (Exception e)
+        {
+            failure = e;
+            throw;
+        }
+        finally
+        {
+            operation.Stop(failure);
+        }
+    }
+
+    /// <inheritdoc cref="CompleteAcquisition{TState}" />
+    private static async ValueTask<TriggerAcquisitionResult> CompleteAcquisitionAndFire<TState>(
+        StoreOperation operation,
+        TState state,
+        Func<TState, ValueTask<TriggerAcquisitionResult>> call)
+    {
+        operation.Start();
+
+        Exception? failure = null;
+        try
+        {
+            TriggerAcquisitionResult acquired = await call(state).ConfigureAwait(false);
+
+            // Everything acquired, fired or pending: the same fill of the batch size the acquisition
+            // span reports.
+            operation.Tag(ActivityTags.TriggerCount, acquired.Due.Count + acquired.Pending.Count);
             return acquired;
         }
         catch (Exception e)

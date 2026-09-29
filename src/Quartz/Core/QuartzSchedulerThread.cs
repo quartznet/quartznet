@@ -473,6 +473,7 @@ internal sealed class QuartzSchedulerThread
                 if (availThreadCount > 0)
                 {
                     List<IOperableTrigger> triggers;
+                    TriggerAcquisitionResult acquisition;
 
                     now = qsRsrcs.TimeProvider.GetUtcNow();
 
@@ -502,13 +503,22 @@ internal sealed class QuartzSchedulerThread
                         bool measureAcquisition = qsRsrcs.Meters.TriggerAcquisitionEnabled;
                         long acquisitionStarted = measureAcquisition ? qsRsrcs.TimeProvider.GetTimestamp() : 0;
 
+                        // What is due already comes back fired, in the store's one round trip, and only
+                        // what is due later comes back pending, to be waited for and fired below (#3864).
+                        // A store that does not fire on acquisition answers everything pending, which is
+                        // what the loop has always done with an acquisition.
+                        acquisition = await qsRsrcs.JobStore.AcquireNextTriggersAndFireDue(request, CancellationToken.None).ConfigureAwait(false);
+
                         // Copied on purpose, and IJobStore.AcquireNextTriggers says so: this loop removes
                         // entries below while it waits out the first trigger's fire time, and the store is
                         // allowed to hand back a list it still holds. The copy is around ten nanoseconds
                         // and sixty-four bytes per attempt, measured in AcquiredTriggerHandoffBenchmark,
                         // which is nothing beside the round trip a persistent store just made — and far
                         // less than a caller-owns rule would cost the stores nobody here can see (#3344).
-                        triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(request, CancellationToken.None).ConfigureAwait(false));
+                        // An empty list is never edited, so there is nothing to copy.
+                        List<IOperableTrigger> pending = acquisition.Pending;
+                        triggers = pending.Count > 0 ? new List<IOperableTrigger>(pending) : pending;
+                        int acquired = acquisition.Due.Count + triggers.Count;
 
                         if (measureAcquisition)
                         {
@@ -519,14 +529,14 @@ internal sealed class QuartzSchedulerThread
                             qsRsrcs.Meters.TriggersAcquired(
                                 qsRsrcs.Name,
                                 qsRsrcs.InstanceId,
-                                triggers.Count,
+                                acquired,
                                 qsRsrcs.TimeProvider.GetElapsedTime(acquisitionStarted));
                         }
 
                         acquiresFailed = 0;
                         if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            logger.TriggerBatchAcquired(triggers.Count);
+                            logger.TriggerBatchAcquired(acquired);
                         }
                     }
                     catch (JobPersistenceException jpe)
@@ -563,7 +573,17 @@ internal sealed class QuartzSchedulerThread
                         continue;
                     }
 
-                    if (triggers is not null && triggers.Count > 0)
+                    if (acquisition.Due.Count > 0)
+                    {
+                        // Fired by the store as it acquired them, so they run now, ahead of any wait for
+                        // what is pending: the store has committed them, and a firing it committed is
+                        // never one nobody runs (#3746). The pending ones are still this round's to fire,
+                        // so an unexpected failure while dispatching releases them.
+                        unfired = triggers.Count > 0 ? triggers : null;
+                        await DispatchFiredTriggers(acquisition.Due, acquisition.Fired).ConfigureAwait(false);
+                    }
+
+                    if (triggers.Count > 0)
                     {
                         unfired = triggers;
                         now = qsRsrcs.TimeProvider.GetUtcNow();
@@ -670,137 +690,15 @@ internal sealed class QuartzSchedulerThread
                             continue;
                         }
 
-                        for (int i = 0; i < bundles.Count; i++)
-                        {
-                            TriggerFiredResult result = bundles[i];
-                            var bndle = result.TriggerFiredBundle;
-                            var exception = result.Exception;
+                        await DispatchFiredTriggers(triggers, bundles).ConfigureAwait(false);
 
-                            IOperableTrigger trigger = triggers[i];
-                            // TODO SQL exception?
-                            if (exception is not null && (exception is DbException || exception.InnerException is DbException))
-                            {
-                                logger.TriggerFireFailedWithDbException(trigger, exception);
-                                await SafeReleaseAcquiredTrigger(trigger, "after DbException").ConfigureAwait(false);
-                                continue;
-                            }
+                        continue; // while (!halted)
+                    }
 
-                            // it's possible to get 'null' if the triggers was paused,
-                            // blocked, or other similar occurrences that prevent it being
-                            // fired at this time...  or if the scheduler was shutdown (halted)
-                            if (bndle is null)
-                            {
-                                // A firing its overlap policy declined is one the store has settled
-                                // already - skipped past, or held behind the running firing - and a
-                                // release would undo that.
-                                if (!result.IsDeclined)
-                                {
-                                    await SafeReleaseAcquiredTrigger(trigger, "for null fired bundle").ConfigureAwait(false);
-                                }
-
-                                continue;
-                            }
-
-                            // CancelPrevious: the store has recorded this fire, so the firings it
-                            // replaces are interrupted before it runs. Only ever this node's own.
-                            if (bndle.SupersededFireInstanceIds is { Count: > 0 } superseded)
-                            {
-                                await InterruptSuperseded(bndle.Trigger.Key, superseded).ConfigureAwait(false);
-                            }
-
-                            // TODO: improvements:
-                            //
-                            // 2- make sure we can get a job runshell before firing trigger, or
-                            //   don't let that throw an exception (right now it never does,
-                            //   but the signature says it can).
-                            // 3- acquire more triggers at a time (based on num threads available?)
-
-                            JobRunShell shell;
-                            try
-                            {
-                                shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
-                                await shell.Initialize(qs, CancellationToken.None).ConfigureAwait(false);
-                            }
-                            catch (SchedulerException se)
-                            {
-                                if (se.InnerException is ObjectDisposedException or OperationCanceledException || cancellationTokenSource.Token.IsCancellationRequested)
-                                {
-                                    // the scheduler is being stopped, so we can't run the job
-                                    // use TriggeredJobComplete to properly unblock other triggers
-                                    // for DisallowConcurrentExecution jobs (TriggersFired already ran).
-                                    // The bundle's trigger rather than the acquired one, here and in the
-                                    // three completions below: it is the copy the firing advanced — which
-                                    // the run shell also completes with — and its fire time is how the
-                                    // store tells an abandoned firing of a spent trigger from one of a
-                                    // trigger that will fire again (#3507). The in-memory store advances
-                                    // the acquired instance itself, so only the ADO store can tell the
-                                    // two copies apart, and only it was left with the leftover.
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
-                                }
-                                else
-                                {
-                                    // we consider this a serious error and expect that job instantiation will never succeed in the future either
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
-                                }
-
-                                continue;
-                            }
-
-                            // Resolved the same way the stores resolve it when they filter, derivation
-                            // included: a ledger keyed differently from the filter would subtract from
-                            // one bucket what the filter had allowed out of another.
-                            string normalizedGroup = ExecutionLimits.ResolveGroupKey(
-                                trigger.ExecutionGroup,
-                                trigger.Key.Group,
-                                qs.GetExecutionLimits()?.UsesTriggerGroupWhenUnset == true);
-
-                            // Always track counts so that limits enabled at runtime
-                            // will see accurate in-flight counts immediately
-                            runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 1, (_, c) => c + 1);
-
-                            // Counted the same way, and for the shutdown's benefit: a firing is in flight
-                            // from here until the run shell's last act, the job store update that
-                            // completes it. A shutdown that is not waiting for its jobs still gives these
-                            // a moment to land, because the store refuses a completion once it has closed.
-                            qs.ExecutionDispatched();
-
-                            // The shell gives the two counts above back in its own finally, rather than
-                            // this loop wrapping the call to it in a lambda that does — which cost a
-                            // closure, a delegate and a state machine on every firing (#3802).
-                            shell.DispatchedBy(this, normalizedGroup);
-
-                            // Deliberately not this thread's token: TriggersFired has already committed
-                            // this firing to the job store and advanced the trigger, so refusing to dispatch
-                            // now loses the occurrence entirely. Only the pool's own shutdown may say no —
-                            // and a shutdown stops this loop before it closes the pool, so that a firing
-                            // this thread has already committed is never one nobody runs (#3746).
-                            var threadPoolRunResult = await qsRsrcs.ThreadPool
-                                .TryRunWithState(runJobRunShell, shell, CancellationToken.None).ConfigureAwait(false);
-                            if (!threadPoolRunResult)
-                            {
-                                // The shell never ran - decrement the counts we pre-incremented
-                                DecrementExecutionGroupCount(normalizedGroup);
-                                qs.ExecutionSettled();
-
-                                // Check if the scheduler is being shutdown
-                                if (halted || cancellationTokenSource.Token.IsCancellationRequested)
-                                {
-                                    // Scheduler is shutting down, complete the trigger gracefully
-                                    // Use TriggeredJobComplete to properly unblock other triggers
-                                    // for DisallowConcurrentExecution jobs (TriggersFired already ran)
-                                    logger.ThreadPoolRefusedWorkDuringShutdown();
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
-                                }
-                                else
-                                {
-                                    // this case should never happen, as it is indicative of a bug in the thread pool or
-                                    // a thread pool being used concurrently - which the docs say not to do...
-                                    logger.ThreadPoolRefusedWork();
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
-                                }
-                            }
-                        }
-
+                    // A round that fired everything it acquired goes straight back for more, as one that
+                    // fired a batch after waiting for it does.
+                    if (acquisition.Due.Count > 0)
+                    {
                         continue; // while (!halted)
                     }
                 }
@@ -919,6 +817,146 @@ internal sealed class QuartzSchedulerThread
         }
 
         return signal.WaitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Hands each fired trigger of a batch to the thread pool, and releases each that did not fire.
+    /// </summary>
+    /// <param name="triggers">The acquired triggers the store fired, in the order it answered for them.</param>
+    /// <param name="results">What became of each, at the same index: <see cref="IJobStore.TriggersFired" />'s
+    /// answer, or the fired part of <see cref="IJobStore.AcquireNextTriggersAndFireDue" />'s.</param>
+    private async Task DispatchFiredTriggers(List<IOperableTrigger> triggers, List<TriggerFiredResult> results)
+    {
+        for (int i = 0; i < results.Count; i++)
+        {
+            TriggerFiredResult result = results[i];
+            var bndle = result.TriggerFiredBundle;
+            var exception = result.Exception;
+
+            IOperableTrigger trigger = triggers[i];
+            // TODO SQL exception?
+            if (exception is not null && (exception is DbException || exception.InnerException is DbException))
+            {
+                logger.TriggerFireFailedWithDbException(trigger, exception);
+                await SafeReleaseAcquiredTrigger(trigger, "after DbException").ConfigureAwait(false);
+                continue;
+            }
+
+            // it's possible to get 'null' if the triggers was paused,
+            // blocked, or other similar occurrences that prevent it being
+            // fired at this time...  or if the scheduler was shutdown (halted)
+            if (bndle is null)
+            {
+                // A firing its overlap policy declined is one the store has settled
+                // already - skipped past, or held behind the running firing - and a
+                // release would undo that.
+                if (!result.IsDeclined)
+                {
+                    await SafeReleaseAcquiredTrigger(trigger, "for null fired bundle").ConfigureAwait(false);
+                }
+
+                continue;
+            }
+
+            // CancelPrevious: the store has recorded this fire, so the firings it
+            // replaces are interrupted before it runs. Only ever this node's own.
+            if (bndle.SupersededFireInstanceIds is { Count: > 0 } superseded)
+            {
+                await InterruptSuperseded(bndle.Trigger.Key, superseded).ConfigureAwait(false);
+            }
+
+            // TODO: improvements:
+            //
+            // 2- make sure we can get a job runshell before firing trigger, or
+            //   don't let that throw an exception (right now it never does,
+            //   but the signature says it can).
+            // 3- acquire more triggers at a time (based on num threads available?)
+
+            JobRunShell shell;
+            try
+            {
+                shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
+                await shell.Initialize(qs, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (SchedulerException se)
+            {
+                if (se.InnerException is ObjectDisposedException or OperationCanceledException || cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    // the scheduler is being stopped, so we can't run the job
+                    // use TriggeredJobComplete to properly unblock other triggers
+                    // for DisallowConcurrentExecution jobs (TriggersFired already ran).
+                    // The bundle's trigger rather than the acquired one, here and in the
+                    // three completions below: it is the copy the firing advanced — which
+                    // the run shell also completes with — and its fire time is how the
+                    // store tells an abandoned firing of a spent trigger from one of a
+                    // trigger that will fire again (#3507). The in-memory store advances
+                    // the acquired instance itself, so only the ADO store can tell the
+                    // two copies apart, and only it was left with the leftover.
+                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    // we consider this a serious error and expect that job instantiation will never succeed in the future either
+                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                }
+
+                continue;
+            }
+
+            // Resolved the same way the stores resolve it when they filter, derivation
+            // included: a ledger keyed differently from the filter would subtract from
+            // one bucket what the filter had allowed out of another.
+            string normalizedGroup = ExecutionLimits.ResolveGroupKey(
+                trigger.ExecutionGroup,
+                trigger.Key.Group,
+                qs.GetExecutionLimits()?.UsesTriggerGroupWhenUnset == true);
+
+            // Always track counts so that limits enabled at runtime
+            // will see accurate in-flight counts immediately
+            runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 1, (_, c) => c + 1);
+
+            // Counted the same way, and for the shutdown's benefit: a firing is in flight
+            // from here until the run shell's last act, the job store update that
+            // completes it. A shutdown that is not waiting for its jobs still gives these
+            // a moment to land, because the store refuses a completion once it has closed.
+            qs.ExecutionDispatched();
+
+            // The shell gives the two counts above back in its own finally, rather than
+            // this loop wrapping the call to it in a lambda that does — which cost a
+            // closure, a delegate and a state machine on every firing (#3802).
+            shell.DispatchedBy(this, normalizedGroup);
+
+            // Deliberately not this thread's token: TriggersFired has already committed
+            // this firing to the job store and advanced the trigger, so refusing to dispatch
+            // now loses the occurrence entirely. Only the pool's own shutdown may say no —
+            // and a shutdown stops this loop before it closes the pool, so that a firing
+            // this thread has already committed is never one nobody runs (#3746).
+            var threadPoolRunResult = await qsRsrcs.ThreadPool
+                .TryRunWithState(runJobRunShell, shell, CancellationToken.None).ConfigureAwait(false);
+            if (!threadPoolRunResult)
+            {
+                // The shell never ran - decrement the counts we pre-incremented
+                DecrementExecutionGroupCount(normalizedGroup);
+                qs.ExecutionSettled();
+
+                // Check if the scheduler is being shutdown
+                if (halted || cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    // Scheduler is shutting down, complete the trigger gracefully
+                    // Use TriggeredJobComplete to properly unblock other triggers
+                    // for DisallowConcurrentExecution jobs (TriggersFired already ran)
+                    logger.ThreadPoolRefusedWorkDuringShutdown();
+                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    // this case should never happen, as it is indicative of a bug in the thread pool or
+                    // a thread pool being used concurrently - which the docs say not to do...
+                    logger.ThreadPoolRefusedWork();
+                    await qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+        }
     }
 
     private static readonly TimeSpan minDelay = TimeSpan.FromMilliseconds(20);
