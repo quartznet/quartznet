@@ -184,7 +184,7 @@
                             }
                             @foreach (KeyValuePair<string, string> metric in RunResultDisplay.Metrics(entry.MetricsJson))
                             {
-                                <span class="qz-metric-chip">@metric.Key: @metric.Value</span>
+                                <span class="qz-metric-chip" title="@(metric.Key + ": " + metric.Value)">@metric.Key: @metric.Value</span>
                             }
                         </td>
                         <td>@entry.ExceptionMessage</td>
