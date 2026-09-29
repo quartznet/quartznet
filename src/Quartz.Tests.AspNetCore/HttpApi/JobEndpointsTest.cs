@@ -593,15 +593,16 @@ public class JobEndpointsTest : WebApiTest
     }
 
     [Test]
-    public void AddJobShouldRejectMalformedJobType()
+    public async Task AddJobShouldRejectMalformedJobType()
     {
         // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
         IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
             .OfType((JobType) " ")
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.AddJob(jobDetailWithEmptyType).AsTask())!
-            .Message.Should().ContainEquivalentOf("malformed job type");
+        Func<Task> act = () => HttpScheduler.AddJob(jobDetailWithEmptyType).AsTask();
+        (await act.Should().ThrowExactlyAsync<HttpClientException>())
+            .Which.Message.Should().ContainEquivalentOf("malformed job type");
 
         A.CallTo(() => FakeScheduler.AddJob(A<IJobDetail>._, A<AddJobOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
     }

@@ -69,7 +69,9 @@ public class XmlSchedulingDataProcessorPluginTest
         await dataProcessor.Start();
 
         dataProcessor.FailOnSchedulingError = true;
-        Assert.ThrowsAsync<SchedulerException>(async () => await dataProcessor.Start());
+        Func<Task> act = async () => await dataProcessor.Start();
+        await act.Should().ThrowExactlyAsync<SchedulerException>(
+            "with FailOnSchedulingError set, a job type the file names but nothing resolves fails the start");
     }
 
     [Test]
@@ -91,11 +93,12 @@ public class XmlSchedulingDataProcessorPluginTest
         await dataProcessor.Initialize("testPlugin", mockScheduler);
 
         // Act & Assert
-        var exception = Assert.ThrowsAsync<SchedulerException>(async () => await dataProcessor.Start());
+        Func<Task> act = async () => await dataProcessor.Start();
+        SchedulerException exception = (await act.Should().ThrowExactlyAsync<SchedulerException>()).Which;
 
         // Verify that the error message contains helpful context
-        Assert.That(exception!.Message, Does.Contain("Could not schedule jobs and triggers from file"));
-        Assert.That(exception.Message, Does.Contain("InvalidCronExpression.xml"));
+        exception.Message.Should().Contain("Could not schedule jobs and triggers from file");
+        exception.Message.Should().Contain("InvalidCronExpression.xml", "the message names the file that failed");
 
         // Verify that SchedulerListener.SchedulerError was called
         A.CallTo(() => mockSchedulerListener.SchedulerError(

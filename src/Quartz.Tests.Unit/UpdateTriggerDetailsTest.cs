@@ -154,8 +154,10 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger);
 
-        Assert.ThrowsAsync<JobPersistenceException>(async () =>
-            await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithCalendarName("nonexistent")));
+        Func<Task> act = async () =>
+            await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithCalendarName("nonexistent"));
+        await act.Should().ThrowExactlyAsync<JobPersistenceException>(
+            "the update names a calendar the store does not hold");
     }
 
     [Test]

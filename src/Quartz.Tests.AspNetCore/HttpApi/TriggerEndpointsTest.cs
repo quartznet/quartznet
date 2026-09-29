@@ -529,15 +529,16 @@ public class TriggerEndpointsTest : WebApiTest
     }
 
     [Test]
-    public void ScheduleJobShouldRejectMalformedJobType()
+    public async Task ScheduleJobShouldRejectMalformedJobType()
     {
         // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
         IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
             .OfType((JobType) " ")
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailWithEmptyType, TestData.SimpleTrigger).AsTask())!
-            .Message.Should().ContainEquivalentOf("malformed job type");
+        Func<Task> act = () => HttpScheduler.ScheduleJob(jobDetailWithEmptyType, TestData.SimpleTrigger).AsTask();
+        (await act.Should().ThrowExactlyAsync<HttpClientException>())
+            .Which.Message.Should().ContainEquivalentOf("malformed job type");
 
         A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
@@ -609,7 +610,7 @@ public class TriggerEndpointsTest : WebApiTest
     }
 
     [Test]
-    public void ScheduleJobsShouldRejectMalformedJobType()
+    public async Task ScheduleJobsShouldRejectMalformedJobType()
     {
         // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
         IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
@@ -617,8 +618,9 @@ public class TriggerEndpointsTest : WebApiTest
             .Build();
 
         Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> request = new() { { jobDetailWithEmptyType, [TestData.CronTrigger] } };
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJobs(request, new ScheduleJobOptions { Replace = true }).AsTask())!
-            .Message.Should().ContainEquivalentOf("malformed job type");
+        Func<Task> act = () => HttpScheduler.ScheduleJobs(request, new ScheduleJobOptions { Replace = true }).AsTask();
+        (await act.Should().ThrowExactlyAsync<HttpClientException>())
+            .Which.Message.Should().ContainEquivalentOf("malformed job type");
 
         A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
     }

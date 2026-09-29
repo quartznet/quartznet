@@ -11,13 +11,15 @@ namespace Quartz.Tests.AspNetCore.HttpApi;
 public class CommonEndpointTest : WebApiTest
 {
     [Test]
-    public void HttpSchedulerShouldThrowIfSchedulerIsNotFound()
+    public async Task HttpSchedulerShouldThrowIfSchedulerIsNotFound()
     {
         var nonExistingHttpScheduler = new HttpScheduler(TestData.SchedulerName + "_non_existing", WebApplicationFactory.CreateClient());
-        Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetMetadata().AsTask())!.Message.Should().ContainEquivalentOf("Scheduler not found");
+        Func<Task> getMetadata = () => nonExistingHttpScheduler.GetMetadata().AsTask();
+        (await getMetadata.Should().ThrowExactlyAsync<HttpClientException>()).Which.Message.Should().ContainEquivalentOf("Scheduler not found");
 
         // Getting non existing job returns null, but should throw if scheduler is not found
-        Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetJobDetail(new JobKey("non", "existing")).AsTask())!.Message.Should().ContainEquivalentOf("Scheduler not found");
+        Func<Task> getJobDetail = () => nonExistingHttpScheduler.GetJobDetail(new JobKey("non", "existing")).AsTask();
+        (await getJobDetail.Should().ThrowExactlyAsync<HttpClientException>()).Which.Message.Should().ContainEquivalentOf("Scheduler not found");
     }
 
     /// <summary>
@@ -85,21 +87,27 @@ public class CommonEndpointTest : WebApiTest
     }
 
     [Test]
-    public void ShouldPropagateSchedulerExceptions()
+    public async Task ShouldPropagateSchedulerExceptions()
     {
         A.CallTo(() => FakeScheduler.Start(A<CancellationToken>._)).Throws(_ => new SchedulerException("Test exception"));
         A.CallTo(() => FakeScheduler.Standby(A<CancellationToken>._)).Throws(_ => new JobExecutionException("Second test exception"));
 
-        Assert.ThrowsAsync<SchedulerException>(() => HttpScheduler.Start().AsTask())!.Message.Should().ContainEquivalentOf("Test exception");
-        Assert.ThrowsAsync<JobExecutionException>(() => HttpScheduler.Standby().AsTask())!.Message.Should().ContainEquivalentOf("Second test exception");
+        Func<Task> start = () => HttpScheduler.Start().AsTask();
+        (await start.Should().ThrowExactlyAsync<SchedulerException>()).Which.Message.Should().ContainEquivalentOf("Test exception");
+
+        Func<Task> standby = () => HttpScheduler.Standby().AsTask();
+        (await standby.Should().ThrowExactlyAsync<JobExecutionException>(
+            "the client rethrows the derived type the server named, not the SchedulerException it derives from"))
+            .Which.Message.Should().ContainEquivalentOf("Second test exception");
     }
 
     [Test]
-    public void ShouldNotPropagateNonSchedulerExceptions()
+    public async Task ShouldNotPropagateNonSchedulerExceptions()
     {
         A.CallTo(() => FakeScheduler.PauseAll(A<CancellationToken>._)).Throws(_ => new InvalidOperationException("Non scheduler exception"));
 
-        string message = Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.PauseAll().AsTask())!.Message;
+        Func<Task> pauseAll = () => HttpScheduler.PauseAll().AsTask();
+        string message = (await pauseAll.Should().ThrowExactlyAsync<HttpClientException>()).Which.Message;
 
         message.Should().NotContainEquivalentOf("Non scheduler exception",
             "a 500 is a fault the caller cannot act on, and the message behind one names the server, the "
