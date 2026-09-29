@@ -794,6 +794,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             ["quartz.jobStore.misfireHandlerFrequency"] = "5000",
             ["quartz.jobStore.maxTransientRetries"] = "10",
             ["quartz.jobStore.makeThreadsDaemons"] = "true",
+            ["quartz.jobStore.maxConsecutiveFireFailures"] = "0",
         });
 
         using var provider = services.BuildServiceProvider();
@@ -802,6 +803,27 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         options.MisfireHandlerFrequency.Should().Be(TimeSpan.FromSeconds(5));
         options.MaxTransientRetries.Should().Be(10);
         options.UseBackgroundThreads.Should().BeTrue();
+        options.MaxConsecutiveFireFailures.Should().Be(0, "zero is how a flat configuration keeps 4.3's behaviour, so it must not read as unset");
+    }
+
+    /// <summary>
+    /// The typed spelling of the same setting, from a <c>JobStore</c> section.
+    /// </summary>
+    [Test]
+    public void MaxConsecutiveFireFailuresBindsFromTheJobStoreSection()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            Section(new Dictionary<string, string?>
+            {
+                ["JobStore:DataSource"] = "test",
+                ["JobStore:MaxConsecutiveFireFailures"] = "3",
+            }),
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.MaxConsecutiveFireFailures.Should().Be(3);
     }
 
     /// <summary>

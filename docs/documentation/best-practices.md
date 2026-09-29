@@ -767,7 +767,7 @@ As read from `QRTZ_TRIGGERS`:
 | `ACQUIRED` | A node has reserved it to fire. Stuck here: that node stopped between reserving and firing. |
 | `BLOCKED` | Another execution of the same `[DisallowConcurrentExecution]` job is running. |
 | `PAUSED` / `PAUSED_BLOCKED` | Paused through the API or a group matcher. |
-| `ERROR` | The job could not be **built**. |
+| `ERROR` | The job could not be **built**. From 4.3.1, also a trigger whose fire failed five times in a row. |
 | `COMPLETE` | Nothing left to fire. |
 
 Two states are often misdiagnosed:
@@ -777,7 +777,9 @@ Two states are often misdiagnosed:
 - **`ERROR`** means the job's constructor threw, the container could not resolve it, or the store
   could not read the job detail. A job body that throws does *not* land here; that is an ordinary
   completed firing. Because it is a composition-root failure, an integration test that resolves the
-  job usually reproduces it.
+  job usually reproduces it. From 4.3.1, a persistent store also parks a trigger whose *fire* the database
+  refused five times in a row: see
+  [A trigger that fails to fire](quartz-4.x/operations.md#a-trigger-that-fails-to-fire).
 
 Reset a trigger with `IScheduler.ResetTriggerFromErrorState(triggerKey)` on both versions; 4.x adds
 an overload taking a set of keys. See

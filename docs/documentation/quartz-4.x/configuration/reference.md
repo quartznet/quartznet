@@ -183,6 +183,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `TransientRetryInterval` | TimeSpan | `00:00:01` | Delay between transient retries. |
 | `RetryableActionErrorLogThreshold` | int | `4` | Consecutive failures before they are logged as errors. |
 | `IsTransient` | `Func<Exception, bool>?` | `null` | Extra transient test for a driver the built-in list misses. Code only. See below. |
+| `MaxConsecutiveFireFailures` | int | `5` | Failed fires in a row after which a trigger is stored `ERROR`. `0`: never. See below. |
 | `UseDbLocks` | bool | `false` | Uses database row locks. Required for clustering, and implied by `UseClustering()`. |
 | `LockOnInsert` | bool | `true` | Takes a lock when inserting rows. |
 | `AcquireTriggersWithinLock` | bool | `false` | Acquires triggers inside the database lock. |
@@ -212,6 +213,14 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 - **`IsTransient`**: consulted first and only additive — `false` falls through to the built-in list, so
   it cannot stop a retry Quartz already makes. It receives the store's own exception; reach the driver's
   with `GetBaseException()`. There is no `quartz.*` key for a delegate.
+- **`MaxConsecutiveFireFailures`**: counts fires that fail for a reason a retry will not cure, such as a
+  constraint violation. The trigger is stored `ERROR`, listeners hear `TriggerInError`, and event **3050**
+  is logged. See [A trigger that fails to fire](../operations.md#a-trigger-that-fails-to-fire).
+  - Not counted: a transient failure, a failure of the whole batch, a failed acquisition. A database
+    outage fails acquisition first, so it parks nothing.
+  - A fire that commits, on any node, starts the count again.
+  - Each node counts alone, so a cluster may try a trigger this many times per node.
+  - A failure that is really transient belongs in `IsTransient`, which retries it instead.
 - **`TransactionIsolationLevel`**: the `ReadCommitted` default is Quartz's, not the provider's (providers
   vary). Forced to `Serializable` on SQLite. Ignored for a connection the application enlisted, which
   runs at the application's level.
@@ -886,6 +895,7 @@ above and produces the same result.
 | `quartz.jobStore.dbRetryInterval` | `JobStore:DbRetryInterval` |
 | `quartz.jobStore.commandTimeout` | `JobStore:CommandTimeout` — added in 3.22, in milliseconds; `0` means the provider's default, i.e. the option left unset |
 | `quartz.jobStore.retryableActionErrorLogThreshold` | `JobStore:RetryableActionErrorLogThreshold` |
+| `quartz.jobStore.maxConsecutiveFireFailures` | `JobStore:MaxConsecutiveFireFailures` |
 | `quartz.jobStore.dataSource` | set by the database methods |
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |
 | `quartz.dataSource.NAME.connectionString` | `DataSource:NAME:ConnectionString` |

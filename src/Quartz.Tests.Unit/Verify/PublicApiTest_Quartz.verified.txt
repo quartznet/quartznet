@@ -33,6 +33,7 @@ namespace Quartz
         public System.Func<System.Exception, bool>? IsTransient { get; set; }
         public bool LockOnInsert { get; set; }
         public System.TimeSpan? LockWaitWarningThreshold { get; set; }
+        public int MaxConsecutiveFireFailures { get; set; }
         public int MaxMisfiresToHandleAtATime { get; set; }
         public int MaxTransientRetries { get; set; }
         public System.TimeSpan? MisfireHandlerFrequency { get; set; }
