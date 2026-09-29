@@ -169,43 +169,14 @@ public class UpgradeRehearsalTest
 
         // Both halves of the 4.0 upgrade, in the order an operator runs them: the mandatory one while
         // the 3.x nodes are still up, and the index set once the last of them has gone. Then every
-        // migration since, because what the comparison below is against is a fresh install of the
-        // current schema — a rehearsal that stopped at 4.0 would be rehearsing an upgrade to a
-        // release nobody is on.
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_upgrade", dialect, RehearsalPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_indexes", dialect, RehearsalPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.2", "add_continuations", dialect, RehearsalPrefix), dialect);
-
-        // Optional in production — only a store configured with UseExecutionHistory() reads its two
-        // tables — but the comparison below is against a fresh install, which creates them.
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.2", "add_execution_history", dialect, RehearsalPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_fire_progress", dialect, RehearsalPrefix), dialect);
-
-        // Optional for the same reason, and only after the history's own tables: it alters one of them.
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_execution_log", dialect, RehearsalPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_overlap_policy", dialect, RehearsalPrefix), dialect);
-
-        // Optional as the execution log is, and after the history's own tables for the same reason.
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_misfire_reason", dialect, RehearsalPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_pause_reason", dialect, RehearsalPrefix), dialect);
-
-        // Optional as the 4.3 history migrations are, and after them: it alters the history table too.
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.4", "add_execution_outcome", dialect, RehearsalPrefix), dialect);
+        // migration since, the optional history ones included, because what the comparison below is
+        // against is a fresh install of the current schema — a rehearsal that stopped at 4.0 would be
+        // rehearsing an upgrade to a release nobody is on.
+        foreach ((string version, string name) in MigrationChains.Upgrade40.Concat(MigrationChains.Since("4.0")))
+        {
+            await MigrationScriptTest.ExecuteScriptAsync(
+                connection, MigrationScriptTest.MigrationScript(version, name, dialect, RehearsalPrefix), dialect);
+        }
 
         await MigrationScriptTest.AssertSchemaMatchesAsync(connection, dialect, RehearsalPrefix);
 

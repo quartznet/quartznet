@@ -40,7 +40,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <para>
 /// Modelled on <see cref="MigrationScriptTest" />, and asking the same question of a third route to a
 /// schema. That one proves a migrated schema is the schema a fresh install produces; this one proves a
-/// provisioned schema is, table for table, column for column and index for index — which is the whole
+/// provisioned schema is, table for table, column for column, key for key and index for index — which is the whole
 /// contract, because the store validates and then runs against whatever provisioning left behind.
 /// <see cref="SchemaSnapshot" /> is shared so the two comparisons are the same comparison.
 /// </para>
@@ -274,36 +274,17 @@ public class SchemaProvisioningTest
 
         // The remedy the message names, followed: every migration this database has not had, and then
         // the same store starts against the same database. A 3.x schema needs all of them — startup
-        // probes for every column any of them adds, so stopping at 4.0 is refused for the next one.
+        // probes for every column any of them adds, so stopping at 4.0 is refused for the next one. The
+        // optional history ones too: the store this case starts keeps no history, but a chain that
+        // stopped short of one would leave this schema unlike a fresh install.
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.0", "schema_30_to_40_upgrade", dialect, UnmigratedPrefix), dialect);
 
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.2", "add_continuations", dialect, UnmigratedPrefix), dialect);
-
-        // Not needed by the store this case starts, which keeps no history — but the remedy the message
-        // names is "every migration this database has not had", and a chain that stopped short of one
-        // would leave this schema unlike a fresh install.
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.2", "add_execution_history", dialect, UnmigratedPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_fire_progress", dialect, UnmigratedPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_execution_log", dialect, UnmigratedPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_overlap_policy", dialect, UnmigratedPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_misfire_reason", dialect, UnmigratedPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.3", "add_pause_reason", dialect, UnmigratedPrefix), dialect);
-
-        await MigrationScriptTest.ExecuteScriptAsync(
-            connection, MigrationScriptTest.MigrationScript("4.4", "add_execution_outcome", dialect, UnmigratedPrefix), dialect);
+        foreach ((string version, string name) in MigrationChains.Since("4.0"))
+        {
+            await MigrationScriptTest.ExecuteScriptAsync(
+                connection, MigrationScriptTest.MigrationScript(version, name, dialect, UnmigratedPrefix), dialect);
+        }
 
         await StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}_migrated");
 
@@ -349,6 +330,12 @@ public class SchemaProvisioningTest
         provisioned.Indexes.Should().BeEquivalentTo(fresh.Indexes,
             "an index missing from a provisioned schema is a scheduler that works and then does not, at "
             + "whatever number of triggers the scans stop being free");
+        fresh.PrimaryKeys.Should().HaveCount(fresh.Tables.Count, "every Quartz table has a primary key");
+        provisioned.PrimaryKeys.Should().BeEquivalentTo(fresh.PrimaryKeys,
+            "every statement that writes a table relies on its key being the one a fresh install declares");
+        provisioned.ForeignKeys.Should().BeEquivalentTo(fresh.ForeignKeys,
+            "a foreign key only one route creates rejects rows on one database and not on the other, which "
+            + "is what #3949 was on SQL Server");
 
         // A second scheduler over the same prefix: every statement is guarded, so this has to be a
         // no-op rather than an error, and it must not have altered anything on the way through.
@@ -358,6 +345,8 @@ public class SchemaProvisioningTest
 
         afterSecondPass.Tables.Should().BeEquivalentTo(provisioned.Tables);
         afterSecondPass.Columns.Should().BeEquivalentTo(provisioned.Columns);
+        afterSecondPass.PrimaryKeys.Should().BeEquivalentTo(provisioned.PrimaryKeys);
+        afterSecondPass.ForeignKeys.Should().BeEquivalentTo(provisioned.ForeignKeys);
         afterSecondPass.Indexes.Should().BeEquivalentTo(provisioned.Indexes,
             "provisioning creates what is missing and touches nothing else, so running it against a "
             + "schema it already created leaves that schema exactly as it was");
@@ -414,6 +403,8 @@ public class SchemaProvisioningTest
             "the store that lost the race must not have half-created a second copy of anything");
         raced.Columns.Should().BeEquivalentTo(fresh.Columns);
         raced.Indexes.Should().BeEquivalentTo(fresh.Indexes);
+        raced.PrimaryKeys.Should().BeEquivalentTo(fresh.PrimaryKeys);
+        raced.ForeignKeys.Should().BeEquivalentTo(fresh.ForeignKeys);
     }
 
     private static async Task StartAndShutDownAsync(string dialect, string connectionString, string tablePrefix, string schedulerName)
