@@ -1,0 +1,214 @@
+---
+
+title: Job Outcomes
+---
+
+# Job Outcomes
+
+A job can say what its run achieved: a result, a one-line summary and named metrics. The execution
+history records them, and keeps a status per job that outlives its rows.
+
+## Report a result
+
+Set `IJobExecutionContext.Result` to a `JobRunReport`:
+
+<!-- snippet: sample_job_outcome_report -->
+```csharp
+public sealed class ReleaseStaleReservationsJob : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        int scanned = await CountReservations(cancellationToken);
+        int released = await ReleaseStale(cancellationToken);
+
+        // A run that found nothing to do is a success, recorded as Skipped.
+        context.Result = released == 0
+            ? JobRunReport.Skipped("no stale reservations").With("scanned", scanned)
+            : JobRunReport.Succeeded($"released {released}").With("scanned", scanned).With("released", released);
+    }
+
+    private static ValueTask<int> CountReservations(CancellationToken cancellationToken) => new(1200);
+
+    private static ValueTask<int> ReleaseStale(CancellationToken cancellationToken) => new(0);
+}
+```
+<!-- endSnippet -->
+
+| `JobRunResult` | Means | A success |
+|---|---|---|
+| `Succeeded` (0) | The job did its work | Yes |
+| `Failed` (1) | The job threw, or reported a failure | No |
+| `Cancelled` (2) | The firing was interrupted and the job stopped | No |
+| `Skipped` (3) | The job found nothing to do | Yes |
+
+The history stores the integer. New members are appended; none is renumbered.
+
+## Which result is recorded
+
+The first rule that holds wins:
+
+1. The firing was cancelled: `Cancelled`.
+2. The job threw: `Failed`.
+3. `context.Result` is an `IJobRunReport`: its `Result`.
+4. Otherwise: `Succeeded`.
+
+* The summary and metrics are recorded whichever rule wins.
+* Any other `context.Result` is ignored. `NativeJob` keeps an exit code there.
+* `ExecutionHistoryEntry.Succeeded` is `true` for `Succeeded` and `Skipped`.
+
+## Throw to make the scheduler act
+
+A reported `Failed` is history only. To have the scheduler act on a failure, throw.
+
+| | Throw | `JobRunReport.Failed(…)` |
+|---|---|---|
+| Recorded as `Failed` | Yes | Yes |
+| Retried under the trigger's [retry policy](retrying-failed-jobs.md) | Yes | No |
+| Runs `OnFailure` [continuations](job-continuations.md) | Yes | No |
+| Raises `TriggerRetriesExhausted` | Yes | No |
+| `context.Outcome` | `Failed` | `Succeeded` |
+
+## Limits
+
+| What | Limit | Over it |
+|---|---|---|
+| `Summary` | 1,000 characters, `JobRunReport.MaxSummaryLength` | Cut, never inside a surrogate pair |
+| `Metrics` as JSON | 4,000 characters, `JobRunReport.MaxMetricsLength` | Dropped whole, with log event [`1059`](../log-events.md) |
+
+Metrics are written by value type, without reflection:
+
+| Value | JSON |
+|---|---|
+| `string`, `bool`, `null` | As is |
+| Integers, `decimal`, finite `double` and `float` | Number |
+| `NaN`, `±Infinity` | String: `"NaN"`, `"Infinity"`, `"-Infinity"` |
+| `DateTimeOffset`, `DateTime` | Round-trip string, `"O"` |
+| `TimeSpan` | Constant string, `"c"` |
+| `Guid` | String |
+| Enum | Its name |
+| Anything else | Its invariant-culture text |
+
+* Every character outside ASCII is escaped, so 4,000 characters is also 4,000 bytes.
+* `With(name, value)` returns a copy. A name already present takes the new value.
+
+## What else the history records
+
+| Where | What |
+|---|---|
+| `ExecutionHistoryEntry.Result` | The result. `null` on a row written before 4.4 |
+| `ExecutionHistoryEntry.EffectiveResult` | `Result`, or `Succeeded`/`Failed` from `Succeeded` on an older row. Filters, tiers and statuses use it |
+| `Summary`, `MetricsJson` | What the job reported |
+| `Manual` | `true` for a run `IScheduler.TriggerJob` asked for |
+| `FireInstanceId` | The firing's id, as on its span and log scope. Not unique across restarts |
+| The misfire feed | A vetoed firing, with `MisfireReason.Vetoed`. `CountMisfires` does not count it |
+
+`TriggerJob` marks its trigger with `SchedulerConstants.ManualTrigger` (`QRTZ_MANUAL_TRIGGER = "true"`) in
+the trigger's `JobDataMap`. The key persists in every store and shows in `MergedJobDataMap`.
+
+## Keep history by result
+
+<!-- snippet: sample_job_outcome_retention -->
+```csharp
+builder.Services.AddQuartzExecutionHistory(options =>
+{
+    options.Retention = TimeSpan.FromDays(1);
+    options.RetentionByResult[JobRunResult.Failed] = TimeSpan.FromDays(30);
+    options.RetentionByResult[JobRunResult.Skipped] = TimeSpan.FromHours(1);
+    options.MisfireRetention = TimeSpan.FromDays(7);
+
+    // A job that runs every second keeps its latest 100 runs, and every failure.
+    options.MaxEntriesPerJob = 100;
+    options.MaxEntriesPerScheduler = 20_000;
+});
+```
+<!-- endSnippet -->
+
+| `ExecutionHistoryOptions` | Default | What |
+|---|---|---|
+| `Retention` | 24 hours | Age of every result without a tier |
+| `RetentionByResult` | Empty | Age per `JobRunResult`, matched on `EffectiveResult` |
+| `MisfireRetention` | `null`: `Retention` | Age of the misfire feed |
+| `MaxEntriesPerJob` | `0`: no cap | Rows kept per job, earliest-fired out first. `Failed` rows are exempt |
+| `MaxEntriesPerScheduler` | 2000 | The backstop, per feed, oldest out first whatever the result. `0` records nothing |
+
+* Every age must be positive and `MaxEntriesPerJob` must not be negative, or the host fails at startup.
+* `TimeSpan.MaxValue` keeps a result for good, within `MaxEntriesPerScheduler`.
+* The in-memory history applies all five. The [database history](../tutorial/job-stores.md#execution-history-in-the-database)
+  applies `Retention` and `MaxEntriesPerScheduler`.
+
+## Read a job's status
+
+<!-- snippet: sample_job_outcome_status -->
+```csharp
+JobRunStatus? status = await history.GetJobRunStatus(schedulerName, new JobKey("release-stale", "billing"));
+if (status is { ConsecutiveFailures: > 0 })
+{
+    Console.WriteLine($"failing {status.ConsecutiveFailures}x since {status.LastSucceededAtUtc}: {status.LastFailureMessage}");
+}
+
+PagedResult<JobRunStatus> failing = await history.QueryJobRunStatuses(
+    new JobRunStatusQuery { SchedulerName = schedulerName, Failing = true });
+```
+<!-- endSnippet -->
+
+| `JobRunStatus` | What |
+|---|---|
+| `LastFiredAtUtc`, `LastResult`, `LastDuration`, `LastSummary`, `LastEntryId`, `LastSchedulerInstanceId` | The run that fired latest |
+| `LastSucceededAtUtc` | The latest `Succeeded` or `Skipped` run |
+| `LastFailedAtUtc`, `LastFailureMessage` | The latest `Failed` run, retried or not: its exception message, else its summary |
+| `ConsecutiveFailures` | Occurrences in a row that failed for good. A success resets it; `Cancelled` and a retried failure leave it |
+| `RunCount`, `FailureCount` | Every run; occurrences that failed for good |
+| `FirstFiredAtUtc` | The earliest run recorded |
+
+* A status is folded from each row as it is recorded, so it outlives trimming.
+* A run that completes after a later-fired run is counted. It does not change the `Last*` run fields or
+  `ConsecutiveFailures`.
+* `JobRunStatusQuery` pages by job group, then name. `Failing = true` lists `ConsecutiveFailures > 0`;
+  `Jobs` names the jobs.
+* The in-memory history keeps at most `MaxEntriesPerScheduler` statuses per scheduler. The job that ran
+  longest ago goes first.
+
+| Store | Statuses |
+|---|---|
+| In-memory history | Yes |
+| Database history, the one [`AddQuartzHttpClient`](../packages/http-client.md) registers, an `IDashboardHistoryStore` of your own | `NotSupportedException` |
+
+## Filter the history
+
+<!-- snippet: sample_job_outcome_query -->
+```csharp
+PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(new ExecutionHistoryQuery
+{
+    SchedulerName = schedulerName,
+    Job = new JobKey("release-stale", "billing"),
+    FiredFrom = since,
+    Results = [JobRunResult.Failed, JobRunResult.Cancelled]
+});
+
+foreach (ExecutionHistoryEntry row in page.Items)
+{
+    // EffectiveResult answers for rows written before 4.4, which carry no Result.
+    Console.WriteLine($"{row.FiredAtUtc:O} {row.EffectiveResult} {row.Summary} {row.MetricsJson}");
+}
+```
+<!-- endSnippet -->
+
+| `ExecutionHistoryQuery` | Matches |
+|---|---|
+| `Job` | One job key, exactly |
+| `FiredFrom` | Fired at or after, inclusive |
+| `FiredBefore` | Fired before, exclusive |
+| `Results` | `EffectiveResult` in the set. An empty set matches nothing |
+
+* `MisfireHistoryQuery.Job` narrows the misfire feed the same way.
+* A cancelled run matches `FailedFinally = true`.
+
+## A history store of your own
+
+* Keep `Result`, `Summary`, `MetricsJson`, `Manual` and `FireInstanceId` on the rows you store. The
+  recorder sets them.
+* Apply the four filters above, and `MisfireHistoryQuery.Job`.
+* Count only `MisfireReason.Missed` rows in `CountMisfires`.
+* `QueryJobRunStatuses` and `GetJobRunStatus` are default interface members. The first throws
+  `NotSupportedException`; the second asks the first for one job. Implement `QueryJobRunStatuses` to keep
+  a status beside the rows, updated as each row is recorded.

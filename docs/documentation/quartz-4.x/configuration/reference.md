@@ -733,6 +733,21 @@ Standby and paused schedulers report as usual with it on. See
 [Health checks and probes](../operations.md#health-checks-and-probes) for what each verdict means to a
 probe and what the check does not assert.
 
+## Execution history
+
+`ExecutionHistoryOptions`, set by `AddQuartzExecutionHistory(configure)`. One set for the container.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `Retention` | TimeSpan | `1.00:00:00` | Age of every result `RetentionByResult` does not name. |
+| `RetentionByResult` | Dictionary&lt;JobRunResult, TimeSpan&gt; | empty | Age per result, matched on `EffectiveResult`. Add to it. |
+| `MisfireRetention` | TimeSpan? | `null`: `Retention` | Age of the misfire feed. |
+| `MaxEntriesPerJob` | int | `0`: no cap | Rows kept per job, earliest-fired out first. `Failed` rows are exempt. |
+| `MaxEntriesPerScheduler` | int | `2000` | Rows kept per scheduler in each feed, oldest out first. `0` records nothing. |
+
+A zero or negative age, or a negative count, fails at startup. The database history applies `Retention`
+and `MaxEntriesPerScheduler`. See [Keep history by result](../how-tos/job-outcomes.md#keep-history-by-result).
+
 ## Listeners, calendars and plugins
 
 <!-- snippet: sample_reference_listeners_and_plugins -->

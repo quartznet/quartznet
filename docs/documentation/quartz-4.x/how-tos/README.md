@@ -17,6 +17,7 @@ Each page answers one question. New to Quartz.NET? Start with the [Tutorial](../
 * [Job Continuations](job-continuations.md) — run a trigger when another trigger's firing ends with an outcome you name
 * [Overlap Policy](overlap-policy.md) — skip, hold or cancel when a trigger's firing is still running as the next comes due
 * [Progress and Execution Logs](progress-and-execution-logs.md) — show how far a running job has got, and keep what it logged
+* [Job Outcomes](job-outcomes.md) — say what a run achieved, keep history by result, and read each job's status
 * [Multiple Triggers](multiple-triggers.md) — drive one job from several triggers, and give each its own data
 * [Job Template](job-template.md) — the recommended skeleton for a job class
 * [Running Quartz under Aspire](aspire.md) — telemetry, health and the database, wired to an AppHost
