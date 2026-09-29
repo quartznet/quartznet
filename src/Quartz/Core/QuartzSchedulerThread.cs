@@ -248,6 +248,11 @@ public class QuartzSchedulerThread
         while (!halted)
         {
             cancellationTokenSource.Token.ThrowIfCancellationRequested();
+
+            // What this round acquired and has not yet had fired. Released by the catch at the bottom if
+            // something unexpected ends the round first, or the store keeps it reserved for a firing that
+            // never comes (#3974). Once the store has answered, its results say what is left to release.
+            List<IOperableTrigger>? unfired = null;
             try
             {
                 // check if we're supposed to pause...
@@ -360,6 +365,7 @@ public class QuartzSchedulerThread
 
                     if (triggers != null && triggers.Count > 0)
                     {
+                        unfired = triggers;
                         now = SystemTime.UtcNow();
                         DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc()!.Value;
                         TimeSpan timeUntilTrigger = triggerTime - now;
@@ -423,6 +429,7 @@ public class QuartzSchedulerThread
                             try
                             {
                                 var res = await qsRsrcs.JobStore.TriggersFired(triggers, CancellationToken.None).ConfigureAwait(false);
+                                unfired = null;
                                 if (res != null)
                                 {
                                     bndles = res.ToList();
@@ -586,6 +593,16 @@ public class QuartzSchedulerThread
             catch (Exception re)
             {
                 Log.ErrorException("Runtime error occurred in main trigger firing loop.", re);
+
+                // A store that fails the batch with something other than a SchedulerException lands
+                // here, and so does anything else between acquiring and firing.
+                if (unfired != null)
+                {
+                    foreach (IOperableTrigger t in unfired)
+                    {
+                        await SafeReleaseAcquiredTrigger(t, "after the firing loop failed").ConfigureAwait(false);
+                    }
+                }
             }
         } // while (!halted)
     }
