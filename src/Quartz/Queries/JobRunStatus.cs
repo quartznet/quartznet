@@ -76,7 +76,8 @@ public sealed record JobRunStatus(
     public DateTimeOffset? LastFailedAtUtc { get; init; }
 
     /// <summary>
-    /// What the run at <see cref="LastFailedAtUtc" /> threw, or else its summary.
+    /// The <see cref="ExecutionHistoryEntry.ExceptionMessage" /> of the run at <see cref="LastFailedAtUtc" />:
+    /// the message of what the job threw, or else the run's summary.
     /// </summary>
     public string? LastFailureMessage { get; init; }
 

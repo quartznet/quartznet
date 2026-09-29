@@ -74,6 +74,17 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 
 * **A cancelled run is recorded as `Cancelled`, with `Succeeded` false.** 4.3 recorded it as a success.
   It now matches `ExecutionHistoryQuery.FailedFinally = true`, and the dashboard lists it as failed.
+* **A run whose job threw is recorded with the job's own message**
+  ([#3992](https://github.com/quartznet/quartznet/issues/3992)). 4.3 recorded the scheduler's wrapper for
+  any exception but a `JobExecutionException`, so every such row read the same. `ExceptionMessage` on the
+  row and `LastFailureMessage` on the job's status carry the new text. Match on the job's message in any
+  query or alert that matched the old one:
+
+  ```diff
+  - "exceptionMessage": "Job threw an unhandled exception"
+  + "exceptionMessage": "the upstream system is down"
+  ```
+
 * **`context.Outcome` reads `ExecutionOutcome.Vetoed` inside `IJobListener.JobExecutionVetoed`.** It read
   `Succeeded`.
 * **A vetoed firing is recorded in the misfire feed**, with `MisfireReason.Vetoed`. `CountMisfires` does
@@ -160,6 +171,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   [Rolling 4.3 to 4.4](operations.md#rolling-4-3-to-4-4).
 * A 4.3 node reads a `Vetoed` row in a shared misfire table as `Missed`, and its `CountMisfires` does not
   count it.
+* A 4.3 node still records "Job threw an unhandled exception" for a job that throws; a 4.4 node records the
+  job's own message.
 * A 4.3 dashboard or HTTP client reads a 4.4 host's misfire listing: the host leaves `Vetoed` out for it.
 * A 4.4 dashboard or HTTP client reading a 4.3 host: the new history filters throw `NotSupportedException`
   rather than return unfiltered rows, and there is no run status. The dashboard says so and leaves the status
