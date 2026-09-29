@@ -134,8 +134,8 @@ builder.Services.AddQuartzExecutionHistory(options =>
 
 * Every age must be positive and `MaxEntriesPerJob` must not be negative, or the host fails at startup.
 * `TimeSpan.MaxValue` keeps a result for good, within `MaxEntriesPerScheduler`.
-* The in-memory history applies all five. The [database history](../tutorial/job-stores.md#execution-history-in-the-database)
-  applies `Retention` and `MaxEntriesPerScheduler`.
+* Both histories apply all five. The [database history](../tutorial/job-stores.md#execution-history-in-the-database)
+  applies them by a sweep; its reads apply only the longest age.
 
 ## Read a job's status
 
@@ -166,14 +166,22 @@ PagedResult<JobRunStatus> failing = await history.QueryJobRunStatuses(
   `ConsecutiveFailures`.
 * `JobRunStatusQuery` pages by job group, then name. `Failing = true` lists `ConsecutiveFailures > 0`;
   `Jobs` names the jobs.
-* The in-memory history keeps at most `MaxEntriesPerScheduler` statuses per scheduler. The job that ran
-  longest ago goes first.
 
 | Store | Statuses |
 |---|---|
-| In-memory history | Yes |
+| In-memory history | At most `MaxEntriesPerScheduler` per scheduler. The job that ran longest ago goes first |
+| [Database history](../tutorial/job-stores.md#execution-history-in-the-database) | One per job, in `QRTZ_JOB_STATUS`, committed with each row. Deleted once its job is gone and its last run is older than the longest age |
 | The one [`AddQuartzHttpClient`](../packages/http-client.md) registers | The host's, when it is 4.4 or later and its store keeps them; otherwise `NotSupportedException` |
-| Database history, an `IDashboardHistoryStore` of your own | `NotSupportedException` |
+| An `IDashboardHistoryStore` of your own | `NotSupportedException` |
+
+::: warning One job run many times at once
+The database history writes each run's row and its job's status in one transaction. Runs of one job
+that complete at the same moment take turns on that job's status row, each holding it through its
+commit, before its trigger completes. Measured on PostgreSQL with one job, 500 one-off firings and 10
+workers: 113–248 firings a second with the row alone, 77–189 with the row and the status. With the
+history off, or with runs spread over many jobs, nothing waits. See
+[The execution history's status row](../operations.md#the-execution-history-s-status-row).
+:::
 
 ## Filter the history
 
