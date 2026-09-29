@@ -647,10 +647,13 @@ internal sealed class TracingJobStore : DelegatingJobStore
 
     // Forwarded to the inner store rather than answered through AcquireNextTriggers as the base class
     // answers it: this decorator adds a span and nothing else, so the store it wraps fires what is due as
-    // it acquires it, or does not, exactly as it would unwrapped.
+    // it acquires it, or does not, exactly as it would unwrapped. Traced under the acquisition's own name,
+    // as FiringComplete is under TriggeredJobComplete's: it is the acquisition the scheduler makes, and the
+    // name an operator already filters on is the one that was there first. What it fired on the way is an
+    // attribute of that span rather than a TriggersFired span of its own.
     public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
     {
-        StoreOperation operation = Begin(OperationName.JobStore.AcquireNextTriggersAndFireDue);
+        StoreOperation operation = Begin(OperationName.JobStore.AcquireNextTriggers);
         if (!operation.IsRecording)
         {
             return InnerJobStore.AcquireNextTriggersAndFireDue(request, cancellationToken);
@@ -820,8 +823,10 @@ internal sealed class TracingJobStore : DelegatingJobStore
             TriggerAcquisitionResult acquired = await call(state).ConfigureAwait(false);
 
             // Everything acquired, fired or pending: the same fill of the batch size the acquisition
-            // span reports.
+            // span has always reported. And how much of it was fired here, which no TriggersFired span
+            // will report.
             operation.Tag(ActivityTags.TriggerCount, acquired.Due.Count + acquired.Pending.Count);
+            operation.Tag(ActivityTags.TriggersFiredOnAcquire, acquired.Due.Count);
             return acquired;
         }
         catch (Exception e)

@@ -235,6 +235,56 @@ public sealed class TracingJobStoreTest
             "and how much of it the store could fill, which is only knowable once it has answered");
     }
 
+    /// <summary>
+    /// The acquisition the scheduler makes, firing what is already due on the way (#3864), is handed to
+    /// the store it wraps as that member, and traced under the acquisition's own span name: it is the
+    /// acquisition an operator already filters on, and what it fired is an attribute of it rather than a
+    /// span of its own.
+    /// </summary>
+    [Test]
+    public async Task AcquisitionThatFiresWhatIsDue_IsTheAcquisitionSpanAndCountsWhatItFired()
+    {
+        IJobStore inner = StubStore();
+        IOperableTrigger due = (IOperableTrigger) TriggerBuilder.Create().WithIdentity("due").ForJob("job", "jobs").StartNow().Build();
+        IOperableTrigger pending = (IOperableTrigger) TriggerBuilder.Create().WithIdentity("pending").ForJob("job", "jobs").StartNow().Build();
+
+        TriggerAcquisitionResult answer = new()
+        {
+            Due = [due],
+            Fired = [TriggerFiredResult.NotFired],
+            Pending = [pending],
+        };
+        A.CallTo(() => inner.AcquireNextTriggersAndFireDue(A<TriggerAcquisitionRequest>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<TriggerAcquisitionResult>(answer));
+
+        IJobStore store = await Decorated(inner);
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UnixEpoch,
+            MaxCount = 7,
+            TimeWindow = TimeSpan.Zero,
+        });
+
+        round.Should().BeSameAs(answer, "the decorator adds a span and nothing else");
+
+        // Forwarded as the member it is, so the store it wraps fires what is due as it would unwrapped.
+        A.CallTo(() => inner.AcquireNextTriggers(A<TriggerAcquisitionRequest>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        Activity span = SpanFor(OperationName.JobStore.AcquireNextTriggers);
+
+        span.GetTagItem(ActivityTags.BatchSize).Should().Be(7, "the batch the scheduler asked for");
+        span.GetTagItem(ActivityTags.TriggerCount).Should().Be(2, "everything the round acquired, fired or pending");
+        span.GetTagItem(ActivityTags.TriggersFiredOnAcquire).Should().Be(1, "of which the store fired one as it acquired it");
+
+        lock (stoppedActivities)
+        {
+            stoppedActivities.Should().NotContain(a => a.OperationName == OperationName.JobStore.TriggersFired,
+                "a trigger fired as it was acquired is fired inside the acquisition's span, not in a span of its own");
+        }
+    }
+
     [Test]
     public async Task EveryOperation_IsTimedOnTheStoreOperationHistogram()
     {

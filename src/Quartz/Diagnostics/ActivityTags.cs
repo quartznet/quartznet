@@ -81,6 +81,12 @@ public static class ActivityTags
     public const string BatchSize = "quartz.jobstore.batch.size";
 
     /// <summary>
+    /// How many of the triggers an acquisition returned the store fired as it acquired them, because they
+    /// were already due. Those have no <see cref="OperationName.JobStore.TriggersFired" /> span of their own.
+    /// </summary>
+    public const string TriggersFiredOnAcquire = "quartz.jobstore.trigger.fired_on_acquire";
+
+    /// <summary>
     /// Which store operation a measurement is about — one of the <see cref="OperationName.JobStore"/>
     /// names, which is also what the operation's span is called.
     /// </summary>

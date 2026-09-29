@@ -67,13 +67,6 @@ public static class OperationName
         public const string AcquireNextTriggers = "Quartz.JobStore.AcquireNextTriggers";
 
         /// <summary>
-        /// The span covering <c>IJobStore.AcquireNextTriggersAndFireDue</c>, which is what the scheduler
-        /// acquires with. A trigger the store fires as it acquires it has no <see cref="TriggersFired" />
-        /// span of its own.
-        /// </summary>
-        public const string AcquireNextTriggersAndFireDue = "Quartz.JobStore.AcquireNextTriggersAndFireDue";
-
-        /// <summary>
         /// The span covering <c>IJobStore.TriggersFired</c>.
         /// </summary>
         public const string TriggersFired = "Quartz.JobStore.TriggersFired";

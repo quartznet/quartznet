@@ -87,6 +87,7 @@ constants on `Quartz.Diagnostics.ActivityTags`:
 | `quartz.job.name`, `quartz.job.group` | store spans about one job |
 | `quartz.jobstore.batch.size` | `Quartz.JobStore.AcquireNextTriggers`: triggers requested |
 | `quartz.jobstore.trigger.count` | `Quartz.JobStore.AcquireNextTriggers` (returned) and `.TriggersFired` (fired) |
+| `quartz.jobstore.trigger.fired_on_acquire` | `Quartz.JobStore.AcquireNextTriggers`: of those returned, how many the store fired as it acquired them. They get no `.TriggersFired` span |
 | `error.type` | any span that ended in a failure |
 
 `quartz.fire.instance.id` identifies one firing; it is the id `IScheduler.InterruptFireInstance` takes.
