@@ -31,9 +31,9 @@ namespace Quartz.Core;
 /// schedule and failing again, until an operator resumes it.
 /// </para>
 /// <para>
-/// The reason is the exception's message, cut to <see cref="PauseDetails.MaxReasonLength" /> by the
-/// store; the requester is <see cref="Requester" />, which is how a listing tells this pause from one an
-/// operator made.
+/// The reason is the message of what the job threw, read by <see cref="JobFailure.MessageOf" /> and cut
+/// to <see cref="PauseDetails.MaxReasonLength" /> by the store; the requester is <see cref="Requester" />,
+/// which is how a listing tells this pause from one an operator made.
 /// </para>
 /// </remarks>
 internal sealed class RetriesExhaustedPauseListener : ITriggerListener
@@ -61,28 +61,10 @@ internal sealed class RetriesExhaustedPauseListener : ITriggerListener
     {
         PauseDetails details = new()
         {
-            Reason = ReasonFor(exception),
+            Reason = JobFailure.MessageOf(exception),
             RequestedBy = Requester
         };
 
         await context.Scheduler.PauseTriggerWith(trigger.Key, details, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// The message of what the job threw.
-    /// </summary>
-    /// <remarks>
-    /// The run shell wraps an exception the job did not wrap itself twice over, and both wrappers say
-    /// "Job threw an unhandled exception" — true, and no use as a reason. That one shape is looked through
-    /// to the exception the job threw; a <see cref="JobExecutionException" /> the job threw itself is its
-    /// own reason.
-    /// </remarks>
-    internal static string ReasonFor(JobExecutionException exception)
-    {
-        Exception cause = exception is { InnerException: JobExecutionProcessException { InnerException: { } thrown } }
-            ? thrown
-            : exception;
-
-        return cause.Message;
     }
 }
