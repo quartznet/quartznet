@@ -1509,8 +1509,27 @@ internal static class StdAdoConstants
         Invariant($" AND ({AdoConstants.ColumnResult} <> {(int) JobRunResult.Failed} OR ({AdoConstants.ColumnResult} IS NULL AND {AdoConstants.ColumnSucceeded} = @{SqlParameters.HistoryNotFailedSucceeded}))");
 
     /// <summary>
-    /// A predicate no row satisfies: a <c>Results</c> filter that names no result this version knows, an
-    /// empty set included. Two literals, which every dialect compares.
+    /// The misfires whose reason is <see cref="MisfireReason.Missed" />, a row a 4.2 node wrote included:
+    /// it has no <c>REASON</c>, and every misfire it recorded was one.
+    /// </summary>
+    /// <remarks>
+    /// Compared with a parameter rather than a literal, as every reason is, so each reason a query names is
+    /// one placeholder bound once.
+    /// </remarks>
+    public static readonly string SqlMisfireHistoryReasonMissed =
+        Invariant($"({AdoConstants.ColumnMisfireReason} = @{SqlParameters.HistoryReasonMissed} OR {AdoConstants.ColumnMisfireReason} IS NULL)");
+
+    /// <summary>The misfires whose reason is <see cref="MisfireReason.Overlap" />.</summary>
+    public static readonly string SqlMisfireHistoryReasonOverlap =
+        Invariant($"{AdoConstants.ColumnMisfireReason} = @{SqlParameters.HistoryReasonOverlap}");
+
+    /// <summary>The misfires whose reason is <see cref="MisfireReason.Vetoed" />.</summary>
+    public static readonly string SqlMisfireHistoryReasonVetoed =
+        Invariant($"{AdoConstants.ColumnMisfireReason} = @{SqlParameters.HistoryReasonVetoed}");
+
+    /// <summary>
+    /// A predicate no row satisfies: a <c>Results</c> or <c>Reasons</c> filter that names nothing this
+    /// version knows, an empty set included. Two literals, which every dialect compares.
     /// </summary>
     public static readonly string SqlMatchesNothing = " AND 1 = 0";
 

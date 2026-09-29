@@ -305,6 +305,17 @@ internal static class SqlParameters
     /// <summary>How many rows of one job the per-job cap keeps.</summary>
     public const string HistoryJobCap = "historyJobCap";
 
+    /// <summary>
+    /// <see cref="MisfireReason.Missed" />, for the reason filter that also takes a 4.2 row, which has none.
+    /// </summary>
+    public const string HistoryReasonMissed = "historyReasonMissed";
+
+    /// <summary><see cref="MisfireReason.Overlap" />, for the reason filter.</summary>
+    public const string HistoryReasonOverlap = "historyReasonOverlap";
+
+    /// <summary><see cref="MisfireReason.Vetoed" />, for the reason filter.</summary>
+    public const string HistoryReasonVetoed = "historyReasonVetoed";
+
     // JOB_STATUS, which the ADO-backed execution history keeps beside its rows. The insert names each
     // column once; the updates' placeholders are generated per occurrence by JobStatusStatement, because
     // the fire time is compared column by column and a dialect that binds by position needs one

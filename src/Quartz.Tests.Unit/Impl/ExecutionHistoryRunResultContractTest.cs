@@ -484,6 +484,47 @@ public abstract partial class ExecutionHistoryStoreContractTest
         (await StatusNames(store, jobs: [])).Should().BeEmpty();
     }
 
+    /// <summary>
+    /// The misfire feed narrowed to some reasons: the page, and a total that agrees with it.
+    /// </summary>
+    /// <remarks>
+    /// The HTTP API lists <see cref="MisfireReason.Missed" /> and <see cref="MisfireReason.Overlap" /> unless
+    /// asked for more, so that a 4.3 client never meets <see cref="MisfireReason.Vetoed" />. A store that
+    /// ignored the filter would page vetoes in and count them.
+    /// </remarks>
+    [Test]
+    public async Task MisfiresCanBeReadByReason()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+
+        await store.AddMisfire(Misfire(Start.AddMinutes(-3), "missed"));
+        await store.AddMisfire(Misfire(Start.AddMinutes(-2), "skipped") with { Reason = MisfireReason.Overlap });
+        await store.AddMisfire(Misfire(Start.AddMinutes(-1), "vetoed") with { Reason = MisfireReason.Vetoed });
+
+        PagedResult<MisfireHistoryEntry> readable = await store.QueryMisfires(new MisfireHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Reasons = [MisfireReason.Missed, MisfireReason.Overlap],
+            IncludeTotalCount = true
+        });
+
+        readable.Items.Select(row => row.TriggerName).Should().Equal(["skipped", "missed"]);
+        readable.TotalCount.Should().Be(2, "the total counts what the page lists, not the vetoes it leaves out");
+
+        (await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = SchedulerName, Reasons = [MisfireReason.Vetoed] }))
+            .Items.Should().ContainSingle().Which.TriggerName.Should().Be("vetoed");
+
+        PagedResult<MisfireHistoryEntry> none = await store.QueryMisfires(new MisfireHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Reasons = [],
+            IncludeTotalCount = true
+        });
+
+        none.Items.Should().BeEmpty("an empty set of reasons is a question with no answer, not no question");
+        none.TotalCount.Should().Be(0);
+    }
+
     [Test]
     public async Task AVetoedFiringIsReadBackFromTheMisfireFeed()
     {
