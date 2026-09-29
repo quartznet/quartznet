@@ -23,8 +23,8 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 <!-- endSnippet -->
 
 * The store must use Microsoft.Data.Sqlite (`UseSqlite`), the driver Weasel speaks.
-* The tables are add-only: columns and indexes you added to them are kept. A change SQLite can only make by
-  rebuilding a table that carries such objects is refused, naming them, before anything runs.
+* The tables are add-only: columns, indexes and foreign keys you added to them are kept, with their rows,
+  even when SQLite has to rebuild a table.
 
 ## Documentation
 

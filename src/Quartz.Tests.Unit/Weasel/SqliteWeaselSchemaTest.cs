@@ -174,8 +174,8 @@ public sealed class SqliteWeaselSchemaTest
     }
 
     /// <summary>
-    /// A column and an index the application put on the history table survive the 4.4 apply: the columns
-    /// arrive by <c>ADD COLUMN</c>, so the table is never rebuilt and the rebuild guard has nothing to refuse.
+    /// A column and an index the application put on the history table survive the 4.4 apply, whose columns
+    /// arrive by <c>ADD COLUMN</c>.
     /// </summary>
     [Test]
     public async Task ObjectsTheApplicationAddedToTheHistorySurviveThe44Apply()
@@ -192,7 +192,7 @@ public sealed class SqliteWeaselSchemaTest
         await using (WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-43-coexisting"))
         {
             (await weasel.Database.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update,
-                "a rebuild would have been refused for the application's column, so an apply that goes ahead only added");
+                "4.4 only adds to the history table, so nothing is rebuilt");
             (await weasel.Database.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None);
         }
 
@@ -284,29 +284,108 @@ public sealed class SqliteWeaselSchemaTest
 
     /// <summary>
     /// A table the application rebuilt without Quartz's foreign key can only get it back by being rebuilt
-    /// again, and SQLite's rebuild keeps only what the model declares.
+    /// again. The tables are add-only, so the rebuild keeps what the application added, rows and all.
     /// </summary>
     [Test]
-    public async Task ARebuildThatWouldDropAnUndeclaredColumnIsRefused()
+    public async Task ARebuildKeepsTheApplicationsColumnsIndexesAndForeignKeysWithTheirRows()
     {
-        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString, extraColumn: "USER_NOTE TEXT NULL");
+        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString,
+            extraDefinitions: "USER_NOTE TEXT NULL,\n  APP_OWNER INTEGER NULL,\n  FOREIGN KEY (APP_OWNER) REFERENCES APP_OWNERS (ID)");
+        await SqliteSchema.ExecuteAsync(database.ConnectionString, """
+            CREATE TABLE APP_OWNERS (ID INTEGER PRIMARY KEY);
+            INSERT INTO APP_OWNERS (ID) VALUES (7);
+            """);
+        await SeedAsync(database.ConnectionString);
+        await SqliteSchema.ExecuteAsync(database.ConnectionString, """
+            UPDATE QRTZ_TRIGGERS SET USER_NOTE = 'keep me', APP_OWNER = 7;
+            CREATE INDEX IDX_APP_T_NOTE ON QRTZ_TRIGGERS(USER_NOTE);
+            CREATE INDEX IDX_QRTZ_T_NEXT_FIRE_TIME ON QRTZ_TRIGGERS(SCHED_NAME, NEXT_FIRE_TIME);
+            """);
 
-        await using WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-guarded");
+        await using (WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-rebuilt-keeping"))
+        {
+            SchemaMigration planned = await weasel.Database.CreateMigrationAsync();
+            planned.Deltas.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name == "QRTZ_TRIGGERS").CanRebuildInPlace
+                .Should().BeTrue("the premise: the missing foreign key makes the apply a rebuild of QRTZ_TRIGGERS");
+
+            (await weasel.Database.ApplyAllConfiguredChangesToDatabaseAsync()).Should().NotBe(SchemaPatchDifference.None);
+            (await weasel.Database.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
+                "the rebuilt table reads back as the model, the application's objects beside it");
+        }
+
+        (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT USER_NOTE || '/' || APP_OWNER FROM QRTZ_TRIGGERS"))
+            .Should().Be("keep me/7", "the rebuild copies the columns the model does not declare, with their values");
+        (await ForeignKeysAsync(database.ConnectionString)).Should().BeEquivalentTo(
+            ["APP_OWNERS|APP_OWNER|ID", "QRTZ_JOB_DETAILS|JOB_GROUP|JOB_GROUP", "QRTZ_JOB_DETAILS|JOB_NAME|JOB_NAME", "QRTZ_JOB_DETAILS|SCHED_NAME|SCHED_NAME"],
+            "Quartz's foreign key is back, and the application's is kept beside it");
+        (await IndexNamesAsync(database.ConnectionString)).Should().Contain("IDX_APP_T_NOTE")
+            .And.NotContain("IDX_QRTZ_T_NEXT_FIRE_TIME", "an index name Quartz retired still goes, rebuild or not");
+        await ShouldHoldTheSeedAsync(database.ConnectionString);
+    }
+
+    /// <summary>
+    /// A rebuild that fails part-way changes nothing. Here the table lost its foreign key long enough to
+    /// take a trigger whose job does not exist, so the rebuilt table's key would not hold.
+    /// </summary>
+    [Test]
+    public async Task ARebuildThatFailsRollsBackAndKeepsTheRowsAndTheApplicationsObjects()
+    {
+        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString, extraDefinitions: "USER_NOTE TEXT NULL");
+        await SeedAsync(database.ConnectionString);
+        await SqliteSchema.ExecuteAsync(database.ConnectionString, """
+            UPDATE QRTZ_TRIGGERS SET USER_NOTE = 'keep me';
+            CREATE INDEX IDX_APP_T_NOTE ON QRTZ_TRIGGERS(USER_NOTE);
+            INSERT INTO QRTZ_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP, JOB_NAME, JOB_GROUP, TRIGGER_STATE, TRIGGER_TYPE, START_TIME, USER_NOTE)
+              VALUES ('weasel', 'orphan', 'group', 'no-such-job', 'group', 'WAITING', 'SIMPLE', 1, 'orphan');
+            """);
+
+        await using WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-rebuild-failed");
 
         Func<Task> apply = () => weasel.Database.ApplyAllConfiguredChangesToDatabaseAsync();
-        await apply.Should().ThrowAsync<SchedulerException>()
-            .WithMessage("*rebuild table QRTZ_TRIGGERS*column user_note*Nothing was changed*");
+        await apply.Should().ThrowAsync<InvalidOperationException>().WithMessage("*QRTZ_TRIGGERS*rolled back*");
 
-        (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT count(*) FROM pragma_foreign_key_list('QRTZ_TRIGGERS')"))
-            .Should().Be(0L, "the refusal comes before anything runs");
-        (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT count(*) FROM pragma_table_info('QRTZ_TRIGGERS') WHERE name = 'USER_NOTE'"))
-            .Should().Be(1L);
+        (await ForeignKeysAsync(database.ConnectionString)).Should().BeEmpty("the rebuild rolled back, so the table is the one it replaced");
+        (await NamesAsync(database.ConnectionString, "SELECT TRIGGER_NAME || '=' || USER_NOTE FROM QRTZ_TRIGGERS"))
+            .Should().Equal(["orphan=orphan", "trigger=keep me"], "both rows are there, with the application's column");
+        (await IndexNamesAsync(database.ConnectionString)).Should().Contain("IDX_APP_T_NOTE");
+    }
+
+    /// <summary>
+    /// Rolling a rebuild back, as <c>db-patch</c>'s <c>.drop.sql</c> does, rebuilds the table again. The
+    /// application's column keeps its values that way too, which needed Weasel's rebuild (#639) and its
+    /// rollback (#648) to agree on what an add-only table carries.
+    /// </summary>
+    [Test]
+    public async Task RollingBackARebuildKeepsTheApplicationsColumnWithItsValues()
+    {
+        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString, extraDefinitions: "USER_NOTE TEXT NULL");
+        await SeedAsync(database.ConnectionString);
+        await SqliteSchema.ExecuteAsync(database.ConnectionString, """
+            UPDATE QRTZ_TRIGGERS SET USER_NOTE = 'keep me';
+            CREATE INDEX IDX_APP_T_NOTE ON QRTZ_TRIGGERS(USER_NOTE);
+            """);
+
+        await using WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-rolled-back");
+        SchemaMigration migration = await weasel.Database.CreateMigrationAsync();
+
+        await using SqliteConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+        await weasel.Database.Migrator.ApplyAllAsync(connection, migration, AutoCreate.CreateOrUpdate);
+        (await ForeignKeysAsync(database.ConnectionString)).Should().HaveCount(3, "the premise: the forward rebuild put Quartz's key back");
+
+        await migration.RollbackAllAsync(connection, weasel.Database.Migrator);
+
+        (await ForeignKeysAsync(database.ConnectionString)).Should().BeEmpty("the rollback restores the table as it was");
+        (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT USER_NOTE FROM QRTZ_TRIGGERS")).Should().Be("keep me",
+            "the rollback copies the undeclared column back too, rather than leaving it NULL");
+        (await IndexNamesAsync(database.ConnectionString)).Should().Contain("IDX_APP_T_NOTE");
+        await ShouldHoldTheSeedAsync(database.ConnectionString);
     }
 
     [Test]
     public async Task ARebuildWithNothingUndeclaredGoesAheadAndKeepsTheRows()
     {
-        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString, extraColumn: null);
+        await SqliteSchema.CreateWithTriggersTableMissingItsForeignKeyAsync(database.ConnectionString, extraDefinitions: null);
         await SeedAsync(database.ConnectionString);
 
         await using WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-rebuilt");
@@ -399,6 +478,9 @@ public sealed class SqliteWeaselSchemaTest
 
     private static Task<List<string>> IndexNamesAsync(string connectionString) =>
         NamesAsync(connectionString, "SELECT upper(name) FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL");
+
+    private static Task<List<string>> ForeignKeysAsync(string connectionString) =>
+        NamesAsync(connectionString, "SELECT upper(\"table\") || '|' || upper(\"from\") || '|' || upper(\"to\") FROM pragma_foreign_key_list('QRTZ_TRIGGERS')");
 
     private static async Task<List<string>> NamesAsync(string connectionString, string sql)
     {

@@ -40,9 +40,8 @@ public static class SqliteWeaselStoreBuilderExtensions
     /// at startup. Weasel reaches the database through the store's own connections.
     /// </para>
     /// <para>
-    /// The tables are add-only: columns and indexes the application added to them are kept. SQLite makes
-    /// some changes by rebuilding a table, which would not keep them, so a migration that would rebuild a
-    /// table carrying any is refused, naming them, before anything runs.
+    /// The tables are add-only: columns, indexes and foreign keys the application added to them are kept,
+    /// with their rows, including when SQLite makes a change by rebuilding a table.
     /// </para>
     /// <para>
     /// The dialect is in the name so that an application referencing more than one Quartz.Weasel package
