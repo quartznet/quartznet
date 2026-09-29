@@ -13,7 +13,12 @@
       "retryAttempt": 0,
       "retryScheduled": false,
       "entryId": "3f2a0e5b7d4f1a9e",
-      "log": null
+      "log": null,
+      "result": null,
+      "summary": null,
+      "metrics": null,
+      "manual": false,
+      "fireInstanceId": null
     }
   ],
   "hasMore": false,

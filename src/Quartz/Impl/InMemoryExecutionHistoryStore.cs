@@ -194,6 +194,12 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
             filtered = filtered.Where(x => job.Equals(x.JobKey));
         }
 
+        if (query.Reasons is { } reasons)
+        {
+            HashSet<MisfireReason> wanted = [.. reasons];
+            filtered = filtered.Where(x => wanted.Contains(x.Reason));
+        }
+
         return new ValueTask<PagedResult<MisfireHistoryEntry>>(
             Page(filtered.OrderByDescending(static entry => entry.MisfiredAtUtc).ToList(), query));
     }

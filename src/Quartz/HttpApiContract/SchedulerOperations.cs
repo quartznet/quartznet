@@ -152,6 +152,16 @@ internal static class SchedulerOperations
     /// One page of what <paramref name="scheduler" /> has run, newest first, read from
     /// <paramref name="history" /> — the store the carrier decided holds this scheduler's history.
     /// </summary>
+    /// <param name="scheduler">The scheduler whose history it is.</param>
+    /// <param name="history">The store holding it.</param>
+    /// <param name="listing">The page.</param>
+    /// <param name="schedulerInstanceId">The node to narrow to, or <see langword="null" />.</param>
+    /// <param name="jobContains">A job key fragment, or <see langword="null" />.</param>
+    /// <param name="triggerContains">A trigger key fragment, or <see langword="null" />.</param>
+    /// <param name="failedFinally">Whether to narrow to the occurrences that gave up, or to the rest.</param>
+    /// <param name="filters">The 4.4 filters: one job, a fire-time window and a set of results.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="InvalidRequestException">Half a job key, or a result that names nothing.</exception>
     public static async ValueTask<PagedResultDto<ExecutionHistoryEntryDto>> QueryExecutionHistory(
         IScheduler scheduler,
         IExecutionHistoryStore history,
@@ -160,6 +170,7 @@ internal static class SchedulerOperations
         string? jobContains,
         string? triggerContains,
         bool? failedFinally,
+        HistoryParameters filters,
         CancellationToken cancellationToken)
     {
         ExecutionHistoryQuery query = listing.Page(new ExecutionHistoryQuery
@@ -170,7 +181,11 @@ internal static class SchedulerOperations
             SchedulerInstanceId = schedulerInstanceId,
             JobContains = jobContains,
             TriggerContains = triggerContains,
-            FailedFinally = failedFinally
+            FailedFinally = failedFinally,
+            Job = filters.Job(),
+            FiredFrom = filters.FiredFrom,
+            FiredBefore = filters.FiredBefore,
+            Results = filters.ResultSet()
         });
 
         PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(query, cancellationToken).ConfigureAwait(false);
@@ -199,32 +214,47 @@ internal static class SchedulerOperations
     }
 
     /// <summary>
-    /// One page of the firings <paramref name="scheduler" /> missed, newest first.
+    /// One page of the firings <paramref name="scheduler" /> missed, newest first, with only the reasons
+    /// <paramref name="filters" /> names — or, when it names none, only the ones a 4.3 client can read.
     /// </summary>
+    /// <remarks>
+    /// The store is asked for the reasons, and what it answers is filtered by them again: a store of an
+    /// application's own that ignores <see cref="MisfireHistoryQuery.Reasons" /> then answers a short page,
+    /// rather than a 4.3 client a row that fails its whole listing.
+    /// </remarks>
+    /// <exception cref="InvalidRequestException">Half a job key, or a reason that names nothing.</exception>
     public static async ValueTask<PagedResultDto<MisfireHistoryEntryDto>> QueryMisfireHistory(
         IScheduler scheduler,
         IExecutionHistoryStore history,
         ListingParameters listing,
         string? schedulerInstanceId,
         string? triggerContains,
+        HistoryParameters filters,
         CancellationToken cancellationToken)
     {
+        IReadOnlyCollection<MisfireReason> asked = filters.ReasonSet();
+
         MisfireHistoryQuery query = listing.Page(new MisfireHistoryQuery
         {
             SchedulerName = scheduler.SchedulerName,
             SchedulerInstanceId = schedulerInstanceId,
-            TriggerContains = triggerContains
+            TriggerContains = triggerContains,
+            Job = filters.Job(),
+            Reasons = asked
         });
 
         PagedResult<MisfireHistoryEntry> page = await history.QueryMisfires(query, cancellationToken).ConfigureAwait(false);
 
-        MisfireHistoryEntryDto[] items = new MisfireHistoryEntryDto[page.Items.Count];
-        for (int i = 0; i < page.Items.Count; i++)
+        List<MisfireHistoryEntryDto> items = new(page.Items.Count);
+        foreach (MisfireHistoryEntry entry in page.Items)
         {
-            items[i] = MisfireHistoryEntryDto.Create(page.Items[i]);
+            if (asked.Contains(entry.Reason))
+            {
+                items.Add(MisfireHistoryEntryDto.Create(entry));
+            }
         }
 
-        return new PagedResultDto<MisfireHistoryEntryDto>(items, page.HasMore, page.TotalCount);
+        return new PagedResultDto<MisfireHistoryEntryDto>(items.ToArray(), page.HasMore, page.TotalCount);
     }
 
     public static async ValueTask<MisfireCountResponse> CountMisfires(
@@ -235,6 +265,64 @@ internal static class SchedulerOperations
     {
         int count = await history.CountMisfires(scheduler.SchedulerName, since, cancellationToken).ConfigureAwait(false);
         return new MisfireCountResponse(count);
+    }
+
+    /// <summary>
+    /// One page of the per-job run statuses <paramref name="history" /> keeps for the scheduler, by job
+    /// group and then name; with <paramref name="failing" />, only the failing jobs or only the rest.
+    /// </summary>
+    /// <exception cref="NotSupportedException">The store keeps no per-job status.</exception>
+    public static async ValueTask<PagedResultDto<JobRunStatusDto>> QueryJobRunStatuses(
+        IScheduler scheduler,
+        IExecutionHistoryStore history,
+        ListingParameters listing,
+        bool? failing,
+        CancellationToken cancellationToken)
+    {
+        JobRunStatusQuery query = listing.Page(new JobRunStatusQuery
+        {
+            SchedulerName = scheduler.SchedulerName,
+            Failing = failing
+        });
+
+        PagedResult<JobRunStatus> page = await history.QueryJobRunStatuses(query, cancellationToken).ConfigureAwait(false);
+        return new PagedResultDto<JobRunStatusDto>(page.Items.Select(JobRunStatusDto.Create).ToArray(), page.HasMore, page.TotalCount);
+    }
+
+    /// <summary>
+    /// One job's run status, or <see langword="null" /> when the store has recorded no run of it.
+    /// </summary>
+    /// <exception cref="NotSupportedException">The store keeps no per-job status.</exception>
+    public static async ValueTask<JobRunStatusDto?> GetJobRunStatus(
+        IScheduler scheduler,
+        IExecutionHistoryStore history,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        JobRunStatus? status = await history.GetJobRunStatus(scheduler.SchedulerName, jobKey, cancellationToken).ConfigureAwait(false);
+        return status is null ? null : JobRunStatusDto.Create(status);
+    }
+
+    /// <summary>
+    /// The run statuses of the jobs the request names, by job group and then name. A job with no recorded
+    /// run is absent.
+    /// </summary>
+    /// <exception cref="NotSupportedException">The store keeps no per-job status.</exception>
+    public static async ValueTask<JobRunStatusDto[]> FetchJobRunStatuses(
+        IScheduler scheduler,
+        IExecutionHistoryStore history,
+        JobKeySetRequest request,
+        CancellationToken cancellationToken)
+    {
+        JobRunStatusQuery query = new()
+        {
+            SchedulerName = scheduler.SchedulerName,
+            Jobs = request.Jobs.Select(x => x.AsJobKey()).ToArray(),
+            Take = PagedQuery.All
+        };
+
+        PagedResult<JobRunStatus> page = await history.QueryJobRunStatuses(query, cancellationToken).ConfigureAwait(false);
+        return page.Items.Select(JobRunStatusDto.Create).ToArray();
     }
 
     public static async ValueTask<ExecutionLimitsResponse> GetExecutionLimits(IScheduler scheduler, CancellationToken cancellationToken)

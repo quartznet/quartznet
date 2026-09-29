@@ -1304,6 +1304,7 @@ namespace Quartz
     {
         public MisfireHistoryQuery() { }
         public Quartz.JobKey? Job { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.MisfireReason>? Reasons { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public string? TriggerContains { get; init; }

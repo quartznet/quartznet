@@ -1,0 +1,29 @@
+﻿{
+  "items": [
+    {
+      "schedulerInstanceId": "TEST_NON_CLUSTERED",
+      "jobGroup": "billing",
+      "jobName": "release-stale",
+      "triggerGroup": "DEFAULT",
+      "triggerName": "MT_1",
+      "firedAtUtc": "2026-08-26T12:00:00+00:00",
+      "duration": "00:00:00.2500000",
+      "succeeded": true,
+      "exceptionMessage": null,
+      "retryAttempt": 0,
+      "retryScheduled": false,
+      "entryId": "5b7d4f1a9e3f2a0e",
+      "log": null,
+      "result": "Skipped",
+      "summary": "no stale reservations",
+      "metrics": {
+        "scanned": 1200,
+        "released": 0
+      },
+      "manual": true,
+      "fireInstanceId": "TEST_NON_CLUSTERED-17"
+    }
+  ],
+  "hasMore": false,
+  "totalCount": 1
+}

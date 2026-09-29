@@ -35,7 +35,7 @@ public class RequestDelegatesAreSourceGeneratedTest
     {
         ["CalendarEndpoints.cs"] = 5,
         ["JobEndpoints.cs"] = 21,
-        ["SchedulerEndpoints.cs"] = 18,
+        ["SchedulerEndpoints.cs"] = 21,
         ["TriggerEndpoints.cs"] = 23
     };
 

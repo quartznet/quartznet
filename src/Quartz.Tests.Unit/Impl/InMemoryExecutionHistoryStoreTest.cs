@@ -242,6 +242,34 @@ public class InMemoryExecutionHistoryStoreTest
         last.HasMore.Should().BeFalse();
     }
 
+    [Test]
+    public async Task MisfiresCanBeNarrowedToSomeReasons()
+    {
+        FakeTimeProvider clock = new(Start);
+        InMemoryExecutionHistoryStore store = Store(clock);
+
+        await store.AddMisfire(Misfire(Start, "missed"));
+        await store.AddMisfire(Misfire(Start.AddSeconds(1), "skipped") with { Reason = MisfireReason.Overlap });
+        await store.AddMisfire(Misfire(Start.AddSeconds(2), "vetoed") with { Reason = MisfireReason.Vetoed });
+
+        PagedResult<MisfireHistoryEntry> readable = await store.QueryMisfires(new MisfireHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Reasons = [MisfireReason.Missed, MisfireReason.Overlap],
+            IncludeTotalCount = true
+        });
+
+        readable.Items.Select(entry => entry.TriggerName).Should().Equal(["skipped", "missed"],
+            "the HTTP API asks for the reasons a 4.3 client can read, and a vetoed row would fail that client's whole listing");
+        readable.TotalCount.Should().Be(2, "the count is of the rows the filter lists, or the pager overshoots");
+
+        (await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = SchedulerName, Reasons = [] }))
+            .Items.Should().BeEmpty("an empty set lists nothing, as an empty set of results does");
+
+        (await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = SchedulerName }))
+            .Items.Should().HaveCount(3, "no set is every reason");
+    }
+
     private static InMemoryExecutionHistoryStore Store(
         FakeTimeProvider clock,
         TimeSpan? retention = null,

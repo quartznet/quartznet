@@ -53,6 +53,7 @@ public class WireFormatSourceGenerationTest
         typeof(WireRequest),
         typeof(WireResponse),
         typeof(ListingParameters),
+        typeof(HistoryParameters),
         typeof(InvalidRequestException)
     ];
 
@@ -65,6 +66,7 @@ public class WireFormatSourceGenerationTest
         yield return typeof(PagedResultDto<FireInstanceDto>);
         yield return typeof(PagedResultDto<JobGroupDto>);
         yield return typeof(PagedResultDto<JobHeaderDto>);
+        yield return typeof(PagedResultDto<JobRunStatusDto>);
         yield return typeof(PagedResultDto<string>);
         yield return typeof(PagedResultDto<TriggerGroupDto>);
         yield return typeof(PagedResultDto<TriggerHeaderDto>);

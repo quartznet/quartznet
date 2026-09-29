@@ -32,6 +32,10 @@ internal sealed class ExceptionHandler
     /// member was missing from one that never carries it.
     /// </para>
     /// <para>
+    /// A <c>501</c> names <see cref="NotSupportedException" />: the history store behind the route keeps
+    /// no such thing, which the client raises as the same exception an in-process read would have.
+    /// </para>
+    /// <para>
     /// A <c>403</c> is neither: it is a decision, not a failure, so it names no exception type — the
     /// refusal <see cref="SchedulerAuthorization" /> writes in front of an endpoint carries none either,
     /// and the two are the same answer to the caller whichever of them produced it.
@@ -77,6 +81,12 @@ internal sealed class ExceptionHandler
         {
             logger.NotFound(exception);
             return Problem(exception, GetMessageWithInnerExceptionMessage(exception), StatusCodes.Status404NotFound);
+        }
+
+        if (exception is NotServedException)
+        {
+            logger.NotServed(exception);
+            return Problem(exception, exception.Message, StatusCodes.Status501NotImplemented, exceptionType: nameof(NotSupportedException));
         }
 
         if (exception is ForbiddenException)

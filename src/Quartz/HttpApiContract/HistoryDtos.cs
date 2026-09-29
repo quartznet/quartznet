@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Text.Json;
+
 namespace Quartz.HttpApiContract;
 
 /// <summary>
@@ -68,6 +70,39 @@ internal sealed record ExecutionHistoryEntryDto(
     /// </summary>
     public string? Log { get; init; }
 
+    /// <summary>
+    /// What the run achieved, or <see langword="null" /> on a row written before 4.4.
+    /// </summary>
+    /// <remarks>
+    /// This and the four below are non-positional, as the ones above are: a 4.3 host sends none of them,
+    /// and a 4.3 reader skips them.
+    /// </remarks>
+    public JobRunResult? Result { get; init; }
+
+    /// <summary>
+    /// The job's own one line about the run.
+    /// </summary>
+    public string? Summary { get; init; }
+
+    /// <summary>
+    /// What the run measured, as the JSON object the history keeps, rather than as a string holding one.
+    /// </summary>
+    /// <remarks>
+    /// A row whose kept text is not a JSON object — a store of an application's own may keep anything —
+    /// travels without it rather than failing the page it is on.
+    /// </remarks>
+    public JsonElement? Metrics { get; init; }
+
+    /// <summary>
+    /// Whether the run was asked for with <c>TriggerJob</c> rather than fired by a schedule.
+    /// </summary>
+    public bool Manual { get; init; }
+
+    /// <summary>
+    /// The firing's fire instance id, which links the row to the firing's span and log scope.
+    /// </summary>
+    public string? FireInstanceId { get; init; }
+
     /// <param name="entry">The row.</param>
     /// <param name="includeLog">
     /// Whether the captured log goes on the wire — the single-entry route's answer, and no listing's.
@@ -91,8 +126,35 @@ internal sealed record ExecutionHistoryEntryDto(
             RetryAttempt = entry.RetryAttempt,
             RetryScheduled = entry.RetryScheduled,
             EntryId = entry.EntryId,
-            Log = includeLog ? entry.Log : null
+            Log = includeLog ? entry.Log : null,
+            Result = entry.Result,
+            Summary = entry.Summary,
+            Metrics = MetricsObject(entry.MetricsJson),
+            Manual = entry.Manual,
+            FireInstanceId = entry.FireInstanceId
         };
+    }
+
+    /// <summary>
+    /// The kept metrics as a JSON object, or <see langword="null" /> when there are none or the text is
+    /// not one.
+    /// </summary>
+    private static JsonElement? MetricsObject(string? metricsJson)
+    {
+        if (string.IsNullOrWhiteSpace(metricsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(metricsJson);
+            return document.RootElement.ValueKind == JsonValueKind.Object ? document.RootElement.Clone() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     /// <param name="schedulerName">
@@ -116,7 +178,15 @@ internal sealed record ExecutionHistoryEntryDto(
             RetryAttempt = RetryAttempt,
             RetryScheduled = RetryScheduled,
             EntryId = EntryId,
-            Log = Log
+            Log = Log,
+            Result = Result,
+            Summary = Summary,
+
+            // The object's text as it arrived, which is the text the recorder wrote: the server writes
+            // the object back with the encoder the recorder used, so nothing is re-spelled.
+            MetricsJson = Metrics is { ValueKind: JsonValueKind.Object } metrics ? metrics.GetRawText() : null,
+            Manual = Manual,
+            FireInstanceId = FireInstanceId
         };
     }
 }
@@ -166,6 +236,81 @@ internal sealed record MisfireHistoryEntryDto(
         {
             // A body from a host that predates the reason carries none, which is what its rows were.
             Reason = Reason
+        };
+    }
+}
+
+/// <summary>
+/// One job's run status on the wire: <see cref="JobRunStatus" /> without the scheduler's name, which the
+/// route says.
+/// </summary>
+/// <remarks>
+/// The three positional members are the ones every status has; the rest are <c>init</c>, as on the
+/// record it carries, so a member added later is one a reader that predates it skips.
+/// </remarks>
+internal sealed record JobRunStatusDto(
+    KeyDto Job,
+    DateTimeOffset LastFiredAtUtc,
+    JobRunResult LastResult)
+{
+    public TimeSpan LastDuration { get; init; }
+
+    public string? LastSchedulerInstanceId { get; init; }
+
+    public string? LastEntryId { get; init; }
+
+    public string? LastSummary { get; init; }
+
+    public DateTimeOffset? LastSucceededAtUtc { get; init; }
+
+    public DateTimeOffset? LastFailedAtUtc { get; init; }
+
+    public string? LastFailureMessage { get; init; }
+
+    public int ConsecutiveFailures { get; init; }
+
+    public long RunCount { get; init; }
+
+    public long FailureCount { get; init; }
+
+    public DateTimeOffset FirstFiredAtUtc { get; init; }
+
+    public static JobRunStatusDto Create(JobRunStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+
+        return new JobRunStatusDto(KeyDto.Create(status.Job), status.LastFiredAtUtc, status.LastResult)
+        {
+            LastDuration = status.LastDuration,
+            LastSchedulerInstanceId = status.LastSchedulerInstanceId,
+            LastEntryId = status.LastEntryId,
+            LastSummary = status.LastSummary,
+            LastSucceededAtUtc = status.LastSucceededAtUtc,
+            LastFailedAtUtc = status.LastFailedAtUtc,
+            LastFailureMessage = status.LastFailureMessage,
+            ConsecutiveFailures = status.ConsecutiveFailures,
+            RunCount = status.RunCount,
+            FailureCount = status.FailureCount,
+            FirstFiredAtUtc = status.FirstFiredAtUtc
+        };
+    }
+
+    /// <inheritdoc cref="ExecutionHistoryEntryDto.AsExecutionHistoryEntry" />
+    public JobRunStatus AsJobRunStatus(string schedulerName)
+    {
+        return new JobRunStatus(schedulerName, Job.AsJobKey(), LastFiredAtUtc, LastResult)
+        {
+            LastDuration = LastDuration,
+            LastSchedulerInstanceId = LastSchedulerInstanceId,
+            LastEntryId = LastEntryId,
+            LastSummary = LastSummary,
+            LastSucceededAtUtc = LastSucceededAtUtc,
+            LastFailedAtUtc = LastFailedAtUtc,
+            LastFailureMessage = LastFailureMessage,
+            ConsecutiveFailures = ConsecutiveFailures,
+            RunCount = RunCount,
+            FailureCount = FailureCount,
+            FirstFiredAtUtc = FirstFiredAtUtc
         };
     }
 }

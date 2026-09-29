@@ -512,6 +512,9 @@ public sealed class WireCarrierEquivalenceTest
         [SchedulerRoutes.GetExecution.Name] = "history, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.QueryMisfireHistory.Name] = "history, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.CountMisfires.Name] = "history, read by HttpExecutionHistoryStore",
+        [SchedulerRoutes.QueryJobRunStatuses.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
+        [SchedulerRoutes.GetJobRunStatus.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
+        [SchedulerRoutes.FetchJobRunStatuses.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
     };
 
     private static Task Read<T>(T value)

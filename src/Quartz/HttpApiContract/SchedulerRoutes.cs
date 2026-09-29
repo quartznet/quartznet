@@ -77,6 +77,12 @@ internal static class SchedulerRoutes
     public static readonly WireRoute GetExecution = Route(nameof(GetExecution), Get, History + "/executions/{entryId}");
     public static readonly WireRoute QueryMisfireHistory = Route(nameof(QueryMisfireHistory), Get, History + "/misfires");
     public static readonly WireRoute CountMisfires = Route(nameof(CountMisfires), Get, History + "/misfires/count");
+
+    // Under history, beside the rows the statuses are folded from. A host that predates them answers 404
+    // without problem details, which is what tells a reader the host keeps no status.
+    public static readonly WireRoute QueryJobRunStatuses = Route(nameof(QueryJobRunStatuses), Get, History + "/job-status");
+    public static readonly WireRoute GetJobRunStatus = Route(nameof(GetJobRunStatus), Get, History + "/job-status/{jobGroup}/{jobName}");
+    public static readonly WireRoute FetchJobRunStatuses = Route(nameof(FetchJobRunStatuses), Post, History + "/job-status/fetch");
     public static readonly WireRoute GetExecutionLimits = Route(nameof(GetExecutionLimits), Get, Scheduler + "/execution-limits");
     public static readonly WireRoute SetExecutionLimits = Route(nameof(SetExecutionLimits), Post, Scheduler + "/execution-limits");
     public static readonly WireRoute ClearExecutionLimits = Route(nameof(ClearExecutionLimits), Delete, Scheduler + "/execution-limits");

@@ -11,5 +11,10 @@
   "retryAttempt": 0,
   "retryScheduled": false,
   "entryId": "3f2a0e5b7d4f1a9e",
-  "log": "2026-08-26T12:00:00.000Z info Reports.NightlyJob: starting\n2026-08-26T12:00:01.500Z fail Reports.NightlyJob: the job threw"
+  "log": "2026-08-26T12:00:00.000Z info Reports.NightlyJob: starting\n2026-08-26T12:00:01.500Z fail Reports.NightlyJob: the job threw",
+  "result": null,
+  "summary": null,
+  "metrics": null,
+  "manual": false,
+  "fireInstanceId": null
 }

@@ -71,6 +71,16 @@ internal static class SchedulerEndpoints
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.CountMisfires), CountMisfires)
             .WithQuartzDefaults(SchedulerRoutes.CountMisfires, "Count the scheduler's misfires since an instant");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryJobRunStatuses), QueryJobRunStatuses)
+            .WithQuartzDefaults(SchedulerRoutes.QueryJobRunStatuses, "Query the scheduler's per-job run statuses");
+
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.GetJobRunStatus), GetJobRunStatus)
+            .WithQuartzDefaults(SchedulerRoutes.GetJobRunStatus, "Get one job's run status");
+
+        // A read that takes a body, as the bulk fetches are: not a mutation, so a read-only API serves it.
+        yield return builder.MapPost(options.PatternFor(SchedulerRoutes.FetchJobRunStatuses), FetchJobRunStatuses)
+            .WithQuartzDefaults(SchedulerRoutes.FetchJobRunStatuses, "Get the run statuses of a set of jobs");
+
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.GetExecutionLimits), GetExecutionLimits)
             .WithQuartzDefaults(SchedulerRoutes.GetExecutionLimits, "Get execution group limits");
 
@@ -370,6 +380,12 @@ internal static class SchedulerEndpoints
     /// <c>failedFinally=true</c> narrows to the executions that failed and were not retried — the
     /// occurrences that gave up — and <c>failedFinally=false</c> to everything else.
     /// </para>
+    /// <para>
+    /// From 4.4, <c>jobGroup</c> with <c>jobName</c> narrows to one job exactly, <c>firedFrom</c> (inclusive)
+    /// and <c>firedBefore</c> (exclusive) to a window, and <c>results</c> to a set of results, repeated or
+    /// comma-separated. A host before 4.4 ignores all five, which is why the HTTP client asks the host's
+    /// version before it sends one.
+    /// </para>
     /// </remarks>
     [ProducesResponseType(typeof(PagedResultDto<ExecutionHistoryEntryDto>), StatusCodes.Status200OK)]
     private static Task<IResult> QueryExecutionHistory(
@@ -385,9 +401,23 @@ internal static class SchedulerEndpoints
         string? jobContains = null,
         string? triggerContains = null,
         bool? failedFinally = null,
+        string? jobGroup = null,
+        string? jobName = null,
+        [Description("Only executions fired at or after this instant")] DateTimeOffset? firedFrom = null,
+        [Description("Only executions fired before this instant")] DateTimeOffset? firedBefore = null,
+        [Description(ResultsDescription)] string[]? results = null,
         CancellationToken cancellationToken = default)
     {
         ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
+        HistoryParameters filters = new()
+        {
+            JobGroup = jobGroup,
+            JobName = jobName,
+            FiredFrom = firedFrom,
+            FiredBefore = firedBefore,
+            Results = results
+        };
+
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => SchedulerOperations.QueryExecutionHistory(
             scheduler,
             HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
@@ -396,8 +426,14 @@ internal static class SchedulerEndpoints
             jobContains,
             triggerContains,
             failedFinally,
+            filters,
             cancellationToken));
     }
+
+    private const string ResultsDescription = "Only these results: Succeeded, Failed, Cancelled, Skipped. Repeated or comma-separated";
+
+    private const string ReasonsDescription = "Only these reasons: Missed, Overlap, Vetoed. Repeated or comma-separated; "
+                                              + "without it, Missed and Overlap, which every client can read";
 
     /// <summary>
     /// One execution this scheduler ran, named by the <c>entryId</c> its listing row carries, with the
@@ -426,7 +462,16 @@ internal static class SchedulerEndpoints
     /// One page of the firings this scheduler missed, newest first.
     /// </summary>
     /// <remarks>
-    /// <inheritdoc cref="QueryExecutionHistory" path="/remarks" />
+    /// <para>
+    /// Read from the store <see cref="QueryExecutionHistory" /> reads. <c>schedulerInstanceId</c> and
+    /// <c>triggerContains</c> narrow as they do there; from 4.4, <c>jobGroup</c> with <c>jobName</c>
+    /// narrows to one job.
+    /// </para>
+    /// <para>
+    /// <c>reasons</c> names the reasons to list. Without it the listing leaves out <c>Vetoed</c>: a 4.3
+    /// client reads the reason through an enum that has no such name, and one such row fails its whole
+    /// listing. A client that can read it asks for it.
+    /// </para>
     /// </remarks>
     [ProducesResponseType(typeof(PagedResultDto<MisfireHistoryEntryDto>), StatusCodes.Status200OK)]
     private static Task<IResult> QueryMisfireHistory(
@@ -440,15 +485,26 @@ internal static class SchedulerEndpoints
         bool includeTotalCount = false,
         string? schedulerInstanceId = null,
         string? triggerContains = null,
+        string? jobGroup = null,
+        string? jobName = null,
+        [Description(ReasonsDescription)] string[]? reasons = null,
         CancellationToken cancellationToken = default)
     {
         ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
+        HistoryParameters filters = new()
+        {
+            JobGroup = jobGroup,
+            JobName = jobName,
+            Reasons = reasons
+        };
+
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => SchedulerOperations.QueryMisfireHistory(
             scheduler,
             HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
             listing,
             schedulerInstanceId,
             triggerContains,
+            filters,
             cancellationToken));
     }
 
@@ -480,6 +536,112 @@ internal static class SchedulerEndpoints
             HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
             since.Value,
             cancellationToken));
+    }
+
+    /// <summary>
+    /// One page of this scheduler's per-job run statuses, by job group and then name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kept by the history store beside the rows, from every execution it records, so a status outlives
+    /// the rows it was folded from. <c>failing=true</c> lists the jobs whose latest occurrences failed for
+    /// good, and <c>failing=false</c> the rest.
+    /// </para>
+    /// <para>
+    /// A store that keeps no status answers <c>501</c>, naming <see cref="NotSupportedException" />. A host
+    /// older than 4.4 has no such route and answers <c>404</c> without problem details.
+    /// </para>
+    /// </remarks>
+    [ProducesResponseType(typeof(PagedResultDto<JobRunStatusDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryJobRunStatuses(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        int skip = 0,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
+        bool includeTotalCount = false,
+        [Description("true for the jobs failing now, false for the rest")] bool? failing = null,
+        CancellationToken cancellationToken = default)
+    {
+        ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryJobRunStatuses(
+            scheduler,
+            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            listing,
+            failing,
+            cancellationToken)));
+    }
+
+    /// <summary>
+    /// One job's run status; <c>404</c> when the store has recorded no run of it.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="QueryJobRunStatuses" path="/remarks" />
+    /// </remarks>
+    [ProducesResponseType(typeof(JobRunStatusDto), StatusCodes.Status200OK)]
+    private static Task<IResult> GetJobRunStatus(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        string jobGroup,
+        string jobName,
+        CancellationToken cancellationToken = default)
+    {
+        JobKey jobKey = new(jobName, jobGroup);
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+            await Served(() => SchedulerOperations.GetJobRunStatus(
+                scheduler,
+                HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+                jobKey,
+                cancellationToken)).ConfigureAwait(false)
+            ?? throw NotFoundException.ForJobRunStatus(jobKey));
+    }
+
+    /// <summary>
+    /// The run statuses of the jobs the body names, by job group and then name — at most
+    /// <see cref="EndpointHelper.MaxKeysToFetch" /> of them. A job with no recorded run is absent.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="QueryJobRunStatuses" path="/remarks" />
+    /// </remarks>
+    [ProducesResponseType(typeof(JobRunStatusDto[]), StatusCodes.Status200OK)]
+    private static Task<IResult> FetchJobRunStatuses(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        JobKeySetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        EndpointHelper.AssertKeysToFetch(request.Jobs);
+
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => Served(() => SchedulerOperations.FetchJobRunStatuses(
+            scheduler,
+            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            request,
+            cancellationToken)));
+    }
+
+    /// <summary>
+    /// A status read, with a store's <see cref="NotSupportedException" /> answered as the <c>501</c> it is
+    /// rather than as a server fault.
+    /// </summary>
+    private static async ValueTask<T> Served<T>(Func<ValueTask<T>> read)
+    {
+        try
+        {
+            return await read().ConfigureAwait(false);
+        }
+        catch (NotSupportedException e)
+        {
+            throw new NotServedException(e);
+        }
     }
 
     /// <summary>

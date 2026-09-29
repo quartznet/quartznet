@@ -1,8 +1,10 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using FakeItEasy;
 
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
@@ -45,16 +47,7 @@ public sealed class HistoryEndpointsTest
 
         client = factory.CreateClient();
 
-        IScheduler fake = A.Fake<IScheduler>();
-        A.CallTo(() => fake.SchedulerName).Returns(TestData.SchedulerName);
-
-        ISchedulerRepository repository = factory.Services.GetRequiredService<ISchedulerRepository>();
-        foreach (IScheduler bound in repository.LookupAll())
-        {
-            repository.Remove(bound.SchedulerName);
-        }
-
-        repository.Bind(fake);
+        BindAnsweringScheduler(factory);
         history = factory.Services.GetRequiredService<IExecutionHistoryStore>();
     }
 
@@ -269,6 +262,278 @@ public sealed class HistoryEndpointsTest
         entry.SchedulerName.Should().Be(TestData.SchedulerName, "the route named the scheduler, and the row belongs to it");
     }
 
+    [Test]
+    public async Task ExecutionsCanBeNarrowedToOneJobAWindowAndSomeResults()
+    {
+        // Inside the shipped store's retention window, which is measured against the wall clock.
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddExecution(Run(start, "release-stale", JobRunResult.Succeeded));
+        await history.AddExecution(Run(start.AddMinutes(1), "release-stale", JobRunResult.Skipped));
+        await history.AddExecution(Run(start.AddMinutes(2), "release-stale-archive", JobRunResult.Skipped));
+        await history.AddExecution(Run(start.AddMinutes(3), "release-stale", JobRunResult.Cancelled));
+        await history.AddExecution(Run(start.AddMinutes(4), "release-stale", JobRunResult.Failed));
+
+        PagedResultDto<ExecutionHistoryEntryDto> exact = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?jobGroup=DummyGroup&jobName=release-stale&results=Skipped,Cancelled");
+        exact.Items.Select(item => item.Result).Should().Equal([JobRunResult.Cancelled, JobRunResult.Skipped],
+            "one job exactly, where jobContains would also have matched release-stale-archive");
+
+        PagedResultDto<ExecutionHistoryEntryDto> repeated = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?jobGroup=DummyGroup&jobName=release-stale&results=skipped&results=CANCELLED");
+        repeated.Items.Should().HaveCount(2, "a repeated parameter reads as the comma-separated one does, and a name in any case");
+
+        string from = Uri.EscapeDataString(start.AddMinutes(1).ToString("O"));
+        string before = Uri.EscapeDataString(start.AddMinutes(3).ToString("O"));
+        PagedResultDto<ExecutionHistoryEntryDto> window = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?firedFrom={from}&firedBefore={before}");
+        window.Items.Select(item => item.JobName).Should().Equal(["release-stale-archive", "release-stale"],
+            "from is inclusive and before is exclusive, so two windows that meet list each execution once");
+    }
+
+    [TestCase("jobName=release-stale", "Both jobName and jobGroup*")]
+    [TestCase("results=Sideways", "Unknown results value 'Sideways'*Succeeded, Failed, Cancelled, Skipped*")]
+    [TestCase("results=1", "Unknown results value '1'*")]
+    [TestCase("results=Failed%2C%20Skipped%2CBogus", "Unknown results value 'Bogus'*")]
+    public async Task AFilterThatNamesNothingIsRefused(string query, string detail)
+    {
+        using HttpResponseMessage response = await client.GetAsync($"{SchedulerUrl}/history/executions?{query}");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest,
+            "a filter the host cannot read would otherwise be a page that answers a different question");
+        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("detail").GetString().Should().Match(detail);
+    }
+
+    /// <summary>
+    /// A 4.4 row carries what the run reported, and its metrics as an object that reads back as the text
+    /// the recorder wrote.
+    /// </summary>
+    [Test]
+    public async Task ARunsOutcomeRoundTripsThroughTheWire()
+    {
+        ExecutionHistoryEntry recorded = Run(DateTimeOffset.UtcNow, "release-stale", JobRunResult.Skipped) with
+        {
+            Summary = "no stale reservations",
+            MetricsJson = """{"scanned":1200,"released":0,"ratio":0.25,"note":"café <b>","ok":true,"nothing":null}""",
+            Manual = true,
+            FireInstanceId = "node-a-17"
+        };
+        await history.AddExecution(recorded);
+
+        using (JsonDocument raw = JsonDocument.Parse(await client.GetStringAsync($"{SchedulerUrl}/history/executions")))
+        {
+            raw.RootElement.GetProperty("items")[0].GetProperty("metrics").ValueKind.Should().Be(JsonValueKind.Object,
+                "the metrics travel as the object they are, which a client in any language can read without parsing a string");
+        }
+
+        ExecutionHistoryEntryDto row = (await Read<PagedResultDto<ExecutionHistoryEntryDto>>($"{SchedulerUrl}/history/executions"))
+            .Items.Should().ContainSingle().Subject;
+
+        row.Result.Should().Be(JobRunResult.Skipped);
+        row.AsExecutionHistoryEntry(TestData.SchedulerName).Should().Be(recorded with { EntryId = row.EntryId },
+            "the result, the summary, the metrics as the same text, the manual flag and the fire instance id all come back as they were");
+    }
+
+    [Test]
+    public async Task MetricsThatAreNotAnObjectAreLeftOffTheRowRatherThanFailingThePage()
+    {
+        await history.AddExecution(Run(DateTimeOffset.UtcNow, "release-stale", JobRunResult.Succeeded) with { MetricsJson = "not json" });
+
+        ExecutionHistoryEntryDto row = (await Read<PagedResultDto<ExecutionHistoryEntryDto>>($"{SchedulerUrl}/history/executions"))
+            .Items.Should().ContainSingle().Subject;
+
+        row.Metrics.Should().BeNull("a store of an application's own may keep anything in the column, and one row must not fail the listing");
+    }
+
+    [Test]
+    public async Task TheMisfireListingLeavesVetoesOutUnlessTheyAreAskedFor()
+    {
+        await SeedEveryReason();
+
+        PagedResultDto<MisfireHistoryEntryDto> unasked = await Read<PagedResultDto<MisfireHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/misfires?includeTotalCount=true");
+        unasked.Items.Select(item => item.Reason).Should().Equal([MisfireReason.Overlap, MisfireReason.Missed],
+            "a request that names no reason is answered with the reasons every client can read");
+        unasked.TotalCount.Should().Be(2, "the count is of what the listing lists, or a pager asks for a page that is not there");
+
+        PagedResultDto<MisfireHistoryEntryDto> vetoes = await Read<PagedResultDto<MisfireHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/misfires?reasons=Vetoed");
+        vetoes.Items.Should().ContainSingle().Which.Reason.Should().Be(MisfireReason.Vetoed);
+
+        PagedResultDto<MisfireHistoryEntryDto> all = await Read<PagedResultDto<MisfireHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/misfires?reasons=Missed,Overlap,Vetoed");
+        all.Items.Should().HaveCount(3);
+
+        MisfireCountResponse count = await Read<MisfireCountResponse>(
+            $"{SchedulerUrl}/history/misfires/count?since={Uri.EscapeDataString(DateTimeOffset.UtcNow.AddHours(-1).ToString("O"))}");
+        count.Count.Should().Be(1, "the count is of misfires, and neither an overlap nor a veto is one");
+    }
+
+    /// <summary>
+    /// A 4.3 dashboard or HTTP client reads a misfire's reason through an enum converter that has no
+    /// <c>Vetoed</c>, so a single vetoed row would fail its whole listing.
+    /// </summary>
+    [Test]
+    public async Task AClientFrom43ReadsTheDefaultListingOfAHostHoldingVetoes()
+    {
+        await SeedEveryReason();
+
+        JsonSerializerOptions readerFrom43 = new(JsonSerializerDefaults.Web)
+        {
+            Converters = { new JsonStringEnumConverter<MisfireReasonAsOf43>() }
+        };
+
+        string listing = await client.GetStringAsync($"{SchedulerUrl}/history/misfires");
+        Func<MisfirePageAsOf43?> readDefault = () => JsonSerializer.Deserialize<MisfirePageAsOf43>(listing, readerFrom43);
+        readDefault.Should().NotThrow("the listing leaves out what a 4.3 client cannot read")
+            .Which!.Items.Should().HaveCount(2);
+
+        // The control: the same reader fails the moment a vetoed row reaches it, which is what the default
+        // listing is keeping from it.
+        string everything = await client.GetStringAsync($"{SchedulerUrl}/history/misfires?reasons=Missed,Overlap,Vetoed");
+        Func<MisfirePageAsOf43?> readEverything = () => JsonSerializer.Deserialize<MisfirePageAsOf43>(everything, readerFrom43);
+        readEverything.Should().Throw<JsonException>("the reader is shaped as 4.3's is, with no name for a veto");
+    }
+
+    [Test]
+    public async Task MisfiresCanBeNarrowedToOneJob()
+    {
+        await history.AddMisfire(Misfire(DateTimeOffset.UtcNow, "at-midnight"));
+        await history.AddMisfire(Misfire(DateTimeOffset.UtcNow, "hourly") with { JobKey = new JobKey("other", "DummyGroup") });
+
+        PagedResultDto<MisfireHistoryEntryDto> filtered = await Read<PagedResultDto<MisfireHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/misfires?jobGroup=DummyGroup&jobName=DummyJob");
+
+        filtered.Items.Should().ContainSingle().Which.TriggerName.Should().Be("at-midnight");
+    }
+
+    [Test]
+    public async Task StatusesAreListedByJobAndCanBeNarrowedToTheFailingOnes()
+    {
+        await SeedStatuses();
+
+        PagedResultDto<JobRunStatusDto> all = await Read<PagedResultDto<JobRunStatusDto>>(
+            $"{SchedulerUrl}/history/job-status?includeTotalCount=true");
+        all.Items.Select(status => status.Job.Name).Should().Equal(["healthy", "sick"], "statuses are listed by group and then name");
+        all.TotalCount.Should().Be(2);
+
+        JobRunStatusDto failing = (await Read<PagedResultDto<JobRunStatusDto>>($"{SchedulerUrl}/history/job-status?failing=true"))
+            .Items.Should().ContainSingle().Subject;
+        failing.Job.Name.Should().Be("sick");
+        failing.ConsecutiveFailures.Should().Be(2);
+        failing.LastResult.Should().Be(JobRunResult.Failed);
+        failing.LastFailureMessage.Should().Be("the upstream system is down");
+        failing.RunCount.Should().Be(3);
+    }
+
+    [Test]
+    public async Task OneJobsStatusIsReadByItsKey()
+    {
+        await SeedStatuses();
+
+        JobRunStatusDto status = await Read<JobRunStatusDto>($"{SchedulerUrl}/history/job-status/DummyGroup/healthy");
+
+        status.LastResult.Should().Be(JobRunResult.Skipped);
+        status.LastSucceededAtUtc.Should().NotBeNull("a skipped run is a success");
+
+        using HttpResponseMessage missing = await client.GetAsync($"{SchedulerUrl}/history/job-status/DummyGroup/never-ran");
+        missing.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound, "no run of the job has been recorded");
+        (await missing.Content.ReadAsStringAsync()).Should().Contain("No recorded run of job DummyGroup.never-ran",
+            "a 404 with problem details, which a reader tells apart from a host that has no such route");
+    }
+
+    [Test]
+    public async Task ASetOfJobsHasItsStatusesFetchedInOneRequest()
+    {
+        await SeedStatuses();
+
+        using StringContent keys = new(
+            """{"jobs":[{"name":"sick","group":"DummyGroup"},{"name":"never-ran","group":"DummyGroup"}]}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+        using HttpResponseMessage response = await client.PostAsync($"{SchedulerUrl}/history/job-status/fetch", keys);
+
+        response.EnsureSuccessStatusCode();
+        JobRunStatusDto[] statuses = JsonSerializer.Deserialize<JobRunStatusDto[]>(
+            await response.Content.ReadAsStringAsync(),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web).ConfigureWireFormat(new SystemTextJsonSerializerRegistry()))!;
+
+        statuses.Should().ContainSingle("a job with no recorded run is left out").Which.Job.Name.Should().Be("sick");
+    }
+
+    [Test]
+    public async Task AFetchOfMoreKeysThanTheHostTakesIsRefused()
+    {
+        string keys = string.Join(",", Enumerable.Range(0, 1001).Select(index => $$"""{"name":"job{{index}}","group":"g"}"""));
+        using StringContent body = new("{\"jobs\":[" + keys + "]}", System.Text.Encoding.UTF8, "application/json");
+
+        using HttpResponseMessage response = await client.PostAsync($"{SchedulerUrl}/history/job-status/fetch", body);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest, "one request reads at most a thousand statuses, as a bulk fetch does");
+    }
+
+    /// <summary>
+    /// Through the HTTP-backed store, as a dashboard fronting the scheduler reads it: the filters reach a host
+    /// that reads them, and the statuses come back as the host keeps them.
+    /// </summary>
+    [Test]
+    public async Task TheHttpBackedStoreFiltersAndReadsStatuses()
+    {
+        await SeedStatuses();
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, client);
+
+        PagedResult<ExecutionHistoryEntry> failures = await remote.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = TestData.SchedulerName,
+            Job = new JobKey("sick", "DummyGroup"),
+            Results = [JobRunResult.Failed]
+        });
+        failures.Items.Should().HaveCount(2).And.OnlyContain(entry => entry.EffectiveResult == JobRunResult.Failed);
+
+        (await remote.GetJobRunStatus(TestData.SchedulerName, new JobKey("sick", "DummyGroup")))!.ConsecutiveFailures.Should().Be(2);
+        (await remote.GetJobRunStatus(TestData.SchedulerName, new JobKey("never-ran", "DummyGroup"))).Should().BeNull();
+
+        PagedResult<JobRunStatus> named = await remote.QueryJobRunStatuses(new JobRunStatusQuery
+        {
+            SchedulerName = TestData.SchedulerName,
+            Jobs = [new JobKey("healthy", "DummyGroup"), new JobKey("sick", "DummyGroup")]
+        });
+        named.Items.Select(status => status.Job.Name).Should().Equal(["healthy", "sick"]);
+    }
+
+    /// <summary>
+    /// A 4.4 host whose history store keeps rows only answers <c>501</c> naming <see cref="NotSupportedException" />,
+    /// which the HTTP-backed store raises again as that.
+    /// </summary>
+    [Test]
+    public async Task AStoreThatKeepsNoStatusIsAnsweredNotImplemented()
+    {
+        IExecutionHistoryStore rowsOnly = A.Fake<IExecutionHistoryStore>();
+        A.CallTo(() => rowsOnly.QueryJobRunStatuses(A<JobRunStatusQuery>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => rowsOnly.GetJobRunStatus(A<string>._, A<JobKey>._, A<CancellationToken>._)).CallsBaseMethod();
+
+        WebApplicationFactory<Program> factory = factories[0].WithWebHostBuilder(builder => builder.ConfigureTestServices(
+            services => services.AddSingleton(rowsOnly)));
+        factories.Add(factory);
+        using HttpClient rowsOnlyClient = factory.CreateClient();
+        BindAnsweringScheduler(factory);
+
+        using HttpResponseMessage response = await rowsOnlyClient.GetAsync($"{SchedulerUrl}/history/job-status");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotImplemented,
+            "the server is working; what it serves from keeps no status, which is neither a fault nor a missing route");
+        using (JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()))
+        {
+            body.RootElement.GetProperty(HttpApiConstants.ProblemDetailsExceptionType).GetString().Should().Be(nameof(NotSupportedException));
+            body.RootElement.GetProperty("detail").GetString().Should().Contain("keeps no per-job run status");
+        }
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, rowsOnlyClient);
+        Func<Task> read = async () => await remote.GetJobRunStatus(TestData.SchedulerName, new JobKey("sick", "DummyGroup"));
+        await read.Should().ThrowAsync<NotSupportedException>().WithMessage("*keeps no per-job run status*");
+    }
+
     /// <summary>
     /// Reads one history route the way the remote client does: the catalogue names the route the URL is
     /// a call of, and the answer comes back through the client's own status mapping.
@@ -322,4 +587,69 @@ public sealed class HistoryEndpointsTest
         JobKey: new JobKey("DummyJob", "DummyGroup"),
         MisfiredAtUtc: misfiredAt,
         ScheduledFireTimeUtc: misfiredAt.AddMinutes(-5));
+
+    /// <summary>One run of a job, with what it achieved.</summary>
+    private static ExecutionHistoryEntry Run(DateTimeOffset firedAt, string jobName, JobRunResult result) => Entry(firedAt, jobName) with
+    {
+        Succeeded = result is JobRunResult.Succeeded or JobRunResult.Skipped,
+        ExceptionMessage = result == JobRunResult.Failed ? "the upstream system is down" : null,
+        Result = result
+    };
+
+    /// <summary>A misfire of each reason, the veto newest.</summary>
+    private async Task SeedEveryReason()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await history.AddMisfire(Misfire(now.AddSeconds(-2), "missed"));
+        await history.AddMisfire(Misfire(now.AddSeconds(-1), "skipped") with { Reason = MisfireReason.Overlap });
+        await history.AddMisfire(Misfire(now, "vetoed") with { Reason = MisfireReason.Vetoed });
+    }
+
+    /// <summary>
+    /// <c>healthy</c> succeeded and then skipped; <c>sick</c> succeeded and then failed for good twice.
+    /// </summary>
+    private async Task SeedStatuses()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddExecution(Run(start, "healthy", JobRunResult.Succeeded));
+        await history.AddExecution(Run(start.AddMinutes(1), "healthy", JobRunResult.Skipped));
+        await history.AddExecution(Run(start, "sick", JobRunResult.Succeeded));
+        await history.AddExecution(Run(start.AddMinutes(1), "sick", JobRunResult.Failed));
+        await history.AddExecution(Run(start.AddMinutes(2), "sick", JobRunResult.Failed));
+    }
+
+    /// <summary>
+    /// Binds the host's scheduler, answering its details with this build's version, which is what the
+    /// HTTP-backed store reads before it sends a 4.4 filter.
+    /// </summary>
+    private static void BindAnsweringScheduler(WebApplicationFactory<Program> factory)
+    {
+        IScheduler fake = A.Fake<IScheduler>();
+        A.CallTo(() => fake.SchedulerName).Returns(TestData.SchedulerName);
+        A.CallTo(() => fake.GetMetadata(A<CancellationToken>._)).Returns(TestData.Metadata with
+        {
+            Version = typeof(IScheduler).Assembly.GetName().Version!.ToString()
+        });
+
+        ISchedulerRepository repository = factory.Services.GetRequiredService<ISchedulerRepository>();
+        foreach (IScheduler bound in repository.LookupAll())
+        {
+            repository.Remove(bound.SchedulerName);
+        }
+
+        repository.Bind(fake);
+    }
+
+    /// <summary>The reason as a 4.3 client knew it: no <c>Vetoed</c>.</summary>
+    private enum MisfireReasonAsOf43
+    {
+        Missed = 0,
+        Overlap = 1
+    }
+
+    /// <summary>A misfire as a 4.3 client reads it, down to the member that matters.</summary>
+    private sealed record MisfireRowAsOf43(string TriggerName, MisfireReasonAsOf43 Reason);
+
+    /// <summary>A page of misfires as a 4.3 client reads it.</summary>
+    private sealed record MisfirePageAsOf43(MisfireRowAsOf43[] Items, bool HasMore, int? TotalCount);
 }

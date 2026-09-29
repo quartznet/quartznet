@@ -20,7 +20,7 @@
 namespace Quartz;
 
 /// <summary>
-/// One page of the misfires of a scheduler, optionally narrowed by node, trigger and job.
+/// One page of the misfires of a scheduler, optionally narrowed by node, trigger, job and reason.
 /// </summary>
 /// <remarks>
 /// <inheritdoc cref="ExecutionHistoryQuery" path="/remarks" />
@@ -47,4 +47,14 @@ public sealed record MisfireHistoryQuery : PagedQuery
     /// null. A row whose <see cref="MisfireHistoryEntry.JobKey" /> is null never matches.
     /// </summary>
     public JobKey? Job { get; init; }
+
+    /// <summary>
+    /// Lists only the misfires whose <see cref="MisfireHistoryEntry.Reason" /> is one of these, or every
+    /// reason when null. An empty set lists nothing.
+    /// </summary>
+    /// <remarks>
+    /// The HTTP API's misfire listing asks its store for the reasons a 4.3 client can read unless the
+    /// request names others, so that such a client never receives <see cref="MisfireReason.Vetoed" />.
+    /// </remarks>
+    public IReadOnlyCollection<MisfireReason>? Reasons { get; init; }
 }

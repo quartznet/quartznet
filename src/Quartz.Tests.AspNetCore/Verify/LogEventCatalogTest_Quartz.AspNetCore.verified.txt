@@ -14,3 +14,5 @@
     "Api request abandoned by the caller: {Url}"
 9007  Information  HttpApiLog.MutationPerformed
     "Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"
+9008  Debug  HttpApiLog.NotServed
+    "NotSupportedException thrown"

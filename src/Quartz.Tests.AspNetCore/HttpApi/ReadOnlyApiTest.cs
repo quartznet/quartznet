@@ -78,6 +78,9 @@ public sealed class ReadOnlyApiTest
                 because: "the bulk fetch is a read that takes a body of keys, so a rule written per verb would have refused it");
             await Row(HttpMethod.Post, $"{SchedulerUrl}/triggers/fetch", HttpStatusCode.OK,
                 requestJson: """[{"name":"existing","group":"group"}]""");
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/history/job-status/fetch", HttpStatusCode.OK,
+                requestJson: """{"jobs":[{"name":"existing","group":"group"}]}""",
+                because: "reading a set of jobs' run statuses changes nothing, so a dashboard fed by a read-only API can show them");
         }
     }
 
@@ -132,7 +135,7 @@ public sealed class ReadOnlyApiTest
     }
 
     /// <summary>
-    /// Every route that is not a <c>GET</c> is marked as a mutation, or is one of the two reads that
+    /// Every route that is not a <c>GET</c> is marked as a mutation, or is one of the three reads that
     /// take a body.
     /// </summary>
     /// <remarks>
@@ -140,7 +143,7 @@ public sealed class ReadOnlyApiTest
     /// build rather than a route that stays writable while the API is configured read-only.
     /// </remarks>
     [Test]
-    public async Task EveryNonGetRouteIsMarkedAsAMutationOrIsOneOfTheTwoFetches()
+    public async Task EveryNonGetRouteIsMarkedAsAMutationOrIsOneOfTheFetches()
     {
         await using WebApplication app = ReadOnlyApp();
         app.MapQuartzHttpApi("/quartz-api");
@@ -163,8 +166,12 @@ public sealed class ReadOnlyApiTest
         }
 
         unmarked.Should().BeEquivalentTo(
-            ["POST /quartz-api/schedulers/{schedulerName}/jobs/fetch", "POST /quartz-api/schedulers/{schedulerName}/triggers/fetch"],
-            "the two bulk fetches are the only routes that take a body without changing anything - every other "
+            [
+                "POST /quartz-api/schedulers/{schedulerName}/jobs/fetch",
+                "POST /quartz-api/schedulers/{schedulerName}/triggers/fetch",
+                "POST /quartz-api/schedulers/{schedulerName}/history/job-status/fetch"
+            ],
+            "the three fetches are the only routes that take a body without changing anything - every other "
             + "non-GET route has to carry the marker, or QuartzHttpApiOptions.ReadOnly leaves it writable");
     }
 

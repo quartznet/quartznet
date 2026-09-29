@@ -105,6 +105,30 @@ internal sealed class WireClient
         return transport.Send(WithBody(request, body), cancellationToken);
     }
 
+    /// <summary>
+    /// Sends a request with no body and hands back the answer as it came.
+    /// </summary>
+    /// <inheritdoc cref="Exchange{TBody}" path="/remarks" />
+    public ValueTask<WireResponse> Exchange(WireRequest request, CancellationToken cancellationToken)
+    {
+        return transport.Send(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// The detail of a failure's problem details, or <see langword="null" /> when it carries none.
+    /// </summary>
+    public string? ProblemDetail(WireResponse response)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(response.Body, HttpClientExtensions.WireFormatOf<ProblemDetailsDto>(serializerOptions))?.Detail;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <inheritdoc cref="HttpClientExtensions.EnsureSuccess" />
     public bool EnsureSuccess(WireResponse response, bool throwOnNotFound = true)
     {
