@@ -45,16 +45,43 @@ namespace Quartz.Impl;
 internal static class ExecutionMetricsWriter
 {
     /// <summary>
-    /// The metrics as a JSON object, or <see langword="null" /> when there are none or when they come to
-    /// more than <see cref="JobRunReport.MaxMetricsLength" /> characters — which is logged once, as event
-    /// <c>1059</c>.
+    /// The metrics as a JSON object, or <see langword="null" /> when there are none, when they come to
+    /// more than <see cref="JobRunReport.MaxMetricsLength" /> characters (logged once, as event
+    /// <c>1059</c>), or when writing them threw (logged once, as event <c>1060</c>).
     /// </summary>
+    /// <remarks>
+    /// Never throws. A value's <see cref="object.ToString" /> is the job's code, and so is the dictionary
+    /// itself; whatever either throws costs the run its metrics, never its history row.
+    /// </remarks>
     /// <param name="metrics">What the job reported.</param>
     /// <param name="logger">Where a dropped object is reported.</param>
     /// <param name="jobKey">The job that reported them, for the log event.</param>
     internal static string? Write(IReadOnlyDictionary<string, object?>? metrics, ILogger logger, JobKey jobKey)
     {
-        if (metrics is null || metrics.Count == 0)
+        if (metrics is null)
+        {
+            return null;
+        }
+
+        string? metricName = null;
+        try
+        {
+            return WriteObject(metrics, logger, jobKey, ref metricName);
+        }
+        catch (Exception e)
+        {
+            logger.JobRunMetricsUnwritable(jobKey, metricName, e);
+            return null;
+        }
+    }
+
+    private static string? WriteObject(
+        IReadOnlyDictionary<string, object?> metrics,
+        ILogger logger,
+        JobKey jobKey,
+        ref string? metricName)
+    {
+        if (metrics.Count == 0)
         {
             return null;
         }
@@ -66,6 +93,7 @@ internal static class ExecutionMetricsWriter
 
             foreach (KeyValuePair<string, object?> metric in metrics)
             {
+                metricName = metric.Key;
                 writer.WritePropertyName(metric.Key);
                 WriteValue(writer, metric.Value);
 

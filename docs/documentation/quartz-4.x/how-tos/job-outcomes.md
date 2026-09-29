@@ -74,6 +74,7 @@ A reported `Failed` is history only. To have the scheduler act on a failure, thr
 |---|---|---|
 | `Summary` | 1,000 characters, `JobRunReport.MaxSummaryLength` | Cut, never inside a surrogate pair |
 | `Metrics` as JSON | 4,000 characters, `JobRunReport.MaxMetricsLength` | Dropped whole, with log event [`1059`](../log-events.md) |
+| A metric value | Its text must not throw | Metrics dropped whole, with log event [`1060`](../log-events.md), naming the metric. The run is still recorded |
 
 Metrics are written by value type, without reflection:
 

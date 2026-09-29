@@ -58,7 +58,8 @@ public sealed record JobRunReport : IJobRunReport
     /// A value is written as a JSON string, number, boolean or null: numbers stay numbers (a non-finite
     /// <see cref="double" /> or <see cref="float" /> is a string), dates are round-trip (<c>"O"</c>)
     /// strings, a <see cref="TimeSpan" /> is its constant (<c>"c"</c>) form, an enum is its name, and
-    /// anything else is its invariant-culture text.
+    /// anything else is its invariant-culture text. A value whose text throws drops the metrics, with log
+    /// event <c>1060</c>; the run is still recorded.
     /// </remarks>
     public IReadOnlyDictionary<string, object?>? Metrics { get; init; }
 

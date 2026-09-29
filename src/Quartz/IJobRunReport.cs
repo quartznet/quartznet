@@ -51,7 +51,8 @@ public interface IJobRunReport
 
     /// <summary>
     /// Named values the run measured, or <see langword="null" />. Recorded as one JSON object of at most
-    /// <see cref="JobRunReport.MaxMetricsLength" /> characters; a larger one is dropped whole.
+    /// <see cref="JobRunReport.MaxMetricsLength" /> characters; a larger one, or one with a value that
+    /// throws while it is written, is dropped whole and the run is recorded without it.
     /// </summary>
     IReadOnlyDictionary<string, object?>? Metrics { get; }
 }
