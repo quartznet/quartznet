@@ -39,22 +39,6 @@ partial class Build
         ("sqlite", "Quartz.Weasel.SQLite"),
     ];
 
-    /// <summary>
-    /// The foreign keys a dialect's fresh-install script does not create although the model has them,
-    /// which that dialect's Weasel model therefore leaves out.
-    /// </summary>
-    /// <remarks>
-    /// <c>tables_sqlServer.sql</c> has never created <c>FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS</c> — nor did
-    /// 3.x's — while <c>create_sqlServer.sql</c> does. Modelled, every SQL Server database a script
-    /// created would read as changed, and the first apply would add a checked foreign key to a table
-    /// that may hold rows it rejects. Left out, both read as unchanged: the tables are add-only, so the
-    /// key a provisioned schema carries is kept. Quartz deletes blob rows itself, so nothing relies on it.
-    /// </remarks>
-    static readonly HashSet<(string Dialect, string Table)> WeaselForeignKeysLeftOut =
-    [
-        ("sqlServer", "BLOB_TRIGGERS"),
-    ];
-
     static string WeaselTablesNamespace(string dialect) => dialect switch
     {
         "postgres" => "Weasel.Postgresql.Tables",
@@ -144,11 +128,11 @@ partial class Build
 
             o.AppendLine($"        naming.PrimaryKey({variable});");
 
-            if (table.ForeignKey is not null && WeaselForeignKeysLeftOut.Contains((dialect, table.Name)))
+            if (table.ForeignKey is not null && ForeignKeyOn(dialect, table) is null)
             {
-                o.AppendLine($"        // No foreign key: tables_{dialect}.sql creates none on this table. See WeaselForeignKeysLeftOut.");
+                o.AppendLine($"        // No foreign key: tables_{dialect}.sql creates none on this table. See SchemaForeignKey.LeftOutOn.");
             }
-            else if (table.ForeignKey is { } foreignKey)
+            else if (ForeignKeyOn(dialect, table) is { } foreignKey)
             {
                 bool cascade = foreignKey.Cascade && dialect is "sqlServer" or "postgres" or "sqlite";
                 o.AppendLine(

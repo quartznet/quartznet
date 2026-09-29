@@ -131,6 +131,14 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * **The new `*With` set defaults keep the details.** The other `*With` defaults drop them. A scheduler or
   store of your own gets `PauseTriggersWith` and `PauseJobsWith` as one `PauseTriggerWith` or `PauseJobWith`
   call per key, so it records the reason with no change. Override them only to pause the set in one call.
+* **On SQL Server, `ProvisionSchema()` no longer creates `FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS`**, which
+  `tables_sqlServer.sql` never created ([#3949](https://github.com/quartznet/quartznet/issues/3949)). A
+  database it provisioned before keeps the key; the store deletes blob rows itself, so nothing needs it. To
+  make that database match a fresh install, drop it:
+
+  ```sql
+  ALTER TABLE QRTZ_BLOB_TRIGGERS DROP CONSTRAINT FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS;
+  ```
 
 **Dependencies:**
 

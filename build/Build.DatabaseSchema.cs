@@ -139,7 +139,15 @@ partial class Build
         string ReferencedTable,
         string[] ReferencedColumns,
         bool Cascade,
-        string OracleName);
+        string OracleName)
+    {
+        /// <summary>
+        /// The dialects whose fresh-install script has never created this key, so neither the generated
+        /// script nor the Weasel model does. Read through <see cref="ForeignKeyOn" />, the one place both
+        /// renderings ask.
+        /// </summary>
+        public string[] LeftOutOn { get; init; } = [];
+    }
 
     /// <param name="Name">The table name without the <c>QRTZ_</c> prefix.</param>
     /// <param name="PrimaryKey">The primary key columns.</param>
@@ -249,6 +257,13 @@ partial class Build
 
     static SchemaForeignKey TriggerReference(bool cascade, string oracleName) =>
         new(TriggerKey, "TRIGGERS", TriggerKey, cascade, oracleName);
+
+    /// <summary>
+    /// The table's foreign key as <paramref name="dialect" /> declares it, or <see langword="null" /> where
+    /// that dialect's schema has none on the table.
+    /// </summary>
+    static SchemaForeignKey ForeignKeyOn(string dialect, SchemaTable table) =>
+        table.ForeignKey is { } foreignKey && !foreignKey.LeftOutOn.Contains(dialect) ? foreignKey : null;
 
     /// <summary>
     /// The tables the ADO-backed execution history writes into, which no other part of the store reads
@@ -698,7 +713,10 @@ partial class Build
                 .. TriggerKeyColumns(),
                 Blob("BLOB_DATA", required: false),
             ],
-            TriggerReference(cascade: true, oracleName: "BLOB_TRIG_TO_TRIG_FK"),
+            // Not on SQL Server, whose fresh-install script has never created this key (#3949). A
+            // database ProvisionSchema() created before 4.4 keeps the one it has; the store deletes blob
+            // rows itself, so nothing depends on it.
+            TriggerReference(cascade: true, oracleName: "BLOB_TRIG_TO_TRIG_FK") with { LeftOutOn = ["sqlServer"] },
             OracleStem: "BLOB_TRIG"),
 
         new("CALENDARS",
@@ -957,7 +975,7 @@ partial class Build
 
         body.Add($"{PrimaryKeyName(dialect, table)}PRIMARY KEY ({string.Join(",", table.PrimaryKey)})");
 
-        if (table.ForeignKey is { } foreignKey)
+        if (ForeignKeyOn(dialect, table) is { } foreignKey)
         {
             string name = ForeignKeyName(dialect, table, foreignKey);
             string cascade = foreignKey.Cascade && dialect is "sqlServer" or "postgres" or "sqlite"
