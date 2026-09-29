@@ -1064,6 +1064,10 @@ Three things stay open:
 The generated contract is asked first and reflection second, so reflection covers only the payload, never the
 contract.
 
+The server writes its errors from generated `ProblemDetails` metadata, behind reflection, so a trimmed or native
+AOT host answers them without it. A native canary runs the server and the client on every pull request; see
+[Publishing Trimmed and Native AOT](../how-tos/trimming-and-native-aot.md#the-worked-example).
+
 ## Production hardening
 
 - Require authentication and authorization on `MapQuartzHttpApi()`. Startup refuses a mapping that states

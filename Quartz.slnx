@@ -67,6 +67,7 @@
   <Project Path="src/Quartz.Extensions.Redis/Quartz.Extensions.Redis.csproj" />
   <Project Path="src/Quartz.Serialization.Newtonsoft/Quartz.Serialization.Newtonsoft.csproj" />
   <Project Path="src/Quartz.Trimming.Canary/Quartz.Trimming.Canary.csproj" />
+  <Project Path="src/Quartz.Trimming.Canary.Wire/Quartz.Trimming.Canary.Wire.csproj" />
   <Project Path="src/Quartz.Weasel.PostgreSQL/Quartz.Weasel.PostgreSQL.csproj" />
   <Project Path="src/Quartz.Weasel.SQLite/Quartz.Weasel.SQLite.csproj" />
   <Project Path="src/Quartz.Weasel.SqlServer/Quartz.Weasel.SqlServer.csproj" />

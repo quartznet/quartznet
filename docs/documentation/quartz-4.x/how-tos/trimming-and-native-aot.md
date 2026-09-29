@@ -239,7 +239,25 @@ The flat `quartz.*` keys still work, with warnings: they name components and set
 3. **The binding.** Builds a scheduler from an in-memory `IConfiguration` and reads ten values back from
    the components: the scheduler name, thread pool size, scheduler context, and the rest from options.
 
-Its csproj:
+`src/Quartz.Trimming.Canary.Wire` does the same for the [HTTP API](../packages/http-api.md). One process
+serves a scheduler with `Quartz.AspNetCore` on Kestrel and drives it with `Quartz.HttpClient` over
+loopback. Each step is a round trip:
+
+| Step | What it does over HTTP |
+|---|---|
+| metadata | reads the scheduler's name, status and job store |
+| schedule | schedules a job with a cron trigger |
+| read-back | reads the job, its data, the trigger and the group listing |
+| not-found | reads a missing job as `null`, from a `404` with problem details |
+| pause, resume | changes the trigger's state and reads it back |
+| trigger | triggers the job with extra data and waits for it to run on the server |
+| history | lists the execution, then reads it back alone with its captured log |
+| delete | deletes the job, and its trigger with it |
+
+Its host calls `AddJobType<TJob>()` for the job the client names, which is what a trimmed host serving the
+API has to do for every job type a caller may send.
+
+Both csprojs:
 
 ```xml
 <PublishTrimmed>true</PublishTrimmed>
@@ -250,10 +268,11 @@ Its csproj:
 
 * **No** `TrimmerRootAssembly` and no suppressions file, so a missing `JsonTypeInfo` or removed constructor
   shows up.
-* Warnings are not errors, because the canary reaches the recorded reflection. The build target instead
-  checks them against `src/Quartz/ILLink.Suppressions.xml` and fails on any unrecorded Quartz warning.
-  (ILCompiler has no `--link-attributes`, so a suppressions file cannot be passed to a native publish.)
-* CI publishes and *starts* it for the runner's RID, on Windows, Linux and macOS, on every pull request
+* Warnings are not errors, because the canaries reach the recorded reflection. The build target instead
+  checks them against the `ILLink.Suppressions.xml` of each Quartz package the canary references, and fails
+  on any unrecorded Quartz warning. (ILCompiler has no `--link-attributes`, so a suppressions file cannot be
+  passed to a native publish.)
+* CI publishes and *starts* both for the runner's RID, on Windows, Linux and macOS, on every pull request
   that touches code.
 
 ```shell
