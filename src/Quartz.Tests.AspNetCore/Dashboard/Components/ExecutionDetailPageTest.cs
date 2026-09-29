@@ -73,6 +73,48 @@ public class ExecutionDetailPageTest
     }
 
     [Test]
+    public void TheRunsResultSummaryMetricsAndOriginAreShown()
+    {
+        GivenExecution(Entry() with
+        {
+            Result = JobRunResult.Skipped,
+            Summary = "no stale reservations",
+            MetricsJson = """{"scanned":1200,"released":0,"window":"00:05:00"}""",
+            Manual = true,
+            FireInstanceId = "node-a-17"
+        });
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find(".qz-state-label").TextContent.Should().Be("Skipped");
+            page.Find("[data-testid=execution-summary]").TextContent.Should().Be("no stale reservations");
+            page.Find("[data-testid=execution-manual]").TextContent.Should().StartWith("Yes");
+            page.Find("[data-testid=execution-fire-instance]").TextContent.Should().Be("node-a-17",
+                "the fire instance id is what finds the run's span and log lines elsewhere");
+            page.FindAll("[data-testid=execution-metrics] tbody tr").Select(row => row.TextContent.Trim()).Should().Equal(
+                ["scanned1200", "released0", "window00:05:00"],
+                "one row per metric, in the order the job reported them");
+        });
+    }
+
+    [Test]
+    public void ARunThatReportedNoMetricsSaysHowAJobReportsThem()
+    {
+        GivenExecution(Entry());
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=execution-no-metrics]").TextContent.Should().Contain("JobRunReport");
+            page.Find("[data-testid=execution-manual]").TextContent.Should().StartWith("No");
+            page.Find(".qz-state-label").TextContent.Should().Be("Succeeded", "a row written before 4.4 answers through its success");
+        });
+    }
+
+    [Test]
     public void AnExecutionThatIsGoneIsSaidToBeGone()
     {
         A.CallTo(() => context.Api.GetExecution(A<string>._, A<string>._, A<CancellationToken>._))

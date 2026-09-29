@@ -35,8 +35,12 @@ namespace Quartz.Dashboard.Services;
 /// <param name="TriggerName">The name of the trigger that fired it.</param>
 /// <param name="FiredAtUtc">When the execution fired.</param>
 /// <param name="Duration">How long the job took.</param>
-/// <param name="Succeeded">Whether the job completed without throwing.</param>
-/// <param name="ExceptionMessage">What it threw, or <see langword="null" /> when it succeeded.</param>
+/// <param name="Succeeded">
+/// Whether the run counts as a success: its result is <see cref="JobRunResult.Succeeded" /> or
+/// <see cref="JobRunResult.Skipped" />. On a row written before 4.4, whether the job completed without
+/// throwing.
+/// </param>
+/// <param name="ExceptionMessage">What it threw, or <see langword="null" /> when it did not throw.</param>
 public sealed record DashboardHistoryEntry(
     string SchedulerName,
     string SchedulerInstanceId,
@@ -89,6 +93,42 @@ public sealed record DashboardHistoryEntry(
     /// <see cref="IQuartzApiClient.GetExecution" />; a listing may leave it out.
     /// </summary>
     public string? Log { get; init; }
+
+    /// <summary>
+    /// What the run achieved, or <see langword="null" /> on a row written before 4.4.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ExecutionHistoryEntry.Result" />, carried over, as the four below are: non-positional
+    /// <c>init</c> properties, added in 4.4. Read <see cref="EffectiveResult" />, which answers for the
+    /// older rows too.
+    /// </remarks>
+    public JobRunResult? Result { get; init; }
+
+    /// <summary>
+    /// <see cref="Result" />, or on a row written before 4.4 what <see cref="Succeeded" /> implies.
+    /// </summary>
+    public JobRunResult EffectiveResult => Result ?? (Succeeded ? JobRunResult.Succeeded : JobRunResult.Failed);
+
+    /// <summary>
+    /// The job's own one line about the run, or <see langword="null" />.
+    /// </summary>
+    public string? Summary { get; init; }
+
+    /// <summary>
+    /// What the run measured, as one JSON object, or <see langword="null" />.
+    /// </summary>
+    public string? MetricsJson { get; init; }
+
+    /// <summary>
+    /// Whether the run was asked for with <c>TriggerJob</c> rather than fired by a schedule.
+    /// </summary>
+    public bool Manual { get; init; }
+
+    /// <summary>
+    /// The firing's fire instance id, which links the row to the firing's span and log scope; or
+    /// <see langword="null" /> on a row written before 4.4.
+    /// </summary>
+    public string? FireInstanceId { get; init; }
 }
 
 /// <summary>
@@ -121,7 +161,8 @@ public sealed record DashboardMisfireEntry(
     DateTimeOffset? ScheduledFireTimeUtc)
 {
     /// <summary>
-    /// Why the firing did not happen: a misfire, or a firing the trigger's overlap policy skipped.
+    /// Why the firing did not happen: a misfire, a firing the trigger's overlap policy skipped, or one a
+    /// trigger listener vetoed.
     /// </summary>
     public MisfireReason Reason { get; init; }
 }

@@ -205,17 +205,23 @@ namespace Quartz.Dashboard.Services
     {
         public DashboardHistoryEntry(string SchedulerName, string SchedulerInstanceId, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
         public System.TimeSpan Duration { get; init; }
+        public Quartz.JobRunResult EffectiveResult { get; }
         public string? EntryId { get; init; }
         public string? ExceptionMessage { get; init; }
+        public string? FireInstanceId { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string JobGroup { get; init; }
         public string JobName { get; init; }
         public string? Log { get; init; }
+        public bool Manual { get; init; }
+        public string? MetricsJson { get; init; }
+        public Quartz.JobRunResult? Result { get; init; }
         public int RetryAttempt { get; init; }
         public bool RetryScheduled { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
         public bool Succeeded { get; init; }
+        public string? Summary { get; init; }
         public string TriggerGroup { get; init; }
         public string TriggerName { get; init; }
     }
@@ -223,7 +229,11 @@ namespace Quartz.Dashboard.Services
     {
         public DashboardHistoryQuery() { }
         public bool? FailedFinally { get; init; }
+        public System.DateTimeOffset? FiredBefore { get; init; }
+        public System.DateTimeOffset? FiredFrom { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto? Job { get; init; }
         public string? JobFilter { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.JobRunResult>? Results { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public string? TriggerFilter { get; init; }
@@ -249,6 +259,8 @@ namespace Quartz.Dashboard.Services
     public sealed record DashboardMisfireQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardMisfireQuery>
     {
         public DashboardMisfireQuery() { }
+        public Quartz.Dashboard.Services.JobKeyDto? Job { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.MisfireReason>? Reasons { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public string? TriggerFilter { get; init; }
@@ -307,6 +319,8 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.ExecutionLimitsDto> GetExecutionLimits(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.JobDetailDto> GetJobDetail(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PauseInfo?> GetJobGroupPause(string schedulerName, string groupName, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask<Quartz.JobRunStatus?> GetJobRunStatus(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobRunStatus>> GetJobRunStatuses(string schedulerName, System.Collections.Generic.IReadOnlyCollection<Quartz.Dashboard.Services.JobKeyDto> jobKeys, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.SchedulerDetailDto> GetScheduler(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.SchedulerHeaderDto>> GetSchedulers(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.ITrigger> GetTrigger(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);

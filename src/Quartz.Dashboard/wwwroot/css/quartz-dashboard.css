@@ -1227,6 +1227,67 @@ body{
     overflow-wrap: anywhere;
 }
 
+/* A run asked for by hand, beside its result: a note, not a state. */
+.qz-run-badge {
+    display: inline-block;
+    margin-left: var(--qz-space-xs);
+    padding: 1px 6px;
+    border-radius: var(--qz-radius-sm);
+    background-color: var(--qz-color-info-bg);
+    color: var(--qz-color-info);
+    font-size: var(--qz-font-size-xs);
+    font-weight: 600;
+}
+
+/* What a run reported: its summary, then each metric as a chip. */
+.qz-history-summary-text {
+    display: block;
+    margin-bottom: 2px;
+    overflow-wrap: anywhere;
+}
+
+.qz-metric-chip {
+    display: inline-block;
+    margin: 2px var(--qz-space-xs) 2px 0;
+    padding: 1px 6px;
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-sm);
+    background-color: var(--qz-color-surface-alt);
+    color: var(--qz-color-text-secondary);
+    font-family: var(--qz-font-mono);
+    font-size: var(--qz-font-size-xs);
+    overflow-wrap: anywhere;
+}
+
+/* A job whose latest occurrences failed for good, and how many in a row. */
+.qz-failing-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: var(--qz-radius-sm);
+    background-color: var(--qz-color-danger-bg);
+    color: var(--qz-color-danger);
+    font-size: var(--qz-font-size-sm);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+/* The History page's result filter: one box per result, in a row. */
+.qz-result-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--qz-space-sm) var(--qz-space-md);
+    min-height: 36px;
+}
+
+.qz-result-filter-option {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--qz-space-xs);
+    font-size: var(--qz-font-size-sm);
+}
+
 /* ==========================================================================
    13. BUTTONS
    ========================================================================== */
@@ -1398,6 +1459,18 @@ body{
 .qz-entity-table th.qz-col-actions,
 .qz-entity-table td.qz-col-actions {
     width: 340px;
+    white-space: nowrap;
+}
+
+.qz-entity-table th.qz-col-run,
+.qz-entity-table td.qz-col-run {
+    width: 220px;
+    white-space: nowrap;
+}
+
+.qz-entity-table th.qz-col-failing,
+.qz-entity-table td.qz-col-failing {
+    width: 110px;
     white-space: nowrap;
 }
 

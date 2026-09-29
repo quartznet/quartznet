@@ -54,7 +54,12 @@ internal static class DashboardHistoryMapping
             RetryAttempt = entry.RetryAttempt,
             RetryScheduled = entry.RetryScheduled,
             EntryId = entry.EntryId,
-            Log = entry.Log
+            Log = entry.Log,
+            Result = entry.Result,
+            Summary = entry.Summary,
+            MetricsJson = entry.MetricsJson,
+            Manual = entry.Manual,
+            FireInstanceId = entry.FireInstanceId
         };
     }
 
@@ -75,7 +80,12 @@ internal static class DashboardHistoryMapping
             RetryAttempt = entry.RetryAttempt,
             RetryScheduled = entry.RetryScheduled,
             EntryId = entry.EntryId,
-            Log = entry.Log
+            Log = entry.Log,
+            Result = entry.Result,
+            Summary = entry.Summary,
+            MetricsJson = entry.MetricsJson,
+            Manual = entry.Manual,
+            FireInstanceId = entry.FireInstanceId
         };
     }
 
@@ -88,7 +98,7 @@ internal static class DashboardHistoryMapping
             entry.SchedulerInstanceId,
             entry.TriggerGroup,
             entry.TriggerName,
-            entry.JobKey is null ? null : new JobKey(entry.JobKey.Name, entry.JobKey.Group),
+            AsJobKey(entry.JobKey),
             entry.MisfiredAtUtc,
             entry.ScheduledFireTimeUtc)
         {
@@ -103,7 +113,7 @@ internal static class DashboardHistoryMapping
             entry.SchedulerInstanceId,
             entry.TriggerGroup,
             entry.TriggerName,
-            entry.JobKey is null ? null : new JobKeyDto(entry.JobKey.Group, entry.JobKey.Name),
+            AsJobKeyDto(entry.JobKey),
             entry.MisfiredAtUtc,
             entry.ScheduledFireTimeUtc)
         {
@@ -122,6 +132,10 @@ internal static class DashboardHistoryMapping
             JobContains = query.JobFilter,
             TriggerContains = query.TriggerFilter,
             FailedFinally = query.FailedFinally,
+            Job = AsJobKey(query.Job),
+            FiredFrom = query.FiredFrom,
+            FiredBefore = query.FiredBefore,
+            Results = query.Results,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = query.IncludeTotalCount
@@ -139,6 +153,10 @@ internal static class DashboardHistoryMapping
             JobFilter = query.JobContains,
             TriggerFilter = query.TriggerContains,
             FailedFinally = query.FailedFinally,
+            Job = AsJobKeyDto(query.Job),
+            FiredFrom = query.FiredFrom,
+            FiredBefore = query.FiredBefore,
+            Results = query.Results,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = query.IncludeTotalCount
@@ -154,6 +172,8 @@ internal static class DashboardHistoryMapping
             SchedulerName = query.SchedulerName,
             SchedulerInstanceId = query.SchedulerInstanceId,
             TriggerContains = query.TriggerFilter,
+            Job = AsJobKey(query.Job),
+            Reasons = query.Reasons,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = query.IncludeTotalCount
@@ -169,11 +189,17 @@ internal static class DashboardHistoryMapping
             SchedulerName = query.SchedulerName,
             SchedulerInstanceId = query.SchedulerInstanceId,
             TriggerFilter = query.TriggerContains,
+            Job = AsJobKeyDto(query.Job),
+            Reasons = query.Reasons,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = query.IncludeTotalCount
         };
     }
+
+    public static JobKey? AsJobKey(JobKeyDto? key) => key is null ? null : new JobKey(key.Name, key.Group);
+
+    public static JobKeyDto? AsJobKeyDto(JobKey? key) => key is null ? null : new JobKeyDto(key.Group, key.Name);
 
     public static PagedResult<TTo> Map<TFrom, TTo>(PagedResult<TFrom> page, Func<TFrom, TTo> convert)
     {

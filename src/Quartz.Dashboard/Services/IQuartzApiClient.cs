@@ -592,6 +592,54 @@ public interface IQuartzApiClient
         return ValueTask.FromException<BackfillResult>(new NotSupportedException(
             "This dashboard's data source cannot backfill a trigger: its IQuartzApiClient does not implement Backfill."));
     }
+
+    /// <summary>
+    /// How the job's runs have gone — its last run, last success and failure, and how many occurrences in a
+    /// row have failed — or <see langword="null" /> when no run of it has been recorded.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Job Detail page's status panel reads, from the scheduler's execution history as
+    /// <see cref="Extensibility.IExecutionHistoryStore.GetJobRunStatus" /> answers it. A history that keeps
+    /// no per-job status raises <see cref="NotSupportedException" />, and the page leaves the panel out.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.4. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler the job belongs to.</param>
+    /// <param name="jobKey">The job.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<JobRunStatus?>(new NotSupportedException(
+            "This dashboard's data source cannot read a job's run status: its IQuartzApiClient does not implement GetJobRunStatus."));
+    }
+
+    /// <summary>
+    /// The run statuses of <paramref name="jobKeys" />, by job group and then name. A job with no recorded
+    /// run is absent.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Jobs page reads, once per page, for its last-run, last-success and failing columns. A
+    /// history that keeps no per-job status raises <see cref="NotSupportedException" />, and the page leaves
+    /// the columns out.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.4. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler the jobs belong to.</param>
+    /// <param name="jobKeys">The jobs.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<JobRunStatus>> GetJobRunStatuses(string schedulerName, IReadOnlyCollection<JobKeyDto> jobKeys, CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<List<JobRunStatus>>(new NotSupportedException(
+            "This dashboard's data source cannot read jobs' run statuses: its IQuartzApiClient does not implement GetJobRunStatuses."));
+    }
 }
 
 /// <summary>
@@ -686,7 +734,8 @@ public sealed record DashboardFireInstanceQuery : PagedQuery
 }
 
 /// <summary>
-/// One page of the execution history of a scheduler, optionally narrowed by node, job and trigger.
+/// One page of the execution history of a scheduler, optionally narrowed by node, job, trigger, fire time
+/// and result.
 /// </summary>
 /// <remarks>
 /// A filter matches a key's group, its name, or the two joined as <c>group.name</c>, case-insensitively.
@@ -724,10 +773,33 @@ public sealed record DashboardHistoryQuery : PagedQuery
     /// so filtering on failure shows one occurrence several times over.
     /// </remarks>
     public bool? FailedFinally { get; init; }
+
+    /// <summary>
+    /// Lists only the executions of this job, matched exactly, or every job's when null. Added in 4.4.
+    /// </summary>
+    public JobKeyDto? Job { get; init; }
+
+    /// <summary>
+    /// Lists only the executions that fired at or after this instant, or from the start when null. Added
+    /// in 4.4.
+    /// </summary>
+    public DateTimeOffset? FiredFrom { get; init; }
+
+    /// <summary>
+    /// Lists only the executions that fired before this instant, or up to now when null. Exclusive. Added
+    /// in 4.4.
+    /// </summary>
+    public DateTimeOffset? FiredBefore { get; init; }
+
+    /// <summary>
+    /// Lists only the executions whose <see cref="DashboardHistoryEntry.EffectiveResult" /> is one of these,
+    /// or every result when null. An empty set lists nothing. Added in 4.4.
+    /// </summary>
+    public IReadOnlyCollection<JobRunResult>? Results { get; init; }
 }
 
 /// <summary>
-/// One page of the misfires of a scheduler, optionally narrowed by node and trigger.
+/// One page of the misfires of a scheduler, optionally narrowed by node, trigger, job and reason.
 /// </summary>
 /// <remarks>
 /// <inheritdoc cref="DashboardHistoryQuery" path="/remarks" />
@@ -748,6 +820,18 @@ public sealed record DashboardMisfireQuery : PagedQuery
     /// Lists only the misfires whose trigger key matches this, or every trigger's when null.
     /// </summary>
     public string? TriggerFilter { get; init; }
+
+    /// <summary>
+    /// Lists only the misfires of triggers pointing at this job, matched exactly, or every job's when null.
+    /// Added in 4.4.
+    /// </summary>
+    public JobKeyDto? Job { get; init; }
+
+    /// <summary>
+    /// Lists only the misfires whose <see cref="DashboardMisfireEntry.Reason" /> is one of these, or every
+    /// reason when null. An empty set lists nothing. Added in 4.4.
+    /// </summary>
+    public IReadOnlyCollection<MisfireReason>? Reasons { get; init; }
 }
 
 /// <summary>

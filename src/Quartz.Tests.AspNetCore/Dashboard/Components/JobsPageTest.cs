@@ -306,6 +306,72 @@ public class JobsPageTest
             "the job on screen belongs to the last group of the last page, and its state is what the label says");
     }
 
+    [Test]
+    public void EachJobShowsItsLastRunLastSuccessAndHowLongItHasBeenFailing()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 3));
+        DateTimeOffset lastRun = new(2030, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        A.CallTo(() => context.Api.GetJobRunStatuses(A<string>._, A<IReadOnlyCollection<JobKeyDto>>._, A<CancellationToken>._))
+            .Returns(new List<JobRunStatus>
+            {
+                new(TestData.SchedulerName, new JobKey("job-1", "reports"), lastRun, JobRunResult.Succeeded) { LastSucceededAtUtc = lastRun },
+                new(TestData.SchedulerName, new JobKey("job-2", "reports"), lastRun, JobRunResult.Failed)
+                {
+                    LastSucceededAtUtc = lastRun.AddDays(-1),
+                    ConsecutiveFailures = 3,
+                    LastFailureMessage = "the upstream system is down"
+                }
+            });
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.TextOfAll("th").Should().ContainInOrder(["Last run", "Last success", "Failing"]);
+        page.TextOfAll(".qz-job-last-run .qz-state-label").Should().Equal(["Succeeded", "Failed"]);
+        page.TextOfAll(".qz-job-last-success").Should().Equal(["2030-01-01 12:00:00 +00:00", "2029-12-31 12:00:00 +00:00", "—"],
+            "a job with no recorded run has a dash, not an invented time");
+        IElement failing = page.Find(".qz-failing-badge");
+        failing.TextContent.Should().Be("failing ×3");
+        failing.GetAttribute("href").Should().EndWith("history?outcome=failed&jobGroup=reports&jobName=job-2&result=failed",
+            "the badge opens the History page on that job's failures that gave up");
+
+        A.CallTo(() => context.Api.GetJobRunStatuses(
+                TestData.SchedulerName,
+                A<IReadOnlyCollection<JobKeyDto>>.That.Matches(keys => keys.Count == 3),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public void TheStatusesAreReadOnceForThePageInView()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 60));
+        A.CallTo(() => context.Api.GetJobRunStatuses(A<string>._, A<IReadOnlyCollection<JobKeyDto>>._, A<CancellationToken>._))
+            .Returns(new List<JobRunStatus>());
+
+        context.Render<Jobs>();
+
+        // One call for the page's jobs: not one per job, and not one for every job.
+        A.CallTo(() => context.Api.GetJobRunStatuses(A<string>._, A<IReadOnlyCollection<JobKeyDto>>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.GetJobRunStatuses(
+                A<string>._,
+                A<IReadOnlyCollection<JobKeyDto>>.That.Matches(keys => keys.Count == 25),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public void ASourceThatKeepsNoStatusLeavesTheColumnsOut()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.TextOfAll("th").Should().NotContain(["Last run", "Last success", "Failing"],
+            "a column of dashes would say the jobs never ran, which nobody said");
+        page.TextOfAll(".qz-key-badge-value").Should().HaveCount(2, "the listing itself is unaffected");
+    }
+
     private void GivenJobs(IReadOnlyList<JobKeyDto> jobs)
     {
         A.CallTo(() => context.Api.QueryJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))

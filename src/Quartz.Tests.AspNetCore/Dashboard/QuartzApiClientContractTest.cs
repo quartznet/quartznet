@@ -405,6 +405,71 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// What a run achieved, the 4.4 filters, a vetoed firing and each job's run status read the same
+    /// through the client over both carriers.
+    /// </summary>
+    /// <remarks>
+    /// For the HTTP carrier the filters go out only after the host has said it is 4.4 or later, the veto
+    /// only because the client asks for every reason by name, and the statuses through the
+    /// <c>…/history/job-status</c> routes.
+    /// </remarks>
+    [Test]
+    public async Task RunResultsFiltersVetoesAndStatusesAreReadThroughTheClient()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        ExecutionHistoryEntry skipped = Execution(start.AddMinutes(1), "healthy") with
+        {
+            EntryId = "entry-skipped",
+            Result = JobRunResult.Skipped,
+            Summary = "no stale reservations",
+            MetricsJson = """{"scanned":1200,"released":0}""",
+            Manual = true,
+            FireInstanceId = "node-a-17"
+        };
+
+        await history.AddExecution(Execution(start, "healthy") with { Result = JobRunResult.Succeeded });
+        await history.AddExecution(skipped);
+        await history.AddExecution(Failure(start, "sick"));
+        await history.AddExecution(Failure(start.AddMinutes(1), "sick"));
+        await history.AddMisfire(Misfire(start, "vetoed") with { Reason = MisfireReason.Vetoed });
+
+        DashboardHistoryEntry row = (await client.QueryExecutions(new DashboardHistoryQuery
+        {
+            SchedulerName = scheduler.SchedulerName,
+            Job = new JobKeyDto("contract", "healthy"),
+            Results = [JobRunResult.Skipped]
+        })).Items.Should().ContainSingle().Subject;
+
+        row.EffectiveResult.Should().Be(JobRunResult.Skipped);
+        row.Summary.Should().Be("no stale reservations");
+        row.MetricsJson.Should().Be("""{"scanned":1200,"released":0}""", "the metrics come back as the text the recorder wrote");
+        row.Manual.Should().BeTrue();
+        row.FireInstanceId.Should().Be("node-a-17");
+
+        (await client.QueryExecutions(new DashboardHistoryQuery
+        {
+            SchedulerName = scheduler.SchedulerName,
+            FiredFrom = start.AddSeconds(30)
+        })).Items.Select(entry => entry.JobName).Should().BeEquivalentTo(["healthy", "sick"], "the window starts after the first two runs");
+
+        (await client.QueryMisfires(new DashboardMisfireQuery { SchedulerName = scheduler.SchedulerName }))
+            .Items.Should().ContainSingle().Which.Reason.Should().Be(MisfireReason.Vetoed,
+                "the dashboard can read a veto, so it asks for it, over both carriers");
+
+        (await client.GetJobRunStatus(scheduler.SchedulerName, new JobKeyDto("contract", "sick")))!
+            .ConsecutiveFailures.Should().Be(2);
+        (await client.GetJobRunStatus(scheduler.SchedulerName, new JobKeyDto("contract", "never-ran"))).Should().BeNull();
+
+        List<JobRunStatus> statuses = await client.GetJobRunStatuses(
+            scheduler.SchedulerName,
+            [new JobKeyDto("contract", "sick"), new JobKeyDto("contract", "healthy"), new JobKeyDto("contract", "never-ran")]);
+        statuses.Select(status => status.Job.Name).Should().Equal(["healthy", "sick"],
+            "by job group and then name, and a job with no recorded run is absent");
+        statuses[0].LastResult.Should().Be(JobRunResult.Skipped);
+        statuses[0].SchedulerName.Should().Be(scheduler.SchedulerName);
+    }
+
+    /// <summary>
     /// What a scheduler does is watchable from this container, from the process the scheduler runs in.
     /// </summary>
     /// <remarks>
@@ -553,6 +618,13 @@ public sealed class QuartzApiClientContractTest
         Duration: TimeSpan.FromMilliseconds(5),
         Succeeded: true,
         ExceptionMessage: null);
+
+    private ExecutionHistoryEntry Failure(DateTimeOffset firedAt, string jobName) => Execution(firedAt, jobName) with
+    {
+        Succeeded = false,
+        ExceptionMessage = "the upstream system is down",
+        Result = JobRunResult.Failed
+    };
 
     private MisfireHistoryEntry Misfire(DateTimeOffset misfiredAt, string triggerName) => new(
         SchedulerName: scheduler.SchedulerName,

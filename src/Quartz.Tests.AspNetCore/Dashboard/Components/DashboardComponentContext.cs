@@ -121,6 +121,13 @@ internal sealed class DashboardComponentContext : BunitContext
         A.CallTo(() => Api.PauseAllWith(A<string>._, A<PauseDetails>._, A<CancellationToken>._))
             .CallsBaseMethod();
 
+        // A data source that keeps no per-job run status, as the default interface members report, so the
+        // pages that show one leave it out unless a case is about it.
+        A.CallTo(() => Api.GetJobRunStatus(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+        A.CallTo(() => Api.GetJobRunStatuses(A<string>._, A<IReadOnlyCollection<JobKeyDto>>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+
         // And no pause recorded anything, rather than the dummy record a fake would invent.
         A.CallTo(() => Api.GetTriggerPause(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
             .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));

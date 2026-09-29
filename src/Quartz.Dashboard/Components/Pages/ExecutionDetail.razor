@@ -45,11 +45,37 @@
                 <tr><th>Node</th><td class="qz-table-cell-mono">@_entry.SchedulerInstanceId</td></tr>
                 <tr><th>Fired</th><td>@Scheduler.FormatInSelectedTimeZone(_entry.FiredAtUtc, "u")</td></tr>
                 <tr><th>Duration</th><td>@FormatDuration(_entry.Duration)</td></tr>
-                <tr><th>Status</th><td><StateIndicator State="@StatusLabel(_entry)" /></td></tr>
+                <tr><th>Result</th><td><StateIndicator State="@RunResultDisplay.Label(_entry)" /></td></tr>
+                <tr><th>Summary</th><td data-testid="execution-summary">@(string.IsNullOrEmpty(_entry.Summary) ? "—" : _entry.Summary)</td></tr>
+                <tr><th>Manual</th><td data-testid="execution-manual">@(_entry.Manual ? "Yes: asked for with Trigger now or TriggerJob" : "No: fired by its schedule")</td></tr>
                 <tr><th>Attempt</th><td>@AttemptLabel(_entry)</td></tr>
                 <tr><th>Error</th><td>@(string.IsNullOrEmpty(_entry.ExceptionMessage) ? "—" : _entry.ExceptionMessage)</td></tr>
+                <tr><th>Fire instance</th><td class="qz-table-cell-mono" data-testid="execution-fire-instance">@(string.IsNullOrEmpty(_entry.FireInstanceId) ? "—" : _entry.FireInstanceId)</td></tr>
             </tbody>
         </table>
+
+        <h2>Metrics</h2>
+        @if (_metrics.Count == 0)
+        {
+            <p class="qz-muted" data-testid="execution-no-metrics">
+                The job reported no metrics for this run. A job reports them with
+                <code>context.Result = JobRunReport.Succeeded().With(name, value)</code>.
+            </p>
+        }
+        else
+        {
+            <table class="qz-table" data-testid="execution-metrics">
+                <thead>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (KeyValuePair<string, string> metric in _metrics)
+                    {
+                        <tr><td class="qz-table-cell-mono">@metric.Key</td><td class="qz-table-cell-mono">@metric.Value</td></tr>
+                    }
+                </tbody>
+            </table>
+        }
 
         <h2>Captured log</h2>
         @if (string.IsNullOrEmpty(_entry.Log))
@@ -71,6 +97,7 @@
     private string? _error;
     private bool _historyUnavailable;
     private DashboardHistoryEntry? _entry;
+    private List<KeyValuePair<string, string>> _metrics = [];
 
     [Parameter]
     public string EntryId { get; set; } = string.Empty;
@@ -97,6 +124,7 @@
         _error = null;
         _historyUnavailable = false;
         _entry = null;
+        _metrics = [];
 
         try
         {
@@ -107,6 +135,7 @@
             }
 
             _entry = await Api.GetExecution(schedulerName, EntryId);
+            _metrics = RunResultDisplay.Metrics(_entry?.MetricsJson);
         }
         catch (NotSupportedException)
         {
@@ -122,19 +151,6 @@
         {
             _isLoading = false;
         }
-    }
-
-    /// <summary>
-    /// The status the history listing shows for the same row, in the same three words.
-    /// </summary>
-    private static string StatusLabel(DashboardHistoryEntry entry)
-    {
-        if (entry.Succeeded)
-        {
-            return "Complete";
-        }
-
-        return entry.RetryScheduled ? "Failed (retrying)" : "Failed";
     }
 
     private static string AttemptLabel(DashboardHistoryEntry entry)
