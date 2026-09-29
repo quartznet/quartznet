@@ -140,8 +140,32 @@ internal sealed class EndpointHelper
             return null;
         }
 
+        return request.AsPauseDetails(AuthenticatedUser(context));
+    }
+
+    /// <summary>
+    /// What a key-set pause body says, with the authenticated user as the requester when the body names
+    /// none — or <see langword="null" /> when it names neither a reason nor a requester.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="PauseDetailsFor" />, a body with neither text is not put in the user's name: it is
+    /// the body every client before 4.4 sends, so it stays the reasonless pause.
+    /// </remarks>
+    public static PauseDetails? KeySetPauseDetailsFor(TriggerKeySetPauseRequest request, HttpContext context)
+    {
+        return request.AsPauseDetails(AuthenticatedUser(context));
+    }
+
+    /// <inheritdoc cref="KeySetPauseDetailsFor(TriggerKeySetPauseRequest, HttpContext)" />
+    public static PauseDetails? KeySetPauseDetailsFor(JobKeySetPauseRequest request, HttpContext context)
+    {
+        return request.AsPauseDetails(AuthenticatedUser(context));
+    }
+
+    private static string? AuthenticatedUser(HttpContext context)
+    {
         string? user = context.User.Identity?.Name;
-        return request.AsPauseDetails(string.IsNullOrWhiteSpace(user) ? null : user);
+        return string.IsNullOrWhiteSpace(user) ? null : user;
     }
 
     public static void AssertIsValid(IValidatable toValidate)

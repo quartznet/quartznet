@@ -292,17 +292,27 @@ internal static class TriggerEndpoints
             scheduler => SchedulerOperations.PauseTriggers(scheduler, groups, details, cancellationToken));
     }
 
+    /// <summary>
+    /// Pauses a set of triggers, recording why and who asked when the body says so.
+    /// </summary>
+    /// <remarks>
+    /// <c>reason</c> and <c>requestedBy</c> are optional beside the keys. A body with neither is the
+    /// reasonless pause, even from an authenticated caller; with either, a missing <c>requestedBy</c> is the
+    /// authenticated user.
+    /// </remarks>
     [ProducesResponseType(typeof(AppliedTriggerKeysResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseTriggerKeys(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
-        TriggerKeySetRequest request,
+        TriggerKeySetPauseRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
+        PauseDetails? details = EndpointHelper.KeySetPauseDetailsFor(request, httpContext);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
-            scheduler => SchedulerOperations.PauseTriggerKeys(scheduler, request, cancellationToken));
+            scheduler => SchedulerOperations.PauseTriggerKeys(scheduler, request, details, cancellationToken));
     }
 
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]

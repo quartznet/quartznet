@@ -466,10 +466,16 @@ internal static class SchedulerOperations
         return new AffectedGroupsResponse([.. pausedGroups]);
     }
 
-    public static async ValueTask<AppliedJobKeysResponse> PauseJobKeys(IScheduler scheduler, JobKeySetRequest request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Pauses a set of jobs. Details that say nothing are the reasonless key-set pause, made through the
+    /// reasonless member as before 4.4.
+    /// </summary>
+    public static async ValueTask<AppliedJobKeysResponse> PauseJobKeys(IScheduler scheduler, JobKeySetPauseRequest request, PauseDetails? details, CancellationToken cancellationToken)
     {
         JobKey[] jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
-        List<JobKey> paused = await scheduler.PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+        List<JobKey> paused = PauseDetails.SaysNothing(details)
+            ? await scheduler.PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false)
+            : await scheduler.PauseJobsWith(jobKeys, details, cancellationToken).ConfigureAwait(false);
         return new AppliedJobKeysResponse([.. paused.Select(KeyDto.Create)]);
     }
 
@@ -674,10 +680,16 @@ internal static class SchedulerOperations
         return new AffectedGroupsResponse([.. pausedGroups]);
     }
 
-    public static async ValueTask<AppliedTriggerKeysResponse> PauseTriggerKeys(IScheduler scheduler, TriggerKeySetRequest request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Pauses a set of triggers. Details that say nothing are the reasonless key-set pause, made through the
+    /// reasonless member as before 4.4.
+    /// </summary>
+    public static async ValueTask<AppliedTriggerKeysResponse> PauseTriggerKeys(IScheduler scheduler, TriggerKeySetPauseRequest request, PauseDetails? details, CancellationToken cancellationToken)
     {
         TriggerKey[] triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
-        List<TriggerKey> paused = await scheduler.PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+        List<TriggerKey> paused = PauseDetails.SaysNothing(details)
+            ? await scheduler.PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false)
+            : await scheduler.PauseTriggersWith(triggerKeys, details, cancellationToken).ConfigureAwait(false);
         return new AppliedTriggerKeysResponse([.. paused.Select(KeyDto.Create)]);
     }
 

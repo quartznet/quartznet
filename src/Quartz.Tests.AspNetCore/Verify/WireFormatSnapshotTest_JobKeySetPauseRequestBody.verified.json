@@ -1,0 +1,10 @@
+﻿{
+  "jobs": [
+    {
+      "name": "job1",
+      "group": "group1"
+    }
+  ],
+  "reason": "quarter close",
+  "requestedBy": null
+}

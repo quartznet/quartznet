@@ -1,0 +1,14 @@
+﻿{
+  "triggers": [
+    {
+      "name": "trigger1",
+      "group": "group1"
+    },
+    {
+      "name": "trigger2",
+      "group": "group1"
+    }
+  ],
+  "reason": "vendor API is down until 18:00",
+  "requestedBy": "alice"
+}

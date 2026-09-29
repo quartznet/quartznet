@@ -110,6 +110,66 @@ internal record TriggerKeySetRequest(KeyDto[] Triggers) : IValidatable
 }
 
 /// <summary>
+/// The body of a key-set job pause: the keys, and optionally why and who asked.
+/// </summary>
+/// <remarks>
+/// A superset of <see cref="JobKeySetRequest" />, so the body every client before 4.4 sent still binds, and
+/// a host before 4.4 reads this one as the keys alone.
+/// </remarks>
+internal sealed record JobKeySetPauseRequest(KeyDto[] Jobs, string? Reason = null, string? RequestedBy = null) : IValidatable
+{
+    public IEnumerable<string> Validate() => Jobs is null ? ["Missing job keys"] : Jobs.SelectMany(x => x.Validate());
+
+    /// <inheritdoc cref="KeySetPause.Details" />
+    public PauseDetails? AsPauseDetails(string? authenticatedUser) => KeySetPause.Details(Reason, RequestedBy, authenticatedUser);
+}
+
+/// <summary>
+/// The body of a key-set trigger pause: the keys, and optionally why and who asked.
+/// </summary>
+/// <remarks>
+/// A superset of <see cref="TriggerKeySetRequest" />, so the body every client before 4.4 sent still binds,
+/// and a host before 4.4 reads this one as the keys alone.
+/// </remarks>
+internal sealed record TriggerKeySetPauseRequest(KeyDto[] Triggers, string? Reason = null, string? RequestedBy = null) : IValidatable
+{
+    public IEnumerable<string> Validate() => Triggers is null ? ["Missing trigger keys"] : Triggers.SelectMany(x => x.Validate());
+
+    /// <inheritdoc cref="KeySetPause.Details" />
+    public PauseDetails? AsPauseDetails(string? authenticatedUser) => KeySetPause.Details(Reason, RequestedBy, authenticatedUser);
+}
+
+/// <summary>
+/// What a key-set pause body says about the pause.
+/// </summary>
+internal static class KeySetPause
+{
+    /// <summary>
+    /// The pause the body describes, with <paramref name="authenticatedUser" /> as the requester when the
+    /// body names none — or <see langword="null" /> when the body names neither a reason nor a requester.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="PauseRequest" />, a key-set body always arrives, because it carries the keys. Every
+    /// client before 4.4 sends it without either text, so that body is the reasonless pause and is never
+    /// put in the caller's name: filling the requester there would send every authenticated client's
+    /// reasonless pause down the path that records one.
+    /// </remarks>
+    public static PauseDetails? Details(string? reason, string? requestedBy, string? authenticatedUser)
+    {
+        if (string.IsNullOrWhiteSpace(reason) && string.IsNullOrWhiteSpace(requestedBy))
+        {
+            return null;
+        }
+
+        return new PauseDetails
+        {
+            Reason = reason,
+            RequestedBy = string.IsNullOrWhiteSpace(requestedBy) ? authenticatedUser : requestedBy
+        };
+    }
+}
+
+/// <summary>
 /// Answer of a key-set job mutation — pause, resume or delete: the keys the operation applied to, the
 /// plural of <see cref="OperationAppliedResponse" />. A key that was not found is simply absent.
 /// </summary>
