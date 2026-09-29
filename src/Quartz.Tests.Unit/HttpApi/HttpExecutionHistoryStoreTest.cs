@@ -692,6 +692,17 @@ public class HttpExecutionHistoryStoreTest
             "the host's store said why, and that is the sentence a page can show");
     }
 
+    [Test]
+    public async Task ANotImplementedWithoutProblemDetailsStillSaysTheHostKeepsNoStatus()
+    {
+        handler.Respond(HttpStatusCode.NotImplemented, body: "");
+
+        Func<Task> act = async () => await Store().QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = "Remote" });
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*keeps no per-job run status*",
+            "a proxy in front of the host may have replaced the body, and the status alone still says it");
+    }
+
     private const string DetailsPath = "/schedulers/Remote";
 
     private const string EmptyPage = """{ "items": [], "hasMore": false, "totalCount": 0 }""";
