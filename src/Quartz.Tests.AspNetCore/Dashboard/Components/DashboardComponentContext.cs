@@ -120,6 +120,10 @@ internal sealed class DashboardComponentContext : BunitContext
             .CallsBaseMethod();
         A.CallTo(() => Api.PauseAllWith(A<string>._, A<PauseDetails>._, A<CancellationToken>._))
             .CallsBaseMethod();
+        A.CallTo(() => Api.PauseTriggersWith(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+        A.CallTo(() => Api.PauseJobsWith(A<string>._, A<IReadOnlyCollection<JobKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._))
+            .CallsBaseMethod();
 
         // A data source that keeps no per-job run status, as the default interface members report, so the
         // pages that show one leave it out unless a case is about it.

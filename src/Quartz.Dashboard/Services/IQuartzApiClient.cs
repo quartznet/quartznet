@@ -508,6 +508,71 @@ public interface IQuartzApiClient
     }
 
     /// <summary>
+    /// <see cref="PauseTriggers" />, recording why and who asked on each trigger it pauses, as
+    /// <see cref="IScheduler.PauseTriggersWith" /> does.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Triggers page's <em>Pause selected</em> makes: one call for the selection, whatever the
+    /// prompt was told.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.4. Details that say nothing go to <see cref="PauseTriggers" />.
+    /// Otherwise the default calls <see cref="PauseTriggerWith" /> once per key, so an implementation
+    /// written against 4.3 still records the reason.
+    /// </para>
+    /// </remarks>
+    async ValueTask<List<TriggerKeyDto>> PauseTriggersWith(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTriggers(schedulerName, triggerKeys, cancellationToken).ConfigureAwait(false);
+        }
+
+        List<TriggerKeyDto> paused = [];
+        foreach (TriggerKeyDto triggerKey in triggerKeys)
+        {
+            if (await PauseTriggerWith(schedulerName, triggerKey, details, cancellationToken).ConfigureAwait(false))
+            {
+                paused.Add(triggerKey);
+            }
+        }
+
+        return paused;
+    }
+
+    /// <summary>
+    /// Pauses every job in <paramref name="jobKeys" />, recording why and who asked on each trigger it
+    /// pauses, as <see cref="IScheduler.PauseJobsWith" /> does, and answers with the keys that named a job.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.4. The default calls <see cref="PauseJob" /> once per key
+    /// when the details say nothing, and <see cref="PauseJobWith" /> otherwise.
+    /// </remarks>
+    async ValueTask<List<JobKeyDto>> PauseJobsWith(string schedulerName, IReadOnlyCollection<JobKeyDto> jobKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+
+        bool saysNothing = PauseDetails.SaysNothing(details);
+        List<JobKeyDto> paused = [];
+        foreach (JobKeyDto jobKey in jobKeys)
+        {
+            bool applied = saysNothing
+                ? await PauseJob(schedulerName, jobKey, cancellationToken).ConfigureAwait(false)
+                : await PauseJobWith(schedulerName, jobKey, details, cancellationToken).ConfigureAwait(false);
+
+            if (applied)
+            {
+                paused.Add(jobKey);
+            }
+        }
+
+        return paused;
+    }
+
+    /// <summary>
     /// Resumes every trigger in <paramref name="triggerKeys" />, as <see cref="IScheduler.ResumeTriggers" />
     /// does, and answers with the keys it resumed. A key that names no trigger, or one that was not
     /// paused, is absent from the answer.

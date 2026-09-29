@@ -302,6 +302,39 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// A selection paused with a reason keeps it, whichever process the scheduler is in: for the HTTP
+    /// carrier that is one <c>…/keys/pause</c> request carrying the reason beside the keys (#3964).
+    /// </summary>
+    [Test]
+    public async Task ASetPausedWithAReasonKeepsItThroughTheClient()
+    {
+        JobKey jobKey = new("nightly", "set-pause");
+        DateTimeOffset soon = DateTimeOffset.UtcNow.AddMinutes(10);
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(), new AddJobOptions { Replace = true });
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("soon", "set-pause").ForJob(jobKey).StartAt(soon).Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("later", "set-pause").ForJob(jobKey).StartAt(soon.AddDays(2)).Build());
+
+        TriggerKeyDto soonKey = new("set-pause", "soon");
+        TriggerKeyDto laterKey = new("set-pause", "later");
+        PauseDetails details = new() { Reason = "vendor outage", RequestedBy = "alice" };
+
+        (await client.PauseTriggersWith(scheduler.SchedulerName, [laterKey, new("set-pause", "gone"), soonKey], details))
+            .Should().Equal([laterKey, soonKey], "a key that names nothing is left out, over both carriers");
+        (await client.GetTriggerPause(scheduler.SchedulerName, soonKey)).Should().Match<PauseInfo>(
+            pause => pause.Reason == "vendor outage" && pause.RequestedBy == "alice");
+        (await scheduler.GetTriggerPause(new TriggerKey("later", "set-pause")))!.Reason.Should().Be("vendor outage");
+
+        (await client.ResumeTriggers(scheduler.SchedulerName, [soonKey, laterKey])).Should().HaveCount(2);
+        (await scheduler.GetTriggerPause(new TriggerKey("soon", "set-pause"))).Should().BeNull("resuming forgets the record");
+
+        (await client.PauseJobsWith(scheduler.SchedulerName, [new JobKeyDto("set-pause", "nightly")], new PauseDetails { Reason = "quarter close" }))
+            .Should().Equal([new JobKeyDto("set-pause", "nightly")]);
+        (await scheduler.GetTriggerPause(new TriggerKey("soon", "set-pause")))!.Reason.Should().Be("quarter close");
+
+        await scheduler.DeleteJob(jobKey);
+    }
+
+    /// <summary>
     /// The Trigger Detail page's backfill, through the client: the extension over the scheduler the name
     /// resolves to, which for the HTTP carrier is <see cref="HttpScheduler" /> sending the host's
     /// <c>backfill</c> route.

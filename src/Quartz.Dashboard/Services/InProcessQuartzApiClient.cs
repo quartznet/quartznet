@@ -642,6 +642,39 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return AsTriggerKeyDtos(await scheduler.PauseTriggers(keys, cancellationToken).ConfigureAwait(false));
     }
 
+    /// <remarks>
+    /// The scheduler's own key-set member, so a selection paused with a reason is one call too: one store
+    /// transaction in process, one <c>…/triggers/keys/pause</c> request over HTTP. Details that say nothing
+    /// are <see cref="PauseTriggers" />.
+    /// </remarks>
+    public async ValueTask<List<TriggerKeyDto>> PauseTriggersWith(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTriggers(schedulerName, triggerKeys, cancellationToken).ConfigureAwait(false);
+        }
+
+        TriggerKey[] keys = AsTriggerKeys(triggerKeys);
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return AsTriggerKeyDtos(await scheduler.PauseTriggersWith(keys, details, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <remarks>
+    /// The scheduler's own key-set member, in both cases: <see cref="IScheduler.PauseJobs" /> when the
+    /// details say nothing, <see cref="IScheduler.PauseJobsWith" /> otherwise.
+    /// </remarks>
+    public async ValueTask<List<JobKeyDto>> PauseJobsWith(string schedulerName, IReadOnlyCollection<JobKeyDto> jobKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        JobKey[] keys = AsJobKeys(jobKeys);
+        EnsureWritable();
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        List<JobKey> paused = PauseDetails.SaysNothing(details)
+            ? await scheduler.PauseJobs(keys, cancellationToken).ConfigureAwait(false)
+            : await scheduler.PauseJobsWith(keys, details, cancellationToken).ConfigureAwait(false);
+        return AsJobKeyDtos(paused);
+    }
+
     /// <inheritdoc cref="PauseTriggers" />
     public async ValueTask<List<TriggerKeyDto>> ResumeTriggers(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
     {
@@ -917,6 +950,31 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         foreach (TriggerKey key in keys)
         {
             result.Add(new TriggerKeyDto(key.Group, key.Name));
+        }
+
+        return result;
+    }
+
+    private static JobKey[] AsJobKeys(IReadOnlyCollection<JobKeyDto> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+
+        JobKey[] result = new JobKey[keys.Count];
+        int index = 0;
+        foreach (JobKeyDto key in keys)
+        {
+            result[index++] = AsJobKey(key);
+        }
+
+        return result;
+    }
+
+    private static List<JobKeyDto> AsJobKeyDtos(List<JobKey> keys)
+    {
+        List<JobKeyDto> result = new(keys.Count);
+        foreach (JobKey key in keys)
+        {
+            result.Add(new JobKeyDto(key.Group, key.Name));
         }
 
         return result;

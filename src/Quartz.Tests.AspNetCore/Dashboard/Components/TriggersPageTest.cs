@@ -455,8 +455,48 @@ public class TriggersPageTest
     }
 
     /// <summary>
-    /// The key-set route takes no reason, so a pause that says something is made a key at a time through
-    /// the member that records it — the prompt still asked once.
+    /// A pause that says something is one call for the whole selection, through the key-set member that
+    /// records it, rather than a call per row (#3964).
+    /// </summary>
+    [Test]
+    public void APauseWithAReasonIsOneCallForTheWholeSelection()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 3));
+        TriggerKeyDto first = new("nightly", "trigger-1");
+        TriggerKeyDto second = new("nightly", "trigger-2");
+        A.CallTo(() => context.Api.PauseTriggersWith(
+                TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<TriggerKeyDto> keys, PauseDetails? _, CancellationToken _) => keys.ToList());
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        Select(page, "nightly.trigger-1");
+        Select(page, "nightly.trigger-2");
+        page.WaitForAssertion(() => page.Find(".qz-bulk-count").TextContent.Should().Be("2 selected"));
+        page.Find(".qz-bulk-pause").Click();
+        page.ConfirmPause("disk full on the export host");
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseTriggersWith(
+                TestData.SchedulerName,
+                A<IReadOnlyCollection<TriggerKeyDto>>.That.Matches(keys => keys.Count == 2 && keys.Contains(first) && keys.Contains(second)),
+                A<PauseDetails>.That.Matches(details => details.Reason == "disk full on the export host"),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        // Over HTTP a call per row is a request and a store transaction per row.
+        A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected trigger(s)."));
+        context.ActionLog.GetLatest(2).Should().BeEquivalentTo(
+            [
+                new { Action = "PauseTrigger", Target = "nightly.trigger-2", Succeeded = true },
+                new { Action = "PauseTrigger", Target = "nightly.trigger-1", Succeeded = true }
+            ],
+            options => options.ExcludingMissingMembers(),
+            "one call still records each trigger under its own key");
+    }
+
+    /// <summary>
+    /// A data source written against 4.3 has no key-set member that records a reason. The interface's
+    /// default makes the pause a key at a time through the member that does, so the reason is still kept.
     /// </summary>
     [Test]
     public void APauseWithAReasonIsMadeThroughTheMemberThatRecordsItForEachSelectedRow()
@@ -483,14 +523,16 @@ public class TriggersPageTest
         page.FindAll("[data-testid=trigger-bulk-result]").Should().BeEmpty("every row was reached, so there is nothing to follow up");
     }
 
+    /// <summary>
+    /// The pause is one call and one store transaction, so a refusal is the whole selection's: every row
+    /// is listed with what the scheduler said.
+    /// </summary>
     [Test]
-    public void OneRowWhoseOwnPauseFailsDoesNotStopTheRest()
+    public void ARefusedPauseListsEveryRowWithWhatTheSchedulerSaid()
     {
         GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
-        A.CallTo(() => context.Api.PauseTrigger(A<string>._, new TriggerKeyDto("nightly", "trigger-1"), A<CancellationToken>._))
+        A.CallTo(() => context.Api.PauseTriggersWith(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._))
             .Throws(new SchedulerException("the store refused"));
-        A.CallTo(() => context.Api.PauseTrigger(A<string>._, new TriggerKeyDto("nightly", "trigger-2"), A<CancellationToken>._))
-            .Returns(true);
         IRenderedComponent<Triggers> page = context.Render<Triggers>();
 
         page.Find("input.qz-select-group").Change(true);
@@ -500,10 +542,12 @@ public class TriggersPageTest
         page.WaitForAssertion(() =>
         {
             IElement result = page.Find("[data-testid=trigger-bulk-result]");
-            result.TextContent.Should().Contain("Paused 1 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("Paused 0 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("nightly.trigger-1");
+            result.TextContent.Should().Contain("nightly.trigger-2");
             result.TextContent.Should().Contain("the store refused", "a failure says what the scheduler said");
         });
-        context.Toasts.Messages[^1].Message.Should().Be("Paused 1 of 2 selected trigger(s). 1 failed.");
+        context.Toasts.Messages[^1].Message.Should().Be("Paused 0 of 2 selected trigger(s). 2 failed.");
     }
 
     [Test]
