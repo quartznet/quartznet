@@ -69,14 +69,8 @@
     -->
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MySqlConnector" />
-    <PackageReference Include="NUnit" />
     <PackageReference Include="Npgsql" />
-    <PackageReference Include="NUnit.Analyzers">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Oracle.ManagedDataAccess.Core" />
     <PackageReference Include="System.Data.SQLite.Core" />
     <PackageReference Include="Testcontainers.FirebirdSql" />
@@ -86,7 +80,6 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.Redis" />
     <PackageReference Include="TimeZoneConverter" />
-    <PackageReference Include="NUnit3TestAdapter" />
     <PackageReference Include="WolverineFx.Postgresql" />
     <PackageReference Include="WolverineFx.SqlServer" />
   </ItemGroup>

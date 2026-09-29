@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The web application Quartz.Tests.AspNetCore stands up with WebApplicationFactory<Program>. The factory
+    runs the entry point of Program's assembly, and the test assembly's own entry point is the
+    Microsoft.Testing.Platform runner (#3970), so the application is an assembly of its own. Program keeps
+    its namespace, which is why no test that names it had to change.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="appsettings.json" />
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
+</Project>

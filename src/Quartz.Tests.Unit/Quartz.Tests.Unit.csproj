@@ -48,10 +48,6 @@
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="AwesomeAssertions.Analyzers" />
-    <PackageReference Include="coverlet.collector">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.SQLite" />
@@ -59,7 +55,6 @@
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <!--
       NCrontab is a Vixie-faithful five-field cron parser, and it is here for one reason: it is the
       reference the Unix-dialect rewrite is differentially tested against, so that "this is what
@@ -67,12 +62,6 @@
     -->
     <PackageReference Include="NCrontab" />
     <PackageReference Include="Npgsql.DependencyInjection" />
-    <PackageReference Include="NUnit" />
-    <PackageReference Include="NUnit.Analyzers">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="NUnit3TestAdapter" />
     <PackageReference Include="PublicApiGenerator" />
     <PackageReference Include="Verify.NUnit" />
   </ItemGroup>
