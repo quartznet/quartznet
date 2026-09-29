@@ -30,6 +30,20 @@ public sealed class PauseReasonSamples
         #endregion
     }
 
+    public static async Task<int> PausingASetWithAReason(IScheduler scheduler)
+    {
+        #region sample_pause_set_with_reason
+
+        List<TriggerKey> paused = await scheduler.PauseTriggersWith(
+            [new TriggerKey("nightly-export"), new TriggerKey("hourly-sync")],
+            new PauseDetails { Reason = "vendor API is down until 18:00", RequestedBy = "alice" });
+
+        // The keys this call paused: a missing or already paused trigger is absent.
+        return paused.Count;
+
+        #endregion
+    }
+
     public static async Task ReadingItBack(IScheduler scheduler)
     {
         #region sample_pause_read

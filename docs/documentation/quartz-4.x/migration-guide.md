@@ -64,6 +64,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | HTTP: `GET …/history/job-status`, `GET …/history/job-status/{jobGroup}/{jobName}`, `POST …/history/job-status/fetch` | See [Job run status](packages/http-api.md#job-run-status). `501` when the store keeps no status |
 | HTTP: `result`, `summary`, `metrics`, `manual`, `fireInstanceId` on an execution row | `metrics` is a JSON object |
 | Log event `9008` | Debug: a status route answered `501` |
+| `IScheduler.PauseTriggersWith`, `PauseJobsWith`; the same on `IJobStore` | A set of keys paused with a `PauseDetails`, in one call. Default interface members. See [Pausing with a Reason](how-tos/pausing-with-a-reason.md) |
+| `IQuartzApiClient.PauseTriggersWith`, `PauseJobsWith` | `Quartz.Dashboard`. Default interface members |
+| HTTP: `reason`, `requestedBy` on the `…/triggers/keys/pause` and `…/jobs/keys/pause` bodies | Optional. See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
 
 **Behaviour changes:**
 
@@ -122,6 +125,12 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * **`Quartz.Weasel.SQLite` rebuilds a table that carries your own columns, indexes or foreign keys.** 4.3
   refused the apply with a `SchedulerException` ("Weasel would rebuild table …") and changed nothing. The
   rebuild now keeps those objects and their rows. Drop any workaround that removed them before an apply.
+* **The dashboard's *Pause selected* with a reason is one call.** 4.3 paused a key at a time. A refusal now
+  fails the whole selection, as the reasonless pause always did. An `IQuartzApiClient` of your own gets the
+  `PauseTriggersWith` default, which still pauses a key at a time through your `PauseTriggerWith`.
+* **The new `*With` set defaults keep the details.** The other `*With` defaults drop them. A scheduler or
+  store of your own gets `PauseTriggersWith` and `PauseJobsWith` as one `PauseTriggerWith` or `PauseJobWith`
+  call per key, so it records the reason with no change. Override them only to pause the set in one call.
 
 **Dependencies:**
 
@@ -147,6 +156,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   out. Upgrade the hosts to use them.
 * A 4.3 node never parks a failing trigger. Each 4.4 node counts its own failures, so a trigger may be
   tried five times on each 4.4 node before one parks it.
+* A 4.4 dashboard or HTTP client pausing a set with a reason on a 4.3 host: the host pauses the set without
+  the reason.
+* A 4.3 client's key-set pause on a 4.4 host is the reasonless pause, even from an authenticated caller.
 
 ### The 4.4 schema migration
 

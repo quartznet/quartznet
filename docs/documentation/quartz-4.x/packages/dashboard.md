@@ -300,7 +300,7 @@ selection offers *Pause selected*, *Resume selected* and *Unschedule selected*.
 | Action | Made through | Over HTTP |
 |---|---|---|
 | Pause recording nothing: no reason typed, nobody signed in | `IScheduler.PauseTriggers(keys)`: one call | `POST …/triggers/keys/pause` |
-| Pause recording a reason or the signed-in user | `PauseTriggerWith` per key; the key-set form records nothing | the single-trigger pause route, per key |
+| Pause recording a reason or the signed-in user | `PauseTriggersWith(keys, details)`: one call, from 4.4 | `POST …/triggers/keys/pause` with `reason` and `requestedBy` |
 | Resume | `ResumeTriggers(keys)` | `POST …/triggers/keys/resume` |
 | Unschedule, after a confirmation | `UnscheduleJobs(keys)` | `POST …/triggers/unschedule` |
 

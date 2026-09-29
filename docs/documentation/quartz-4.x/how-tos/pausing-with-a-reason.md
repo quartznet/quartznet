@@ -22,17 +22,32 @@ await scheduler.PauseTriggerWith(
 |---|---|---|
 | `PauseTriggerWith(key, details)` | one trigger | the trigger |
 | `PauseJobWith(key, details)` | every trigger of the job | each trigger it paused |
+| `PauseTriggersWith(keys, details)` | a set of triggers, from 4.4 | each trigger it paused |
+| `PauseJobsWith(keys, details)` | every trigger of a set of jobs, from 4.4 | each trigger it paused |
 | `PauseTriggerGroupsWith(matcher, details)` | the matching trigger groups | each group, and each trigger it paused |
 | `PauseJobGroupsWith(matcher, details)` | the matching job groups | each group, and each trigger it paused |
 | `PauseAllWith(details)` | every trigger group | each group, and each trigger it paused |
 
 - Each answers what its reasonless twin answers and raises the same listener events.
-- The key-set forms, `PauseTriggers` and `PauseJobs`, take no details.
+- The set forms are one call: one lock and one transaction in a shipped store, one request over HTTP.
 - An already paused trigger or group **keeps the pause it had**.
 - **`null`, or details with both texts blank, is the reasonless pause.** It records nothing and is made exactly
   as the reasonless member makes it.
 - A persistent store makes a reasonless pause through the `IDriverDelegate` members 4.2 used. A
   `StdAdoDelegate` subclass that overrides them keeps deciding how such a pause is written.
+- A scheduler or store of your own written against 4.3 gets `PauseTriggersWith` and `PauseJobsWith` as
+  defaults that call its `PauseTriggerWith` and `PauseJobWith` once per key, so it still records the reason.
+
+<!-- snippet: sample_pause_set_with_reason -->
+```csharp
+List<TriggerKey> paused = await scheduler.PauseTriggersWith(
+    [new TriggerKey("nightly-export"), new TriggerKey("hourly-sync")],
+    new PauseDetails { Reason = "vendor API is down until 18:00", RequestedBy = "alice" });
+
+// The keys this call paused: a missing or already paused trigger is absent.
+return paused.Count;
+```
+<!-- endSnippet -->
 
 <!-- snippet: sample_pause_group_with_reason -->
 ```csharp
@@ -104,8 +119,8 @@ builder.Services.AddQuartz(q =>
 
 ## Over HTTP
 
-The single-key, group and pause-all routes take an optional JSON body. The key-set `…/keys/pause` routes take
-none.
+The single-key, group and pause-all routes take an optional JSON body. From 4.4, the key-set `…/keys/pause`
+routes take `reason` and `requestedBy` beside the keys.
 
 ```http
 POST /quartz-api/schedulers/core/triggers/reports/nightly-export/pause
@@ -116,7 +131,10 @@ Content-Type: application/json
 
 - **No body is the 4.2 pause:** the reasonless member, nothing recorded, the caller not named.
 - With a body, `requestedBy` left out is the authenticated user's name, `HttpContext.User.Identity.Name`.
-- `AddQuartzHttpClient` sends no body for details that say nothing.
+- **A key-set body with neither text is the reasonless pause, even from an authenticated caller.** It is the
+  body every 4.3 client sends.
+- `AddQuartzHttpClient` sends no body, or the keys alone, for details that say nothing.
+- A host older than 4.4 reads a key-set body as the keys alone, and pauses the set without the reason.
 - The state, group-paused and trigger-listing answers carry a `pause` object. Details:
   [HTTP API](../packages/http-api.md#a-pause-can-say-why).
 - `AddQuartzHttpClient` sends and reads the rest, so `PauseTriggerWith` on a remote scheduler records the reason
@@ -125,6 +143,7 @@ Content-Type: application/json
 ## In the dashboard
 
 - *Pause*, *Pause group*, *Pause all* and *Pause selected* ask for an optional reason, once per click.
+- From 4.4, *Pause selected* is one `PauseTriggersWith` call, with or without a reason.
 - The requester is the signed-in user's name. An anonymous visitor who types no reason makes the reasonless
   pause.
 - A paused trigger shows **Paused: reason (by who, when)** on its page and in the listings; a paused job group
