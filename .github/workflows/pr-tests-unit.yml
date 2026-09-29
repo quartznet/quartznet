@@ -45,7 +45,7 @@ jobs:
   windows-latest:
     name: windows-latest
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
@@ -67,7 +67,7 @@ jobs:
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
@@ -89,7 +89,7 @@ jobs:
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'

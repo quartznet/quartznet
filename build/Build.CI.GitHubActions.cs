@@ -36,7 +36,9 @@ using Quartz.Build;
     InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(WolverineSmoke), nameof(ExamplesSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
     CacheKeyFiles = [],
     // Generating native code is minutes rather than seconds, and it happens after everything else here.
-    TimeoutMinutes = 20,
+    // Twenty-five since the HTTP API canary joined the trimmed one (#3965): windows-latest ran the whole
+    // list in 19 minutes 10 seconds on its first run, too close to twenty to leave to chance.
+    TimeoutMinutes = 25,
     ConcurrencyCancelInProgress = true,
     ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
