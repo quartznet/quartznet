@@ -265,6 +265,54 @@ public sealed class ExecutionHistoryPluginTest
         await scheduler.Shutdown(waitForJobsToComplete: true);
     }
 
+    /// <summary>
+    /// A job that throws is recorded with its own message, and its status says the same.
+    /// </summary>
+    /// <remarks>
+    /// The run shell reports the exception as <c>JobExecutionException</c> → <c>JobExecutionProcessException</c>
+    /// → what the job threw, and both wrappers say "Job threw an unhandled exception". 4.3 recorded that,
+    /// so every job that threw read the same on the dashboard and over HTTP.
+    /// </remarks>
+    [Test]
+    public async Task AJobThatThrowsIsRecordedWithItsOwnMessage()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await Start(container);
+
+        await RunNow<ThrowingJob>(scheduler, "throws");
+
+        ExecutionHistoryEntry row = (await Rows(container, scheduler.SchedulerName, 1)).Single();
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        row.Result.Should().Be(JobRunResult.Failed);
+        row.ExceptionMessage.Should().Be(ThrowingJob.Message,
+            "the row names what the job threw, not the run shell's wrapper around it");
+
+        JobRunStatus? status = await container.GetRequiredService<IExecutionHistoryStore>()
+            .GetJobRunStatus(scheduler.SchedulerName, new JobKey("throws", "plugin"));
+        status.Should().NotBeNull();
+        status!.LastFailureMessage.Should().Be(ThrowingJob.Message, "the status is folded from the row");
+    }
+
+    [Test]
+    public async Task AJobExecutionExceptionTheJobThrewIsRecordedWithItsOwnMessage()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await Start(container);
+
+        await RunNow<RefusingJob>(scheduler, "refuses");
+
+        ExecutionHistoryEntry row = (await Rows(container, scheduler.SchedulerName, 1)).Single();
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        row.ExceptionMessage.Should().Be(RefusingJob.Message,
+            "a JobExecutionException the job threw itself is what it chose to say, and is not looked through to its cause");
+
+        JobRunStatus? status = await container.GetRequiredService<IExecutionHistoryStore>()
+            .GetJobRunStatus(scheduler.SchedulerName, new JobKey("refuses", "plugin"));
+        status!.LastFailureMessage.Should().Be(RefusingJob.Message);
+    }
+
     [Test]
     public async Task ARunAskedForWithTriggerJobIsManualAndAScheduledOneIsNot()
     {
@@ -458,6 +506,28 @@ public sealed class ExecutionHistoryPluginTest
             FireInstanceIds[context.JobDetail.Key.Name] = context.FireInstanceId;
             ManualMarks[context.JobDetail.Key.Name] = context.MergedJobDataMap.GetString(SchedulerConstants.ManualTrigger);
             return default;
+        }
+    }
+
+    /// <summary>Throws an exception of its own, which the run shell wraps.</summary>
+    public sealed class ThrowingJob : IJob
+    {
+        public const string Message = "the upstream system is down";
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException(Message);
+        }
+    }
+
+    /// <summary>Throws a <see cref="JobExecutionException" /> of its own, with its own words over a cause.</summary>
+    public sealed class RefusingJob : IJob
+    {
+        public const string Message = "quota exceeded";
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            throw new JobExecutionException(Message, new InvalidOperationException("HTTP 429"));
         }
     }
 

@@ -21,7 +21,12 @@
 
 #nullable enable
 
+using FakeItEasy;
+
+using Microsoft.Extensions.DependencyInjection;
+
 using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -370,6 +375,43 @@ public abstract partial class ExecutionHistoryStoreContractTest
         status.FirstFiredAtUtc.Should().Be(Start.AddMinutes(-3));
     }
 
+    /// <summary>
+    /// A run whose job threw is recorded, row and status, with the job's own message.
+    /// </summary>
+    /// <remarks>
+    /// Recorded through <see cref="ExecutionHistoryPlugin" />, handed the exception in the shape the run
+    /// shell reports it: <c>JobExecutionException</c> → <c>JobExecutionProcessException</c> → what the job
+    /// threw. Both wrappers say "Job threw an unhandled exception", which 4.3 recorded for every such job.
+    /// </remarks>
+    [Test]
+    public async Task AFailedRunIsRecordedWithTheMessageTheJobThrew()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+        ServiceCollection services = new();
+        services.AddSingleton(store);
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        ExecutionHistoryPlugin recorder = new(provider, Clock);
+
+        using (JobExecutionContextImpl firing = FailedFiring(Start.AddMinutes(-1)))
+        {
+            JobExecutionException wrapped = new(new JobExecutionProcessException(firing, new InvalidOperationException("the ledger is locked")));
+            await recorder.JobWasExecuted(firing, wrapped);
+        }
+
+        (await Executions(store)).Items.Should().ContainSingle().Which.ExceptionMessage.Should().Be("the ledger is locked",
+            "the row names what the job threw, not the run shell's wrapper around it");
+        (await store.GetJobRunStatus(SchedulerName, nightly))!.LastFailureMessage.Should().Be("the ledger is locked",
+            "the status is folded from the row, so it carries the same message");
+
+        using (JobExecutionContextImpl firing = FailedFiring(Start))
+        {
+            await recorder.JobWasExecuted(firing, new JobExecutionException("quota exceeded", new InvalidOperationException("HTTP 429")));
+        }
+
+        (await store.GetJobRunStatus(SchedulerName, nightly))!.LastFailureMessage.Should().Be("quota exceeded",
+            "a JobExecutionException the job threw itself is what it chose to say, and is not looked through to its cause");
+    }
+
     [Test]
     public async Task AStatusOutlivesItsRows()
     {
@@ -577,6 +619,25 @@ public abstract partial class ExecutionHistoryStoreContractTest
             Succeeded = result is JobRunResult.Succeeded or JobRunResult.Skipped
         };
 
+    /// <summary>
+    /// A firing of <c>nightly</c> that failed for good, as the scheduler hands it to its job listeners.
+    /// </summary>
+    private static JobExecutionContextImpl FailedFiring(DateTimeOffset firedAt)
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns(SchedulerName);
+        A.CallTo(() => scheduler.SchedulerInstanceId).Returns("node-a");
+
+        JobExecutionContextImpl firing = JobExecutionContextBuilder.For(new FailingJob())
+            .WithJob(JobBuilder.Create<FailingJob>().WithIdentity(nightly).Build())
+            .WithScheduler(scheduler)
+            .FiredAt(firedAt)
+            .Build();
+
+        firing.Settle(ExecutionOutcome.Failed, retryScheduled: false);
+        return firing;
+    }
+
     private static async Task<List<string>> JobNames(IExecutionHistoryStore store, IReadOnlyCollection<JobRunResult>? results = null)
     {
         PagedResult<ExecutionHistoryEntry> page = await store.QueryExecutions(new ExecutionHistoryQuery
@@ -601,5 +662,14 @@ public abstract partial class ExecutionHistoryStoreContractTest
         });
 
         return page.Items.Select(status => status.Job.Name).ToList();
+    }
+
+    /// <summary>The job a failed firing is for; it is never run.</summary>
+    private sealed class FailingJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("never run: the firing is built, not fired");
+        }
     }
 }

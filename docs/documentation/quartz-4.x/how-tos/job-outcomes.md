@@ -99,6 +99,7 @@ Metrics are written by value type, without reflection:
 | `ExecutionHistoryEntry.Result` | The result. `null` on a row written before 4.4 |
 | `ExecutionHistoryEntry.EffectiveResult` | `Result`, or `Succeeded`/`Failed` from `Succeeded` on an older row. Filters, tiers and statuses use it |
 | `Summary`, `MetricsJson` | What the job reported |
+| `ExceptionMessage` | The message of what the job threw, not the scheduler's wrapper. `null` if it did not throw |
 | `Manual` | `true` for a run `IScheduler.TriggerJob` asked for |
 | `FireInstanceId` | The firing's id, as on its span and log scope. Not unique across restarts |
 | The misfire feed | A vetoed firing, with `MisfireReason.Vetoed`. `CountMisfires` does not count it |
@@ -156,7 +157,7 @@ PagedResult<JobRunStatus> failing = await history.QueryJobRunStatuses(
 |---|---|
 | `LastFiredAtUtc`, `LastResult`, `LastDuration`, `LastSummary`, `LastEntryId`, `LastSchedulerInstanceId` | The run that fired latest |
 | `LastSucceededAtUtc` | The latest `Succeeded` or `Skipped` run |
-| `LastFailedAtUtc`, `LastFailureMessage` | The latest `Failed` run, retried or not: its exception message, else its summary |
+| `LastFailedAtUtc`, `LastFailureMessage` | The latest `Failed` run, retried or not: its `ExceptionMessage`, else its summary |
 | `ConsecutiveFailures` | Occurrences in a row that failed for good. A success resets it; `Cancelled` and a retried failure leave it |
 | `RunCount`, `FailureCount` | Every run; occurrences that failed for good |
 | `FirstFiredAtUtc` | The earliest run recorded |

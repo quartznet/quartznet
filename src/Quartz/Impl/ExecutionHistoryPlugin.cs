@@ -21,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Quartz.Core;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Util;
@@ -125,7 +126,9 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// <remarks>
     /// The row's <see cref="ExecutionHistoryEntry.Result" /> is decided by
     /// <see cref="JobRunClassifier.Classify" />, and its summary and metrics come from the job's
-    /// <see cref="IJobRunReport" />, if it set one.
+    /// <see cref="IJobRunReport" />, if it set one. Its exception message is what the job threw, read
+    /// by <see cref="JobFailure.MessageOf" />: the run shell's wrapper says the same of every failure, and
+    /// the job's status repeats the row's message.
     /// </remarks>
     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
@@ -149,7 +152,7 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 FiredAtUtc: context.FireTimeUtc,
                 Duration: context.JobRunTime,
                 Succeeded: JobRunClassifier.IsSuccess(run.Result),
-                ExceptionMessage: jobException?.Message)
+                ExceptionMessage: jobException is null ? null : JobFailure.MessageOf(jobException))
             {
                 Result = run.Result,
                 Summary = TextCut.ToFit(run.Summary, JobRunReport.MaxSummaryLength),

@@ -42,7 +42,10 @@ namespace Quartz;
 /// <see cref="JobRunResult.Skipped" />. On a row written before 4.4, whether the job completed without
 /// throwing.
 /// </param>
-/// <param name="ExceptionMessage">What it threw, or <see langword="null" /> when it did not throw.</param>
+/// <param name="ExceptionMessage">
+/// The message of what the job threw, or <see langword="null" /> when it did not throw. The scheduler's
+/// recorder writes the job's own message, not that of the wrapper the scheduler reports it in.
+/// </param>
 public sealed record ExecutionHistoryEntry(
     string SchedulerName,
     string SchedulerInstanceId,
