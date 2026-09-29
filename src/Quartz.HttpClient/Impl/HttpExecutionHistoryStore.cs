@@ -45,11 +45,36 @@ namespace Quartz.Impl;
 /// <c>404</c> that names an unknown scheduler: that one carries problem details and arrives as
 /// <see cref="HttpClientException" />, which still propagates.
 /// </para>
+/// <para>
+/// A host before 4.4 ignores the query parameters it does not know, and would answer a filtered read with
+/// rows the filter excludes. So before the first read that carries a 4.4 filter, the host's version is
+/// read from <c>GET …/schedulers/{name}</c>, and a host older than 4.4 is refused with
+/// <see cref="NotSupportedException" /> before anything filtered is sent.
+/// </para>
 /// </remarks>
 internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
 {
+    /// <summary>
+    /// The first version whose history routes read the 4.4 filters.
+    /// </summary>
+    private static readonly Version FirstFilteringVersion = new(4, 4);
+
+    /// <summary>
+    /// The most keys one status fetch may carry, as the host enforces it.
+    /// </summary>
+    private const int MaxKeysPerFetch = 1000;
+
     private readonly string schedulerName;
     private readonly WireClient wire;
+
+    /// <summary>
+    /// Whether the host has been seen to read the 4.4 filters.
+    /// </summary>
+    /// <remarks>
+    /// Only that answer is kept. An older host is asked again on the next filtered read, so a host upgraded
+    /// under a reader that keeps running is noticed; a 4.4 host is not downgraded in place.
+    /// </remarks>
+    private volatile bool hostFilters;
 
     /// <param name="schedulerName">The remote scheduler's name, which every request is addressed to.</param>
     /// <param name="httpClient">The client to call the remote scheduler with.</param>
@@ -94,9 +119,25 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         throw RecordedElsewhere(nameof(AddMisfire));
     }
 
+    /// <remarks>
+    /// <see cref="ExecutionHistoryQuery.Job" />, <see cref="ExecutionHistoryQuery.FiredFrom" />,
+    /// <see cref="ExecutionHistoryQuery.FiredBefore" /> and <see cref="ExecutionHistoryQuery.Results" /> need
+    /// a host at 4.4 or later, and raise <see cref="NotSupportedException" /> against an older one. An
+    /// empty <see cref="ExecutionHistoryQuery.Results" /> lists nothing, and is answered without asking.
+    /// </remarks>
     public async ValueTask<PagedResult<ExecutionHistoryEntry>> QueryExecutions(ExecutionHistoryQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+
+        if (query.Results is { Count: 0 })
+        {
+            return Nothing<ExecutionHistoryEntry>(query);
+        }
+
+        if (query.Job is not null || query.FiredFrom is not null || query.FiredBefore is not null || query.Results is not null)
+        {
+            await RequireFilters("job, fire time and result", cancellationToken).ConfigureAwait(false);
+        }
 
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
@@ -112,6 +153,23 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         if (query.FailedFinally is { } failedFinally)
         {
             parameters.Add("failedFinally", failedFinally);
+        }
+
+        AddJob(parameters, query.Job);
+
+        if (query.FiredFrom is { } firedFrom)
+        {
+            parameters.Add("firedFrom", firedFrom.ToString("O", CultureInfo.InvariantCulture));
+        }
+
+        if (query.FiredBefore is { } firedBefore)
+        {
+            parameters.Add("firedBefore", firedBefore.ToString("O", CultureInfo.InvariantCulture));
+        }
+
+        foreach (JobRunResult wanted in query.Results ?? [])
+        {
+            parameters.Add("results", wanted.ToString());
         }
 
         PagedResultDto<ExecutionHistoryEntryDto> result = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
@@ -154,13 +212,42 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         return result?.AsExecutionHistoryEntry(this.schedulerName);
     }
 
+    /// <remarks>
+    /// <para>
+    /// Every reason this client can read is asked for by name when <see cref="MisfireHistoryQuery.Reasons" />
+    /// is null, because a 4.4 host that is asked for none leaves <see cref="MisfireReason.Vetoed" /> out for
+    /// the sake of older clients. A host before 4.4 ignores the parameter and answers every reason, which is
+    /// the same answer.
+    /// </para>
+    /// <para>
+    /// <see cref="MisfireHistoryQuery.Job" /> and a <see cref="MisfireHistoryQuery.Reasons" /> of the
+    /// caller's own need a host at 4.4 or later, and raise <see cref="NotSupportedException" /> against an
+    /// older one. An empty set of reasons lists nothing, and is answered without asking.
+    /// </para>
+    /// </remarks>
     public async ValueTask<PagedResult<MisfireHistoryEntry>> QueryMisfires(MisfireHistoryQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        if (query.Reasons is { Count: 0 })
+        {
+            return Nothing<MisfireHistoryEntry>(query);
+        }
+
+        if (query.Job is not null || query.Reasons is not null)
+        {
+            await RequireFilters("job and reason", cancellationToken).ConfigureAwait(false);
+        }
+
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
         AddFilters(parameters, query.SchedulerInstanceId, query.TriggerContains);
+        AddJob(parameters, query.Job);
+
+        foreach (MisfireReason reason in query.Reasons ?? Enum.GetValues<MisfireReason>())
+        {
+            parameters.Add("reasons", reason.ToString());
+        }
 
         PagedResultDto<MisfireHistoryEntryDto> result = await Read<PagedResultDto<MisfireHistoryEntryDto>>(
             At(SchedulerRoutes.QueryMisfireHistory).WithQuery(parameters.ToString()), cancellationToken).ConfigureAwait(false);
@@ -186,24 +273,158 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <summary>
-    /// Not supported yet: the HTTP API serves no per-job run status.
+    /// One page of the target's per-job run statuses: <c>GET …/history/job-status</c>, or, for a query
+    /// that names its jobs, <c>POST …/history/job-status/fetch</c>.
     /// </summary>
-    /// <exception cref="NotSupportedException">Always.</exception>
-    public ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// The fetch answers every named job's status in one list, so a query that names its jobs is filtered
+    /// by <see cref="JobRunStatusQuery.Failing" /> and paged here, in the order the host answers with. It
+    /// is sent in batches of at most a thousand keys, the most the host takes at once.
+    /// </remarks>
+    /// <exception cref="NotSupportedException">
+    /// The target keeps no per-job status: its host is older than 4.4, or its history store keeps rows only.
+    /// </exception>
+    public async ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
     {
-        throw NoJobRunStatus();
+        ArgumentNullException.ThrowIfNull(query);
+
+        if (query.Jobs is null)
+        {
+            QueryStringBuilder parameters = new();
+            parameters.AddPaging(query);
+            if (query.Failing is { } failing)
+            {
+                parameters.Add("failing", failing);
+            }
+
+            PagedResultDto<JobRunStatusDto> page = await ReadStatus<PagedResultDto<JobRunStatusDto>>(
+                    At(SchedulerRoutes.QueryJobRunStatuses).WithQuery(parameters.ToString()), body: null, cancellationToken)
+                .ConfigureAwait(false) ?? throw new HttpClientException("Could not deserialize response");
+
+            return new PagedResult<JobRunStatus>(page.Items.Select(x => x.AsJobRunStatus(schedulerName)).ToList(), page.HasMore, page.TotalCount);
+        }
+
+        List<JobRunStatus> statuses = [];
+        KeyDto[] keys = query.Jobs.Distinct().Select(KeyDto.Create).ToArray();
+        foreach (KeyDto[] batch in keys.Chunk(MaxKeysPerFetch))
+        {
+            JobRunStatusDto[] fetched = await ReadStatus<JobRunStatusDto[]>(
+                    At(SchedulerRoutes.FetchJobRunStatuses), new JobKeySetRequest(batch), cancellationToken)
+                .ConfigureAwait(false) ?? [];
+
+            statuses.AddRange(fetched.Select(x => x.AsJobRunStatus(schedulerName)));
+        }
+
+        IEnumerable<JobRunStatus> filtered = statuses
+            .OrderBy(static status => status.Job.Group, StringComparer.Ordinal)
+            .ThenBy(static status => status.Job.Name, StringComparer.Ordinal);
+
+        if (query.Failing is { } wanted)
+        {
+            filtered = filtered.Where(status => (status.ConsecutiveFailures > 0) == wanted);
+        }
+
+        List<JobRunStatus> ordered = filtered.ToList();
+        int skip = Math.Min(query.Skip, ordered.Count);
+        List<JobRunStatus> items = ordered.Skip(skip).Take(query.Take).ToList();
+        return new PagedResult<JobRunStatus>(items, skip + items.Count < ordered.Count, ordered.Count);
     }
 
-    /// <inheritdoc cref="QueryJobRunStatuses" />
-    public ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKey jobKey, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// One job's run status: <c>GET …/history/job-status/{jobGroup}/{jobName}</c>, or
+    /// <see langword="null" /> when the target has recorded no run of it.
+    /// </summary>
+    /// <inheritdoc cref="QueryJobRunStatuses" path="/exception" />
+    public async ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        throw NoJobRunStatus();
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        JobRunStatusDto? status = await ReadStatus<JobRunStatusDto>(
+            SchedulerRoutes.GetJobRunStatus.For(this.schedulerName, jobKey.Group, jobKey.Name), body: null, cancellationToken).ConfigureAwait(false);
+
+        return status?.AsJobRunStatus(this.schedulerName);
     }
 
-    private NotSupportedException NoJobRunStatus()
+    /// <summary>
+    /// Sends one status read and reads its answer: <see langword="null" /> for the <c>404</c> that says
+    /// there is no such status.
+    /// </summary>
+    /// <remarks>
+    /// Two answers are the target saying it keeps no status, and both are raised as
+    /// <see cref="NotSupportedException" />: the <c>404</c> without problem details of a host that predates
+    /// the routes, and the <c>501</c> of a host whose history store keeps rows only, whose detail says so.
+    /// </remarks>
+    private async ValueTask<T?> ReadStatus<T>(WireRequest request, JobKeySetRequest? body, CancellationToken cancellationToken) where T : class
     {
-        return new NotSupportedException(
-            $"The scheduler '{schedulerName}' is reached over HTTP, and the HTTP API serves no per-job run status.");
+        WireResponse response = body is null
+            ? await wire.Exchange(request, cancellationToken).ConfigureAwait(false)
+            : await wire.Exchange(request, body, cancellationToken).ConfigureAwait(false);
+
+        if (response.Status == HttpStatusCode.NotImplemented)
+        {
+            throw new NotSupportedException(
+                wire.ProblemDetail(response)
+                ?? $"The scheduler '{schedulerName}' is reached over HTTP and its host keeps no per-job run status.");
+        }
+
+        try
+        {
+            return wire.EnsureSuccess(response, throwOnNotFound: false) ? wire.Read<T>(response) : null;
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new NotSupportedException(
+                $"The scheduler '{schedulerName}' is reached over HTTP and the target serves no per-job run status: "
+                + "it answered 404 without problem details for the route, which a Quartz HTTP API older than 4.4 does. "
+                + "Upgrade the scheduler's host to read its jobs' run statuses.",
+                exception);
+        }
+    }
+
+    /// <summary>
+    /// Refuses a read carrying a 4.4 filter before it is sent to a host that would ignore the filter.
+    /// </summary>
+    /// <param name="filters">The filters, as the refusal names them.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="NotSupportedException">The host is older than 4.4.</exception>
+    private async ValueTask RequireFilters(string filters, CancellationToken cancellationToken)
+    {
+        if (hostFilters)
+        {
+            return;
+        }
+
+        SchedulerDto details = await wire.SendAndRead<SchedulerDto>(
+            SchedulerRoutes.GetSchedulerDetails.For(schedulerName), cancellationToken).ConfigureAwait(false);
+
+        string? reported = details.Statistics?.Version;
+        if (Version.TryParse(reported, out Version? version) && version >= FirstFilteringVersion)
+        {
+            hostFilters = true;
+            return;
+        }
+
+        throw new NotSupportedException(
+            $"The scheduler '{schedulerName}' is reached over HTTP and its host runs Quartz {reported ?? "(unknown)"}, "
+            + $"whose history routes ignore the {filters} filters and would answer with rows they exclude. "
+            + "Upgrade the scheduler's host to 4.4 or later to filter its history by them.");
+    }
+
+    private static void AddJob(QueryStringBuilder parameters, JobKey? job)
+    {
+        if (job is not null)
+        {
+            parameters.Add("jobGroup", job.Group);
+            parameters.Add("jobName", job.Name);
+        }
+    }
+
+    /// <summary>
+    /// The answer to a query whose filter lists nothing, given without asking.
+    /// </summary>
+    private static PagedResult<T> Nothing<T>(PagedQuery query)
+    {
+        return new PagedResult<T>([], HasMore: false, query.IncludeTotalCount ? 0 : null);
     }
 
     /// <summary>

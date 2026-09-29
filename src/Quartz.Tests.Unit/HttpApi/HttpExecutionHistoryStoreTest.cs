@@ -183,7 +183,10 @@ public class HttpExecutionHistoryStoreTest
         });
 
         handler.LastRequestUri.Should().Be(
-            "http://localhost:8080/schedulers/Remote/history/misfires?take=250&triggerContains=midnight");
+            "http://localhost:8080/schedulers/Remote/history/misfires?take=250&triggerContains=midnight"
+            + "&reasons=Missed&reasons=Overlap&reasons=Vetoed",
+            "a 4.4 host that is asked for no reason leaves Vetoed out for older clients, so this one names every reason it can read");
+        handler.Requests.Should().ContainSingle("naming every reason is what a host before 4.4 answers anyway, so no version is asked");
 
         MisfireHistoryEntry entry = page.Items.Should().ContainSingle().Subject;
         entry.JobKey.Should().Be(new JobKey("nightly", "DummyGroup"));
@@ -335,25 +338,392 @@ public class HttpExecutionHistoryStoreTest
     }
 
     [Test]
-    public async Task NoRunStatusIsReadThroughTheWire()
+    public async Task TheFourFiltersAreSentToAHostThatReadsThem()
     {
-        Func<Task> query = async () => await Store().QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = "Remote" });
-        Func<Task> single = async () => await Store().GetJobRunStatus("Remote", new JobKey("nightly", "DummyGroup"));
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
 
-        await query.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*HTTP API serves no per-job run status*");
-        await single.Should().ThrowAsync<NotSupportedException>().WithMessage("*HTTP API serves no per-job run status*",
-            "the store declares the read itself, so it does not ask the listing the default would ask");
-        handler.LastRequestUri.Should().BeNull("nothing was sent");
+        await Store().QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = "Remote",
+            Job = new JobKey("release-stale", "billing"),
+            FiredFrom = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
+            FiredBefore = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero),
+            Results = [JobRunResult.Failed, JobRunResult.Cancelled]
+        });
+
+        handler.Requests.Should().Equal(
+        [
+            "GET http://localhost:8080/schedulers/Remote",
+            "GET http://localhost:8080/schedulers/Remote/history/executions?take=250&jobGroup=billing&jobName=release-stale"
+            + "&firedFrom=2026-09-01T00%3A00%3A00.0000000%2B00%3A00&firedBefore=2026-09-02T00%3A00%3A00.0000000%2B00%3A00"
+            + "&results=Failed&results=Cancelled"
+        ], "the host's version is read before the first filtered read, and every filter the query carries is then sent");
     }
+
+    /// <summary>
+    /// A 4.3 host ignores query parameters it does not know, so a filter sent to it would come back as an
+    /// unfiltered page that looks filtered.
+    /// </summary>
+    [TestCase("job")]
+    [TestCase("firedFrom")]
+    [TestCase("firedBefore")]
+    [TestCase("results")]
+    public async Task AFilteredReadIsRefusedBeforeItReachesAnOlderHost(string filter)
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.3.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+
+        ExecutionHistoryQuery query = new() { SchedulerName = "Remote" };
+        query = filter switch
+        {
+            "job" => query with { Job = new JobKey("nightly", "reports") },
+            "firedFrom" => query with { FiredFrom = DateTimeOffset.UnixEpoch },
+            "firedBefore" => query with { FiredBefore = DateTimeOffset.UnixEpoch },
+            _ => query with { Results = [JobRunResult.Skipped] }
+        };
+
+        Func<Task> act = async () => await Store().QueryExecutions(query);
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*4.3.0.0*4.4*");
+        handler.Requests.Should().Equal(["GET http://localhost:8080/schedulers/Remote"],
+            "the history route is never asked a question the host would answer wrongly");
+    }
+
+    [Test]
+    public async Task AHostSeenToFilterIsNotAskedItsVersionAgain()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+        HttpExecutionHistoryStore store = Store();
+
+        await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote", Results = [JobRunResult.Failed] });
+        await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = "Remote", Job = new JobKey("nightly", "reports") });
+
+        handler.Requests.Count(request => request.EndsWith("/schedulers/Remote", StringComparison.Ordinal)).Should().Be(1,
+            "a page that refreshes every second must not ask the host its version every second");
+    }
+
+    [Test]
+    public async Task AnOlderHostIsAskedAgainSoAnUpgradeIsNoticed()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.3.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+        HttpExecutionHistoryStore store = Store();
+        ExecutionHistoryQuery query = new() { SchedulerName = "Remote", Results = [JobRunResult.Failed] };
+
+        Func<Task> refused = async () => await store.QueryExecutions(query);
+        await refused.Should().ThrowAsync<NotSupportedException>();
+
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.1.0"));
+        await store.QueryExecutions(query);
+
+        handler.Requests.Should().EndWith("GET http://localhost:8080/schedulers/Remote/history/executions?take=250&results=Failed",
+            "a host upgraded under a dashboard that keeps running serves the filter as soon as it can");
+    }
+
+    [Test]
+    public async Task AnEmptySetListsNothingWithoutAsking()
+    {
+        PagedResult<ExecutionHistoryEntry> executions = await Store().QueryExecutions(
+            new ExecutionHistoryQuery { SchedulerName = "Remote", Results = [], IncludeTotalCount = true });
+        PagedResult<MisfireHistoryEntry> misfires = await Store().QueryMisfires(
+            new MisfireHistoryQuery { SchedulerName = "Remote", Reasons = [] });
+
+        executions.Items.Should().BeEmpty();
+        executions.TotalCount.Should().Be(0);
+        misfires.Items.Should().BeEmpty();
+        handler.Requests.Should().BeEmpty("an empty set matches nothing, which needs no host to say so");
+    }
+
+    [Test]
+    public async Task AMisfireReasonOfTheCallersOwnNeedsAHostThatReadsIt()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.3.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+
+        Func<Task> act = async () => await Store().QueryMisfires(
+            new MisfireHistoryQuery { SchedulerName = "Remote", Reasons = [MisfireReason.Missed] });
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*job and reason*",
+            "a 4.3 host would answer the overlaps too");
+    }
+
+    [Test]
+    public async Task TheReasonsAskedForAreSentByName()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+
+        await Store().QueryMisfires(new MisfireHistoryQuery
+        {
+            SchedulerName = "Remote",
+            Job = new JobKey("nightly", "reports"),
+            Reasons = [MisfireReason.Vetoed]
+        });
+
+        handler.LastRequestUri.Should().Be(
+            "http://localhost:8080/schedulers/Remote/history/misfires?take=250&jobGroup=reports&jobName=nightly&reasons=Vetoed");
+    }
+
+    /// <summary>
+    /// What a 4.4 row adds travels with it, and its metrics come back as the text the recorder wrote.
+    /// </summary>
+    [Test]
+    public async Task ARunsResultSummaryMetricsAndOriginTravelWithIt()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "items": [
+                {
+                  "schedulerInstanceId": "node-a",
+                  "jobGroup": "billing",
+                  "jobName": "release-stale",
+                  "triggerGroup": "DEFAULT",
+                  "triggerName": "MT_1",
+                  "firedAtUtc": "2026-09-01T12:00:00+00:00",
+                  "duration": "00:00:00.2500000",
+                  "succeeded": true,
+                  "exceptionMessage": null,
+                  "result": "Skipped",
+                  "summary": "no stale reservations",
+                  "metrics": {"scanned":1200,"released":0,"note":"café"},
+                  "manual": true,
+                  "fireInstanceId": "node-a-17"
+                }
+              ],
+              "hasMore": false,
+              "totalCount": 1
+            }
+            """);
+
+        ExecutionHistoryEntry entry = (await Store().QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote" }))
+            .Items.Should().ContainSingle().Subject;
+
+        entry.Result.Should().Be(JobRunResult.Skipped);
+        entry.Summary.Should().Be("no stale reservations");
+        entry.MetricsJson.Should().Be("""{"scanned":1200,"released":0,"note":"café"}""",
+            "the object travels as an object, and is handed back as the text it was, escapes included");
+        entry.Manual.Should().BeTrue();
+        entry.FireInstanceId.Should().Be("node-a-17");
+    }
+
+    [Test]
+    public async Task ARowFromAnOlderHostHasNoResult()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "items": [
+                {
+                  "schedulerInstanceId": "node-a",
+                  "jobGroup": "billing",
+                  "jobName": "release-stale",
+                  "triggerGroup": "DEFAULT",
+                  "triggerName": "nightly",
+                  "firedAtUtc": "2026-09-01T12:00:00+00:00",
+                  "duration": "00:00:00.2500000",
+                  "succeeded": false,
+                  "exceptionMessage": "boom"
+                }
+              ],
+              "hasMore": false
+            }
+            """);
+
+        ExecutionHistoryEntry entry = (await Store().QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote" }))
+            .Items.Should().ContainSingle().Subject;
+
+        entry.Result.Should().BeNull("a 4.3 host sends no result");
+        entry.EffectiveResult.Should().Be(JobRunResult.Failed, "which the row's success still answers for");
+        entry.MetricsJson.Should().BeNull();
+        entry.Manual.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task StatusesAreListedFromTheStatusRoute()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "items": [
+                {
+                  "job": { "name": "release-stale", "group": "billing" },
+                  "lastFiredAtUtc": "2026-09-01T12:00:00+00:00",
+                  "lastResult": "Failed",
+                  "lastFailureMessage": "the upstream system is down",
+                  "consecutiveFailures": 3,
+                  "runCount": 40,
+                  "failureCount": 5
+                }
+              ],
+              "hasMore": true,
+              "totalCount": 9
+            }
+            """);
+
+        PagedResult<JobRunStatus> page = await Store().QueryJobRunStatuses(new JobRunStatusQuery
+        {
+            SchedulerName = "Remote",
+            Failing = true,
+            Take = 1,
+            IncludeTotalCount = true
+        });
+
+        handler.LastRequestUri.Should().Be(
+            "http://localhost:8080/schedulers/Remote/history/job-status?take=1&includeTotalCount=true&failing=true");
+
+        JobRunStatus status = page.Items.Should().ContainSingle().Subject;
+        status.SchedulerName.Should().Be("Remote", "the route said it, and the status belongs to it");
+        status.Job.Should().Be(new JobKey("release-stale", "billing"));
+        status.LastResult.Should().Be(JobRunResult.Failed);
+        status.ConsecutiveFailures.Should().Be(3);
+        status.RunCount.Should().Be(40);
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(9);
+    }
+
+    [Test]
+    public async Task OneStatusIsReadFromItsOwnRoute()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "job": { "name": "release-stale", "group": "billing" },
+              "lastFiredAtUtc": "2026-09-01T12:00:00+00:00",
+              "lastResult": "Skipped",
+              "lastSucceededAtUtc": "2026-09-01T12:00:00+00:00"
+            }
+            """);
+
+        JobRunStatus status = await Store().GetJobRunStatus("Remote", new JobKey("release-stale", "billing"));
+
+        handler.LastRequestUri.Should().Be("http://localhost:8080/schedulers/Remote/history/job-status/billing/release-stale");
+        status.Should().NotBeNull();
+        status.LastResult.Should().Be(JobRunResult.Skipped);
+        status.LastSucceededAtUtc.Should().Be(new DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero));
+    }
+
+    [Test]
+    public async Task AJobWithNoRecordedRunHasNoStatus()
+    {
+        handler.Respond(HttpStatusCode.NotFound, """
+            { "title": "Not Found", "status": 404, "detail": "No recorded run of job billing.release-stale" }
+            """);
+
+        (await Store().GetJobRunStatus("Remote", new JobKey("release-stale", "billing"))).Should().BeNull(
+            "the host answered, and what it said is that it has recorded no run of the job");
+    }
+
+    [Test]
+    public async Task NamedJobsAreFetchedAndPagedHere()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            [
+              { "job": { "name": "b", "group": "g" }, "lastFiredAtUtc": "2026-09-01T12:00:00+00:00", "lastResult": "Failed", "consecutiveFailures": 1 },
+              { "job": { "name": "a", "group": "g" }, "lastFiredAtUtc": "2026-09-01T12:00:00+00:00", "lastResult": "Failed", "consecutiveFailures": 2 },
+              { "job": { "name": "c", "group": "g" }, "lastFiredAtUtc": "2026-09-01T12:00:00+00:00", "lastResult": "Succeeded" }
+            ]
+            """);
+
+        PagedResult<JobRunStatus> page = await Store().QueryJobRunStatuses(new JobRunStatusQuery
+        {
+            SchedulerName = "Remote",
+            Jobs = [new JobKey("a", "g"), new JobKey("b", "g"), new JobKey("c", "g"), new JobKey("a", "g")],
+            Failing = true,
+            Take = 1
+        });
+
+        handler.Requests.Should().Equal(["POST http://localhost:8080/schedulers/Remote/history/job-status/fetch"]);
+        handler.LastRequestBody.Should().Be("""{"jobs":[{"name":"a","group":"g"},{"name":"b","group":"g"},{"name":"c","group":"g"}]}""",
+            "the keys travel in the body, each once");
+
+        page.Items.Should().ContainSingle().Which.Job.Name.Should().Be("a",
+            "the fetch answers every named job, so the failing filter and the page are applied here, by group and then name");
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(2);
+    }
+
+    [Test]
+    public async Task MoreKeysThanOneFetchTakesAreSentInBatches()
+    {
+        handler.Respond(HttpStatusCode.OK, "[]");
+
+        JobKey[] jobs = Enumerable.Range(0, 1001).Select(index => new JobKey("job" + index, "bulk")).ToArray();
+        await Store().QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = "Remote", Jobs = jobs });
+
+        handler.Requests.Should().HaveCount(2, "the host takes at most a thousand keys at once");
+    }
+
+    /// <summary>
+    /// A host that predates the status routes answers them <c>404</c> without problem details.
+    /// </summary>
+    [Test]
+    public async Task AHostThatPredatesTheStatusRoutesSaysItKeepsNoStatus()
+    {
+        handler.Respond(HttpStatusCode.NotFound, body: "");
+
+        Func<Task> query = async () => await Store().QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = "Remote" });
+        Func<Task> single = async () => await Store().GetJobRunStatus("Remote", new JobKey("nightly", "reports"));
+        Func<Task> fetch = async () => await Store().QueryJobRunStatuses(
+            new JobRunStatusQuery { SchedulerName = "Remote", Jobs = [new JobKey("nightly", "reports")] });
+
+        await query.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*older than 4.4*");
+        await single.Should().ThrowAsync<NotSupportedException>().WithMessage("*older than 4.4*");
+        await fetch.Should().ThrowAsync<NotSupportedException>().WithMessage("*older than 4.4*");
+    }
+
+    /// <summary>
+    /// A 4.4 host whose history store keeps rows only answers <c>501</c>, and its detail is the store's own
+    /// explanation.
+    /// </summary>
+    [Test]
+    public async Task AHostWhoseStoreKeepsNoStatusSaysSo()
+    {
+        handler.Respond(HttpStatusCode.NotImplemented, """
+            {
+              "title": "Not Implemented",
+              "status": 501,
+              "detail": "AcmeHistoryStore keeps no per-job run status.",
+              "Quartz-ExceptionType": "NotSupportedException"
+            }
+            """);
+
+        Func<Task> act = async () => await Store().GetJobRunStatus("Remote", new JobKey("nightly", "reports"));
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("AcmeHistoryStore keeps no per-job run status.",
+            "the host's store said why, and that is the sentence a page can show");
+    }
+
+    private const string DetailsPath = "/schedulers/Remote";
+
+    private const string EmptyPage = """{ "items": [], "hasMore": false, "totalCount": 0 }""";
+
+    private static string SchedulerDetails(string version) => $$"""
+        {
+          "schedulerInstanceId": "NON_CLUSTERED",
+          "name": "Remote",
+          "status": "Running",
+          "threadPool": { "type": "Quartz.Impl.DefaultThreadPool", "size": 10 },
+          "jobStore": { "type": "Quartz.Impl.RAMJobStore", "clustered": false, "persistent": false },
+          "statistics": { "version": "{{version}}", "runningSince": null, "jobsExecuted": 0, "localExecutingJobs": 0 }
+        }
+        """;
 
     private HttpExecutionHistoryStore Store() => new("Remote", httpClient);
 
+    /// <summary>
+    /// Answers a request by its path when a route was given for it, and with the default answer otherwise,
+    /// recording every request it was sent.
+    /// </summary>
     private sealed class StubHandler : HttpMessageHandler
     {
+        private readonly Dictionary<string, (HttpStatusCode Status, string Body)> byPath = new(StringComparer.Ordinal);
         private HttpStatusCode statusCode = HttpStatusCode.OK;
         private string body = "";
 
         public string LastRequestUri { get; private set; }
+
+        public string LastRequestBody { get; private set; }
+
+        public List<string> Requests { get; } = [];
 
         public void Respond(HttpStatusCode status, string body)
         {
@@ -361,16 +731,25 @@ public class HttpExecutionHistoryStoreTest
             this.body = body;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public void RespondTo(string path, HttpStatusCode status, string body)
+        {
+            byPath[path] = (status, body);
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastRequestUri = request.RequestUri?.ToString();
+            LastRequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+            Requests.Add($"{request.Method} {LastRequestUri}");
 
-            HttpResponseMessage response = new(statusCode)
+            (HttpStatusCode status, string content) = byPath.TryGetValue(request.RequestUri!.AbsolutePath, out (HttpStatusCode Status, string Body) routed)
+                ? routed
+                : (statusCode, body);
+
+            return new HttpResponseMessage(status)
             {
-                Content = new StringContent(body, Encoding.UTF8, "application/json")
+                Content = new StringContent(content, Encoding.UTF8, "application/json")
             };
-
-            return Task.FromResult(response);
         }
     }
 }

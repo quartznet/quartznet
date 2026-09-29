@@ -33,11 +33,12 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// <c>LogEventCatalogTest</c> in <c>Quartz.Tests.AspNetCore</c> makes a change to one a reviewed diff.
 /// </para>
 /// <para>
-/// Six of the eight are raised while turning an exception into the problem details a request is answered
-/// with, and the level says who has to act: a request the caller got wrong is Debug, a scheduler or a
-/// configured rule that refused is Warning, and anything else is a server fault at Error. The seventh
-/// answers no request at all — there is nobody left to answer. The eighth is the only one a request that
-/// went right raises, and the only one at Information: it is the record of who changed what.
+/// Seven of the nine are raised while turning an exception into the problem details a request is answered
+/// with, and the level says who has to act: a request the caller got wrong, or one for something the
+/// server does not keep, is Debug, a scheduler or a configured rule that refused is Warning, and anything
+/// else is a server fault at Error. One answers no request at all — there is nobody left to answer. One is
+/// the only one a request that went right raises, and the only one at Information: it is the record of
+/// who changed what.
 /// </para>
 /// </remarks>
 internal static partial class HttpApiLog
@@ -102,4 +103,12 @@ internal static partial class HttpApiLog
     /// </remarks>
     [LoggerMessage(EventId = 9007, Level = LogLevel.Information, Message = "Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}")]
     public static partial void MutationPerformed(this ILogger logger, string user, string operation, string schedulerName, string route);
+
+    /// <remarks>
+    /// Debug: nothing failed. The history store behind the route keeps no such thing — a per-job run
+    /// status, asked of a store that keeps rows only — and the <c>501</c> says so to a caller that can
+    /// render it.
+    /// </remarks>
+    [LoggerMessage(EventId = 9008, Level = LogLevel.Debug, Message = "NotSupportedException thrown")]
+    public static partial void NotServed(this ILogger logger, Exception exception);
 }

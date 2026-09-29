@@ -361,6 +361,7 @@ matching on its text is not.
 | 9005 | Warning | `Quartz.AspNetCore` | `"Api request refused: {Reason}"` |
 | 9006 | Debug | `Quartz.AspNetCore` | `"Api request abandoned by the caller: {Url}"` |
 | 9007 | Information | `Quartz.AspNetCore` | `"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"` |
+| 9008 | Debug | `Quartz.AspNetCore` | `"NotSupportedException thrown"` |
 | 9100 | Information | `Quartz.Dashboard` | `"Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome} (origin {Origin}, node {Node})"` |
 | 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason} (origin {Origin}, node {Node})"` |
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |

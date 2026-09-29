@@ -1,0 +1,25 @@
+﻿{
+  "items": [
+    {
+      "job": {
+        "name": "release-stale",
+        "group": "billing"
+      },
+      "lastFiredAtUtc": "2026-08-26T12:00:00+00:00",
+      "lastResult": "Failed",
+      "lastDuration": "00:00:00.2500000",
+      "lastSchedulerInstanceId": "TEST_NON_CLUSTERED",
+      "lastEntryId": "3f2a0e5b7d4f1a9e",
+      "lastSummary": null,
+      "lastSucceededAtUtc": "2026-08-26T11:00:00+00:00",
+      "lastFailedAtUtc": "2026-08-26T12:00:00+00:00",
+      "lastFailureMessage": "the job threw",
+      "consecutiveFailures": 1,
+      "runCount": 2,
+      "failureCount": 1,
+      "firstFiredAtUtc": "2026-08-26T11:00:00+00:00"
+    }
+  ],
+  "hasMore": false,
+  "totalCount": 1
+}

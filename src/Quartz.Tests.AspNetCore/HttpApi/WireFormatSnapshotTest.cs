@@ -553,6 +553,77 @@ public class WireFormatSnapshotTest : WebApiTest
     }
 
     /// <summary>
+    /// A 4.4 row: what the run achieved, the job's summary, its metrics as an object, and where the run
+    /// came from.
+    /// </summary>
+    [Test]
+    public async Task ExecutionHistoryBodyWithTheRunsOutcome()
+    {
+        string body = await GetWithHistory(
+            $"{SchedulerUrl}/history/executions",
+            history => history.AddExecution(new ExecutionHistoryEntry(
+                SchedulerName: TestData.SchedulerName,
+                SchedulerInstanceId: "TEST_NON_CLUSTERED",
+                JobGroup: "billing",
+                JobName: "release-stale",
+                TriggerGroup: "DEFAULT",
+                TriggerName: "MT_1",
+                FiredAtUtc: HistoryInstant,
+                Duration: TimeSpan.FromMilliseconds(250),
+                Succeeded: true,
+                ExceptionMessage: null)
+            {
+                EntryId = "5b7d4f1a9e3f2a0e",
+                Result = JobRunResult.Skipped,
+                Summary = "no stale reservations",
+                MetricsJson = """{"scanned":1200,"released":0}""",
+                Manual = true,
+                FireInstanceId = "TEST_NON_CLUSTERED-17"
+            }));
+
+        await VerifyBody(body);
+    }
+
+    [Test]
+    public async Task JobRunStatusListingBody()
+    {
+        string body = await GetWithHistory(
+            $"{SchedulerUrl}/history/job-status?includeTotalCount=true",
+            async history =>
+            {
+                ExecutionHistoryEntry succeeded = new(
+                    SchedulerName: TestData.SchedulerName,
+                    SchedulerInstanceId: "TEST_NON_CLUSTERED",
+                    JobGroup: "billing",
+                    JobName: "release-stale",
+                    TriggerGroup: "billing",
+                    TriggerName: "hourly",
+                    FiredAtUtc: HistoryInstant.AddHours(-1),
+                    Duration: TimeSpan.FromMilliseconds(250),
+                    Succeeded: true,
+                    ExceptionMessage: null)
+                {
+                    EntryId = "1a9e3f2a0e5b7d4f",
+                    Result = JobRunResult.Succeeded,
+                    Summary = "released 3"
+                };
+
+                await history.AddExecution(succeeded);
+                await history.AddExecution(succeeded with
+                {
+                    FiredAtUtc = HistoryInstant,
+                    Succeeded = false,
+                    ExceptionMessage = "the job threw",
+                    EntryId = "3f2a0e5b7d4f1a9e",
+                    Result = JobRunResult.Failed,
+                    Summary = null
+                });
+            });
+
+        await VerifyBody(body);
+    }
+
+    /// <summary>
     /// The instant the history bodies are pinned at, fixed like every other instant in these snapshots.
     /// </summary>
     private static readonly DateTimeOffset HistoryInstant = new(2026, 8, 26, 12, 0, 0, TimeSpan.Zero);
