@@ -211,7 +211,7 @@ foreach (ExecutionHistoryEntry row in page.Items)
 | `Results` | `EffectiveResult` in the set. An empty set matches nothing |
 
 * `MisfireHistoryQuery.Job` narrows the misfire feed the same way, and `MisfireHistoryQuery.Reasons` to some
-  `MisfireReason`s. An empty set matches nothing.
+  `MisfireReason`s. An empty set matches nothing. A row a 4.2 node wrote has no reason and matches `Missed`.
 * A cancelled run matches `FailedFinally = true`.
 
 ## See it in the dashboard and over HTTP

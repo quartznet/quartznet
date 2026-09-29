@@ -44,6 +44,10 @@ public partial class StdAdoDelegate
     private static readonly JobRunResult[] knownResults =
         [JobRunResult.Succeeded, JobRunResult.Failed, JobRunResult.Cancelled, JobRunResult.Skipped];
 
+    /// <summary>Every misfire reason this version writes, in the order a reason predicate names them.</summary>
+    private static readonly MisfireReason[] knownReasons =
+        [MisfireReason.Missed, MisfireReason.Overlap, MisfireReason.Vetoed];
+
     /// <summary>
     /// A delegate of the same dialect for the execution history to initialize and use on its own.
     /// </summary>
@@ -539,6 +543,11 @@ public partial class StdAdoDelegate
             query.TriggerContains);
         AppendJobPredicate(predicateBuilder, parameters, query.Job);
 
+        if (query.Reasons is { } reasons)
+        {
+            AppendReasonsPredicate(predicateBuilder, parameters, reasons);
+        }
+
         string predicate = predicateBuilder.ToString();
         string schedulerName = query.SchedulerName;
 
@@ -936,6 +945,44 @@ public partial class StdAdoDelegate
                     predicate.Append(StdAdoConstants.SqlExecutionHistoryResultSkipped);
                     break;
             }
+        }
+
+        predicate.Append(any ? ")" : StdAdoConstants.SqlMatchesNothing);
+    }
+
+    /// <summary>
+    /// Narrows a misfire read to the rows whose reason is one of <paramref name="reasons" />.
+    /// </summary>
+    /// <remarks>
+    /// As the result filter is built: a fragment per reason in the enumeration's order, each bound once, and
+    /// a set naming no reason this version knows matches nothing. A row a 4.2 node wrote has no reason and
+    /// is matched as <see cref="MisfireReason.Missed" />, as it reads.
+    /// </remarks>
+    private static void AppendReasonsPredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        IReadOnlyCollection<MisfireReason> reasons)
+    {
+        bool any = false;
+        foreach (MisfireReason reason in knownReasons)
+        {
+            if (!reasons.Contains(reason))
+            {
+                continue;
+            }
+
+            predicate.Append(any ? " OR " : " AND (");
+            any = true;
+
+            (string fragment, string parameterName) = reason switch
+            {
+                MisfireReason.Missed => (StdAdoConstants.SqlMisfireHistoryReasonMissed, SqlParameters.HistoryReasonMissed),
+                MisfireReason.Overlap => (StdAdoConstants.SqlMisfireHistoryReasonOverlap, SqlParameters.HistoryReasonOverlap),
+                _ => (StdAdoConstants.SqlMisfireHistoryReasonVetoed, SqlParameters.HistoryReasonVetoed)
+            };
+
+            predicate.Append(fragment);
+            parameters.Add(new KeyValuePair<string, object?>(parameterName, (int) reason));
         }
 
         predicate.Append(any ? ")" : StdAdoConstants.SqlMatchesNothing);

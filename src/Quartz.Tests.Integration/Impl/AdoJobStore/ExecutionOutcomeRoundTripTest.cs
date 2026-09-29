@@ -136,6 +136,21 @@ public abstract class ExecutionOutcomeRoundTripTest
         (await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = schedulerName, Job = new JobKey("nightly", "outcome") }))
             .Items.Should().ContainSingle().Which.Reason.Should().Be(MisfireReason.Vetoed, "REASON = 2 comes back as a veto");
         (await store.CountMisfires(schedulerName, Now.AddHours(-1))).Should().Be(0, "a veto is not a misfire");
+
+        await store.AddMisfire(new MisfireHistoryEntry(schedulerName, "node-a", "outcome", "missed", null, Now.AddMinutes(-1), null));
+
+        PagedResult<MisfireHistoryEntry> readable = await store.QueryMisfires(new MisfireHistoryQuery
+        {
+            SchedulerName = schedulerName,
+            Reasons = [MisfireReason.Missed, MisfireReason.Overlap],
+            IncludeTotalCount = true
+        });
+
+        readable.Items.Should().ContainSingle().Which.TriggerName.Should().Be("missed",
+            "the reason filter binds each reason it names, and leaves the veto out of the page");
+        readable.TotalCount.Should().Be(1, "and out of the count");
+        (await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = schedulerName, Reasons = [MisfireReason.Vetoed] }))
+            .Items.Should().ContainSingle().Which.TriggerName.Should().Be("vetoed");
     }
 
     [TestCaseSource(typeof(MultibyteTexts), nameof(MultibyteTexts.Kinds))]

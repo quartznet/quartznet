@@ -147,6 +147,46 @@ public sealed partial class AdoExecutionHistoryStoreContractTest
     }
 
     /// <summary>
+    /// A misfire a 4.2 node wrote has no <c>REASON</c>, reads as <see cref="MisfireReason.Missed" />, and is
+    /// found by that reason and by no other.
+    /// </summary>
+    [Test]
+    public async Task AMisfireWithoutAReasonIsFoundAsMissed()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+
+        await using (SqliteConnection connection = new(database.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using SqliteCommand command = connection.CreateCommand();
+            command.CommandText =
+                "INSERT INTO QRTZ_MISFIRE_HISTORY (SCHED_NAME, ENTRY_ID, INSTANCE_NAME, TRIGGER_NAME, TRIGGER_GROUP, JOB_NAME, "
+                + "JOB_GROUP, MISFIRE_TIME, SCHED_TIME) VALUES (@scheduler, 'a-4.2-row', 'node-a', 'at-midnight', @triggerGroup, "
+                + "NULL, NULL, @misfired, NULL)";
+            command.Parameters.AddWithValue("@scheduler", SchedulerName);
+            command.Parameters.AddWithValue("@triggerGroup", TriggerGroup);
+            command.Parameters.AddWithValue("@misfired", Start.UtcTicks);
+            (await command.ExecuteNonQueryAsync()).Should().Be(1);
+        }
+
+        await store.AddMisfire(Misfire(Start.AddMinutes(-1), "skipped") with { Reason = MisfireReason.Overlap });
+
+        PagedResult<MisfireHistoryEntry> missed = await store.QueryMisfires(new MisfireHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Reasons = [MisfireReason.Missed],
+            IncludeTotalCount = true
+        });
+
+        missed.Items.Should().ContainSingle().Which.Reason.Should().Be(MisfireReason.Missed,
+            "a 4.2 node recorded misfires only, so a row without a reason is one, and is filtered as it reads");
+        missed.TotalCount.Should().Be(1);
+
+        (await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = SchedulerName, Reasons = [MisfireReason.Overlap] }))
+            .Items.Should().ContainSingle().Which.TriggerName.Should().Be("skipped");
+    }
+
+    /// <summary>
     /// A live node with a lower instance id sweeps the cluster, and this one leaves the pass to it.
     /// </summary>
     [Test]
