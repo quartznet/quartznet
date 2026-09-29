@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.AspNetCore.HttpApi;
 using Quartz.HttpApiContract;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -53,8 +54,23 @@ public class QuartzHttpApiJsonOptionsTest
 
         resolvers[0].Should().BeOfType<HttpApiJsonContext>(
             "a contract body must be answered from generated metadata rather than reflected over");
-        resolvers[^1].Should().BeOfType<DefaultJsonTypeInfoResolver>(
+        resolvers[^2].Should().BeOfType<DefaultJsonTypeInfoResolver>(
             "the options are the whole application's, so the host's own bodies must keep resolving the way they did");
+        resolvers[^1].Should().BeOfType<HttpApiProblemDetailsJsonContext>(
+            "the problem-details metadata is for a host with no reflection, so it goes behind reflection, where AddProblemDetails() puts ASP.NET Core's own");
+    }
+
+    [Test]
+    public void SecondRegistrationDoesNotAddTheProblemDetailsResolverAgain()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz("first");
+        services.AddQuartz("second");
+        services.AddQuartzHttpApi();
+        services.AddQuartzHttpApi();
+
+        SerializerOptions(services).TypeInfoResolverChain.Count(resolver => resolver is HttpApiProblemDetailsJsonContext).Should().Be(1,
+            "serving a second scheduler over HTTP must not stack the problem-details metadata onto the container's options twice");
     }
 
     [Test]

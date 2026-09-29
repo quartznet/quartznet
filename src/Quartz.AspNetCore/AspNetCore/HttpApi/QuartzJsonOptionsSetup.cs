@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Options;
 
@@ -7,7 +10,8 @@ using Quartz.Serialization.SystemTextJson;
 namespace Quartz.AspNetCore.HttpApi;
 
 /// <summary>
-/// Teaches the application's HTTP JSON options about Quartz's triggers, calendars, keys and wire enums.
+/// Teaches the application's HTTP JSON options about Quartz's triggers, calendars, keys and wire enums,
+/// and about the problem details its errors are written as.
 /// </summary>
 /// <remarks>
 /// A type rather than a lambda so that registering it is idempotent: the options are the whole
@@ -24,6 +28,19 @@ internal sealed class QuartzJsonOptionsSetup : IConfigureOptions<JsonOptions>
 
     public void Configure(JsonOptions options)
     {
-        options.SerializerOptions?.ConfigureWireFormat(serializerRegistry);
+        JsonSerializerOptions? serializerOptions = options.SerializerOptions;
+        if (serializerOptions is null)
+        {
+            return;
+        }
+
+        serializerOptions.ConfigureWireFormat(serializerRegistry);
+
+        // Last, behind reflection: HttpApiProblemDetailsJsonContext says why.
+        IList<IJsonTypeInfoResolver> chain = serializerOptions.TypeInfoResolverChain;
+        if (!chain.Contains(HttpApiProblemDetailsJsonContext.Default))
+        {
+            chain.Add(HttpApiProblemDetailsJsonContext.Default);
+        }
     }
 }
