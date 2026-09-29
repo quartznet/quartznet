@@ -136,7 +136,7 @@ public static class PackageReadmeSamples
             builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
             {
                 store.UsePostgres(connectionString);
-                store.UseWeaselForPostgres(); // or UseWeaselForSqlServer() / UseWeaselForSqlite(), from their packages
+                store.UseWeaselForPostgres(); // or UseWeaselForSqlServer/MySql/Oracle/Sqlite(), from their packages
             }));
             builder.Services.AddQuartzHostedService();
 

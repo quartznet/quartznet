@@ -20,7 +20,7 @@ tests, so it matches the release. A package that models the tables separately st
 
 Runtime PostgreSQL migration support for non-EF and Marten projects, for Quartz 3.x.
 
-On 4.x, use the official [Quartz.Weasel packages](weasel.md), which cover PostgreSQL, SQL Server and SQLite
+On 4.x, use the official [Quartz.Weasel packages](weasel.md), which cover PostgreSQL, SQL Server, MySQL, Oracle and SQLite
 with a model generated from Quartz's own schema. [Moving off Weasel.Quartz.Postgres](weasel.md#moving-off-weasel-quartz-postgres)
 says what the first apply changes.
 

@@ -28,6 +28,8 @@
             "Quartz.Plugins/Quartz.Plugins.csproj",
             "Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj",
             "Quartz.Serialization.Newtonsoft/Quartz.Serialization.Newtonsoft.csproj",
+            "Quartz.Weasel.MySQL/Quartz.Weasel.MySQL.csproj",
+            "Quartz.Weasel.Oracle/Quartz.Weasel.Oracle.csproj",
             "Quartz.Weasel.PostgreSQL/Quartz.Weasel.PostgreSQL.csproj",
             "Quartz.Weasel.SQLite/Quartz.Weasel.SQLite.csproj",
             "Quartz.Weasel.SqlServer/Quartz.Weasel.SqlServer.csproj"
