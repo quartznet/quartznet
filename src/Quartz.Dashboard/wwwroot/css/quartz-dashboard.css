@@ -1237,6 +1237,7 @@ body{
     color: var(--qz-color-info);
     font-size: var(--qz-font-size-xs);
     font-weight: 600;
+    white-space: nowrap;
 }
 
 /* What a run reported: its summary, then each metric as a chip. */
@@ -1246,8 +1247,11 @@ body{
     overflow-wrap: anywhere;
 }
 
+/* A chip stays on one line and the row wraps between chips; one too long for the cell is cut with an
+   ellipsis, and its title carries the whole of it. */
 .qz-metric-chip {
     display: inline-block;
+    max-width: 100%;
     margin: 2px var(--qz-space-xs) 2px 0;
     padding: 1px 6px;
     border: 1px solid var(--qz-color-border);
@@ -1256,7 +1260,10 @@ body{
     color: var(--qz-color-text-secondary);
     font-family: var(--qz-font-mono);
     font-size: var(--qz-font-size-xs);
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
 }
 
 /* A job whose latest occurrences failed for good, and how many in a row. */

@@ -505,6 +505,8 @@ public class HistoryPageTest
         page.Find(".qz-history-summary-text").TextContent.Should().Be("no stale reservations");
         page.TextOfAll(".qz-metric-chip").Should().Equal(["scanned: 1200", "note: café", "ok: true"],
             "each metric reads as its name and its value, a string without its quotes");
+        page.Find(".qz-metric-chip").GetAttribute("title").Should().Be("scanned: 1200",
+            "a chip stays on one line and a long one is cut with an ellipsis, so its title carries the whole of it");
         page.FindAll("[data-testid=history-manual]").Should().ContainSingle("the run was asked for, not fired by a schedule");
     }
 
