@@ -17,7 +17,7 @@
     <SignAssembly>false</SignAssembly>
 
     <!-- The released Quartz the second build runs. MixedVersionClusterPostgresTest names the same version. -->
-    <MixedVersionReleasedQuartz>4.2.2</MixedVersionReleasedQuartz>
+    <MixedVersionReleasedQuartz>4.3.0</MixedVersionReleasedQuartz>
   </PropertyGroup>
 
   <!--
