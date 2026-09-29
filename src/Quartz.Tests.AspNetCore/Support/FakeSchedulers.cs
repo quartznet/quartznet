@@ -23,5 +23,9 @@ internal static class FakeSchedulers
         A.CallTo(() => fake.PauseTriggerGroupsWith(A<GroupMatcher<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
         A.CallTo(() => fake.PauseJobGroupsWith(A<GroupMatcher<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
         A.CallTo(() => fake.PauseAllWith(A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+
+        // The key-set forms' defaults walk the set through the single-key *With members above.
+        A.CallTo(() => fake.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => fake.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
     }
 }

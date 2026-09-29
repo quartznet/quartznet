@@ -398,6 +398,39 @@ public class WireFormatSnapshotTest : WebApiTest
         await VerifyBody(body);
     }
 
+    /// <summary>
+    /// The key-set trigger pause a client writes when the pause says why: the keys, which is the whole body
+    /// a host before 4.4 reads, with the reason and the requester beside them.
+    /// </summary>
+    [Test]
+    public async Task TriggerKeySetPauseRequestBody()
+    {
+        A.CallTo(() => FakeScheduler.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey>());
+
+        string body = await CapturedBody(scheduler => scheduler.PauseTriggersWith(
+            [new TriggerKey("trigger1", "group1"), new TriggerKey("trigger2", "group1")],
+            new PauseDetails { Reason = "vendor API is down until 18:00", RequestedBy = "alice" }).AsTask());
+
+        await VerifyBody(body);
+    }
+
+    /// <summary>
+    /// The job twin of <see cref="TriggerKeySetPauseRequestBody" />.
+    /// </summary>
+    [Test]
+    public async Task JobKeySetPauseRequestBody()
+    {
+        A.CallTo(() => FakeScheduler.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._))
+            .Returns(new List<JobKey>());
+
+        string body = await CapturedBody(scheduler => scheduler.PauseJobsWith(
+            [new JobKey("job1", "group1")],
+            new PauseDetails { Reason = "quarter close" }).AsTask());
+
+        await VerifyBody(body);
+    }
+
     [Test]
     public async Task ValidationProblemDetailsBody()
     {
@@ -854,11 +887,19 @@ public class WireFormatSnapshotTest : WebApiTest
     {
         A.CallTo(() => FakeScheduler.UpdateTriggerDetails(A<TriggerKey>._, A<TriggerDetailsUpdate>._, A<CancellationToken>._)).Returns(true);
 
+        return await CapturedBody(scheduler => scheduler.UpdateTriggerDetails(new TriggerKey("trigger1", "group1"), update).AsTask());
+    }
+
+    /// <summary>
+    /// The body <see cref="HttpScheduler" /> sends for <paramref name="call" />, captured on its way out.
+    /// </summary>
+    private async Task<string> CapturedBody(Func<HttpScheduler, Task> call)
+    {
         RequestBodyCapture capture = new();
         using HttpClient client = WebApplicationFactory.CreateDefaultClient(capture);
         await using HttpScheduler scheduler = new(TestData.SchedulerName, client);
 
-        await scheduler.UpdateTriggerDetails(new TriggerKey("trigger1", "group1"), update);
+        await call(scheduler);
 
         capture.Body.Should().NotBeNull("the client sends a body for this endpoint");
         return capture.Body!;

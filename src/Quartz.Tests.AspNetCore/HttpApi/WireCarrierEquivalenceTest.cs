@@ -450,6 +450,11 @@ public sealed class WireCarrierEquivalenceTest
         ["PauseJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.PauseJob], s => s.PauseJob(names.Job).AsTask()),
         ["PauseJobWith(JobKey, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseJob], s => s.PauseJobWith(names.Job, Why).AsTask()),
         ["PauseJobs(IReadOnlyCollection<JobKey>, CancellationToken)"] = new([SchedulerRoutes.PauseJobKeys], s => s.PauseJobs([names.Job]).AsTask()),
+        ["PauseJobsWith(IReadOnlyCollection<JobKey>, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseJobKeys, SchedulerRoutes.PauseJobKeys], async s =>
+        {
+            await s.PauseJobsWith([names.Job], Why);
+            await s.PauseJobsWith([names.Job], null);
+        }),
         ["PauseJobGroups(GroupMatcher<JobKey>, CancellationToken)"] = new([SchedulerRoutes.PauseJobs], s => s.PauseJobGroups(GroupMatcher<JobKey>.AnyGroup()).AsTask()),
         ["PauseJobGroupsWith(GroupMatcher<JobKey>, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseJobs], s => s.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupStartsWith("gr"), Why).AsTask()),
         ["ResumeJob(JobKey, CancellationToken)"] = new([SchedulerRoutes.ResumeJob], s => s.ResumeJob(names.Job).AsTask()),
@@ -458,6 +463,11 @@ public sealed class WireCarrierEquivalenceTest
         ["PauseTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.PauseTrigger], s => s.PauseTrigger(names.Trigger).AsTask()),
         ["PauseTriggerWith(TriggerKey, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseTrigger], s => s.PauseTriggerWith(names.Trigger, Why).AsTask()),
         ["PauseTriggers(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.PauseTriggerKeys], s => s.PauseTriggers([names.Trigger]).AsTask()),
+        ["PauseTriggersWith(IReadOnlyCollection<TriggerKey>, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseTriggerKeys, SchedulerRoutes.PauseTriggerKeys], async s =>
+        {
+            await s.PauseTriggersWith([names.Trigger], Why);
+            await s.PauseTriggersWith([names.Trigger], null);
+        }),
         ["PauseTriggerGroups(GroupMatcher<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.PauseTriggers], s => s.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupContains("ou")).AsTask()),
         ["PauseTriggerGroupsWith(GroupMatcher<TriggerKey>, PauseDetails, CancellationToken)"] = new([SchedulerRoutes.PauseTriggers], s => s.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals("group"), Why).AsTask()),
         ["ResumeTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResumeTrigger], s => s.ResumeTrigger(names.Trigger).AsTask()),

@@ -122,6 +122,62 @@ public sealed class PauseReasonEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task AKeySetPauseWithDetailsIsOneRequestThatReachesTheSchedulerWithThem()
+    {
+        TriggerKey other = new("hourly", "reports");
+        A.CallTo(() => FakeScheduler.PauseTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.PauseJob(jobKey, A<CancellationToken>._)).Returns(true);
+
+        (await HttpScheduler.PauseTriggersWith([other, triggerKey], details)).Should().Equal([other, triggerKey],
+            "the keys the host paused come back in the order they were sent");
+        (await HttpScheduler.PauseJobsWith([jobKey], details)).Should().Equal([jobKey]);
+
+        A.CallTo(() => FakeScheduler.PauseTriggersWith(
+                A<IReadOnlyCollection<TriggerKey>>.That.Matches(keys => keys.SequenceEqual(new[] { other, triggerKey })),
+                A<PauseDetails>.That.Matches(sent => Carried(sent)),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => FakeScheduler.PauseJobsWith(
+                A<IReadOnlyCollection<JobKey>>.That.Matches(keys => keys.Single() == jobKey),
+                A<PauseDetails>.That.Matches(sent => Carried(sent)),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => FakeScheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => FakeScheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task TheClientSendsTheKeysAloneForAKeySetPauseThatSaysNothing()
+    {
+        A.CallTo(() => FakeScheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<TriggerKey> { triggerKey });
+        A.CallTo(() => FakeScheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(new List<JobKey> { jobKey });
+
+        (await HttpScheduler.PauseTriggersWith([triggerKey], null)).Should().Equal([triggerKey]);
+        (await HttpScheduler.PauseJobsWith([jobKey], new PauseDetails { Reason = " " })).Should().Equal([jobKey]);
+
+        // Each arrives as the body a client before 4.4 sent, and is answered by the same member.
+        A.CallTo(() => FakeScheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => FakeScheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => FakeScheduler.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => FakeScheduler.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task AKeySetBodyWhoseTextsAreBlankIsTheReasonlessPause()
+    {
+        using HttpClient client = WebApplicationFactory.CreateClient();
+        using StringContent body = new(
+            """{ "triggers": [ { "name": "nightly", "group": "reports" } ], "reason": " ", "requestedBy": "" }""",
+            Encoding.UTF8,
+            "application/json");
+        using HttpResponseMessage response = await client.PostAsync($"{SchedulerUrl}/triggers/keys/pause", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        A.CallTo(() => FakeScheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => FakeScheduler.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
     public async Task ABodyMayNameOnlyAReason()
     {
         using HttpClient client = WebApplicationFactory.CreateClient();
@@ -306,5 +362,68 @@ public sealed class PauseRequesterEndpointTest
         // is still in the audit line.
         A.CallTo(() => fake.PauseJob(new JobKey("export", "reports"), A<CancellationToken>._)).MustHaveHappenedOnceExactly();
         A.CallTo(() => fake.PauseJobWith(A<JobKey>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A key-set body always arrives, because it carries the keys, so the rule differs from the optional
+    /// pause body: without a reason or a requester it is the 4.3 request, and it is not put in the caller's
+    /// name (#3964).
+    /// </summary>
+    [Test]
+    public async Task AKeySetBodyOf43IsTheReasonlessPauseEvenForAnAuthenticatedCaller()
+    {
+        A.CallTo(() => fake.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<TriggerKey>());
+        A.CallTo(() => fake.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(new List<JobKey>());
+
+        using HttpResponseMessage triggers = await SendAuthenticated(
+            $"{SchedulerUrl}/triggers/keys/pause", """{ "triggers": [ { "name": "nightly", "group": "reports" } ] }""", "ops@example.com");
+        using HttpResponseMessage jobs = await SendAuthenticated(
+            $"{SchedulerUrl}/jobs/keys/pause", """{ "jobs": [ { "name": "export", "group": "reports" } ] }""", "ops@example.com");
+
+        triggers.StatusCode.Should().Be(HttpStatusCode.OK);
+        jobs.StatusCode.Should().Be(HttpStatusCode.OK);
+        A.CallTo(() => fake.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => fake.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+
+        // Filling the requester here would send every authenticated 4.3 client's pause down the path that records.
+        A.CallTo(() => fake.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => fake.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task AKeySetBodyWithAReasonNamesTheAuthenticatedCaller()
+    {
+        using HttpResponseMessage triggers = await SendAuthenticated(
+            $"{SchedulerUrl}/triggers/keys/pause",
+            """{ "triggers": [ { "name": "nightly", "group": "reports" } ], "reason": "quarter close" }""",
+            "ops@example.com");
+        using HttpResponseMessage jobs = await SendAuthenticated(
+            $"{SchedulerUrl}/jobs/keys/pause",
+            """{ "jobs": [ { "name": "export", "group": "reports" } ], "requestedBy": "alice" }""",
+            "dashboard-service");
+
+        triggers.StatusCode.Should().Be(HttpStatusCode.OK);
+        jobs.StatusCode.Should().Be(HttpStatusCode.OK);
+        A.CallTo(() => fake.PauseTriggersWith(
+                A<IReadOnlyCollection<TriggerKey>>.That.Matches(keys => keys.Single() == new TriggerKey("nightly", "reports")),
+                A<PauseDetails>.That.Matches(d => d.Reason == "quarter close" && d.RequestedBy == "ops@example.com"),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly(); // the name the audit line records the request under
+        A.CallTo(() => fake.PauseJobsWith(
+                A<IReadOnlyCollection<JobKey>>.That.Matches(keys => keys.Single() == new JobKey("export", "reports")),
+                A<PauseDetails>.That.Matches(d => d.Reason == null && d.RequestedBy == "alice"),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly(); // a requester the body names wins
+    }
+
+    private async Task<HttpResponseMessage> SendAuthenticated(string url, string json, string caller)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Post, url)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+        request.Headers.Add(TenantAuthenticationHandler.TenantHeaderName, caller);
+
+        return await client.SendAsync(request);
     }
 }

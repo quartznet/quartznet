@@ -275,17 +275,26 @@ internal static class JobEndpoints
             scheduler => SchedulerOperations.PauseJobs(scheduler, groups, details, cancellationToken));
     }
 
+    /// <summary>
+    /// Pauses a set of jobs, recording why and who asked when the body says so.
+    /// </summary>
+    /// <remarks>
+    /// As on the key-set trigger pause: a body with neither <c>reason</c> nor <c>requestedBy</c> is the
+    /// reasonless pause, even from an authenticated caller.
+    /// </remarks>
     [ProducesResponseType(typeof(AppliedJobKeysResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseJobKeys(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
-        JobKeySetRequest request,
+        JobKeySetPauseRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
+        PauseDetails? details = EndpointHelper.KeySetPauseDetailsFor(request, httpContext);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
-            scheduler => SchedulerOperations.PauseJobKeys(scheduler, request, cancellationToken));
+            scheduler => SchedulerOperations.PauseJobKeys(scheduler, request, details, cancellationToken));
     }
 
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]

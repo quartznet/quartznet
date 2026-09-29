@@ -888,6 +888,46 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
 
     /// <inheritdoc />
     /// <remarks>
+    /// One request to the key-set pause route, with the details beside the keys. A host older than 4.4
+    /// reads the keys alone and pauses without the details, which is what
+    /// <see cref="IScheduler.PauseTriggersWith" /> promises of a scheduler that records nothing. Details
+    /// that say nothing are <see cref="PauseTriggers" />, which sends the keys alone.
+    /// </remarks>
+    public async ValueTask<List<TriggerKey>> PauseTriggersWith(IReadOnlyCollection<TriggerKey> triggerKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+        }
+
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        TriggerKeySetPauseRequest request = new([.. triggerKeys.Select(KeyDto.Create)], details.Reason, details.RequestedBy);
+        AppliedTriggerKeysResponse result = await wire.SendAndRead<TriggerKeySetPauseRequest, AppliedTriggerKeysResponse>(At(SchedulerRoutes.PauseTriggerKeys), request, cancellationToken).ConfigureAwait(false);
+        return [.. result.Triggers.Select(x => x.AsTriggerKey())];
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// One request to the key-set pause route, as <see cref="PauseTriggersWith" /> sends. Details that say
+    /// nothing are <see cref="PauseJobs" />.
+    /// </remarks>
+    public async ValueTask<List<JobKey>> PauseJobsWith(IReadOnlyCollection<JobKey> jobKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+        }
+
+        ArgumentNullException.ThrowIfNull(jobKeys);
+
+        JobKeySetPauseRequest request = new([.. jobKeys.Select(KeyDto.Create)], details.Reason, details.RequestedBy);
+        AppliedJobKeysResponse result = await wire.SendAndRead<JobKeySetPauseRequest, AppliedJobKeysResponse>(At(SchedulerRoutes.PauseJobKeys), request, cancellationToken).ConfigureAwait(false);
+        return [.. result.Jobs.Select(x => x.AsJobKey())];
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Read off the trigger's state route, which answers the pause beside the state. A host older than
     /// 4.3 answers the state alone, which reads as no record.
     /// </remarks>
