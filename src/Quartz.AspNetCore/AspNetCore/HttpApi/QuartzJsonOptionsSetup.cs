@@ -1,6 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
-
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Options;
 
@@ -28,19 +25,11 @@ internal sealed class QuartzJsonOptionsSetup : IConfigureOptions<JsonOptions>
 
     public void Configure(JsonOptions options)
     {
-        JsonSerializerOptions? serializerOptions = options.SerializerOptions;
-        if (serializerOptions is null)
-        {
-            return;
-        }
+        options.SerializerOptions.ConfigureWireFormat(serializerRegistry);
 
-        serializerOptions.ConfigureWireFormat(serializerRegistry);
-
-        // Last, behind reflection: HttpApiProblemDetailsJsonContext says why.
-        IList<IJsonTypeInfoResolver> chain = serializerOptions.TypeInfoResolverChain;
-        if (!chain.Contains(HttpApiProblemDetailsJsonContext.Default))
-        {
-            chain.Add(HttpApiProblemDetailsJsonContext.Default);
-        }
+        // Last, behind reflection: HttpApiProblemDetailsJsonContext says why. Added without looking for it
+        // first, because nothing runs this twice on one instance: AddQuartzHttpApi registers the setup with
+        // TryAddEnumerable, and the options factory configures each instance once.
+        options.SerializerOptions.TypeInfoResolverChain.Add(HttpApiProblemDetailsJsonContext.Default);
     }
 }
