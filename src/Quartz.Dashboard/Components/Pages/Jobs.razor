@@ -485,7 +485,8 @@
             "Paused job " + DisplayValueHelper.FormatKey(group, name) + ".",
             "Job " + DisplayValueHelper.FormatKey(group, name) + " was not paused - it no longer exists.",
             actionName: "PauseJob",
-            target: DisplayValueHelper.FormatKey(group, name));
+            target: DisplayValueHelper.FormatKey(group, name),
+            note: DashboardActionLog.PauseNote(details));
     }
 
     private async Task ResumeJob(string group, string name)
@@ -523,7 +524,8 @@
         return ExecuteGroupMutatingActionAsync(
             group,
             (schedulerName, jobKey) => Api.PauseJobWith(schedulerName, jobKey, details),
-            "Paused");
+            "Paused",
+            DashboardActionLog.PauseNote(details));
     }
 
     private Task ResumeGroup(string group)
@@ -605,7 +607,8 @@
         string successMessage,
         string noOpMessage,
         string actionName,
-        string target)
+        string target,
+        string? note = null)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
@@ -616,7 +619,7 @@
         try
         {
             bool applied = await operation();
-            ActionLog.Record(schedulerName, actionName, target, succeeded: applied);
+            ActionLog.Record(schedulerName, actionName, target, succeeded: applied, note);
             if (applied)
             {
                 Toasts.Success(successMessage);
@@ -630,7 +633,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            ActionLog.Record(schedulerName, actionName, target, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
             Toasts.Error(ex.Message);
         }
     }
@@ -653,7 +656,8 @@
     private async Task ExecuteGroupMutatingActionAsync(
         string group,
         Func<string, JobKeyDto, ValueTask<bool>> operation,
-        string actionVerb)
+        string actionVerb,
+        string? note = null)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
@@ -701,14 +705,14 @@
                 actionVerb + "JobGroup",
                 group,
                 succeeded: true,
-                appliedCount + " of " + jobsInGroup.Count + " job(s)");
+                DashboardActionLog.MessageOf(appliedCount + " of " + jobsInGroup.Count + " job(s)", note));
             Toasts.Success(actionVerb + " " + appliedCount + " of " + jobsInGroup.Count + " job(s) in group " + group + ".");
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionVerb + "JobGroup", group, succeeded: false, ex.Message);
+            ActionLog.Record(schedulerName, actionVerb + "JobGroup", group, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
             Toasts.Error(ex.Message);
         }
     }

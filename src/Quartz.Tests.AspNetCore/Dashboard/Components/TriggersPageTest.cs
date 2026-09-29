@@ -487,11 +487,27 @@ public class TriggersPageTest
         page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected trigger(s)."));
         context.ActionLog.GetLatest(2).Should().BeEquivalentTo(
             [
-                new { Action = "PauseTrigger", Target = "nightly.trigger-2", Succeeded = true },
-                new { Action = "PauseTrigger", Target = "nightly.trigger-1", Succeeded = true }
+                new { Action = "PauseTrigger", Target = "nightly.trigger-2", Succeeded = true, Message = "one of 2 selected; reason: disk full on the export host" },
+                new { Action = "PauseTrigger", Target = "nightly.trigger-1", Succeeded = true, Message = "one of 2 selected; reason: disk full on the export host" }
             ],
             options => options.ExcludingMissingMembers(),
-            "one call still records each trigger under its own key");
+            "one call still records each trigger under its own key, with the reason it was paused for");
+    }
+
+    [Test]
+    public void ARefusedPauseWithAReasonLogsTheReasonBesideWhatTheSchedulerSaid()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        A.CallTo(() => context.Api.PauseTriggersWith(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._))
+            .Throws(new SchedulerException("the store refused"));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("input.qz-select-group").Change(true);
+        page.Find(".qz-bulk-pause").Click();
+        page.ConfirmPause("maintenance");
+
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Message.Should().Be("one of 1 selected; reason: maintenance; the store refused"));
     }
 
     /// <summary>

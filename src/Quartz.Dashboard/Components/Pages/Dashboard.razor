@@ -507,7 +507,8 @@
         return ExecuteSchedulerActionAsync(
             schedulerName => Api.PauseAllWith(schedulerName, details),
             "Paused all triggers.",
-            actionName: "PauseAll");
+            actionName: "PauseAll",
+            note: DashboardActionLog.PauseNote(details));
     }
 
     private Task ResumeAllAsync()
@@ -556,7 +557,8 @@
         string successMessage,
         string actionName,
         bool preferCurrentScheduler = true,
-        bool nodeLocal = false)
+        bool nodeLocal = false,
+        string? note = null)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
@@ -567,7 +569,7 @@
         try
         {
             await operation(schedulerName);
-            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: true, nodeLocal: nodeLocal);
+            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: true, note, nodeLocal);
             Toasts.Success(successMessage);
             await RefreshSchedulersAsync(preferCurrentScheduler ? schedulerName : null);
             await LoadDataAsync();
@@ -576,7 +578,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: false, ex.Message, nodeLocal);
+            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message), nodeLocal);
             Toasts.Error(ex.Message);
         }
     }

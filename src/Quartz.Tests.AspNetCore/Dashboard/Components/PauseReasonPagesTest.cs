@@ -105,6 +105,8 @@ public sealed class PauseReasonPagesTest
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
         page.WaitForAssertion(() => page.FindAll(".qz-pause-dialog").Should().BeEmpty("the prompt closes once it is answered"));
+        context.ActionLog.GetLatest(1).Should().ContainSingle().Which.Message.Should().Be("reason: vendor outage",
+            "the action log answers why as well as who, as a selection's pause does");
     }
 
     [Test]
@@ -122,6 +124,8 @@ public sealed class PauseReasonPagesTest
                 A<PauseDetails>.That.Matches(d => d.Reason == null),
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Message.Should().BeNull("a pause without a reason has nothing to add to the entry"));
     }
 
     [Test]
@@ -171,6 +175,9 @@ public sealed class PauseReasonPagesTest
                 A<PauseDetails>.That.Matches(d => d.Reason == "deploy" && d.RequestedBy == "operator@example.com"),
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new { Action = "PauseTrigger", Target = "nightly.trigger-1", Message = "reason: deploy" },
+                options => options.ExcludingMissingMembers()));
     }
 
     [Test]
@@ -188,6 +195,8 @@ public sealed class PauseReasonPagesTest
                 A<PauseDetails>.That.Matches(d => d.Reason == "deploy"),
                 A<CancellationToken>._))
             .MustHaveHappened(2, Times.Exactly));
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Message.Should().Be("0 of 2 trigger(s); reason: deploy"));
     }
 
     [Test]
@@ -232,6 +241,8 @@ public sealed class PauseReasonPagesTest
                 A<PauseDetails>.That.Matches(d => d.Reason == "quarter close" && d.RequestedBy == "operator@example.com"),
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Message.Should().Be("reason: quarter close"));
     }
 
     [Test]
@@ -301,6 +312,8 @@ public sealed class PauseReasonPagesTest
                 A<PauseDetails>.That.Matches(d => d.Reason == "quarter close"),
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Message.Should().Be("reason: quarter close"));
     }
 
     [Test]
@@ -334,6 +347,8 @@ public sealed class PauseReasonPagesTest
                 A<PauseDetails>.That.Matches(d => d.Reason == "datacentre move" && d.RequestedBy == "operator@example.com"),
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Message.Should().Be("reason: datacentre move"));
     }
 
     [Test]
