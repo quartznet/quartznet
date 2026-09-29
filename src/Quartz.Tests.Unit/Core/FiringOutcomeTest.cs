@@ -122,6 +122,28 @@ public sealed class FiringOutcomeTest
     }
 
     /// <summary>
+    /// The context says the same thing the store is told, and says it before the job listeners hear of
+    /// the veto — as it does for a firing that completes.
+    /// </summary>
+    [Test]
+    public async Task AJobListenerHearingOfAVetoReadsVetoed()
+    {
+        OutcomeRecordingJobListener listener = new();
+
+        await RunOnce<QuietJob>(
+            "vetoed-listener",
+            configureScheduler: (scheduler, key) =>
+            {
+                scheduler.ListenerManager.AddTriggerListener(new VetoingListener());
+                scheduler.ListenerManager.AddJobListener(listener);
+            });
+
+        listener.OutcomeWhenVetoed.Should().Be(ExecutionOutcome.Vetoed,
+            "a listener recording the firing reads how it ended from the context, and before this it read "
+            + "the Succeeded nothing had replaced");
+    }
+
+    /// <summary>
     /// A listener that throws before the job runs abandons the firing. The occurrence did not happen,
     /// so it settles nothing.
     /// </summary>
@@ -244,6 +266,19 @@ public sealed class FiringOutcomeTest
         {
             await context.Scheduler.InterruptFireInstance(context.FireInstanceId, CancellationToken.None).ConfigureAwait(false);
             await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private sealed class OutcomeRecordingJobListener : IJobListener
+    {
+        public string Name => "outcome-recording";
+
+        public ExecutionOutcome? OutcomeWhenVetoed { get; private set; }
+
+        public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            OutcomeWhenVetoed = context.Outcome;
+            return default;
         }
     }
 
