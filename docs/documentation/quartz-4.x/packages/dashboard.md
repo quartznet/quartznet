@@ -409,7 +409,7 @@ the container; the page subscribes for the scheduler on screen.
 
 `/quartz/actions` lists what was done *from this dashboard*, newest first: time, scheduler, user (from 4.3),
 action, target, where it landed, success, and any message. It answers "who paused this" when "who" is the
-dashboard.
+dashboard. From 4.4, a pause given a reason carries it in the message as `reason: …`.
 
 - The store is in-memory and process-wide, holding the last 250 actions across schedulers. The page shows the
   most recent 100 of those that target the selected scheduler.

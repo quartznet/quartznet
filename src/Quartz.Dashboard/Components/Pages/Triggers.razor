@@ -741,7 +741,8 @@
             "Paused trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(group, name) + " was not paused - it no longer exists or cannot be paused.",
             actionName: "PauseTrigger",
-            target: DisplayValueHelper.FormatKey(group, name));
+            target: DisplayValueHelper.FormatKey(group, name),
+            note: DashboardActionLog.PauseNote(details));
     }
 
     private Task ResumeTrigger(string group, string name)
@@ -760,7 +761,8 @@
         return ExecuteGroupMutatingActionAsync(
             group,
             (schedulerName, triggerKey) => Api.PauseTriggerWith(schedulerName, triggerKey, details),
-            "Paused");
+            "Paused",
+            DashboardActionLog.PauseNote(details));
     }
 
     private Task ResumeGroup(string group)
@@ -919,7 +921,8 @@
             "PauseTrigger",
             "Paused",
             "not paused - it no longer exists or was already paused",
-            (schedulerName, keys) => Api.PauseTriggersWith(schedulerName, keys, details));
+            (schedulerName, keys) => Api.PauseTriggersWith(schedulerName, keys, details),
+            DashboardActionLog.PauseNote(details));
     }
 
     private Task ResumeSelectionAsync()
@@ -955,13 +958,15 @@
     /// <summary>
     /// Runs one bulk action over the selection and reports it: a toast for the count, a panel for the keys
     /// it did not reach and why, and an action-log entry per key in the shape the single-row action
-    /// records — so "who paused this trigger" finds a bulk pause under the trigger's own key.
+    /// records — so "who paused this trigger" finds a bulk pause under the trigger's own key, with the
+    /// reason it was given in <paramref name="note" />.
     /// </summary>
     private async Task ExecuteBulkAsync(
         string actionName,
         string verb,
         string missedReason,
-        Func<string, List<TriggerKeyDto>, ValueTask<List<TriggerKeyDto>>> operation)
+        Func<string, List<TriggerKeyDto>, ValueTask<List<TriggerKeyDto>>> operation,
+        string? note = null)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         List<TriggerKeyDto> keys = SelectedKeys();
@@ -970,7 +975,7 @@
             return;
         }
 
-        string batch = "one of " + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected";
+        string batch = DashboardActionLog.MessageOf("one of " + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected", note)!;
 
         HashSet<TriggerKeyDto> applied;
         string? failure = null;
@@ -1036,7 +1041,8 @@
         string successMessage,
         string noOpMessage,
         string actionName,
-        string target)
+        string target,
+        string? note = null)
     {
         if (IsReadOnly || string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
         {
@@ -1046,7 +1052,7 @@
         try
         {
             bool applied = await operation();
-            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: applied);
+            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: applied, note);
             if (applied)
             {
                 Toasts.Success(successMessage);
@@ -1060,7 +1066,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: false, ex.Message);
+            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
             Toasts.Error(ex.Message);
         }
     }
@@ -1068,7 +1074,8 @@
     private async Task ExecuteGroupMutatingActionAsync(
         string group,
         Func<string, TriggerKeyDto, ValueTask<bool>> operation,
-        string actionVerb)
+        string actionVerb,
+        string? note = null)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
@@ -1116,14 +1123,14 @@
                 actionVerb + "TriggerGroup",
                 group,
                 succeeded: true,
-                appliedCount + " of " + triggersInGroup.Count + " trigger(s)");
+                DashboardActionLog.MessageOf(appliedCount + " of " + triggersInGroup.Count + " trigger(s)", note));
             Toasts.Success(actionVerb + " " + appliedCount + " of " + triggersInGroup.Count + " trigger(s) in group " + group + ".");
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionVerb + "TriggerGroup", group, succeeded: false, ex.Message);
+            ActionLog.Record(schedulerName, actionVerb + "TriggerGroup", group, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
             Toasts.Error(ex.Message);
         }
     }

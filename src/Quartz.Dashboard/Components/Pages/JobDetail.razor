@@ -335,7 +335,8 @@
             "Paused job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Job " + DisplayValueHelper.FormatKey(Group, Name) + " was not paused - it no longer exists.",
             actionName: "PauseJob",
-            target: DisplayValueHelper.FormatKey(Group, Name));
+            target: DisplayValueHelper.FormatKey(Group, Name),
+            note: DashboardActionLog.PauseNote(details));
     }
 
     private Task ResumeAsync()
@@ -432,7 +433,8 @@
         string successMessage,
         string noOpMessage,
         string actionName,
-        string target)
+        string target,
+        string? note = null)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
@@ -443,7 +445,7 @@
         try
         {
             bool applied = await operation();
-            ActionLog.Record(schedulerName, actionName, target, succeeded: applied);
+            ActionLog.Record(schedulerName, actionName, target, succeeded: applied, note);
             if (applied)
             {
                 Toasts.Success(successMessage);
@@ -458,7 +460,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            ActionLog.Record(schedulerName, actionName, target, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
             Toasts.Error(ex.Message);
             return false;
         }

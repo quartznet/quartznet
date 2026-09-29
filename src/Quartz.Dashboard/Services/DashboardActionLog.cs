@@ -137,6 +137,38 @@ internal sealed class DashboardActionLog
     public PauseDetails PauseDetailsFor(string? reason) => new() { Reason = reason, RequestedBy = RequesterName() };
 
     /// <summary>
+    /// What an entry's message says about a pause: <c>reason: …</c>, or <see langword="null" /> when the
+    /// pause was given none.
+    /// </summary>
+    /// <remarks>
+    /// The requester is not repeated: every entry records its user already.
+    /// </remarks>
+    public static string? PauseNote(PauseDetails details)
+    {
+        return string.IsNullOrWhiteSpace(details.Reason) ? null : "reason: " + details.Reason.Trim();
+    }
+
+    /// <summary>
+    /// The parts of an entry's message that say something, joined with <c>; </c>, or
+    /// <see langword="null" /> when none does.
+    /// </summary>
+    public static string? MessageOf(params ReadOnlySpan<string?> parts)
+    {
+        string? message = null;
+        foreach (string? part in parts)
+        {
+            if (string.IsNullOrWhiteSpace(part))
+            {
+                continue;
+            }
+
+            message = message is null ? part : message + "; " + part;
+        }
+
+        return message;
+    }
+
+    /// <summary>
     /// Who the circuit belongs to, as a pause records its requester, or <see langword="null" /> when
     /// nothing has said.
     /// </summary>
