@@ -19,8 +19,8 @@
 
 #endregion
 
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -52,27 +52,34 @@ internal static class WireCheck
 
     private const string FiredBy = "Quartz.HttpClient";
 
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
+    /// <summary>
+    /// How long the job may take to run, and its history row to be listed, once asked for.
+    /// </summary>
+    private const int PatienceSeconds = 60;
+
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(PatienceSeconds);
+
+    private static readonly TimeProvider Clock = TimeProvider.System;
 
     /// <summary>
     /// Runs every step, writing a line for each, and says whether all of them passed.
     /// </summary>
-    public static async Task<bool> Run(IServiceProvider client)
+    public static async Task<bool> Run(IServiceProvider client, CancellationToken cancellationToken)
     {
         IScheduler scheduler = client.GetRequiredService<IScheduler>();
         IExecutionHistoryStore history = client.GetRequiredKeyedService<IExecutionHistoryStore>(Program.SchedulerName);
 
         (string Name, Func<Task<string>> Step)[] steps =
         [
-            ("metadata", () => Metadata(scheduler)),
-            ("schedule", () => Schedule(scheduler)),
-            ("read-back", () => ReadBack(scheduler)),
-            ("not-found", () => NotFound(scheduler)),
-            ("pause", () => Pause(scheduler)),
-            ("resume", () => Resume(scheduler)),
-            ("trigger", () => Trigger(scheduler)),
-            ("history", () => History(history)),
-            ("delete", () => Delete(scheduler)),
+            ("metadata", () => Metadata(scheduler, cancellationToken)),
+            ("schedule", () => Schedule(scheduler, cancellationToken)),
+            ("read-back", () => ReadBack(scheduler, cancellationToken)),
+            ("not-found", () => NotFound(scheduler, cancellationToken)),
+            ("pause", () => Pause(scheduler, cancellationToken)),
+            ("resume", () => Resume(scheduler, cancellationToken)),
+            ("trigger", () => Trigger(scheduler, cancellationToken)),
+            ("history", () => History(history, cancellationToken)),
+            ("delete", () => Delete(scheduler, cancellationToken)),
         ];
 
         foreach ((string name, Func<Task<string>> step) in steps)
@@ -82,7 +89,7 @@ internal static class WireCheck
                 string passed = await step().ConfigureAwait(false);
                 Console.WriteLine($"PASS {name}: {passed}");
             }
-            catch (CanaryFailure failure)
+            catch (CanaryFailedException failure)
             {
                 Console.WriteLine($"FAIL {name}: {failure.Message}");
                 return false;
@@ -97,9 +104,9 @@ internal static class WireCheck
         return true;
     }
 
-    private static async Task<string> Metadata(IScheduler scheduler)
+    private static async Task<string> Metadata(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        SchedulerMetadata metadata = await scheduler.GetMetadata().ConfigureAwait(false);
+        SchedulerMetadata metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
 
         Expect(metadata.SchedulerName == Program.SchedulerName, $"the scheduler answered as '{metadata.SchedulerName}'.");
         Expect(metadata.Status == SchedulerStatus.Running, $"the scheduler is {metadata.Status}, not running.");
@@ -107,54 +114,54 @@ internal static class WireCheck
         return $"'{metadata.SchedulerName}' is {metadata.Status} on {metadata.JobStoreTypeName}";
     }
 
-    private static async Task<string> Schedule(IScheduler scheduler)
+    private static async Task<string> Schedule(IScheduler scheduler, CancellationToken cancellationToken)
     {
         IJobDetail job = JobBuilder.Create<WireCanaryJob>()
             .WithIdentity(JobKey)
             .UsingJobData(WireCanaryRun.PayloadKey, Payload)
             .Build();
 
-        ITrigger trigger = TriggerBuilder.Create()
+        ITrigger trigger = TriggerBuilder.Create(Clock)
             .WithIdentity(TriggerKey)
             .WithSchedule(CronScheduleBuilder.Create(Cron).InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
-        DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger).ConfigureAwait(false);
+        DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         Expect(firstFireTime == FirstFireTime, $"the server says the trigger first fires at {firstFireTime:O}, not {FirstFireTime:O}.");
 
         return $"{JobKey} with a cron trigger, first firing at {firstFireTime:O}";
     }
 
-    private static async Task<string> ReadBack(IScheduler scheduler)
+    private static async Task<string> ReadBack(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        IJobDetail? job = await scheduler.GetJobDetail(JobKey).ConfigureAwait(false);
+        IJobDetail? job = await scheduler.GetJobDetail(JobKey, cancellationToken).ConfigureAwait(false);
         Expect(job is not null, "the job could not be read back.");
 
         string jobType = new JobType(typeof(WireCanaryJob)).FullName;
         Expect(job.JobType.FullName == jobType, $"the job came back as '{job.JobType.FullName}', not '{jobType}'.");
         Expect(job.JobDataMap.GetString(WireCanaryRun.PayloadKey) == Payload, $"the job data came back as '{job.JobDataMap.GetString(WireCanaryRun.PayloadKey)}'.");
 
-        ITrigger? trigger = await scheduler.GetTrigger(TriggerKey).ConfigureAwait(false);
+        ITrigger? trigger = await scheduler.GetTrigger(TriggerKey, cancellationToken).ConfigureAwait(false);
         if (trigger is not ICronTrigger cron)
         {
-            throw new CanaryFailure($"the trigger came back as '{trigger?.GetType().FullName ?? "null"}', not a cron trigger.");
+            throw new CanaryFailedException($"the trigger came back as '{trigger?.GetType().FullName ?? "null"}', not a cron trigger.");
         }
 
         Expect(cron.CronExpressionString == Cron, $"the trigger came back with the expression '{cron.CronExpressionString}'.");
         Expect(Equals(cron.JobKey, JobKey), $"the trigger came back pointing at '{cron.JobKey}'.");
-        Expect(cron.NextFireTimeUtc == FirstFireTime, $"the trigger came back firing next at {cron.NextFireTimeUtc:O}.");
+        Expect(cron.NextFireTimeUtc == FirstFireTime, $"the trigger came back firing next at {cron.NextFireTimeUtc?.ToString("O", CultureInfo.InvariantCulture)}.");
 
-        List<JobKey> jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.Group)).ConfigureAwait(false);
+        List<JobKey> jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.Group), cancellationToken).ConfigureAwait(false);
         Expect(jobKeys.Contains(JobKey), $"the job is missing from its group's listing, which holds {jobKeys.Count} key(s).");
 
         return $"the job as {job.JobType.FullName} with its data, its cron trigger, and the job in its group's listing";
     }
 
-    private static async Task<string> NotFound(IScheduler scheduler)
+    private static async Task<string> NotFound(IScheduler scheduler, CancellationToken cancellationToken)
     {
         JobKey absent = new("absent", JobKey.Group);
-        IJobDetail? job = await scheduler.GetJobDetail(absent).ConfigureAwait(false);
+        IJobDetail? job = await scheduler.GetJobDetail(absent, cancellationToken).ConfigureAwait(false);
 
         // Null only when the 404 carried problem details the client could read: without them the client
         // throws what HttpClient throws for any failure status.
@@ -163,40 +170,40 @@ internal static class WireCheck
         return $"{absent} reads back as null, out of a 404 with problem details";
     }
 
-    private static async Task<string> Pause(IScheduler scheduler)
+    private static async Task<string> Pause(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        bool applied = await scheduler.PauseTrigger(TriggerKey).ConfigureAwait(false);
+        bool applied = await scheduler.PauseTrigger(TriggerKey, cancellationToken).ConfigureAwait(false);
         Expect(applied, "the server says pausing the trigger changed nothing.");
 
-        TriggerState state = await scheduler.GetTriggerState(TriggerKey).ConfigureAwait(false);
+        TriggerState state = await scheduler.GetTriggerState(TriggerKey, cancellationToken).ConfigureAwait(false);
         Expect(state == TriggerState.Paused, $"the trigger is {state} after pausing it.");
 
         return $"{TriggerKey} is {state}";
     }
 
-    private static async Task<string> Resume(IScheduler scheduler)
+    private static async Task<string> Resume(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        bool applied = await scheduler.ResumeTrigger(TriggerKey).ConfigureAwait(false);
+        bool applied = await scheduler.ResumeTrigger(TriggerKey, cancellationToken).ConfigureAwait(false);
         Expect(applied, "the server says resuming the trigger changed nothing.");
 
-        TriggerState state = await scheduler.GetTriggerState(TriggerKey).ConfigureAwait(false);
+        TriggerState state = await scheduler.GetTriggerState(TriggerKey, cancellationToken).ConfigureAwait(false);
         Expect(state == TriggerState.Normal, $"the trigger is {state} after resuming it.");
 
         return $"{TriggerKey} is {state}";
     }
 
-    private static async Task<string> Trigger(IScheduler scheduler)
+    private static async Task<string> Trigger(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        await scheduler.TriggerJob(JobKey, new JobDataMap { { WireCanaryRun.FiredByKey, FiredBy } }).ConfigureAwait(false);
+        await scheduler.TriggerJob(JobKey, new JobDataMap { { WireCanaryRun.FiredByKey, FiredBy } }, cancellationToken).ConfigureAwait(false);
 
         WireCanaryRun run;
         try
         {
-            run = await WireCanaryJob.Ran.Task.WaitAsync(Patience).ConfigureAwait(false);
+            run = await WireCanaryJob.Ran.Task.WaitAsync(Patience, Clock, cancellationToken).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
-            throw new CanaryFailure($"the job never ran within {Patience.TotalSeconds:0} seconds, so the server could not resolve or build the type the request named.");
+            throw new CanaryFailedException($"the job never ran within {PatienceSeconds} seconds, so the server could not resolve or build the type the request named.");
         }
 
         Expect(run.Payload == Payload, $"the job ran with the payload '{run.Payload}'.");
@@ -205,42 +212,42 @@ internal static class WireCheck
         return $"{JobKey} ran on the server, with the data it was scheduled with and the data it was triggered with";
     }
 
-    private static async Task<string> History(IExecutionHistoryStore history)
+    private static async Task<string> History(IExecutionHistoryStore history, CancellationToken cancellationToken)
     {
         ExecutionHistoryQuery query = new() { SchedulerName = Program.SchedulerName, JobContains = JobKey.Name };
 
         // The row is written once the job has returned, which is a moment after it signalled.
-        Stopwatch waited = Stopwatch.StartNew();
+        long started = Clock.GetTimestamp();
         ExecutionHistoryEntry? entry = null;
         while (entry is null)
         {
-            PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(query).ConfigureAwait(false);
+            PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(query, cancellationToken).ConfigureAwait(false);
             entry = page.Items.FirstOrDefault(x => x.JobGroup == JobKey.Group && x.JobName == JobKey.Name);
 
             if (entry is null)
             {
-                Expect(waited.Elapsed < Patience, $"no execution of {JobKey} was listed within {Patience.TotalSeconds:0} seconds of it running.");
-                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
+                Expect(Clock.GetElapsedTime(started) < Patience, $"no execution of {JobKey} was listed within {PatienceSeconds} seconds of it running.");
+                await Task.Delay(TimeSpan.FromMilliseconds(100), Clock, cancellationToken).ConfigureAwait(false);
             }
         }
 
         Expect(entry.Succeeded, $"the execution is recorded as failed: {entry.ExceptionMessage}");
         Expect(entry.EntryId is not null, "the execution was listed without an entry id to read it back by.");
 
-        ExecutionHistoryEntry? single = await history.GetExecution(Program.SchedulerName, entry.EntryId).ConfigureAwait(false);
+        ExecutionHistoryEntry? single = await history.GetExecution(Program.SchedulerName, entry.EntryId, cancellationToken).ConfigureAwait(false);
         Expect(single is not null, $"the execution {entry.EntryId} could not be read back on its own.");
         Expect(single.Log?.Contains(WireCanaryJob.LogLine, StringComparison.Ordinal) == true, $"the execution came back with the log '{single.Log}'.");
 
         return $"{JobKey} is listed as succeeded, and read back on its own with the line it logged";
     }
 
-    private static async Task<string> Delete(IScheduler scheduler)
+    private static async Task<string> Delete(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        bool deleted = await scheduler.DeleteJob(JobKey).ConfigureAwait(false);
+        bool deleted = await scheduler.DeleteJob(JobKey, cancellationToken).ConfigureAwait(false);
         Expect(deleted, "the server says there was no job to delete.");
 
-        Expect(await scheduler.GetJobDetail(JobKey).ConfigureAwait(false) is null, "the job is still there after deleting it.");
-        Expect(await scheduler.GetTrigger(TriggerKey).ConfigureAwait(false) is null, "the trigger outlived its job.");
+        Expect(await scheduler.GetJobDetail(JobKey, cancellationToken).ConfigureAwait(false) is null, "the job is still there after deleting it.");
+        Expect(await scheduler.GetTrigger(TriggerKey, cancellationToken).ConfigureAwait(false) is null, "the trigger outlived its job.");
 
         return $"{JobKey} and its trigger are gone";
     }
@@ -249,7 +256,7 @@ internal static class WireCheck
     {
         if (!condition)
         {
-            throw new CanaryFailure(failure);
+            throw new CanaryFailedException(failure);
         }
     }
 
@@ -257,5 +264,9 @@ internal static class WireCheck
     /// A step's own check failing, as opposed to something it called throwing: the message is the whole
     /// story, and a stack trace would only say which line of this file noticed.
     /// </summary>
-    private sealed class CanaryFailure(string message) : Exception(message);
+    /// <remarks>
+    /// Private on purpose. It never leaves <see cref="Run" />, which catches it to write the step's line, and
+    /// an executable has no caller that could catch it by type.
+    /// </remarks>
+    private sealed class CanaryFailedException(string message) : Exception(message);
 }
