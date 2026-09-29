@@ -736,6 +736,7 @@ misfire calculations see the time you set, and advancing it wakes the scheduler'
 | `StandbyStatus` | HealthStatus? | `Degraded` | What a scheduler in standby reports. Standby only: a scheduler waiting for the application to start it stays degraded. |
 | `ClusterCheckinTolerance` | double? | `3` | How many of its own check-in intervals a **clustered** node may miss before the check reports degraded. `null` or `0`: no query. Unclustered schedulers read nothing. |
 | `StaleFiringTolerance` | double? | `null` | How many of the store's misfire thresholds a schedulable trigger may be overdue before degraded; twice that is unhealthy. `null` or `0`: no query. `3` is a starting value. |
+| `RequiredJobs` | List&lt;RequiredJobOptions&gt; | empty | Jobs that must have succeeded within a window. Add with `RequireSuccessWithin(job, window, status)`. See [Alert when a job stops succeeding](../how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding). |
 
 `StaleFiringTolerance` is off by default because what counts as overdue is the application's call.
 Standby and paused schedulers report as usual with it on. See

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 
 using Quartz.Extensibility;
@@ -67,6 +68,23 @@ public sealed class JobOutcomesSamples
         #endregion
 
         _ = failing;
+    }
+
+    public static void AlertingWhenAJobStopsSucceeding(IHostApplicationBuilder builder)
+    {
+        #region sample_job_outcome_health_check
+
+        builder.Services.AddQuartzExecutionHistory();
+        builder.Services.AddHealthChecks().AddQuartz(options =>
+        {
+            // Degraded once the nightly report has not succeeded for 26 hours.
+            options.RequireSuccessWithin(new JobKey("nightly-report", "reports"), TimeSpan.FromHours(26));
+
+            // Unhealthy, so the node leaves the rotation, once the ledger has not closed for 90 minutes.
+            options.RequireSuccessWithin(new JobKey("ledger-close", "billing"), TimeSpan.FromMinutes(90), HealthStatus.Unhealthy);
+        });
+
+        #endregion
     }
 
     public static async Task FilteringTheHistory(IExecutionHistoryStore history, string schedulerName, DateTimeOffset since)

@@ -168,6 +168,7 @@ order.
 | `FailureStatus` | What the registration reports when the check fails |
 | `StandbyStatus` | What a scheduler in standby reports; default *degraded* |
 | `StaleFiringTolerance` | Overdue-trigger detection; default off (`null`); see [below](#saying-that-a-scheduler-has-stopped-firing) |
+| `RequiredJobs` | Jobs that must have succeeded within a window; default empty; see [below](#saying-that-a-job-has-stopped-succeeding) |
 
 *Degraded* answers HTTP 200, and a worker project has no endpoint to remap it. Set
 `StandbyStatus = HealthStatus.Unhealthy` if standby nodes must leave the rotation. It covers standby only: a
@@ -224,6 +225,17 @@ builder.Services.AddHealthChecks().AddQuartz(options =>
 - Not evaluated for a scheduler in standby; that verdict comes before the store is queried.
 - A scheduler with all triggers paused has nothing schedulable, so it never counts as stalled.
 - Left unset, the check costs what it did before.
+
+### Saying that a job has stopped succeeding
+
+`options.RequireSuccessWithin(new JobKey("nightly-report", "reports"), TimeSpan.FromHours(26))` makes the check
+*degraded* once that job has not succeeded for 26 hours, or *unhealthy* if you pass `HealthStatus.Unhealthy`.
+
+- It reads each job's run status from the execution history, which must keep one. Without it the host fails
+  at startup.
+- One window per job suits a mix of nightly and minutely jobs, where one threshold for the whole scheduler does
+  not.
+- Setup, the report's data and configuration binding: [Alert when a job stops succeeding](../how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding).
 
 ## Shutdown has a budget
 

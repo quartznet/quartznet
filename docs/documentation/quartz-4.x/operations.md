@@ -909,6 +909,9 @@ sum(increase(quartz_job_execution_duration_count{quartz_job_name="nightly-close"
 - When a job's *absence* is the incident, query the store too for a trigger whose `NextFireTimeUtc` is far
   in the past, or one in `Error`. `new TriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff }`
   is the query the tolerance issues.
+- `QuartzHealthCheckOptions.RequiredJobs` puts a job in the check itself: a named job that has not succeeded
+  within its window is *degraded*, or *unhealthy* if you say so. It reads the execution history. See
+  [Alert when a job stops succeeding](how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding).
 
 **Of the cluster, it reports only a node that has stopped checking in.** A node whose cluster manager is
 wedged on the database can still fire and say `Running` while its peers recover its triggers. So a
