@@ -7,6 +7,11 @@ namespace Quartz;
 /// <see cref="QuartzHealthCheckExtensions.AddQuartz(Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder, Action{QuartzHealthCheckOptions})" />
 /// and by <see cref="QuartzHealthCheckExtensions.AddQuartzHealthChecks(IQuartzBuilder, Action{QuartzHealthCheckOptions})" />.
 /// </summary>
+/// <example>
+/// <code>
+/// options.RequireSuccessWithin(new JobKey("nightly-report", "reports"), TimeSpan.FromHours(26));
+/// </code>
+/// </example>
 public sealed class QuartzHealthCheckOptions
 {
     /// <summary>
@@ -132,4 +137,54 @@ public sealed class QuartzHealthCheckOptions
     /// </para>
     /// </remarks>
     public double? StaleFiringTolerance { get; set; }
+
+    /// <summary>
+    /// Jobs that must have succeeded recently. Empty by default, which reads nothing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A requirement is met while the job's <see cref="JobRunStatus.LastSucceededAtUtc" /> is within its
+    /// <see cref="RequiredJobOptions.SucceededWithin" /> of now, on the scheduler's clock; a skipped run counts
+    /// as a success. A job with no recorded success is judged from the first time the check evaluated it, so
+    /// one that has not run within its window since then fails. A job that is not met reports its
+    /// <see cref="RequiredJobOptions.Status" />, and the check reports the worst of that and the scheduler's
+    /// own verdict. The report's data carries one entry per job that is not met.
+    /// </para>
+    /// <para>
+    /// The statuses are read from the scheduler's execution history, in one
+    /// <see cref="Extensibility.IExecutionHistoryStore.QueryJobRunStatuses" /> per check. A scheduler with no
+    /// history, or a history that keeps no status, fails validation at startup.
+    /// </para>
+    /// <para>
+    /// One requirement per job: when a job is listed twice, the later entry wins. Get-only, like every
+    /// collection on a Quartz options type, so a configuration section binds into it; add to it, or call
+    /// <see cref="RequireSuccessWithin" />.
+    /// </para>
+    /// </remarks>
+    public List<RequiredJobOptions> RequiredJobs { get; } = [];
+
+    /// <summary>
+    /// Requires <paramref name="job" /> to have succeeded within <paramref name="within" />, replacing any
+    /// requirement already given for it.
+    /// </summary>
+    /// <param name="job">The job.</param>
+    /// <param name="within">How long ago its last success may have fired. Must be positive.</param>
+    /// <param name="status">
+    /// What the check reports while the requirement is not met: <see cref="HealthStatus.Degraded" /> or
+    /// <see cref="HealthStatus.Unhealthy" />.
+    /// </param>
+    public void RequireSuccessWithin(JobKey job, TimeSpan within, HealthStatus status = HealthStatus.Degraded)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+
+        RequiredJobs.RemoveAll(required => string.Equals(required.Name, job.Name, StringComparison.Ordinal)
+                                           && string.Equals(required.Group, job.Group, StringComparison.Ordinal));
+        RequiredJobs.Add(new RequiredJobOptions
+        {
+            Name = job.Name,
+            Group = job.Group,
+            SucceededWithin = within,
+            Status = status
+        });
+    }
 }

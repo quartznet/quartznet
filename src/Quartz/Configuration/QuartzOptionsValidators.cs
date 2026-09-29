@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Reflection;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
@@ -894,6 +895,70 @@ internal sealed class QuartzHealthCheckOptionsValidator : IValidateOptions<Quart
                     $"The health check tag '{tag}' is given more than once. Tags are a set, so the repeat "
                     + "does nothing; remove it.");
             }
+        }
+
+        RequiredJobOptionsValidator requiredJobs = new();
+        foreach (RequiredJobOptions required in options.RequiredJobs)
+        {
+            if (required is null)
+            {
+                (failures ??= []).Add($"{nameof(QuartzHealthCheckOptions.RequiredJobs)} holds a null entry; remove it.");
+                continue;
+            }
+
+            ValidateOptionsResult result = requiredJobs.Validate(name, required);
+            if (result.Failed)
+            {
+                (failures ??= []).AddRange(result.Failures);
+            }
+        }
+
+        return QuartzSchedulerOptionsValidator.Result(failures);
+    }
+}
+
+/// <summary>
+/// <see cref="RequiredJobOptions" />: a job the health check can name, a window it can be late by, and a
+/// status that says something is wrong.
+/// </summary>
+/// <remarks>
+/// Called by <see cref="QuartzHealthCheckOptionsValidator" /> for each entry, as
+/// <see cref="SchedulingOptionsValidator" /> is by <see cref="QuartzOptionsValidator" />: nothing resolves
+/// <c>IOptions&lt;RequiredJobOptions&gt;</c>.
+/// </remarks>
+internal sealed class RequiredJobOptionsValidator : IValidateOptions<RequiredJobOptions>
+{
+    public ValidateOptionsResult Validate(string? name, RequiredJobOptions options)
+    {
+        List<string>? failures = null;
+
+        if (string.IsNullOrWhiteSpace(options.Name))
+        {
+            (failures ??= []).Add(
+                $"A health check requirement names no job: {nameof(RequiredJobOptions.Name)} is empty or whitespace.");
+        }
+
+        string job = $"'{options.Group}.{options.Name}'";
+
+        if (string.IsNullOrWhiteSpace(options.Group))
+        {
+            (failures ??= []).Add(
+                $"The health check requirement for job {job} has an empty {nameof(RequiredJobOptions.Group)}. "
+                + $"Leave it unset for {JobKey.DefaultGroup}.");
+        }
+
+        if (options.SucceededWithin <= TimeSpan.Zero)
+        {
+            (failures ??= []).Add(
+                $"The health check requirement for job {job} has {nameof(RequiredJobOptions.SucceededWithin)} "
+                + $"{options.SucceededWithin}. It must be positive: no success is ever within a window of none.");
+        }
+
+        if (options.Status is not (HealthStatus.Degraded or HealthStatus.Unhealthy))
+        {
+            (failures ??= []).Add(
+                $"The health check requirement for job {job} reports {options.Status} when it is not met. Use "
+                + $"{nameof(HealthStatus.Degraded)} or {nameof(HealthStatus.Unhealthy)}.");
         }
 
         return QuartzSchedulerOptionsValidator.Result(failures);
