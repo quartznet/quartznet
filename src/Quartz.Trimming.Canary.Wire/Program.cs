@@ -66,10 +66,13 @@ internal static class Program
             return 1;
         }
 
+        // A bound on the whole run, so a step that hangs ends the canary rather than the CI job around it.
+        using CancellationTokenSource deadline = new(TimeSpan.FromMinutes(5), TimeProvider.System);
+
         bool passed;
         try
         {
-            passed = await Run().ConfigureAwait(false);
+            passed = await Run(deadline.Token).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -84,12 +87,12 @@ internal static class Program
         return passed ? 0 : 1;
     }
 
-    private static async Task<bool> Run()
+    private static async Task<bool> Run(CancellationToken cancellationToken)
     {
         WebApplication host = BuildHost();
         await using ConfiguredAsyncDisposable hostDisposal = host.ConfigureAwait(false);
 
-        await host.StartAsync().ConfigureAwait(false);
+        await host.StartAsync(cancellationToken).ConfigureAwait(false);
 
         Uri apiAddress = ApiAddress(host);
         Console.WriteLine($"PASS host: Quartz.AspNetCore serves '{SchedulerName}' at {apiAddress}");
@@ -99,9 +102,9 @@ internal static class Program
         ServiceProvider client = BuildClient(httpClient);
         await using ConfiguredAsyncDisposable clientDisposal = client.ConfigureAwait(false);
 
-        bool passed = await WireCheck.Run(client).ConfigureAwait(false);
+        bool passed = await WireCheck.Run(client, cancellationToken).ConfigureAwait(false);
 
-        await host.StopAsync().ConfigureAwait(false);
+        await host.StopAsync(cancellationToken).ConfigureAwait(false);
         return passed;
     }
 
@@ -115,7 +118,7 @@ internal static class Program
         // directory it has no business in. CI starts it from the repository root.
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
         {
-            ContentRootPath = AppContext.BaseDirectory
+            ContentRootPath = AppContext.BaseDirectory,
         });
 
         // A port the operating system picks, on loopback. The only caller is this process.
