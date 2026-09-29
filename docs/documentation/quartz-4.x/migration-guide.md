@@ -53,6 +53,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `AdoJobStoreOptions.MaxConsecutiveFireFailures` | `int`, default `5`; `0` never parks. Flat key `quartz.jobStore.maxConsecutiveFireFailures`. See [A trigger that fails to fire](operations.md#a-trigger-that-fails-to-fire) |
 | Log event `3050` | Error: a trigger stored `ERROR` after that many failed fires in a row |
 | Log event `3163` | Debug: this node leaves the database history's sweep to a live node with a lower instance id. Logged once |
+| `QuartzHealthCheckOptions.RequiredJobs`, `RequireSuccessWithin(job, within, status)`, `RequiredJobOptions` | Opt-in: the health check reports a job that has not succeeded within its window. See [Alert when a job stops succeeding](how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding) |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
 | `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
 | `DashboardHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`, as on `ExecutionHistoryQuery`. `Job` is a `JobKeyDto` |

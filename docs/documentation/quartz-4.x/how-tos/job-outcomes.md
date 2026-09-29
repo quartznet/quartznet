@@ -234,6 +234,68 @@ GET /quartz-api/schedulers/QuartzScheduler/history/job-status?failing=true
 * A scheduler in another process whose host is older than 4.4 has no statuses and cannot filter. The dashboard
   leaves the columns out and says so on the History page.
 
+## Alert when a job stops succeeding
+
+The Quartz [health check](../packages/hosted-services-integration.md#health-checks) reports a job that has not
+succeeded within a window:
+
+<!-- snippet: sample_job_outcome_health_check -->
+```csharp
+builder.Services.AddQuartzExecutionHistory();
+builder.Services.AddHealthChecks().AddQuartz(options =>
+{
+    // Degraded once the nightly report has not succeeded for 26 hours.
+    options.RequireSuccessWithin(new JobKey("nightly-report", "reports"), TimeSpan.FromHours(26));
+
+    // Unhealthy, so the node leaves the rotation, once the ledger has not closed for 90 minutes.
+    options.RequireSuccessWithin(new JobKey("ledger-close", "billing"), TimeSpan.FromMinutes(90), HealthStatus.Unhealthy);
+});
+```
+<!-- endSnippet -->
+
+| `RequiredJobOptions` | Default | What |
+|---|---|---|
+| `Name`, `Group` | `Group`: `DEFAULT` | The job |
+| `SucceededWithin` | None; must be positive | How long ago its last success may have fired |
+| `Status` | `Degraded` | What the check reports while the job is late. `Unhealthy` for a job that must never be late. `Healthy` is refused |
+
+* The window runs from `JobRunStatus.LastSucceededAtUtc`, on the scheduler's clock. A `Skipped` run is a success.
+* A job with no recorded success is judged from the first time the check evaluated it. A process that has just
+  started gives each job one window.
+* The check reports the worst of the scheduler's own verdict and each late job's `Status`. It does not read
+  the jobs of a scheduler that is already *unhealthy*. It does read them in standby.
+* The message names the gravest late job and counts the others. The data has one entry per late job, keyed
+  `<group>.<name>`: `lastSucceededAtUtc` (or `never`), `consecutiveFailures` and `succeededWithin`.
+* Every check reads all the jobs' statuses in one call.
+* A job given twice keeps the later entry. `RequireSuccessWithin` replaces the earlier one.
+
+The statuses come from the execution history, which must keep them: see the table under
+[Read a job's status](#read-a-job-s-status).
+
+| The scheduler's history | Result |
+|---|---|
+| None | The host fails at startup, naming `AddQuartzExecutionHistory()` and `UsePersistentStore(store => store.UseExecutionHistory())` |
+| Its status read throws `NotSupportedException` | The host fails at startup, with the store's reason |
+| A remote host older than 4.4, through `AddQuartzHttpClient` | The check reports *unhealthy*, with the host's reason. Startup cannot tell |
+
+`RequiredJobs` binds from configuration. A `TimeSpan` is `d.hh:mm:ss`, so 26 hours is `1.02:00:00`:
+
+```json
+{
+  "HealthChecks": {
+    "Quartz": {
+      "RequiredJobs": [
+        { "Name": "nightly-report", "Group": "reports", "SucceededWithin": "1.02:00:00" },
+        { "Name": "ledger-close", "Group": "billing", "SucceededWithin": "01:30:00", "Status": "Unhealthy" }
+      ]
+    }
+  }
+}
+```
+
+Bind it with `services.Configure<QuartzHealthCheckOptions>(configuration.GetSection("HealthChecks:Quartz"))`,
+or under the scheduler's name for a named scheduler.
+
 ## A history store of your own
 
 * Keep `Result`, `Summary`, `MetricsJson`, `Manual` and `FireInstanceId` on the rows you store. The
