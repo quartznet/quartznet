@@ -188,9 +188,8 @@ internal static class QuartzServiceRegistration
 
         services.TryAddKeyed<IJobStore>(key, static (provider, key) =>
         {
-            var options = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key);
             var jobStore = ActivatorUtilities.CreateInstance<RAMJobStore>(Scoped(provider, key));
-            jobStore.MisfireThreshold = options.MisfireThreshold;
+            jobStore.Apply(provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key));
             return jobStore;
         });
 

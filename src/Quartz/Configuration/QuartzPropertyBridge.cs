@@ -609,7 +609,7 @@ internal static class QuartzPropertyBridge
             IJobStore inner = JobStores.Unwrap(jobStore);
             if (inner is RAMJobStore ramJobStore)
             {
-                ramJobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;
+                ramJobStore.Apply(provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key));
             }
             else if (inner is not AdoJobStoreBase)
             {
@@ -666,6 +666,7 @@ internal static class QuartzPropertyBridge
     private static void MapInMemoryJobStore(InMemoryJobStoreOptions options, PropertyReader parser)
     {
         parser.Milliseconds("quartz.jobStore.misfireThreshold", value => options.MisfireThreshold = value);
+        parser.Int("quartz.jobStore.maxConsecutiveFireFailures", value => options.MaxConsecutiveFireFailures = value);
     }
 
     private static void MapAdoJobStore(AdoJobStoreOptions options, PropertyReader parser)

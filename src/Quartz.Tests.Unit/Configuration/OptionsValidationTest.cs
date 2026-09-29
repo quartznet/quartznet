@@ -190,6 +190,56 @@ public class OptionsValidationTest
     }
 
     /// <summary>
+    /// The in-memory store's spelling of the same limit, refused the same way (#3974).
+    /// </summary>
+    [Test]
+    public void ANegativeInMemoryMaxConsecutiveFireFailuresIsAConfigurationError()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UseInMemoryStore(options => options.MaxConsecutiveFireFailures = -1));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*MaxConsecutiveFireFailures*");
+    }
+
+    /// <summary>
+    /// Both of the in-memory store's checks are reported together, so a configuration with two mistakes
+    /// is not fixed one restart at a time.
+    /// </summary>
+    [Test]
+    public void EveryInMemoryStoreOptionThatIsWrongIsReported()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UseInMemoryStore(options =>
+        {
+            options.MisfireThreshold = TimeSpan.Zero;
+            options.MaxConsecutiveFireFailures = -1;
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>()
+            .Which.Failures.Should().HaveCount(2).And.Contain(x => x.Contains("MisfireThreshold")).And.Contain(x => x.Contains("MaxConsecutiveFireFailures"));
+    }
+
+    [Test]
+    public void AnInMemoryStoreSetsAFailingTriggerErrorAfterFiveFailuresWithoutBeingAskedFor()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UseInMemoryStore());
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<InMemoryJobStoreOptions>>().Value.MaxConsecutiveFireFailures.Should().Be(5,
+            "the persistent store's default, for the same reason");
+    }
+
+    /// <summary>
     /// A trigger whose every fire fails is parked without being asked for, because the alternative is one
     /// acquired again ahead of its job-mates forever.
     /// </summary>

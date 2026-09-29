@@ -1064,6 +1064,41 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         provider.GetRequiredService<IJobStore>().Should().BeOfType<RAMJobStore>();
     }
 
+    /// <summary>
+    /// The in-memory store reads <c>maxConsecutiveFireFailures</c> as the persistent store does (#3974),
+    /// by each of the three registrations that build it.
+    /// </summary>
+    [Test]
+    public void AnInMemoryStoreReadsMaxConsecutiveFireFailuresByEveryRouteThatBuildsIt()
+    {
+        StoreBuiltBy(services => services.AddQuartz(
+                new NameValueCollection { ["quartz.jobStore.maxConsecutiveFireFailures"] = "0" },
+                q => q.UseInMemoryStore()))
+            .MaxConsecutiveFireFailures.Should().Be(0,
+                "UseInMemoryStore: zero is how a flat configuration turns parking off, so it must not read as unset");
+
+        StoreBuiltBy(services => services.AddQuartz(Section(new Dictionary<string, string?>
+            {
+                ["JobStore:MaxConsecutiveFireFailures"] = "3",
+            })))
+            .MaxConsecutiveFireFailures.Should().Be(3, "the default store, with nothing chosen, reads the JobStore section");
+
+        StoreBuiltBy(services => services.AddQuartz(new NameValueCollection
+            {
+                ["quartz.jobStore.type"] = typeof(RAMJobStore).AssemblyQualifiedName,
+                ["quartz.jobStore.maxConsecutiveFireFailures"] = "2",
+            }))
+            .MaxConsecutiveFireFailures.Should().Be(2, "a store named by quartz.jobStore.type is configured by the bridge");
+
+        static RAMJobStore StoreBuiltBy(Action<IServiceCollection> configure)
+        {
+            var services = new ServiceCollection();
+            configure(services);
+            using var provider = services.BuildServiceProvider();
+            return (RAMJobStore) JobStores.Unwrap(provider.GetRequiredService<IJobStore>());
+        }
+    }
+
     [Test]
     public async Task PluginSettingsInConfigurationFindAPluginAddedInCode()
     {

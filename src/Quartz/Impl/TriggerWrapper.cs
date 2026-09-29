@@ -14,7 +14,11 @@ internal sealed class TriggerWrapper : IEquatable<TriggerWrapper>
     /// <summary>
     /// The trigger
     /// </summary>
-    public IOperableTrigger Trigger { get; }
+    /// <remarks>
+    /// Replaced only by a fire that failed part-way, which puts back the copy it took before the
+    /// trigger was advanced; the key, and so every index the wrapper is in, stays the same.
+    /// </remarks>
+    public IOperableTrigger Trigger { get; set; }
 
     /// <summary>
     /// Current state
