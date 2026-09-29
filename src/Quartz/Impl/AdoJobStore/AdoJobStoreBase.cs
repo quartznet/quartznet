@@ -869,41 +869,45 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     }
 
     /// <summary>
-    /// For each table only an opt-in feature reads: the probe that asks whether it is there, beside
-    /// the migration that creates it and the call that turns that feature on.
+    /// For each table and each column only an opt-in feature reads: the probe that asks whether it is
+    /// there, beside the migration that makes it and the call that turns that feature on. A table's
+    /// entry has no column.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Written the way <see cref="MigratedColumnProbes" /> is, and for the same two reasons. The
     /// statement is a constant carrying the table-prefix placeholder, built once from
-    /// <see cref="AdoConstants.OptionalTableNames" /> and substituted at the command site, so no
-    /// command text here is composed from anything but constants. And <c>WHERE 1 = 0</c> because what
-    /// is being asked is whether the name resolves, not what is under it.
+    /// <see cref="AdoConstants.OptionalTableNames" /> and <see cref="AdoConstants.OptionalColumnNames" />
+    /// and substituted at the command site, so no command text here is composed from anything but
+    /// constants. And <c>WHERE 1 = 0</c> because what is being asked is whether the name resolves, not
+    /// what is under it.
+    /// </para>
+    /// <para>
+    /// In release order, each migration's tables before its columns, so the first refusal names the
+    /// oldest script the database is missing. A history table 4.2 created lacks 4.3's columns as well
+    /// as 4.4's table, and a reader sent to 4.4 first would be refused for 4.3 on the next start.
+    /// </para>
     /// </remarks>
-    private static readonly (string Table, string Migration, string Feature, string Probe)[] OptionalTableProbes =
+    private static readonly (string Table, string? Column, string Migration, string Feature, string Probe)[] OptionalProbes =
     [
-        .. AdoConstants.OptionalTableNames.Select(t =>
-        (
-            t.Table,
-            t.Migration,
-            t.Feature,
-            $"SELECT 1 FROM {StdAdoConstants.TablePrefixSubst}{t.Table} WHERE 1 = 0"
-        ))
-    ];
-
-    /// <summary>
-    /// For each column a later release added to one of those tables: the probe that asks whether it
-    /// is there, beside the migration that adds it. Written as <see cref="OptionalTableProbes" /> is.
-    /// </summary>
-    private static readonly (string Table, string Column, string Migration, string Feature, string Probe)[] OptionalColumnProbes =
-    [
-        .. AdoConstants.OptionalColumnNames.Select(c =>
-        (
-            c.Table,
-            c.Column,
-            c.Migration,
-            c.Feature,
-            $"SELECT {c.Column} FROM {StdAdoConstants.TablePrefixSubst}{c.Table} WHERE 1 = 0"
-        ))
+        .. AdoConstants.OptionalTableNames
+            .Select(t =>
+            (
+                Table: t.Table,
+                Column: (string?) null,
+                Migration: t.Migration,
+                Feature: t.Feature,
+                Probe: $"SELECT 1 FROM {StdAdoConstants.TablePrefixSubst}{t.Table} WHERE 1 = 0"
+            ))
+            .Concat(AdoConstants.OptionalColumnNames.Select(c =>
+            (
+                Table: c.Table,
+                Column: (string?) c.Column,
+                Migration: c.Migration,
+                Feature: c.Feature,
+                Probe: $"SELECT {c.Column} FROM {StdAdoConstants.TablePrefixSubst}{c.Table} WHERE 1 = 0"
+            )))
+            .OrderBy(p => AdoConstants.MigrationVersion(p.Migration))
     ];
 
     /// <summary>
@@ -912,10 +916,10 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// <remarks>
     /// <para>
     /// <see cref="IDriverDelegate.ValidateSchema" /> probes <see cref="AdoConstants.AllTableNames" />,
-    /// which every scheduler reads whatever it is configured to do. The two execution-history tables
-    /// are not among them and must not be: a database created by 4.0 or 4.1, or by 4.2 with the
-    /// history off, has never had them, and probing for them unconditionally would turn an optional
-    /// migration into a required one.
+    /// which every scheduler reads whatever it is configured to do. The execution-history tables are
+    /// not among them and must not be: a database created by 4.0 or 4.1, or later with the history
+    /// off, has never had them, and probing for them unconditionally would turn an optional migration
+    /// into a required one.
     /// </para>
     /// <para>
     /// Deliberately here rather than on the delegate, for the reason
@@ -935,15 +939,13 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             return objectCount;
         }
 
-        foreach ((string table, string migration, string feature, string probe) in OptionalTableProbes)
+        foreach ((string table, string? column, string migration, string feature, string probe) in OptionalProbes)
         {
-            string targetTable = $"{TablePrefix}{table}";
-
             try
             {
                 await ProbeOptional(conn, probe, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (column is null)
             {
                 // A table that is missing is missing its later columns too, and so is every other table
                 // the same migration creates, so every script that builds them up is named here at once
@@ -953,29 +955,20 @@ internal abstract partial class AdoJobStoreBase : IJobStore
                     .Select(c => c.Migration)
                     .Prepend(migration)
                     .Distinct()
-                    .Select(m => $"database/migrations/{MigrationScriptName(m)}"));
+                    .OrderBy(AdoConstants.MigrationVersion)
+                    .Select(MigrationScriptName));
 
                 throw new JobPersistenceException(
-                    $"Unable to query table {targetTable}, which {feature} reads and writes and which the"
+                    $"Unable to query table {TablePrefix}{table}, which {feature} reads and writes and which the"
                     + $" schema migrations {scripts} create."
                     + " Run them, or leave the execution history where it was — the migrations are"
                     + $" needed by nothing else. {ex.Message}", ex);
-            }
-
-            objectCount++;
-        }
-
-        foreach ((string table, string column, string migration, string feature, string probe) in OptionalColumnProbes)
-        {
-            try
-            {
-                await ProbeOptional(conn, probe, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 throw new JobPersistenceException(
                     $"Unable to query column {column} of table {TablePrefix}{table}, which {feature} writes and"
-                    + $" which the schema migration database/migrations/{MigrationScriptName(migration)} adds."
+                    + $" which the schema migration {MigrationScriptName(migration)} adds."
                     + " Run that script, or leave the execution history where it was — the migration is"
                     + $" needed by nothing else. {ex.Message}", ex);
             }
@@ -1026,10 +1019,10 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     ];
 
     /// <summary>
-    /// Every migration whose columns are probed, once each and in the order they are listed.
+    /// Every migration whose columns are probed, once each, oldest folder first.
     /// </summary>
     private static readonly string[] MigrationTemplates =
-        [.. AdoConstants.MigratedColumnNames.Select(c => c.Migration).Distinct()];
+        [.. AdoConstants.MigratedColumnNames.Select(c => c.Migration).Distinct().OrderBy(AdoConstants.MigrationVersion)];
 
     /// <summary>
     /// Which columns 4.x needs are missing from a table that is already there, as
@@ -1093,23 +1086,26 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// The sentence a database that came from 3.x needs, which is most of the databases that reach
     /// either failure above.
     /// </summary>
+    /// <remarks>
+    /// Built from the migration lists rather than written out, so a release that adds a migration adds
+    /// it here too, in its place: the scripts are named oldest first, and a schema needs those in the
+    /// folders after the release that created it.
+    /// </remarks>
     private string UpgradeAdvice()
     {
-        string advice = $"If this schema was created by an earlier Quartz.NET, run the migrations it has not had —"
+        string advice = "If this schema was created by an earlier Quartz.NET, run the migrations it has not had —"
+                        + " each script below from the folders after the release that created it, oldest first:"
                         + $" {string.Join(", then ", MigrationTemplates.Select(MigrationScriptName))} —"
                         + " because ProvisionSchema() creates missing tables and never adds a column to a table"
-                        + " that exists. A schema created by 3.x needs all of them; one created by 4.0 or 4.1"
-                        + " needs the last four, and one created by 4.2 the last three.";
+                        + " that exists.";
 
         if (ExecutionHistory)
         {
             // Named only when they are needed. They are the migrations nothing else asks for, so a
             // reader who never turned the history on must not be sent to run them.
-            advice += " This store keeps its execution history in the database, so it needs"
-                      + $" {MigrationScriptName(AdoConstants.Migration42History)},"
-                      + $" {MigrationScriptName(AdoConstants.Migration43ExecutionLog)} and"
-                      + $" {MigrationScriptName(AdoConstants.Migration43MisfireReason)} as well, which no other"
-                      + " configuration requires.";
+            advice += " This store keeps its execution history in the database, so it also needs the history's"
+                      + " own migrations from those folders, which no other configuration requires:"
+                      + $" {string.Join(", then ", AdoConstants.OptionalMigrations.Select(MigrationScriptName))}.";
         }
 
         return advice;
@@ -1166,8 +1162,9 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// worse.
     /// </remarks>
     /// <param name="migration">
-    /// The file-name template from <see cref="AdoConstants.MigratedColumnNames" />, whose one
-    /// placeholder is the dialect token.
+    /// A file-name template from <see cref="AdoConstants.MigratedColumnNames" /> or the optional lists,
+    /// whose one placeholder is the dialect token. The answer starts <c>database/migrations/</c>, so a
+    /// caller names it as it is.
     /// </param>
     private string MigrationScriptName(string migration)
     {

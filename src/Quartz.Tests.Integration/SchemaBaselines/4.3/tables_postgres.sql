@@ -23,7 +23,6 @@ BEGIN
     DROP TABLE IF EXISTS qrtz_calendars;
     DROP TABLE IF EXISTS qrtz_execution_history;
     DROP TABLE IF EXISTS qrtz_misfire_history;
-    DROP TABLE IF EXISTS qrtz_job_status;
     SET client_min_messages = NOTICE;
   END IF;
 END $$;
@@ -206,7 +205,7 @@ CREATE TABLE qrtz_locks
     PRIMARY KEY (sched_name, lock_name)
 );
 
--- The three execution history tables. Optional: only a store configured with
+-- The two execution history tables. Optional: only a store configured with
 -- UsePersistentStore(s => s.UseExecutionHistory()) reads or writes them, and nothing else in
 -- this schema references them.
 CREATE TABLE qrtz_execution_history
@@ -225,11 +224,6 @@ CREATE TABLE qrtz_execution_history
     retry_attempt INTEGER NOT NULL DEFAULT 0,
     retry_scheduled BOOL NOT NULL DEFAULT FALSE,
     execution_log TEXT NULL,
-    result INTEGER NULL,
-    summary TEXT NULL,
-    metrics TEXT NULL,
-    manual BOOL NULL,
-    fire_instance_id TEXT NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 
@@ -248,27 +242,6 @@ CREATE TABLE qrtz_misfire_history
     PRIMARY KEY (sched_name, entry_id)
 );
 
-CREATE TABLE qrtz_job_status
-  (
-    sched_name TEXT NOT NULL,
-    job_group TEXT NOT NULL,
-    job_name TEXT NOT NULL,
-    first_fired_time BIGINT NOT NULL,
-    last_fired_time BIGINT NOT NULL,
-    last_result INTEGER NOT NULL,
-    last_run_time BIGINT NOT NULL,
-    last_instance_name TEXT NOT NULL,
-    last_entry_id TEXT NULL,
-    last_summary TEXT NULL,
-    last_success_time BIGINT NULL,
-    last_failure_time BIGINT NULL,
-    last_failure_message TEXT NULL,
-    consecutive_failures INTEGER NOT NULL DEFAULT 0,
-    run_count BIGINT NOT NULL DEFAULT 0,
-    failure_count BIGINT NOT NULL DEFAULT 0,
-    PRIMARY KEY (sched_name, job_group, job_name)
-);
-
 CREATE INDEX idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
 CREATE INDEX idx_qrtz_t_j ON qrtz_triggers (sched_name, job_name, job_group);
 CREATE INDEX idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
@@ -279,6 +252,5 @@ CREATE INDEX idx_qrtz_ft_j_g ON qrtz_fired_triggers (sched_name, job_name, job_g
 CREATE INDEX idx_qrtz_ft_t_g ON qrtz_fired_triggers (sched_name, trigger_name, trigger_group);
 CREATE INDEX idx_qrtz_eh_fired_time ON qrtz_execution_history (sched_name, fired_time);
 CREATE INDEX idx_qrtz_eh_inst ON qrtz_execution_history (sched_name, instance_name);
-CREATE INDEX idx_qrtz_eh_job_time ON qrtz_execution_history (sched_name, job_group, job_name, fired_time);
 CREATE INDEX idx_qrtz_mh_misfire_time ON qrtz_misfire_history (sched_name, misfire_time);
 CREATE INDEX idx_qrtz_mh_inst ON qrtz_misfire_history (sched_name, instance_name);

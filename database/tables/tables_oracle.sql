@@ -46,6 +46,7 @@ BEGIN
     DropQuartzTable('QRTZ_CALENDARS');
     DropQuartzTable('QRTZ_EXECUTION_HISTORY');
     DropQuartzTable('QRTZ_MISFIRE_HISTORY');
+    DropQuartzTable('QRTZ_JOB_STATUS');
   END IF;
 END;
 /
@@ -214,11 +215,11 @@ CREATE TABLE qrtz_locks
     CONSTRAINT QRTZ_LOCKS_PK PRIMARY KEY (SCHED_NAME,LOCK_NAME)
 );
 
--- The two execution history tables. Optional: only a store configured with
+-- The three execution history tables. Optional: only a store configured with
 -- UsePersistentStore(s => s.UseExecutionHistory()) reads or writes them, and nothing else in
--- this schema references them. ERROR_MESSAGE is four times the width of the other dialects'
--- because VARCHAR2 counts bytes: the store truncates the message at 1,000 characters, which is
--- at most 4,000 bytes of UTF-8.
+-- this schema references them. ERROR_MESSAGE, SUMMARY, LAST_SUMMARY and LAST_FAILURE_MESSAGE are
+-- four times the width of the other dialects' because VARCHAR2 counts bytes: the store truncates
+-- each at 1,000 characters, which is at most 4,000 bytes of UTF-8.
 CREATE TABLE qrtz_execution_history
   (
     SCHED_NAME VARCHAR2(120) NOT NULL,
@@ -235,6 +236,11 @@ CREATE TABLE qrtz_execution_history
     RETRY_ATTEMPT NUMBER(13) DEFAULT 0 NOT NULL,
     RETRY_SCHEDULED VARCHAR2(1) DEFAULT '0' NOT NULL,
     EXECUTION_LOG CLOB NULL,
+    RESULT NUMBER(13) NULL,
+    SUMMARY VARCHAR2(4000) NULL,
+    METRICS CLOB NULL,
+    MANUAL VARCHAR2(1) NULL,
+    FIRE_INSTANCE_ID VARCHAR2(140) NULL,
     CONSTRAINT QRTZ_EXEC_HISTORY_PK PRIMARY KEY (SCHED_NAME,ENTRY_ID)
 );
 CREATE TABLE qrtz_misfire_history
@@ -251,6 +257,26 @@ CREATE TABLE qrtz_misfire_history
     REASON NUMBER(13) NULL,
     CONSTRAINT QRTZ_MISFIRE_HISTORY_PK PRIMARY KEY (SCHED_NAME,ENTRY_ID)
 );
+CREATE TABLE qrtz_job_status
+  (
+    SCHED_NAME VARCHAR2(120) NOT NULL,
+    JOB_GROUP VARCHAR2(200) NOT NULL,
+    JOB_NAME VARCHAR2(200) NOT NULL,
+    FIRST_FIRED_TIME NUMBER(19) NOT NULL,
+    LAST_FIRED_TIME NUMBER(19) NOT NULL,
+    LAST_RESULT NUMBER(13) NOT NULL,
+    LAST_RUN_TIME NUMBER(19) NOT NULL,
+    LAST_INSTANCE_NAME VARCHAR2(200) NOT NULL,
+    LAST_ENTRY_ID VARCHAR2(140) NULL,
+    LAST_SUMMARY VARCHAR2(4000) NULL,
+    LAST_SUCCESS_TIME NUMBER(19) NULL,
+    LAST_FAILURE_TIME NUMBER(19) NULL,
+    LAST_FAILURE_MESSAGE VARCHAR2(4000) NULL,
+    CONSECUTIVE_FAILURES NUMBER(13) DEFAULT 0 NOT NULL,
+    RUN_COUNT NUMBER(19) DEFAULT 0 NOT NULL,
+    FAILURE_COUNT NUMBER(19) DEFAULT 0 NOT NULL,
+    CONSTRAINT QRTZ_JOB_STATUS_PK PRIMARY KEY (SCHED_NAME,JOB_GROUP,JOB_NAME)
+);
 
 create index idx_qrtz_j_g_n on qrtz_job_details(SCHED_NAME,JOB_GROUP,JOB_NAME);
 
@@ -265,6 +291,7 @@ create index idx_qrtz_ft_t_g on qrtz_fired_triggers(SCHED_NAME,TRIGGER_NAME,TRIG
 
 create index idx_qrtz_eh_fired_time on qrtz_execution_history(SCHED_NAME,FIRED_TIME);
 create index idx_qrtz_eh_inst on qrtz_execution_history(SCHED_NAME,INSTANCE_NAME);
+create index idx_qrtz_eh_job_time on qrtz_execution_history(SCHED_NAME,JOB_GROUP,JOB_NAME,FIRED_TIME);
 create index idx_qrtz_mh_misfire_time on qrtz_misfire_history(SCHED_NAME,MISFIRE_TIME);
 create index idx_qrtz_mh_inst on qrtz_misfire_history(SCHED_NAME,INSTANCE_NAME);
 

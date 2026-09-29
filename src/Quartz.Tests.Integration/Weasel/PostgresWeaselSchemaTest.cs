@@ -139,8 +139,85 @@ public sealed class PostgresWeaselSchemaTest
         await using PostgresWeaselDatabase fresh = await PostgresWeaselDatabase.CreateAsync();
         await fresh.RunRepositoryScriptAsync("database", "tables", "tables_postgres.sql");
 
-        await ShouldMatchAsync(database, fresh, "4.3's columns are all a 4.2 schema lacks");
+        await ShouldMatchAsync(database, fresh,
+            "what 4.3 and 4.4 added — columns, an index and QRTZ_JOB_STATUS — is all a 4.2 schema lacks");
         await ShouldHoldTheSeedAsync(database);
+    }
+
+    /// <summary>
+    /// 4.3 → 4.4 only adds: five columns and an index on the history table, and the rollup table.
+    /// </summary>
+    [Test]
+    public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
+    {
+        await database.RunRepositoryScriptAsync("src", "Quartz.Tests.Integration", "SchemaBaselines", "4.3", "tables_postgres.sql");
+        await SeedAsync(database);
+        await SeedHistoryAsync(database);
+
+        (SchemaSnapshot before, List<string> beforeDetails) = await database.ReadAsync();
+
+        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-pg-from-43");
+        await using (services)
+        {
+            SchemaMigration planned = await weasel.CreateMigrationAsync();
+            List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
+
+            changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create)],
+                "4.4 changes nothing a 4.3 schema has but the history table, and adds the rollup: " + Describe(planned));
+
+            (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
+            (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
+                "the second apply finds nothing left to do");
+        }
+
+        // What the apply did, read from the catalog: this dialect's TableDelta keeps its item deltas internal.
+        (SchemaSnapshot after, List<string> afterDetails) = await database.ReadAsync();
+        after.Tables.Except(before.Tables).Should().Equal(["JOB_STATUS"]);
+        after.Columns.Should().Contain(before.Columns, "an add-only apply alters and drops no column a 4.3 schema has");
+        after.Indexes.Should().Contain(before.Indexes, "nor an index");
+        afterDetails.Should().Contain(beforeDetails, "nor a key or a default");
+        after.Columns.Except(before.Columns)
+            .Where(x => x.StartsWith("EXECUTION_HISTORY|", StringComparison.Ordinal))
+            .Select(x => x.Split('|')[1])
+            .Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID"]);
+        after.Indexes.Except(before.Indexes).Select(x => x.Split('|')[1]).Distinct().Should().Equal(["IDX_EH_JOB_TIME"]);
+
+        await using PostgresWeaselDatabase fresh = await PostgresWeaselDatabase.CreateAsync();
+        await fresh.RunRepositoryScriptAsync("database", "tables", "tables_postgres.sql");
+
+        await ShouldMatchAsync(database, fresh, "what 4.4 added is all a 4.3 schema lacks");
+        await ShouldHoldTheSeedAsync(database);
+        await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database);
+    }
+
+    /// <summary>
+    /// A column and an index the application put on the history table survive the 4.4 apply, which only adds.
+    /// </summary>
+    [Test]
+    public async Task ObjectsTheApplicationAddedToTheHistorySurviveThe44Apply()
+    {
+        await database.RunRepositoryScriptAsync("src", "Quartz.Tests.Integration", "SchemaBaselines", "4.3", "tables_postgres.sql");
+        await SeedHistoryAsync(database);
+
+        await database.ExecuteAsync("""
+            ALTER TABLE qrtz_execution_history ADD COLUMN app_tenant text;
+            UPDATE qrtz_execution_history SET app_tenant = 'keep me';
+            CREATE INDEX idx_app_eh_tenant ON qrtz_execution_history (app_tenant);
+            """);
+
+        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-pg-43-coexisting");
+        await using (services)
+        {
+            (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
+            (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None);
+        }
+
+        (await database.ScalarAsync("SELECT app_tenant FROM qrtz_execution_history")).Should().Be("keep me",
+            "the tables are add-only, so the application's column is kept");
+        (await database.ScalarAsync("SELECT count(*) FROM pg_indexes WHERE indexname IN ('idx_app_eh_tenant', 'idx_qrtz_eh_job_time')")).Should().Be(2L,
+            "the application's index is kept beside the one 4.4 added");
+        await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database);
     }
 
     [Test]
@@ -325,6 +402,20 @@ public sealed class PostgresWeaselSchemaTest
         INSERT INTO qrtz_simple_triggers (sched_name, trigger_name, trigger_group, repeat_count, repeat_interval, times_triggered)
           VALUES ('weasel', 'trigger', 'group', 3, 1000, 0);
         """);
+
+    /// <summary>A row a 4.3 node wrote: a failed run, with no outcome columns to fill.</summary>
+    private static Task SeedHistoryAsync(PostgresWeaselDatabase database) => database.ExecuteAsync("""
+        INSERT INTO qrtz_execution_history (sched_name, entry_id, instance_name, job_name, job_group, trigger_name, trigger_group, fired_time, run_time, succeeded, error_message)
+          VALUES ('weasel', 'entry-43', 'node-43', 'job', 'group', 'trigger', 'group', 1, 10, false, 'failed on 4.3');
+        """);
+
+    private static async Task ShouldHoldTheHistoryRowWithNoOutcomeAsync(PostgresWeaselDatabase database)
+    {
+        (await database.ScalarAsync(
+                "SELECT count(*) FROM qrtz_execution_history WHERE entry_id = 'entry-43' AND error_message = 'failed on 4.3'"
+            + " AND result IS NULL AND summary IS NULL AND metrics IS NULL AND manual IS NULL AND fire_instance_id IS NULL"))
+            .Should().Be(1L, "a row a 4.3 node wrote keeps its values and reads NULL in every column 4.4 added");
+    }
 
     private static async Task ShouldHoldTheSeedAsync(PostgresWeaselDatabase database)
     {

@@ -31,6 +31,7 @@
     -->
     <EmbeddedResource Include="..\Quartz.Tests.Integration\SchemaBaselines\3.20\tables_sqlite.sql" LogicalName="baseline_3.20_tables_sqlite.sql" />
     <EmbeddedResource Include="..\Quartz.Tests.Integration\SchemaBaselines\4.2\tables_sqlite.sql" LogicalName="baseline_4.2_tables_sqlite.sql" />
+    <EmbeddedResource Include="..\Quartz.Tests.Integration\SchemaBaselines\4.3\tables_sqlite.sql" LogicalName="baseline_4.3_tables_sqlite.sql" />
 
     <!--
       Blob columns dumped byte for byte from a released Quartz 3.20.0 run, which LegacyJsonPayloadTest

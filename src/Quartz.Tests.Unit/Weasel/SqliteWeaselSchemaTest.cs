@@ -127,8 +127,78 @@ public sealed class SqliteWeaselSchemaTest
         using SqliteTestDatabase fresh = new("weasel-from-42-fresh");
         await SqliteSchema.CreateWithFreshInstallScriptAsync(fresh.ConnectionString);
 
-        await ShouldMatchAsync(database.ConnectionString, fresh.ConnectionString, "4.3's columns are all a 4.2 schema lacks");
+        await ShouldMatchAsync(database.ConnectionString, fresh.ConnectionString,
+            "what 4.3 and 4.4 added — columns, an index and QRTZ_JOB_STATUS — is all a 4.2 schema lacks");
         await ShouldHoldTheSeedAsync(database.ConnectionString);
+    }
+
+    /// <summary>
+    /// 4.3 → 4.4 only adds: five columns and an index on the history table, and the rollup table.
+    /// </summary>
+    [Test]
+    public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnlyAndKeepsItsRows()
+    {
+        await SqliteSchema.CreateWithBaselineAsync(database.ConnectionString, "4.3");
+        await SeedAsync(database.ConnectionString);
+        await SeedHistoryAsync(database.ConnectionString);
+
+        await using (WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-from-43"))
+        {
+            SchemaMigration planned = await weasel.Database.CreateMigrationAsync();
+            List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
+
+            changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create)],
+                "4.4 changes nothing a 4.3 schema has but the history table, and adds the rollup: " + Describe(planned));
+
+            TableDelta history = changed.OfType<TableDelta>().Single(x => x.Difference == SchemaPatchDifference.Update);
+            history.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(
+                ["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID"]);
+            history.Indexes.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["IDX_QRTZ_EH_JOB_TIME"]);
+            history.Columns.Extras.Should().BeEmpty();
+            history.Columns.Different.Should().BeEmpty("no column 4.3 created changes shape");
+            history.Indexes.Different.Should().BeEmpty("no index 4.3 created changes shape");
+            history.ForeignKeys.Missing.Should().BeEmpty();
+
+            (await weasel.Database.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
+            (await weasel.Database.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
+                "the second apply finds nothing left to do");
+        }
+
+        using SqliteTestDatabase fresh = new("weasel-from-43-fresh");
+        await SqliteSchema.CreateWithFreshInstallScriptAsync(fresh.ConnectionString);
+
+        await ShouldMatchAsync(database.ConnectionString, fresh.ConnectionString, "what 4.4 added is all a 4.3 schema lacks");
+        await ShouldHoldTheSeedAsync(database.ConnectionString);
+        await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database.ConnectionString);
+    }
+
+    /// <summary>
+    /// A column and an index the application put on the history table survive the 4.4 apply: the columns
+    /// arrive by <c>ADD COLUMN</c>, so the table is never rebuilt and the rebuild guard has nothing to refuse.
+    /// </summary>
+    [Test]
+    public async Task ObjectsTheApplicationAddedToTheHistorySurviveThe44Apply()
+    {
+        await SqliteSchema.CreateWithBaselineAsync(database.ConnectionString, "4.3");
+        await SeedHistoryAsync(database.ConnectionString);
+
+        await SqliteSchema.ExecuteAsync(database.ConnectionString, """
+            ALTER TABLE QRTZ_EXECUTION_HISTORY ADD COLUMN APP_TENANT TEXT NULL;
+            UPDATE QRTZ_EXECUTION_HISTORY SET APP_TENANT = 'keep me';
+            CREATE INDEX IDX_APP_EH_TENANT ON QRTZ_EXECUTION_HISTORY(APP_TENANT);
+            """);
+
+        await using (WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-43-coexisting"))
+        {
+            (await weasel.Database.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update,
+                "a rebuild would have been refused for the application's column, so an apply that goes ahead only added");
+            (await weasel.Database.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None);
+        }
+
+        (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT APP_TENANT FROM QRTZ_EXECUTION_HISTORY")).Should().Be("keep me");
+        (await IndexNamesAsync(database.ConnectionString)).Should().Contain(["IDX_APP_EH_TENANT", "IDX_QRTZ_EH_JOB_TIME"]);
+        await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database.ConnectionString);
     }
 
     [Test]
@@ -305,6 +375,20 @@ public sealed class SqliteWeaselSchemaTest
             """);
     }
 
+    /// <summary>A row a 4.3 node wrote: a failed run, with no outcome columns to fill.</summary>
+    private static Task SeedHistoryAsync(string connectionString) => SqliteSchema.ExecuteAsync(connectionString, """
+        INSERT INTO QRTZ_EXECUTION_HISTORY (SCHED_NAME, ENTRY_ID, INSTANCE_NAME, JOB_NAME, JOB_GROUP, TRIGGER_NAME, TRIGGER_GROUP, FIRED_TIME, RUN_TIME, SUCCEEDED, ERROR_MESSAGE)
+          VALUES ('weasel', 'entry-43', 'node-43', 'job', 'group', 'trigger', 'group', 1, 10, 0, 'failed on 4.3');
+        """);
+
+    private static async Task ShouldHoldTheHistoryRowWithNoOutcomeAsync(string connectionString)
+    {
+        (await SqliteSchema.ScalarAsync(connectionString,
+                "SELECT count(*) FROM QRTZ_EXECUTION_HISTORY WHERE ENTRY_ID = 'entry-43' AND ERROR_MESSAGE = 'failed on 4.3'"
+                + " AND RESULT IS NULL AND SUMMARY IS NULL AND METRICS IS NULL AND MANUAL IS NULL AND FIRE_INSTANCE_ID IS NULL"))
+            .Should().Be(1L, "a row a 4.3 node wrote keeps its values and reads NULL in every column 4.4 added");
+    }
+
     private static async Task ShouldHoldTheSeedAsync(string connectionString)
     {
         (await SqliteSchema.ScalarAsync(connectionString, "SELECT count(*) FROM QRTZ_JOB_DETAILS")).Should().Be(1L);
@@ -325,7 +409,7 @@ public sealed class SqliteWeaselSchemaTest
 
     internal static string Describe(SchemaMigration migration) => string.Join("; ", migration.Deltas
         .Where(x => x.Difference != SchemaPatchDifference.None)
-        .Select(x => x is TableDelta table
+        .Select(x => x is TableDelta { Difference: SchemaPatchDifference.Update } table
             ? $"{x.SchemaObject.Identifier} {x.Difference} ({table.InvalidReason}):"
               + $" columns {Describe(table.Columns)}, indexes {Describe(table.Indexes)}, foreign keys {Describe(table.ForeignKeys)}"
             : $"{x.SchemaObject.Identifier} {x.Difference}"));

@@ -207,6 +207,11 @@ CREATE TABLE IF NOT EXISTS {0}execution_history (
   retry_attempt integer not null default 0,
   retry_scheduled bool not null default false,
   execution_log text null,
+  result integer null,
+  summary text null,
+  metrics text null,
+  manual bool null,
+  fire_instance_id text null,
   primary key (sched_name,entry_id)
 );
 --;;
@@ -223,6 +228,27 @@ CREATE TABLE IF NOT EXISTS {0}misfire_history (
   sched_time bigint null,
   reason integer null,
   primary key (sched_name,entry_id)
+);
+--;;
+-- {0}JOB_STATUS
+CREATE TABLE IF NOT EXISTS {0}job_status (
+  sched_name text not null,
+  job_group text not null,
+  job_name text not null,
+  first_fired_time bigint not null,
+  last_fired_time bigint not null,
+  last_result integer not null,
+  last_run_time bigint not null,
+  last_instance_name text not null,
+  last_entry_id text null,
+  last_summary text null,
+  last_success_time bigint null,
+  last_failure_time bigint null,
+  last_failure_message text null,
+  consecutive_failures integer not null default 0,
+  run_count bigint not null default 0,
+  failure_count bigint not null default 0,
+  primary key (sched_name,job_group,job_name)
 );
 --;;
 -- IDX_{1}J_G_N
@@ -260,3 +286,6 @@ CREATE INDEX IF NOT EXISTS idx_{1}mh_misfire_time ON {0}misfire_history (sched_n
 --;;
 -- IDX_{1}MH_INST
 CREATE INDEX IF NOT EXISTS idx_{1}mh_inst ON {0}misfire_history (sched_name, instance_name);
+--;;
+-- IDX_{1}EH_JOB_TIME
+CREATE INDEX IF NOT EXISTS idx_{1}eh_job_time ON {0}execution_history (sched_name, job_group, job_name, fired_time);

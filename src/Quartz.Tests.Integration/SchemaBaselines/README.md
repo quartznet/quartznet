@@ -41,6 +41,15 @@ PostgreSQL one, then runs a released 4.2 node beside a working-tree node on the 
 upgrade an operator performs. The Weasel tests migrate all three forward with Weasel instead and compare
 the result with a fresh install — the SQLite one from `Quartz.Tests.Unit`, which embeds it.
 
+## `4.3/`
+
+Vendored verbatim from tag **`v4.3.0`**, the same three files as `4.2/`.
+`git rev-parse v4.3.0:database/tables/tables_sqlServer.sql` is `b0314ea437a3fb7db408e13b245dd2a292cc5773`,
+the blob committed here.
+
+The Weasel tests migrate them to 4.4 and check that the apply only adds: five columns and an index on
+`QRTZ_EXECUTION_HISTORY`, and `QRTZ_JOB_STATUS`. The SQLite one is embedded by `Quartz.Tests.Unit`.
+
 These are copies rather than something read out of git at run time on purpose: CI checks out shallow,
 so a `git show origin/3.x:...` in a test would fail on the very machines that run it. They are also
 deliberately never regenerated — the point of a baseline is that it does not track `main`. Changing a

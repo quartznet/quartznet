@@ -153,8 +153,35 @@ public sealed class MigratedColumnTest
     private static readonly (string Folder, string FileFormat)[] OptionalMigrations =
     [
         ("4.3", "add_execution_log_{0}.sql"),
-        ("4.3", "add_misfire_reason_{0}.sql")
+        ("4.3", "add_misfire_reason_{0}.sql"),
+        ("4.4", "add_execution_outcome_{0}.sql")
     ];
+
+    /// <summary>
+    /// What a store keeping its history in the database tells a reader to run: every optional script,
+    /// once, oldest folder first.
+    /// </summary>
+    /// <remarks>
+    /// The migrations are cumulative, and 4.4's alters the table 4.2's creates, so an order that put a
+    /// later folder first would send the reader to a script that fails.
+    /// </remarks>
+    [Test]
+    public void TheOptionalMigrationsAreNamedOldestFirst()
+    {
+        AdoConstants.OptionalMigrations.Should().Equal(
+            [
+                AdoConstants.Migration42History,
+                AdoConstants.Migration43ExecutionLog,
+                AdoConstants.Migration43MisfireReason,
+                AdoConstants.Migration44ExecutionOutcome
+            ],
+            "the table migration comes before the migrations that alter its tables, whatever order the "
+            + "table and column lists happen to name them in");
+
+        AdoConstants.MigrationVersion("4.10/later_{0}.sql").Should().BeGreaterThan(
+            AdoConstants.MigrationVersion("4.9/earlier_{0}.sql"),
+            "folders order as releases do, which ordinal string comparison would get wrong");
+    }
 
     private static HashSet<(string Table, string Column)> ColumnsAddedBy(string dialect)
     {

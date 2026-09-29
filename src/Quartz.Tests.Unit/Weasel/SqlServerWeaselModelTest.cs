@@ -61,7 +61,7 @@ public sealed class SqlServerWeaselModelTest
             List<ISchemaObject> objects = database.BuildFeatureSchemas().Single().Objects.ToList();
             List<Table> tables = objects.OfType<Table>().ToList();
 
-            tables.Should().HaveCount(14);
+            tables.Should().HaveCount(15);
             tables.Should().OnlyContain(x => x.Identifier.Schema == "dbo" && x.Identifier.Name.StartsWith("QRTZ_", StringComparison.Ordinal),
                 "a prefix with no schema puts the tables where the store's unqualified SQL finds them for a default login");
             tables.Should().OnlyContain(x => x.AddOnlyMigrations, "an application's own columns and indexes are never dropped");
@@ -217,7 +217,7 @@ public sealed class SqlServerWeaselModelTest
             DbCommand command = builder.Compile();
             command.CommandText.Should().Contain("is_memory_optimized = 1").And.EndWith(";");
             command.Parameters.Cast<DbParameter>().Select(x => x.Value).Should().Contain(new object[] { "dbo", "QRTZ_TRIGGERS", "QRTZ_LOCKS" })
-                .And.HaveCount(15, "the schema and the fourteen tables");
+                .And.HaveCount(16, "the schema and the fifteen tables");
 
             Func<Task> memoryOptimized = () => guard.CreateDeltaAsync(Reader(typeof(string), "QRTZ_LOCKS", "QRTZ_TRIGGERS"));
             await memoryOptimized.Should().ThrowAsync<SchedulerException>()

@@ -97,7 +97,7 @@ public sealed class WeaselRegistrationTest
         }
 
         (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'REPORTING!_%' ESCAPE '!'"))
-            .Should().Be(14L, "the named scheduler's tables are under its own prefix");
+            .Should().Be(15L, "the named scheduler's tables are under its own prefix");
 
         DatabaseUsage usage = await source.DescribeDatabasesAsync(CancellationToken.None);
         usage.Databases.Should().HaveCount(2);

@@ -91,7 +91,7 @@ public sealed class PostgresWeaselModelTest
         QuartzPostgresFeatureSchema feature = new("Quartz.QRTZM_");
 
         List<Table> tables = feature.Objects.OfType<Table>().ToList();
-        tables.Should().HaveCount(14);
+        tables.Should().HaveCount(15);
         tables.Should().OnlyContain(x => x.Identifier.Schema == "quartz" && x.Identifier.Name.StartsWith("qrtzm_", StringComparison.Ordinal),
             "PostgreSQL folds the unquoted names the store writes, so the model does too");
         tables.Should().OnlyContain(x => x.AddOnlyMigrations, "an application's own columns and indexes are never dropped");
