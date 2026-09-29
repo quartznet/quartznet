@@ -30,6 +30,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Impl.AdoJobStore;
 using Quartz.Weasel.SqlServer;
 
 using Weasel.Core;
@@ -52,6 +53,9 @@ public sealed class SqlServerWeaselModelTest
     /// <summary>A server nothing answers for, refused at once rather than timed out.</summary>
     private const string Unreachable = "Server=tcp:127.0.0.1,1;Database=nowhere;User Id=quartz;Password=unused;Connect Timeout=1;Pooling=false;TrustServerCertificate=true";
 
+    /// <summary>Every table the store knows, required and optional.</summary>
+    private static readonly int QuartzTableCount = AdoConstants.AllTableNames.Length + AdoConstants.OptionalTableNames.Length;
+
     [Test]
     public async Task EveryObjectIsNamedTheWayTheScriptNamesIt()
     {
@@ -61,7 +65,7 @@ public sealed class SqlServerWeaselModelTest
             List<ISchemaObject> objects = database.BuildFeatureSchemas().Single().Objects.ToList();
             List<Table> tables = objects.OfType<Table>().ToList();
 
-            tables.Should().HaveCount(15);
+            tables.Should().HaveCount(QuartzTableCount, "the model has every table the store knows, required and optional");
             tables.Should().OnlyContain(x => x.Identifier.Schema == "dbo" && x.Identifier.Name.StartsWith("QRTZ_", StringComparison.Ordinal),
                 "a prefix with no schema puts the tables where the store's unqualified SQL finds them for a default login");
             tables.Should().OnlyContain(x => x.AddOnlyMigrations, "an application's own columns and indexes are never dropped");
@@ -217,7 +221,7 @@ public sealed class SqlServerWeaselModelTest
             DbCommand command = builder.Compile();
             command.CommandText.Should().Contain("is_memory_optimized = 1").And.EndWith(";");
             command.Parameters.Cast<DbParameter>().Select(x => x.Value).Should().Contain(new object[] { "dbo", "QRTZ_TRIGGERS", "QRTZ_LOCKS" })
-                .And.HaveCount(16, "the schema and the fifteen tables");
+                .And.HaveCount(1 + QuartzTableCount, "the schema and every table");
 
             Func<Task> memoryOptimized = () => guard.CreateDeltaAsync(Reader(typeof(string), "QRTZ_LOCKS", "QRTZ_TRIGGERS"));
             await memoryOptimized.Should().ThrowAsync<SchedulerException>()

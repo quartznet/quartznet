@@ -105,9 +105,9 @@ public sealed class SchemaProvisioningSqliteTest
         await connection.OpenAsync();
 
         (await Scalar(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'QRTZP!_%' ESCAPE '!'"))
-            .Should().Be(15,
+            .Should().Be(AdoConstants.AllTableNames.Length + AdoConstants.OptionalTableNames.Length,
                 "every table Quartz reads or writes is created, under the prefix that was asked for — the "
-                + "twelve every scheduler uses and the three the execution history writes into, which "
+                + "ones every scheduler uses and the optional ones the execution history writes into, which "
                 + "provisioning creates whether or not this store was told to keep one");
 
         (await Scalar(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'QRTZP!_DELETE!_%' ESCAPE '!'"))

@@ -31,6 +31,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
+using Quartz.Impl.AdoJobStore;
 using Quartz.Weasel;
 
 using Weasel.Core;
@@ -97,7 +98,8 @@ public sealed class WeaselRegistrationTest
         }
 
         (await SqliteSchema.ScalarAsync(database.ConnectionString, "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'REPORTING!_%' ESCAPE '!'"))
-            .Should().Be(15L, "the named scheduler's tables are under its own prefix");
+            .Should().Be((long) (AdoConstants.AllTableNames.Length + AdoConstants.OptionalTableNames.Length),
+                "every table the store knows, required and optional, is created under the named scheduler's own prefix");
 
         DatabaseUsage usage = await source.DescribeDatabasesAsync(CancellationToken.None);
         usage.Databases.Should().HaveCount(2);

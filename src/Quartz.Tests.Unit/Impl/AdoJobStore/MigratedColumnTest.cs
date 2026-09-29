@@ -19,198 +19,163 @@
 
 #endregion
 
-using System.Globalization;
-using System.Text.RegularExpressions;
-
 using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
-/// The columns startup probes for are the columns the 3.x-to-4.0 migration adds.
+/// The columns startup probes for are the columns the migrations since 4.0 add, each named beside the
+/// script that adds it.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <see cref="AdoConstants.MigratedColumnNames" /> is what a 4.x store checks is there before it
-/// starts, and a column missing from that list is a column a 3.x database can be missing while the
-/// scheduler starts, reports itself validated and then fails every acquisition for ever. The list that
-/// makes the check complete already exists, in the migrations under <c>database/migrations/</c> that
-/// add a column to a table an earlier release already had — so it is read out of those scripts here
-/// rather than written down twice and kept in step by hand.
+/// starts, and a column missing from that list is a column an older database can be missing while the
+/// scheduler starts, reports itself validated and then fails every acquisition for ever.
+/// <see cref="AdoConstants.OptionalColumnNames" /> is the same for a store keeping its history in the
+/// database. The list that makes both checks complete already exists, in every
+/// <c>ALTER TABLE … ADD</c> under <c>database/migrations/</c> from 4.0 on — so it is read out of the
+/// folders here rather than written down twice, and a new migration needs no edit to this test.
 /// </para>
 /// <para>
 /// The scripts are generated from <c>build/Build.DatabaseMigrations.Scripts.cs</c> and
 /// <c>VerifyMigrations</c> fails a pull request whose copies are stale, so reading them is reading the
-/// generator's own answer: a column added to the migration and not to the constant fails here.
+/// generator's own answer: a column added to a migration and not to the constants fails here, and so
+/// does an entry that names a script other than the one that adds its column.
 /// </para>
 /// </remarks>
 public sealed class MigratedColumnTest
 {
-    private static readonly string[] Dialects =
-        ["sqlServer", "postgres", "mysql_innodb", "oracle", "sqlite", "firebird"];
+    private static readonly string[] Dialects = MigrationFiles.Dialects;
 
-    /// <summary>
-    /// An <c>ALTER TABLE … ADD</c> in any of the six dialects' spellings, guard and all.
-    /// </summary>
-    /// <remarks>
-    /// Each dialect wraps the statement in whatever conditional it has — a <c>DO $$</c> block, a
-    /// prepared statement, an <c>EXECUTE IMMEDIATE</c>, an <c>EXECUTE BLOCK</c> — and SQL Server
-    /// brackets its identifiers while PostgreSQL lower-cases everything. What none of them varies is
-    /// the statement inside, which is what this reads.
-    /// </remarks>
-    private static readonly Regex AddColumn = new(
-        @"ALTER\s+TABLE\s+(?:\[dbo\]\.)?\[?(?<table>\w+)\]?\s+ADD\s+(?:COLUMN\s+)?\(?\[?(?<column>\w+)\]?",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
-    [Test]
-    public void TheProbedColumnsAreTheOnesTheMigrationAdds()
+    [TestCaseSource(nameof(Dialects))]
+    public void TheProbedColumnsAreTheOnesTheMigrationsAdd(string dialect)
     {
-        HashSet<(string Table, string Column)> declared =
-        [
-            .. AdoConstants.MigratedColumnNames.Select(c => (c.Table.ToUpperInvariant(), c.Column.ToUpperInvariant()))
-        ];
+        Dictionary<(string Table, string Column), List<string>> added = ColumnsAddedBy(dialect);
 
-        foreach (string dialect in Dialects)
-        {
-            HashSet<(string Table, string Column)> added = ColumnsAddedBy(dialect);
+        added.Should().HaveCountGreaterThan(4,
+            $"the {dialect} migrations add several columns between them, so a parse that found almost "
+            + "none is a parse that stopped matching rather than a migration that shrank");
 
-            added.Should().HaveCountGreaterThan(4,
-                $"the {dialect} migrations add several columns between them, so a parse that found almost "
-                + "none is a parse that stopped matching rather than a migration that shrank");
-
-            added.Should().BeEquivalentTo(declared,
-                $"AdoConstants.MigratedColumnNames is what startup probes for, and the {dialect} "
-                + "migrations are what an upgraded database has — a column in one and not the other is "
-                + "either a check with a hole in it or a probe for a column nothing creates");
-        }
+        Probed(AdoConstants.MigratedColumnNames.Select(c => (c.Table, c.Column, c.Migration)), dialect).Should().BeEquivalentTo(
+            Added(added, optional: false),
+            $"AdoConstants.MigratedColumnNames is what every scheduler probes for, and the {dialect} migrations "
+            + "are what an upgraded database has — a column in one and not the other is either a check with a "
+            + "hole in it or a probe for a column nothing creates, and an entry naming another script sends "
+            + "the reader of the refusal to the wrong file");
     }
-
-    /// <summary>
-    /// The six scripts add the same columns as each other, which is the claim the check above rests on
-    /// having only one answer to compare against.
-    /// </summary>
-    [Test]
-    public void EveryDialectsMigrationAddsTheSameColumns()
-    {
-        HashSet<(string Table, string Column)> first = ColumnsAddedBy(Dialects[0]);
-
-        foreach (string dialect in Dialects.Skip(1))
-        {
-            ColumnsAddedBy(dialect).Should().BeEquivalentTo(first,
-                $"every migration ships a file for every dialect and they describe one change, so the "
-                + $"{dialect} script and the {Dialects[0]} one have to add the same columns");
-        }
-    }
-
-    /// <summary>
-    /// The migrations whose column additions are probed, as the folder and the file-name shape each
-    /// of them ships per dialect.
-    /// </summary>
-    /// <remarks>
-    /// Five of them since 4.3: a database created by 3.x needs all five, one created by 4.0 or 4.1
-    /// the last four, one created by 4.2 the last three, and what startup probes is the union — which is why
-    /// the union is what this compares against. The optional history migrations are not among them:
-    /// startup probes those only when the history is on, which <c>AdoConstants.OptionalColumnNames</c>
-    /// holds.
-    /// </remarks>
-    private static readonly (string Folder, string FileFormat)[] Migrations =
-    [
-        ("4.0", "schema_30_to_40_upgrade_{0}.sql"),
-        ("4.2", "add_continuations_{0}.sql"),
-        ("4.3", "add_fire_progress_{0}.sql"),
-        ("4.3", "add_overlap_policy_{0}.sql"),
-        ("4.3", "add_pause_reason_{0}.sql")
-    ];
 
     /// <summary>
     /// The optional migrations' column additions, which startup probes only when the feature that
     /// reads them is on — and which therefore must not be in the list every scheduler probes.
     /// </summary>
-    [Test]
-    public void TheOptionalColumnsAreTheOnesTheHistoryMigrationsAdd()
+    [TestCaseSource(nameof(Dialects))]
+    public void TheOptionalColumnsAreTheOnesTheOptionalTablesGain(string dialect)
     {
-        HashSet<(string Table, string Column)> declared =
-        [
-            .. AdoConstants.OptionalColumnNames.Select(c => (c.Table.ToUpperInvariant(), c.Column.ToUpperInvariant()))
-        ];
+        Probed(AdoConstants.OptionalColumnNames.Select(c => (c.Table, c.Column, c.Migration)), dialect).Should().BeEquivalentTo(
+            Added(ColumnsAddedBy(dialect), optional: true),
+            "AdoConstants.OptionalColumnNames is what a store keeping its history in the database probes "
+            + $"for, and the {dialect} migrations that alter an optional table are what add it");
+    }
 
-        foreach (string dialect in Dialects)
-        {
-            ColumnsAddedBy(dialect, OptionalMigrations).Should().BeEquivalentTo(declared,
-                "AdoConstants.OptionalColumnNames is what a store keeping its history in the database "
-                + $"probes for, and the {dialect} optional migrations are what add it");
-        }
-
-        declared.Should().NotIntersectWith(
-            AdoConstants.MigratedColumnNames.Select(c => (c.Table.ToUpperInvariant(), c.Column.ToUpperInvariant())),
-            "a column every scheduler probes for is a migration every database needs, and the history's "
+    [Test]
+    public void NoColumnIsBothProbedAlwaysAndOnlyWithTheFeature()
+    {
+        AdoConstants.OptionalColumnNames.Select(c => (c.Table, c.Column)).Should().NotIntersectWith(
+            AdoConstants.MigratedColumnNames.Select(c => (c.Table, c.Column)),
+            "a column every scheduler probes for is a migration every database needs, and an optional "
             + "table is one a database may never have had");
     }
 
     /// <summary>
-    /// The optional migrations that add a column to a table an optional migration created.
+    /// The six dialects' migrations add the same columns as each other, which is the claim the checks
+    /// above rest on having only one list to compare against.
     /// </summary>
-    private static readonly (string Folder, string FileFormat)[] OptionalMigrations =
-    [
-        ("4.3", "add_execution_log_{0}.sql"),
-        ("4.3", "add_misfire_reason_{0}.sql"),
-        ("4.4", "add_execution_outcome_{0}.sql")
-    ];
+    [Test]
+    public void EveryDialectsMigrationAddsTheSameColumns()
+    {
+        HashSet<(string Table, string Column)> first = [.. ColumnsAddedBy(Dialects[0]).Keys];
+
+        foreach (string dialect in Dialects.Skip(1))
+        {
+            ColumnsAddedBy(dialect).Keys.Should().BeEquivalentTo(first,
+                $"every migration ships a file for every dialect and they describe one change, so the "
+                + $"{dialect} scripts and the {Dialects[0]} ones have to add the same columns");
+        }
+    }
 
     /// <summary>
-    /// What a store keeping its history in the database tells a reader to run: every optional script,
-    /// once, oldest folder first.
+    /// What a store keeping its history in the database tells a reader to run: every script after 4.0
+    /// that creates or alters an optional table, once, in the order the folders run in.
     /// </summary>
     /// <remarks>
     /// The migrations are cumulative, and 4.4's alters the table 4.2's creates, so an order that put a
     /// later folder first would send the reader to a script that fails.
     /// </remarks>
-    [Test]
-    public void TheOptionalMigrationsAreNamedOldestFirst()
+    [TestCaseSource(nameof(Dialects))]
+    public void TheOptionalMigrationsAreNamedOldestFirst(string dialect)
     {
-        AdoConstants.OptionalMigrations.Should().Equal(
-            [
-                AdoConstants.Migration42History,
-                AdoConstants.Migration43ExecutionLog,
-                AdoConstants.Migration43MisfireReason,
-                AdoConstants.Migration44ExecutionOutcome
-            ],
+        HashSet<string> optionalTables = [.. AdoConstants.OptionalTableNames.Select(t => t.Table)];
+
+        List<string> touchingAnOptionalTable = MigrationFiles.For(dialect, "4.0", inclusive: false)
+            .Where(x => MigrationFiles.CreatedTables(x.Text).Any(optionalTables.Contains)
+                        || MigrationFiles.AddedColumns(x.Text).Any(c => optionalTables.Contains(c.Table)))
+            .Select(x => x.Path)
+            .ToList();
+
+        touchingAnOptionalTable.Should().NotBeEmpty("the execution history's own migration creates optional tables");
+
+        AdoConstants.OptionalMigrations.Select(m => MigrationFiles.PathOf(m, dialect)).Should().Equal(touchingAnOptionalTable,
             "the table migration comes before the migrations that alter its tables, whatever order the "
-            + "table and column lists happen to name them in");
+            + "table and column lists happen to name them in, and a script that touches an optional table "
+            + "is one a store keeping its history there needs");
 
         AdoConstants.MigrationVersion("4.10/later_{0}.sql").Should().BeGreaterThan(
             AdoConstants.MigrationVersion("4.9/earlier_{0}.sql"),
             "folders order as releases do, which ordinal string comparison would get wrong");
     }
 
-    private static HashSet<(string Table, string Column)> ColumnsAddedBy(string dialect)
+    /// <summary>
+    /// Each column the migrations from 4.0 on add, and every script that adds it.
+    /// </summary>
+    /// <remarks>
+    /// The constants name a table without the prefix the scripts spell it with, since the prefix is
+    /// configuration and the table name is not.
+    /// </remarks>
+    private static Dictionary<(string Table, string Column), List<string>> ColumnsAddedBy(string dialect)
     {
-        return ColumnsAddedBy(dialect, Migrations);
-    }
+        Dictionary<(string, string), List<string>> added = [];
 
-    private static HashSet<(string Table, string Column)> ColumnsAddedBy(
-        string dialect,
-        (string Folder, string FileFormat)[] migrations)
-    {
-        string script = string.Join(
-            Environment.NewLine,
-            migrations.Select(migration => File.ReadAllText(Path.Combine(
-                RepositoryRoot.Find().FullName,
-                "database", "migrations", migration.Folder,
-                string.Format(CultureInfo.InvariantCulture, migration.FileFormat, dialect)))));
-
-        HashSet<(string, string)> added = [];
-
-        foreach (Match match in AddColumn.Matches(script))
+        foreach ((string path, string text) in MigrationFiles.For(dialect, "4.0", inclusive: true))
         {
-            string table = match.Groups["table"].Value.ToUpperInvariant();
-            string column = match.Groups["column"].Value.ToUpperInvariant();
+            foreach ((string, string) key in MigrationFiles.AddedColumns(text))
+            {
+                if (!added.TryGetValue(key, out List<string> paths))
+                {
+                    added[key] = paths = [];
+                }
 
-            // The constants name a table without the prefix the scripts spell it with, since the
-            // prefix is configuration and the table name is not.
-            added.Add((table.StartsWith("QRTZ_", StringComparison.Ordinal) ? table[5..] : table, column));
+                if (!paths.Contains(path, StringComparer.Ordinal))
+                {
+                    paths.Add(path);
+                }
+            }
         }
 
         return added;
     }
+
+    /// <summary>
+    /// The additions to a required table, or to an optional one, as table, column and every script
+    /// that adds the column — one script, when the migrations are what they should be.
+    /// </summary>
+    private static List<string> Added(Dictionary<(string Table, string Column), List<string>> added, bool optional) => added
+        .Where(x => AdoConstants.OptionalTableNames.Any(t => t.Table == x.Key.Table) == optional)
+        .Select(x => $"{x.Key.Table}.{x.Key.Column} from {string.Join(" and ", x.Value)}")
+        .ToList();
+
+    /// <summary>The constants' entries in the same shape, with each migration formatted for the dialect.</summary>
+    private static List<string> Probed(IEnumerable<(string Table, string Column, string Migration)> entries, string dialect) => entries
+        .Select(c => $"{c.Table.ToUpperInvariant()}.{c.Column.ToUpperInvariant()} from {MigrationFiles.PathOf(c.Migration, dialect)}")
+        .ToList();
 }
