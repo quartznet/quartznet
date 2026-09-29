@@ -105,4 +105,53 @@
 
   </PropertyGroup>
 
+  <!--
+    The test projects, by name. Quartz.Tests.Integration.MixedVersionNode and .Seeder are programs a
+    test starts, not tests, so a pattern would sweep them in. Decided here rather than in each project
+    file because NUnit3TestAdapter's targets read EnableNUnitRunner as they are imported, before
+    Directory.Build.targets. A new test project joins this list, or it builds without NUnit.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Quartz.Tests.Unit' or '$(MSBuildProjectName)' == 'Quartz.Tests.AspNetCore' or '$(MSBuildProjectName)' == 'Quartz.Tests.Integration' or '$(MSBuildProjectName)' == 'Quartz.Tests.Interceptors' or '$(MSBuildProjectName)' == 'Quartz.Analyzers.Tests'">
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <!--
+    Every test project is a Microsoft.Testing.Platform application run by NUnit's runner, and global.json
+    puts `dotnet test` in its MTP mode (#3970). Each one carries the same extensions, because an option
+    passed to a project that lacks the extension behind it fails the run with exit code 5.
+  -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <OutputType>Exe</OutputType>
+    <EnableNUnitRunner>true</EnableNUnitRunner>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="NUnit3TestAdapter" />
+    <!--
+      Not needed by MTP, and kept for JetBrains Rider: its test explorer does not discover NUnit tests on
+      MTP without the Test SDK (https://youtrack.jetbrains.com/issue/RIDER-131530, open;
+      https://youtrack.jetbrains.com/issue/RSRP-498837 fixed discovery without it for xUnit only), so
+      Rider runs them through VSTest, which NUnit3TestAdapter still serves. Kept on CI too, so CI builds
+      what a developer runs; with EnableNUnitRunner the adapter turns the SDK's entry point off.
+    -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <!-- The coverage UnitTest collects for Sonar. coverlet.collector is a VSTest data collector. -->
+    <PackageReference Include="coverlet.MTP" />
+    <!-- Annotations and job summaries on GitHub Actions. The generated entry point names its type. -->
+    <PackageReference Include="GitHubActionsTestLogger" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CrashDump" />
+    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+    <!--
+      coverlet.MTP's settings, beside each test application as <assembly>.testconfig.json, where it looks.
+      Only a file states them exactly: on the command line coverlet.MTP adds GeneratedCodeAttribute and
+      CompilerGeneratedAttribute to its exclusions, which drops every async method body, and it instruments
+      packages that ship symbols. The file restates what coverlet.collector ran with, so Sonar measures what
+      it measured before, and leaves out Quartz.Tests.AspNetCore.Host, which is test code.
+    -->
+    <None Include="$(MSBuildThisFileDirectory)testconfig.json" Link="$(AssemblyName).testconfig.json" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
 </Project>

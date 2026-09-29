@@ -124,6 +124,8 @@ updates:
         patterns:
           - "NUnit*"
           - "Microsoft.NET.Test.Sdk"
+          - "Microsoft.Testing.*"
+          - "coverlet*"
           - "Microsoft.AspNetCore.Mvc.Testing"
           - "Microsoft.Extensions.Diagnostics.Testing"
           - "Microsoft.Extensions.TimeProvider.Testing"

@@ -18,6 +18,7 @@ using Fallout.Common.Git;
 using Fallout.Common.IO;
 using Fallout.Common.Tooling;
 using Fallout.Common.Tools.DotNet;
+using Fallout.Common.Utilities;
 using Fallout.Common.Utilities.Collections;
 using Fallout.Components;
 using Fallout.Solutions;
@@ -46,8 +47,8 @@ partial class Build : FalloutBuild, ICompile, IPack
 
     /// <summary>
     /// How long the unit test host may go without finishing a test before it is declared hung, dumped
-    /// and killed. Per host, not per run: the blame collector resets this on every test that starts or
-    /// ends, so it only expires once nothing in the host has moved for the whole of it.
+    /// and killed. Per host, not per run: HangDump starts the wait again whenever a test finishes, so it
+    /// only expires once nothing in the host has moved for the whole of it.
     /// </summary>
     /// <remarks>
     /// The slowest unit test takes seconds and the whole suite about two minutes, so three minutes of
@@ -416,7 +417,6 @@ partial class Build : FalloutBuild, ICompile, IPack
         .Before<IPack>()
         .Executes(() =>
         {
-            var configuration = ((ICompile) this).Configuration;
             // Quartz.Analyzers.Tests is a unit project like the other two, and it is in this list
             // rather than a leg of its own for the reason it matters: --coverage collects from what
             // this target runs, and SonarCloud's new-code condition reads nothing else. An analyzer
@@ -436,37 +436,83 @@ partial class Build : FalloutBuild, ICompile, IPack
             var resultsDirectory = Coverage ? CoverageDirectory : TestResultsDirectory;
             resultsDirectory.CreateOrCleanDirectory();
 
-            DotNetTest(s =>
-            {
-                s = s.EnableNoRestore()
-                    .EnableNoBuild()
-                    .SetConfiguration(configuration)
-                    .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : [])
-                    .SetResultsDirectory(resultsDirectory)
-                    // A test that hangs has to name itself: the blame collector kills a host that has
-                    // finished nothing for UnitTestHangTimeout, fails the run, and writes a
-                    // Sequence_*.xml listing the tests that were in flight beside a mini dump of the
-                    // host. Without it the run sits until the job's timeout cancels it, and a cancelled
-                    // job keeps no output at all. ConfigureSteps uploads the directory when a job fails.
-                    .EnableBlameHang()
-                    .SetBlameHangTimeout($"{(int) UnitTestHangTimeout.TotalMinutes}m")
-                    .SetBlameHangDumpType("mini");
-
-                if (Coverage)
-                {
-                    // Opt-in, because instrumenting every assembly costs test time that only the Sonar
-                    // analysis has a use for — the other workflows run the same target without it. coverlet
-                    // writes one <guid>/coverage.opencover.xml per run below the results directory, which is
-                    // the layout sonar.cs.opencover.reportsPaths globs for in .github/workflows/sonar.yml.
-                    s = s.SetDataCollector("XPlat Code Coverage;Format=opencover");
-                }
-
-                return s.CombineWith(testRuns, (_, run) => _
-                    .SetProjectFile(run.Project)
-                    .SetFramework(run.Framework)
-                );
-            });
+            RunTests(testRuns, resultsDirectory, run =>
+            [
+                // A test that hangs has to name itself: HangDump kills a host in which no test has
+                // finished for UnitTestHangTimeout, fails the run, and writes <host>_<pid>_hang.log
+                // listing the tests that were in flight beside a mini dump of the host. Without it the
+                // run sits until the job's timeout cancels it, and a cancelled job keeps no output at
+                // all. A host that crashes leaves <host>_<pid>_crash.dmp instead, beside a
+                // *_crash.sequence.log whose last STARTED line is the test that was running.
+                // ConfigureSteps uploads the directory when a job fails.
+                "--hangdump", "--hangdump-timeout", $"{(int) UnitTestHangTimeout.TotalMinutes}m", "--hangdump-type", "Mini",
+                "--crashdump", "--crashdump-type", "Mini",
+                // Opt-in, because instrumenting every assembly costs test time that only the Sonar
+                // analysis has a use for — the other workflows run the same target without it.
+                // coverlet.MTP writes <project>.coverage.opencover.<timestamp>.xml into the results
+                // directory, which is what sonar.cs.opencover.reportsPaths globs for in
+                // .github/workflows/sonar.yml. What it instruments is set in testconfig.json.
+                .. Coverage ? ["--coverlet", "--coverlet-output-format", "opencover", "--coverlet-file-prefix", run.Project.Name] : Array.Empty<string>(),
+            ]);
         });
+
+    /// <summary>
+    /// Runs test projects in the Microsoft.Testing.Platform mode of <c>dotnet test</c>, which
+    /// <c>global.json</c> selects (#3970), and leaves what each one writes in
+    /// <paramref name="resultsDirectory" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="DotNetTestSettings" /> is shaped for VSTest mode: it names the project positionally,
+    /// and its logger, collector and blame members mean nothing to a test application. It carries only
+    /// the options the two modes share. The rest is written out here: <c>--project</c>, then, after a
+    /// literal <c>--</c>, options of the extensions <c>Directory.Build.props</c> gives every test
+    /// project. The separator stops <c>dotnet test</c> from reading one of those as its own.
+    /// </para>
+    /// <para>
+    /// Every run writes a TRX named after its project, and on GitHub Actions annotates its failures and
+    /// writes a job summary.
+    /// </para>
+    /// </remarks>
+    void RunTests(
+        (Project Project, string Framework)[] testRuns,
+        AbsolutePath resultsDirectory,
+        Func<(Project Project, string Framework), string[]> applicationArguments)
+    {
+        var configuration = ((ICompile) this).Configuration;
+
+        DotNetTest(s => s
+            .EnableNoRestore()
+            .EnableNoBuild()
+            .SetConfiguration(configuration)
+            .SetResultsDirectory(resultsDirectory)
+            .SetProcessLogger(LogTestOutput)
+            .CombineWith(testRuns, (_, run) => _
+                .SetFramework(run.Framework)
+                .SetProcessAdditionalArguments(
+                [
+                    "--project", run.Project.Path.ToString().DoubleQuoteIfNeeded(),
+                    "--",
+                    "--report-trx", "--report-trx-filename", $"{run.Project.Name}.{run.Framework}.trx",
+                    .. GitHubActions.Instance is not null ? ["--report-github"] : Array.Empty<string>(),
+                    .. applicationArguments(run).Select(x => x.DoubleQuoteIfNeeded()),
+                ])));
+    }
+
+    /// <summary>
+    /// Logs a test run's output, and hands a GitHub Actions workflow command in it to the runner intact.
+    /// </summary>
+    /// <remarks>
+    /// <c>dotnet test</c> in MTP mode replays a failed test application's output indented under
+    /// "Standard output:". Fallout's GitHub Actions host passes a line to the runner untouched only when
+    /// it begins with <c>::</c>, and logs anything else behind a timestamp, where the runner no longer
+    /// reads it as a command. The reporter's failure annotations are such lines, so the indent comes off.
+    /// </remarks>
+    static void LogTestOutput(OutputType type, string text)
+    {
+        string command = text.TrimStart();
+        ProcessTasks.DefaultLogger(type, command.StartsWith("::", StringComparison.Ordinal) ? command : text);
+    }
 
     /// <summary>
     /// Executes every benchmark once and fails the leg when one of them does not run to completion.
@@ -855,7 +901,6 @@ partial class Build : FalloutBuild, ICompile, IPack
 
             var filter = GetTestFilter(database);
 
-            var configuration = ((ICompile) this).Configuration;
             var testRuns = GetTestRuns("Quartz.Tests.Integration");
 
             foreach (var (project, framework) in testRuns)
@@ -864,23 +909,10 @@ partial class Build : FalloutBuild, ICompile, IPack
                     database ?? "all", project.Name, framework);
             }
 
-            DotNetTest(s =>
-            {
-                s = s.EnableNoRestore()
-                    .EnableNoBuild()
-                    .SetConfiguration(configuration)
-                    .SetLoggers("GitHubActions");
-
-                if (!string.IsNullOrEmpty(filter))
-                {
-                    s = s.SetFilter(filter);
-                }
-
-                return s.CombineWith(testRuns, (_, run) => _
-                    .SetProjectFile(run.Project)
-                    .SetFramework(run.Framework)
-                );
-            });
+            // The unit tests' results directory, and not cleaned: the build job runs UnitTest first and
+            // uploads the directory when either fails. The filter is NUnit's, which reads the same
+            // TestCategory expressions under Microsoft.Testing.Platform as it did under VSTest.
+            RunTests(testRuns, TestResultsDirectory, _ => ["--filter", filter]);
         });
 
     public Configure<DotNetPackSettings> PackSettings => _ => _

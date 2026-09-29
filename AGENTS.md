@@ -203,19 +203,14 @@ build.cmd
 ./build.sh
 ```
 
-Run unit tests:
+Run unit tests, or one by name. `global.json` selects Microsoft.Testing.Platform, which has no `--logger`, `--collect` or `--blame-*`:
 
 ```shell
-dotnet test src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj
+dotnet test --project src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj
+dotnet test --project src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj --filter "FullyQualifiedName~CronExpressionTest.TestIsSatisfiedBy"
 ```
 
-Run a single test by fully-qualified name:
-
-```shell
-dotnet test src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj --filter "FullyQualifiedName~CronExpressionTest.TestIsSatisfiedBy"
-```
-
-Integration tests require a running Docker daemon (containers are provisioned by Testcontainers for .NET) and are run via:
+Integration tests need a running Docker daemon (Testcontainers provisions the databases):
 
 ```shell
 .\build.cmd Compile UnitTest IntegrationTest

@@ -56,14 +56,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// </para>
 /// <para>
 /// It runs in the PostgreSQL leg. Against a server at its shipped durability — the Testcontainers one
-/// runs with <c>fsync</c> off — it runs like this, and the report goes to the detailed console log:
+/// runs with <c>fsync</c> off — it runs like this, and the report goes to the detailed output:
 /// </para>
 /// <code>
 /// docker run -d --name g8-pg -e POSTGRES_USER=quartznet -e POSTGRES_PASSWORD=quartznet -e POSTGRES_DB=quartznet -p 55432:5432 postgres:15.1
 /// $env:QUARTZ_TEST_DATABASE = 'basic'   # start no container
 /// $env:PG_CONNECTION_STRING = 'Host=localhost;Port=55432;Database=quartznet;Username=quartznet;Password=quartznet'
-/// dotnet test src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj `
-///   --filter 'FullyQualifiedName~MixedVersionClusterPostgresTest' --logger 'console;verbosity=detailed'
+/// dotnet test --project src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj `
+///   --filter 'FullyQualifiedName~MixedVersionClusterPostgresTest' --output Detailed
 /// </code>
 /// </remarks>
 [NonParallelizable]

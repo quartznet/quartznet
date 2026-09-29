@@ -1,0 +1,9 @@
+{
+  "platformOptions": {
+    "Coverlet": {
+      "exclude": "[coverlet.*]*,[xunit.*]*,[NUnit3.*]*,[Microsoft.Testing.*]*,[Microsoft.Testplatform.*]*,[Microsoft.VisualStudio.TestPlatform.*]*,[Quartz.Tests.AspNetCore.Host]*",
+      "excludeAssembliesWithoutSources": "MissingAll",
+      "format": "opencover"
+    }
+  }
+}

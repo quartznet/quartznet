@@ -2,18 +2,18 @@ namespace Quartz.Tests.AspNetCore.Support;
 
 /// <summary>
 /// Where <see cref="Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory{TEntryPoint}" /> should think
-/// this test assembly's application lives.
+/// the application it runs, <c>Quartz.Tests.AspNetCore.Host</c>, lives.
 /// </summary>
 /// <remarks>
 /// The factory otherwise derives the content root from a build-time manifest, which does not survive
 /// every way this suite is run. Setting
-/// <c>ASPNETCORE_TEST_CONTENTROOT_QUARTZ_TESTS_ASPNETCORE</c> to the answer is the documented override,
-/// and the answer is found by walking up to the project rather than hard-coded, so it holds whatever the
-/// output path is.
+/// <c>ASPNETCORE_TEST_CONTENTROOT_QUARTZ_TESTS_ASPNETCORE_HOST</c> — named after the assembly that holds
+/// <c>Program</c> — to the answer is the documented override, and the answer is found by walking up to
+/// the project rather than hard-coded, so it holds whatever the output path is.
 /// </remarks>
 internal static class TestContentRoot
 {
-    internal const string EnvironmentVariable = "ASPNETCORE_TEST_CONTENTROOT_QUARTZ_TESTS_ASPNETCORE";
+    internal const string EnvironmentVariable = "ASPNETCORE_TEST_CONTENTROOT_QUARTZ_TESTS_ASPNETCORE_HOST";
 
     /// <summary>
     /// Points the factory's content root at this test project, and answers where that is.
@@ -30,10 +30,10 @@ internal static class TestContentRoot
         DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            string projectFilePath = Path.Combine(directory.FullName, "src", "Quartz.Tests.AspNetCore", "Quartz.Tests.AspNetCore.csproj");
+            string projectFilePath = Path.Combine(directory.FullName, "src", "Quartz.Tests.AspNetCore.Host", "Quartz.Tests.AspNetCore.Host.csproj");
             if (File.Exists(projectFilePath))
             {
-                return Path.Combine(directory.FullName, "src", "Quartz.Tests.AspNetCore");
+                return Path.Combine(directory.FullName, "src", "Quartz.Tests.AspNetCore.Host");
             }
 
             directory = directory.Parent;

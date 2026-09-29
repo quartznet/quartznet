@@ -3,7 +3,6 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <GenerateProgramFile>false</GenerateProgramFile>
     <SonarQubeExclude>true</SonarQubeExclude>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -32,10 +31,6 @@
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="AwesomeAssertions.Analyzers" />
     <PackageReference Include="bunit" />
-    <PackageReference Include="coverlet.collector">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <!-- A file-backed SQLite database is what lets the HTTP API and dashboard fixtures run their
@@ -43,13 +38,6 @@
          schema, so nothing else is needed. -->
     <PackageReference Include="Microsoft.Data.SQLite" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="NUnit" />
-    <PackageReference Include="NUnit.Analyzers">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="NUnit3TestAdapter" />
     <PackageReference Include="PublicApiGenerator" />
     <PackageReference Include="Verify.NUnit" />
   </ItemGroup>
@@ -59,11 +47,8 @@
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="appsettings.json" />
-    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The application WebApplicationFactory<Program> runs; that project says why it is separate. -->
+    <ProjectReference Include="..\Quartz.Tests.AspNetCore.Host\Quartz.Tests.AspNetCore.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>

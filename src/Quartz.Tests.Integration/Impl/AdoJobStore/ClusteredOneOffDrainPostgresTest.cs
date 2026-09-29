@@ -23,16 +23,16 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <para>
 /// <b>A measurement, not a CI leg.</b> <c>LongRunning</c> keeps it out of every integration leg
 /// (<c>build/Build.cs</c>, <c>GetTestFilter</c>). It asserts only that every one-off ran exactly once;
-/// the verdict is written to <c>TestContext.Out</c>, so run it with the detailed console logger, and
+/// the verdict is written to <c>TestContext.Out</c>, so run it with detailed output, and
 /// against a PostgreSQL at its shipped durability — the Testcontainers one runs with <c>fsync</c> off,
 /// where a commit costs nothing and a batch has nothing to save:
 /// </para>
 /// <code>
 /// $env:QUARTZ_TEST_DATABASE = 'basic'   # start no container
 /// $env:PG_CONNECTION_STRING = 'Host=localhost;Port=55432;Database=quartznet;Username=quartznet;Password=quartznet'
-/// dotnet test src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj `
+/// dotnet test --project src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj `
 ///   --filter 'FullyQualifiedName~ClusteredOneOffDrainPostgresTest' `
-///   --logger 'console;verbosity=detailed'
+///   --output Detailed
 /// </code>
 /// <para>
 /// <b>What passes.</b> The default's drain on two nodes is at least 1.2 times as fast as one trigger a

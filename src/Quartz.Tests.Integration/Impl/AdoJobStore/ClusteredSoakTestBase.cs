@@ -22,13 +22,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <code>
 /// $env:QUARTZ_TEST_DATABASE = 'postgres'
 /// $env:QUARTZ_SOAK_MINUTES  = '30'
-/// dotnet test src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj `
+/// dotnet test --project src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj `
 ///   --filter 'FullyQualifiedName~ClusteredSoakPostgresTest' `
-///   --logger 'console;verbosity=detailed'
+///   --output Detailed
 /// </code>
 /// <para>
-/// The logger argument is what makes the run worth doing by hand: the report below is written to
-/// <c>TestContext.Out</c>, and the default console verbosity prints a passing test's output nowhere.
+/// <c>--output Detailed</c> is what makes the run worth doing by hand: the report below is written to
+/// <c>TestContext.Out</c>, and the default output prints a passing test's output nowhere.
 /// </para>
 /// <para>
 /// <b>What it is for.</b> Every other clustered fixture here asserts one property over a run of

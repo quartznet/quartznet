@@ -69,7 +69,7 @@ using Quartz.Build;
     CacheKeyFiles = [],
     // Fifteen rather than ten so that a hung unit test host is named rather than cancelled: on
     // windows-latest the unit tests begin about five and a half minutes in, the suite takes two, and
-    // the blame collector needs UnitTestHangTimeout of silence before it dumps and kills the host.
+    // HangDump needs UnitTestHangTimeout of silence before it dumps and kills the host.
     // Ten minutes held a green run and nothing else — see UnitTestHangTimeout in Build.cs.
     TimeoutMinutes = 15,
     ReadPermissions = [GitHubActionsPermissions.Contents]
@@ -109,9 +109,10 @@ public partial class Build : IConfigureGitHubActions
 {
     /// <summary>
     /// Every job that runs <see cref="UnitTest"/> keeps what the run left in <c>artifacts/test-results</c>
-    /// when it fails: the blame collector's <c>Sequence_*.xml</c> naming the tests that were in flight
-    /// when it declared the host hung, and the mini dump of that host. Nothing is uploaded from a green
-    /// job, and a few days is long enough to read a dump.
+    /// when it fails: a TRX per test project, and from a hung host HangDump's <c>*_hang.log</c> naming
+    /// the tests that were in flight beside a mini dump of it (<c>*_crash.dmp</c> and
+    /// <c>*_crash.sequence.log</c> from one that crashed). Nothing is uploaded from a green job, and a
+    /// few days is long enough to read a dump.
     /// </summary>
     public void ConfigureSteps(GitHubActionsStepPipeline pipeline)
     {

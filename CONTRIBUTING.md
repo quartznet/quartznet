@@ -20,6 +20,37 @@ Run `build.cmd` or `build.sh` from the command line. The scripts restore the [Fa
 
 ## Testing
 
+Run a test project, or part of one, with `dotnet test --project`. The tests are NUnit on
+Microsoft.Testing.Platform (MTP), and `global.json` puts `dotnet test` in its MTP mode:
+
+```shell
+dotnet test --project src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj
+dotnet test --project src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj --filter "FullyQualifiedName~CronExpressionTest"
+```
+
+`--filter` takes the same expressions as before. VSTest's options do not exist in MTP mode:
+
+| VSTest | MTP |
+| --- | --- |
+| `--logger trx` | `--report-trx` |
+| `--logger "console;verbosity=detailed"` | `--output Detailed` |
+| `--collect "XPlat Code Coverage"` | `--coverlet`, configured in `testconfig.json` |
+| `--blame-hang --blame-hang-timeout 3m` | `--hangdump --hangdump-timeout 3m` |
+| `--blame-crash` | `--crashdump` |
+
+### Running tests in Rider, Visual Studio and VS Code
+
+* **Rider** needs `Microsoft.NET.Test.Sdk` to discover NUnit tests on MTP
+  ([RIDER-131530](https://youtrack.jetbrains.com/issue/RIDER-131530)), so every test project keeps it and
+  Rider runs them through VSTest. Its "Enable Testing Platform support" setting is optional.
+* **Rider 2026.1 and 2026.2** delete `global.json`'s `test` section when "Manage .NET SDK" saves the file
+  ([RIDER-140778](https://youtrack.jetbrains.com/issue/RIDER-140778), fixed in 2026.3). Put it back;
+  `TestRunnerConfigurationTest` fails until you do.
+* **Visual Studio and VS Code** need no setup of their own. Each test project runs under MTP and under
+  VSTest.
+
+### Integration tests
+
 Integration tests provision their database dependencies through Testcontainers for .NET.
 
 * Ensure your Docker daemon is running
