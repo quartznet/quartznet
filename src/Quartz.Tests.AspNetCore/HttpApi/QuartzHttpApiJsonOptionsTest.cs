@@ -7,6 +7,9 @@ using Microsoft.Extensions.Options;
 
 using Quartz.AspNetCore.HttpApi;
 using Quartz.HttpApiContract;
+using Quartz.Serialization.SystemTextJson;
+
+using ProblemDetails = Microsoft.AspNetCore.Mvc.ProblemDetails;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
 
@@ -84,6 +87,36 @@ public class QuartzHttpApiJsonOptionsTest
 
         SerializerOptions(services).TypeInfoResolverChain.Count(resolver => resolver is HttpApiJsonContext).Should().Be(1,
             "serving a second scheduler over HTTP must not stack the contract onto the container's options twice, any more than it stacks the converters");
+    }
+
+    [Test]
+    public void ProblemDetailsAreWrittenByOptionsThatHaveNoReflection()
+    {
+        // What a trimmed host's options hold: its own generated metadata and no reflection resolver. A chain
+        // that is not empty is left without reflection by Quartz too, as a trimmed publish leaves it.
+        JsonOptions options = new();
+        options.SerializerOptions.TypeInfoResolverChain.Clear();
+        options.SerializerOptions.TypeInfoResolverChain.Add(new ApplicationOwnMetadata());
+
+        new QuartzJsonOptionsSetup(new SystemTextJsonSerializerRegistry()).Configure(options);
+
+        ProblemDetails problem = new() { Status = 404, Detail = "no such job" };
+        problem.Extensions[HttpApiConstants.ProblemDetailsExceptionType] = "NotFoundException";
+
+        string json = JsonSerializer.Serialize(problem, options.SerializerOptions);
+
+        json.Should().Contain("\"detail\":\"no such job\"",
+            "Results.Problem writes through these options, and without metadata for ProblemDetails it throws rather than answering");
+        json.Should().Contain($"\"{HttpApiConstants.ProblemDetailsExceptionType}\":\"NotFoundException\"",
+            "the members Quartz adds to Extensions are strings, and they are written as their runtime type");
+    }
+
+    /// <summary>
+    /// An application's own source-generated metadata, which knows nothing of <see cref="ProblemDetails" />.
+    /// </summary>
+    private sealed class ApplicationOwnMetadata : IJsonTypeInfoResolver
+    {
+        public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options) => null;
     }
 
     private static int QuartzConverterCount(IServiceCollection services)
