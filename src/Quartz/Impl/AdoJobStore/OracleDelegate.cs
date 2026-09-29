@@ -46,6 +46,9 @@ public class OracleDelegate : StdAdoDelegate
         AdoConstants.ColumnPausedBy => 800,
         AdoConstants.ColumnProgressMessage => 1000,
         AdoConstants.ColumnErrorMessage => 4000,
+        AdoConstants.ColumnSummary => 4000,
+        AdoConstants.ColumnLastSummary => 4000,
+        AdoConstants.ColumnLastFailureMessage => 4000,
         _ => null,
     };
 

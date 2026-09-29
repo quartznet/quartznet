@@ -146,7 +146,7 @@ internal sealed class AttachedStore : IAsyncDisposable
     /// </summary>
     /// <remarks>
     /// <para>
-    /// One store for every window of this target rather than one each: the two history tables are keyed
+    /// One store for every window of this target rather than one each: the three history tables are keyed
     /// by scheduler name and every query carries one, so a second instance would only be a second
     /// connection doing the same work.
     /// </para>

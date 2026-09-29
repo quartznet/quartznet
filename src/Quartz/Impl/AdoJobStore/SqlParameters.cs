@@ -263,6 +263,67 @@ internal static class SqlParameters
     /// <summary>The instant the retention sweep deletes below.</summary>
     public const string HistoryCutoff = "historyCutoff";
 
+    /// <summary>What a history row's run achieved, the integer of <see cref="JobRunResult" />.</summary>
+    public const string HistoryResult = "historyResult";
+
+    /// <summary>A history row's summary, cut to its column.</summary>
+    public const string HistorySummary = "historySummary";
+
+    /// <summary>A history row's metrics, as JSON.</summary>
+    public const string HistoryMetrics = "historyMetrics";
+
+    /// <summary>Whether <c>TriggerJob</c> asked for a history row's run.</summary>
+    public const string HistoryManual = "historyManual";
+
+    /// <summary>The firing a history row records, as its span and log scope name it.</summary>
+    public const string HistoryFireInstanceId = "historyFireInstanceId";
+
+    /// <summary>The instant a history page starts at, inclusive.</summary>
+    public const string HistoryFiredFrom = "historyFiredFrom";
+
+    /// <summary>The instant a history page ends at, exclusive.</summary>
+    public const string HistoryFiredBefore = "historyFiredBefore";
+
+    /// <summary>
+    /// The <see cref="Succeeded" /> a row written before 4.4 carries when its result is
+    /// <see cref="JobRunResult.Succeeded" />, for the result predicate that reads such a row.
+    /// </summary>
+    public const string HistoryLegacySucceeded = "historyLegacySucceeded";
+
+    /// <summary>
+    /// The <see cref="Succeeded" /> a row written before 4.4 carries when its result is
+    /// <see cref="JobRunResult.Failed" />.
+    /// </summary>
+    public const string HistoryLegacyFailed = "historyLegacyFailed";
+
+    /// <summary>
+    /// The <see cref="Succeeded" /> that makes a row without a result one that did not fail, for the
+    /// predicate the per-job cap counts through.
+    /// </summary>
+    public const string HistoryNotFailedSucceeded = "historyNotFailedSucceeded";
+
+    /// <summary>How many rows of one job the per-job cap keeps.</summary>
+    public const string HistoryJobCap = "historyJobCap";
+
+    // JOB_STATUS, which the ADO-backed execution history keeps beside its rows. The insert names each
+    // column once; the updates' placeholders are generated per occurrence by JobStatusStatement, because
+    // the fire time is compared column by column and a dialect that binds by position needs one
+    // parameter per placeholder.
+
+    public const string StatusFirstFiredTime = "statusFirstFiredTime";
+    public const string StatusLastFiredTime = "statusLastFiredTime";
+    public const string StatusLastResult = "statusLastResult";
+    public const string StatusLastRunTime = "statusLastRunTime";
+    public const string StatusLastInstanceName = "statusLastInstanceName";
+    public const string StatusLastEntryId = "statusLastEntryId";
+    public const string StatusLastSummary = "statusLastSummary";
+    public const string StatusLastSuccessTime = "statusLastSuccessTime";
+    public const string StatusLastFailureTime = "statusLastFailureTime";
+    public const string StatusLastFailureMessage = "statusLastFailureMessage";
+    public const string StatusConsecutiveFailures = "statusConsecutiveFailures";
+    public const string StatusRunCount = "statusRunCount";
+    public const string StatusFailureCount = "statusFailureCount";
+
     // Paging, for the dialects whose clause takes its bounds as parameters.
 
     public const string PageSkip = "pageSkip";

@@ -191,7 +191,8 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// <remarks>
     /// <para>
     /// Asked only for the text columns the store cuts to fit rather than refusing a long value for:
-    /// <c>PAUSE_REASON</c>, <c>PAUSED_BY</c>, <c>PROGRESS_MESSAGE</c> and <c>ERROR_MESSAGE</c>.
+    /// <c>PAUSE_REASON</c>, <c>PAUSED_BY</c>, <c>PROGRESS_MESSAGE</c>, <c>ERROR_MESSAGE</c>,
+    /// <c>SUMMARY</c>, <c>LAST_SUMMARY</c> and <c>LAST_FAILURE_MESSAGE</c>.
     /// </para>
     /// <para>
     /// The dialect's own knowledge rather than something read from the database. The store's startup

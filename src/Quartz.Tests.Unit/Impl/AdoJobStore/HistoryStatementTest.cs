@@ -21,6 +21,9 @@
 
 #nullable enable
 
+using System.Reflection;
+using System.Text.RegularExpressions;
+
 using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
@@ -81,7 +84,10 @@ public sealed class HistoryStatementTest
             StdAdoConstants.SqlCountExecutionHistory,
             StdAdoConstants.SqlDeleteExecutionHistoryBefore,
             StdAdoConstants.SqlSelectExecutionHistoryCountBoundary,
-            StdAdoConstants.SqlSelectExecutionHistoryBatchBoundary
+            StdAdoConstants.SqlSelectExecutionHistoryBatchBoundary,
+            StdAdoConstants.SqlSelectExecutionHistoryFiredTimeBefore,
+            StdAdoConstants.SqlSelectExecutionHistoryFiredTime,
+            StdAdoConstants.SqlSelectJobsOverHistoryCap
         ];
 
         executions.Should().AllSatisfy(sql =>
@@ -120,5 +126,129 @@ public sealed class HistoryStatementTest
 
         StdAdoConstants.SqlOrderByMisfireHistory.Should()
             .Be($" ORDER BY {AdoConstants.ColumnMisfireTime} DESC, {AdoConstants.ColumnEntryId} DESC");
+    }
+
+    private static readonly JobStatusStatement[] statusUpdates =
+    [
+        StdAdoConstants.SqlUpdateJobStatusSucceeded,
+        StdAdoConstants.SqlUpdateJobStatusFailedFinally,
+        StdAdoConstants.SqlUpdateJobStatusFailedRetried,
+        StdAdoConstants.SqlUpdateJobStatusOther
+    ];
+
+    /// <summary>
+    /// Each placeholder of a status update is a parameter of its own, bound in the order the statement
+    /// names it.
+    /// </summary>
+    /// <remarks>
+    /// The fire time is compared once per column. A provider that binds by position takes one value per
+    /// placeholder in order, so one name used twice would leave every later value one place off.
+    /// </remarks>
+    [Test]
+    public void EveryStatusUpdatePlaceholderIsAParameterOfItsOwnInOrder()
+    {
+        foreach (JobStatusStatement statement in statusUpdates)
+        {
+            List<string> placeholders = [.. Regex.Matches(statement.Sql, "@([A-Za-z0-9_]+)").Select(match => match.Groups[1].Value)];
+
+            placeholders.Should().Equal(statement.Parameters.Select(parameter => parameter.Name),
+                "the binder walks Parameters, so they are the statement's placeholders in its order");
+            placeholders.Should().OnlyHaveUniqueItems("a name bound twice is a value short for a positional provider");
+        }
+    }
+
+    /// <summary>
+    /// <c>LAST_FIRED_TIME</c> is the last column a status update assigns, and <c>LAST_FAILURE_MESSAGE</c>
+    /// comes before <c>LAST_FAILURE_TIME</c>.
+    /// </summary>
+    /// <remarks>
+    /// MySQL evaluates a <c>SET</c> list left to right, so an expression after an assignment reads the new
+    /// value: a <c>LAST_*</c> column assigned after <c>LAST_FIRED_TIME</c> would compare the execution with
+    /// itself and always move.
+    /// </remarks>
+    [Test]
+    public void EveryStatusUpdateAssignsTheInstantsItComparesAgainstLast()
+    {
+        foreach (JobStatusStatement statement in statusUpdates)
+        {
+            List<string> assigned = Assignments(statement.Sql);
+
+            assigned.Should().EndWith(AdoConstants.ColumnLastFiredTime, "every other column compares against it");
+
+            if (assigned.Contains(AdoConstants.ColumnLastFailureTime))
+            {
+                assigned.IndexOf(AdoConstants.ColumnLastFailureMessage).Should().BeLessThan(
+                    assigned.IndexOf(AdoConstants.ColumnLastFailureTime),
+                    "the message moves with the failure time it is compared against");
+            }
+        }
+    }
+
+    [Test]
+    public void EachStatusUpdateMovesWhatItsKindOfRunMoves()
+    {
+        Assignments(StdAdoConstants.SqlUpdateJobStatusSucceeded.Sql).Should()
+            .Contain([AdoConstants.ColumnLastSuccessTime, AdoConstants.ColumnConsecutiveFailures])
+            .And.NotContain([AdoConstants.ColumnFailureCount, AdoConstants.ColumnLastFailureTime]);
+
+        Assignments(StdAdoConstants.SqlUpdateJobStatusFailedFinally.Sql).Should()
+            .Contain([AdoConstants.ColumnFailureCount, AdoConstants.ColumnConsecutiveFailures, AdoConstants.ColumnLastFailureTime])
+            .And.NotContain(AdoConstants.ColumnLastSuccessTime);
+
+        Assignments(StdAdoConstants.SqlUpdateJobStatusFailedRetried.Sql).Should()
+            .Contain(AdoConstants.ColumnLastFailureTime, "a retried failure is still the latest failure")
+            .And.NotContain([AdoConstants.ColumnFailureCount, AdoConstants.ColumnConsecutiveFailures, AdoConstants.ColumnLastSuccessTime],
+                "it is not a final one, so it neither counts nor breaks a run of failures");
+
+        Assignments(StdAdoConstants.SqlUpdateJobStatusOther.Sql).Should()
+            .NotContain([AdoConstants.ColumnFailureCount, AdoConstants.ColumnConsecutiveFailures, AdoConstants.ColumnLastSuccessTime, AdoConstants.ColumnLastFailureTime],
+                "a cancelled run is counted as a run and nothing else");
+    }
+
+    /// <summary>
+    /// No history statement uses a window function.
+    /// </summary>
+    /// <remarks>
+    /// Six dialects spell <c>ROW_NUMBER() OVER (…)</c> differently or, on old Firebird and MySQL, not at all.
+    /// The bounds are found by paging to a boundary row and by <c>GROUP BY … HAVING</c>.
+    /// </remarks>
+    [Test]
+    public void NoHistoryStatementUsesAWindowFunction()
+    {
+        IEnumerable<string> statements = typeof(StdAdoConstants)
+            .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Where(field => field.FieldType == typeof(string))
+            .Select(field => (string) field.GetValue(null)!)
+            .Concat(statusUpdates.Select(statement => statement.Sql));
+
+        statements.Should().NotContain(sql => sql.Contains("OVER (", StringComparison.OrdinalIgnoreCase)
+                                              || sql.Contains("OVER(", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// The per-job cap's <c>GROUP BY</c> ends with its <c>ORDER BY</c>, which the dialect's paging clause
+    /// then follows.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server, Oracle and Firebird refuse <c>OFFSET … FETCH</c> without an <c>ORDER BY</c>, and a page
+    /// of an unordered set is a different page every time.
+    /// </remarks>
+    [Test]
+    public void TheJobsOverTheCapAreOrderedBeforeTheyArePaged()
+    {
+        string sql = StdAdoConstants.SqlSelectJobsOverHistoryCap;
+
+        sql.Should().EndWith($" ORDER BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}");
+        sql.IndexOf(" GROUP BY ", StringComparison.Ordinal).Should().BeLessThan(sql.IndexOf(" HAVING ", StringComparison.Ordinal));
+        sql.IndexOf(" HAVING ", StringComparison.Ordinal).Should().BeLessThan(sql.IndexOf(" ORDER BY ", StringComparison.Ordinal));
+    }
+
+    /// <summary>The columns a status update's <c>SET</c> list assigns, in order.</summary>
+    private static List<string> Assignments(string sql)
+    {
+        int set = sql.IndexOf(" SET ", StringComparison.Ordinal) + " SET ".Length;
+        int where = sql.IndexOf(" WHERE ", StringComparison.Ordinal);
+
+        return [.. Regex.Matches(sql[set..where], @"(?:^|, )([A-Z_]+) = ").Select(match => match.Groups[1].Value)];
     }
 }

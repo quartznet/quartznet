@@ -254,6 +254,8 @@
     "The execution history retention sweep failed. Rows past their bounds stay until the next sweep."
 3162  Debug  AdoJobStoreLog.ExecutionHistorySwept
     "Execution history sweep removed {RowCount} row(s) for scheduler '{SchedulerName}'"
+3163  Debug  AdoJobStoreLog.ExecutionHistorySweepDeferred
+    "Execution history sweep for scheduler '{SchedulerName}' is left to node '{InstanceId}', the live node with the lowest instance id"
 3500  Warning  ClusterLog.TransientFailureInCheckIn
     "Transient exception on attempt {Attempt} of {TotalAttempts} of the cluster check-in, will retry after {RetryInterval}"
 3501  Warning  ClusterLog.RecoveredByAnotherInstance

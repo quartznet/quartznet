@@ -23,6 +23,9 @@ public class FirebirdDelegate : StdAdoDelegate
         AdoConstants.ColumnPausedBy => 800,
         AdoConstants.ColumnProgressMessage => 250,
         AdoConstants.ColumnErrorMessage => 1000,
+        AdoConstants.ColumnSummary => 1000,
+        AdoConstants.ColumnLastSummary => 1000,
+        AdoConstants.ColumnLastFailureMessage => 1000,
         _ => null,
     };
 }
