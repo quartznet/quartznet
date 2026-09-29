@@ -292,7 +292,7 @@ public sealed class HistoryEndpointsTest
 
     [TestCase("jobName=release-stale", "Both jobName and jobGroup*")]
     [TestCase("results=Sideways", "Unknown results value 'Sideways'*Succeeded, Failed, Cancelled, Skipped*")]
-    [TestCase("results=1", "Unknown results value '1'*")]
+    [TestCase("results=9", "Unknown results value '9'*")]
     [TestCase("results=Failed%2C%20Skipped%2CBogus", "Unknown results value 'Bogus'*")]
     public async Task AFilterThatNamesNothingIsRefused(string query, string detail)
     {
