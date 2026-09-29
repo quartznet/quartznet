@@ -150,8 +150,86 @@ public sealed class SqlServerWeaselSchemaTest
         await using SqlServerWeaselDatabase fresh = await SqlServerWeaselDatabase.CreateAsync();
         await fresh.RunRepositoryScriptAsync("database", "tables", "tables_sqlServer.sql");
 
-        await ShouldMatchAsync(database, fresh, "4.3's columns are all a 4.2 schema lacks");
+        await ShouldMatchAsync(database, fresh,
+            "what 4.3 and 4.4 added — columns, an index and QRTZ_JOB_STATUS — is all a 4.2 schema lacks");
         await ShouldHoldTheSeedAsync(database);
+    }
+
+    /// <summary>
+    /// 4.3 → 4.4 only adds: five columns and an index on the history table, and the rollup table.
+    /// </summary>
+    [Test]
+    public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
+    {
+        await database.RunRepositoryScriptAsync("src", "Quartz.Tests.Integration", "SchemaBaselines", "4.3", "tables_sqlServer.sql");
+        await SeedAsync(database);
+        await SeedHistoryAsync(database);
+
+        (SchemaSnapshot before, List<string> beforeDetails) = await database.ReadAsync();
+
+        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-ss-from-43");
+        await using (services)
+        {
+            SchemaMigration planned = await weasel.CreateMigrationAsync();
+            List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
+
+            changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create)],
+                "4.4 changes nothing a 4.3 schema has but the history table, and adds the rollup: " + Describe(planned));
+
+            (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
+            (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
+                "the second apply finds nothing left to do");
+        }
+
+        // What the apply did, read from the catalog: this dialect's TableDelta keeps its item deltas internal.
+        (SchemaSnapshot after, List<string> afterDetails) = await database.ReadAsync();
+        after.Tables.Except(before.Tables).Should().Equal(["JOB_STATUS"]);
+        after.Columns.Should().Contain(before.Columns, "an add-only apply alters and drops no column a 4.3 schema has");
+        after.Indexes.Should().Contain(before.Indexes, "nor an index");
+        afterDetails.Should().Contain(beforeDetails, "nor a key or a default");
+        after.Columns.Except(before.Columns)
+            .Where(x => x.StartsWith("EXECUTION_HISTORY|", StringComparison.Ordinal))
+            .Select(x => x.Split('|')[1])
+            .Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID"]);
+        after.Indexes.Except(before.Indexes).Select(x => x.Split('|')[1]).Distinct().Should().Equal(["IDX_EH_JOB_TIME"]);
+
+        await using SqlServerWeaselDatabase fresh = await SqlServerWeaselDatabase.CreateAsync();
+        await fresh.RunRepositoryScriptAsync("database", "tables", "tables_sqlServer.sql");
+
+        await ShouldMatchAsync(database, fresh, "what 4.4 added is all a 4.3 schema lacks");
+        await ShouldHoldTheSeedAsync(database);
+        await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database);
+    }
+
+    /// <summary>
+    /// A column and an index the application put on the history table survive the 4.4 apply, which only adds.
+    /// </summary>
+    [Test]
+    public async Task ObjectsTheApplicationAddedToTheHistorySurviveThe44Apply()
+    {
+        await database.RunRepositoryScriptAsync("src", "Quartz.Tests.Integration", "SchemaBaselines", "4.3", "tables_sqlServer.sql");
+        await SeedHistoryAsync(database);
+
+        await database.ExecuteAsync("""
+            ALTER TABLE QRTZ_EXECUTION_HISTORY ADD APP_TENANT nvarchar(100) NULL;
+            GO
+            UPDATE QRTZ_EXECUTION_HISTORY SET APP_TENANT = 'keep me';
+            CREATE INDEX IDX_APP_EH_TENANT ON QRTZ_EXECUTION_HISTORY (APP_TENANT);
+            """);
+
+        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-ss-43-coexisting");
+        await using (services)
+        {
+            (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
+            (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None);
+        }
+
+        (await database.ScalarAsync("SELECT APP_TENANT FROM QRTZ_EXECUTION_HISTORY")).Should().Be("keep me",
+            "the tables are add-only, so the application's column is kept");
+        (await database.ScalarAsync("SELECT count(*) FROM sys.indexes WHERE name IN ('IDX_APP_EH_TENANT', 'IDX_QRTZ_EH_JOB_TIME')")).Should().Be(2,
+            "the application's index is kept beside the one 4.4 added");
+        await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database);
     }
 
     [Test]
@@ -400,6 +478,20 @@ public sealed class SqlServerWeaselSchemaTest
         INSERT INTO QRTZ_SIMPLE_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP, REPEAT_COUNT, REPEAT_INTERVAL, TIMES_TRIGGERED)
           VALUES ('weasel', 'trigger', 'group', 3, 1000, 0);
         """);
+
+    /// <summary>A row a 4.3 node wrote: a failed run, with no outcome columns to fill.</summary>
+    private static Task SeedHistoryAsync(SqlServerWeaselDatabase database) => database.ExecuteAsync("""
+        INSERT INTO QRTZ_EXECUTION_HISTORY (SCHED_NAME, ENTRY_ID, INSTANCE_NAME, JOB_NAME, JOB_GROUP, TRIGGER_NAME, TRIGGER_GROUP, FIRED_TIME, RUN_TIME, SUCCEEDED, ERROR_MESSAGE)
+          VALUES ('weasel', 'entry-43', 'node-43', 'job', 'group', 'trigger', 'group', 1, 10, 0, 'failed on 4.3');
+        """);
+
+    private static async Task ShouldHoldTheHistoryRowWithNoOutcomeAsync(SqlServerWeaselDatabase database)
+    {
+        (await database.ScalarAsync(
+                "SELECT count(*) FROM QRTZ_EXECUTION_HISTORY WHERE ENTRY_ID = 'entry-43' AND ERROR_MESSAGE = 'failed on 4.3'"
+            + " AND RESULT IS NULL AND SUMMARY IS NULL AND METRICS IS NULL AND MANUAL IS NULL AND FIRE_INSTANCE_ID IS NULL"))
+            .Should().Be(1, "a row a 4.3 node wrote keeps its values and reads NULL in every column 4.4 added");
+    }
 
     private static async Task ShouldHoldTheSeedAsync(SqlServerWeaselDatabase database)
     {

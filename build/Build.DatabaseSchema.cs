@@ -251,8 +251,8 @@ partial class Build
         new(TriggerKey, "TRIGGERS", TriggerKey, cascade, oracleName);
 
     /// <summary>
-    /// The two tables the ADO-backed execution history writes into, which no other part of the store
-    /// reads or writes.
+    /// The tables the ADO-backed execution history writes into, which no other part of the store reads
+    /// or writes: what ran, what was missed, and each job's rollup of the first.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -305,13 +305,7 @@ partial class Build
                 // and the others count characters: the store truncates the message at 1,000
                 // characters, which is at most 4,000 bytes of UTF-8 and so is the widest a
                 // non-extended VARCHAR2 can hold.
-                Column("ERROR_MESSAGE",
-                    sqlServer: "nvarchar(1000) NULL",
-                    postgres: "TEXT NULL",
-                    mysql: "VARCHAR(1000) NULL",
-                    oracle: "VARCHAR2(4000) NULL",
-                    sqlite: "NVARCHAR(1000) NULL",
-                    firebird: "VARCHAR(1000) DEFAULT NULL"),
+                MessageColumn("ERROR_MESSAGE"),
                 // Which attempt at the occurrence the row is of, and whether the trigger answered
                 // this failure with another one. Together they are what lets a history page tell
                 // "failed, retrying" from "failed, and that was the last word" — a question no
@@ -344,6 +338,25 @@ partial class Build
                     oracle: "CLOB NULL",
                     sqlite: "TEXT NULL",
                     firebird: "BLOB SUB_TYPE TEXT DEFAULT NULL") with { AddedBy = "4.3" },
+                // What the run reported through context.Result: the integer of JobRunResult, a
+                // one-line summary cut as ERROR_MESSAGE is, and its metrics as JSON. NULL on a row a
+                // 4.3 node wrote, whose outcome is SUCCEEDED as it always was.
+                EnumColumn("RESULT", required: false) with { AddedBy = "4.4" },
+                MessageColumn("SUMMARY") with { AddedBy = "4.4" },
+                Column("METRICS",
+                    sqlServer: "nvarchar(max) NULL",
+                    postgres: "TEXT NULL",
+                    mysql: "LONGTEXT NULL",
+                    oracle: "CLOB NULL",
+                    sqlite: "TEXT NULL",
+                    firebird: "BLOB SUB_TYPE TEXT DEFAULT NULL") with { AddedBy = "4.4" },
+                // Whether TriggerJob fired it. Nullable, because a 4.x migration adds nullable
+                // columns only.
+                Flag("MANUAL", required: false) with { AddedBy = "4.4" },
+                // The firing's id, which links the row to its span and log scope. Neither unique nor
+                // indexed: a fire instance id is not durable across a restart, and nothing looks a
+                // row up by it.
+                Text("FIRE_INSTANCE_ID", 140, 140, required: false) with { AddedBy = "4.4" },
             ],
             OracleStem: "EXEC_HISTORY"),
 
@@ -365,22 +378,91 @@ partial class Build
                 // Why the firing did not happen, as the integer of MisfireReason: NULL or 0 is a
                 // misfire, 1 a firing the trigger's overlap policy skipped. Rows a 4.2 node writes
                 // leave it NULL, which is what they are.
-                Column("REASON",
-                    sqlServer: "int NULL",
-                    postgres: "INTEGER NULL",
-                    mysql: "INTEGER NULL",
-                    oracle: "NUMBER(13) NULL",
-                    sqlite: "INTEGER NULL",
-                    firebird: "INTEGER DEFAULT NULL") with { AddedBy = "4.3" },
+                EnumColumn("REASON", required: false) with { AddedBy = "4.3" },
             ],
             OracleStem: "MISFIRE_HISTORY"),
+
+        // One row per job, rolled up from the history as each row is written, so it survives the
+        // history's own retention. New in 4.4 as a whole, so none of its columns has an AddedBy. No
+        // foreign key: a 4.3 node deleting a job must not trip on a row it has never heard of.
+        new("JOB_STATUS",
+            ["SCHED_NAME", "JOB_GROUP", "JOB_NAME"],
+            [
+                Text("SCHED_NAME", 120, 120, required: true),
+                Text("JOB_GROUP", 150, 200, required: true),
+                Text("JOB_NAME", 150, 200, required: true),
+                Timestamp("FIRST_FIRED_TIME", required: true),
+                Timestamp("LAST_FIRED_TIME", required: true),
+                EnumColumn("LAST_RESULT", required: true),
+                Column("LAST_RUN_TIME",
+                    sqlServer: "bigint NOT NULL",
+                    postgres: "BIGINT NOT NULL",
+                    mysql: "BIGINT NOT NULL",
+                    oracle: "NUMBER(19) NOT NULL",
+                    sqlite: "BIGINT NOT NULL",
+                    firebird: "BIGINT NOT NULL"),
+                Text("LAST_INSTANCE_NAME", 200, 200, required: true),
+                Text("LAST_ENTRY_ID", 140, 140, required: false),
+                MessageColumn("LAST_SUMMARY"),
+                Timestamp("LAST_SUCCESS_TIME", required: false),
+                Timestamp("LAST_FAILURE_TIME", required: false),
+                MessageColumn("LAST_FAILURE_MESSAGE"),
+                Counter("CONSECUTIVE_FAILURES", wide: false),
+                Counter("RUN_COUNT", wide: true),
+                Counter("FAILURE_COUNT", wide: true),
+            ],
+            OracleStem: "JOB_STATUS"),
     ];
 
     /// <summary>
+    /// The integer of an enum a history row records: <c>MisfireReason</c> on a misfire, <c>JobRunResult</c>
+    /// on an execution and on a job's rollup.
+    /// </summary>
+    static SchemaColumn EnumColumn(string name, bool required) => Column(name,
+        sqlServer: required ? "int NOT NULL" : "int NULL",
+        postgres: required ? "INTEGER NOT NULL" : "INTEGER NULL",
+        mysql: required ? "INTEGER NOT NULL" : "INTEGER NULL",
+        oracle: required ? "NUMBER(13) NOT NULL" : "NUMBER(13) NULL",
+        sqlite: required ? "INTEGER NOT NULL" : "INTEGER NULL",
+        firebird: required ? "INTEGER NOT NULL" : "INTEGER DEFAULT NULL");
+
+    /// <summary>
+    /// A message the store cuts at 1,000 characters, declared as <c>ERROR_MESSAGE</c> is: Oracle's is four
+    /// times as wide because its <c>VARCHAR2</c> counts bytes.
+    /// </summary>
+    static SchemaColumn MessageColumn(string name) => Column(name,
+        sqlServer: "nvarchar(1000) NULL",
+        postgres: "TEXT NULL",
+        mysql: "VARCHAR(1000) NULL",
+        oracle: "VARCHAR2(4000) NULL",
+        sqlite: "NVARCHAR(1000) NULL",
+        firebird: "VARCHAR(1000) DEFAULT NULL");
+
+    /// <summary>
+    /// A count that starts at zero, defaulted as <c>RETRY_ATTEMPT</c> is so that a row inserted without it
+    /// is still coherent. Oracle and Firebird put the default before the constraint.
+    /// </summary>
+    static SchemaColumn Counter(string name, bool wide) => wide
+        ? Column(name,
+            sqlServer: "bigint NOT NULL DEFAULT 0",
+            postgres: "BIGINT NOT NULL DEFAULT 0",
+            mysql: "BIGINT NOT NULL DEFAULT 0",
+            oracle: "NUMBER(19) DEFAULT 0 NOT NULL",
+            sqlite: "BIGINT NOT NULL DEFAULT 0",
+            firebird: "BIGINT DEFAULT 0 NOT NULL")
+        : Column(name,
+            sqlServer: "int NOT NULL DEFAULT 0",
+            postgres: "INTEGER NOT NULL DEFAULT 0",
+            mysql: "INTEGER NOT NULL DEFAULT 0",
+            oracle: "NUMBER(13) DEFAULT 0 NOT NULL",
+            sqlite: "INTEGER NOT NULL DEFAULT 0",
+            firebird: "INTEGER DEFAULT 0 NOT NULL");
+
+    /// <summary>
     /// The indexes the two history tables carry: the age query and the retention sweep read by
-    /// scheduler and time, the dashboard's node filter reads by scheduler and node. A name or group
-    /// search stays a scan, as <see href="https://github.com/quartznet/quartznet/issues/3771">#3771</see>
-    /// says it does.
+    /// scheduler and time, the dashboard's node filter reads by scheduler and node, and since 4.4 a
+    /// job's own history reads by scheduler, job key and time. A name or group search stays a scan, as
+    /// <see href="https://github.com/quartznet/quartznet/issues/3771">#3771</see> says it does.
     /// </summary>
     /// <remarks>
     /// Kept out of <see cref="Target4XAll" /> because that set is what the 3.x-to-4.0 index migration
@@ -393,6 +475,7 @@ partial class Build
         new("IDX_QRTZ_EH_INST", TableExecutionHistory, "SCHED_NAME, INSTANCE_NAME"),
         new("IDX_QRTZ_MH_MISFIRE_TIME", TableMisfireHistory, "SCHED_NAME, MISFIRE_TIME"),
         new("IDX_QRTZ_MH_INST", TableMisfireHistory, "SCHED_NAME, INSTANCE_NAME"),
+        new("IDX_QRTZ_EH_JOB_TIME", TableExecutionHistory, "SCHED_NAME, JOB_GROUP, JOB_NAME, FIRED_TIME", AddedBy: "4.4"),
     ];
 
     /// <summary>
@@ -859,9 +942,18 @@ partial class Build
     /// <summary>
     /// The column and constraint lines of one table, with the prefix left as a placeholder.
     /// </summary>
-    static List<string> TableBody(string dialect, SchemaTable table)
+    /// <param name="dialect">The dialect whose declarations are read.</param>
+    /// <param name="table">The table.</param>
+    /// <param name="asCreated">
+    /// Leave out every column and index a later release added, so the table reads as the migration that
+    /// created it wrote it. MySQL declares its indexes here, so a later index has to be left out too.
+    /// </param>
+    static List<string> TableBody(string dialect, SchemaTable table, bool asCreated = false)
     {
-        List<string> body = table.Columns.Select(c => $"{c.Name} {c.Definition[dialect]}".TrimEnd()).ToList();
+        List<string> body = table.Columns
+            .Where(c => !asCreated || c.AddedBy is null)
+            .Select(c => $"{c.Name} {c.Definition[dialect]}".TrimEnd())
+            .ToList();
 
         body.Add($"{PrimaryKeyName(dialect, table)}PRIMARY KEY ({string.Join(",", table.PrimaryKey)})");
 
@@ -879,7 +971,7 @@ partial class Build
         if (dialect == "mysql_innodb")
         {
             body.AddRange(AllSchemaIndexes(dialect)
-                .Where(i => IndexTable(i) == table.Name)
+                .Where(i => IndexTable(i) == table.Name && (!asCreated || i.AddedBy is null))
                 .Select(i => $"KEY IDX_{{1}}{IndexSuffix(i)} ({TightColumns(i.Columns)})"));
         }
 

@@ -8,7 +8,14 @@ using System.Linq;
 /// </summary>
 partial class Build
 {
-    sealed record IndexDef(string Name, string Table, string Columns);
+    /// <param name="Name">The index name, with the default prefix.</param>
+    /// <param name="Table">The table it is on, with the default prefix.</param>
+    /// <param name="Columns">The columns, with any direction.</param>
+    /// <param name="AddedBy">
+    /// The release whose migration added the index to a table that was already there, as on
+    /// <see cref="SchemaColumn" />: the migration that created the table leaves it out.
+    /// </param>
+    sealed record IndexDef(string Name, string Table, string Columns, string AddedBy = null);
 
     static readonly IndexDef[] MySqlOracleFirebird3X =
     [
@@ -462,6 +469,9 @@ partial class Build
 
             // --- 4.3: why a trigger or a group is paused, which every 4.3 node writes when it pauses one ---
             files.Add(($"4.3/add_pause_reason_{d}.sql", Build43PauseReasonScript(d)));
+
+            // --- 4.4: what a run reported, a job-key index and each job's rollup, which only UseExecutionHistory() needs ---
+            files.Add(($"4.4/add_execution_outcome_{d}.sql", Build44ExecutionOutcomeScript(d)));
         }
 
         return files;
@@ -807,7 +817,7 @@ partial class Build
             sections.Add("-- === 3. The indexes the history reads ===\n"
                 + "-- (SCHED_NAME, <time>) serves both the age query and the retention sweep;\n"
                 + "-- (SCHED_NAME, INSTANCE_NAME) serves the node filter.\n\n"
-                + string.Join("\n\n", ExecutionHistoryIndexes.Select(
+                + string.Join("\n\n", ExecutionHistoryIndexes.Where(i => i.AddedBy is null).Select(
                     i => CreateIndex(dialect, i.Name, i.Table, i.Columns))));
         }
 
@@ -819,22 +829,121 @@ partial class Build
     /// with the table-prefix placeholders resolved to the default prefix these scripts are written for.
     /// </summary>
     /// <remarks>
-    /// A column a later release added is left out: the 4.2 script is released, a reader may already
-    /// have run it, and the later column arrives through that release's own migration. Rendering the
-    /// current table here would make running the two in order fail on SQLite, which cannot guard an
-    /// <c>ADD COLUMN</c>.
+    /// A column or index a later release added is left out: the 4.2 script is released, a reader may
+    /// already have run it, and the later object arrives through that release's own migration.
+    /// Rendering the current table here would make running the two in order fail on SQLite, which
+    /// cannot guard an <c>ADD COLUMN</c>, and would change a released script under MySQL, which
+    /// declares its indexes inside the table.
     /// </remarks>
     static string[] HistoryTableBody(string dialect, string table)
     {
-        SchemaTable current = ExecutionHistoryTables.Single(t => "QRTZ_" + t.Name == table);
-        SchemaTable definition = current with { Columns = current.Columns.Where(c => c.AddedBy is null).ToArray() };
+        SchemaTable definition = ExecutionHistoryTables.Single(t => "QRTZ_" + t.Name == table);
 
-        return TableBody(dialect, definition)
+        return TableBody(dialect, definition, asCreated: true)
             .Select(line => line.Replace("{0}", "QRTZ_").Replace("{1}", "QRTZ_"))
             // PostgreSQL's generated script lowercases every line of a table body, and this has to be
             // the same text: an identifier it folds anyway, read by a person either way.
             .Select(line => dialect == "postgres" ? line.ToLowerInvariant() : line)
             .ToArray();
+    }
+
+    /// <summary>
+    /// What a run reported, the index a job's own history reads, and each job's rollup: everything
+    /// 4.4 adds, all of it on or beside the optional history tables.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The columns and the index are whatever the model marks as 4.4's, rather than a list written out
+    /// a second time here, so the migrated table is the one a fresh install creates.
+    /// </para>
+    /// <para>
+    /// Columns first, then the index, then the table. The first statement alters
+    /// <c>QRTZ_EXECUTION_HISTORY</c>, so a database without it fails before anything is created.
+    /// </para>
+    /// </remarks>
+    static string Build44ExecutionOutcomeScript(string dialect)
+    {
+        const string version = "4.4";
+
+        (string Table, SchemaColumn Column)[] columns =
+        [
+            .. ExecutionHistoryTables.SelectMany(t => t.Columns
+                .Where(c => c.AddedBy == version)
+                .Select(c => ("QRTZ_" + t.Name, c))),
+        ];
+
+        IndexDef[] indexes = [.. ExecutionHistoryIndexes.Where(i => i.AddedBy == version)];
+
+        List<string> extra =
+        [
+            "On QRTZ_EXECUTION_HISTORY, what the run reported through IJobExecutionContext.Result:",
+            "  RESULT            the integer of JobRunResult",
+            "  SUMMARY           one line, cut to 1,000 characters as ERROR_MESSAGE is",
+            "  METRICS           the reported values, as JSON",
+            "  MANUAL            whether IScheduler.TriggerJob fired it",
+            "  FIRE_INSTANCE_ID  the firing's id, linking the row to its span and log scope",
+            "All five are nullable with no default. A row a 4.3 node wrote leaves them NULL, and its",
+            "outcome is read from SUCCEEDED as before.",
+            "",
+            "FIRE_INSTANCE_ID is neither unique nor indexed. A fire instance id is not durable across",
+            "a restart, and the history write is never retried, so there is nothing to deduplicate.",
+            "",
+            "IDX_QRTZ_EH_JOB_TIME serves a read of one job's history by time. The table is bounded",
+            "by ExecutionHistoryOptions, so the index builds in moments.",
+            "",
+            "QRTZ_JOB_STATUS keeps one row per job: its first and last firing, the last run's result,",
+            "summary, run time and node, when it last succeeded and last failed, and three counters.",
+            "The store writes it with each history row, so it outlives the history's retention. It",
+            "has no foreign key: a 4.3 node deleting a job must not trip on a row it has never heard",
+            "of.",
+        ];
+
+        if (dialect == "oracle")
+        {
+            extra.AddRange([
+                "",
+                "Oracle only: SUMMARY, LAST_SUMMARY and LAST_FAILURE_MESSAGE are VARCHAR2(4000), four",
+                "times the 1,000 characters they hold, because VARCHAR2 counts bytes.",
+            ]);
+        }
+
+        string header = Header(dialect, "add the execution outcome columns and QRTZ_JOB_STATUS", "4.4.0", "#3958",
+            [
+                "4.4  OPTIONAL, and only for a database that has QRTZ_EXECUTION_HISTORY -- one that",
+                $"     ran ../4.2/add_execution_history_{dialect}.sql or was created by 4.2 or later.",
+                "     A store configured with UsePersistentStore(s => s.UseExecutionHistory()) writes",
+                "     these columns with every history row and keeps QRTZ_JOB_STATUS, so it refuses to",
+                "     start without them. No other scheduler reads either table.",
+                "",
+                "     Do NOT run it against a database without QRTZ_EXECUTION_HISTORY: the first",
+                "     statement alters that table, and fails when the table is not there.",
+                "",
+                $"     A 4.2 database also needs ../4.3/add_execution_log_{dialect}.sql and",
+                $"     ../4.3/add_misfire_reason_{dialect}.sql.",
+                "",
+                "     Safe under a mixed cluster: a 4.3 node's history rows name their own columns and",
+                "     leave these NULL, and a 4.3 node never touches QRTZ_JOB_STATUS. The rollup counts",
+                "     only what 4.4 nodes ran until every node is 4.4.",
+                "",
+                "3.x  Not applicable.",
+            ],
+            extra,
+            sqliteNotIdempotent: true);
+
+        List<string> sections =
+        [
+            "-- === 1. The outcome columns on QRTZ_EXECUTION_HISTORY ===\n\n"
+                + string.Join("\n\n", columns.Select(
+                    c => AddColumn(dialect, c.Table, c.Column.Name, ModelColumn(dialect, c.Table, c.Column.Name)))),
+
+            "-- === 2. The index a job's own history reads ===\n\n"
+                + string.Join("\n\n", indexes.Select(i => CreateIndex(dialect, i.Name, i.Table, i.Columns))),
+
+            "-- === 3. QRTZ_JOB_STATUS ===\n\n"
+                + CreateTable(dialect, TableJobStatus, HistoryTableBody(dialect, TableJobStatus)),
+        ];
+
+        return header + "\n\n" + string.Join("\n\n", sections);
     }
 
     static string Build40Script(string dialect)

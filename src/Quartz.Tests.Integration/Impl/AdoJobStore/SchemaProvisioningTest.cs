@@ -302,6 +302,9 @@ public class SchemaProvisioningTest
         await MigrationScriptTest.ExecuteScriptAsync(
             connection, MigrationScriptTest.MigrationScript("4.3", "add_pause_reason", dialect, UnmigratedPrefix), dialect);
 
+        await MigrationScriptTest.ExecuteScriptAsync(
+            connection, MigrationScriptTest.MigrationScript("4.4", "add_execution_outcome", dialect, UnmigratedPrefix), dialect);
+
         await StartAndShutDownAsync(dialect, connectionString, UnmigratedPrefix, $"Unmigrated_{dialect}_migrated");
 
         SchemaSnapshot afterMigration = await SchemaSnapshot.ReadAsync(connection, dialect, UnmigratedPrefix);

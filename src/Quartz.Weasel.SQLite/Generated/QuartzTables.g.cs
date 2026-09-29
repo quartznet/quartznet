@@ -204,9 +204,15 @@ internal static partial class QuartzTables
         executionHistory.AddColumn("retry_attempt", "INTEGER").NotNull().DefaultValueByExpression("0");
         executionHistory.AddColumn("retry_scheduled", "BIT").NotNull().DefaultValueByExpression("0");
         executionHistory.AddColumn("execution_log", "TEXT");
+        executionHistory.AddColumn("result", "INTEGER");
+        executionHistory.AddColumn("summary", "NVARCHAR(1000)");
+        executionHistory.AddColumn("metrics", "TEXT");
+        executionHistory.AddColumn("manual", "BIT");
+        executionHistory.AddColumn("fire_instance_id", "NVARCHAR(140)");
         naming.PrimaryKey(executionHistory);
         naming.Index(executionHistory, "EH_FIRED_TIME", ["SCHED_NAME", "FIRED_TIME"]);
         naming.Index(executionHistory, "EH_INST", ["SCHED_NAME", "INSTANCE_NAME"]);
+        naming.Index(executionHistory, "EH_JOB_TIME", ["SCHED_NAME", "JOB_GROUP", "JOB_NAME", "FIRED_TIME"]);
         objects.Add(executionHistory);
 
         Table misfireHistory = naming.Table("MISFIRE_HISTORY");
@@ -224,6 +230,26 @@ internal static partial class QuartzTables
         naming.Index(misfireHistory, "MH_MISFIRE_TIME", ["SCHED_NAME", "MISFIRE_TIME"]);
         naming.Index(misfireHistory, "MH_INST", ["SCHED_NAME", "INSTANCE_NAME"]);
         objects.Add(misfireHistory);
+
+        Table jobStatus = naming.Table("JOB_STATUS");
+        jobStatus.AddColumn("sched_name", "NVARCHAR(120)").NotNull().AsPrimaryKey();
+        jobStatus.AddColumn("job_group", "NVARCHAR(150)").NotNull().AsPrimaryKey();
+        jobStatus.AddColumn("job_name", "NVARCHAR(150)").NotNull().AsPrimaryKey();
+        jobStatus.AddColumn("first_fired_time", "BIGINT").NotNull();
+        jobStatus.AddColumn("last_fired_time", "BIGINT").NotNull();
+        jobStatus.AddColumn("last_result", "INTEGER").NotNull();
+        jobStatus.AddColumn("last_run_time", "BIGINT").NotNull();
+        jobStatus.AddColumn("last_instance_name", "NVARCHAR(200)").NotNull();
+        jobStatus.AddColumn("last_entry_id", "NVARCHAR(140)");
+        jobStatus.AddColumn("last_summary", "NVARCHAR(1000)");
+        jobStatus.AddColumn("last_success_time", "BIGINT");
+        jobStatus.AddColumn("last_failure_time", "BIGINT");
+        jobStatus.AddColumn("last_failure_message", "NVARCHAR(1000)");
+        jobStatus.AddColumn("consecutive_failures", "INTEGER").NotNull().DefaultValueByExpression("0");
+        jobStatus.AddColumn("run_count", "BIGINT").NotNull().DefaultValueByExpression("0");
+        jobStatus.AddColumn("failure_count", "BIGINT").NotNull().DefaultValueByExpression("0");
+        naming.PrimaryKey(jobStatus);
+        objects.Add(jobStatus);
 
         // The delete triggers stand in for the cascades on a connection that never turns foreign keys on.
         objects.Add(naming.Trigger("DELETE_SIMPLE_TRIGGER", "CREATE TRIGGER IF NOT EXISTS {0}DELETE_SIMPLE_TRIGGER DELETE ON {0}TRIGGERS\nBEGIN\n  DELETE FROM {0}SIMPLE_TRIGGERS WHERE SCHED_NAME=OLD.SCHED_NAME AND TRIGGER_NAME=OLD.TRIGGER_NAME AND TRIGGER_GROUP=OLD.TRIGGER_GROUP;\nEND"));

@@ -335,6 +335,37 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
             + "lack the columns fails the first group pause unless startup probes for them");
     }
 
+    /// <summary>
+    /// A database 4.3 left behind: every required migration, and with the history the scripts 4.3's
+    /// history needed.
+    /// </summary>
+    private void Install43Schema(bool withHistory)
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
+
+        if (withHistory)
+        {
+            ApplyMigration(AdoConstants.Migration42History);
+            ApplyMigration(AdoConstants.Migration43ExecutionLog);
+            ApplyMigration(AdoConstants.Migration43MisfireReason);
+        }
+    }
+
+    /// <summary>
+    /// A refusal names each script by its path under the repository root, and says that path once.
+    /// </summary>
+    private static void ShouldNameEveryPathOnce(SchedulerException failure)
+    {
+        MessagesOf(failure).Should().NotContain(message => message.Contains("migrations/database/", StringComparison.Ordinal),
+            "a script path that repeats database/migrations/ names a file nobody has, and a reader told to run "
+            + "it cannot");
+    }
+
     private void Install320Schema()
     {
         Execute(File.ReadAllText(RepositoryFile(
@@ -352,6 +383,16 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     /// database took all of them, so this does exactly that check and nothing else — the same shim
     /// <c>MigrationScriptTest</c> carries, for the same reason.
     /// </remarks>
+    /// <summary>
+    /// Runs the SQLite script an <c>AdoConstants</c> migration template names.
+    /// </summary>
+    private void ApplyMigration(string template)
+    {
+        string path = string.Format(System.Globalization.CultureInfo.InvariantCulture, template, "sqlite");
+        int slash = path.IndexOf('/', StringComparison.Ordinal);
+        ApplyMigration(path[..slash], path[(slash + 1)..]);
+    }
+
     private void ApplyMigration(string version, string fileName)
     {
         string script = File.ReadAllText(
@@ -448,8 +489,13 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         MessagesOf(failure).Should().ContainMatch("*database/migrations/4.3/add_misfire_reason_sqlite.sql*",
             "and the misfire table the same migration creates is missing the column 4.3 added to it");
 
+        MessagesOf(failure).Should().ContainMatch("*database/migrations/4.4/add_execution_outcome_sqlite.sql*",
+            "and the columns 4.4 added to the history table, whose script also creates QRTZ_JOB_STATUS");
+
         MessagesOf(failure).Should().ContainMatch("*QRTZ_EXECUTION_HISTORY*",
             "and the table that is missing is what says which feature they asked for");
+
+        ShouldNameEveryPathOnce(failure);
     }
 
     /// <summary>
@@ -487,6 +533,8 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
 
         MessagesOf(failure).Should().ContainMatch("*database/migrations/4.3/add_execution_log_sqlite.sql*",
             "and the one script that adds it is the whole remedy");
+
+        ShouldNameEveryPathOnce(failure);
     }
 
     /// <summary>
@@ -524,23 +572,92 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
 
         MessagesOf(failure).Should().ContainMatch("*database/migrations/4.3/add_misfire_reason_sqlite.sql*",
             "and the one script that adds it is the whole remedy");
+
+        ShouldNameEveryPathOnce(failure);
+    }
+
+    /// <summary>
+    /// A history 4.3 created is missing what 4.4 added, and only a store that keeps its history there
+    /// notices: the rollup table first, since the script that adds the columns also creates it.
+    /// </summary>
+    [Test]
+    public async Task A43HistoryIsRefusedForTheJobStatusTableOnlyWhenTheHistoryIsOn()
+    {
+        Install43Schema(withHistory: true);
+
+        Func<Task> withoutHistory = async () => await (await GetScheduler(
+            nameof(A43HistoryIsRefusedForTheJobStatusTableOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
+
+        await withoutHistory.Should().NotThrowAsync(
+            "a scheduler that keeps no history never reads the tables 4.4 changes, so 4.4's migration is as "
+            + "optional as 4.2's");
+
+        await container!.DisposeAsync();
+        container = null;
+
+        SchedulerException failure = await StartAndCatch(
+            nameof(A43HistoryIsRefusedForTheJobStatusTableOnlyWhenTheHistoryIsOn) + "-on",
+            configure: store => store.UseExecutionHistory());
+
+        MessagesOf(failure).Should().ContainMatch($"*table QRTZ_{AdoConstants.TableJobStatus}*",
+            "the rollup is written with every history row, so its absence is refused at startup rather than "
+            + "dropping every row at the first firing");
+
+        MessagesOf(failure).Should().ContainMatch("*database/migrations/4.4/add_execution_outcome_sqlite.sql*",
+            "and the one script that creates it, and adds the columns beside it, is the whole remedy");
+
+        ShouldNameEveryPathOnce(failure);
+    }
+
+    /// <summary>
+    /// The columns 4.4 added are probed on their own, not only through the table the same script creates.
+    /// </summary>
+    [Test]
+    public async Task AHistoryWithoutOneOfTheOutcomeColumnsIsRefusedForIt()
+    {
+        Install43Schema(withHistory: true);
+        ApplyMigration(AdoConstants.Migration44ExecutionOutcome);
+        Execute($"ALTER TABLE QRTZ_EXECUTION_HISTORY DROP COLUMN {AdoConstants.ColumnFireInstanceId}");
+
+        SchedulerException failure = await StartAndCatch(
+            nameof(AHistoryWithoutOneOfTheOutcomeColumnsIsRefusedForIt),
+            configure: store => store.UseExecutionHistory());
+
+        MessagesOf(failure).Should().ContainMatch(
+            $"*{AdoConstants.ColumnFireInstanceId} of table QRTZ_{AdoConstants.TableExecutionHistory}*",
+            "every history row a 4.4 store writes names the column, so a database without it is refused at "
+            + "startup");
+
+        MessagesOf(failure).Should().ContainMatch("*database/migrations/4.4/add_execution_outcome_sqlite.sql*",
+            "and the script that adds it is the remedy");
+
+        ShouldNameEveryPathOnce(failure);
     }
 
     /// <summary>
     /// The control for the cases above: the scripts they name are what make that schema start.
     /// </summary>
+    /// <remarks>
+    /// The history's scripts are <c>AdoConstants.OptionalMigrations</c>, the list the refusal names them
+    /// from, so a migration added to it is one this runs.
+    /// </remarks>
     [Test]
     public async Task TheHistoryMigrationIsWhatMakesAHistoryStoreStart()
     {
         Install320Schema();
         ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
         ApplyMigration("4.2", "add_continuations_sqlite.sql");
-        ApplyMigration("4.2", "add_execution_history_sqlite.sql");
         ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
         ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
-        ApplyMigration("4.3", "add_execution_log_sqlite.sql");
-        ApplyMigration("4.3", "add_misfire_reason_sqlite.sql");
+
+        AdoConstants.OptionalMigrations.Should().Contain(AdoConstants.Migration44ExecutionOutcome,
+            "the premise: the list the store names is the one this applies");
+
+        foreach (string migration in AdoConstants.OptionalMigrations)
+        {
+            ApplyMigration(migration);
+        }
 
         Func<Task> act = async () => await (await GetScheduler(
             nameof(TheHistoryMigrationIsWhatMakesAHistoryStoreStart),

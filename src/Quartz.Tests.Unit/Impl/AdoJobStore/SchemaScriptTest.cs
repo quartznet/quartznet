@@ -156,19 +156,21 @@ public class SchemaScriptTest
     [Test]
     public void OnlyTheExecutionHistoryTablesAreOptional()
     {
-        AdoConstants.OptionalTableNames.Select(t => t.Table).Should().BeEquivalentTo(
-            [AdoConstants.TableExecutionHistory, AdoConstants.TableMisfireHistory],
-            "the execution history is the one feature whose tables a database may be without, and "
-            + "every other table is one the store reads whatever it is configured to do");
+        AdoConstants.OptionalTableNames.Select(t => (t.Table, t.Migration)).Should().Equal(
+            [
+                (AdoConstants.TableExecutionHistory, AdoConstants.Migration42History),
+                (AdoConstants.TableMisfireHistory, AdoConstants.Migration42History),
+                (AdoConstants.TableJobStatus, AdoConstants.Migration44ExecutionOutcome)
+            ],
+            "the execution history is the one feature whose tables a database may be without, each names "
+            + "the script that creates it so the failure can, and the rollup 4.4 added comes last so that a "
+            + "database without the history is told about the history's own tables first");
 
         AdoConstants.AllTableNames.Should().NotContain(AdoConstants.TableExecutionHistory)
-            .And.NotContain(AdoConstants.TableMisfireHistory,
-                "a history table in the unconditional probe would make 4.2/add_execution_history "
-                + "mandatory for every database created by 4.0 or 4.1");
-
-        AdoConstants.OptionalTableNames.Should().AllSatisfy(entry =>
-            entry.Migration.Should().Be(AdoConstants.Migration42History,
-                "the failure names the script the database in front of the reader is missing"));
+            .And.NotContain(AdoConstants.TableMisfireHistory)
+            .And.NotContain(AdoConstants.TableJobStatus,
+                "a history table in the unconditional probe would make the history's migrations mandatory "
+                + "for every database that keeps no history");
     }
 
     /// <summary>Every table the store knows about, required and optional alike.</summary>

@@ -83,12 +83,20 @@ public static class AdoConstants
     /// dialect's fresh-install script creates, so an optional table is still a table the scripts and
     /// the provisioning model agree about — it is only the startup probe that is conditional.
     /// </para>
+    /// <para>
+    /// A table a later migration creates comes after the tables it sits beside, so a database without
+    /// the history at all is told about the history's own tables first.
+    /// </para>
     /// </remarks>
     internal static readonly (string Table, string Migration, string Feature)[] OptionalTableNames =
     [
-        (TableExecutionHistory, Migration42History, "UsePersistentStore(store => store.UseExecutionHistory())"),
-        (TableMisfireHistory, Migration42History, "UsePersistentStore(store => store.UseExecutionHistory())")
+        (TableExecutionHistory, Migration42History, ExecutionHistoryFeature),
+        (TableMisfireHistory, Migration42History, ExecutionHistoryFeature),
+        (TableJobStatus, Migration44ExecutionOutcome, ExecutionHistoryFeature)
     ];
+
+    /// <summary>The call that turns on the feature every optional table and column belongs to.</summary>
+    private const string ExecutionHistoryFeature = "UsePersistentStore(store => store.UseExecutionHistory())";
 
     /// <summary>
     /// The migration folder whose scripts a 4.0 or 4.1 database needs, and the shape of their file
@@ -135,6 +143,12 @@ public static class AdoConstants
     internal const string Migration43PauseReason = "4.3/add_pause_reason_{0}.sql";
 
     /// <summary>
+    /// The migration that adds what a run reported to <see cref="TableExecutionHistory" />, the index a
+    /// job's own history reads, and <see cref="TableJobStatus" />. Optional, as the history is.
+    /// </summary>
+    internal const string Migration44ExecutionOutcome = "4.4/add_execution_outcome_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -145,9 +159,38 @@ public static class AdoConstants
     /// </remarks>
     internal static readonly (string Table, string Column, string Migration, string Feature)[] OptionalColumnNames =
     [
-        (TableExecutionHistory, ColumnExecutionLog, Migration43ExecutionLog, "UsePersistentStore(store => store.UseExecutionHistory())"),
-        (TableMisfireHistory, ColumnMisfireReason, Migration43MisfireReason, "UsePersistentStore(store => store.UseExecutionHistory())")
+        (TableExecutionHistory, ColumnExecutionLog, Migration43ExecutionLog, ExecutionHistoryFeature),
+        (TableMisfireHistory, ColumnMisfireReason, Migration43MisfireReason, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnResult, Migration44ExecutionOutcome, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnSummary, Migration44ExecutionOutcome, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnMetrics, Migration44ExecutionOutcome, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnManual, Migration44ExecutionOutcome, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnFireInstanceId, Migration44ExecutionOutcome, ExecutionHistoryFeature)
     ];
+
+    /// <summary>
+    /// Every migration <see cref="OptionalTableNames" /> and <see cref="OptionalColumnNames" /> name,
+    /// once each, oldest folder first: what a database needs, beyond the required migrations, before a
+    /// store keeping its history there will start.
+    /// </summary>
+    /// <remarks>
+    /// Ordered by the folder's version rather than as listed, because the migrations are cumulative and
+    /// a later one may alter a table an earlier one created.
+    /// </remarks>
+    internal static readonly string[] OptionalMigrations =
+    [
+        .. OptionalTableNames.Select(t => t.Migration)
+            .Concat(OptionalColumnNames.Select(c => c.Migration))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(MigrationVersion)
+    ];
+
+    /// <summary>
+    /// The version folder a migration's file-name template sits in, as a version, so that folders
+    /// order as releases do: <c>4.10</c> after <c>4.9</c>.
+    /// </summary>
+    internal static Version MigrationVersion(string migration) =>
+        Version.Parse(migration.AsSpan(0, migration.IndexOf('/')));
 
     /// <summary>
     /// Every column 4.x requires on a table an earlier release already had, beside the migration
@@ -273,6 +316,16 @@ public static class AdoConstants
     /// The <c>MISFIRE_HISTORY</c> table, without the table prefix.
     /// </summary>
     public const string TableMisfireHistory = "MISFIRE_HISTORY";
+
+    /// <summary>
+    /// The <c>JOB_STATUS</c> table, without the table prefix: one row per job, rolled up from
+    /// <see cref="TableExecutionHistory" /> as each row is written.
+    /// </summary>
+    /// <remarks>
+    /// Created by the optional 4.4 migration, and read and written only by a store keeping its
+    /// execution history in the database.
+    /// </remarks>
+    public const string TableJobStatus = "JOB_STATUS";
 
     // TableJobDetails columns names
     /// <summary>
@@ -613,6 +666,124 @@ public static class AdoConstants
     /// Added by the optional 4.3 migration.
     /// </remarks>
     public const string ColumnMisfireReason = "REASON";
+
+    /// <summary>
+    /// The <c>RESULT</c> column of <see cref="TableExecutionHistory" />: the integer of the run's
+    /// <c>JobRunResult</c>.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.4 migration. <see langword="null" /> on a row a 4.3 node wrote, whose
+    /// outcome is <see cref="ColumnSucceeded" />.
+    /// </remarks>
+    public const string ColumnResult = "RESULT";
+
+    /// <summary>
+    /// The <c>SUMMARY</c> column of <see cref="TableExecutionHistory" />: the one line the run reported,
+    /// cut as <see cref="ColumnErrorMessage" /> is.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.4 migration.
+    /// </remarks>
+    public const string ColumnSummary = "SUMMARY";
+
+    /// <summary>
+    /// The <c>METRICS</c> column of <see cref="TableExecutionHistory" />: the values the run reported,
+    /// as JSON.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.4 migration.
+    /// </remarks>
+    public const string ColumnMetrics = "METRICS";
+
+    /// <summary>
+    /// The <c>MANUAL</c> column of <see cref="TableExecutionHistory" />: whether <c>TriggerJob</c> fired
+    /// the run.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.4 migration, nullable as every 4.x migration's column is.
+    /// </remarks>
+    public const string ColumnManual = "MANUAL";
+
+    /// <summary>
+    /// The <c>FIRE_INSTANCE_ID</c> column of <see cref="TableExecutionHistory" />: the firing's id, which
+    /// links the row to its span and log scope.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.4 migration. Neither unique nor indexed: a fire instance id is not
+    /// durable across a restart.
+    /// </remarks>
+    public const string ColumnFireInstanceId = "FIRE_INSTANCE_ID";
+
+    // TableJobStatus columns names
+    /// <summary>
+    /// The <c>FIRST_FIRED_TIME</c> column of <see cref="TableJobStatus" />: when the job first fired.
+    /// </summary>
+    public const string ColumnFirstFiredTime = "FIRST_FIRED_TIME";
+
+    /// <summary>
+    /// The <c>LAST_FIRED_TIME</c> column of <see cref="TableJobStatus" />: when the last run fired.
+    /// </summary>
+    public const string ColumnLastFiredTime = "LAST_FIRED_TIME";
+
+    /// <summary>
+    /// The <c>LAST_RESULT</c> column of <see cref="TableJobStatus" />: the last run's result, as
+    /// <see cref="ColumnResult" /> holds it.
+    /// </summary>
+    public const string ColumnLastResult = "LAST_RESULT";
+
+    /// <summary>
+    /// The <c>LAST_RUN_TIME</c> column of <see cref="TableJobStatus" />: how long the last run took, in
+    /// ticks, as <see cref="ColumnRunTime" />.
+    /// </summary>
+    public const string ColumnLastRunTime = "LAST_RUN_TIME";
+
+    /// <summary>
+    /// The <c>LAST_INSTANCE_NAME</c> column of <see cref="TableJobStatus" />: the node that ran it.
+    /// </summary>
+    public const string ColumnLastInstanceName = "LAST_INSTANCE_NAME";
+
+    /// <summary>
+    /// The <c>LAST_ENTRY_ID</c> column of <see cref="TableJobStatus" />: the last run's history row.
+    /// </summary>
+    public const string ColumnLastEntryId = "LAST_ENTRY_ID";
+
+    /// <summary>
+    /// The <c>LAST_SUMMARY</c> column of <see cref="TableJobStatus" />: the last run's
+    /// <see cref="ColumnSummary" />.
+    /// </summary>
+    public const string ColumnLastSummary = "LAST_SUMMARY";
+
+    /// <summary>
+    /// The <c>LAST_SUCCESS_TIME</c> column of <see cref="TableJobStatus" />: when a run last succeeded.
+    /// </summary>
+    public const string ColumnLastSuccessTime = "LAST_SUCCESS_TIME";
+
+    /// <summary>
+    /// The <c>LAST_FAILURE_TIME</c> column of <see cref="TableJobStatus" />: when a run last failed.
+    /// </summary>
+    public const string ColumnLastFailureTime = "LAST_FAILURE_TIME";
+
+    /// <summary>
+    /// The <c>LAST_FAILURE_MESSAGE</c> column of <see cref="TableJobStatus" />: what the last failed run
+    /// said, as <see cref="ColumnErrorMessage" /> holds it.
+    /// </summary>
+    public const string ColumnLastFailureMessage = "LAST_FAILURE_MESSAGE";
+
+    /// <summary>
+    /// The <c>CONSECUTIVE_FAILURES</c> column of <see cref="TableJobStatus" />: how many runs in a row
+    /// have failed.
+    /// </summary>
+    public const string ColumnConsecutiveFailures = "CONSECUTIVE_FAILURES";
+
+    /// <summary>
+    /// The <c>RUN_COUNT</c> column of <see cref="TableJobStatus" />: how many runs the rollup counted.
+    /// </summary>
+    public const string ColumnRunCount = "RUN_COUNT";
+
+    /// <summary>
+    /// The <c>FAILURE_COUNT</c> column of <see cref="TableJobStatus" />: how many of them failed.
+    /// </summary>
+    public const string ColumnFailureCount = "FAILURE_COUNT";
 
     // PARAMETER NAMES A DIALECT DELEGATE HAS TO AGREE WITH
 

@@ -45,6 +45,7 @@ partial class Build
     const string TablePausedTriggerGroups = "QRTZ_PAUSED_TRIGGER_GRPS";
     const string TableExecutionHistory = "QRTZ_EXECUTION_HISTORY";
     const string TableMisfireHistory = "QRTZ_MISFIRE_HISTORY";
+    const string TableJobStatus = "QRTZ_JOB_STATUS";
 
     static readonly string[] Dialects = ["sqlServer", "postgres", "mysql_innodb", "oracle", "sqlite", "firebird"];
 
@@ -59,7 +60,7 @@ partial class Build
     };
 
     /// <summary>Version folders this target owns. Anything else under migrations/ is hand-written.</summary>
-    static readonly string[] GeneratedVersions = ["2.2", "2.6", "3.17", "3.18", "3.19", "3.20", "4.0", "4.2", "4.3"];
+    static readonly string[] GeneratedVersions = ["2.2", "2.6", "3.17", "3.18", "3.19", "3.20", "4.0", "4.2", "4.3", "4.4"];
 
     AbsolutePath MigrationsDirectory => RootDirectory / "database" / "migrations";
 

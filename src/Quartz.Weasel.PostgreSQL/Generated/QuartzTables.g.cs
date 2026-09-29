@@ -204,9 +204,15 @@ internal static partial class QuartzTables
         executionHistory.AddColumn("retry_attempt", "integer").NotNull().DefaultValueByExpression("0");
         executionHistory.AddColumn("retry_scheduled", "bool").NotNull().DefaultValueByExpression("false");
         executionHistory.AddColumn("execution_log", "text");
+        executionHistory.AddColumn("result", "integer");
+        executionHistory.AddColumn("summary", "text");
+        executionHistory.AddColumn("metrics", "text");
+        executionHistory.AddColumn("manual", "bool");
+        executionHistory.AddColumn("fire_instance_id", "text");
         naming.PrimaryKey(executionHistory);
         naming.Index(executionHistory, "EH_FIRED_TIME", ["sched_name", "fired_time"]);
         naming.Index(executionHistory, "EH_INST", ["sched_name", "instance_name"]);
+        naming.Index(executionHistory, "EH_JOB_TIME", ["sched_name", "job_group", "job_name", "fired_time"]);
         objects.Add(executionHistory);
 
         Table misfireHistory = naming.Table("MISFIRE_HISTORY");
@@ -224,6 +230,26 @@ internal static partial class QuartzTables
         naming.Index(misfireHistory, "MH_MISFIRE_TIME", ["sched_name", "misfire_time"]);
         naming.Index(misfireHistory, "MH_INST", ["sched_name", "instance_name"]);
         objects.Add(misfireHistory);
+
+        Table jobStatus = naming.Table("JOB_STATUS");
+        jobStatus.AddColumn("sched_name", "text").NotNull().AsPrimaryKey();
+        jobStatus.AddColumn("job_group", "text").NotNull().AsPrimaryKey();
+        jobStatus.AddColumn("job_name", "text").NotNull().AsPrimaryKey();
+        jobStatus.AddColumn("first_fired_time", "bigint").NotNull();
+        jobStatus.AddColumn("last_fired_time", "bigint").NotNull();
+        jobStatus.AddColumn("last_result", "integer").NotNull();
+        jobStatus.AddColumn("last_run_time", "bigint").NotNull();
+        jobStatus.AddColumn("last_instance_name", "text").NotNull();
+        jobStatus.AddColumn("last_entry_id", "text");
+        jobStatus.AddColumn("last_summary", "text");
+        jobStatus.AddColumn("last_success_time", "bigint");
+        jobStatus.AddColumn("last_failure_time", "bigint");
+        jobStatus.AddColumn("last_failure_message", "text");
+        jobStatus.AddColumn("consecutive_failures", "integer").NotNull().DefaultValueByExpression("0");
+        jobStatus.AddColumn("run_count", "bigint").NotNull().DefaultValueByExpression("0");
+        jobStatus.AddColumn("failure_count", "bigint").NotNull().DefaultValueByExpression("0");
+        naming.PrimaryKey(jobStatus);
+        objects.Add(jobStatus);
 
         // Index names Quartz has created and 4.x no longer does. The tables are add-only, so without these
         // Weasel would keep them for ever; database/migrations/4.0 drops the same names.
