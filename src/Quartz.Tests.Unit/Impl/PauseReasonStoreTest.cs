@@ -407,6 +407,67 @@ public sealed class PauseReasonStoreTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Sets of keys
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task PausingASetOfTriggersRecordsTheReasonOnEachOneItPausesInTheOrderGiven()
+    {
+        TriggerKey first = await Schedule("first");
+        TriggerKey second = await Schedule("second");
+        TriggerKey earlier = await Schedule("earlier");
+        await store.PauseTriggerWith(earlier, new PauseDetails { Reason = "earlier window", RequestedBy = "bob" });
+
+        clock.Advance(TimeSpan.FromHours(1));
+        TriggerKey missing = new("missing", Group);
+
+        (await store.PauseTriggersWith([second, missing, earlier, first], maintenance)).Should().Equal([second, first],
+            "a missing key and one already paused are absent, and the rest keep the order they were given in");
+
+        PauseInfo recorded = new("database maintenance", "alice", epoch.AddHours(1));
+        (await store.GetTriggerPause(first)).Should().Be(recorded);
+        (await store.GetTriggerPause(second)).Should().Be(recorded);
+        (await store.GetTriggerPause(earlier)).Should().Be(new PauseInfo("earlier window", "bob", epoch),
+            "a trigger that was already paused keeps the pause it had");
+        (await Header(second)).Pause.Should().Be(recorded, "the listing carries the set pause's record too");
+    }
+
+    [Test]
+    public async Task PausingASetOfJobsRecordsTheReasonOnEachOfTheirTriggers()
+    {
+        IJobDetail reports = await StoreJob("reports");
+        TriggerKey reportsFirst = await Schedule("reports-first", reports);
+        TriggerKey reportsSecond = await Schedule("reports-second", reports);
+        IJobDetail exports = await StoreJob("exports");
+        TriggerKey ofExports = await Schedule("of-exports", exports);
+        JobKey missing = new("missing", Group);
+
+        (await store.PauseJobsWith([exports.Key, missing, reports.Key], maintenance)).Should().Equal([exports.Key, reports.Key],
+            "a key that names no job is absent, and the rest keep the order they were given in");
+
+        PauseInfo recorded = new("database maintenance", "alice", epoch);
+        (await store.GetTriggerPause(reportsFirst)).Should().Be(recorded);
+        (await store.GetTriggerPause(reportsSecond)).Should().Be(recorded);
+        (await store.GetTriggerPause(ofExports)).Should().Be(recorded);
+    }
+
+    [Test]
+    public async Task ASetPauseThatSaysNothingRecordsNothing()
+    {
+        IJobDetail job = await StoreJob("reports");
+        TriggerKey ofJob = await Schedule("of-job", job);
+        TriggerKey single = await Schedule("single");
+
+        (await store.PauseTriggersWith([single], new PauseDetails { Reason = "  " })).Should().Equal([single]);
+        (await store.PauseJobsWith([job.Key], null)).Should().Equal([job.Key]);
+
+        (await store.GetTriggerState(single)).Should().Be(TriggerState.Paused);
+        (await store.GetTriggerState(ofJob)).Should().Be(TriggerState.Paused);
+        (await store.GetTriggerPause(single)).Should().BeNull("blank details are the reasonless pause");
+        (await store.GetTriggerPause(ofJob)).Should().BeNull();
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Beside a 4.2 node
     //////////////////////////////////////////////////////////////////////////////////////////////
 

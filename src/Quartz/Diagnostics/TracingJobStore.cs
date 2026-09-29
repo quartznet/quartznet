@@ -269,6 +269,30 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.PauseJobGroupsWith(s.matcher, s.details, s.cancellationToken));
     }
 
+    public override ValueTask<List<TriggerKey>> PauseTriggersWith(IReadOnlyCollection<TriggerKey> triggerKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.PauseTriggers);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.PauseTriggersWith(triggerKeys, details, cancellationToken);
+        }
+
+        return Complete(operation, (InnerJobStore, triggerKeys, details, cancellationToken),
+            static s => s.InnerJobStore.PauseTriggersWith(s.triggerKeys, s.details, s.cancellationToken));
+    }
+
+    public override ValueTask<List<JobKey>> PauseJobsWith(IReadOnlyCollection<JobKey> jobKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.PauseJobs);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.PauseJobsWith(jobKeys, details, cancellationToken);
+        }
+
+        return Complete(operation, (InnerJobStore, jobKeys, details, cancellationToken),
+            static s => s.InnerJobStore.PauseJobsWith(s.jobKeys, s.details, s.cancellationToken));
+    }
+
     public override ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.ReleaseAcquiredTrigger);

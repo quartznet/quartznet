@@ -154,6 +154,52 @@ public sealed class PauseReasonSchedulerTest
         await scheduler.Shutdown();
     }
 
+    [Test]
+    public async Task ASetPausedWithAReasonIsRecordedAndAnnouncedPerKey()
+    {
+        PauseRecorder recorder = new();
+        await using ServiceProvider provider = BuildScheduler("key-set", quartz =>
+            quartz.AddSchedulerListener(recorder));
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        TriggerKey nightly = new("nightly", "reports");
+        TriggerKey hourly = new("hourly", "imports");
+        TriggerKey missing = new("missing", "reports");
+
+        (await scheduler.PauseTriggersWith([hourly, missing, nightly], maintenance)).Should().Equal([hourly, nightly]);
+        (await scheduler.GetTriggerPause(nightly))!.Reason.Should().Be("database maintenance");
+        (await scheduler.GetTriggerPause(hourly))!.RequestedBy.Should().Be("alice");
+        (await scheduler.PauseTriggersWith([], maintenance)).Should().BeEmpty("an empty set asks nothing of the store");
+
+        await scheduler.ResumeAll();
+
+        (await scheduler.PauseJobsWith([new JobKey("import", "imports"), new JobKey("missing", "imports")], maintenance))
+            .Should().Equal([new JobKey("import", "imports")]);
+        (await scheduler.GetTriggerPause(hourly))!.Reason.Should().Be("database maintenance");
+        (await scheduler.PauseJobsWith([], maintenance)).Should().BeEmpty();
+
+        await scheduler.ResumeAll();
+
+        (await scheduler.PauseTriggersWith([nightly], null)).Should().Equal([nightly]);
+        (await scheduler.PauseJobsWith([new JobKey("import", "imports")], new PauseDetails())).Should().Equal([new JobKey("import", "imports")]);
+        (await scheduler.GetTriggerPause(nightly)).Should().BeNull("details that say nothing are the reasonless set pause");
+
+        recorder.Events.Should().Equal(
+            ["trigger imports.hourly", "trigger reports.nightly", "job imports.import", "trigger reports.nightly", "job imports.import"],
+            "a set pause announces each key it applied to, as the reasonless set pause does, and nothing for a missing key");
+
+        Func<Task> withoutTriggerKeys = async () => await scheduler.PauseTriggersWith(null!, maintenance);
+        Func<Task> withoutJobKeys = async () => await scheduler.PauseJobsWith(null!, maintenance);
+        await withoutTriggerKeys.Should().ThrowAsync<ArgumentNullException>();
+        await withoutJobKeys.Should().ThrowAsync<ArgumentNullException>();
+
+        await scheduler.Shutdown();
+
+        Func<Task> afterShutdown = async () => await scheduler.PauseTriggersWith([nightly], maintenance);
+        Func<Task> jobsAfterShutdown = async () => await scheduler.PauseJobsWith([new JobKey("import", "imports")], maintenance);
+        await afterShutdown.Should().ThrowAsync<SchedulerException>();
+        await jobsAfterShutdown.Should().ThrowAsync<SchedulerException>();
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Pausing a trigger whose retries ran out
     //////////////////////////////////////////////////////////////////////////////////////////////

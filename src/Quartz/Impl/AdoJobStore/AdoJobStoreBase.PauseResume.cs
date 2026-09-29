@@ -229,6 +229,25 @@ internal abstract partial class AdoJobStoreBase
             cancellationToken);
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// The whole set inside one lock and one transaction, every trigger stamped with the same instant.
+    /// Details that <see cref="PauseDetails.SaysNothing">say nothing</see> make exactly
+    /// <see cref="PauseTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" />'s statements, so a
+    /// delegate overriding the key-set <c>UpdateTriggerStatesFromOtherStates</c> still writes that pause.
+    /// </remarks>
+    public ValueTask<List<TriggerKey>> PauseTriggersWith(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        PauseInfo? pause = PauseDetails.Record(details, timeProvider.GetUtcNow());
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => PauseTriggers(conn, triggerKeys, pause, cancellationToken),
+            cancellationToken);
+    }
+
     /// <summary>
     /// Pauses a set of triggers: one read of their stored states, then one statement per transition
     /// the set actually needs — at most two, whatever the size of the set.
@@ -403,19 +422,50 @@ internal abstract partial class AdoJobStoreBase
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
-        {
-            List<JobKey> paused = new List<JobKey>(jobKeys.Count);
-            foreach (JobKey jobKey in jobKeys)
-            {
-                if (await PauseJob(conn, jobKey, pause: null, cancellationToken).ConfigureAwait(false))
-                {
-                    paused.Add(jobKey);
-                }
-            }
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => PauseJobs(conn, jobKeys, pause: null, cancellationToken),
+            cancellationToken);
+    }
 
-            return paused;
-        }, cancellationToken);
+    /// <inheritdoc />
+    /// <remarks>
+    /// The whole set inside one lock and one transaction, every trigger stamped with the same instant.
+    /// Details that <see cref="PauseDetails.SaysNothing">say nothing</see> make exactly
+    /// <see cref="PauseJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />'s statements.
+    /// </remarks>
+    public ValueTask<List<JobKey>> PauseJobsWith(
+        IReadOnlyCollection<JobKey> jobKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        PauseInfo? pause = PauseDetails.Record(details, timeProvider.GetUtcNow());
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => PauseJobs(conn, jobKeys, pause, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Pauses each job of the set on one connection, carrying <paramref name="pause" /> when there is one.
+    /// </summary>
+    /// <returns>The keys that name a job, in the order they were given.</returns>
+    private async ValueTask<List<JobKey>> PauseJobs(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<JobKey> jobKeys,
+        PauseInfo? pause,
+        CancellationToken cancellationToken)
+    {
+        List<JobKey> paused = new List<JobKey>(jobKeys.Count);
+        foreach (JobKey jobKey in jobKeys)
+        {
+            if (await PauseJob(conn, jobKey, pause, cancellationToken).ConfigureAwait(false))
+            {
+                paused.Add(jobKey);
+            }
+        }
+
+        return paused;
     }
 
     /// <summary>

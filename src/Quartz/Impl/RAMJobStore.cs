@@ -2357,12 +2357,25 @@ public sealed class RAMJobStore : IJobStore
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
+        return PauseTriggersWith(triggerKeys, details: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The whole set in one lock pass, every trigger stamped with the same instant.
+    /// </remarks>
+    public ValueTask<List<TriggerKey>> PauseTriggersWith(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
         lock (lockObject)
         {
+            PauseInfo? pause = PauseDetails.Record(details, timeProvider.GetUtcNow());
             List<TriggerKey> paused = new List<TriggerKey>(triggerKeys.Count);
             foreach (TriggerKey triggerKey in triggerKeys)
             {
-                if (PauseTriggerNoLock(triggerKey, pause: null))
+                if (PauseTriggerNoLock(triggerKey, pause))
                 {
                     paused.Add(triggerKey);
                 }
@@ -2498,12 +2511,25 @@ public sealed class RAMJobStore : IJobStore
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
+        return PauseJobsWith(jobKeys, details: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The whole set in one lock pass, every trigger stamped with the same instant.
+    /// </remarks>
+    public ValueTask<List<JobKey>> PauseJobsWith(
+        IReadOnlyCollection<JobKey> jobKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
         lock (lockObject)
         {
+            PauseInfo? pause = PauseDetails.Record(details, timeProvider.GetUtcNow());
             List<JobKey> paused = new List<JobKey>(jobKeys.Count);
             foreach (JobKey jobKey in jobKeys)
             {
-                if (PauseJobNoLock(jobKey, pause: null))
+                if (PauseJobNoLock(jobKey, pause))
                 {
                     paused.Add(jobKey);
                 }

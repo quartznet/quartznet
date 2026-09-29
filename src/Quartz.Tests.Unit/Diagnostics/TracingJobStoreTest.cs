@@ -368,6 +368,10 @@ public sealed class TracingJobStoreTest
         PauseDetails details = new() { Reason = "maintenance", RequestedBy = "ops" };
         A.CallTo(() => inner.PauseTriggerWith(triggerKey, details, A<CancellationToken>.Ignored)).Returns(true);
         A.CallTo(() => inner.PauseJobWith(jobKey, details, A<CancellationToken>.Ignored)).Returns(true);
+        A.CallTo(() => inner.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>.Ignored, details, A<CancellationToken>.Ignored))
+            .Returns(new List<TriggerKey> { triggerKey });
+        A.CallTo(() => inner.PauseJobsWith(A<IReadOnlyCollection<JobKey>>.Ignored, details, A<CancellationToken>.Ignored))
+            .Returns(new List<JobKey> { jobKey });
 
         IJobStore store = await Decorated(inner);
 
@@ -376,8 +380,12 @@ public sealed class TracingJobStoreTest
         await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals("triggers"), details);
         await store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("jobs"), details);
         await store.PauseAllWith(details);
+        (await store.PauseTriggersWith([triggerKey], details)).Should().Equal([triggerKey]);
+        (await store.PauseJobsWith([jobKey], details)).Should().Equal([jobKey]);
 
         A.CallTo(() => inner.PauseTrigger(A<TriggerKey>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => inner.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => inner.PauseJobs(A<IReadOnlyCollection<JobKey>>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
         A.CallTo(() => inner.PauseTriggerGroupsWith(A<GroupMatcher<TriggerKey>>.Ignored, details, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
         A.CallTo(() => inner.PauseJobGroupsWith(A<GroupMatcher<JobKey>>.Ignored, details, A<CancellationToken>.Ignored))
@@ -390,6 +398,8 @@ public sealed class TracingJobStoreTest
         SpanFor(OperationName.JobStore.PauseTriggerGroups);
         SpanFor(OperationName.JobStore.PauseJobGroups);
         SpanFor(OperationName.JobStore.PauseAll);
+        SpanFor(OperationName.JobStore.PauseTriggers);
+        SpanFor(OperationName.JobStore.PauseJobs);
     }
 
     /// <summary>
@@ -414,11 +424,16 @@ public sealed class TracingJobStoreTest
         await store.PauseJobWith(new JobKey("j"), details);
         await store.PauseJobGroupsWith(GroupMatcher<JobKey>.AnyGroup(), details);
         await store.PauseAllWith(details);
+        await store.PauseTriggersWith([new TriggerKey("t")], details);
+        await store.PauseJobsWith([new JobKey("j")], details);
 
         lock (stoppedActivities)
         {
             stoppedActivities.Should().BeEmpty("no listener means no activity to create");
         }
+
+        A.CallTo(() => inner.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>.Ignored, details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseJobsWith(A<IReadOnlyCollection<JobKey>>.Ignored, details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         A.CallTo(() => inner.PauseAll(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
         A.CallTo(() => inner.PauseAllWith(details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();

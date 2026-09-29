@@ -100,6 +100,75 @@ public sealed class PauseReasonForwardingTest
         (await store.GetJobGroupPause("reports")).Should().BeNull();
     }
 
+    /// <summary>
+    /// The key-set defaults keep the details where the other defaults drop them: a scheduler written
+    /// against 4.3 records a reason through its single-key member, so the set is walked through that.
+    /// </summary>
+    [Test]
+    public async Task AScheduler43ShapedKeepsTheReasonThroughTheKeySetDefaults()
+    {
+        TriggerKey other = new("hourly", "reports");
+        JobKey otherJob = new("import", "reports");
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => scheduler.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => scheduler.PauseTriggerWith(triggerKey, details, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => scheduler.PauseTriggerWith(other, details, A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => scheduler.PauseJobWith(A<JobKey>._, details, A<CancellationToken>._)).Returns(true);
+
+        (await scheduler.PauseTriggersWith([other, triggerKey], details)).Should().Equal([triggerKey],
+            "the default answers with the keys the single-key member paused, in the order given");
+        (await scheduler.PauseJobsWith([otherJob, jobKey], details)).Should().Equal([otherJob, jobKey]);
+
+        A.CallTo(() => scheduler.PauseTriggerWith(A<TriggerKey>._, details, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+        A.CallTo(() => scheduler.PauseJobWith(A<JobKey>._, details, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+        A.CallTo(() => scheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => scheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task TheKeySetDefaultsMakeAPauseThatSaysNothingThroughTheReasonlessSetForm()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => scheduler.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => scheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<TriggerKey> { triggerKey });
+        A.CallTo(() => scheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(new List<JobKey> { jobKey });
+
+        (await scheduler.PauseTriggersWith([triggerKey], null)).Should().Equal([triggerKey]);
+        (await scheduler.PauseJobsWith([jobKey], new PauseDetails { Reason = " " })).Should().Equal([jobKey]);
+
+        A.CallTo(() => scheduler.PauseTriggerWith(A<TriggerKey>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => scheduler.PauseJobWith(A<JobKey>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+
+        Func<Task> withoutKeys = async () => await scheduler.PauseTriggersWith(null!, details);
+        await withoutKeys.Should().ThrowAsync<ArgumentNullException>().WithParameterName("triggerKeys");
+        Func<Task> withoutJobKeys = async () => await scheduler.PauseJobsWith(null!, details);
+        await withoutJobKeys.Should().ThrowAsync<ArgumentNullException>().WithParameterName("jobKeys");
+    }
+
+    [Test]
+    public async Task AStore43ShapedKeepsTheReasonThroughTheKeySetDefaults()
+    {
+        TriggerKey other = new("hourly", "reports");
+        IJobStore store = A.Fake<IJobStore>();
+        A.CallTo(() => store.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => store.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, A<PauseDetails>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => store.PauseTriggerWith(A<TriggerKey>._, details, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => store.PauseJobWith(jobKey, details, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => store.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<TriggerKey> { other });
+
+        (await store.PauseTriggersWith([other, triggerKey], details)).Should().Equal([other, triggerKey]);
+        (await store.PauseJobsWith([jobKey], details)).Should().Equal([jobKey]);
+        A.CallTo(() => store.PauseTriggerWith(A<TriggerKey>._, details, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+        A.CallTo(() => store.PauseJobWith(jobKey, details, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+
+        (await store.PauseTriggersWith([other], null)).Should().Equal([other], "details that say nothing are the reasonless set form");
+        await store.PauseJobsWith([jobKey], new PauseDetails());
+        A.CallTo(() => store.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => store.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
     [Test]
     public async Task ADelegateOfAnEarlier4xMovesTheRowsAndRecordsNothing()
     {
@@ -161,6 +230,8 @@ public sealed class PauseReasonForwardingTest
         A.CallTo(() => inner.GetTriggerPause(triggerKey, A<CancellationToken>._)).Returns(record);
         A.CallTo(() => inner.GetTriggerGroupPause("reports", A<CancellationToken>._)).Returns(record);
         A.CallTo(() => inner.GetJobGroupPause("reports", A<CancellationToken>._)).Returns(record);
+        A.CallTo(() => inner.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, details, A<CancellationToken>._)).Returns(new List<TriggerKey> { triggerKey });
+        A.CallTo(() => inner.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, details, A<CancellationToken>._)).Returns(new List<JobKey> { jobKey });
 
         DelegatingJobStore store = new(inner);
 
@@ -168,6 +239,8 @@ public sealed class PauseReasonForwardingTest
         (await store.PauseJobWith(jobKey, details)).Should().BeTrue();
         (await store.PauseTriggerGroupsWith(triggerGroups, details)).Should().Equal(["reports"]);
         (await store.PauseJobGroupsWith(jobGroups, details)).Should().Equal(["reports"]);
+        (await store.PauseTriggersWith([triggerKey], details)).Should().Equal([triggerKey]);
+        (await store.PauseJobsWith([jobKey], details)).Should().Equal([jobKey]);
         await store.PauseAllWith(details);
         (await store.GetTriggerPause(triggerKey)).Should().Be(record);
         (await store.GetTriggerGroupPause("reports")).Should().Be(record);
@@ -186,6 +259,8 @@ public sealed class PauseReasonForwardingTest
         A.CallTo(() => inner.GetTriggerPause(triggerKey, A<CancellationToken>._)).Returns(record);
         A.CallTo(() => inner.GetTriggerGroupPause("reports", A<CancellationToken>._)).Returns(record);
         A.CallTo(() => inner.GetJobGroupPause("reports", A<CancellationToken>._)).Returns(record);
+        A.CallTo(() => inner.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, details, A<CancellationToken>._)).Returns(new List<TriggerKey> { triggerKey });
+        A.CallTo(() => inner.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, details, A<CancellationToken>._)).Returns(new List<JobKey> { jobKey });
         return inner;
     }
 
@@ -196,14 +271,18 @@ public sealed class PauseReasonForwardingTest
         (await forwarder.PauseJobWith(jobKey, details)).Should().BeTrue();
         (await forwarder.PauseTriggerGroupsWith(triggerGroups, details)).Should().Equal(["reports"]);
         (await forwarder.PauseJobGroupsWith(jobGroups, details)).Should().Equal(["reports"]);
+        (await forwarder.PauseTriggersWith([triggerKey], details)).Should().Equal([triggerKey]);
+        (await forwarder.PauseJobsWith([jobKey], details)).Should().Equal([jobKey]);
         await forwarder.PauseAllWith(details);
         (await forwarder.GetTriggerPause(triggerKey)).Should().Be(record);
         (await forwarder.GetTriggerGroupPause("reports")).Should().Be(record);
         (await forwarder.GetJobGroupPause("reports")).Should().Be(record);
 
         A.CallTo(() => inner.PauseAllWith(details, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
-        // A forwarder that answered by the default would drop the details on the way.
+        // A forwarder that answered by the default would drop the details on the way, or walk the set a key at a time.
         A.CallTo(() => inner.PauseTrigger(A<TriggerKey>._, A<CancellationToken>._)).MustNotHaveHappened();
         A.CallTo(() => inner.PauseAll(A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => inner.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>._, details, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner.PauseJobsWith(A<IReadOnlyCollection<JobKey>>._, details, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
     }
 }

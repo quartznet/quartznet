@@ -84,8 +84,10 @@ public class OperationNameTest
         // records attached, and begins that pause's span.
         "PauseAllWith",
         "PauseJobGroupsWith",
+        "PauseJobsWith",
         "PauseJobWith",
         "PauseTriggerGroupsWith",
+        "PauseTriggersWith",
         "PauseTriggerWith",
 
         // A write, but one queued off the job's flow at up to one a second per running firing: it has
