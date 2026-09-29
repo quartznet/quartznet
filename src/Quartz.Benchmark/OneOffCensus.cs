@@ -52,6 +52,19 @@ internal static class OneOffCensus
     /// <summary>How long the scheduler is then watched with nothing to do, to price its polling.</summary>
     private static readonly TimeSpan idleSample = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// Whether every store keeps its execution history in the database, from
+    /// <c>QUARTZ_CENSUS_EXECUTION_HISTORY=true</c>: the history row and the job's status are then part of
+    /// what a firing costs.
+    /// </summary>
+    /// <remarks>
+    /// Every firing runs the one durable job of its job type, so the job's status row is inserted by the
+    /// first firing and updated by every other. The history's tables are cleared once per run rather than
+    /// per arm, so that first firing is in the first arm.
+    /// </remarks>
+    private static readonly bool executionHistory = string.Equals(
+        Environment.GetEnvironmentVariable("QUARTZ_CENSUS_EXECUTION_HISTORY"), "true", StringComparison.OrdinalIgnoreCase);
+
     public static void Run()
     {
         RunCore().GetAwaiter().GetResult();
@@ -67,6 +80,16 @@ internal static class OneOffCensus
         Console.WriteLine(statements
             ? "pg_stat_statements is loaded; the statement columns are counts."
             : "pg_stat_statements is NOT loaded on this server, so the statement columns are blank. Start the container with -c shared_preload_libraries=pg_stat_statements.");
+
+        if (executionHistory)
+        {
+            Console.WriteLine("Execution history is on (QUARTZ_CENSUS_EXECUTION_HISTORY): the first arm's first firing inserts the job's status row, every other firing updates it.");
+            foreach (string table in (string[]) ["QRTZ_EXECUTION_HISTORY", "QRTZ_MISFIRE_HISTORY", "QRTZ_JOB_STATUS"])
+            {
+                await database.Execute($"DELETE FROM {table} WHERE SCHED_NAME = '{SchedulerName}'").ConfigureAwait(false);
+            }
+        }
+
         Console.WriteLine();
 
         List<string> tables = [];
@@ -109,6 +132,11 @@ internal static class OneOffCensus
             {
                 store.UsePostgres(connectionString);
                 store.UseSystemTextJsonSerializer();
+
+                if (executionHistory)
+                {
+                    store.UseExecutionHistory();
+                }
             })).ConfigureAwait(false);
 
         try

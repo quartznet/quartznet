@@ -40,7 +40,7 @@ reachable as plain runs of this assembly, with the harness out of the way. `--he
 | `--profile-cron` | `CronExpressionComparisonBenchmark.Next100`, for ~20 s |
 | `--profile-schedule` | `ScheduleJobBenchmark`'s simple arm, clearing the store every 50,000, for ~20 s |
 | `--latency` | The schedule-to-execute probe: one job scheduled for now on an idle scheduler, 200 times |
-| `--one-off-census` | A drain of one-off firings against PostgreSQL, with the commits and every statement counted at the database |
+| `--one-off-census` | A drain of one-off firings against PostgreSQL, with the commits and every statement counted at the database. `QUARTZ_CENSUS_EXECUTION_HISTORY=true` adds `UseExecutionHistory()` |
 
 Each is a whole run and takes no other arguments, as `--smoke` does. Each prints what it got through
 when it ends, so a capture can be checked against the rate the benchmark reports rather than assumed
