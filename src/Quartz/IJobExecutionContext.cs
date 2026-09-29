@@ -78,9 +78,10 @@ public interface IJobExecutionContext
     /// <para>
     /// Written by the scheduler once the job has finished and before the completion notifications go
     /// out, so <see cref="IJobListener.JobWasExecuted" /> and
-    /// <see cref="ITriggerListener.TriggerComplete" /> read what actually happened. A listener asking
-    /// earlier — or a context built by hand — is answered <see cref="ExecutionOutcome.Succeeded" />,
-    /// because nothing has gone wrong yet.
+    /// <see cref="ITriggerListener.TriggerComplete" /> read what actually happened. A vetoed firing is
+    /// settled before <see cref="IJobListener.JobExecutionVetoed" />, which reads
+    /// <see cref="ExecutionOutcome.Vetoed" />. A listener asking earlier — or a context built by hand — is
+    /// answered <see cref="ExecutionOutcome.Succeeded" />, because nothing has gone wrong yet.
     /// </para>
     /// <para>
     /// It says what the firing did and nothing about what the schedule makes of it: a job that ran and

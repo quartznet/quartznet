@@ -512,6 +512,11 @@ internal sealed class JobRunShell
 
         if (vetoed)
         {
+            // Settled before the job listeners hear of the veto, as a completion is settled before they
+            // hear of it, so JobExecutionVetoed reads Vetoed rather than the Succeeded nothing has
+            // replaced yet.
+            ctx.Settle(ExecutionOutcome.Vetoed, retryScheduled: false);
+
             try
             {
                 StartedActivity activity = QuartzActivitySource.StartJobVeto(ctx);
