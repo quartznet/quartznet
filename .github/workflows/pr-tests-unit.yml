@@ -21,6 +21,7 @@ on:
     branches:
       - main
       - '3.x'
+      - '4.3.x'
     paths:
       - '**/*'
       - '!docs/**/*'
