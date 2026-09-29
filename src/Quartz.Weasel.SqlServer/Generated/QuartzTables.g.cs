@@ -124,7 +124,7 @@ internal static partial class QuartzTables
         blobTriggers.AddColumn("TRIGGER_GROUP", "nvarchar(150)").NotNull().AsPrimaryKey();
         blobTriggers.AddColumn("BLOB_DATA", "varbinary(max)");
         naming.PrimaryKey(blobTriggers);
-        // No foreign key: tables_sqlServer.sql creates none on this table. See WeaselForeignKeysLeftOut.
+        // No foreign key: tables_sqlServer.sql creates none on this table. See SchemaForeignKey.LeftOutOn.
         objects.Add(blobTriggers);
 
         Table calendars = naming.Table("CALENDARS");

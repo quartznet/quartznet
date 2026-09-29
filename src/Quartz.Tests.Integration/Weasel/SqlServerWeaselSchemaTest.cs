@@ -98,16 +98,25 @@ public sealed class SqlServerWeaselSchemaTest
         await provisioned.ProvisionAsync();
 
         (await provisioned.ScalarAsync("SELECT count(*) FROM sys.foreign_keys WHERE name = 'FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS'"))
-            .Should().Be(1, "the premise: ProvisionSchema() creates the one foreign key the fresh-install script does not");
+            .Should().Be(0, "ProvisionSchema() creates no key the fresh-install script does not (#3949)");
+
+        // What ProvisionSchema() created before 4.4, which a database it provisioned then still has.
+        await provisioned.ExecuteAsync(BlobForeignKeyBefore44);
 
         (ServiceProvider provisionedServices, IDatabase provisionedWeasel) = await provisioned.WeaselAsync("weasel-ss-provisioned");
         await using (provisionedServices)
         {
             SchemaMigration migration = await provisionedWeasel.CreateMigrationAsync();
             migration.Difference.Should().Be(SchemaPatchDifference.None,
-                "create_sqlServer.sql is the model, and the add-only table keeps the key it has beyond it: " + Describe(migration));
+                "a database provisioned before 4.4 keeps the key it has beyond the model, since the table is add-only: "
+                + Describe(migration));
         }
     }
+
+    /// <summary>The foreign key <c>create_sqlServer.sql</c> created on <c>QRTZ_BLOB_TRIGGERS</c> until 4.4.</summary>
+    private const string BlobForeignKeyBefore44 =
+        "ALTER TABLE QRTZ_BLOB_TRIGGERS ADD CONSTRAINT FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS "
+        + "FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) REFERENCES QRTZ_TRIGGERS (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) ON DELETE CASCADE";
 
     /// <summary>
     /// A prefix in a schema of its own, bracketed the way a SQL Server table prefix may be, moves every

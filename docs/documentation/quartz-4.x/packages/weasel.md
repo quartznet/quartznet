@@ -241,7 +241,7 @@ any other.
 |---|---|
 | memory-optimized tables (`tables_sqlServerMOT.sql`) | refused before anything runs; keep that script |
 | SQL Server before 2016 (`tables_sqlServer_Below2016.sql`) | not supported |
-| `FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS` | not modelled: `tables_sqlServer.sql` never created it; `ProvisionSchema()`'s is kept |
+| `FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS` | not modelled: `tables_sqlServer.sql` never created it, nor does `ProvisionSchema()` since 4.4; an older provisioned one is kept |
 | a `numeric` column's precision | not compared |
 
 ## SQLite

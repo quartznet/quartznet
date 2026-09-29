@@ -78,7 +78,7 @@ public sealed class SqlServerWeaselModelTest
                 ["FK_QRTZ_SIMPLE_TRIGGERS_QRTZ_TRIGGERS"] = CascadeAction.Cascade,
                 ["FK_QRTZ_CRON_TRIGGERS_QRTZ_TRIGGERS"] = CascadeAction.Cascade,
                 ["FK_QRTZ_SIMPROP_TRIGGERS_QRTZ_TRIGGERS"] = CascadeAction.Cascade,
-            }, "Weasel compares a foreign key by name, and tables_sqlServer.sql creates none on QRTZ_BLOB_TRIGGERS");
+            }, "Weasel compares a foreign key by name, and neither tables_sqlServer.sql nor create_sqlServer.sql creates one on QRTZ_BLOB_TRIGGERS (#3949)");
 
             IndexDefinition acquisition = tables.SelectMany(x => x.Indexes).Single(x => x.Name == "IDX_QRTZ_T_NFT_ST");
             acquisition.Columns.Should().Equal("SCHED_NAME", "TRIGGER_STATE", "NEXT_FIRE_TIME", "PRIORITY", "MISFIRE_INSTR");

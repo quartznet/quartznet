@@ -654,6 +654,12 @@ rollup counts only the runs 4.4 nodes record until every node is 4.4.
 
 A fresh install from `database/tables/`, and `ProvisionSchema()`, create all of it.
 
+### SQL Server: one foreign key fewer
+
+`ProvisionSchema()` no longer creates `FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS`, which `tables_sqlServer.sql`
+never created ([#3949](https://github.com/quartznet/quartznet/issues/3949)). There is no script: a database
+that has the key keeps it, and nothing depends on it.
+
 ## See also
 
 - [`database/README.md`](https://github.com/quartznet/quartznet/blob/main/database/README.md): the same table, in the repository
