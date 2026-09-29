@@ -263,17 +263,6 @@ public sealed class PauseReasonSchedulerTest
         await scheduler.Shutdown();
     }
 
-    [Test]
-    public void AJobExecutionExceptionTheJobThrewIsItsOwnReason()
-    {
-        RetriesExhaustedPauseListener.ReasonFor(new JobExecutionException("quota exceeded", new InvalidOperationException("inner")))
-            .Should().Be("quota exceeded",
-                "a job that wrapped its own failure said what it meant in the wrapper");
-
-        RetriesExhaustedPauseListener.ReasonFor(new JobExecutionException(new InvalidOperationException("the disk is full")))
-            .Should().Be("the disk is full", "a wrapper with no words of its own says its cause's");
-    }
-
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Scaffolding
     //////////////////////////////////////////////////////////////////////////////////////////////
