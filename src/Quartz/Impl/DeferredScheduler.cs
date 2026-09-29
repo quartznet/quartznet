@@ -467,6 +467,18 @@ internal sealed class DeferredScheduler : IScheduler
         await target.PauseAllWith(details, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<List<TriggerKey>> PauseTriggersWith(IReadOnlyCollection<TriggerKey> triggerKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.PauseTriggersWith(triggerKeys, details, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<List<JobKey>> PauseJobsWith(IReadOnlyCollection<JobKey> jobKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.PauseJobsWith(jobKeys, details, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);

@@ -53,6 +53,8 @@ public sealed class PauseReasonDelegateCompatibilitySqliteTest
 
     private SqliteTestDatabase database = null!;
     private CountingSqliteDelegate driverDelegate = null!;
+    private CountingLockHandler lockHandler = null!;
+    private CountingDbProvider dbProvider = null!;
     private LocalTransactionJobStore store = null!;
     private FakeTimeProvider clock = null!;
 
@@ -70,15 +72,20 @@ public sealed class PauseReasonDelegateCompatibilitySqliteTest
 
         clock = new FakeTimeProvider(new DateTimeOffset(2031, 6, 17, 10, 0, 0, TimeSpan.Zero));
         driverDelegate = new CountingSqliteDelegate();
+        dbProvider = new CountingDbProvider(new DbProvider("SQLite-Microsoft", database.ConnectionString));
         store = new LocalTransactionJobStore(TestJobStores.Dependencies(
             timeProvider: clock,
             schedulerOptions: TestJobStores.SchedulerOptions(instanceName: SchedulerName, instanceId: "node-a"),
             storeOptions: TestJobStores.StoreOptions("pause-delegate-compat"),
-            dbProvider: new DbProvider("SQLite-Microsoft", database.ConnectionString),
+            dbProvider: dbProvider,
             driverDelegate: driverDelegate));
 
         // Initialized but not started, so no misfire loop makes calls of its own.
         await store.Initialize(TestJobStores.Identity(instanceName: SchedulerName, instanceId: "node-a"));
+
+        // Wrapped once initialized, because that is when a SQLite store settles on its own lock handler.
+        lockHandler = new CountingLockHandler(store.LockHandler);
+        store.LockHandler = lockHandler;
     }
 
     [TearDown]
@@ -137,6 +144,77 @@ public sealed class PauseReasonDelegateCompatibilitySqliteTest
 
         driverDelegate.Calls(nameof(IDriverDelegate.PauseTriggerStates)).Should().Be(1);
         driverDelegate.Calls(nameof(IDriverDelegate.UpdateTriggerStatesFromOtherStates)).Should().Be(3,
+            "the pause with a reason did not use the override");
+    }
+
+    [Test]
+    public async Task AKeySetPauseThatSaysNothingIsWrittenByTheOverriddenUpdate()
+    {
+        TriggerKey first = await Schedule("first");
+        TriggerKey second = await Schedule("second");
+        TriggerKey third = await Schedule("third");
+
+        (await store.PauseTriggersWith([first], null)).Should().Equal([first]);
+        (await store.PauseTriggersWith([second, third], new PauseDetails { Reason = " ", RequestedBy = "" })).Should().Equal([second, third]);
+
+        driverDelegate.Calls(nameof(IDriverDelegate.UpdateTriggerStatesFromOtherStates)).Should().Be(2,
+            "a key-set pause that says nothing is written by the member 4.3 wrote PauseTriggers with, which this delegate overrides");
+        driverDelegate.Calls(nameof(IDriverDelegate.PauseTriggerStates)).Should().Be(0);
+        (await store.GetTriggerPause(second)).Should().BeNull("a pause that said nothing recorded nothing");
+    }
+
+    [Test]
+    public async Task AKeySetPauseWithAReasonIsOneLockOneTransactionAndOneRecordingStatement()
+    {
+        TriggerKey first = await Schedule("first");
+        TriggerKey second = await Schedule("second");
+        TriggerKey third = await Schedule("third");
+        int locksBefore = lockHandler.TriggerAccessAcquisitions;
+        int connectionsBefore = dbProvider.ConnectionsCreated;
+
+        (await store.PauseTriggersWith([third, first, second], maintenance)).Should().Equal([third, first, second],
+            "the answer keeps the order the keys were given in");
+
+        lockHandler.TriggerAccessAcquisitions.Should().Be(locksBefore + 1, "the whole set is paused under one lock");
+        dbProvider.ConnectionsCreated.Should().Be(connectionsBefore + 1, "and in one transaction, on one connection");
+        driverDelegate.Calls(nameof(IDriverDelegate.PauseTriggerStates)).Should().Be(1,
+            "three waiting triggers are one transition, so one statement records the pause on all of them");
+        driverDelegate.Calls(nameof(IDriverDelegate.UpdateTriggerStatesFromOtherStates)).Should().Be(0,
+            "a pause with a reason does not go through the reasonless override");
+
+        PauseInfo expected = new("database maintenance", "alice", clock.GetUtcNow());
+        (await store.GetTriggerPause(first)).Should().Be(expected);
+        (await store.GetTriggerPause(third)).Should().Be(expected, "every trigger of the set is stamped with the same instant");
+    }
+
+    [Test]
+    public async Task AKeySetJobPauseIsWrittenByTheOverriddenUpdateUnlessItSaysSomething()
+    {
+        IJobDetail reports = await StoreJob("reports");
+        TriggerKey ofReports = await Schedule("of-reports", reports);
+        IJobDetail exports = await StoreJob("exports");
+        await Schedule("of-exports", exports);
+        IJobDetail imports = await StoreJob("imports");
+        await Schedule("of-imports", imports);
+
+        (await store.PauseJobsWith([reports.Key], new PauseDetails())).Should().Equal([reports.Key]);
+
+        driverDelegate.Calls(nameof(IDriverDelegate.UpdateTriggerStatesFromOtherStates)).Should().Be(1,
+            "a job pause that says nothing moves the job's triggers through the overridden member");
+        driverDelegate.Calls(nameof(IDriverDelegate.PauseTriggerStates)).Should().Be(0);
+        (await store.GetTriggerPause(ofReports)).Should().BeNull();
+
+        int locksBefore = lockHandler.TriggerAccessAcquisitions;
+        int connectionsBefore = dbProvider.ConnectionsCreated;
+        JobKey missing = new("missing", "jobs");
+
+        (await store.PauseJobsWith([imports.Key, missing, exports.Key], maintenance)).Should().Equal([imports.Key, exports.Key],
+            "a key that names no job is absent, and the rest keep the order they were given in");
+
+        lockHandler.TriggerAccessAcquisitions.Should().Be(locksBefore + 1, "the whole set is paused under one lock");
+        dbProvider.ConnectionsCreated.Should().Be(connectionsBefore + 1, "and in one transaction");
+        driverDelegate.Calls(nameof(IDriverDelegate.PauseTriggerStates)).Should().Be(2, "one recording statement per job that has triggers");
+        driverDelegate.Calls(nameof(IDriverDelegate.UpdateTriggerStatesFromOtherStates)).Should().Be(1,
             "the pause with a reason did not use the override");
     }
 
@@ -222,6 +300,55 @@ public sealed class PauseReasonDelegateCompatibilitySqliteTest
     public sealed class CompatJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// The store's own lock handler, counting how often the trigger-access lock is taken.
+    /// </summary>
+    private sealed class CountingLockHandler(ILockHandler inner) : ILockHandler
+    {
+        public int TriggerAccessAcquisitions { get; private set; }
+
+        public bool RequiresConnection => inner.RequiresConnection;
+
+        public ValueTask<bool> AcquireLock(Guid requestorId, ConnectionAndTransactionHolder? conn, SchedulerLock lockKind, CancellationToken cancellationToken = default)
+        {
+            if (lockKind == SchedulerLock.TriggerAccess)
+            {
+                TriggerAccessAcquisitions++;
+            }
+
+            return inner.AcquireLock(requestorId, conn, lockKind, cancellationToken);
+        }
+
+        public ValueTask ReleaseLock(Guid requestorId, SchedulerLock lockKind, CancellationToken cancellationToken = default)
+        {
+            return inner.ReleaseLock(requestorId, lockKind, cancellationToken);
+        }
+
+        public ValueTask Shutdown(CancellationToken cancellationToken = default) => inner.Shutdown(cancellationToken);
+    }
+
+    /// <summary>
+    /// The SQLite provider, counting the connections the store opens: each is one transaction.
+    /// </summary>
+    private sealed class CountingDbProvider(IDbProvider inner) : IDbProvider
+    {
+        public int ConnectionsCreated { get; private set; }
+
+        public string ConnectionString => inner.ConnectionString;
+
+        public DbMetadata Metadata => inner.Metadata;
+
+        public System.Data.Common.DbCommand CreateCommand() => inner.CreateCommand();
+
+        public System.Data.Common.DbConnection CreateConnection()
+        {
+            ConnectionsCreated++;
+            return inner.CreateConnection();
+        }
+
+        public void Shutdown() => inner.Shutdown();
     }
 
     /// <summary>

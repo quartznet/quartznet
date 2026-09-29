@@ -436,6 +436,18 @@ internal sealed class StdScheduler : IScheduler
     }
 
     /// <inheritdoc />
+    public ValueTask<List<TriggerKey>> PauseTriggersWith(IReadOnlyCollection<TriggerKey> triggerKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseTriggersWith(triggerKeys, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<JobKey>> PauseJobsWith(IReadOnlyCollection<JobKey> jobKeys, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseJobsWith(jobKeys, details, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.GetTriggerPause(triggerKey, cancellationToken);

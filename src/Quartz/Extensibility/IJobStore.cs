@@ -672,6 +672,39 @@ public interface IJobStore
     }
 
     /// <summary>
+    /// <see cref="PauseTriggers" />, recording why and who asked on each trigger this call pauses.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A store overrides it to pause the set inside one lock and one transaction, stamping every trigger
+    /// with the same instant; the answer must not change when it does. A trigger that was already paused
+    /// keeps the pause it had. <see langword="null" />, or details that say nothing, is exactly
+    /// <see cref="PauseTriggers" />.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.4. Unlike the other <c>*With</c> defaults, it keeps the
+    /// details: details that say something go to <see cref="PauseTriggerWith" /> one key at a time, so a
+    /// store written against 4.3, which records them there, still records them.
+    /// </para>
+    /// </remarks>
+    /// <param name="triggerKeys">The triggers to pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseTriggers" /> returns.</returns>
+    ValueTask<List<TriggerKey>> PauseTriggersWith(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return PauseTriggers(triggerKeys, cancellationToken);
+        }
+
+        return ApplyToEach(triggerKeys, (triggerKey, token) => PauseTriggerWith(triggerKey, details, token), cancellationToken);
+    }
+
+    /// <summary>
     /// Pause the trigger groups that match, and every <see cref="ITrigger" /> in them.
     /// </summary>
     /// <remarks>
@@ -757,6 +790,38 @@ public interface IJobStore
         CancellationToken cancellationToken = default)
     {
         return ApplyToEach(jobKeys, PauseJob, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="PauseJobs" />, recording why and who asked on each trigger of the jobs this call pauses.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A store overrides it to pause the set inside one lock and one transaction; the answer must not
+    /// change when it does. <see langword="null" />, or details that say nothing, is exactly
+    /// <see cref="PauseJobs" />.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.4. Unlike the other <c>*With</c> defaults, it keeps the
+    /// details: details that say something go to <see cref="PauseJobWith" /> one key at a time, so a store
+    /// written against 4.3 still records them.
+    /// </para>
+    /// </remarks>
+    /// <param name="jobKeys">The jobs whose triggers to pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseJobs" /> returns.</returns>
+    ValueTask<List<JobKey>> PauseJobsWith(
+        IReadOnlyCollection<JobKey> jobKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return PauseJobs(jobKeys, cancellationToken);
+        }
+
+        return ApplyToEach(jobKeys, (jobKey, token) => PauseJobWith(jobKey, details, token), cancellationToken);
     }
 
     /// <summary>

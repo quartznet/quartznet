@@ -1185,6 +1185,106 @@ public interface IScheduler : IAsyncDisposable
     }
 
     /// <summary>
+    /// <see cref="PauseTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" />, recording why and
+    /// who asked on each trigger this call pauses.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One call for the whole set, as the reasonless form is: one lock and one transaction in a shipped
+    /// store, one request over HTTP, and the scheduling change signalled once. One
+    /// <see cref="ISchedulerListener.TriggerPaused" /> is raised per key the pause applied to. A trigger
+    /// that was already paused keeps the pause it had.
+    /// </para>
+    /// <para>
+    /// <see langword="null" />, or details that say nothing, is exactly the reasonless set form.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.4. Unlike the other <c>*With</c> defaults, it keeps the
+    /// details: details that say something go to <see cref="PauseTriggerWith" /> one key at a time, so a
+    /// scheduler written against 4.3, which records them there, still records them.
+    /// </para>
+    /// </remarks>
+    /// <param name="triggerKeys">The triggers to pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" /> returns.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<List<TriggerKey>> PauseTriggersWith(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return PauseTriggers(triggerKeys, cancellationToken);
+        }
+
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+        return PauseEach(triggerKeys, details, PauseTriggerWith, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="PauseJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />, recording why and who asked
+    /// on each trigger of the jobs this call pauses.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One call for the whole set, as the reasonless form is. One <see cref="ISchedulerListener.JobPaused" />
+    /// is raised per key that names a job.
+    /// </para>
+    /// <para>
+    /// <see langword="null" />, or details that say nothing, is exactly the reasonless set form.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.4. Unlike the other <c>*With</c> defaults, it keeps the
+    /// details: details that say something go to <see cref="PauseJobWith" /> one key at a time, so a
+    /// scheduler written against 4.3 still records them.
+    /// </para>
+    /// </remarks>
+    /// <param name="jobKeys">The jobs whose triggers to pause.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>What <see cref="PauseJobs(IReadOnlyCollection{JobKey}, CancellationToken)" /> returns.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="jobKeys" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    ValueTask<List<JobKey>> PauseJobsWith(
+        IReadOnlyCollection<JobKey> jobKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return PauseJobs(jobKeys, cancellationToken);
+        }
+
+        ArgumentNullException.ThrowIfNull(jobKeys);
+        return PauseEach(jobKeys, details, PauseJobWith, cancellationToken);
+    }
+
+    /// <summary>
+    /// Pauses each key with <paramref name="details" /> through a single-key <c>*With</c> member, answering
+    /// with the keys it applied to in the order they were given.
+    /// </summary>
+    private static async ValueTask<List<TKey>> PauseEach<TKey>(
+        IReadOnlyCollection<TKey> keys,
+        PauseDetails details,
+        Func<TKey, PauseDetails?, CancellationToken, ValueTask<bool>> pause,
+        CancellationToken cancellationToken)
+    {
+        List<TKey> paused = new(keys.Count);
+        foreach (TKey key in keys)
+        {
+            if (await pause(key, details, cancellationToken).ConfigureAwait(false))
+            {
+                paused.Add(key);
+            }
+        }
+
+        return paused;
+    }
+
+    /// <summary>
     /// Why the trigger is paused, who asked, and when.
     /// </summary>
     /// <remarks>

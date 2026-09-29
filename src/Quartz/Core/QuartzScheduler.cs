@@ -1715,19 +1715,29 @@ internal sealed class QuartzScheduler
             return [];
         }
 
-        var paused = await resources.JobStore.PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
-        if (paused.Count > 0)
+        List<TriggerKey> paused = await resources.JobStore.PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+        await AnnouncePausedTriggers(paused, cancellationToken).ConfigureAwait(false);
+        return paused;
+    }
+
+    /// <summary>
+    /// Signals the scheduling change once for a key-set trigger pause, and raises
+    /// <see cref="ISchedulerListener.TriggerPaused" /> for each key it applied to.
+    /// </summary>
+    private async ValueTask AnnouncePausedTriggers(List<TriggerKey> paused, CancellationToken cancellationToken)
+    {
+        if (paused.Count == 0)
         {
-            // One signal for the whole set: the scheduler thread reads a scheduling change as a
-            // level, not an edge, so the recomputation it triggers covers every key at once.
-            NotifySchedulerThread(null);
-            foreach (TriggerKey triggerKey in paused)
-            {
-                await NotifySchedulerListenersPausedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
-            }
+            return;
         }
 
-        return paused;
+        // One signal for the whole set: the scheduler thread reads a scheduling change as a
+        // level, not an edge, so the recomputation it triggers covers every key at once.
+        NotifySchedulerThread(null);
+        foreach (TriggerKey triggerKey in paused)
+        {
+            await NotifySchedulerListenersPausedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -1782,17 +1792,27 @@ internal sealed class QuartzScheduler
             return [];
         }
 
-        var paused = await resources.JobStore.PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
-        if (paused.Count > 0)
+        List<JobKey> paused = await resources.JobStore.PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+        await AnnouncePausedJobs(paused, cancellationToken).ConfigureAwait(false);
+        return paused;
+    }
+
+    /// <summary>
+    /// Signals the scheduling change once for a key-set job pause, and raises
+    /// <see cref="ISchedulerListener.JobPaused" /> for each key it applied to.
+    /// </summary>
+    private async ValueTask AnnouncePausedJobs(List<JobKey> paused, CancellationToken cancellationToken)
+    {
+        if (paused.Count == 0)
         {
-            NotifySchedulerThread(null);
-            foreach (JobKey jobKey in paused)
-            {
-                await NotifySchedulerListenersPausedJob(jobKey, cancellationToken).ConfigureAwait(false);
-            }
+            return;
         }
 
-        return paused;
+        NotifySchedulerThread(null);
+        foreach (JobKey jobKey in paused)
+        {
+            await NotifySchedulerListenersPausedJob(jobKey, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -2127,6 +2147,65 @@ internal sealed class QuartzScheduler
         await resources.JobStore.PauseAllWith(details, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await NotifySchedulerListenersPausedTriggers(null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// <see cref="PauseTriggers" />, with the details handed to the store to record.
+    /// </summary>
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseTriggers" />. Otherwise the store is asked once for the
+    /// whole set, and the change is signalled once.
+    /// </remarks>
+    public async ValueTask<List<TriggerKey>> PauseTriggersWith(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+        }
+
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+        ValidateState();
+
+        if (triggerKeys.Count == 0)
+        {
+            return [];
+        }
+
+        List<TriggerKey> paused = await resources.JobStore.PauseTriggersWith(triggerKeys, details, cancellationToken).ConfigureAwait(false);
+        await AnnouncePausedTriggers(paused, cancellationToken).ConfigureAwait(false);
+        return paused;
+    }
+
+    /// <summary>
+    /// <see cref="PauseJobs" />, with the details handed to the store to record.
+    /// </summary>
+    /// <remarks>
+    /// Details that say nothing are <see cref="PauseJobs" />.
+    /// </remarks>
+    public async ValueTask<List<JobKey>> PauseJobsWith(
+        IReadOnlyCollection<JobKey> jobKeys,
+        PauseDetails? details,
+        CancellationToken cancellationToken = default)
+    {
+        if (PauseDetails.SaysNothing(details))
+        {
+            return await PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+        }
+
+        ArgumentNullException.ThrowIfNull(jobKeys);
+        ValidateState();
+
+        if (jobKeys.Count == 0)
+        {
+            return [];
+        }
+
+        List<JobKey> paused = await resources.JobStore.PauseJobsWith(jobKeys, details, cancellationToken).ConfigureAwait(false);
+        await AnnouncePausedJobs(paused, cancellationToken).ConfigureAwait(false);
+        return paused;
     }
 
     /// <summary>
