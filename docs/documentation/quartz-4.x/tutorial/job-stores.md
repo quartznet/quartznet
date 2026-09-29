@@ -353,7 +353,7 @@ builder.Services.AddQuartzExecutionHistory(options =>
 
 The flat key is `quartz.jobStore.executionHistory`.
 
-**The schema needs two tables**, `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY`.
+**The schema needs three tables**, `QRTZ_EXECUTION_HISTORY`, `QRTZ_MISFIRE_HISTORY` and `QRTZ_JOB_STATUS`.
 
 * A fresh install from `database/tables/` and `ProvisionSchema()` create them.
 * A database created by 4.0 or 4.1 needs
@@ -361,6 +361,10 @@ The flat key is `quartz.jobStore.executionHistory`.
 * A database whose tables came from 4.2 needs
   [`database/migrations/4.3/add_execution_log_<db>.sql` and `add_misfire_reason_<db>.sql`](../../database/schema-changes.md#version-4-3),
   which add `EXECUTION_LOG` and `REASON`.
+* A database whose tables came from 4.3 needs
+  [`database/migrations/4.4/add_execution_outcome_<db>.sql`](../../database/schema-changes.md#version-4-4),
+  which adds the outcome columns and `QRTZ_JOB_STATUS`.
+* An older database needs each script after its own too, oldest first.
 * A store configured this way refuses to start without them and names the scripts to run.
 * Nothing else needs this migration; skip it if you do not call `UseExecutionHistory()`.
 

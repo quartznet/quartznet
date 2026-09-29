@@ -107,6 +107,7 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.3`](migrations/4.3) | `add_overlap_policy_<db>.sql`: `OVERLAP_POLICY` on `QRTZ_TRIGGERS`, what a trigger does when a firing comes due while its last one runs (#3875) | **Required on 4.3+**, safe during a mixed 4.2/4.3 window; give a trigger a policy only once every node is 4.3 | all | `main` only |
 | [`4.3`](migrations/4.3) | `add_misfire_reason_<db>.sql`: `REASON` on `QRTZ_MISFIRE_HISTORY`, a misfire told apart from a firing the overlap policy skipped (#3875) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
 | [`4.3`](migrations/4.3) | `add_pause_reason_<db>.sql`: `PAUSE_REASON`, `PAUSED_BY` and `PAUSED_AT` on `QRTZ_TRIGGERS`, `QRTZ_PAUSED_TRIGGER_GRPS` and `QRTZ_PAUSED_JOB_GRPS`, why a trigger or group is paused (#3879) | **Required on 4.3+**, safe during a mixed 4.2/4.3 window; roll every node before relying on a reason | all | `main` only |
+| [`4.4`](migrations/4.4) | `add_execution_outcome_<db>.sql`: `RESULT`, `SUMMARY`, `METRICS`, `MANUAL` and `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY`, the index `IDX_QRTZ_EH_JOB_TIME`, and the `QRTZ_JOB_STATUS` table: what a run reported, and each job's rollup (#3958) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -205,6 +206,22 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
   resume leaves the trigger's columns behind; a 4.3 node reports them only while the trigger is paused.
 - A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have all fourteen columns.
 
+### Upgrading 4.3 → 4.4
+
+[`migrations/4.4`](migrations/4.4) has one file, and it is optional.
+
+| File | Status | What |
+|---|---|---|
+| `add_execution_outcome_<db>.sql` | Optional | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL` and `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY`, the index `IDX_QRTZ_EH_JOB_TIME`, and the `QRTZ_JOB_STATUS` table. Needed only with `UseExecutionHistory()`, which refuses to start without them. |
+
+- **Run it only on a database that has `QRTZ_EXECUTION_HISTORY`.** Its first statement alters that
+  table. A history 4.2 created needs 4.3's `add_execution_log_<db>.sql` and `add_misfire_reason_<db>.sql`
+  first.
+- **Safe under a mixed cluster.** The columns are nullable with no default. A 4.3 node leaves them `NULL`
+  and never touches `QRTZ_JOB_STATUS`, so the rollup counts only 4.4 nodes' runs until every node is 4.4.
+- The history is bounded by its retention, so the index builds in moments.
+- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have all of it.
+
 ## Where these files moved
 
 The scripts used to sit flat in `database/`, with the non-SQL Server dialects commented out inside each
@@ -229,19 +246,25 @@ Everything under `migrations/` except the `2.0` and `3.0` folders is **generated
 overwritten.
 
 1. Add the change to every `tables/tables_*.sql`, so fresh installs get it.
-2. Add it to the schema model in `build/Build.DatabaseSchema.cs`, so a scheduler that provisions its own
-   schema gets it too, and run `dotnet fallout GenerateSchema`. CI runs `VerifySchema`, and
-   `SchemaScriptTest` compares the two sets object by object; a change in only one fails both.
+2. Add it to the schema model in `build/Build.DatabaseSchema.cs`, with `AddedBy` on a column or index a
+   table that already exists gains, and run `dotnet fallout GenerateSchema`. That regenerates the
+   provisioning scripts and the Weasel models (`src/Quartz.Weasel.*/Generated/QuartzTables.g.cs`), so a
+   scheduler that provisions its own schema, and one Weasel manages, get it too. CI runs `VerifySchema`,
+   and `SchemaScriptTest` compares the two sets object by object; a change in only one fails both.
 3. Describe the change once in `build/Build.DatabaseMigrations.Scripts.cs`, and fold it into the `4.0`
    script there too if it is a 3.x change.
 4. Run `dotnet fallout GenerateMigrations` and commit the result. CI runs `VerifyMigrations`, so a
    definition change without a regenerated script fails the build.
-5. If **both branches can run the change**, mirror the new `migrations/` folder and its definition to `3.x`
+5. Add each new table and column to `src/Quartz/Impl/AdoJobStore/AdoConstants.cs` with the migration that
+   makes it: `MigratedColumnNames` when every scheduler needs it, `OptionalTableNames` or
+   `OptionalColumnNames` when only an opt-in feature does. Startup probes those lists and names the script;
+   `MigratedColumnTest` holds them to the scripts.
+6. If **both branches can run the change**, mirror the new `migrations/` folder and its definition to `3.x`
    in a companion pull request: a migration both branches can run must stay byte-identical, or a documented
    path 404s on the branch that lacks it (#3218). A **4.x-only** change has no companion. Either way the
    `4.0` fold happens here, since `3.x` does not carry that folder. `tables/` and this README describe
    their own branch and are not mirrored verbatim.
-6. Add a section to the schema-changes page in the documentation (docs live on `main` only).
+7. Add a section to the schema-changes page in the documentation (docs live on `main` only).
 
 The `2.0` and `3.0` migrations are hand-written SQL Server-only historical scripts that predate this
 layout and have no per-dialect variants.

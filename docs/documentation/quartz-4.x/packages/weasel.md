@@ -132,8 +132,12 @@ can be rebuilt.
 
 The model is generated from the same source as the store's own scripts, and names every object the way the
 database's catalog does. A database created by `database/tables/`, by `ProvisionSchema()` or by the
-migrations therefore reads as unchanged. The execution history tables are always part of it, as they are of
-a fresh install.
+migrations therefore reads as unchanged. The execution history tables and `QRTZ_JOB_STATUS` are always part of
+it, as they are of a fresh install.
+
+On a 4.3 database an apply only adds: five nullable columns and `IDX_QRTZ_EH_JOB_TIME` on
+`QRTZ_EXECUTION_HISTORY`, and the `QRTZ_JOB_STATUS` table. Nothing is rebuilt, so your own columns and indexes
+on the history table stay.
 
 ## PostgreSQL
 

@@ -49,6 +49,7 @@ editing.
 | 4.0 / 4.1 | 4.2 | [4.2](#version-4-2) — **mandatory** |
 | 4.0 / 4.1 | 4.3+ | [4.2](#version-4-2), then [4.3](#version-4-3) — both **mandatory** |
 | 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory** |
+| 4.3 | 4.4 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
 
 ## Upgrading to 4.x is mandatory
 
@@ -583,6 +584,75 @@ reads as no reason. Its resume leaves a trigger's columns behind. A 4.3 node rea
 trigger is paused, so a later pause of it without a reason, on either version, reports the old reason.
 
 A fresh install from `database/tables/`, and `ProvisionSchema()`, create all fourteen columns.
+
+## Version 4.4
+
+One script, optional: only a store configured with `UseExecutionHistory()` needs it
+([#3958](https://github.com/quartznet/quartznet/issues/3958)).
+
+| Script | Status | Adds |
+|---|---|---|
+| [`migrations/4.4/add_execution_outcome_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.4) | Optional: only with `UseExecutionHistory()` | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY`; `IDX_QRTZ_EH_JOB_TIME`; the `QRTZ_JOB_STATUS` table |
+
+- A store configured with `UseExecutionHistory()` refuses to start without them; the startup check names
+  the table or column and the script. No other store probes for them.
+- Run it only on a database that has `QRTZ_EXECUTION_HISTORY`: its first statement alters that table. A
+  history 4.2 created needs `4.3/add_execution_log_<db>.sql` and `add_misfire_reason_<db>.sql` first.
+
+### The outcome columns
+
+What a run reported through `context.Result`, on `QRTZ_EXECUTION_HISTORY`.
+
+| Column | What it holds | Declared as |
+|---|---|---|
+| `RESULT` | The integer of the run's `JobRunResult` | `REASON` on `QRTZ_MISFIRE_HISTORY` |
+| `SUMMARY` | One line, cut to 1,000 characters | `ERROR_MESSAGE` |
+| `METRICS` | The reported values, as JSON | `EXECUTION_LOG` |
+| `MANUAL` | Whether `TriggerJob` fired it | `SUCCEEDED`, nullable |
+| `FIRE_INSTANCE_ID` | The firing's id, linking the row to its span and log scope | `QRTZ_FIRED_TRIGGERS.ENTRY_ID` |
+
+- All five are nullable with no default. A row a 4.3 node wrote leaves them `NULL`, and its outcome is
+  read from `SUCCEEDED`.
+- `FIRE_INSTANCE_ID` is neither unique nor indexed. A fire instance id is not durable across a restart,
+  and the history write is never retried.
+
+### The job index
+
+`IDX_QRTZ_EH_JOB_TIME` is `(SCHED_NAME, JOB_GROUP, JOB_NAME, FIRED_TIME)`: one job's history by time. The
+table is bounded by `ExecutionHistoryOptions`, so the index builds in moments.
+
+### The job status table
+
+`QRTZ_JOB_STATUS` holds one row per job, keyed by `(SCHED_NAME, JOB_GROUP, JOB_NAME)`. The store writes it
+with each history row, so it outlives the history's retention.
+
+| Column | What it holds |
+|---|---|
+| `FIRST_FIRED_TIME`, `LAST_FIRED_TIME` | When the job first fired, and when its last run fired |
+| `LAST_RESULT`, `LAST_SUMMARY` | The last run's `RESULT` and `SUMMARY` |
+| `LAST_RUN_TIME` | How long the last run took, in ticks |
+| `LAST_INSTANCE_NAME`, `LAST_ENTRY_ID` | The node that ran it, and its history row |
+| `LAST_SUCCESS_TIME`, `LAST_FAILURE_TIME` | When a run last succeeded, and last failed |
+| `LAST_FAILURE_MESSAGE` | What the last failure said |
+| `CONSECUTIVE_FAILURES`, `RUN_COUNT`, `FAILURE_COUNT` | Counters, `NOT NULL DEFAULT 0` |
+
+- `NOT NULL`: the key, `FIRST_FIRED_TIME`, `LAST_FIRED_TIME`, `LAST_RESULT`, `LAST_RUN_TIME`,
+  `LAST_INSTANCE_NAME` and the counters.
+- No foreign key: a 4.3 node deleting a job must not trip on a row it has never heard of.
+
+### Byte widths
+
+`SUMMARY`, `LAST_SUMMARY` and `LAST_FAILURE_MESSAGE` are declared as `ERROR_MESSAGE` is: `VARCHAR2(4000)` on
+Oracle and `VARCHAR(1000)` on Firebird. See
+[text columns that count bytes](../quartz-4.x/db/index.md#text-columns-that-count-bytes-oracle-and-firebird).
+
+### Rolling 4.3 → 4.4
+
+Run the script while 4.3 nodes are still up. Every column is nullable with no default, and a 4.3 node
+never names them: its history rows carry no outcome. A 4.3 node never touches `QRTZ_JOB_STATUS`, so the
+rollup counts only the runs 4.4 nodes record until every node is 4.4.
+
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create all of it.
 
 ## See also
 
