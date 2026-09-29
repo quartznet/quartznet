@@ -110,6 +110,10 @@
     "All triggers of Job {JobKey} set to ERROR state."
 2007  Information  RAMJobStoreLog.OverlappingFiringSkipped
     "Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"
+2008  Error  RAMJobStoreLog.TriggerFireFailed
+    "Fire of trigger {TriggerKey} failed; the rest of the batch fires without it"
+2009  Error  RAMJobStoreLog.FailingTriggerSetToError
+    "Trigger {TriggerKey} failed to fire {Failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed"
 3000  Information  AdoJobStoreLog.SqliteLockHandlerSubstituted
     "Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking"
 3001  Information  AdoJobStoreLog.SqliteAcquireTriggersWithinLockForced

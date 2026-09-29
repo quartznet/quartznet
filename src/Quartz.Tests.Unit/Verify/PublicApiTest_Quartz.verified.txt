@@ -954,6 +954,7 @@ namespace Quartz
     public sealed class InMemoryJobStoreOptions
     {
         public InMemoryJobStoreOptions() { }
+        public int MaxConsecutiveFireFailures { get; set; }
         public System.TimeSpan MisfireThreshold { get; set; }
     }
     public enum IntervalUnit

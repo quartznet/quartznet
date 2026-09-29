@@ -112,6 +112,8 @@ matching on its text is not.
 | 2005 | Information | `Quartz` | `"Trigger {TriggerKey} set to ERROR state."` |
 | 2006 | Information | `Quartz` | `"All triggers of Job {JobKey} set to ERROR state."` |
 | 2007 | Information | `Quartz` | `"Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"` |
+| 2008 | Error | `Quartz` | `"Fire of trigger {TriggerKey} failed; the rest of the batch fires without it"` |
+| 2009 | Error | `Quartz` | `"Trigger {TriggerKey} failed to fire {Failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed"` |
 | 3000 | Information | `Quartz` | `"Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking"` |
 | 3001 | Information | `Quartz` | `"With SQLite we need to set AcquireTriggersWithinLock to true, changing"` |
 | 3002 | Information | `Quartz` | `"Detected usage of SQLiteDelegate - forcing transaction isolation level to 'Serializable'"` |

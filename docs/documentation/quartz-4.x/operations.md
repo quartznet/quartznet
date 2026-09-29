@@ -597,21 +597,27 @@ working, so an outage long enough to exhaust the retries also causes spurious fa
 
 ### A trigger that fails to fire
 
-A fire that fails for a reason a retry will not cure, such as a constraint violation, is rolled back alone
-(warning **3049**) and the rest of the batch fires. The trigger goes back to `WAITING`, first in the next
-round again. After `JobStore:MaxConsecutiveFireFailures` failures in a row (default 5), new in 4.3.1:
+A fire that fails is undone alone, and the rest of the batch fires. The trigger goes back to `WAITING`,
+first in the next round again. What fails a fire depends on the store:
+
+| Store | A fire fails when | Each failure logs |
+|---|---|---|
+| Persistent | The database refuses it for a reason a retry will not cure, such as a constraint violation | Warning **3049** |
+| In-memory (4.3.1) | The trigger's calendar, or a trigger type of your own, throws while the trigger is moved on | Error **2008** |
+
+After `JobStore:MaxConsecutiveFireFailures` failures in a row (default 5), new in 4.3.1:
 
 | What happens | Where it shows |
 |---|---|
 | The trigger is stored `ERROR` | `TriggerState.Error`; the dashboard's trigger listing |
 | `TriggerInError` is raised | every `ISchedulerListener` |
-| Error **3050** is logged once | names the trigger and the count |
+| Error **3050** is logged once, **2009** by the in-memory store | names the trigger and the count |
 
 - **Recover**: fix the cause, then `ResetTriggerFromErrorState` or the dashboard's *reset error state*.
   The count starts again. See
   [Recovering triggers that failed](how-tos/rescheduling-jobs.md#recovering-triggers-that-failed).
-- **Not counted**: a transient failure, a failure of the whole batch, a failed acquisition. An outage
-  fails acquisition first, so it parks nothing.
+- **Not counted** by a persistent store: a transient failure, a failure of the whole batch, a failed
+  acquisition. An outage fails acquisition first, so it parks nothing.
 - **A fire that commits**, on any node, starts the count again.
 - **In a cluster** each node counts alone: the worst case is the limit times the node count.
 - **A failure that is really transient**: add it to `IsTransient`, which retries it instead of counting it.
