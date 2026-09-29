@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -657,6 +658,7 @@ partial class Build : FalloutBuild, ICompile, IPack
                 // is the one that says the whole of it worked.
                 ["Application started", "job executing, triggered by"]);
 
+            string aspNetCoreUrl = $"http://127.0.0.1:{FreeLoopbackPort()}";
             RunExampleUntilItSays(
                 "Quartz.Examples.AspNetCore",
                 new Dictionary<string, string>(StringComparer.Ordinal)
@@ -666,9 +668,13 @@ partial class Build : FalloutBuild, ICompile, IPack
                     // certificate no runner has. Naming one loopback port answers both, and lets two of
                     // these run at once without colliding. The example's launch profile also says 5000,
                     // and is not read here: launchSettings.json belongs to 'dotnet run'.
-                    ["ASPNETCORE_URLS"] = $"http://127.0.0.1:{FreeLoopbackPort()}",
+                    ["ASPNETCORE_URLS"] = aspNetCoreUrl,
                 },
-                ["Application started"]);
+                ["Application started"],
+                // The dashboard's circuit starts from this script. Without MapStaticAssets, or without
+                // RequiresAspNetWebAssets in a project with no .razor files, it answers 404 on .NET 10 and
+                // every page renders and never responds - which starting and logging never show.
+                (aspNetCoreUrl, ["/_framework/blazor.web.js"]));
         });
 
     /// <summary>
@@ -685,7 +691,15 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// Starts one example, waits for every line it was started to produce, and stops it. A non-zero exit,
     /// an exit at all, or a line that never arrives fails the target.
     /// </summary>
-    void RunExampleUntilItSays(string projectName, IReadOnlyDictionary<string, string> environment, IReadOnlyList<string> markers)
+    /// <param name="answers">
+    /// For a web example, where it listens and the paths that must each answer <c>200</c> with a body once
+    /// every marker has arrived; <see langword="null" /> for one that serves nothing.
+    /// </param>
+    void RunExampleUntilItSays(
+        string projectName,
+        IReadOnlyDictionary<string, string> environment,
+        IReadOnlyList<string> markers,
+        (string BaseAddress, IReadOnlyList<string> Paths)? answers = null)
     {
         var configuration = ((ICompile) this).Configuration;
 
@@ -698,8 +712,13 @@ partial class Build : FalloutBuild, ICompile, IPack
         {
             FileName = DotNetPath,
             // The content root a host takes when it is not told one, which is where the example's
-            // appsettings.json and its XML schedule were copied to.
-            WorkingDirectory = assembly.Parent,
+            // appsettings.json and its XML schedule were copied to. A web example is run from its project
+            // directory instead, as 'dotnet run' runs it: static web assets resolve differently from there,
+            // and the dashboard's framework script answered from the build output while 'dotnet run'
+            // served a 404.
+            WorkingDirectory = answers is null
+                ? assembly.Parent
+                : ((IHasSolution) this).Solution.AllProjects.First(x => x.Name == projectName).Directory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -777,6 +796,10 @@ partial class Build : FalloutBuild, ICompile, IPack
                 + $"instead of running, and never said {Quoted(missing)}.{Tail(output)}");
         }
 
+        // Asked while the application is still running, and only once it has said everything, so a path
+        // that does not answer is the application's fault rather than a request that arrived too early.
+        List<string> unanswered = missing.Length == 0 && answers is { } probe ? Unanswered(probe.BaseAddress, probe.Paths) : [];
+
         // A kill rather than Ctrl+C: on Windows a console control event goes to a process group rather
         // than to one process, so sending one would stop this build too. What a graceful shutdown does is
         // the hosted service's business and the unit suite's; what this target asks is whether the
@@ -794,7 +817,48 @@ partial class Build : FalloutBuild, ICompile, IPack
                 + $"but never said {Quoted(missing)}.{Tail(output)}");
         }
 
+        if (unanswered.Count > 0)
+        {
+            Assert.Fail($"{projectName} started, but {string.Join("; ", unanswered)}.{Tail(output)}");
+        }
+
         Log.Information("{Project} said all of it, {Elapsed:F0}s in", projectName, running.Elapsed.TotalSeconds);
+    }
+
+    /// <summary>
+    /// Each of <paramref name="paths" /> that does not answer <c>200</c> with a body, with what it answered.
+    /// </summary>
+    /// <remarks>
+    /// An empty <c>200</c> counts as unanswered: it is how a static web asset the build left out looks when
+    /// something still maps its route, and it breaks a page exactly as a <c>404</c> does.
+    /// </remarks>
+    static List<string> Unanswered(string baseAddress, IReadOnlyList<string> paths)
+    {
+        using HttpClient client = new() { BaseAddress = new Uri(baseAddress), Timeout = TimeSpan.FromSeconds(30) };
+
+        List<string> unanswered = [];
+        foreach (string path in paths)
+        {
+            try
+            {
+                using HttpResponseMessage response = client.GetAsync(path).GetAwaiter().GetResult();
+                byte[] body = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                if (response.StatusCode != HttpStatusCode.OK || body.Length == 0)
+                {
+                    unanswered.Add($"{path} answered {(int) response.StatusCode} with {body.Length} bytes");
+                }
+                else
+                {
+                    Log.Information("{Path} answered {Status} with {Length} bytes", path, (int) response.StatusCode, body.Length);
+                }
+            }
+            catch (Exception e) when (e is HttpRequestException or System.Threading.Tasks.TaskCanceledException)
+            {
+                unanswered.Add($"{path} did not answer: {e.Message}");
+            }
+        }
+
+        return unanswered;
     }
 
     static string Quoted(IReadOnlyCollection<string> markers) =>

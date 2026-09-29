@@ -7,6 +7,12 @@
     <NoWarn>$(NoWarn);MA0004</NoWarn>
     <!-- https://github.com/dotnet/aspnetcore/issues/50836 -->
     <NoWarn>$(NoWarn);AD0001</NoWarn>
+    <!--
+      The dashboard's pages are Blazor, and this project has Razor Pages but no .razor files of its own, so
+      without this the SDK leaves _framework/blazor.web.js out of the static web assets and the dashboard
+      never starts its circuit. See "API-only projects" in the dashboard docs.
+    -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
   </PropertyGroup>
 
   <!--
