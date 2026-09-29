@@ -12,7 +12,7 @@ All of this ships in Quartz's own packages; none of it needs a third-party packa
   [dashboard](packages/dashboard.md), [HTTP API](packages/http-api.md). Both are
   [fail-closed](packages/dashboard.md#production-hardening): a mapping that authorizes nothing refuses
   to start.
-* **Telemetry without an instrumentation package.** Two job spans, thirty-three store spans and eleven
+* **Telemetry without an instrumentation package.** Two job spans, thirty-four store spans and eleven
   instruments on the `Quartz` activity source and meter. They cover job execution, trigger acquisition,
   cluster check-in and every store round trip — [OpenTelemetry](packages/opentelemetry-integration.md).
   The scheduler [health check](packages/hosted-services-integration.md#health-checks) is in the core
