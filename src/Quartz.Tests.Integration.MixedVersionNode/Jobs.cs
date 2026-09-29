@@ -27,6 +27,10 @@ namespace Quartz.Tests.Integration.MixedVersionNode;
 /// <summary>
 /// Records one execution when it has run, after whatever the job does in <see cref="Run" />.
 /// </summary>
+/// <remarks>
+/// On the working tree it also reports the run, which a node keeping its history writes into the 4.4
+/// outcome columns: the result, a summary naming the node and the firing, and one metric.
+/// </remarks>
 public abstract class RecordingJob : IJob
 {
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
@@ -38,6 +42,11 @@ public abstract class RecordingJob : IJob
 
         long ended = Stopwatch.GetTimestamp();
         await Runs.Record(context, startedUtc, started, ended, progress).ConfigureAwait(false);
+
+#if QUARTZ_WORKING_TREE
+        context.Result = JobRunReport.Succeeded($"{context.Scheduler.SchedulerInstanceId} ran {context.FireInstanceId}")
+            .With("node", context.Scheduler.SchedulerInstanceId);
+#endif
     }
 
     /// <returns>What the firing's own row said its progress was, for a job that reports one.</returns>
@@ -53,7 +62,7 @@ public sealed class OneOffJob : RecordingJob;
 /// <summary>Parents and their continuations.</summary>
 public sealed class ChainJob : RecordingJob;
 
-/// <summary>The triggers that carry 4.3-only state.</summary>
+/// <summary>The triggers that carry a pause reason or an overlap policy.</summary>
 public sealed class StateJob : RecordingJob;
 
 /// <summary>

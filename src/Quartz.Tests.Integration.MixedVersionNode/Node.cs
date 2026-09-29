@@ -30,12 +30,16 @@ namespace Quartz.Tests.Integration.MixedVersionNode;
 /// <remarks>
 /// The scheduler is built with the shipped defaults for everything but what makes it a cluster node on
 /// that database: pool, batch size, idle wait, misfire threshold and check-in are what each version
-/// ships, so the working-tree node batches its acquisitions the way 4.3 does out of the box.
+/// ships. With <c>--history</c> it also keeps its execution history there, bounded so that nothing the
+/// run writes is swept before the test reads it.
 /// </remarks>
 internal sealed class Node
 {
     /// <summary>The group every job the commands create is stored in.</summary>
     private const string JobGroup = "gate";
+
+    /// <summary>How many history rows a node keeps per scheduler when it keeps any.</summary>
+    private const int HistoryBound = 1_000_000;
 
     private readonly IScheduler scheduler;
 
@@ -80,7 +84,19 @@ internal sealed class Node
                     store.UsePostgres(NpgsqlFactory.Instance, options.ConnectionString);
                     store.UseSystemTextJsonSerializer();
                     store.UseClustering();
+
+                    if (options.History)
+                    {
+                        store.UseExecutionHistory();
+                    }
                 });
+
+                if (options.History)
+                {
+                    // Well above the run's few thousand rows: the default bound of 2,000 per scheduler would
+                    // have one node's sweep trim rows the test counts.
+                    q.Services.AddQuartzExecutionHistory(o => o.MaxEntriesPerScheduler = HistoryBound);
+                }
             })
             .BuildScheduler()
             .ConfigureAwait(false);
@@ -174,7 +190,6 @@ internal sealed class Node
             case "pause-job-group":
                 return [new("groups", string.Join(",", await PauseJobGroup(command).ConfigureAwait(false)))];
 
-#if QUARTZ_WORKING_TREE
             case "trigger-pause":
                 return Describe(await scheduler.GetTriggerPause(TriggerKeyOf(command)).ConfigureAwait(false));
 
@@ -183,7 +198,6 @@ internal sealed class Node
 
             case "job-group-pause":
                 return Describe(await scheduler.GetJobGroupPause(command.Text("group")).ConfigureAwait(false));
-#endif
 
             case "cluster-nodes":
                 List<ClusterNode> nodes = await scheduler.QueryClusterNodes().ConfigureAwait(false);
@@ -298,8 +312,7 @@ internal sealed class Node
 
     /// <summary>
     /// One simple trigger every <c>intervalMs=</c>, repeating forever unless <c>repeat=</c> says how often
-    /// or <c>end=</c> when to stop, optionally pinned to a node and, on the working tree only, given an
-    /// overlap policy.
+    /// or <c>end=</c> when to stop, optionally pinned to a node and given an overlap policy.
     /// </summary>
     private async Task<List<KeyValuePair<string, string>>> Schedule(Command command)
     {
@@ -329,11 +342,7 @@ internal sealed class Node
 
         if (command.OptionalText("policy") is { } policy)
         {
-#if QUARTZ_WORKING_TREE
             trigger = trigger.WithOverlapPolicy(Enum.Parse<OverlapPolicy>(policy));
-#else
-            throw new NotSupportedException($"An overlap policy ({policy}) is 4.3's, and this node runs Quartz {QuartzVersion}.");
-#endif
         }
 
         DateTimeOffset first = await scheduler.ScheduleJob(trigger.Build()).ConfigureAwait(false);
@@ -347,11 +356,7 @@ internal sealed class Node
             return await scheduler.PauseTrigger(TriggerKeyOf(command)).ConfigureAwait(false);
         }
 
-#if QUARTZ_WORKING_TREE
         return await scheduler.PauseTriggerWith(TriggerKeyOf(command), Details(command)).ConfigureAwait(false);
-#else
-        throw new NotSupportedException($"A pause with a reason is 4.3's, and this node runs Quartz {QuartzVersion}.");
-#endif
     }
 
     private async Task<List<string>> PauseTriggerGroup(Command command)
@@ -362,11 +367,7 @@ internal sealed class Node
             return await scheduler.PauseTriggerGroups(group).ConfigureAwait(false);
         }
 
-#if QUARTZ_WORKING_TREE
         return await scheduler.PauseTriggerGroupsWith(group, Details(command)).ConfigureAwait(false);
-#else
-        throw new NotSupportedException($"A pause with a reason is 4.3's, and this node runs Quartz {QuartzVersion}.");
-#endif
     }
 
     private async Task<List<string>> PauseJobGroup(Command command)
@@ -377,14 +378,9 @@ internal sealed class Node
             return await scheduler.PauseJobGroups(group).ConfigureAwait(false);
         }
 
-#if QUARTZ_WORKING_TREE
         return await scheduler.PauseJobGroupsWith(group, Details(command)).ConfigureAwait(false);
-#else
-        throw new NotSupportedException($"A pause with a reason is 4.3's, and this node runs Quartz {QuartzVersion}.");
-#endif
     }
 
-#if QUARTZ_WORKING_TREE
     private static PauseDetails Details(Command command) => new()
     {
         Reason = command.Text("reason"),
@@ -400,7 +396,6 @@ internal sealed class Node
             new("by", pause.RequestedBy ?? ""),
             new("at", pause.PausedAtUtc.UtcTicks.ToString(CultureInfo.InvariantCulture))
         ];
-#endif
 
     private static TriggerKey TriggerKeyOf(Command command) => new(command.Text("name"), command.Text("group"));
 

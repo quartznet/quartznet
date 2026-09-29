@@ -36,9 +36,13 @@ internal sealed class NodeOptions
         --table-prefix       the Quartz table prefix
         --runs-table         the table every job execution is recorded in
         --log-level          the least level written to standard error (default Warning)
+        --history            keep the execution history in the database (UseExecutionHistory())
         """;
 
     private static readonly Regex Identifier = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);
+
+    /// <summary>The options that take no value.</summary>
+    private static readonly string[] Switches = ["history"];
 
     public required string InstanceId { get; init; }
 
@@ -52,17 +56,33 @@ internal sealed class NodeOptions
 
     public LogLevel LogLevel { get; init; } = LogLevel.Warning;
 
+    /// <summary>
+    /// Whether the node keeps its execution history in the shared database, as
+    /// <c>UsePersistentStore(store =&gt; store.UseExecutionHistory())</c> does.
+    /// </summary>
+    public bool History { get; init; }
+
     public static NodeOptions Parse(string[] args)
     {
         Dictionary<string, string> values = new(StringComparer.Ordinal);
-        for (int i = 0; i < args.Length; i += 2)
+        for (int i = 0; i < args.Length;)
         {
-            if (!args[i].StartsWith("--", StringComparison.Ordinal) || i + 1 >= args.Length)
+            string name = args[i].StartsWith("--", StringComparison.Ordinal) ? args[i][2..] : "";
+
+            if (Switches.Contains(name, StringComparer.Ordinal))
             {
-                throw new ArgumentException($"Expected '--name value' pairs, got '{args[i]}'.");
+                values[name] = "true";
+                i++;
+                continue;
             }
 
-            values[args[i][2..]] = args[i + 1];
+            if (name.Length == 0 || i + 1 >= args.Length)
+            {
+                throw new ArgumentException($"Expected '--name value' pairs or a switch, got '{args[i]}'.");
+            }
+
+            values[name] = args[i + 1];
+            i += 2;
         }
 
         string Required(string name) => values.TryGetValue(name, out string? value) && value.Length > 0
@@ -76,7 +96,8 @@ internal sealed class NodeOptions
             ConnectionString = Required("connection-string"),
             TablePrefix = Required("table-prefix"),
             RunsTable = Required("runs-table"),
-            LogLevel = values.TryGetValue("log-level", out string? level) ? Enum.Parse<LogLevel>(level, ignoreCase: true) : LogLevel.Warning
+            LogLevel = values.TryGetValue("log-level", out string? level) ? Enum.Parse<LogLevel>(level, ignoreCase: true) : LogLevel.Warning,
+            History = values.ContainsKey("history")
         };
 
         // Both names are written into SQL text, so they are held to what an unquoted identifier may be.

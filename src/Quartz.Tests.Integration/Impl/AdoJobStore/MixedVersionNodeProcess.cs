@@ -74,7 +74,8 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
         string schedulerName,
         string connectionString,
         string tablePrefix,
-        string runsTable)
+        string runsTable,
+        bool history)
     {
         ProcessStartInfo start = new("dotnet")
         {
@@ -97,6 +98,11 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
         start.ArgumentList.Add(tablePrefix);
         start.ArgumentList.Add("--runs-table");
         start.ArgumentList.Add(runsTable);
+
+        if (history)
+        {
+            start.ArgumentList.Add("--history");
+        }
 
         MixedVersionNodeProcess node = new(instanceId, Process.Start(start)!);
         try
