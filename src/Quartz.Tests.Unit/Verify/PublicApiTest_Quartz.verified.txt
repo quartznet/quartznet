@@ -1665,6 +1665,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual Quartz.Impl.AdoJobStore.ISemaphore LockHandler { get; set; }
         public virtual bool LockOnInsert { get; set; }
         public bool MakeThreadsDaemons { get; set; }
+        public int MaxConsecutiveFireFailures { get; set; }
         public int MaxMisfiresToHandleAtATime { get; set; }
         public int MaxTransientRetries { get; set; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
