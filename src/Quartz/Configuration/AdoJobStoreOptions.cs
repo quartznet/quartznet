@@ -295,11 +295,11 @@ public sealed class AdoJobStoreOptions
     /// covers, which is why the builder method is the way to ask for this.
     /// </para>
     /// <para>
-    /// It is on this options type because it is a statement about the <em>schema</em>: the two tables
-    /// <c>database/migrations/4.2/add_execution_history_&lt;dialect&gt;.sql</c> creates are optional, so
-    /// startup probes for them only when this says they are in use — and names that script when they
-    /// are missing. A database created by 4.0 or 4.1, or by a 4.2 fresh install with the history off,
-    /// goes on working untouched.
+    /// It is on this options type because it is a statement about the <em>schema</em>: the history's three
+    /// tables and their columns — from <c>database/migrations/4.2/add_execution_history_&lt;dialect&gt;.sql</c>,
+    /// <c>4.3/add_execution_log</c> and <c>add_misfire_reason</c>, and <c>4.4/add_execution_outcome</c> — are
+    /// optional, so startup probes for them only when this says they are in use, and names the oldest
+    /// script missing. A database without them goes on working untouched while the history is off.
     /// </para>
     /// </remarks>
     public bool ExecutionHistory { get; set; }
