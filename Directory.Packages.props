@@ -59,7 +59,7 @@
       Test-only: Quartz.Tests.Integration joins Quartz's tables to a Marten store as a feature schema and
       checks that Marten's own cleanup leaves them alone. 9.39.1 is the release that sits on the JasperFx
       2.74.0 the pinned Wolverine does, so the graph under test is one an application beside Wolverine
-      6.40.0 would resolve. Nothing ships it: Quartz.Weasel.PostgreSQL takes no Marten dependency.
+      6.41.0 would resolve. Nothing ships it: Quartz.Weasel.PostgreSQL takes no Marten dependency.
     -->
     <PackageVersion Include="Marten" Version="9.39.1" />
     <PackageVersion Include="MELT" Version="1.1.0" />
@@ -121,10 +121,10 @@
       32.0.1 is the last Verify without a licence check; .github/dependabot.yml says why it stays there.
     -->
     <PackageVersion Include="Verify.NUnit" Version="32.0.1" />
-    <PackageVersion Include="WolverineFx" Version="6.40.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.40.0" />
-    <PackageVersion Include="WolverineFx.SqlServer" Version="6.40.0" />
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.40.0" />
+    <PackageVersion Include="WolverineFx" Version="6.41.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.41.0" />
+    <PackageVersion Include="WolverineFx.SqlServer" Version="6.41.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.41.0" />
   </ItemGroup>
 
   <!--

@@ -175,7 +175,7 @@ public sealed class SqlServerWeaselHostingTest
         }
 
         typeof(global::Weasel.Core.Migrator).Assembly.GetName().Version.Should().BeGreaterThanOrEqualTo(new Version(9, 35, 1),
-            "Wolverine 6.40 asks for Weasel 9.32, and Quartz.Weasel's floor lifts the graph to one Weasel");
+            "Wolverine 6.41 asks for Weasel 9.35.1, and Quartz.Weasel's floor keeps the graph on one Weasel");
         typeof(WolverineOptions).Assembly.GetName().Version!.Major.Should().Be(6);
     }
 
