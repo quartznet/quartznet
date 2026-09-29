@@ -78,6 +78,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     private ISchedulerSignaler schedSignaler = null!;
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
+    private readonly FireFailureLedger fireFailures = new();
 
 #if DIAGNOSTICS_SOURCE
     private readonly JobStoreDiagnosticsWriter jobStoreDiagnostics = new();
@@ -335,6 +336,30 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             transientRetryInterval = value;
         }
     }
+
+    /// <summary>
+    /// How many fires of one trigger in a row may fail before the trigger is stored <c>ERROR</c>, or
+    /// <c>0</c> to never store it <c>ERROR</c> for this. Defaults to 5.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A fire that fails for a reason a retry will not cure — a constraint violation, a column the
+    /// database no longer has — is rolled back alone, and the trigger is released and acquired again.
+    /// One that fails every time was acquired again forever: each round cost a rolled-back transaction,
+    /// and a <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers never fired behind
+    /// it. After this many failures in a row the trigger is stored <c>ERROR</c> and an error is logged.
+    /// <see cref="IScheduler.ResetTriggerFromErrorState" /> brings it back once the cause is fixed.
+    /// </para>
+    /// <para>
+    /// Only such failures count. A transient one is retried, a failure of the whole batch fails every
+    /// trigger in it alike, and a database that is down fails acquisition before any fire — none of those
+    /// is counted, so an outage parks nothing. A fire that commits, on this node or another, starts the
+    /// count again. The count is each node's own, so in a cluster a trigger may fail this many times on
+    /// every node before one of them stores it <c>ERROR</c>. Set through
+    /// <c>quartz.jobStore.maxConsecutiveFireFailures</c>.
+    /// </para>
+    /// </remarks>
+    public int MaxConsecutiveFireFailures { get; set; } = 5;
 
     /// <summary>
     /// Get or set whether this instance should use database-based thread
@@ -4539,6 +4564,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// stored <c>ERROR</c> so that it is not acquired again — is not one of those: the attempt goes on
     /// and commits it.
     /// </para>
+    /// <para>
+    /// A trigger whose fire fails is released by the scheduler and acquired again, and its fire time has
+    /// not moved, so one that fails every time would be first in every round for good. Each such failure
+    /// is counted against it, and once it has failed <see cref="MaxConsecutiveFireFailures" /> times in a
+    /// row it is stored <c>ERROR</c> after the batch has settled (#3963).
+    /// </para>
     /// </remarks>
     public virtual Task<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
         IReadOnlyCollection<IOperableTrigger> triggers,
@@ -4555,6 +4586,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             // fire has failed.
             TriggerFiredResult?[]? settled = null;
             List<int>? positions = null;
+
+            // The triggers whose failure in this batch was the last one in a row the store allows, with
+            // how many that was. Stored ERROR once the batch has settled.
+            List<KeyValuePair<TriggerKey, int>>? failing = null;
 
             while (true)
             {
@@ -4584,6 +4619,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     settled[positions[failure.Index]] = new TriggerFiredResult(cause);
                     positions.RemoveAt(failure.Index);
 
+                    // Counted with the previous fire time it was acquired with, which only a fire that
+                    // committed moves.
+                    if (MaxConsecutiveFireFailures > 0)
+                    {
+                        int failures = fireFailures.RecordFailure(failure.TriggerKey, attempt[failure.Index].GetPreviousFireTimeUtc());
+                        if (failures >= MaxConsecutiveFireFailures)
+                        {
+                            (failing ??= new List<KeyValuePair<TriggerKey, int>>()).Add(new KeyValuePair<TriggerKey, int>(failure.TriggerKey, failures));
+                        }
+                    }
+
                     List<IOperableTrigger> remaining = new(attempt.Count - 1);
                     for (int i = 0; i < attempt.Count; i++)
                     {
@@ -4604,6 +4650,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     fired = new List<TriggerFiredResult>();
                 }
 
+                ForgetFireFailures(attempt, fired);
+
                 if (settled == null)
                 {
                     return fired;
@@ -4616,6 +4664,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 foreach (TriggerFiredResult? result in settled)
                 {
                     results.Add(result ?? fired[next++]);
+                }
+
+                if (failing != null)
+                {
+                    await ParkFailingTriggers(failing, cancellationToken).ConfigureAwait(false);
                 }
 
                 return results;
@@ -4637,6 +4690,89 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 #else
         return DoTriggersFired();
 #endif
+    }
+
+    /// <summary>
+    /// Ends the run of failed fires of each trigger the committed attempt settled: fired, or stored
+    /// <c>ERROR</c> because its job would not load.
+    /// </summary>
+    /// <remarks>
+    /// A trigger the attempt did not fire at all — paused, deleted, held back — keeps its count, since
+    /// nothing about it was written. Nothing to do while no trigger has a failure counted, which is the
+    /// ordinary batch.
+    /// </remarks>
+    private void ForgetFireFailures(IReadOnlyList<IOperableTrigger> attempt, List<TriggerFiredResult> fired)
+    {
+        if (fireFailures.IsEmpty)
+        {
+            return;
+        }
+
+        for (int i = 0; i < fired.Count; i++)
+        {
+            TriggerFiredResult result = fired[i];
+            if (result.TriggerFiredBundle != null || result.Exception != null)
+            {
+                fireFailures.Clear(attempt[i].Key);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stores <c>ERROR</c> each trigger whose fire has failed as many times in a row as
+    /// <see cref="MaxConsecutiveFireFailures" /> allows, so that it is not acquired again (#3963).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One short transaction per trigger under the <c>TRIGGER_ACCESS</c> lock, once the batch has
+    /// settled: the attempt the failure happened in was rolled back, so the park cannot be part of it.
+    /// The row moves only from <c>ACQUIRED</c>, the reservation this batch still holds, so a trigger
+    /// paused or deleted in the meantime is left as it is. The scheduler thread then releases the failed
+    /// result as it releases any other, which deletes the reservation's fired row and leaves an
+    /// <c>ERROR</c> row alone. Nothing is raised to the listeners, as for a job that will not load.
+    /// </para>
+    /// <para>
+    /// A park that fails is logged, and the batch's results are returned all the same: the fires beside
+    /// the failed one have committed, and their jobs are the scheduler's to run. The count is kept, so the
+    /// trigger's next failure tries again.
+    /// </para>
+    /// </remarks>
+    private async Task ParkFailingTriggers(List<KeyValuePair<TriggerKey, int>> failing, CancellationToken cancellationToken)
+    {
+        foreach (KeyValuePair<TriggerKey, int> entry in failing)
+        {
+            TriggerKey triggerKey = entry.Key;
+            bool parked;
+            try
+            {
+                parked = await ExecuteInNonManagedTXLock(
+                    LockTriggerAccess,
+                    async conn =>
+                    {
+                        try
+                        {
+                            int updated = await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StateError, StateAcquired, cancellationToken).ConfigureAwait(false);
+                            return updated > 0;
+                        }
+                        catch (Exception e) when (e is not JobPersistenceException)
+                        {
+                            throw new JobPersistenceException($"Couldn't store trigger '{triggerKey}' ERROR: " + e.Message, e);
+                        }
+                    },
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorException("Unable to set trigger state to ERROR.", e);
+                continue;
+            }
+
+            fireFailures.Clear(triggerKey);
+            if (parked)
+            {
+                Log.Error($"Trigger {triggerKey} failed to fire {entry.Value} times in a row and is stored ERROR; ResetTriggerFromErrorState returns it once the cause is fixed");
+            }
+        }
     }
 
     /// <summary>

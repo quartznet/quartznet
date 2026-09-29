@@ -1665,6 +1665,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual Quartz.Impl.AdoJobStore.ISemaphore LockHandler { get; set; }
         public virtual bool LockOnInsert { get; set; }
         public bool MakeThreadsDaemons { get; set; }
+        public int MaxConsecutiveFireFailures { get; set; }
         public int MaxMisfiresToHandleAtATime { get; set; }
         public int MaxTransientRetries { get; set; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
@@ -3521,6 +3522,7 @@ namespace Quartz.Simpl
         public long EstimatedTimeToReleaseAndAcquireTrigger { get; }
         public virtual string InstanceId { set; }
         public virtual string InstanceName { set; }
+        public virtual int MaxConsecutiveFireFailures { get; set; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
         public virtual System.TimeSpan MisfireThreshold { get; set; }
         public virtual bool SupportsPersistence { get; }
