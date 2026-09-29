@@ -60,12 +60,12 @@
     <PackageVersion Include="GitHubActionsTestLogger" Version="3.0.5" />
     <!--
       Test-only: Quartz.Tests.Integration joins Quartz's tables to a Marten store as a feature schema and
-      checks that Marten's own cleanup leaves them alone. 9.39.1 is the release that sits on the JasperFx
-      2.74.0 the pinned Wolverine does, so the graph under test is one an application beside Wolverine
-      6.41.0 would resolve. Nothing ships it: Quartz.Weasel.PostgreSQL takes no Marten dependency.
-      9.40.0 needs Weasel 9.35.2, so .github/dependabot.yml holds it until the Weasel rows below move (#3956).
+      checks that Marten's own cleanup leaves them alone. Nothing ships it: Quartz.Weasel.PostgreSQL takes
+      no Marten dependency. Marten, Wolverine and Weasel each floor JasperFx, and the Weasel range below
+      has the highest floor (2.76.0), so the graph under test is the one an application beside Quartz.Weasel
+      resolves.
     -->
-    <PackageVersion Include="Marten" Version="9.39.1" />
+    <PackageVersion Include="Marten" Version="9.40.0" />
     <PackageVersion Include="MELT" Version="1.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
@@ -200,17 +200,26 @@
     <PackageVersion Include="StackExchange.Redis" Version="3.0.0" />
     <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
     <!--
-      A range rather than a floor, and the only one in the file. 9.35.1 is the first release with
-      AddOnlyMigrations, without which an update would drop the columns, indexes and foreign keys an
-      application added to Quartz's tables; the ceiling is there because 9.33.0 broke binary
-      compatibility inside 9.x once already, and Weasel 10 is announced. The four Quartz.Weasel
-      packages turn transitive pinning off, so their nuspecs carry exactly this range and nothing of
-      Weasel's own graph. The four move together, by hand; .github/dependabot.yml offers no minor or patch.
+      A range rather than a floor, and the only one in the file. The ceiling is there because 9.33.0 broke
+      binary compatibility inside 9.x once already, and Weasel 10 is announced.
+
+      The lower end breaks this group's rule on purpose: it is not the oldest advisory-free release but the
+      oldest one that is correct for Quartz. 9.35.1 brought AddOnlyMigrations, without which an update
+      drops the columns, indexes and foreign keys an application added to Quartz's tables. 9.36.0 is the
+      floor because its SQLite rebuild keeps them too, with their rows (JasperFx/weasel#639), and rolling
+      a rebuild back keeps them as well (#648); Quartz.Weasel.SQLite refused such a rebuild before (#3956).
+      The other three follow Weasel.Sqlite so that all four stay one range. 9.36.0 floors JasperFx at
+      2.76.0, so an application beside Marten or Wolverine resolves at least that.
+
+      The four Quartz.Weasel packages turn transitive pinning off, so their nuspecs carry exactly this range
+      and nothing of Weasel's own graph. The four move together. .github/dependabot.yml offers a Weasel
+      minor or patch in its weasel group; each raises every consumer's floor, so merge one only when
+      Quartz needs its fix, or Marten or Wolverine its version.
     -->
-    <PackageVersion Include="Weasel.Core" Version="[9.35.1, 10.0.0)" />
-    <PackageVersion Include="Weasel.Postgresql" Version="[9.35.1, 10.0.0)" />
-    <PackageVersion Include="Weasel.Sqlite" Version="[9.35.1, 10.0.0)" />
-    <PackageVersion Include="Weasel.SqlServer" Version="[9.35.1, 10.0.0)" />
+    <PackageVersion Include="Weasel.Core" Version="[9.36.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.Postgresql" Version="[9.36.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.Sqlite" Version="[9.36.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.SqlServer" Version="[9.36.0, 10.0.0)" />
   </ItemGroup>
 
   <!--
