@@ -28,6 +28,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Npgsql;
 
+using Quartz.Impl.AdoJobStore;
 using Quartz.Weasel.PostgreSQL;
 
 using Weasel.Core;
@@ -91,7 +92,8 @@ public sealed class PostgresWeaselModelTest
         QuartzPostgresFeatureSchema feature = new("Quartz.QRTZM_");
 
         List<Table> tables = feature.Objects.OfType<Table>().ToList();
-        tables.Should().HaveCount(15);
+        tables.Should().HaveCount(AdoConstants.AllTableNames.Length + AdoConstants.OptionalTableNames.Length,
+            "the model has every table the store knows, required and optional");
         tables.Should().OnlyContain(x => x.Identifier.Schema == "quartz" && x.Identifier.Name.StartsWith("qrtzm_", StringComparison.Ordinal),
             "PostgreSQL folds the unquoted names the store writes, so the model does too");
         tables.Should().OnlyContain(x => x.AddOnlyMigrations, "an application's own columns and indexes are never dropped");
