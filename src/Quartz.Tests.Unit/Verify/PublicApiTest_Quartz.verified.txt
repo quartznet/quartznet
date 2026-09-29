@@ -1578,9 +1578,11 @@ namespace Quartz
         public double? ClusterCheckinTolerance { get; set; }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
         public string? Name { get; set; }
+        public System.Collections.Generic.List<Quartz.RequiredJobOptions> RequiredJobs { get; }
         public double? StaleFiringTolerance { get; set; }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? StandbyStatus { get; set; }
         public System.Collections.Generic.List<string> Tags { get; }
+        public void RequireSuccessWithin(Quartz.JobKey job, System.TimeSpan within, Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus status = 1) { }
     }
     public static class QuartzHostApplicationBuilderExtensions
     {
@@ -1684,6 +1686,14 @@ namespace Quartz
         IgnoreMisfires = -1,
         FireAndProceed = 1,
         DoNothing = 2,
+    }
+    public sealed class RequiredJobOptions
+    {
+        public RequiredJobOptions() { }
+        public string Group { get; set; }
+        public string Name { get; set; }
+        public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus Status { get; set; }
+        public System.TimeSpan SucceededWithin { get; set; }
     }
     public sealed class RetryPolicy : System.IEquatable<Quartz.RetryPolicy>
     {

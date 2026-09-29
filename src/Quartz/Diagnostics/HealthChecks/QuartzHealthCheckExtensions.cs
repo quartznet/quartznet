@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
+
+using Quartz.Configuration;
 
 namespace Quartz;
 
@@ -112,17 +115,30 @@ public static class QuartzHealthCheckExtensions
             builder.Services.Configure(optionsName, configure);
         }
 
+        // The value checks and the one that asks the history store whether it can answer RequiredJobs. On
+        // start, so a requirement no store can read fails the host rather than every probe after it.
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<QuartzHealthCheckOptions>, QuartzHealthCheckOptionsValidator>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<QuartzHealthCheckOptions>, RequiredJobsHistoryValidator>());
+        builder.Services.AddOptions<QuartzHealthCheckOptions>(optionsName).ValidateOnStart();
+
         builder.Services
             .AddOptions<HealthCheckServiceOptions>()
             .Configure<IOptionsMonitor<QuartzHealthCheckOptions>>((healthChecks, quartz) =>
             {
                 QuartzHealthCheckOptions options = quartz.Get(optionsName);
 
+                // The health-check service builds a new check for every run, so what has to outlive a run
+                // lives here, once per registration.
+                RequiredJobsBaseline baseline = new();
+
                 healthChecks.Registrations.Add(new HealthCheckRegistration(
                     options.Name ?? DefaultCheckName(schedulerName),
                     serviceProvider => ActivatorUtilities.CreateInstance<QuartzHealthCheck>(
                         serviceProvider,
-                        new SchedulerHealthCheckTarget(schedulerName)),
+                        new SchedulerHealthCheckTarget(schedulerName),
+                        baseline),
                     options.FailureStatus,
                     options.Tags));
             });

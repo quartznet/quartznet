@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -18,6 +20,28 @@ namespace Quartz;
 /// </remarks>
 internal sealed record SchedulerHealthCheckTarget(string? SchedulerName);
 
+/// <summary>
+/// When a health check registration first evaluated its required jobs: the instant a job with no recorded
+/// success is judged from.
+/// </summary>
+/// <remarks>
+/// One per registration rather than per check, because the health-check service builds a new check for
+/// every run, and a start that moved with each run would never let a window elapse.
+/// </remarks>
+internal sealed class RequiredJobsBaseline
+{
+    private long firstUtcTicks;
+
+    /// <summary>
+    /// The first instant this was asked at, which is <paramref name="now" /> the first time.
+    /// </summary>
+    public DateTimeOffset Since(DateTimeOffset now)
+    {
+        long first = Interlocked.CompareExchange(ref firstUtcTicks, now.UtcTicks, 0);
+        return first == 0 ? now : new DateTimeOffset(first, TimeSpan.Zero);
+    }
+}
+
 internal sealed class QuartzHealthCheck : IHealthCheck
 {
     /// <summary>
@@ -30,22 +54,26 @@ internal sealed class QuartzHealthCheck : IHealthCheck
     private readonly SchedulerHealthCheckTarget target;
     private readonly IOptionsMonitor<QuartzHostedServiceOptions> hostedServiceOptions;
     private readonly IOptionsMonitor<QuartzHealthCheckOptions> checkOptions;
+    private readonly RequiredJobsBaseline baseline;
 
     public QuartzHealthCheck(
         IServiceProvider serviceProvider,
         SchedulerHealthCheckTarget target,
         IOptionsMonitor<QuartzHostedServiceOptions> hostedServiceOptions,
-        IOptionsMonitor<QuartzHealthCheckOptions> checkOptions)
+        IOptionsMonitor<QuartzHealthCheckOptions> checkOptions,
+        RequiredJobsBaseline baseline)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(hostedServiceOptions);
         ArgumentNullException.ThrowIfNull(checkOptions);
+        ArgumentNullException.ThrowIfNull(baseline);
 
         this.serviceProvider = serviceProvider;
         this.target = target;
         this.hostedServiceOptions = hostedServiceOptions;
         this.checkOptions = checkOptions;
+        this.baseline = baseline;
     }
 
     async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
@@ -117,7 +145,10 @@ internal sealed class QuartzHealthCheck : IHealthCheck
             // rotation for doing exactly what it was told. QuartzHealthCheckOptions.StandbyStatus is
             // there for the deployment that needs the other answer and has no endpoint to remap it on.
             case SchedulerStatus.Standby:
-                return new HealthCheckResult(StandbyStatus(), $"Quartz scheduler '{name}' is in standby");
+                return await WithRequiredJobs(
+                    scheduler,
+                    new HealthCheckResult(StandbyStatus(), $"Quartz scheduler '{name}' is in standby"),
+                    cancellationToken).ConfigureAwait(false);
 
             // The same argument as standby, one step earlier: a scheduler whose AutoStart is false was
             // never meant to be started by the host, so its being Created is the configuration working
@@ -172,8 +203,199 @@ internal sealed class QuartzHealthCheck : IHealthCheck
             }
         }
 
-        return problem ?? HealthCheckResult.Healthy($"Quartz scheduler '{name}' is ready");
+        return await WithRequiredJobs(
+            scheduler,
+            problem ?? HealthCheckResult.Healthy($"Quartz scheduler '{name}' is ready"),
+            cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// The scheduler's own verdict, made worse by any required job that has not succeeded within its window.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only a running or standby scheduler gets here, and only when its verdict is not already unhealthy:
+    /// nothing a job's history says can make that worse. Standby is included because a job that has stopped
+    /// succeeding has stopped whatever the reason, and a node taken out of rotation for a day is one whose
+    /// nightly job did not run.
+    /// </para>
+    /// <para>
+    /// The worse status wins. When both say something, the graver description comes first - the scheduler's
+    /// on a tie - and the data of both is kept, so the milder finding is reported rather than hidden.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<HealthCheckResult> WithRequiredJobs(
+        IScheduler scheduler,
+        HealthCheckResult verdict,
+        CancellationToken cancellationToken)
+    {
+        if (verdict.Status == HealthStatus.Unhealthy)
+        {
+            return verdict;
+        }
+
+        List<RequiredJobOptions> required = CheckOptions().RequiredJobs;
+        if (required.Count == 0)
+        {
+            return verdict;
+        }
+
+        HealthCheckResult? jobs = await CheckRequiredJobs(scheduler, required, cancellationToken).ConfigureAwait(false);
+        if (jobs is not { } found)
+        {
+            return verdict;
+        }
+
+        if (verdict.Status == HealthStatus.Healthy)
+        {
+            return found;
+        }
+
+        (HealthCheckResult first, HealthCheckResult second) = found.Status < verdict.Status ? (found, verdict) : (verdict, found);
+
+        Dictionary<string, object> data = new(verdict.Data);
+        foreach (KeyValuePair<string, object> entry in found.Data)
+        {
+            data[entry.Key] = entry.Value;
+        }
+
+        return new HealthCheckResult(
+            first.Status,
+            $"{first.Description?.TrimEnd('.')}. {second.Description}",
+            first.Exception,
+            data);
+    }
+
+    /// <summary>
+    /// The required jobs that have not succeeded within their windows, or <see langword="null" /> when every
+    /// one has.
+    /// </summary>
+    /// <remarks>
+    /// One status read for all of them, however many there are. A job with no recorded success is judged
+    /// from the first time this registration evaluated its requirements, so a process that has just started
+    /// gives each job one window to run in. A store that turns out to keep no status is a misconfiguration,
+    /// reported as unhealthy with what to do about it rather than read as every job being late.
+    /// </remarks>
+    private async ValueTask<HealthCheckResult?> CheckRequiredJobs(
+        IScheduler scheduler,
+        List<RequiredJobOptions> required,
+        CancellationToken cancellationToken)
+    {
+        string name = scheduler.SchedulerName;
+        DateTimeOffset now = scheduler.TimeProvider.GetUtcNow();
+        DateTimeOffset watchedSince = baseline.Since(now);
+
+        // The last entry for a job wins, which is what "adding the same job twice replaces the first" means
+        // for a list that a configuration section and a callback can both have added to.
+        Dictionary<JobKey, RequiredJobOptions> requirements = [];
+        foreach (RequiredJobOptions requirement in required)
+        {
+            requirements[new JobKey(requirement.Name, requirement.Group)] = requirement;
+        }
+
+        IExecutionHistoryStore? store = RequiredJobsHistory.Find(serviceProvider, target.SchedulerName, out string? refusal);
+        if (store is null)
+        {
+            return HealthCheckResult.Unhealthy(refusal);
+        }
+
+        PagedResult<JobRunStatus> page;
+        try
+        {
+            page = await store.QueryJobRunStatuses(
+                new JobRunStatusQuery { SchedulerName = name, Jobs = [.. requirements.Keys], Take = requirements.Count },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (NotSupportedException e)
+        {
+            // Startup validation asks the store the same question about no jobs at all, which a store that
+            // has to go elsewhere for its answer - a remote host older than 4.4 - can answer without going.
+            return HealthCheckResult.Unhealthy(RequiredJobsHistory.KeepsNoStatus(target.SchedulerName, store, e));
+        }
+        catch (SchedulerException)
+        {
+            return HealthCheckResult.Unhealthy($"Quartz scheduler '{name}' cannot read its jobs' run status from its execution history");
+        }
+
+        Dictionary<JobKey, JobRunStatus> statuses = [];
+        foreach (JobRunStatus status in page.Items)
+        {
+            statuses[status.Job] = status;
+        }
+
+        List<LateJob> late = [];
+        foreach ((JobKey job, RequiredJobOptions requirement) in requirements)
+        {
+            JobRunStatus? status = statuses.GetValueOrDefault(job);
+            if (now - (status?.LastSucceededAtUtc ?? watchedSince) > requirement.SucceededWithin)
+            {
+                late.Add(new LateJob(job, requirement, status));
+            }
+        }
+
+        if (late.Count == 0)
+        {
+            return null;
+        }
+
+        // HealthStatus counts down from Unhealthy, so ascending puts the gravest first; OrderBy is stable, so
+        // jobs of equal status keep the order they were required in.
+        late = [.. late.OrderBy(static x => x.Requirement.Status)];
+
+        Dictionary<string, object> data = [];
+        foreach (LateJob job in late)
+        {
+            data[job.Job.ToString()] = new Dictionary<string, object>
+            {
+                ["lastSucceededAtUtc"] = job.Status?.LastSucceededAtUtc is { } succeeded ? succeeded : "never",
+                ["consecutiveFailures"] = job.Status?.ConsecutiveFailures ?? 0,
+                ["succeededWithin"] = job.Requirement.SucceededWithin
+            };
+        }
+
+        return new HealthCheckResult(late[0].Requirement.Status, Describe(name, late, now, watchedSince), exception: null, data);
+    }
+
+    /// <summary>
+    /// Names the first late job, says how late it is, and counts the others.
+    /// </summary>
+    private static string Describe(string name, List<LateJob> late, DateTimeOffset now, DateTimeOffset watchedSince)
+    {
+        LateJob first = late[0];
+
+        string lastSuccess = first.Status?.LastSucceededAtUtc is { } last
+            ? $"it last succeeded {Span(now - last)} ago"
+            : $"it has not succeeded in the {Span(now - watchedSince)} since the check started watching it";
+
+        string failures = first.Status?.ConsecutiveFailures switch
+        {
+            null or 0 => "",
+            1 => " and its last run failed",
+            { } count => $" and its last {count} runs failed"
+        };
+
+        string others = late.Count switch
+        {
+            1 => "",
+            2 => ". 1 other required job has not succeeded within its window either",
+            _ => $". {late.Count - 1} other required jobs have not succeeded within their windows either"
+        };
+
+        return $"Quartz scheduler '{name}' requires job '{first.Job}' to succeed within "
+               + $"{Span(first.Requirement.SucceededWithin)}; {lastSuccess}{failures}{others}";
+    }
+
+    private static string Span(TimeSpan span) => span.ToString("c", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// This check's options, read under its scheduler's name like every other per-scheduler setting.
+    /// </summary>
+    private QuartzHealthCheckOptions CheckOptions() => checkOptions.Get(target.SchedulerName ?? Options.DefaultName);
+
+    /// <summary>
+    /// A required job that has not succeeded within its window, with its status when the store has one.
+    /// </summary>
+    private readonly record struct LateJob(JobKey Job, RequiredJobOptions Requirement, JobRunStatus? Status);
 
     /// <summary>
     /// Whether this node's cluster manager is still checking in, or <see langword="null" /> when it is.
