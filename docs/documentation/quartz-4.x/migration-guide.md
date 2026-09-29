@@ -44,7 +44,7 @@ An application on 4.3 compiles on 4.4 unchanged.
 | `JobRunStatusQuery` | `PagedQuery` by job group, then name: `required SchedulerName`, `Jobs`, `Failing` |
 | `IExecutionHistoryStore.QueryJobRunStatuses`, `GetJobRunStatus` | Default interface members. The first throws `NotSupportedException`; the second asks the first for one job |
 | `ExecutionHistoryOptions.RetentionByResult`, `MisfireRetention`, `MaxEntriesPerJob` | Age per result (get-only), age of the misfire feed, rows per job with failures exempt. See [Keep history by result](how-tos/job-outcomes.md#keep-history-by-result) |
-| Log event `1059` | Warning: a job's metrics came to more than 4,000 characters of JSON and were not recorded |
+| Log events `1059`, `1060` | Warnings: a job's metrics were not recorded, because they came to more than 4,000 characters of JSON, or because writing one of them threw. The run is recorded either way |
 
 **Behaviour changes:**
 

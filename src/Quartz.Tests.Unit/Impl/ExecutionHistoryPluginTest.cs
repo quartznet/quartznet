@@ -27,6 +27,8 @@ using System.Text.Json;
 using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
@@ -156,6 +158,33 @@ public sealed class ExecutionHistoryPluginTest
         using JsonDocument metrics = JsonDocument.Parse(row.MetricsJson!);
         metrics.RootElement.GetProperty("released").GetInt32().Should().Be(0);
         metrics.RootElement.GetProperty("scanned").GetInt32().Should().Be(1200);
+    }
+
+    [Test]
+    public async Task AMetricThatThrowsWhenWrittenCostsTheMetricsNotTheRow()
+    {
+        FakeLoggerProvider logs = new();
+        InMemoryExecutionHistoryStore store = Store();
+
+        ServiceCollection services = new();
+        services.AddSingleton<IExecutionHistoryStore>(store);
+        services.AddLogging(logging => logging.AddProvider(logs));
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        JobExecutionContextImpl context = Context();
+        context.Result = JobRunReport.Skipped("nothing to release").With("tenant", new ExecutionMetricsWriterTest.ThrowingValue());
+
+        await new ExecutionHistoryPlugin(provider, new FakeTimeProvider(now)).JobWasExecuted(context, jobException: null);
+
+        ExecutionHistoryEntry row = (await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = SchedulerName }))
+            .Items.Should().ContainSingle("the run happened, and a metric the job could not describe does not change that").Subject;
+
+        row.Result.Should().Be(JobRunResult.Skipped);
+        row.Summary.Should().Be("nothing to release");
+        row.MetricsJson.Should().BeNull();
+
+        logs.Collector.GetSnapshot().Should().ContainSingle(record => record.Id.Id == 1060,
+            "the container's logging hears why the metrics are missing");
     }
 
     // ---------------------------------------------------------------------------------------------

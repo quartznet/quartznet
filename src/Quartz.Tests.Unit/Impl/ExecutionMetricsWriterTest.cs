@@ -194,8 +194,83 @@ public sealed class ExecutionMetricsWriterTest
         logger.Collector.Count.Should().Be(1);
     }
 
+    [Test]
+    public void AValueThatThrowsWhenWrittenDropsTheMetricsAndSaysWhich()
+    {
+        Dictionary<string, object?> metrics = new()
+        {
+            ["scanned"] = 1200,
+            ["tenant"] = new ThrowingValue(),
+            ["released"] = 3
+        };
+
+        string? json = null;
+        Action write = () => json = ExecutionMetricsWriter.Write(metrics, logger, job);
+
+        write.Should().NotThrow("a value's ToString is the job's code, and what it throws must not cost the run its history row");
+        json.Should().BeNull("a JSON object cut short is not JSON");
+
+        FakeLogRecord record = logger.Collector.GetSnapshot().Should().ContainSingle().Which;
+        record.Id.Id.Should().Be(1060, "a value that throws is a different fault from one that is too large");
+        record.Level.Should().Be(LogLevel.Warning);
+        record.Message.Should().Contain("billing.reconcile").And.Contain("tenant", "the event names the metric that threw");
+        record.Exception.Should().BeOfType<InvalidOperationException>().Which.Message.Should().Be("the tenant is not loaded");
+    }
+
+    [Test]
+    public void AFormattableThatThrowsDropsTheMetricsToo()
+    {
+        ExecutionMetricsWriter.Write(new Dictionary<string, object?> { ["amount"] = new ThrowingFormattable() }, logger, job)
+            .Should().BeNull();
+
+        logger.Collector.GetSnapshot().Should().ContainSingle().Which.Id.Id.Should().Be(1060);
+    }
+
+    [Test]
+    public void ADictionaryThatThrowsWhileReadDropsTheMetricsToo()
+    {
+        ExecutionMetricsWriter.Write(new ThrowingDictionary(), logger, job).Should().BeNull(
+            "the dictionary is the job's code as well");
+
+        logger.Collector.GetSnapshot().Should().ContainSingle().Which.Id.Id.Should().Be(1060);
+    }
+
     private string? Write(object? value)
     {
         return ExecutionMetricsWriter.Write(new Dictionary<string, object?> { ["value"] = value }, logger, job);
+    }
+
+    /// <summary>A metric whose text the job cannot produce.</summary>
+    internal sealed class ThrowingValue
+    {
+        public override string ToString() => throw new InvalidOperationException("the tenant is not loaded");
+    }
+
+    private sealed class ThrowingFormattable : IFormattable
+    {
+        public string ToString(string? format, IFormatProvider? formatProvider) => throw new FormatException("no culture");
+    }
+
+    private sealed class ThrowingDictionary : IReadOnlyDictionary<string, object?>
+    {
+        public int Count => 1;
+
+        public IEnumerable<string> Keys => throw new NotSupportedException();
+
+        public IEnumerable<object?> Values => throw new NotSupportedException();
+
+        public object? this[string key] => throw new NotSupportedException();
+
+        public bool ContainsKey(string key) => false;
+
+        public bool TryGetValue(string key, out object? value)
+        {
+            value = null;
+            return false;
+        }
+
+        public IEnumerator<KeyValuePair<string, object?>> GetEnumerator() => throw new InvalidOperationException("the source was disposed");
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
