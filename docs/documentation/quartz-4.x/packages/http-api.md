@@ -151,7 +151,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/fire-instances` | paged fire instances ([below](#fire-instances)) |
 | `POST` | `…/jobs/{jobGroup}/{jobName}/pause` | `{ applied }`; optional [reason body](#a-pause-can-say-why) |
 | `POST` | `…/jobs/pause` | `{ groups }`; group matcher in the query string; optional reason body |
-| `POST` | `…/jobs/keys/pause` | `{ jobs }`; key set in the body |
+| `POST` | `…/jobs/keys/pause` | `{ jobs }`; key set in the body, with an optional [reason](#a-pause-can-say-why) |
 | `POST` | `…/jobs/{jobGroup}/{jobName}/resume` | `{ applied }` |
 | `POST` | `…/jobs/resume` | `{ groups }` |
 | `POST` | `…/jobs/keys/resume` | `{ jobs }` |
@@ -178,7 +178,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/keys/reset-from-error-state` | `{ triggers }` |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/pause` | `{ applied }`; optional [reason body](#a-pause-can-say-why) |
 | `POST` | `…/triggers/pause` | `{ groups }`; optional reason body |
-| `POST` | `…/triggers/keys/pause` | `{ triggers }` |
+| `POST` | `…/triggers/keys/pause` | `{ triggers }`; optional reason beside the keys |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/resume` | `{ applied }` |
 | `POST` | `…/triggers/resume` | `{ groups }` |
 | `POST` | `…/triggers/keys/resume` | `{ triggers }` |
@@ -803,7 +803,18 @@ From 4.3. These routes take an optional body:
 - Both members are optional. With a body, `requestedBy` left out is the authenticated user's name, the one the
   [mutation audit](#production-hardening) logs.
 - A body that says nothing (no reason, no requester, nobody authenticated) is the reasonless pause too.
-- The key-set `…/keys/pause` routes take no reason.
+
+From 4.4, the key-set `POST …/triggers/keys/pause` and `…/jobs/keys/pause` take the same two members beside
+the keys:
+
+```json
+{ "triggers": [ { "name": "nightly", "group": "reports" } ], "reason": "vendor API is down until 18:00" }
+```
+
+- **A key-set body with neither `reason` nor `requestedBy` is the reasonless pause, even from an authenticated
+  caller.** It is the body every 4.3 client sends, so it is never put in the caller's name.
+- With either, `requestedBy` left out is the authenticated user's name, as above.
+- A 4.3 host reads the keys and ignores the rest, so it pauses the set without the reason.
 
 The record is read back as `pause`:
 
@@ -834,8 +845,8 @@ keys they applied to:
 
 | Endpoint | Body | Answers |
 |---|---|---|
-| `POST …/jobs/keys/pause`, `…/jobs/keys/resume` | `{ "jobs": [ { "name": …, "group": … } ] }` | `{ "jobs": [ … ] }` |
-| `POST …/triggers/keys/pause`, `…/triggers/keys/resume` | `{ "triggers": [ { "name": …, "group": … } ] }` | `{ "triggers": [ … ] }` |
+| `POST …/jobs/keys/pause`, `…/jobs/keys/resume` | `{ "jobs": [ { "name": …, "group": … } ] }`; a pause may add [`reason`, `requestedBy`](#a-pause-can-say-why) | `{ "jobs": [ … ] }` |
+| `POST …/triggers/keys/pause`, `…/triggers/keys/resume` | `{ "triggers": [ { "name": …, "group": … } ] }`; a pause may add `reason`, `requestedBy` | `{ "triggers": [ … ] }` |
 | `POST …/triggers/keys/reset-from-error-state` | `{ "triggers": [ … ] }` | `{ "triggers": [ … ] }` |
 | `POST …/jobs/delete` | `{ "jobs": [ { "name": …, "group": … } ] }` | `{ "jobs": [ … ] }` |
 | `POST …/triggers/unschedule` | `{ "triggers": [ { "name": …, "group": … } ] }` | `{ "triggers": [ … ] }` |
