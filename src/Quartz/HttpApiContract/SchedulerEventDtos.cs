@@ -106,7 +106,8 @@ internal sealed record SchedulerEvent
     public bool? Vetoed { get; init; }
 
     /// <summary>
-    /// What the job faulted with, or <see langword="null" /> when it succeeded.
+    /// The message of what the job threw, as its execution history row records it, or
+    /// <see langword="null" /> when it succeeded.
     /// </summary>
     public string? ExceptionMessage { get; init; }
 

@@ -77,8 +77,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * **A run whose job threw is recorded with the job's own message**
   ([#3992](https://github.com/quartznet/quartznet/issues/3992)). 4.3 recorded the scheduler's wrapper for
   any exception but a `JobExecutionException`, so every such row read the same. `ExceptionMessage` on the
-  row and `LastFailureMessage` on the job's status carry the new text. Match on the job's message in any
-  query or alert that matched the old one:
+  row and `LastFailureMessage` on the job's status carry the new text. So does `exceptionMessage` on the
+  HTTP API's `JobExecuted` event. Match on the job's message in any query, alert or event reader that
+  matched the old one:
 
   ```diff
   - "exceptionMessage": "Job threw an unhandled exception"
