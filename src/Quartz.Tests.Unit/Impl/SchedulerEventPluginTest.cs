@@ -89,6 +89,28 @@ public class SchedulerEventPluginTest
     }
 
     /// <summary>
+    /// A job's own exception is reported by its own message, as the execution history row records it.
+    /// </summary>
+    /// <remarks>
+    /// The run shell hands the listeners <c>JobExecutionException</c> → <c>JobExecutionProcessException</c> →
+    /// what the job threw, and both wrappers say "Job threw an unhandled exception". 4.3 published that for
+    /// every job that threw, beside a history row that 4.4 fills with the job's message.
+    /// </remarks>
+    [Test]
+    public async Task AJobThatThrewIsJobExecutedWithTheMessageItThrew()
+    {
+        await using Watcher watcher = await Watcher.Watching(broker);
+        IJobExecutionContext context = ExecutionContext();
+
+        await plugin.JobWasExecuted(context, new JobExecutionException(
+            new JobExecutionProcessException(context, new InvalidOperationException("the upstream system is down"))));
+
+        SchedulerEvent published = await watcher.Next();
+        published.ExceptionMessage.Should().Be("the upstream system is down",
+            "the event is read beside the history row, and the two name the same failure the same way");
+    }
+
+    /// <summary>
     /// A vetoed execution is reported as one that finished, because a reader watching the job will hear no
     /// completion otherwise.
     /// </summary>

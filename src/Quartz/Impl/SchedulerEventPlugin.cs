@@ -19,6 +19,7 @@
 
 #endregion
 
+using Quartz.Core;
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
 
@@ -384,7 +385,9 @@ internal sealed class SchedulerEventPlugin : ISchedulerPlugin, IJobListener, ITr
             FireInstanceId = context.FireInstanceId,
             RunTime = context.JobRunTime,
             Vetoed = vetoed,
-            ExceptionMessage = jobException?.Message
+            // The job's own message, as its history row records it: the run shell's wrapper says the same
+            // of every failure.
+            ExceptionMessage = jobException is null ? null : JobFailure.MessageOf(jobException)
         });
 
         return default;
