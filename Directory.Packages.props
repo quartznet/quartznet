@@ -122,10 +122,10 @@
       32.0.1 is the last Verify without a licence check; .github/dependabot.yml says why it stays there.
     -->
     <PackageVersion Include="Verify.NUnit" Version="32.0.1" />
-    <PackageVersion Include="WolverineFx" Version="6.41.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.41.0" />
-    <PackageVersion Include="WolverineFx.SqlServer" Version="6.41.0" />
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.41.0" />
+    <PackageVersion Include="WolverineFx" Version="6.45.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.45.0" />
+    <PackageVersion Include="WolverineFx.SqlServer" Version="6.45.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.45.0" />
   </ItemGroup>
 
   <!--
