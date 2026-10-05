@@ -117,7 +117,8 @@ internal interface Trigger
     /// <summary>
     /// How the scheduler re-fires this trigger when its job fails, in the stored form the RETRY_POLICY
     /// column carries — for example "fixed;3;00:00:30", "exp;5;00:00:10;2;00:10:00" or
-    /// "list;00:00:01;00:00:05". Null when the trigger does not retry
+    /// "list;00:00:01;00:00:05", or "none" when the trigger is never retried. Null when the trigger has no
+    /// policy of its own, so it inherits its job type's or the scheduler's
     /// </summary>
     string? RetryPolicy { get; }
 
@@ -351,7 +352,8 @@ internal interface UpdateTriggerDetailsRequest
 
     /// <summary>
     /// How the scheduler re-fires the trigger when its job fails, in the stored form the RETRY_POLICY
-    /// column carries — for example "fixed;3;00:00:30" — or null to stop retrying
+    /// column carries — for example "fixed;3;00:00:30". "none" means the trigger is never retried; null
+    /// removes its own policy, so it inherits its job type's or the scheduler's
     /// </summary>
     string? RetryPolicy { get; }
 

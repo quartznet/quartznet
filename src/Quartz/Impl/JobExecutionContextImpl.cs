@@ -179,7 +179,7 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     public int RefireCount => numRefires;
 
     /// <summary>
-    /// How many times this occurrence has already been retried under the trigger's retry policy.
+    /// How many times this occurrence has already been retried under its <see cref="RetryPolicy" />.
     /// </summary>
     /// <remarks>
     /// Taken from the trigger this firing was handed, which is the copy the job store fired: the store

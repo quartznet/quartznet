@@ -67,7 +67,7 @@ A reported `Failed` is history only. To have the scheduler act on a failure, thr
 | | Throw | `JobRunReport.Failed(…)` |
 |---|---|---|
 | Recorded as `Failed` | Yes | Yes |
-| Retried under the trigger's [retry policy](retrying-failed-jobs.md) | Yes | No |
+| Retried under its [retry policy](retrying-failed-jobs.md) (the trigger's, the job type's or the default) | Yes | No |
 | Runs `OnFailure` [continuations](job-continuations.md) | Yes | No |
 | Raises `TriggerRetriesExhausted` | Yes | No |
 | `context.Outcome` | `Failed` | `Succeeded` |

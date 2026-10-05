@@ -107,6 +107,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `RetryPolicy.None` | Never retried, whatever the job type or the scheduler would supply. Stored as `none` |
 | `IJobExecutionContext.RetryPolicy` | Default interface member: the policy the firing is retried under. The default answers with the trigger's own |
 | `JobExecutionContextImpl.RetryPolicy` | The trigger's own policy, the job type's or the scheduler's default |
+| Log event `1062` | Debug: an inherited retry policy's next retry had no room before the trigger's next occurrence or end; the occurrence settles without `TriggerRetriesExhausted` |
 | `QZ0006` InvalidRetryPolicyDelay | Error: a `[RetryPolicy]` delay that is not a `TimeSpan`, or is negative. See [Compile-Time Checks](tutorial/compile-time-checks.md#qz0006-invalidretrypolicydelay) |
 
 **Behaviour changes:**
@@ -325,7 +326,18 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   + new TriggerDetailsUpdate().WithRetryPolicy(RetryPolicy.None)
   ```
 
-* **`TriggerRetriesExhausted` and `PauseTriggerWhenRetriesExhausted()` cover an inherited policy too.**
+* **`TriggerRetriesExhausted` and `PauseTriggerWhenRetriesExhausted()` cover an inherited policy too**, once its
+  attempts are spent. An inherited retry with no room before the next occurrence settles quietly, with debug
+  event `1062`; only a trigger's own policy reports that.
+* **Manual runs and recovered firings inherit the job type's policy or the default.** `TriggerJob`, the
+  dashboard's *Run now* and *Run again*, and recovery triggers carry no policy of their own. To keep a job from
+  being retried there:
+
+  ```diff
+  + [RetryPolicy(0)]
+    public sealed class ChargeCardJob : IJob
+  ```
+
 * **`SendMailJob` and `NativeJob` carry `[RetryPolicy(0)]`**: the scheduler's default never retries them, because
   a retry sends the mail or runs the command again. A policy on the trigger still applies; to retry one, give
   its trigger a policy of its own.

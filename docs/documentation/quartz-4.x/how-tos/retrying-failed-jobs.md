@@ -199,6 +199,15 @@ and the default cover triggers stored before them, and the `RETRY_POLICY` column
 **Every node decides for itself.** A node reads the attribute from its own build and the default from its
 own configuration, so deploy the same on every node. A node older than 4.4 ignores both.
 
+**Manual runs and recovery inherit too.** `TriggerJob`, the dashboard's *Run now* and *Run again*, and the
+trigger that [recovers](../tutorial/more-about-jobs.md) a job a dead node was running all fire on a trigger
+with no policy of its own, so the job type's policy or the default retries them. `[RetryPolicy(0)]` on the job
+stops that.
+
+**Mark a job that must not run twice with `[RetryPolicy(0)]`.** It lives in code, so no node can drop it. A
+trigger's `RetryPolicy.None` is a stored value, which a 4.3 node empties when it fires the trigger.
+`SendMailJob` and `NativeJob` carry it.
+
 ::: warning RetryPolicy.None on a trigger needs every node on 4.4
 `None` is stored as `none`. A 4.3 node reads it as no policy, which means the same there, but writes the
 column back empty when it fires the trigger. The trigger then inherits on a 4.4 node.
@@ -348,12 +357,24 @@ whether the occurrence is finished.
 * the policy's attempts are **spent**;
 * a retry was **declined for lack of room**: it would land at or within a second of the next occurrence,
   after the trigger's end time, or past the end of representable time ([the rules](#the-rules-worth-knowing)),
-  so attempts are left;
+  so attempts are left. Only under the trigger's own policy: see the warning below;
 * the job's `JobExecutionException` asked for **`UnscheduleFiringTrigger` or `UnscheduleAllTriggers`**, so no
   retry was attempted.
 
 Tell them apart with `context.RetryAttempt` against `context.RetryPolicy.MaxAttempts`, and
 `TriggerComplete`'s instruction.
+
+::: warning An inherited policy with no room is not exhausted
+A job type's `[RetryPolicy]` and the scheduler's default are chosen without knowing a trigger's schedule. When
+one of them leaves no room for a retry, the occurrence settles quietly: no `TriggerRetriesExhausted`, no
+`quartz.trigger.retries_exhausted` count, no [pause](pausing-with-a-reason.md#pausing-when-retries-run-out),
+only debug event `1062`. A minutely trigger under a five-minute default is never retried and never reported.
+Give such a trigger a policy of its own that fits its schedule, or `RetryPolicy.None`.
+:::
+
+Only a trigger whose completion `TriggerBase.ExecutionComplete` decides applies an inherited policy. A trigger
+of your own that does not derive from `TriggerBase`, or overrides `ExecutionComplete` without calling the base,
+is reported by its own policy alone.
 
 <!-- snippet: sample_retry_listener_gave_up -->
 ```csharp

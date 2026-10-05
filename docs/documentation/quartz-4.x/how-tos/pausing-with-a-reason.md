@@ -154,7 +154,10 @@ builder.Services.AddQuartz(q =>
 
 - `Reason` is the message of the exception the job threw, cut to 250.
 - `RequestedBy` is `quartz:retries-exhausted`, so a listing tells it from an operator's pause.
-- Only a trigger with a policy is ever paused; one with no next occurrence is finished instead.
+- Only a trigger a policy applies to is ever paused; one with no next occurrence is finished instead.
+- A policy the trigger inherits, from `[RetryPolicy]` or `UseDefaultRetryPolicy`, pauses it only when its attempts
+  are spent. A retry with no room before the next occurrence settles quietly, so a frequent trigger under a long
+  default is never paused. Its own policy pauses it either way.
 - It is a trigger listener on [`TriggerRetriesExhausted`](retrying-failed-jobs.md#when-the-policy-gives-up).
   Calling it twice registers one.
 - Resume the trigger once the cause is fixed. The dashboard's *Resume* does it.

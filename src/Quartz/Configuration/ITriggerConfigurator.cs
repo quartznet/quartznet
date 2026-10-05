@@ -134,7 +134,10 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// <see cref="JobExecutionException.RefireImmediately" />, which re-runs the job on the same
     /// thread within the same firing.
     /// </remarks>
-    /// <param name="retryPolicy">the retry policy, or <see langword="null" /> for no retries</param>
+    /// <param name="retryPolicy">
+    /// The trigger's own policy; <see langword="null" /> for none of its own, so it inherits the job type's
+    /// or the scheduler's; <see cref="Quartz.RetryPolicy.None" /> for never retried.
+    /// </param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.RetryPolicy" />
     ITriggerConfigurator<TJob> WithRetryPolicy(RetryPolicy? retryPolicy);

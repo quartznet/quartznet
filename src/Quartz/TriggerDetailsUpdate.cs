@@ -223,8 +223,9 @@ public sealed class TriggerDetailsUpdate
     }
 
     /// <summary>
-    /// Set how the scheduler re-fires the trigger when its job fails, or <see langword="null" /> to
-    /// stop retrying it.
+    /// Set how the scheduler re-fires the trigger when its job fails. <see langword="null" /> removes the
+    /// trigger's own policy, so it inherits its job type's or the scheduler's;
+    /// <see cref="Quartz.RetryPolicy.None" /> means it is never retried.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -238,7 +239,10 @@ public sealed class TriggerDetailsUpdate
     /// the schedule it was given.
     /// </para>
     /// </remarks>
-    /// <param name="retryPolicy">the retry policy, or <see langword="null" /> for no retries</param>
+    /// <param name="retryPolicy">
+    /// The trigger's own policy; <see langword="null" /> for none of its own, so it inherits the job type's
+    /// or the scheduler's; <see cref="Quartz.RetryPolicy.None" /> for never retried.
+    /// </param>
     /// <seealso cref="Quartz.RetryPolicy" />
     public TriggerDetailsUpdate WithRetryPolicy(RetryPolicy? retryPolicy)
     {
