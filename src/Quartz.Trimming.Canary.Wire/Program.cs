@@ -41,7 +41,8 @@ namespace Quartz.Trimming.Canary.Wire;
 /// The two halves share the socket and nothing else. The host has a container with the scheduler in it;
 /// the client has one of its own, holding nothing but <c>AddQuartzHttpClient</c>. So every step in
 /// <see cref="WireCheck" /> goes through a request delegate the source generator wrote, through the wire
-/// contract's generated metadata on both sides, and through HTTP.
+/// contract's generated metadata on both sides, and through HTTP. The last step is the exception: its
+/// answer is the canned one <see cref="NewerHost" /> serves, read by a second client.
 /// </para>
 /// <para>
 /// One line per step, and a non-zero exit code when anything failed.
@@ -81,7 +82,7 @@ internal static class Program
         }
 
         Console.WriteLine(passed
-            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore is scheduled, read, paused, resumed, triggered and asked for its history through Quartz.HttpClient."
+            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore is scheduled, read, paused, resumed, triggered and asked for its history through Quartz.HttpClient, which also reads a newer host's names."
             : "Quartz.Trimming.Canary.Wire: a step failed.");
 
         return passed ? 0 : 1;
@@ -102,7 +103,12 @@ internal static class Program
         ServiceProvider client = BuildClient(httpClient);
         await using ConfiguredAsyncDisposable clientDisposal = client.ConfigureAwait(false);
 
-        bool passed = await WireCheck.Run(client, cancellationToken).ConfigureAwait(false);
+        using HttpClient newerHostClient = new() { BaseAddress = new Uri(apiAddress, $"../{NewerHost.Path}") };
+
+        ServiceProvider newerHost = BuildClient(newerHostClient);
+        await using ConfiguredAsyncDisposable newerHostDisposal = newerHost.ConfigureAwait(false);
+
+        bool passed = await WireCheck.Run(client, newerHost, cancellationToken).ConfigureAwait(false);
 
         await host.StopAsync(cancellationToken).ConfigureAwait(false);
         return passed;
@@ -151,6 +157,8 @@ internal static class Program
         // The API refuses to start without an authorization decision, and this is one: the only caller is
         // this process, over loopback.
         app.MapQuartzHttpApi().AllowAnonymous();
+
+        NewerHost.Map(app);
 
         return app;
     }
