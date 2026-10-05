@@ -36,6 +36,17 @@ public class OracleDelegate : StdAdoDelegate
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.InEnclosingSelect("rownum", count);
 
     /// <summary>
+    /// Oracle divides a <c>NUMBER</c> exactly, so the run statistics floor the quotient that names a bucket.
+    /// </summary>
+    internal override string HistoryStatisticsBucketExpression => StdAdoConstants.SqlStatisticsBucketByFloor;
+
+    /// <summary>
+    /// Oracle has <c>PERCENTILE_CONT</c> as an aggregate, so the run statistics' percentiles are the
+    /// database's.
+    /// </summary>
+    internal override bool HistoryHasPercentileAggregate => true;
+
+    /// <summary>
     /// The widths <c>create_oracle.sql</c> declares, which <c>VARCHAR2</c> counts in bytes under the
     /// default <c>BYTE</c> length semantics. Each is four times the column's length in characters, and
     /// UTF-8 takes at most three bytes per UTF-16 code unit, so on this schema the byte cut never binds.

@@ -525,6 +525,7 @@ public sealed class WireCarrierEquivalenceTest
         [SchedulerRoutes.QueryJobRunStatuses.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.GetJobRunStatus.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.FetchJobRunStatuses.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
+        [SchedulerRoutes.QueryExecutionStatistics.Name] = "run statistics, read by HttpExecutionHistoryStore",
     };
 
     private static Task Read<T>(T value)

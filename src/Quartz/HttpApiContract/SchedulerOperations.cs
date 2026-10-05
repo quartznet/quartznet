@@ -325,6 +325,60 @@ internal static class SchedulerOperations
         return page.Items.Select(JobRunStatusDto.Create).ToArray();
     }
 
+    /// <summary>
+    /// <paramref name="scheduler" />'s runs, counted by result and timed in buckets of fire time, read from
+    /// <paramref name="history" /> and narrowed as the history listing narrows its page.
+    /// </summary>
+    /// <param name="scheduler">The scheduler whose runs they are.</param>
+    /// <param name="history">The store holding them.</param>
+    /// <param name="schedulerInstanceId">The node to narrow to, or <see langword="null" />.</param>
+    /// <param name="jobContains">A job key fragment, or <see langword="null" />.</param>
+    /// <param name="triggerContains">A trigger key fragment, or <see langword="null" />.</param>
+    /// <param name="failedFinally">Whether to count the occurrences that gave up, or the rest.</param>
+    /// <param name="filters">One job or one group, a fire-time window and a set of results.</param>
+    /// <param name="bucket">How much fire time a bucket covers; one hour when absent.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="InvalidRequestException">
+    /// A job name without its group, a result that names nothing, or a bucket shorter than a minute.
+    /// </exception>
+    public static async ValueTask<ExecutionStatisticsDto> QueryExecutionStatistics(
+        IScheduler scheduler,
+        IExecutionHistoryStore history,
+        string? schedulerInstanceId,
+        string? jobContains,
+        string? triggerContains,
+        bool? failedFinally,
+        HistoryParameters filters,
+        TimeSpan? bucket,
+        CancellationToken cancellationToken)
+    {
+        if (bucket < ExecutionStatisticsQuery.MinimumBucketSize)
+        {
+            throw new InvalidRequestException(
+                $"bucket must be at least {ExecutionStatisticsQuery.MinimumBucketSize:c}, was {bucket:c}");
+        }
+
+        (JobKey? job, string? jobGroup) = filters.JobOrGroup();
+
+        ExecutionStatisticsQuery query = new()
+        {
+            SchedulerName = scheduler.SchedulerName,
+            SchedulerInstanceId = schedulerInstanceId,
+            JobContains = jobContains,
+            TriggerContains = triggerContains,
+            FailedFinally = failedFinally,
+            Job = job,
+            JobGroup = jobGroup,
+            FiredFrom = filters.FiredFrom,
+            FiredBefore = filters.FiredBefore,
+            Results = filters.ResultSet(),
+            BucketSize = bucket ?? TimeSpan.FromHours(1)
+        };
+
+        ExecutionStatistics statistics = await history.QueryExecutionStatistics(query, cancellationToken).ConfigureAwait(false);
+        return ExecutionStatisticsDto.Create(statistics);
+    }
+
     public static async ValueTask<ExecutionLimitsResponse> GetExecutionLimits(IScheduler scheduler, CancellationToken cancellationToken)
     {
         ExecutionLimits? limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);

@@ -82,6 +82,7 @@ internal static class WireCheck
             ("resume", () => Resume(scheduler, cancellationToken)),
             ("trigger", () => Trigger(scheduler, cancellationToken)),
             ("history", () => History(history, cancellationToken)),
+            ("statistics", () => Statistics(history, cancellationToken)),
             ("delete", () => Delete(scheduler, cancellationToken)),
             ("newer-host", () => NewerHostListing(newerHost.GetRequiredService<IScheduler>(), cancellationToken)),
         ];
@@ -243,6 +244,22 @@ internal static class WireCheck
         Expect(single.Log?.Contains(WireCanaryJob.LogLine, StringComparison.Ordinal) == true, $"the execution came back with the log '{single.Log}'.");
 
         return $"{JobKey} is listed as succeeded, and read back on its own with the line it logged";
+    }
+
+    private static async Task<string> Statistics(IExecutionHistoryStore history, CancellationToken cancellationToken)
+    {
+        ExecutionStatistics statistics = await history.QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = Program.SchedulerName,
+            Job = JobKey,
+            BucketSize = TimeSpan.FromDays(1)
+        }, cancellationToken).ConfigureAwait(false);
+
+        long runs = statistics.Buckets.Sum(bucket => bucket.RunCount);
+        Expect(runs >= 1, $"no run of {JobKey} was counted, though the history lists one.");
+        Expect(statistics.Buckets.Sum(bucket => bucket.SucceededCount) == runs, "a run of the canary job was counted as anything but a success.");
+
+        return $"{JobKey} is counted as {runs} successful run(s) in buckets of a day";
     }
 
     private static async Task<string> Delete(IScheduler scheduler, CancellationToken cancellationToken)

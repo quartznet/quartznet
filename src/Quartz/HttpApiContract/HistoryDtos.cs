@@ -333,6 +333,89 @@ internal sealed record JobRunStatusDto(
 }
 
 /// <summary>
+/// A scheduler's runs over time on the wire: <see cref="ExecutionStatistics" />.
+/// </summary>
+/// <remarks>
+/// Positional, as <see cref="JobRunStatusDto" /> is and for its reason: a member added later binds its
+/// default in a reader that predates it, and a member the reader does not know is skipped.
+/// </remarks>
+internal sealed record ExecutionStatisticsDto(
+    TimeSpan BucketSize,
+    ExecutionStatisticsBucketDto[] Buckets,
+    bool Truncated)
+{
+    public static ExecutionStatisticsDto Create(ExecutionStatistics statistics)
+    {
+        ArgumentNullException.ThrowIfNull(statistics);
+
+        return new ExecutionStatisticsDto(
+            statistics.BucketSize,
+            statistics.Buckets.Select(ExecutionStatisticsBucketDto.Create).ToArray(),
+            statistics.Truncated);
+    }
+
+    public ExecutionStatistics AsExecutionStatistics()
+    {
+        return new ExecutionStatistics
+        {
+            BucketSize = BucketSize,
+            Buckets = (Buckets ?? []).Select(static bucket => bucket.AsExecutionStatisticsBucket()).ToList(),
+            Truncated = Truncated
+        };
+    }
+}
+
+/// <summary>
+/// One bucket of <see cref="ExecutionStatisticsDto" />: <see cref="ExecutionStatisticsBucket" />, with
+/// <c>runCount</c> written out for a reader that does not add the four counts itself.
+/// </summary>
+/// <remarks>
+/// A result a later version adds is counted in <c>runCount</c> and in a member of its own, which a reader
+/// that predates it skips.
+/// </remarks>
+internal sealed record ExecutionStatisticsBucketDto(
+    DateTimeOffset StartUtc,
+    long RunCount,
+    long SucceededCount,
+    long FailedCount,
+    long CancelledCount,
+    long SkippedCount,
+    TimeSpan P50Duration,
+    TimeSpan P95Duration,
+    TimeSpan MaxDuration)
+{
+    public static ExecutionStatisticsBucketDto Create(ExecutionStatisticsBucket bucket)
+    {
+        ArgumentNullException.ThrowIfNull(bucket);
+
+        return new ExecutionStatisticsBucketDto(
+            bucket.StartUtc,
+            bucket.RunCount,
+            bucket.SucceededCount,
+            bucket.FailedCount,
+            bucket.CancelledCount,
+            bucket.SkippedCount,
+            bucket.P50Duration,
+            bucket.P95Duration,
+            bucket.MaxDuration);
+    }
+
+    public ExecutionStatisticsBucket AsExecutionStatisticsBucket()
+    {
+        return new ExecutionStatisticsBucket(StartUtc)
+        {
+            SucceededCount = SucceededCount,
+            FailedCount = FailedCount,
+            CancelledCount = CancelledCount,
+            SkippedCount = SkippedCount,
+            P50Duration = P50Duration,
+            P95Duration = P95Duration,
+            MaxDuration = MaxDuration
+        };
+    }
+}
+
+/// <summary>
 /// How many misfires a scheduler has recorded since an instant.
 /// </summary>
 /// <remarks>

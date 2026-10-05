@@ -125,6 +125,35 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        return new ValueTask<PagedResult<ExecutionHistoryEntry>>(
+            Page(Filter(query).OrderByDescending(static entry => entry.FiredAtUtc).ToList(), query));
+    }
+
+    /// <remarks>
+    /// Counted over every row the store holds for the scheduler, which its bounds already keep small, so
+    /// nothing is left uncounted.
+    /// </remarks>
+    public ValueTask<ExecutionStatistics> QueryExecutionStatistics(ExecutionStatisticsQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        ExecutionStatisticsBuilder builder = new(query.BucketSize);
+        foreach (ExecutionHistoryEntry entry in Filter(query.AsHistoryQuery(skip: 0, take: 0)))
+        {
+            if (query.JobGroup is null || string.Equals(entry.JobGroup, query.JobGroup, StringComparison.Ordinal))
+            {
+                builder.Add(entry);
+            }
+        }
+
+        return new ValueTask<ExecutionStatistics>(builder.Build(truncated: false));
+    }
+
+    /// <summary>
+    /// The rows of the query's scheduler that its filters keep, in no particular order.
+    /// </summary>
+    private IEnumerable<ExecutionHistoryEntry> Filter(ExecutionHistoryQuery query)
+    {
         IEnumerable<ExecutionHistoryEntry> filtered = OnNode(
             ExecutionSnapshot(query.SchedulerName),
             query.SchedulerInstanceId,
@@ -172,8 +201,7 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
             filtered = filtered.Where(x => wanted.Contains(x.EffectiveResult));
         }
 
-        return new ValueTask<PagedResult<ExecutionHistoryEntry>>(
-            Page(filtered.OrderByDescending(static entry => entry.FiredAtUtc).ToList(), query));
+        return filtered;
     }
 
     public ValueTask<PagedResult<MisfireHistoryEntry>> QueryMisfires(MisfireHistoryQuery query, CancellationToken cancellationToken = default)

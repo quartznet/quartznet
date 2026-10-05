@@ -80,6 +80,7 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(ClusterNodeDto[]))]
 [JsonSerializable(typeof(ExecutionHistoryEntryDto))]
 [JsonSerializable(typeof(ExecutionLimitsResponse))]
+[JsonSerializable(typeof(ExecutionStatisticsDto))]
 [JsonSerializable(typeof(ExistsResponse))]
 [JsonSerializable(typeof(GroupPausedResponse))]
 [JsonSerializable(typeof(JobDetailDto))]

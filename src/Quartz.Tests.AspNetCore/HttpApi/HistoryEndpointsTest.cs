@@ -612,6 +612,142 @@ public sealed class HistoryEndpointsTest
     }
 
     /// <summary>
+    /// The run statistics route counts what the history holds, narrowed as the listing is, in buckets of
+    /// the size asked for.
+    /// </summary>
+    [Test]
+    public async Task RunsAreCountedByResultInBucketsOverTheWire()
+    {
+        DateTimeOffset hour = new(DateTimeOffset.UtcNow.UtcTicks / TimeSpan.TicksPerHour * TimeSpan.TicksPerHour, TimeSpan.Zero);
+        await history.AddExecution(Run(hour.AddMinutes(-50), "release-stale", JobRunResult.Succeeded) with { Duration = TimeSpan.FromMilliseconds(100) });
+        await history.AddExecution(Run(hour.AddMinutes(-40), "release-stale", JobRunResult.Failed) with { Duration = TimeSpan.FromMilliseconds(300) });
+        await history.AddExecution(Run(hour.AddMinutes(-30), "release-stale-archive", JobRunResult.Skipped));
+        await history.AddExecution(Run(hour.AddMinutes(-90), "release-stale", JobRunResult.Cancelled));
+
+        ExecutionStatisticsDto statistics = await Read<ExecutionStatisticsDto>(
+            $"{SchedulerUrl}/history/statistics?jobGroup=DummyGroup&jobName=release-stale&bucket=01:00:00");
+
+        statistics.BucketSize.Should().Be(TimeSpan.FromHours(1));
+        statistics.Truncated.Should().BeFalse();
+        statistics.Buckets.Select(bucket => (bucket.StartUtc, bucket.RunCount, bucket.CancelledCount, bucket.SucceededCount, bucket.FailedCount))
+            .Should().Equal([(hour.AddHours(-2), 1L, 1L, 0L, 0L), (hour.AddHours(-1), 2L, 0L, 1L, 1L)],
+                "one job exactly, oldest bucket first, where jobContains would also have counted release-stale-archive");
+        statistics.Buckets[1].P50Duration.Should().Be(TimeSpan.FromMilliseconds(200), "halfway between 100 and 300");
+        statistics.Buckets[1].MaxDuration.Should().Be(TimeSpan.FromMilliseconds(300));
+
+        ExecutionStatisticsDto group = await Read<ExecutionStatisticsDto>($"{SchedulerUrl}/history/statistics?jobGroup=DummyGroup&bucket=1.00:00:00");
+        group.Buckets.Sum(bucket => bucket.RunCount).Should().Be(4, "a group alone counts the whole group");
+
+        ExecutionStatisticsDto byDefault = await Read<ExecutionStatisticsDto>($"{SchedulerUrl}/history/statistics?results=Skipped");
+        byDefault.BucketSize.Should().Be(TimeSpan.FromHours(1), "an hour when the request names no bucket");
+        byDefault.Buckets.Should().ContainSingle().Which.SkippedCount.Should().Be(1);
+    }
+
+    [TestCase("jobName=release-stale", "jobName needs jobGroup*")]
+    [TestCase("bucket=00:00:30", "bucket must be at least 00:01:00*")]
+    [TestCase("results=Sideways", "Unknown results value 'Sideways'*")]
+    public async Task AStatisticsReadTheHostCannotAnswerIsRefused(string query, string detail)
+    {
+        using HttpResponseMessage response = await client.GetAsync($"{SchedulerUrl}/history/statistics?{query}");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
+        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("detail").GetString().Should().Match(detail);
+    }
+
+    /// <summary>
+    /// The HTTP-backed store reads the host's version, then the statistics, and hands back what the host's
+    /// store counted.
+    /// </summary>
+    [Test]
+    public async Task TheHttpBackedStoreCountsThroughTheHost()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await history.AddExecution(Run(now.AddMinutes(-5), "release-stale", JobRunResult.Failed));
+        await history.AddExecution(Run(now.AddMinutes(-4), "release-stale", JobRunResult.Succeeded));
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, client);
+        ExecutionStatistics statistics = await remote.QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = TestData.SchedulerName,
+            Job = new JobKey("release-stale", "DummyGroup"),
+            BucketSize = TimeSpan.FromDays(1)
+        });
+
+        statistics.Buckets.Sum(bucket => bucket.RunCount).Should().Be(2);
+        statistics.Buckets.Sum(bucket => bucket.FailedCount).Should().Be(1);
+    }
+
+    /// <summary>
+    /// A host that reports 4.3 is never asked for statistics: a 4.3 host has no such route, and the client
+    /// says so from the version alone.
+    /// </summary>
+    [Test]
+    public async Task AHostThatReports43IsNeverAskedForStatistics()
+    {
+        IScheduler older = A.Fake<IScheduler>();
+        A.CallTo(() => older.SchedulerName).Returns(TestData.SchedulerName);
+        A.CallTo(() => older.GetMetadata(A<CancellationToken>._)).Returns(TestData.Metadata with { Version = "4.3.0.0" });
+
+        ISchedulerRepository repository = factories[0].Services.GetRequiredService<ISchedulerRepository>();
+        repository.Remove(TestData.SchedulerName);
+        repository.Bind(older);
+
+        RecordingHandler recording = new();
+        using HttpClient recordingClient = factories[0].CreateDefaultClient(recording);
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, recordingClient);
+
+        Func<Task> read = async () => await remote.QueryExecutionStatistics(new ExecutionStatisticsQuery { SchedulerName = TestData.SchedulerName });
+
+        await read.Should().ThrowAsync<NotSupportedException>().WithMessage("*Quartz 4.3.0.0*no run statistics route*");
+        recording.Paths.Should().ContainSingle("the version settles it before the statistics route is asked")
+            .Which.Should().EndWith($"/{SchedulerUrl}");
+    }
+
+    /// <summary>
+    /// A store that cannot count answers <c>501</c> naming <see cref="NotSupportedException" />, which the
+    /// HTTP-backed store raises again as that.
+    /// </summary>
+    [Test]
+    public async Task AStoreThatCannotCountIsAnsweredNotImplemented()
+    {
+        IExecutionHistoryStore cannotCount = A.Fake<IExecutionHistoryStore>();
+        A.CallTo(() => cannotCount.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._))
+            .Throws(new NotSupportedException("AcmeHistoryStore cannot count."));
+
+        WebApplicationFactory<Program> factory = factories[0].WithWebHostBuilder(builder => builder.ConfigureTestServices(
+            services => services.AddSingleton(cannotCount)));
+        factories.Add(factory);
+        using HttpClient cannotCountClient = factory.CreateClient();
+        BindAnsweringScheduler(factory);
+
+        using HttpResponseMessage response = await cannotCountClient.GetAsync($"{SchedulerUrl}/history/statistics");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotImplemented);
+        using (JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()))
+        {
+            body.RootElement.GetProperty(HttpApiConstants.ProblemDetailsExceptionType).GetString().Should().Be(nameof(NotSupportedException));
+            body.RootElement.GetProperty("detail").GetString().Should().Be("AcmeHistoryStore cannot count.");
+        }
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, cannotCountClient);
+        Func<Task> read = async () => await remote.QueryExecutionStatistics(new ExecutionStatisticsQuery { SchedulerName = TestData.SchedulerName });
+        await read.Should().ThrowAsync<NotSupportedException>().WithMessage("AcmeHistoryStore cannot count.");
+    }
+
+    /// <summary>Records the path of every request it passes on.</summary>
+    private sealed class RecordingHandler : DelegatingHandler
+    {
+        public List<string> Paths { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Paths.Add(request.RequestUri!.AbsolutePath);
+            return base.SendAsync(request, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Reads one history route the way the remote client does: the catalogue names the route the URL is
     /// a call of, and the answer comes back through the client's own status mapping.
     /// </summary>

@@ -762,6 +762,133 @@ public class HttpExecutionHistoryStoreTest
             "a proxy in front of the host may have replaced the body, and the status alone still says it");
     }
 
+    /// <summary>
+    /// The run statistics are read from their own route once the host is known to be 4.4, with every filter
+    /// and the bucket size in the query string.
+    /// </summary>
+    [Test]
+    public async Task StatisticsAreReadFromTheirRouteOfA44Host()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.0.0"));
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "bucketSize": "1.00:00:00",
+              "buckets": [
+                {
+                  "startUtc": "2026-10-05T00:00:00+00:00",
+                  "runCount": 6,
+                  "succeededCount": 3,
+                  "failedCount": 1,
+                  "cancelledCount": 1,
+                  "skippedCount": 1,
+                  "p50Duration": "00:00:00.3000000",
+                  "p95Duration": "00:00:00.8800000",
+                  "maxDuration": "00:00:01"
+                }
+              ],
+              "truncated": true
+            }
+            """);
+
+        ExecutionStatistics statistics = await Store().QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = "Remote",
+            SchedulerInstanceId = "node-a",
+            JobContains = "night",
+            TriggerContains = "midnight",
+            FailedFinally = false,
+            Job = new JobKey("nightly", "reports"),
+            FiredFrom = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero),
+            FiredBefore = new DateTimeOffset(2026, 10, 6, 0, 0, 0, TimeSpan.Zero),
+            Results = [JobRunResult.Failed, JobRunResult.Cancelled],
+            BucketSize = TimeSpan.FromDays(1)
+        });
+
+        handler.Requests.Should().Equal([
+            "GET http://localhost:8080/schedulers/Remote",
+            "GET http://localhost:8080/schedulers/Remote/history/statistics?schedulerInstanceId=node-a&triggerContains=midnight"
+            + "&jobContains=night&failedFinally=false&jobGroup=reports&jobName=nightly"
+            + "&firedFrom=2026-10-01T00%3A00%3A00.0000000%2B00%3A00&firedBefore=2026-10-06T00%3A00%3A00.0000000%2B00%3A00"
+            + "&results=Failed&results=Cancelled&bucket=1.00%3A00%3A00"
+        ], "the host's version is read once before the first statistics read, which an older host has no route for");
+
+        statistics.BucketSize.Should().Be(TimeSpan.FromDays(1));
+        statistics.Truncated.Should().BeTrue("the host's store said it stopped short, and the reader is told");
+        ExecutionStatisticsBucket bucket = statistics.Buckets.Should().ContainSingle().Subject;
+        bucket.StartUtc.Should().Be(new DateTimeOffset(2026, 10, 5, 0, 0, 0, TimeSpan.Zero));
+        bucket.RunCount.Should().Be(6);
+        bucket.CountOf(JobRunResult.Skipped).Should().Be(1);
+        bucket.P95Duration.Should().Be(TimeSpan.FromMilliseconds(880));
+        bucket.MaxDuration.Should().Be(TimeSpan.FromSeconds(1));
+    }
+
+    [Test]
+    public async Task AGroupAloneIsSentAsTheGroup()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.0.0"));
+        handler.Respond(HttpStatusCode.OK, """{ "bucketSize": "01:00:00", "buckets": [], "truncated": false }""");
+
+        ExecutionStatistics statistics = await Store().QueryExecutionStatistics(new ExecutionStatisticsQuery { SchedulerName = "Remote", JobGroup = "reports" });
+
+        handler.LastRequestUri.Should().Be("http://localhost:8080/schedulers/Remote/history/statistics?jobGroup=reports&bucket=01%3A00%3A00");
+        statistics.Buckets.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A 4.3 host has no statistics route, so a 4.4 client reads its version and does not ask.
+    /// </summary>
+    [Test]
+    public async Task AHostBefore44IsNeverAskedForStatistics()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.3.0.0"));
+
+        Func<Task> act = async () => await Store().QueryExecutionStatistics(new ExecutionStatisticsQuery { SchedulerName = "Remote" });
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*Quartz 4.3.0.0*no run statistics route*4.4 or later*");
+        handler.Requests.Should().Equal(["GET http://localhost:8080/schedulers/Remote"],
+            "the version settles it before the statistics route is asked");
+    }
+
+    [Test]
+    public async Task AHostWhoseStoreCannotCountSaysSo()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.0.0"));
+        handler.Respond(HttpStatusCode.NotImplemented, """
+            { "title": "Not Implemented", "status": 501, "detail": "AcmeHistoryStore cannot count.", "Quartz-ExceptionType": "NotSupportedException" }
+            """);
+
+        Func<Task> act = async () => await Store().QueryExecutionStatistics(new ExecutionStatisticsQuery { SchedulerName = "Remote" });
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("AcmeHistoryStore cannot count.");
+    }
+
+    [Test]
+    public async Task ARouteThatIsMissingSaysTheTargetServesNoStatistics()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.0.0"));
+        handler.Respond(HttpStatusCode.NotFound, body: "");
+
+        Func<Task> act = async () => await Store().QueryExecutionStatistics(new ExecutionStatisticsQuery { SchedulerName = "Remote" });
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*serves no run statistics*count its runs over time*",
+            "a proxy that routes only the routes it knew of answers like a host that predates this one");
+    }
+
+    [Test]
+    public async Task AnEmptySetOfResultsCountsNothingWithoutAsking()
+    {
+        ExecutionStatistics statistics = await Store().QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = "Remote",
+            Results = [],
+            BucketSize = TimeSpan.FromDays(1)
+        });
+
+        statistics.Buckets.Should().BeEmpty();
+        statistics.BucketSize.Should().Be(TimeSpan.FromDays(1));
+        handler.Requests.Should().BeEmpty("an empty set matches nothing, which needs no host to say");
+    }
+
     private const string DetailsPath = "/schedulers/Remote";
 
     private const string EmptyPage = """{ "items": [], "hasMore": false, "totalCount": 0 }""";
