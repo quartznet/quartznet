@@ -195,6 +195,8 @@ public class JobStoreCMT : JobStoreSupport
                 SignalSchedulingChangeOnApplicationCommit(conn, sigTime);
             }
 
+            // The transaction is not this store's to commit, so this is as late as the store can see.
+            conn.RunAfterCommit();
             return result;
         }
         finally

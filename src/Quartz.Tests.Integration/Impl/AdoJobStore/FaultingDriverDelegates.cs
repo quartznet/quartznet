@@ -70,6 +70,43 @@ internal static class FireFault
         }
 
         FailFireOf = null;
+        CalendarFault = new MisfireCalendarFault();
+    }
+
+    /// <summary>The calendar name a read of which the delegate answers with <see cref="CalendarFault" />'s calendar.</summary>
+    public const string FaultyCalendarName = "faulty";
+
+    /// <summary>
+    /// The calendar the delegate hands out for <see cref="FaultyCalendarName" />, and the database read of it
+    /// failing once when told to (#4006).
+    /// </summary>
+    public static MisfireCalendarFault CalendarFault { get; private set; } = new MisfireCalendarFault();
+
+    /// <summary>
+    /// Reads the calendar as the dialect's delegate does, except the faulty one, which is answered from
+    /// <see cref="CalendarFault" /> after a read that fails on the database when told to.
+    /// </summary>
+    public static async Task<ICalendar> SelectCalendar(
+        Func<Task<ICalendar>> selectCalendar,
+        ConnectionAndTransactionHolder conn,
+        string calendarName,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(calendarName, FaultyCalendarName, StringComparison.Ordinal))
+        {
+            return await selectCalendar().ConfigureAwait(false);
+        }
+
+        MisfireCalendarFault fault = CalendarFault;
+        if (fault.TakeReadFailure())
+        {
+            using DbCommand command = conn.Connection.CreateCommand();
+            conn.Attach(command);
+            command.CommandText = "SELECT 1 FROM QRTZ_NO_SUCH_TABLE";
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return fault.Calendar;
     }
 
     /// <summary>
@@ -121,6 +158,11 @@ public sealed class FaultingPostgreSQLDelegate : PostgreSQLDelegate
     {
         return FireFault.UpdateTrigger(() => base.UpdateTrigger(conn, trigger, state, jobDetail, cancellationToken), conn, trigger, cancellationToken);
     }
+
+    public override Task<ICalendar> SelectCalendar(ConnectionAndTransactionHolder conn, string calendarName, CancellationToken cancellationToken = default)
+    {
+        return FireFault.SelectCalendar(() => base.SelectCalendar(conn, calendarName, cancellationToken), conn, calendarName, cancellationToken);
+    }
 }
 
 public sealed class FaultingSqlServerDelegate : SqlServerDelegate
@@ -134,5 +176,148 @@ public sealed class FaultingSqlServerDelegate : SqlServerDelegate
     public override Task<int> UpdateTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail, CancellationToken cancellationToken = default)
     {
         return FireFault.UpdateTrigger(() => base.UpdateTrigger(conn, trigger, state, jobDetail, cancellationToken), conn, trigger, cancellationToken);
+    }
+
+    public override Task<ICalendar> SelectCalendar(ConnectionAndTransactionHolder conn, string calendarName, CancellationToken cancellationToken = default)
+    {
+        return FireFault.SelectCalendar(() => base.SelectCalendar(conn, calendarName, cancellationToken), conn, calendarName, cancellationToken);
+    }
+}
+
+/// <summary>
+/// The store, with the misfire handler's pass reachable from a test that drives the store by hand.
+/// </summary>
+public sealed class MisfirePassJobStore : JobStoreTX
+{
+    public Task<RecoverMisfiredJobsResult> RecoverMisfires() => DoRecoverMisfires(Guid.NewGuid(), CancellationToken.None);
+}
+
+/// <summary>
+/// A calendar that throws on the calls it is told to, and the one database read of it that fails when
+/// told to (#4006).
+/// </summary>
+/// <remarks>
+/// Every clone shares the fault, because a store keeps a copy of the calendar it reads.
+/// </remarks>
+public sealed class MisfireCalendarFault
+{
+    private readonly object gate = new object();
+    private int remaining;
+    private bool failNextRead;
+    private int thrown;
+    private int reads;
+
+    public MisfireCalendarFault()
+    {
+        Calendar = new FaultyCalendar(this);
+    }
+
+    public ICalendar Calendar { get; }
+
+    /// <summary>How many times the calendar has thrown.</summary>
+    public int Thrown
+    {
+        get
+        {
+            lock (gate)
+            {
+                return thrown;
+            }
+        }
+    }
+
+    /// <summary>How many times the calendar has been read from the database, a failed read included.</summary>
+    public int Reads
+    {
+        get
+        {
+            lock (gate)
+            {
+                return reads;
+            }
+        }
+    }
+
+    public void ThrowOnce()
+    {
+        lock (gate)
+        {
+            remaining = 1;
+        }
+    }
+
+    public void ThrowAlways()
+    {
+        lock (gate)
+        {
+            remaining = -1;
+        }
+    }
+
+    public void FailNextRead()
+    {
+        lock (gate)
+        {
+            failNextRead = true;
+        }
+    }
+
+    public bool TakeReadFailure()
+    {
+        lock (gate)
+        {
+            reads++;
+            bool fail = failNextRead;
+            failNextRead = false;
+            return fail;
+        }
+    }
+
+    private void Consult()
+    {
+        lock (gate)
+        {
+            if (remaining == 0)
+            {
+                return;
+            }
+
+            if (remaining > 0)
+            {
+                remaining--;
+            }
+
+            thrown++;
+        }
+
+        throw new InvalidOperationException("The holiday feed is unreachable.");
+    }
+
+    private sealed class FaultyCalendar : ICalendar
+    {
+        private readonly MisfireCalendarFault fault;
+
+        public FaultyCalendar(MisfireCalendarFault fault)
+        {
+            this.fault = fault;
+        }
+
+        public string Description { get; set; }
+
+        public ICalendar CalendarBase { get; set; }
+
+        public bool IsTimeIncluded(DateTimeOffset timeUtc)
+        {
+            fault.Consult();
+            return true;
+        }
+
+        public DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
+        {
+            fault.Consult();
+            return timeUtc;
+        }
+
+        public ICalendar Clone() => new FaultyCalendar(fault) { Description = Description, CalendarBase = CalendarBase };
     }
 }
