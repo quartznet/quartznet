@@ -79,8 +79,8 @@ public sealed class DataSourceMetadataResolutionTest
 
     /// <summary>
     /// The same distinction told by a description Quartz ships, where the typed half is a
-    /// <see cref="Type.GetType(string)" /> per driver type. Firebird's driver is nowhere near this test
-    /// assembly, which is the position a trimmed application is in for a type the trimmer removed.
+    /// <see cref="Type.GetType(string)" /> per driver type. MySql.Data is nowhere near this test assembly,
+    /// which is the position a trimmed application is in for a type the trimmer removed.
     /// </summary>
     [Test]
     public void ADriverThisProcessCannotLoadIsStillReachableThroughADataSource()
@@ -88,7 +88,7 @@ public sealed class DataSourceMetadataResolutionTest
         using FakeDataSource source = new();
         ServiceCollection services = new();
         services.AddQuartz(q => q.UsePersistentStore(store =>
-            store.UseFirebird(db => db.DataSourceFactory = _ => source)));
+            store.UseMySql(db => db.DataSourceFactory = _ => source)));
 
         using ServiceProvider container = services.BuildServiceProvider();
 
@@ -101,13 +101,13 @@ public sealed class DataSourceMetadataResolutionTest
     public void TheSameDriverOnTheConnectionStringPathStillNeedsItsAssembly()
     {
         ServiceCollection services = new();
-        services.AddQuartz(q => q.UsePersistentStore(store => store.UseFirebird("irrelevant")));
+        services.AddQuartz(q => q.UsePersistentStore(store => store.UseMySql("irrelevant")));
 
         using ServiceProvider container = services.BuildServiceProvider();
 
         Action resolve = () => container.GetRequiredService<IDbProvider>();
 
-        resolve.Should().Throw<ArgumentException>().WithMessage("*'Firebird'*",
+        resolve.Should().Throw<ArgumentException>().WithMessage("*'MySql'*",
             "the driver's types are what this path constructs from, so a driver that is not here is a "
             + "configuration mistake rather than something to work around");
     }

@@ -198,6 +198,19 @@ public static class PackageReadmeSamples
             #endregion
         }
 
+        public static void Firebird(IHostApplicationBuilder builder, string connectionString)
+        {
+            #region sample_readme_weasel_firebird
+
+            builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
+            {
+                store.UseFirebird(connectionString);
+                store.UseWeaselForFirebird();
+            }));
+
+            #endregion
+        }
+
         public static void Sqlite(IHostApplicationBuilder builder, string connectionString)
         {
             #region sample_readme_weasel_sqlite

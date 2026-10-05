@@ -12,15 +12,16 @@ public sealed class BuiltInDbMetadataFactoryTest
 {
     /// <summary>
     /// The drivers this test assembly does not reference, and so cannot load a type out of. Naming one
-    /// is how an application says "SQLite through System.Data.SQLite" or "Firebird" — and a description of
-    /// it has to be obtainable whether or not that assembly is on disk, because the point of the factory
-    /// path is that Quartz never touches it.
+    /// is how an application says "SQLite through System.Data.SQLite" or "MySQL through MySql.Data" — and a
+    /// description of it has to be obtainable whether or not that assembly is on disk, because the point of
+    /// the factory path is that Quartz never touches it.
     /// </summary>
     /// <remarks>
-    /// MySqlConnector and Oracle's managed driver are not among them: Weasel.MySql and Weasel.Oracle depend
-    /// on them, and this assembly tests the Quartz.Weasel packages built on those.
+    /// MySqlConnector, Oracle's managed driver and FirebirdClient are not among them: Weasel.MySql,
+    /// Weasel.Oracle and Weasel.Firebird depend on them, and this assembly tests the Quartz.Weasel packages
+    /// built on those.
     /// </remarks>
-    private static readonly string[] unreferencedDrivers = ["MySql", "SQLite", "Firebird", "SystemDataSqlClient"];
+    private static readonly string[] unreferencedDrivers = ["MySql", "SQLite", "SystemDataSqlClient"];
 
     [TestCaseSource(nameof(unreferencedDrivers))]
     public void ADriverThisApplicationDoesNotReferenceStillDescribesItself(string providerName)
