@@ -317,7 +317,8 @@ public partial class StdAdoDelegate
     /// <para>
     /// A batch that fails is not run again a statement at a time: it fails as a unit, so which fire failed is
     /// not known, and the store answers by rolling the round back and firing its triggers one at a time,
-    /// which finds it. A transient failure comes out as itself, for the store to retry.
+    /// which finds it. A type-table write after the batch is issued on its own, so its failure says whose
+    /// fire it was. A transient failure comes out as itself, for the store to retry.
     /// </para>
     /// </remarks>
     public virtual async ValueTask ApplyTriggersFired(
@@ -334,12 +335,12 @@ public partial class StdAdoDelegate
         }
 
         List<SqlStatement> statements = [];
-        List<(TriggerFiredUpdate Update, TriggerTypeTableWrite Write)>? typeTableWrites = null;
-        foreach (TriggerFiredUpdate update in updates)
+        List<(int Index, TriggerTypeTableWrite Write)>? typeTableWrites = null;
+        for (int i = 0; i < updates.Count; i++)
         {
-            if (DescribeTriggerFired(update, statements) is { } write)
+            if (DescribeTriggerFired(updates[i], statements) is { } write)
             {
-                (typeTableWrites ??= []).Add((update, write));
+                (typeTableWrites ??= []).Add((i, write));
             }
         }
 
@@ -353,18 +354,29 @@ public partial class StdAdoDelegate
                 await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 offset += length;
             }
-
-            if (typeTableWrites is not null)
-            {
-                foreach ((TriggerFiredUpdate update, TriggerTypeTableWrite write) in typeTableWrites)
-                {
-                    await WriteTriggerTypeTable(conn, update.Trigger, update.NewState, update.JobDetail, update.StoredTriggerType, write.Type, write.PersistenceDelegate, cancellationToken).ConfigureAwait(false);
-                }
-            }
         }
         catch (Exception e) when (e is not OperationCanceledException && !TransientErrorDetector.IsTransient(e))
         {
             throw new TriggerWriteFailedException(-1, e);
+        }
+
+        if (typeTableWrites is null)
+        {
+            return;
+        }
+
+        foreach ((int index, TriggerTypeTableWrite write) in typeTableWrites)
+        {
+            TriggerFiredUpdate update = updates[index];
+            try
+            {
+                await WriteTriggerTypeTable(conn, update.Trigger, update.NewState, update.JobDetail, update.StoredTriggerType, write.Type, write.PersistenceDelegate, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is not OperationCanceledException && !TransientErrorDetector.IsTransient(e))
+            {
+                // Issued on its own, so whose it was is known, and the store rolls back that fire alone.
+                throw new TriggerWriteFailedException(index, e);
+            }
         }
     }
 }

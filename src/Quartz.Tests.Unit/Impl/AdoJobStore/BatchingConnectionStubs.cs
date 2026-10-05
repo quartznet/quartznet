@@ -168,9 +168,22 @@ internal sealed class StubDbCommand : DbCommand
     protected override DbParameterCollection DbParameterCollection => parameters;
     protected override DbTransaction DbTransaction { get; set; }
     public override bool DesignTimeVisible { get; set; }
+    /// <summary>
+    /// What executing a command fails with, given its text; <see langword="null" /> runs it.
+    /// </summary>
+    public Func<string, Exception> Failure { get; init; }
+
     public override void Cancel() { }
     public override int ExecuteNonQuery() => 0;
-    public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken) => Task.FromResult(0);
+    public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
+    {
+        if (Failure?.Invoke(CommandText) is { } failure)
+        {
+            throw failure;
+        }
+
+        return Task.FromResult(0);
+    }
     public override object ExecuteScalar() => null;
     public override void Prepare() { }
     protected override DbParameter CreateDbParameter() => new StubDbParameter();
