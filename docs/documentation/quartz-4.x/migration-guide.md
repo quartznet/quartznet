@@ -102,7 +102,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `TriggerFiredUpdate.FiredOnAcquire` | `init`. `true`: the fire inserts its fired-trigger row as `EXECUTING`; no `ACQUIRED` row exists. Set only for a delegate that supports the round members |
 | `ActivityTags.TriggersFiredOnAcquire` | `quartz.jobstore.trigger.fired_on_acquire`, on the `Quartz.JobStore.AcquireNextTriggers` span |
 | Log events `3051`, `3052` | Warnings: a round's batched fire writes failed, or a batch of claims did not say which took. The round runs again a trigger at a time |
-| `RetryPolicyAttribute` | `[RetryPolicy(…)]` on a job type: the policy for its triggers that name none. Constructors `(int)`, `(int, string)`, `(int, string, double)`, `(params string[])`; `init` `MaxDelay`, `Jitter`; `MaxAttempts`, `Policy`. See [Declare it on the job, or set a default](how-tos/retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) |
+| `RetryPolicyAttribute` | `[RetryPolicy(…)]` on a job type: the policy for its triggers that name none. Constructors `(int)`, `(int, string)`, `(int, string, double)`, `(params string[])`; `init` `MaxDelay`, `Jitter`; `Policy`. See [Declare it on the job, or set a default](how-tos/retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) |
 | `QuartzBuilderExtensions.UseDefaultRetryPolicy(RetryPolicy)` | The policy for triggers whose trigger and job type name none |
 | `RetryPolicy.None` | Never retried, whatever the job type or the scheduler would supply. Stored as `none` |
 | `IJobExecutionContext.RetryPolicy` | Default interface member: the policy the firing is retried under. The default answers with the trigger's own |
