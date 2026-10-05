@@ -17,8 +17,12 @@
  */
 #endregion
 
+using FakeItEasy;
+
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
@@ -38,7 +42,8 @@ public class StdAdoDelegateBatchReadWriteTest
     {
         StubBatchingConnection connection = new();
         ConnectionAndTransactionHolder conn = new(connection, null);
-        CountingDelegate del = CountingDelegate.Create();
+        List<StubDbCommand> issued = [];
+        StdAdoDelegate del = Shipped(issued);
 
         await del.InsertFiredTriggers(conn, [Trigger("t1"), Trigger("t2"), Trigger("t3")], StoredTriggerState.Acquired, null);
 
@@ -46,7 +51,24 @@ public class StdAdoDelegateBatchReadWriteTest
         connection.Batches[0].Commands.Should().HaveCount(3);
         connection.Batches[0].Commands.Should().OnlyContain(
             command => command.CommandText.StartsWith("INSERT INTO QRTZ_FIRED_TRIGGERS", StringComparison.Ordinal));
-        del.PreparedCommands.Should().BeEmpty("nothing should have been issued as a standalone command");
+        issued.Should().BeEmpty("nothing should have been issued as a standalone command");
+    }
+
+    /// <summary>
+    /// A subclass's rows go through its <see cref="StdAdoDelegate.InsertFiredTrigger" /> one at a time, so
+    /// that an override of it is called for every row, as it was before rows were batched.
+    /// </summary>
+    [Test]
+    public async Task ASubclassInsertsEachRowThroughItsOwnInsertFiredTrigger()
+    {
+        StubBatchingConnection connection = new();
+        CountingDelegate del = CountingDelegate.Create();
+
+        await del.InsertFiredTriggers(new ConnectionAndTransactionHolder(connection, null), [Trigger("t1"), Trigger("t2"), Trigger("t3")], StoredTriggerState.Acquired, null);
+
+        connection.Batches.Should().BeEmpty("a batch would go around an override of the single insert");
+        del.PreparedCommands.Should().HaveCount(3).And.OnlyContain(
+            command => command.StartsWith("INSERT INTO QRTZ_FIRED_TRIGGERS", StringComparison.Ordinal));
     }
 
     [Test]
@@ -67,13 +89,14 @@ public class StdAdoDelegateBatchReadWriteTest
     public async Task ARowWrittenInABatchIsTheRowASingleInsertWouldHaveWritten()
     {
         StubBatchingConnection batching = new();
-        CountingDelegate del = CountingDelegate.Create();
+        List<StubDbCommand> issued = [];
+        StdAdoDelegate del = Shipped(issued);
 
         await del.InsertFiredTriggers(new ConnectionAndTransactionHolder(batching, null), [Trigger("t1"), Trigger("t2")], StoredTriggerState.Acquired, null);
 
         await del.InsertFiredTrigger(new ConnectionAndTransactionHolder(new StubBatchingConnection(), null), Trigger("t1"), StoredTriggerState.Acquired, null);
 
-        batching.Batches[0].Commands[0].CommandText.Should().Be(del.PreparedCommands.Single(),
+        batching.Batches[0].Commands[0].CommandText.Should().Be(issued.Single().CommandText,
             "both go through the one builder, so the statement cannot drift between them");
     }
 
@@ -128,6 +151,37 @@ public class StdAdoDelegateBatchReadWriteTest
         triggers.Should().HaveCount(2);
         del.KeySetReads.Should().Be(1, "the whole set is one read");
         del.SingleTriggerReads.Should().Be(0, "and no trigger is read on its own");
+    }
+
+    /// <summary>
+    /// <see cref="StdAdoDelegate" /> itself, which batches, on the stub provider, recording every command it
+    /// issues on its own.
+    /// </summary>
+    private static StdAdoDelegate Shipped(List<StubDbCommand> issued)
+    {
+        IDbProvider dbProvider = A.Fake<IDbProvider>();
+        A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata { ParameterNamePrefix = "@", BindByName = true });
+        A.CallTo(() => dbProvider.CreateCommand()).ReturnsLazily(() =>
+        {
+            StubDbCommand command = new();
+            issued.Add(command);
+            return command;
+        });
+
+        StdAdoDelegate del = new();
+        del.Initialize(new DriverDelegateContext
+        {
+            TablePrefix = "QRTZ_",
+            InstanceId = "TESTSCHED",
+            SchedulerName = "INSTANCE",
+            TypeLoader = new SimpleTypeLoader(),
+            UseProperties = false,
+            DbProvider = dbProvider,
+            ObjectSerializer = A.Fake<IObjectSerializer>(),
+            TimeProvider = TimeProvider.System,
+        });
+
+        return del;
     }
 
     private static IOperableTrigger Trigger(string name)

@@ -593,6 +593,10 @@ public sealed class FireOnAcquireSqliteTest
             return triggers;
         }
 
+        // Every override below calls the base implementation, so the round's own members leave none of them
+        // bypassed, and the round takes its shipped shape.
+        public override bool SupportsFireOnAcquire => true;
+
         public override async ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(ConnectionAndTransactionHolder conn, TriggerAcquisitionCriteria criteria, CancellationToken cancellationToken = default)
         {
             List<TriggerAcquireResult> candidates = await base.SelectTriggersToAcquire(conn, criteria, cancellationToken);

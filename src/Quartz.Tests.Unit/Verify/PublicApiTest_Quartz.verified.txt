@@ -2873,6 +2873,7 @@ namespace Quartz.Impl.AdoJobStore
     public interface IDriverDelegate
     {
         bool FiltersAcquisitionJobTypeExclusions { get; } // default implementation
+        bool SupportsFireOnAcquire { get; } // default implementation
         System.Threading.Tasks.ValueTask ApplyTriggerFired(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.TriggerFiredUpdate update, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ApplyTriggersFired(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyList<Quartz.Impl.AdoJobStore.TriggerFiredUpdate> updates, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> CalendarExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
@@ -3224,6 +3225,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual bool FiltersAcquisitionJobTypeExclusions { get; }
         protected string SchedulerName { get; }
         protected virtual string? SchemaResourceName { get; }
+        public virtual bool SupportsFireOnAcquire { get; }
         public virtual void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected virtual void AddDefaultTriggerPersistenceDelegates() { }
         protected virtual void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
@@ -3422,9 +3424,8 @@ namespace Quartz.Impl.AdoJobStore
     }
     public readonly record struct TriggerClaim : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerClaim>
     {
-        public TriggerClaim(Quartz.TriggerKey TriggerKey, System.DateTimeOffset NextFireTimeUtc) { }
-        public System.DateTimeOffset NextFireTimeUtc { get; init; }
-        public Quartz.TriggerKey TriggerKey { get; init; }
+        public required System.DateTimeOffset NextFireTimeUtc { get; init; }
+        public required Quartz.TriggerKey TriggerKey { get; init; }
     }
     public readonly record struct TriggerExecutionState : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerExecutionState>
     {

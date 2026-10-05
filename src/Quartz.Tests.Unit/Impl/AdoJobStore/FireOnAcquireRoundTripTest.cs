@@ -55,6 +55,10 @@ public class FireOnAcquireRoundTripTest
             DirectSignaler = A.Fake<ISchedulerSignaler>(),
         };
 
+        // A delegate that says the round's own members may stand in for its single-trigger ones, as the
+        // shipped ones do; the test that is about one that does not says so itself.
+        A.CallTo(() => driverDelegate.SupportsFireOnAcquire).Returns(true);
+
         // Every candidate wins its compare-and-swap.
         A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
                 A<ConnectionAndTransactionHolder>._,
@@ -124,6 +128,59 @@ public class FireOnAcquireRoundTripTest
 
         // Two fires of one job are two firings, and each runs with a job detail of its own.
         round.Fired[0].TriggerFiredBundle!.JobDetail.Should().NotBeSameAs(round.Fired[1].TriggerFiredBundle!.JobDetail);
+    }
+
+    /// <summary>
+    /// A delegate that does not say the round's own members may stand in for its single-trigger ones — the
+    /// interface's default, and a <c>StdAdoDelegate</c> subclass — still gets one transaction, but every
+    /// member acquiring and then firing the triggers called, so that none of its overrides is bypassed: each
+    /// trigger claimed and reserved, its header and job read on their own, and its fire written as an update
+    /// of the reservation.
+    /// </summary>
+    [Test]
+    public async Task ADelegateThatDoesNotSupportTheRoundsMembersGetsItsSingleTriggerOnes()
+    {
+        A.CallTo(() => driverDelegate.SupportsFireOnAcquire).CallsBaseMethod();
+        GivenCandidates("t1", "t2", "t3");
+        A.CallTo(() => driverDelegate.SelectTriggerHeader(A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<CancellationToken>._))
+            .ReturnsLazily((ConnectionAndTransactionHolder _, TriggerKey key, CancellationToken _) =>
+                new ValueTask<StoredTriggerHeader>(new StoredTriggerHeader(key, jobKey, StoredTriggerState.Acquired, FireTime, AdoConstants.TriggerTypeSimple)));
+        A.CallTo(() => driverDelegate.SelectJobDetail(A<ConnectionAndTransactionHolder>._, jobKey, A<ITypeLoader>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<IJobDetail>(JobBuilder.Create<NoOpAcquisitionJob>().WithIdentity(jobKey).StoreDurably().Build()));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 3);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1", "t2", "t3"]);
+        round.Fired.Should().OnlyContain(x => x.TriggerFiredBundle != null);
+        store.Transactions.Should().Be(1, "the round is still one transaction");
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, StoredTriggerState.Acquired, StoredTriggerState.Waiting, A<DateTimeOffset>._, A<CancellationToken>._))
+            .MustHaveHappened(3, Times.Exactly);
+        A.CallTo(() => driverDelegate.InsertFiredTriggers(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyList<IOperableTrigger>>.That.Matches(x => x.Count == 3),
+                StoredTriggerState.Acquired,
+                null,
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => driverDelegate.SelectTriggerHeader(A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<CancellationToken>._))
+            .MustHaveHappened(3, Times.Exactly);
+        A.CallTo(() => driverDelegate.SelectJobDetail(A<ConnectionAndTransactionHolder>._, jobKey, A<ITypeLoader>._, A<CancellationToken>._))
+            .MustHaveHappened(3, Times.Exactly);
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>.That.Matches(x => !x.FiredOnAcquire), A<CancellationToken>._))
+            .MustHaveHappened(3, Times.Exactly);
+
+        // None of the round's own members.
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerClaim>>._, A<StoredTriggerState>._, A<StoredTriggerState>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.SelectStoredTriggerHeaders(A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.SelectJobDetails(A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<JobKey>>._, A<ITypeLoader>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.ApplyTriggersFired(A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerFiredUpdate>>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
     }
 
     /// <summary>

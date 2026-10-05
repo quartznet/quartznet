@@ -65,8 +65,25 @@ public partial class StdAdoDelegate
     /// </summary>
     private bool BatchesRounds(ConnectionAndTransactionHolder conn)
     {
-        return conn.CanCreateBatch && (shipped ??= IsShippedDelegate());
+        return conn.CanCreateBatch && IsShipped;
     }
+
+    /// <summary>
+    /// Whether this is one of the delegates Quartz ships, asked once.
+    /// </summary>
+    private bool IsShipped => shipped ??= IsShippedDelegate();
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <see langword="true" /> for the delegates Quartz ships, whose single-trigger members are this class's
+    /// own, and <see langword="false" /> for a subclass, whose overrides of them the round members would
+    /// bypass. A subclass answers <see langword="true" /> once its overrides are covered: an override of
+    /// <see cref="ApplyTriggerFired" /> handles <see cref="TriggerFiredUpdate.FiredOnAcquire" />, or calls the
+    /// base implementation, and the reads and inserts it overrides have round counterparts that do the same.
+    /// Even then a subclass's round is not batched: <see cref="ApplyTriggersFired" /> calls its
+    /// <see cref="ApplyTriggerFired" /> for each fire.
+    /// </remarks>
+    public virtual bool SupportsFireOnAcquire => IsShipped;
 
     /// <summary>
     /// Roughly how many bytes of statements and values one of a round's batches carries at most.

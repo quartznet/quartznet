@@ -81,9 +81,12 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `IJobStore.AcquireNextTriggersAndFireDue`, `TriggerAcquisitionResult` (`Due`, `Fired`, `Pending`) | Acquires, and fires the triggers already due in the same operation. The scheduler calls it. Default interface member: answers `AcquireNextTriggers` as `Pending` and fires nothing. See [The fire cycle](how-tos/custom-job-store.md#the-fire-cycle) |
 | `RAMJobStore.AcquireNextTriggersAndFireDue` | Acquires and fires under one lock |
 | `DelegatingJobStore.AcquireNextTriggersAndFireDue` | `virtual`. Answers through this store's `AcquireNextTriggers` and fires nothing. See [Forward it](how-tos/custom-job-store.md#forward-acquirenexttriggersandfiredue-to-keep-firing-on-acquisition) |
-| `IDriverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime`, `ApplyTriggersFired`; `TriggerClaim` | A round's claims and fire writes, together. Default interface members: the single-trigger member for each, in order |
+| `IDriverDelegate.SupportsFireOnAcquire` | Default interface member: `false`. Whether a round may use the round members below in place of the single-trigger ones. See [A subclass keeps its overrides](how-tos/dialect-delegate.md#what-the-delegate-cannot-reach) |
+| `StdAdoDelegate.SupportsFireOnAcquire` | `virtual`. `true` for the delegates Quartz ships, `false` for a subclass |
+| `IDriverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime`, `ApplyTriggersFired` | A round's claims and fire writes, together, for a delegate that supports them. Default interface members: the single-trigger member for each, in order |
+| `TriggerClaim` (`TriggerKey`, `NextFireTimeUtc`) | `required init`. One claim of a round |
 | `StdAdoDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime`, `ApplyTriggersFired` | `virtual`. One `DbBatch` each from the shipped delegates, where the connection can batch |
-| `TriggerFiredUpdate.FiredOnAcquire` | `init`. `true`: the fire inserts its fired-trigger row as `EXECUTING`; no `ACQUIRED` row exists |
+| `TriggerFiredUpdate.FiredOnAcquire` | `init`. `true`: the fire inserts its fired-trigger row as `EXECUTING`; no `ACQUIRED` row exists. Set only for a delegate that supports the round members |
 | `ActivityTags.TriggersFiredOnAcquire` | `quartz.jobstore.trigger.fired_on_acquire`, on the `Quartz.JobStore.AcquireNextTriggers` span |
 | Log events `3051`, `3052` | Warnings: a round's batched fire writes failed, or a batch of claims did not say which took. The round runs again a trigger at a time |
 
@@ -180,6 +183,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   row is inserted as `EXECUTING`, with no `ACQUIRED` row before it. A trigger due later in the batch window is
   reserved and fires at its own time, as before. A lock-free acquisition of one trigger stays two
   transactions. The in-memory store does both under one lock.
+* **A firing committed on acquisition runs even if `Shutdown()` is called while the round is in flight.** The
+  store has recorded it, so the scheduler dispatches it rather than lose the occurrence, as it does a firing
+  `TriggersFired` committed.
 * **A trigger fired on acquisition has no `Quartz.JobStore.TriggersFired` span.** The
   `Quartz.JobStore.AcquireNextTriggers` span counts it in `quartz.jobstore.trigger.fired_on_acquire`, and
   `quartz.trigger.acquisition.duration` includes its fire. A dashboard that counts fires from
@@ -196,11 +202,13 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
     }
   ```
 
-* **A `StdAdoDelegate` subclass does not batch a round.** It gets one claim and one `ApplyTriggerFired` call
-  per trigger, so its overrides still run. An `ApplyTriggerFired` override that does not call the base must
-  insert the fired-trigger row when `TriggerFiredUpdate.FiredOnAcquire` is set. The Oracle, Firebird and
-  SQLite drivers cannot batch, so those stores send the statements one at a time. See
-  [A subclass does not batch](how-tos/dialect-delegate.md#what-the-delegate-cannot-reach).
+* **A `StdAdoDelegate` subclass, or a delegate of your own, keeps every override called.** It answers
+  `SupportsFireOnAcquire` `false`, so its round is one transaction but claims, reserves, reads and fires each
+  trigger through the single-trigger members, as before. A subclass's `InsertFiredTriggers` now inserts each
+  row through `InsertFiredTrigger`. To take the shipped round's shape, answer `true` once an `ApplyTriggerFired`
+  override handles `TriggerFiredUpdate.FiredOnAcquire` or calls the base. A subclass's round is never batched,
+  and the Oracle, Firebird and SQLite drivers cannot batch. See
+  [A subclass keeps its overrides](how-tos/dialect-delegate.md#what-the-delegate-cannot-reach).
 
 * **The dashboard's History page labels a success *Succeeded*, not *Complete***, in a column named *Result*.
   The Job Detail page's *View execution history* opens that job's rows only, where it used to filter by a

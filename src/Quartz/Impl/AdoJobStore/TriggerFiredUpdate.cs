@@ -100,8 +100,11 @@ public sealed record TriggerFiredUpdate
     /// the same batch — one statement where there were two.
     /// </para>
     /// <para>
-    /// <c>StdAdoDelegate</c> handles both. An override of <see cref="IDriverDelegate.ApplyTriggerFired" />
-    /// that does not call the base implementation inserts the row itself when this is set.
+    /// Set only for a delegate that answers <see cref="IDriverDelegate.SupportsFireOnAcquire" /> with
+    /// <see langword="true" />; any other delegate's fires update a reservation, as they always have.
+    /// <c>StdAdoDelegate</c> handles both. A delegate that answers <see langword="true" /> and overrides
+    /// <see cref="IDriverDelegate.ApplyTriggerFired" /> without calling the base implementation inserts the
+    /// row itself when this is set.
     /// </para>
     /// </remarks>
     public bool FiredOnAcquire { get; init; }

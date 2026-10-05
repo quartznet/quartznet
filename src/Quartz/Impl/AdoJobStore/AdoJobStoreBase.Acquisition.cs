@@ -372,7 +372,7 @@ internal abstract partial class AdoJobStoreBase
                         // triggers together counts this one as acquired until its claim says otherwise.
                         if (planned is not null)
                         {
-                            planned.Add(new TriggerClaim(triggerKey, nextFireTimeUtc.Value));
+                            planned.Add(new TriggerClaim { TriggerKey = triggerKey, NextFireTimeUtc = nextFireTimeUtc.Value });
                         }
                         else
                         {
@@ -393,7 +393,7 @@ internal abstract partial class AdoJobStoreBase
 
                         // A trigger this transaction fires has its row written by the fire; every other
                         // one is reserved as acquisition has always reserved it.
-                        if (round is null || !round.FiresOnAcquire(nextTrigger.Key, nextFireTimeUtc.Value, timeProvider))
+                        if (round is null || !round.FiresWithoutReservation(nextTrigger.Key, nextFireTimeUtc.Value, timeProvider))
                         {
                             firedTriggerRows.Add(nextTrigger);
                         }
